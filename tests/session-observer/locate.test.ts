@@ -182,6 +182,8 @@ import {
   gitWorktrees,
   resolveCursorIdentity,
 } from '../../src/transcript/session-observer/lib/locate.js';
+import { resolveSelfIdentity } from '../../src/transcript/session-observer/lib/observe.js';
+import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, 'fixtures');
@@ -275,6 +277,37 @@ async function writeCursorTranscriptForCwd(
   const transcriptPath = join(transcriptDir, 'transcript.jsonl');
   await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
   return transcriptPath;
+}
+
+async function writeAccumulatedCursorPinStore(home: string): Promise<{
+  targetCwd: string;
+  targetSession: string;
+  targetTranscript: string;
+  unrelatedTranscripts: string[];
+}> {
+  const targetCwd = join(home, 'Code', 'bounded-explicit-pin');
+  await mkdir(targetCwd, { recursive: true });
+  const targetSession = 'session-explicit-target';
+  const targetTranscript = await writeCursorTranscriptForCwd(
+    home,
+    targetCwd,
+    targetSession,
+  );
+  const unrelatedTranscripts = await Promise.all(
+    Array.from({ length: 24 }, (_, index) =>
+      writeCursorTranscriptForCwd(
+        home,
+        targetCwd,
+        `unrelated-session-${index}`,
+      ),
+    ),
+  );
+  return {
+    targetCwd,
+    targetSession,
+    targetTranscript,
+    unrelatedTranscripts,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -855,6 +888,166 @@ test('cursor: explicit session lookup does not read large sibling transcript bod
     });
     expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
     expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
+  });
+});
+
+test('cursor: explicit locate pin resolves the exact canonical candidate through a finite metadata scan without unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 1_000,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).resolves.toMatchObject({
+      runtime: 'cursor',
+      sessionId: fixture.targetSession,
+      transcriptPath: await realpath(fixture.targetTranscript),
+      recordedCwd: fixture.targetCwd,
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(1);
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: explicit locate pin surfaces aggregate metadata-entry exhaustion instead of a missing session', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 4,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+    });
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: public pinned observe identity surfaces elapsed-time exhaustion without unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    let now = 0;
+    configureCursorDiscoveryForTest({
+      maxEntries: 1_000,
+      maxElapsedMs: 1,
+      now: () => {
+        now += 2;
+        return now;
+      },
+    });
+
+    await expect(
+      resolveSelfIdentity(fixture.targetCwd, {
+        SESSION_OBSERVER_SELF: `cursor:${fixture.targetSession}`,
+      } as NodeJS.ProcessEnv),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED',
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(0);
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: public pinned watch surfaces metadata-entry exhaustion before unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 4,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd: fixture.targetCwd,
+          session: `cursor:${fixture.targetSession}`,
+          pollSec: 0.01,
+          debounceSec: 0.01,
+          maxRuntimeMin: 0.001,
+          heartbeatSec: 0,
+        },
+        {
+          handleSignals: false,
+          pid: process.pid,
+          now: () => 1_700_000_000_000,
+          sleep: async () => undefined,
+          writeStdout: async () => undefined,
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+      watchErrorEventEmitted: true,
+    });
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: explicit pin preserves incomplete-index failure semantics', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    opendirFailureHarness.failOnceAt(
+      join(
+        home,
+        '.cursor',
+        'projects',
+        encodeCursorCwd(fixture.targetCwd),
+        'agent-transcripts',
+      ),
+    );
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'IDENTITY_INDEX_INCOMPLETE',
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(0);
   });
 });
 

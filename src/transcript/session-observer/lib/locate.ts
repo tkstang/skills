@@ -86,7 +86,8 @@ export type CursorDiscoveryFailure =
   | 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED'
   | 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED'
   | 'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED'
-  | 'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED';
+  | 'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED'
+  | 'IDENTITY_INDEX_INCOMPLETE';
 
 interface CursorDiscoveryBudgetOptions {
   maxEntries?: number;
@@ -782,38 +783,52 @@ async function* collectCursorAgentTranscripts(
   transcriptsRoot: string,
   budget: CursorDiscoveryBudget,
   expectedSessionId?: string,
+  failOnIncomplete = false,
 ): AsyncGenerator<string> {
   let sessionDirs;
   try {
     sessionDirs = await opendir(transcriptsRoot);
-  } catch {
+  } catch (error) {
+    if (failOnIncomplete && !isMissingPathError(error)) {
+      throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
+    }
     return;
   }
 
-  for await (const sessionDir of sessionDirs) {
-    budget.consumeEntry();
-    if (!sessionDir.isDirectory()) continue;
-    const sessionPath = join(transcriptsRoot, sessionDir.name);
-
-    let entries;
-    try {
-      entries = await opendir(sessionPath);
-    } catch {
-      continue;
-    }
-
-    for await (const entry of entries) {
+  try {
+    for await (const sessionDir of sessionDirs) {
       budget.consumeEntry();
-      if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-        const transcriptPath = join(sessionPath, entry.name);
-        if (
-          expectedSessionId === undefined ||
-          cursorSessionIdFromTranscriptPath(transcriptPath) ===
-            expectedSessionId
-        ) {
-          yield transcriptPath;
+      if (!sessionDir.isDirectory()) continue;
+      const sessionPath = join(transcriptsRoot, sessionDir.name);
+
+      let entries;
+      try {
+        entries = await opendir(sessionPath);
+      } catch (error) {
+        if (failOnIncomplete && !isMissingPathError(error)) {
+          throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
+        }
+        continue;
+      }
+
+      for await (const entry of entries) {
+        budget.consumeEntry();
+        if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+          const transcriptPath = join(sessionPath, entry.name);
+          if (
+            expectedSessionId === undefined ||
+            cursorSessionIdFromTranscriptPath(transcriptPath) ===
+              expectedSessionId
+          ) {
+            yield transcriptPath;
+          }
         }
       }
+    }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError) throw error;
+    if (failOnIncomplete) {
+      throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
     }
   }
 }
@@ -1045,62 +1060,79 @@ async function findCursorSessionCandidates(
   const candidates: TranscriptCandidate[] = [];
   const seenTranscripts = new Set<string>();
   const pinnedBudget = new CursorDiscoveryBudget({
-    maxEntries: Number.MAX_SAFE_INTEGER,
-    maxElapsedMs: Number.MAX_SAFE_INTEGER,
+    maxEntries:
+      cursorDiscoveryTestOptions?.maxEntries ??
+      CURSOR_IDENTITY_INDEX_MAX_ENTRIES,
+    maxElapsedMs:
+      cursorDiscoveryTestOptions?.maxElapsedMs ??
+      CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS,
     maxBytes: Number.MAX_SAFE_INTEGER,
     maxRetainedCandidates: Number.MAX_SAFE_INTEGER,
+    now: cursorDiscoveryTestOptions?.now,
   });
 
   let projectDirs;
   try {
     projectDirs = await opendir(projectsRoot);
-  } catch {
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
+    }
     return candidates;
   }
 
-  for await (const projectDir of projectDirs) {
-    if (!projectDir.isDirectory()) continue;
-    const cwdEvidence = directEvidence.get(projectDir.name);
-    const transcriptsRoot = join(
-      projectsRoot,
-      projectDir.name,
-      'agent-transcripts',
-    );
-    for await (const transcriptPath of collectCursorAgentTranscripts(
-      transcriptsRoot,
-      // Pinned lookup is path-filtered before body classification and is not
-      // generic discovery; preserve its dedicated exact-session behavior.
-      pinnedBudget,
-      sessionId,
-    )) {
-      const canonicalTranscriptPath =
-        (await canonicalPath(transcriptPath)) ?? transcriptPath;
-      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
-      seenTranscripts.add(canonicalTranscriptPath);
-
-      let fileStat;
-      try {
-        fileStat = await stat(transcriptPath);
-      } catch {
-        continue;
-      }
-      const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
-      if (cwdEvidence === undefined && mtime < cutoffSec) continue;
-
-      const candidate = await cursorCandidate(
-        transcriptPath,
-        now,
-        {
-          recordedCwd: cwdEvidence === undefined ? null : targetCwd,
-          cwdSlug: projectDir.name,
-          cwdEvidence: cwdEvidence ?? 'project-dir-slug',
-        },
-        fileStat,
-        cache,
-        pinnedBudget,
+  try {
+    for await (const projectDir of projectDirs) {
+      pinnedBudget.consumeEntry();
+      if (!projectDir.isDirectory()) continue;
+      const cwdEvidence = directEvidence.get(projectDir.name);
+      const transcriptsRoot = join(
+        projectsRoot,
+        projectDir.name,
+        'agent-transcripts',
       );
-      if (candidate?.sessionId === sessionId) candidates.push(candidate);
+      for await (const transcriptPath of collectCursorAgentTranscripts(
+        transcriptsRoot,
+        // Pinned lookup filters by path before classification. Its aggregate
+        // metadata walk is finite and fails visibly if uniqueness cannot be
+        // established within the same entry/time envelope as identity indexing.
+        pinnedBudget,
+        sessionId,
+        true,
+      )) {
+        const canonicalTranscriptPath =
+          (await canonicalPath(transcriptPath)) ?? transcriptPath;
+        if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+        seenTranscripts.add(canonicalTranscriptPath);
+
+        let fileStat;
+        try {
+          fileStat = await stat(transcriptPath);
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
+        }
+        const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+        if (cwdEvidence === undefined && mtime < cutoffSec) continue;
+
+        const candidate = await cursorCandidate(
+          transcriptPath,
+          now,
+          {
+            recordedCwd: cwdEvidence === undefined ? null : targetCwd,
+            cwdSlug: projectDir.name,
+            cwdEvidence: cwdEvidence ?? 'project-dir-slug',
+          },
+          fileStat,
+          cache,
+          pinnedBudget,
+        );
+        if (candidate?.sessionId === sessionId) candidates.push(candidate);
+      }
     }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError) throw error;
+    throw new CursorDiscoveryError('IDENTITY_INDEX_INCOMPLETE');
   }
   return candidates;
 }
