@@ -1211,6 +1211,41 @@ third gate launch.
 4. Verify focused wake-probe tests, live-mode cleanup, finite process/runtime behavior, evidence labels, privacy, residue, validation, smoke, and the complete final release matrix.
 5. Commit: `fix(p08-t16): bound provider state scan`.
 
+### Task p08-t17: (review) Preserve exact cleanup under budget exhaustion
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR2, NFR5, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+
+**Steps:**
+
+1. Add RED cross-root cases where post-run entry, byte, or elapsed-time exhaustion occurs after an exactly owned artifact has been discovered.
+2. Preserve partial exact discoveries or separate the bounded preservation scan from exact cleanup discovery so a later-root failure cannot replace known artifacts with an empty set.
+3. Remove every exactly proven new artifact under a separate finite aggregate cleanup budget while returning a visible preservation diagnostic and `preExistingPreserved: false`.
+4. Verify the exact artifacts are absent after every exhaustion case, then run focused wake-probe, live cleanup, privacy, residue, validation, smoke, and full release tests.
+5. Commit: `fix(p08-t17): preserve bounded provider cleanup`.
+
+### Task p08-t18: (review) Record canonical Phase 8 task completion
+
+**Task Scope:** Minor
+**Requirements:** NFR6
+
+**Files:**
+
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/implementation.md`
+
+**Steps:**
+
+1. Inspect the canonical completed-task section shape used by Phases 1 through 7.
+2. Add canonical task sections for `p08-t01` through `p08-t18`, with status, commit, and concise outcome data, while preserving the existing Phase 8 summary and review history.
+3. Run `oat project status --project-path .oat/projects/shared/cursor-collaboration-reliability --json` and require Phase 8 and project totals to recognize all 18 tasks as complete.
+4. Verify plan and implementation totals are 58/58 with no review-history loss; root owns final `state.md` bookkeeping after the task commit.
+5. Commit: `chore(p08-t18): record canonical phase 8 completion`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -1253,7 +1288,7 @@ third gate launch.
 | final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T055647Z.md                       |
 | p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                                  |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T133133Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

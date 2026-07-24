@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t17
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 16    | 16/16     |
+| Phase 8 | in_progress | 18    | 16/18     |
 
-**Total:** 56/56 tasks accepted
+**Total:** 56/58 tasks accepted
 
 ---
 
@@ -1106,8 +1106,7 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** complete
-**Completed:** 2026-07-24
+**Status:** in_progress
 
 ### Phase Summary
 
@@ -1569,6 +1568,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t14` | complete | `0712627` |
 | `p08-t15` | complete | `998892c` |
 | `p08-t16` | complete | `9c90704` |
+| `p08-t17` | pending | - |
+| `p08-t18` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1674,6 +1675,18 @@ The independent reviewer attempted the required reconnaissance lane; launch was
 rejected before start by the agent-thread limit, so it completed the lane inline
 and recorded the fallback. The operator's authorization to continue through
 reviews and a fresh gate generation remains the review-cycle override.
+
+### Fresh final re-review received
+
+**Source:** `reviews/archived/final-review-2026-07-24T133133Z.md`
+**Disposition:** `I1 → p08-t17`, `I2 → p08-t18`
+
+The automatic review converted both Important findings into bounded tasks
+without a disposition prompt. `p08-t17` prevents a later provider-root budget
+failure from discarding already proven cleanup ownership and gives exact
+artifact removal its own finite aggregate bounds. `p08-t18` records all Phase 8
+outcomes in the canonical task-section shape and requires live OAT status
+read-back. No finding was deferred or rejected.
 
 ---
 

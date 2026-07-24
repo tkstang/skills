@@ -416,6 +416,10 @@ artifact=reviews/final-review-2026-07-24T133133Z.md reconnaissance=attempted wav
 
 artifact=reviews/final-review-2026-07-24T133133Z.md verdict=blocked findings=critical:0,important:2,medium:0,minor:0 next=receive-and-fix
 
+### 2026-07-24 · structural · oat-project-implement · final-rereview-received-bounds
+
+source=reviews/final-review-2026-07-24T133133Z.md archived=reviews/archived/final-review-2026-07-24T133133Z.md findings=important:2 disposition=I1:p08-t17,I2:p08-t18 next=p08-t17
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

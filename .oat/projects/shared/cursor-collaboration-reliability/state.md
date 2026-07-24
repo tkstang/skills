@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 9c90704
+oat_current_task: p08-t17
+oat_last_commit: 26d348a
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:36:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:38:11Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - 56/56 planned tasks complete; fresh final re-review blocked
+Implementation - Phase 8 review fixes in progress; 56/58 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - 56/56 planned tasks complete; fresh final re-review blocked
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (56/56 planned tasks complete; final re-review blocked)
+- **Implementation:** `implementation.md` (56/58 tasks complete; review fixes in progress)
 
 ## Progress
 
@@ -226,13 +226,13 @@ Implementation - 56/56 planned tasks complete; fresh final re-review blocked
 - ✓ `p08-t16` aggregate provider-state scan budgets complete at `9c90704`
 - ✓ Full matrix passed: 1,522 tests, 1 skipped; live acceptance 19/19
 - ✗ Fresh final re-review retained 2 Important findings
+- ✓ Fresh final re-review received; findings mapped to `p08-t17` and `p08-t18`
 
 ## Blockers
 
-Receive `reviews/final-review-2026-07-24T133133Z.md` and add bounded fix tasks
-for exact cleanup under budget exhaustion and canonical Phase 8 task records.
+None.
 
 ## Next Milestone
 
-Receive the fresh final lifecycle re-review and execute its two bounded fixes.
-Only after a passing re-review may a fresh configured gate generation begin.
+Execute `p08-t17`, then `p08-t18`, and run a fresh final lifecycle re-review.
+Only after it passes may a fresh configured gate generation begin.
