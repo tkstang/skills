@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-07-22
+oat_last_updated: 2026-07-24
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
@@ -792,6 +792,101 @@ oat_generated: false
 7. Confirm no generated drift, stale changed-skill versions, partial backlog closeout, or branch-only provider mirror remains unexplained.
 8. Commit: `chore(p06-t04): complete final cursor reliability release gates`.
 
+## Phase 7: Configured Exit-Gate Remediation
+
+### Task p07-t01: Bind selected Cursor success bytes through collaboration CAS
+
+**Requirements:** FR3, FR4, FR8, NFR1, NFR6
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/hooks/cursor-stop.mjs`
+- Modify: `skills/session-observer-collab/scripts/hooks/codex-stop.mjs`
+- Create or modify: `skills/session-observer-collab/scripts/lib/{selected-prefix helper}.mjs`
+- Modify if the trusted snapshot rides the selection contract: `skills/session-observer-collab/scripts/lib/completion-selection.{mjs,d.ts}`
+- Modify if a helper is added: `skills/session-observer-collab/scripts/lib/codex-install.mjs`
+- Modify: `tests/session-observer-collab/{cursor-hook,codex-hook,completion,codex-install}.test.ts`
+- Modify when behavior wording needs alignment: `documentation/docs/user-guide/skills/session-observer-collab.md`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Add RED shipped-runtime hook regressions for both Cursor-owner and Codex-owner routes that rewrite a selected `success` terminal to `aborted`, `error`, `cancelled`, and `unknown` between observation and lease CAS; prove current behavior can emit a wake, spend continuation budget, and advance state from a stale selection.
+2. Carry a trusted selected-prefix byte boundary, hash, device, and inode from the observation scan into the selected completion result. Share bounded prefix re-read verification between both hooks and use that same verified snapshot as the proposed lease checkpoint.
+3. Fail closed on any identity or selected-prefix mismatch: emit no wake, spend no continuation/loop budget, and advance neither private cursor nor checkpoint. Preserve the unchanged-success path and existing owner/lease/CAS semantics.
+4. If a new authored helper is introduced, add it to the Codex install bundle and extend installed-bundle coverage.
+5. Bump session-observer-collab from 1.0.9 to 1.0.10 with top-level and metadata versions synchronized. Format only changed non-generated files with `pnpm exec oxfmt --write <changed paths>`.
+6. Verify GREEN: `pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/completion.test.ts tests/session-observer-collab/codex-install.test.ts`; run the collaboration aggregate, validation, smoke, version enforcement, and any changed documentation checks.
+7. Dogfood the changed collaboration skill through the repository procedure, verify provider mirrors, and run `oat sync --scope user`.
+8. Commit: `fix(p07-t01): bind cursor success selection through cas`.
+
+### Task p07-t02: Confirm bounded stability prefixes during transcript growth
+
+**Requirements:** FR2, FR7, NFR6
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/observe.ts`
+- Modify only if the state API must expose the exact boundary: `src/transcript/session-observer/lib/cursor-state.ts`
+- Modify: `tests/session-observer/{observe,watch,cursor-state}.test.ts`
+- Generate: `skills/session-observer/scripts/lib/observe.mjs`
+- Generate only if canonical state changes: `skills/session-observer/scripts/lib/cursor-state.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED one-shot and foreground-watch regressions that append substantive frame B during frame A's confirmation interval, plus continuous growth through `max-pending-sec`; prove the current implementation restarts the candidate through B and can starve A.
+2. Confirm the original observation's exact boundary and entry keys against the second scan's `verifiedPrefixSha256`, rather than checkpointing the second scan's later safe boundary.
+3. Build and reserve the continuity checkpoint through the digest's verified `nextIndex` even when the file has later safe bytes. Deliver A at its confirmed boundary and retain B/later growth as the next candidate or buffered suffix without replay or loss.
+4. Preserve replacement/shrink failure, delivery CAS, max-pending, partial-tail, and ownership semantics.
+5. Edit canonical TypeScript only, run `pnpm run build`, and never hand-edit generated runtime output. Bump session-observer from 1.0.11 to 1.0.12 with both version fields synchronized.
+6. Format canonical/test/metadata files with `pnpm exec oxfmt --write <changed non-generated paths>`.
+7. Verify GREEN: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/watch.test.ts tests/session-observer/cursor-state.test.ts && pnpm run type-check && pnpm run build:check`; run the full observer aggregate, validation, and smoke.
+8. Dogfood session-observer 1.0.12 byte-identically, verify provider mirrors, run `oat sync --scope user`, and commit: `fix(p07-t02): confirm bounded cursor stability prefix`.
+
+### Task p07-t03: Select a completed prefix before a pending Cursor turn
+
+**Requirements:** FR3, FR8, NFR6
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/lib/completion-selection.mjs`
+- Modify if the selection/checkpoint type changes: `skills/session-observer-collab/scripts/lib/completion-selection.d.ts`
+- Modify: `tests/session-observer-collab/{completion,cursor-hook,codex-hook}.test.ts`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Convert the valid terminal-success-prefix plus pending-turn rejection fixture into a RED acceptance regression, and add Cursor-owner and Codex-owner hook cases proving the completed prefix is currently missed with an `observer-invalid` diagnostic.
+2. Accept a complete, unsliced terminal-successful prefix followed only by a structurally valid `stability-wait` suffix. Select and checkpoint through the completed terminal frame while leaving the later open turn unread.
+3. Continue to reject malformed, partial, tail-sliced, discontinuous, or otherwise unaccounted ranges. Reuse p07-t01's trusted selected-prefix/checkpoint seam so relaxing suffix validation does not reopen the stale-success race.
+4. Verify GREEN across completion selection and both hook owners, including no duplicate wake and correct private cursor/continuation accounting.
+5. Bump session-observer-collab from 1.0.10 to 1.0.11 with top-level and metadata versions synchronized. Format changed authored/test/metadata files with `pnpm exec oxfmt --write <changed paths>`.
+6. Run `pnpm exec vitest run tests/session-observer-collab/completion.test.ts tests/session-observer-collab/cursor-hook.test.ts tests/session-observer-collab/codex-hook.test.ts`, the collaboration aggregate, validation, smoke, and skill-version enforcement.
+7. Dogfood the changed collaboration skill, verify provider mirrors, run `oat sync --scope user`, and commit: `fix(p07-t03): select completed cursor prefix before pending turn`.
+
+### Task p07-t04: Make exit-gate bookkeeping evidence-safe and rerun release gates
+
+**Requirements:** FR9, NFR2, NFR6
+
+**Files:**
+
+- Modify: `scripts/validate-cursor-evidence.mjs`
+- Modify: `tests/tooling/cursor-evidence-validation.test.ts`
+- Modify through OAT closeout bookkeeping: `.oat/projects/shared/cursor-collaboration-reliability/{state.md,project-log.md}`
+- Modify if privacy policy needs public clarification outside shipped skill trees: `documentation/docs/engineering/{relevant page}.md`
+
+**Steps:**
+
+1. Preserve a RED end-to-end fixture for accepted configured-gate bookkeeping and the live current-branch failure. Distinguish typed gate IDs, git SHAs, and structural fingerprints from transcript session/lease identities while continuing to reject real raw identities, credentials, transcript prose, and `/Users/...` paths.
+2. Keep result receipts, stderr, and exit codes in ignored local OAT state. After terminal receipt/receive reconciliation, replace transient system-temp marker paths in tracked state with a repo-neutral logical marker reference while retaining run/artifact correlation; never rewrite append-only project-log history.
+3. Narrow validator policy structurally rather than globally allowlisting long hexadecimal strings. Add tests that safe typed gate/SHA/fingerprint fields pass and the corresponding unsafe identity/path fixtures still fail.
+4. If the configured gate rerun recreates an unavoidable tracked machine-local path, stop and escalate the durable writer defect to the upstream OAT repository; do not claim repository-local remediation is complete.
+5. Format changed source/tests/docs with the repository's file-scoped `pnpm exec oxfmt --write <changed paths>` command.
+6. Verify GREEN: `pnpm exec vitest run tests/tooling/cursor-evidence-validation.test.ts && node scripts/validate-cursor-evidence.mjs --base-ref 8c006a5abd8e2e5e97cfa1f26d81cc82ac15b773`.
+7. Run the complete final matrix: build, type-check, build-check, full tests, validate, smoke, 34-file evidence validation, internal flags, changed-file lint/format, documentation format/build, skill-version enforcement, provider dogfood/sync, privacy, and probe-residue cleanup. Confirm session-observer 1.0.12 and session-observer-collab 1.0.11 are synchronized.
+8. Commit: `fix(p07-t04): make gate bookkeeping evidence safe`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -828,7 +923,7 @@ oat_generated: false
 | final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T025100Z.md                                |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T031130Z.md                                |
 | final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T032809Z.md                                |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T034752Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T034752Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -849,10 +944,11 @@ oat_generated: false
 - Phase 4: 6 tasks — completion schema routing, lease v6, private continuity, Cursor hook, and envelope v2.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
+- Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
 
-**Total: 36 tasks**
+**Total: 40 tasks**
 
-Ready for code review and merge after all tasks and review rows pass.
+Ready for code review and merge after all 40 tasks and review rows pass.
 
 ## References
 

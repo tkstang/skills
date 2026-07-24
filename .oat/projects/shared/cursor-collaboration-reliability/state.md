@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 5375770
+oat_current_task: p07-t01
+oat_last_commit: 6afb9bf
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T04:00:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T04:04:30Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Configured exit gate blocked; receive pending
+Implementation - Phase 7 configured exit-gate remediation
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Configured exit gate blocked; receive pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/36 tasks complete; final review passed)
+- **Implementation:** `implementation.md` (36/40 tasks complete; Phase 7 queued)
 
 ## Progress
 
@@ -196,7 +196,8 @@ Implementation - Configured exit gate blocked; receive pending
 - ✓ Fix verification passed: 60 focused and 1,465 full-suite tests, 1 skipped
 - ✓ Mandatory final lifecycle review round 3 passed with zero findings
 - ✗ Configured exit gate attempt 1 retained 1 Critical and 3 Important findings
-- ⧗ Receive eligible gate review before remediation
+- ✓ Configured exit-gate review received into 4 Phase 7 tasks
+- ⧗ `p07-t01` selected-success snapshot binding pending
 
 ## Blockers
 
@@ -204,5 +205,5 @@ None.
 
 ## Next Milestone
 
-Receive the correlated configured-gate review, then remediate its four blocking
-findings under the persisted `block` policy.
+Execute `p07-t01`, binding selected Cursor success bytes through the
+collaboration CAS boundary.

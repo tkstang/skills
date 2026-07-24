@@ -1320,12 +1320,35 @@ project declaration, and no hard-coded target. Generation basis
 
 Gate run `09729d68-6f2a-4a63-be4f-b344c8ac96a0` completed with a validated,
 receive-eligible `blocked` envelope and artifact
-`reviews/final-review-2026-07-24T034752Z.md`. It reports 1 Critical and 3
+`reviews/archived/final-review-2026-07-24T034752Z.md`. It reports 1 Critical and 3
 Important findings: stale-success wake authorization, bounded stability-prefix
 growth handling, completed-prefix selection before a pending turn, and
 exit-gate bookkeeping privacy/evidence validation. The correlated artifact
 must be received durably before the persisted `block` policy can begin its
 first remediation attempt.
+
+### Review Received: configured exit gate attempt 1
+
+**Date:** 2026-07-24
+**Review artifact:** `reviews/archived/final-review-2026-07-24T034752Z.md`
+
+**Findings:**
+
+- Critical: 1
+- Important: 3
+- Medium: 0
+- Minor: 0
+
+**New tasks added:** `p07-t01`, `p07-t02`, `p07-t03`, `p07-t04`
+
+The four findings were converted into a sequential Phase 7. The selected-prefix
+CAS seam lands before completed-prefix relaxation; bounded stability work is
+canonical Session Observer work; evidence-safe bookkeeping runs last against
+the resulting full changed tree. No finding was deferred or rejected.
+
+**Next:** Execute Phase 7 through `oat-project-implement`, rerun the mandatory
+final lifecycle review for the changed implementation basis, then resume the
+same configured-gate generation under its persisted `block` policy.
 
 ---
 
