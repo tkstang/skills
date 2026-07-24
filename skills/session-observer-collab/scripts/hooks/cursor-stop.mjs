@@ -47,6 +47,17 @@ function counters(lease) {
   };
 }
 
+function refreshWakeAuthorization(now, lease, deadline) {
+  const currentNow = now();
+  if (currentNow >= Date.parse(lease.expiresAt)) {
+    return { authorized: false, currentNow, diagnostic: 'lease-expired' };
+  }
+  if (currentNow >= deadline) {
+    return { authorized: false, currentNow, diagnostic: 'wait-timeout' };
+  }
+  return { authorized: true, currentNow, diagnostic: null };
+}
+
 function escapeAttribute(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -261,12 +272,23 @@ export async function runCursorStopHook(event, options = {}) {
           activeLease.loopCount + 1 >= activeLease.loopCap ||
           identity.loopCount + 1 >= configuredLoopLimit;
         await options.beforeCursorUpdate?.();
+        const update = await cursorUpdate(activeLease, selection);
+        const authorization = refreshWakeAuthorization(
+          now,
+          activeLease,
+          deadline,
+        );
+        currentNow = authorization.currentNow;
+        if (!authorization.authorized) {
+          diagnostic = authorization.diagnostic;
+          return null;
+        }
         const claimed = await claimAdapterTrigger(
           root,
           { ...invocation, now: currentNow },
           expected,
           {
-            ...(await cursorUpdate(activeLease, selection)),
+            ...update,
             loopIncrement: 1,
             terminal,
             diagnostic: null,
@@ -284,11 +306,22 @@ export async function runCursorStopHook(event, options = {}) {
           diagnostic = 'noncontiguous-selection';
           return null;
         }
+        const update = await cursorUpdate(activeLease, selection);
+        const authorization = refreshWakeAuthorization(
+          now,
+          activeLease,
+          deadline,
+        );
+        currentNow = authorization.currentNow;
+        if (!authorization.authorized) {
+          diagnostic = authorization.diagnostic;
+          return null;
+        }
         const advanced = await advanceAdapterCursor(
           root,
           { ...invocation, now: currentNow },
           expected,
-          await cursorUpdate(activeLease, selection),
+          update,
         ).catch(() => ({ advanced: false, lease: null }));
         if (!advanced.advanced || !advanced.lease) return null;
         activeLease = advanced.lease;

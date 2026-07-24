@@ -285,7 +285,7 @@ describe('Codex Stop continuation hook', () => {
       diagnostic: null,
     });
 
-    const moments = [START + 2, START + 2, START + 3, START + 3];
+    const moments = [START + 2, START + 2, START + 2, START + 3, START + 3];
     await expect(
       runCodexStopHook(
         { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
@@ -367,7 +367,7 @@ describe('Codex Stop continuation hook', () => {
       await armCursorFrameLease(root, cwd, transcript, [...frames], {
         waitMs: 1,
       });
-      const moments = [START + 1, START + 1, START + 2, START + 2];
+      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
       await expect(
         runCodexStopHook(
@@ -428,7 +428,7 @@ describe('Codex Stop continuation hook', () => {
         ],
         { waitMs: 1 },
       );
-      const moments = [START + 1, START + 1, START + 2, START + 2];
+      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
       await expect(
         runCodexStopHook(
@@ -523,6 +523,49 @@ describe('Codex Stop continuation hook', () => {
       loopCount: 0,
     });
   });
+
+  test.each([
+    ['wait deadline', { waitMs: 5, leaseMs: 20 }, 'wait-timeout'],
+    ['lease expiry', { waitMs: 20, leaseMs: 5 }, 'lease-expired'],
+  ])(
+    'does not wake or spend budget when selected-prefix work crosses the %s',
+    async (_boundary, overrides, diagnostic) => {
+      const { root, cwd, transcript } = await fixture();
+      const lease = await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Check the authorization clock.'),
+          assistantFrame('The result completed before the boundary.'),
+          terminalFrame('success'),
+        ],
+        overrides,
+      );
+      let currentNow = START + 1;
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => currentNow,
+            beforeCursorUpdate: async () => {
+              currentNow = START + 6;
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ decision: 'allow', diagnostic });
+      expect(await readLease(root, 'codex-1')).toMatchObject({
+        state: 'idle',
+        diagnostic,
+        peerCursor: 0,
+        peerContinuity: lease.peerContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
 
   test('rejects both first-advance checkpoint omission and a mismatched persisted prefix', async () => {
     const { root, cwd, transcript } = await fixture();
@@ -768,7 +811,7 @@ describe('Codex Stop continuation hook', () => {
     await armLease(root, cwd, transcript, { waitMs: 1 });
     const noOp = digest();
     noOp.entries[1].text = '[no-op] waiting for a substantive peer result';
-    const moments = [START + 1, START + 1, START + 2, START + 2];
+    const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
     await expect(
       runCodexStopHook(

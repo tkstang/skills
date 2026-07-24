@@ -291,7 +291,7 @@ describe('Cursor Stop continuation hook', () => {
       await armCursorFrameLease(root, cwd, transcript, [...frames], 0, {
         waitMs: 1,
       });
-      const moments = [START + 1, START + 1, START + 2, START + 2];
+      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
       await expect(
         runCursorStopHook(event(), {
@@ -347,7 +347,7 @@ describe('Cursor Stop continuation hook', () => {
         0,
         { waitMs: 1 },
       );
-      const moments = [START + 1, START + 1, START + 2, START + 2];
+      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
       await expect(
         runCursorStopHook(event(), {
@@ -385,7 +385,7 @@ describe('Cursor Stop continuation hook', () => {
         now: () => START + 1,
       }),
     ).resolves.toEqual({ followup_message: expect.any(String) });
-    const moments = [START + 2, START + 2, START + 3, START + 3];
+    const moments = [START + 2, START + 2, START + 2, START + 3, START + 3];
     await expect(
       runCursorStopHook(event(), {
         root,
@@ -437,7 +437,7 @@ describe('Cursor Stop continuation hook', () => {
       diagnostic: null,
     });
 
-    const moments = [START + 2, START + 2, START + 3, START + 3];
+    const moments = [START + 2, START + 2, START + 2, START + 3, START + 3];
     await expect(
       runCursorStopHook(event(), {
         root,
@@ -542,7 +542,7 @@ describe('Cursor Stop continuation hook', () => {
         0,
         { waitMs: 1 },
       );
-      const moments = [START + 1, START + 1, START + 2, START + 2];
+      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
       await expect(
         runCursorStopHook(event(), {
@@ -627,6 +627,47 @@ describe('Cursor Stop continuation hook', () => {
     });
   });
 
+  test.each([
+    ['wait deadline', { waitMs: 5, leaseMs: 20 }, 'wait-timeout'],
+    ['lease expiry', { waitMs: 20, leaseMs: 5 }, 'lease-expired'],
+  ])(
+    'does not wake or spend budget when selected-prefix work crosses the %s',
+    async (_boundary, overrides, diagnostic) => {
+      const { root, cwd, transcript } = await fixture();
+      const lease = await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Check the authorization clock.'),
+          assistantFrame('The result completed before the boundary.'),
+          terminalFrame('success'),
+        ],
+        0,
+        overrides,
+      );
+      let currentNow = START + 1;
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          now: () => currentNow,
+          beforeCursorUpdate: async () => {
+            currentNow = START + 6;
+          },
+        }),
+      ).resolves.toBeNull();
+      expect(await readLease(root, 'cursor-1')).toMatchObject({
+        state: 'idle',
+        diagnostic,
+        peerCursor: 0,
+        peerContinuity: lease.peerContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
   test('fails closed on a malformed frame without advancing private continuity', async () => {
     const { root, cwd, transcript } = await fixture();
     const lease = await armCursorFrameLease(root, cwd, transcript, [
@@ -694,7 +735,7 @@ describe('Cursor Stop continuation hook', () => {
       0,
       { waitMs: 1 },
     );
-    const moments = [START + 1, START + 1, START + 2, START + 2];
+    const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
     await expect(
       runCursorStopHook(event(), {
@@ -991,7 +1032,7 @@ describe('Cursor Stop continuation hook', () => {
     await armLease(root, cwd, transcript, { waitMs: 1 });
     const provisional = digest();
     provisional.entries[1].text = '[no-op] provisional Cursor planning';
-    const moments = [START + 1, START + 1, START + 2, START + 2];
+    const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
     await expect(
       runCursorStopHook(event(), {
@@ -1022,7 +1063,7 @@ describe('Cursor Stop continuation hook', () => {
   test('suppresses automatic acknowledgements and no-op turns without spending a continuation', async () => {
     const { root, cwd, transcript } = await fixture();
     await armLease(root, cwd, transcript, { waitMs: 1 });
-    const moments = [START + 1, START + 1, START + 2, START + 2];
+    const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
 
     await expect(
       runCursorStopHook(event(), {
