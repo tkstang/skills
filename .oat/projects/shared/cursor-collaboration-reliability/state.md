@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T03:13:26Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T03:21:19Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Final review round 2 blocked; bounded fix iteration 2 pending
+Implementation - Final review fix 2 complete; review round 3 pending
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Final review round 2 blocked; bounded fix iteration 2 pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/36 tasks complete; final review fix 2 pending)
+- **Implementation:** `implementation.md` (36/36 tasks and both final review fixes complete)
 
 ## Progress
 
@@ -157,7 +157,9 @@ Implementation - Final review round 2 blocked; bounded fix iteration 2 pending
 - ✓ Bounded final-review fix iteration 1 completed at `15cc61f`
 - ✓ Fix verification passed: 38 focused and 1,465 full-suite tests, 1 skipped
 - ✗ Final lifecycle review round 2 retained 1 Medium status-count finding
-- ⧗ Bounded final-review fix iteration 2 pending
+- ✓ Bounded final-review fix iteration 2 completed at `6afb9bf`
+- ✓ Fix verification passed: 60 focused and 1,465 full-suite tests, 1 skipped
+- ⧗ Mandatory final lifecycle review round 3 pending
 
 ## Blockers
 
@@ -165,5 +167,5 @@ None.
 
 ## Next Milestone
 
-Persist the validated Cursor frame count for result-bearing watch transitions,
-then rerun the mandatory final lifecycle review.
+Rerun the mandatory final lifecycle review, then continue to the configured
+implementation exit gate if it passes.

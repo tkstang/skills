@@ -1212,7 +1212,7 @@ are resolved; mandatory final lifecycle review is next.
 
 ## Final Lifecycle Review
 
-**Status:** review round 2 blocked; fix iteration 2 pending
+**Status:** fix iteration 2 complete; review round 3 pending
 
 ### Review round 1
 
@@ -1264,6 +1264,29 @@ watch tests, 57/57 evidence/probe tests, 34-file evidence validation, 34-page
 docs build, versions, internal flags, changed-file lint/format, privacy,
 provider cleanup, dogfood, and 188/188 OAT sync passed.
 
+### Fix iteration 2
+
+Commit `6afb9bf` adds a validated optional `recordCount` to Cursor watch-target
+transitions. Result-bearing persistence supplies the exact current physical
+frame total, while result-less health/continuity transitions preserve the
+durable count. The CAS rejects negative, non-integer, below-cursor, and
+regressing counts without mutating state, while retaining existing ownership
+and stale-transition semantics.
+
+The repaired-frame regression first reproduced durable count 3 after advancing
+to frame 4, then proved durable cursor/count 4, cleared buffer state, separate
+status `transcriptRecords: 4` / `recordsBehind: 0`, and agreement across at
+least 30 later heartbeats. Canonical TypeScript was rebuilt into shipped
+watch/watch-state runtimes, and session-observer was bumped and dogfooded at
+version 1.0.11.
+
+**Fix verification:** 60/60 focused watch/watch-state tests and 1,465
+full-suite tests passed with 1 skipped. Build, type-check, generated parity,
+validation, smoke, 34-file evidence validation, 34-page docs build, internal
+flags, skill-version enforcement, changed-file lint/format, 188-entry OAT
+sync, 48 extension operations, provider-root residue checks, and byte-identical
+user-skill dogfood passed.
+
 ---
 
 ## Deviations from Plan / Design
@@ -1292,6 +1315,7 @@ Track test execution during implementation.
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 | 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
 | final-fix-1 | Full suite after repaired-buffer state fix | 38 focused; 1,465 full; 1 skipped | 0 | Explicit null preservation, repaired-frame advancement, heartbeat/status zero-lag reporting, generated runtime, provider dogfood |
+| final-fix-2 | Full suite after durable transcript-count fix | 60 focused; 1,465 full; 1 skipped | 0 | Validated count transitions, result-less preservation, repaired-frame durable/status/heartbeat agreement, generated runtime, provider dogfood |
 
 ## Final Summary (for PR/docs)
 
