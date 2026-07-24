@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p06-t01
+oat_current_task_id: p06-t02
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
-| Phase 6 | pending     | 4     | 0/4       |
+| Phase 6 | in_progress | 4     | 1/4       |
 
-**Total:** 32/36 tasks accepted
+**Total:** 33/36 tasks accepted
 
 ---
 
@@ -1062,6 +1062,27 @@ automated-only rows.
 **Round-2 review:** `reviews/p05-review-2026-07-24T004530Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. I1 and I2 are
 resolved; Phase 6 is next.
+
+---
+
+## Phase 6: Conditional Stronger Wake Evaluation
+
+**Status:** in_progress
+
+### Task outcomes
+
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p06-t01 | complete | `0ef8e5d` | Proved the authenticated top-level Cursor Stop project hook unavailable for same-parent delivery; no exact identity/one-consumer tier was promoted and buffered-manual fallback remains. |
+
+### Task p06-t01: Measure same-parent Stop callback delivery
+
+**Status:** completed
+**Commit:** `0ef8e5d`
+**Verification:** A finite 90-second authenticated Cursor Agent probe produced
+no top-level Stop callback, while the installed contract exposed
+`followup_message` only for `subagentStop`. Collaboration coverage passed
+115/115 and the evidence validator passed 32 files.
 
 ---
 
