@@ -698,6 +698,62 @@ describe('Cursor wake-surface probe', () => {
     await expect(access(invocationMarker)).rejects.toThrow();
   });
 
+  it.each(['provider root', 'nested provider directory'])(
+    'streams an oversized %s only until the shared entry budget is exhausted',
+    async (fixtureKind) => {
+      const root = await temporaryRoot();
+      const boundary = await providerBoundary(root);
+      const invocationMarker = join(root, 'provider-invoked');
+      const fixtureRoot =
+        fixtureKind === 'provider root'
+          ? boundary.projects
+          : join(boundary.projects, 'oversized-entry');
+      if (fixtureKind === 'nested provider directory') {
+        await mkdir(fixtureRoot);
+      }
+      await Promise.all(
+        Array.from({ length: 128 }, (_, index) =>
+          mkdir(
+            join(fixtureRoot, `entry-${index.toString().padStart(3, '0')}`),
+          ),
+        ),
+      );
+      const provider = await fakeProvider(root);
+      const result = await runCursorWakeProbe(
+        CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+        {
+          providerCommand: process.execPath,
+          providerArgumentPrefix: [provider],
+          providerStateRoots: boundary.providerStateRoots,
+          providerStateScanMaxEntries: 5,
+          temporaryParent: root,
+          processCapMs: 2_000,
+          env: {
+            ...process.env,
+            CURSOR_WAKE_FAKE_INVOCATION_MARKER: invocationMarker,
+          },
+        },
+      );
+
+      expect(result).toMatchObject({
+        executionStatus: 'safety-failed',
+        evidenceLabel: 'unavailable',
+        provider: { version: 'unavailable' },
+        cleanup: {
+          succeeded: false,
+          workspaceExistsAfter: false,
+          providerArtifacts: {
+            snapshotSucceeded: false,
+            succeeded: false,
+            diagnostic: 'provider-state-scan-entry-budget-exceeded',
+          },
+        },
+      });
+      await expect(access(invocationMarker)).rejects.toThrow();
+      expect(await readdir(fixtureRoot)).toHaveLength(128);
+    },
+  );
+
   it.each([
     [
       'byte',

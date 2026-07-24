@@ -7,6 +7,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  opendir,
   readFile,
   readdir,
   realpath,
@@ -544,17 +545,42 @@ function providerStateScanDiagnostic(error, fallback) {
     : fallback;
 }
 
-async function fingerprintProviderEntry(target, aggregateBudget) {
+async function* iterateBoundedDirectoryNames(target, aggregateBudget) {
+  const directory = await opendir(target);
+  for await (const entry of directory) {
+    consumeProviderStateScanEntry(aggregateBudget);
+    yield entry.name;
+  }
+}
+
+async function boundedSortedDirectoryNames(target, aggregateBudget) {
+  const names = [];
+  for await (const name of iterateBoundedDirectoryNames(
+    target,
+    aggregateBudget,
+  )) {
+    names.push(name);
+  }
+  return names.toSorted();
+}
+
+async function fingerprintProviderEntry(
+  target,
+  aggregateBudget,
+  { initialEntryAlreadyCounted = false } = {},
+) {
   const digest = createHash('sha256');
   const queue = [{ target, relative: '.', depth: 0 }];
   let entryCount = 0;
   let byteCount = 0;
+  if (!initialEntryAlreadyCounted) {
+    consumeProviderStateScanEntry(aggregateBudget);
+  }
 
   while (queue.length > 0) {
     const current = queue.shift();
     const stats = await lstat(current.target);
     entryCount += 1;
-    consumeProviderStateScanEntry(aggregateBudget);
     if (
       entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
       current.depth > PROVIDER_ARTIFACT_MAX_DEPTH
@@ -563,7 +589,10 @@ async function fingerprintProviderEntry(target, aggregateBudget) {
     }
     if (stats.isDirectory()) {
       digest.update(`directory:${current.relative}\0`);
-      const entries = (await readdir(current.target)).toSorted();
+      const entries = await boundedSortedDirectoryNames(
+        current.target,
+        aggregateBudget,
+      );
       queue.push(
         ...entries.map((entry) => ({
           target: path.join(current.target, entry),
@@ -619,12 +648,16 @@ async function snapshotProviderState(options) {
       }
       const canonical = await realpath(root.path);
       const entries = new Map();
-      for (const name of await readdir(root.path)) {
+      for await (const name of iterateBoundedDirectoryNames(
+        root.path,
+        aggregateBudget,
+      )) {
         entries.set(
           name,
           await fingerprintProviderEntry(
             path.join(root.path, name),
             aggregateBudget,
+            { initialEntryAlreadyCounted: true },
           ),
         );
       }
@@ -668,17 +701,23 @@ function containsExactWorkspace(value, workspaces) {
 async function inspectArtifactTree(
   target,
   workspaces,
-  { readWorkspaceMetadata, aggregateBudget },
+  {
+    readWorkspaceMetadata,
+    aggregateBudget,
+    initialEntryAlreadyCounted = false,
+  },
 ) {
   const queue = [{ target, depth: 0 }];
   let entryCount = 0;
   let workspaceMetadataPresent = false;
+  if (!initialEntryAlreadyCounted) {
+    consumeProviderStateScanEntry(aggregateBudget);
+  }
 
   while (queue.length > 0) {
     const current = queue.shift();
     const stats = await lstat(current.target);
     entryCount += 1;
-    consumeProviderStateScanEntry(aggregateBudget);
     if (
       stats.isSymbolicLink() ||
       entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
@@ -691,7 +730,10 @@ async function inspectArtifactTree(
       };
     }
     if (stats.isDirectory()) {
-      const entries = await readdir(current.target);
+      const entries = await boundedSortedDirectoryNames(
+        current.target,
+        aggregateBudget,
+      );
       queue.push(
         ...entries.map((entry) => ({
           target: path.join(current.target, entry),
@@ -735,6 +777,7 @@ async function inspectProviderArtifact(
   workspaceContext,
   providerWindow,
   aggregateBudget,
+  { initialEntryAlreadyCounted = false } = {},
 ) {
   const target = path.join(root.path, name);
   try {
@@ -761,6 +804,7 @@ async function inspectProviderArtifact(
       {
         readWorkspaceMetadata: root.policy === 'workspace-metadata',
         aggregateBudget,
+        initialEntryAlreadyCounted,
       },
     );
     if (!tree.safe) {
@@ -867,10 +911,11 @@ async function discoverProviderArtifacts(
   for (const root of snapshot.roots) {
     try {
       assertProviderStateScanElapsed(cleanupBudget);
-      const newNames = (await readdir(root.path)).filter(
-        (name) => !root.entries.has(name),
-      );
-      for (const name of newNames) {
+      for await (const name of iterateBoundedDirectoryNames(
+        root.path,
+        cleanupBudget,
+      )) {
+        if (root.entries.has(name)) continue;
         artifacts.push(
           await inspectProviderArtifact(
             root,
@@ -878,6 +923,7 @@ async function discoverProviderArtifacts(
             workspaceContext,
             providerWindow,
             cleanupBudget,
+            { initialEntryAlreadyCounted: true },
           ),
         );
       }
