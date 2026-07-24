@@ -468,6 +468,10 @@ completed=p08-t22:f8707e6,p08-t23:55446d7,p08-t24:6babe32,p08-t25:cb58dd9,p08-t2
 
 Tasks p08-t22 through p08-t28 completed at f8707e6, 55446d7, 6babe32, cb58dd9, 63135b1, 99464bb, and 9b441b9; full release matrix passed 1,535 tests with 1 skipped, live acceptance passed 19/19, and both live wake probes stopped safely before provider launch with exact bounded diagnostics and zero residue; next: fresh Phase 8 and final reviews.
 
+### 2026-07-24 · structural · oat-project-review-receive · p08-review-2026-07-24T161117Z
+
+Fresh Phase 8 review retained 1 Critical and 2 Important findings; all were accepted as p08-t29 through p08-t31 for under-lock authorization time, bounded generic Cursor discovery, and final handoff reconciliation.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

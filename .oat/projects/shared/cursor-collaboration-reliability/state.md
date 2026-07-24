@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 9b441b9
+oat_current_task: p08-t29
+oat_last_commit: 2400691
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,20 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T15:35:52Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:13:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Configured Exit-Gate Remediation Complete; Reviews Pending
+**Status:** Phase 8 Review Remediation In Progress
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - configured exit-gate remediation complete; 68/68 tasks;
-fresh Phase 8 and final reviews pending
+Implementation - fresh Phase 8 review received; 68/71 tasks complete
 
 ## Artifacts
 
@@ -96,7 +95,7 @@ fresh Phase 8 and final reviews pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (68/68 tasks complete; fresh reviews pending)
+- **Implementation:** `implementation.md` (68/71 tasks complete; Phase 8 review remediation in progress)
 
 ## Progress
 
@@ -250,6 +249,8 @@ fresh Phase 8 and final reviews pending
 - ✓ `p08-t28` bounded live evidence and dogfood reconciliation complete at `9b441b9`
 - ✓ Full matrix passed: 1,535 tests, 1 skipped; live acceptance 19/19
 - ✓ Both stronger-wake modes failed safely before launch with exact bounded diagnostics and zero residue
+- ✗ Fresh Phase 8 review retained 1 Critical and 2 Important findings
+- ✓ Findings mapped to `p08-t29` through `p08-t31`
 
 ## Blockers
 
@@ -257,5 +258,6 @@ None.
 
 ## Next Milestone
 
-Run a fresh Phase 8 review and final lifecycle review before the second
-configured-gate attempt.
+Execute `p08-t29` through `p08-t31`, then run fresh Phase 8 and final lifecycle
+reviews. The operator explicitly waived the configured exit-gate rerun for this
+project.
