@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 3dac3a0
+oat_last_commit: 2cddafe
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T01:25:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T01:45:34Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Tasks complete; Phase 6 fix iteration 1 pending
+Implementation - Tasks complete; Phase 6 review round 2 pending
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Tasks complete; Phase 6 fix iteration 1 pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/36 tasks complete; Phase 6 review fix pending)
+- **Implementation:** `implementation.md` (36/36 tasks complete; Phase 6 re-review pending)
 
 ## Progress
 
@@ -145,7 +145,9 @@ Implementation - Tasks complete; Phase 6 fix iteration 1 pending
 - ✓ `p06-t04` final version/provider/backlog/release reconciliation complete at `3dac3a0`
 - ✓ Implementation tasks complete: 36/36
 - ✗ Phase 6 review round 1 retained 1 Important finding
-- ⧗ Bounded Phase 6 evidence fix iteration 1 pending
+- ✓ Bounded Phase 6 evidence fix iteration 1 completed at `2cddafe`
+- ✓ Fix verification passed: 31 focused, 115 collaboration, and 1,457 full-suite tests, 1 skipped
+- ⧗ Whole-phase review round 2 pending
 - ⧗ Mandatory final lifecycle review pending
 
 ## Blockers
@@ -154,5 +156,5 @@ None.
 
 ## Next Milestone
 
-Resume the original Phase 6 implementer for the repeatable sanitized wake-probe
-evidence fix, then run whole-phase re-review.
+Run whole-phase review round 2; if it passes, continue mandatory final
+lifecycle review.

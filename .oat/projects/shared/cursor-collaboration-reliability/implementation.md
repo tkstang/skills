@@ -600,12 +600,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Tier:** Tier 1 — native Codex subagents
 **Policy:** managed `high`
 **Phase base:** `7307adb`
-**Phase head:** `3dac3a0`
-**Outcome:** blocked after review round 1; bounded evidence fix iteration 1 pending
+**Phase head:** `2cddafe`
+**Outcome:** Important evidence fix completed; whole-phase re-review pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p06   | 4/4   | `0ef8e5d..3dac3a0` | Round 1 blocked: 1 Important | 0 completed | blocked |
+| p06   | 4/4   | `0ef8e5d..2cddafe` | Round 1 blocked: 1 Important; round 2 pending | 1 (`2cddafe`) | review_pending |
 
 **Implementation dispatch:** request
 `impl-p06-7307adb-20260724T005000Z`; target
@@ -615,10 +615,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 1. `reviews/p06-review-2026-07-24T012320Z.md` — blocked with 0 Critical,
    1 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+2. Original implementer continuation
+   `fix-p06-round1-3dac3a0-20260724T012600Z` produced `2cddafe`; whole-phase
+   re-review pending.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Executable sanitized Stop and managed-subagent probe
-recipes with structural results and explicit process caps.
+**Outstanding items:** Whole-phase review round 2.
 
 <!-- orchestration-runs-end -->
 
@@ -1095,7 +1097,7 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** blocked
+**Status:** review_pending
 
 ### Phase Summary
 
@@ -1114,7 +1116,8 @@ resolved; Phase 6 is next.
   changed-file lint/format gates, version validation, and 188/188 synchronized
   OAT surfaces.
 - Independent Phase 6 review retained 1 Important evidence-reproducibility
-  finding; bounded fix iteration 1 is pending.
+  finding; bounded fix iteration 1 resolved it in `2cddafe`, and whole-phase
+  re-review is pending.
 
 ### Task outcomes
 
@@ -1168,12 +1171,14 @@ lint/format, and 188/188 OAT surface synchronization passed.
 ### Review round 1
 
 `reviews/p06-review-2026-07-24T012320Z.md` is BLOCKED with 1 Important finding
-and no other findings. The Stop and managed-subagent classifications are
-narrow and defensible, but their retained commands omit the executable
-sanitized hook setup, fixed prompts/markers, and actual 90/120-second process
-cap mechanism. The original Phase 6 implementer will add a bounded repeatable
-probe recipe and structural validation without changing the selected tier or
-shipping an adapter.
+and no other findings. The original Phase 6 implementer resolved it in
+`2cddafe` with an executable sanitized dual-mode probe, explicit 90/120-second
+process caps, fixed structural markers, expected-versus-actual JSON, safe
+cleanup, validator enforcement, and focused tests. Both live modes reproduced
+`callback-unavailable`; the selected tier and product behavior did not change.
+Focused probe/validator coverage passed 31/31, collaboration passed 115/115,
+and the full suite passed 1,457 with 1 skipped. Whole-phase re-review is
+pending.
 
 ---
 
@@ -1201,7 +1206,7 @@ Track test execution during implementation.
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
-| 6     | Final conditional-wake release matrix | 1,448 full; 1 skipped; fresh probe 19/19; 33 evidence files; 34 docs pages | 0 | Stop/managed/scheduled capability inventory, buffered-manual fallback, version/backlog/provider reconciliation |
+| 6     | Full suite after reproducible wake-probe fix | 31 focused; 115 collaboration; 1,457 full; 1 skipped; 22 explicit evidence files | 0 | Executable bounded Stop/managed recipes, structural outcomes, buffered-manual fallback, version/provider reconciliation |
 
 ## Final Summary (for PR/docs)
 
@@ -1241,12 +1246,12 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix: 1,448 tests passed with 1 skipped; live Cursor
+- Final release matrix after Phase 6 review fix: 1,457 tests passed with 1 skipped; live Cursor
   acceptance 19/19; evidence validator 33 files; build/type/build-check,
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact PR-scoped lint/format, and OAT provider sync 188/188 passed.
 - Independent Phase 1 through Phase 5 reviews passed after bounded fixes;
-  Phase 6 and mandatory final lifecycle reviews remain pending.
+  Phase 6 round-2 and mandatory final lifecycle reviews remain pending.
 
 **Design deltas (if any):**
 
