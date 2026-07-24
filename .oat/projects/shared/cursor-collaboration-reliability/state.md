@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T16:38:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:39:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Phase 8 Re-Review Remediation Complete
+**Status:** Phase 8 Passed; Final Lifecycle Review Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - narrow Phase 8 re-review remediated; 73/73 tasks complete
+Implementation - Phase 8 passed; 73/73 tasks complete; final review pending
 
 ## Artifacts
 
@@ -261,6 +261,7 @@ Implementation - narrow Phase 8 re-review remediated; 73/73 tasks complete
 - ✗ Narrow Phase 8 re-review retained 1 Medium ambient `run()` declaration finding
 - ✓ Medium finding mapped to `p08-t33`
 - ✓ `p08-t33` ambient `run()` clock parity complete at `d23a572`
+- ✓ Fresh Phase 8 review passed with zero findings
 
 ## Blockers
 
@@ -268,5 +269,5 @@ None.
 
 ## Next Milestone
 
-Run fresh Phase 8 and final lifecycle reviews. The operator explicitly waived
-the configured exit-gate rerun for this project.
+Run the fresh final lifecycle review. The operator explicitly waived the
+configured exit-gate rerun for this project.

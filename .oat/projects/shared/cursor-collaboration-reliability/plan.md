@@ -1591,6 +1591,7 @@ third gate launch.
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T161117Z.md             |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163113Z.md             |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163609Z.md             |
+| p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T163909Z.md                      |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
