@@ -114,6 +114,15 @@ function cursorCompletionDigest(
       })),
       bufferedFromFrame: null as number | null,
       blockingFrame: null,
+      selectedPrefix: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: totalFrames,
+        prefixBytes: totalFrames * 100,
+        prefixSha256: 'a'.repeat(64),
+        observedSize: totalFrames * 100,
+        device: 1,
+        inode: 2,
+      },
     },
   };
 }
@@ -190,6 +199,14 @@ describe('normalized completed continuation selection', () => {
         fromIndex: 3,
         toIndex: 7,
       },
+      selectedPrefix: {
+        nextFrameIndex: 8,
+        prefixBytes: 800,
+        prefixSha256: 'a'.repeat(64),
+        observedSize: 800,
+        device: 1,
+        inode: 2,
+      },
     });
     expect(result.reviewEntries).toEqual([
       expect.objectContaining({
@@ -218,6 +235,12 @@ describe('normalized completed continuation selection', () => {
       /confirmed-completion/i,
     );
 
+    const unbound = cursorCompletionDigest([entry]);
+    (unbound.cursorEvidence as any).selectedPrefix = null;
+    expect(() => selectCompletedContinuation(unbound)).toThrow(
+      /selected Cursor prefix snapshot/i,
+    );
+
     const sliced = cursorCompletionDigest([entry]);
     sliced.accounting.rendered.count = 2;
     expect(() => selectCompletedContinuation(sliced)).toThrow(/complete/i);
@@ -225,6 +248,9 @@ describe('normalized completed continuation selection', () => {
     const incomplete = cursorCompletionDigest([entry]);
     incomplete.range.nextIndex = 7;
     incomplete.accounting.raw.nextIndex = 7;
+    incomplete.cursorEvidence.selectedPrefix.nextFrameIndex = 7;
+    incomplete.cursorEvidence.selectedPrefix.prefixBytes = 700;
+    incomplete.cursorEvidence.selectedPrefix.observedSize = 700;
     incomplete.accounting.buffered = {
       fromIndex: 7,
       count: 1,

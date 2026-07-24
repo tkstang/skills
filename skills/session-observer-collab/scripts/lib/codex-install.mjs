@@ -19,6 +19,7 @@ const FILES = [
   'session-observer-collab/scripts/lib/completion-selection.mjs',
   'session-observer-collab/scripts/lib/lease-state.mjs',
   'session-observer-collab/scripts/lib/runtime-adapter.mjs',
+  'session-observer-collab/scripts/lib/selected-prefix.mjs',
   'session-observer/scripts/lib/cursor-analysis.mjs',
   'session-observer/scripts/lib/cursor-frames.mjs',
   'session-observer/scripts/lib/digest.mjs',

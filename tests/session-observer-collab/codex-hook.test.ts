@@ -331,6 +331,82 @@ describe('Codex Stop continuation hook', () => {
     },
   );
 
+  test.each(['aborted', 'error', 'cancelled', 'unknown'])(
+    'rejects a selected success rewritten to %s before the trigger CAS',
+    async (status) => {
+      const { root, cwd, transcript } = await fixture();
+      const frames = [
+        humanFrame('Inspect the selected success boundary.'),
+        assistantFrame('This result was initially successful.'),
+        terminalFrame('success'),
+      ];
+      const lease = await armCursorFrameLease(root, cwd, transcript, frames);
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => START + 1,
+            beforeCursorUpdate: async () => {
+              await writeCursorFrames(transcript, [
+                ...frames.slice(0, -1),
+                {
+                  ...terminalFrame(status),
+                  padding: 'preserve-or-grow-the-observed-file-size',
+                },
+              ]);
+            },
+          },
+        ),
+      ).resolves.toMatchObject({
+        decision: 'allow',
+        diagnostic: 'observer-invalid',
+      });
+      expect(await readLease(root, 'codex-1')).toMatchObject({
+        state: 'idle',
+        peerCursor: 0,
+        peerContinuity: lease.peerContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
+  test('rejects a selected success when its transcript inode changes before the trigger CAS', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const frames = [
+      humanFrame('Inspect the selected file identity.'),
+      assistantFrame('This result was initially successful.'),
+      terminalFrame('success'),
+    ];
+    const lease = await armCursorFrameLease(root, cwd, transcript, frames);
+
+    await expect(
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+        {
+          root,
+          now: () => START + 1,
+          beforeCursorUpdate: async () => {
+            await rm(transcript);
+            await writeCursorFrames(transcript, frames);
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'observer-invalid',
+    });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 0,
+      peerContinuity: lease.peerContinuity,
+      continuationCount: 0,
+      loopCount: 0,
+    });
+  });
+
   test('rejects both first-advance checkpoint omission and a mismatched persisted prefix', async () => {
     const { root, cwd, transcript } = await fixture();
     const armed = await armLease(root, cwd, transcript, {

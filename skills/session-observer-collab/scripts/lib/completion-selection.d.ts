@@ -45,6 +45,7 @@ export interface ContinuationSelection {
   range: SelectedRange | null;
   reviewEntries: readonly SelectedEntry[];
   skipped: readonly SkippedTurn[];
+  selectedPrefix: import('./selected-prefix.mjs').SelectedCursorPrefix | null;
 }
 
 export function selectCompletedContinuation(

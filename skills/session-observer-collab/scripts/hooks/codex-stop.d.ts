@@ -14,6 +14,7 @@ declare module '*skills/session-observer-collab/scripts/hooks/codex-stop.mjs' {
     sleep?: (milliseconds: number) => unknown | Promise<unknown>;
     now?: () => number;
     signal?: AbortSignal;
+    beforeCursorUpdate?: () => unknown | Promise<unknown>;
   }
 
   export interface CodexStopHookResult {

@@ -77,12 +77,37 @@ function validateV1Digest(input) {
     fromIndex,
     indexBase: RECORD_INDEX_BASE,
     nextIndex,
+    selectedPrefix: null,
   };
 }
 
 function nullableIndex(value, label) {
   if (value === null) return null;
   return integer(value, label);
+}
+
+function validateSelectedPrefix(value, nextIndex) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    value.indexBase !== FRAME_INDEX_BASE ||
+    integer(value.nextFrameIndex, 'selectedPrefix.nextFrameIndex') !==
+      nextIndex ||
+    !Number.isSafeInteger(value.prefixBytes) ||
+    value.prefixBytes < 0 ||
+    value.observedSize !== value.prefixBytes ||
+    !/^[a-f0-9]{64}$/u.test(value.prefixSha256) ||
+    !Number.isSafeInteger(value.device) ||
+    value.device < 0 ||
+    !Number.isSafeInteger(value.inode) ||
+    value.inode < 0
+  ) {
+    throw new TypeError(
+      'observer result must bind the selected Cursor prefix snapshot',
+    );
+  }
+  return Object.freeze({ ...value });
 }
 
 function validateV2Digest(input) {
@@ -217,6 +242,10 @@ function validateV2Digest(input) {
     fromIndex,
     indexBase: FRAME_INDEX_BASE,
     nextIndex,
+    selectedPrefix: validateSelectedPrefix(
+      input.cursorEvidence.selectedPrefix,
+      nextIndex,
+    ),
   };
 }
 
@@ -318,7 +347,7 @@ function mergeSkipped(turns, fromIndex, nextIndex) {
 }
 
 export function selectCompletedContinuation(observerResult) {
-  const { entries, fromIndex, indexBase, nextIndex } =
+  const { entries, fromIndex, indexBase, nextIndex, selectedPrefix } =
     validateDigest(observerResult);
   if (indexBase === FRAME_INDEX_BASE) {
     const selected = entries.at(-1);
@@ -336,6 +365,7 @@ export function selectCompletedContinuation(observerResult) {
         range: null,
         reviewEntries: Object.freeze([]),
         skipped: Object.freeze(mergeSkipped([], fromIndex, nextIndex)),
+        selectedPrefix,
       });
     }
 
@@ -360,6 +390,7 @@ export function selectCompletedContinuation(observerResult) {
         entries.filter((entry) => entry.recordIndex <= completedIndex),
       ),
       skipped: Object.freeze([]),
+      selectedPrefix,
     });
   }
 
@@ -383,6 +414,7 @@ export function selectCompletedContinuation(observerResult) {
       range: null,
       reviewEntries: Object.freeze([]),
       skipped: Object.freeze(mergeSkipped(turns, fromIndex, safeCursor)),
+      selectedPrefix,
     });
   }
 
@@ -407,5 +439,6 @@ export function selectCompletedContinuation(observerResult) {
       entries.filter((entry) => entry.recordIndex <= completedRecord),
     ),
     skipped: Object.freeze([]),
+    selectedPrefix,
   });
 }

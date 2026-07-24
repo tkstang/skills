@@ -25,6 +25,7 @@ declare module '*skills/session-observer-collab/scripts/hooks/cursor-stop.mjs' {
     ) => CursorStopObserverDigest | Promise<CursorStopObserverDigest>;
     sleep?: (milliseconds: number) => unknown | Promise<unknown>;
     now?: () => number;
+    beforeCursorUpdate?: () => unknown | Promise<unknown>;
   }
 
   export interface CursorStopHookResult {

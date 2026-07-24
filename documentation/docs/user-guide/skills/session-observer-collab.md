@@ -180,7 +180,11 @@ Consumers must dispatch by both digest schema and declared index base:
 | Collaboration lease v6  | Runtime-derived `peerIndexBase` | Binds the private cursor and continuity checkpoint to exact canonical peer identity and path.                 |
 
 For Cursor peers, lease v6 advances `peerCursor` and the canonical
-path/device/inode/prefix checkpoint in one compare-and-swap operation. Active
+path/device/inode/prefix checkpoint in one compare-and-swap operation. Cursor
+completion also binds the exact selected success prefix during observation and
+re-verifies those same bounded bytes immediately before the lease
+compare-and-swap; a changed terminal cannot spend continuation budget or advance
+the private cursor. Active
 v5 Cursor leases are incompatible because their cursor meaning is ambiguous;
 disarm and re-arm them. Validated non-Cursor v5 state retains record-index
 behavior through its explicit compatibility branch.
