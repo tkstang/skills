@@ -826,6 +826,7 @@ oat_generated: false
 | p06    | code     | fixes_completed | 2026-07-24 | reviews/p06-review-2026-07-24T015318Z.md                                  |
 | p06    | code     | passed          | 2026-07-24 | reviews/p06-review-2026-07-24T023404Z.md                                  |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T025100Z.md                                |
+| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T031130Z.md                                |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

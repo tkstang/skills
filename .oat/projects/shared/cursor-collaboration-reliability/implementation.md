@@ -1212,7 +1212,7 @@ are resolved; mandatory final lifecycle review is next.
 
 ## Final Lifecycle Review
 
-**Status:** fix complete; review round 2 pending
+**Status:** review round 2 blocked; fix iteration 2 pending
 
 ### Review round 1
 
@@ -1244,6 +1244,25 @@ passed with 1 skipped. Build, type-check, generated parity, validation, smoke,
 34-file evidence scan, 34-page docs build, internal flags, skill-version
 enforcement, changed-file lint/format, 188/188 OAT sync, 48/48 extension sync,
 provider-root residue checks, and byte-identical user-skill dogfood passed.
+
+### Review round 2
+
+`reviews/final-review-2026-07-24T031130Z.md` is BLOCKED with 1 Medium finding
+and no other findings. The round-1 Important is resolved: independent shipped
+runtime reproduction advanced to frame 4, cleared persisted and in-memory
+buffer state, and kept 30/30 later heartbeats plus live status at zero lag.
+The adjacent durable watch target, however, retains the baseline
+`recordCount: 3`; a separate `watch-ctl status` therefore reports stale
+`transcriptRecords: 3` while in-memory heartbeats correctly report 4. Fix
+iteration 2 will persist the validated current frame count during result-bearing
+transitions, retain the prior count for result-less health transitions, and
+extend the repaired-frame regression to prove durable and live-status agreement.
+
+**Verification before fix:** 238/238 suites and 1,465 tests passed with 1
+skipped. Build, type-check, generated parity, validation, smoke, 38/38 focused
+watch tests, 57/57 evidence/probe tests, 34-file evidence validation, 34-page
+docs build, versions, internal flags, changed-file lint/format, privacy,
+provider cleanup, dogfood, and 188/188 OAT sync passed.
 
 ---
 
