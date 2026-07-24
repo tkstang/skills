@@ -150,6 +150,18 @@ Stop/`turn_ended` ordering, interaction-during-wait, restart/resume, recurring
 loop, or scheduled-callback sequence passed, so those provider wake surfaces
 are **unavailable** and buffered-manual is selected.
 
+The 2026-07-24 release-gate rerun encountered declared provider-state roots
+whose current contents exceeded the unchanged 256 MiB aggregate pre-snapshot
+byte limit. Both `top-level-stop` and `managed-subagent` stopped before provider
+launch with exit code 2, `executionStatus: safety-failed`,
+`evidenceLabel: unavailable`, and the exact diagnostic
+`provider-state-scan-byte-budget-exceeded`. Each structured boundary row
+recorded `providerLaunchAttempted: false` and `workspaceExistsAfter: false`;
+discovered, owned, removed, and residual provider-artifact counts were all
+zero. No temporary probe workspace remained. This fresh safety result does not
+rewrite the historical bounded callback-delivery measurements below and does
+not promote a stronger wake tier.
+
 | Acceptance area       | Current evidence                                                                                                                                                                 | Evidence label   | Live outcome                                                                         |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------ |
 | Cursor observed side  | Automated normalization plus a sanitized, exact-pinned live catch-up and finite foreground watch cover transcript identity, terminal success, and structural observation status. | `live-validated` | Passed against one available controlled Cursor session.                              |

@@ -9,6 +9,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -738,7 +739,19 @@ describe('Cursor wake-surface probe', () => {
       expect(result).toMatchObject({
         executionStatus: 'safety-failed',
         evidenceLabel: 'unavailable',
-        provider: { version: 'unavailable' },
+        diagnostic: 'provider-state-scan-entry-budget-exceeded',
+        provider: { version: 'unavailable', launchAttempted: false },
+        rows: [
+          {
+            id: 'provider-state-boundary',
+            actual: {
+              diagnostic: 'provider-state-scan-entry-budget-exceeded',
+              providerLaunchAttempted: false,
+              workspaceExistsAfter: false,
+            },
+            status: 'failed',
+          },
+        ],
         cleanup: {
           succeeded: false,
           workspaceExistsAfter: false,
@@ -784,27 +797,55 @@ describe('Cursor wake-surface probe', () => {
         writeFile(join(project, 'state.log'), 'project structural fake\n'),
         writeFile(join(chat, 'state.log'), 'chat structural fake\n'),
       ]);
+      const socketServer = _budget === 'byte' ? createServer() : null;
+      if (socketServer) {
+        await new Promise<void>((resolve, reject) => {
+          socketServer.once('error', reject);
+          socketServer.listen(join(boundary.projects, '0'), resolve);
+        });
+      }
       const provider = await fakeProvider(root);
-      const result = await runCursorWakeProbe(
-        CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
-        {
-          providerCommand: process.execPath,
-          providerArgumentPrefix: [provider],
-          providerStateRoots: boundary.providerStateRoots,
-          temporaryParent: root,
-          processCapMs: 2_000,
-          env: {
-            ...process.env,
-            CURSOR_WAKE_FAKE_INVOCATION_MARKER: invocationMarker,
+      let result;
+      try {
+        result = await runCursorWakeProbe(
+          CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+          {
+            providerCommand: process.execPath,
+            providerArgumentPrefix: [provider],
+            providerStateRoots: boundary.providerStateRoots,
+            temporaryParent: root,
+            processCapMs: 2_000,
+            env: {
+              ...process.env,
+              CURSOR_WAKE_FAKE_INVOCATION_MARKER: invocationMarker,
+            },
+            ...budgetOptions,
           },
-          ...budgetOptions,
-        },
-      );
+        );
+      } finally {
+        if (socketServer) {
+          await new Promise<void>((resolve, reject) => {
+            socketServer.close((error) => (error ? reject(error) : resolve()));
+          });
+        }
+      }
 
       expect(result).toMatchObject({
         executionStatus: 'safety-failed',
         evidenceLabel: 'unavailable',
-        provider: { version: 'unavailable' },
+        diagnostic,
+        provider: { version: 'unavailable', launchAttempted: false },
+        rows: [
+          {
+            id: 'provider-state-boundary',
+            actual: {
+              diagnostic,
+              providerLaunchAttempted: false,
+              workspaceExistsAfter: false,
+            },
+            status: 'failed',
+          },
+        ],
         cleanup: {
           succeeded: false,
           workspaceExistsAfter: false,
@@ -816,6 +857,11 @@ describe('Cursor wake-surface probe', () => {
         },
       });
       await expect(access(invocationMarker)).rejects.toThrow();
+      expect(
+        (await readdir(root)).filter((name) =>
+          name.startsWith('cursor-wake-probe-'),
+        ),
+      ).toEqual([]);
     },
   );
 

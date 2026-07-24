@@ -602,6 +602,12 @@ async function fingerprintProviderEntry(
       );
       continue;
     }
+    if (stats.isSocket()) {
+      digest.update(
+        `socket:${current.relative}:${stats.dev}:${stats.ino}:${stats.birthtimeMs}\0`,
+      );
+      continue;
+    }
     if (!stats.isFile()) {
       throw new Error('provider entry contains unsupported artifact type');
     }
@@ -1327,10 +1333,12 @@ export async function runCursorWakeProbe(mode, options = {}) {
       mode,
       executionStatus: 'safety-failed',
       evidenceLabel: 'unavailable',
+      diagnostic: providerSnapshot.diagnostic,
       provider: {
         name: 'Cursor Agent',
         version: 'unavailable',
         architecture: process.arch,
+        launchAttempted: false,
       },
       bounds: {
         processCapMs,
@@ -1360,6 +1368,9 @@ export async function runCursorWakeProbe(mode, options = {}) {
             preExistingPreserved: false,
             ambiguousCount: 0,
             existsAfterCount: 0,
+            diagnostic: providerSnapshot.diagnostic,
+            providerLaunchAttempted: false,
+            workspaceExistsAfter: workspaceCleanup.workspaceExistsAfter,
           },
           'failed',
         ),
