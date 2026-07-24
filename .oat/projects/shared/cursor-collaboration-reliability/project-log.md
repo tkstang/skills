@@ -324,6 +324,10 @@ status=complete commit=a1a899962b1ced67b39df5d6288e197f482b14a3 red=2_growth_sta
 
 status=complete commit=31c49e61b5050a31e99c90abe9667d4f2c579b1f red=3_selector_owner_failures green=79_focused,128_collaboration version=session-observer-collab_1.0.11 dogfood=byte-identical pending_suffix=left_unread stale_success_seam=preserved next=p07-t04
 
+### 2026-07-24 · structural · oat-project-implement · p07-t04-path-normalization
+
+receipt=local-only:.oat/projects/local/cursor-collaboration-reliability/gate-runs marker=logical:system-temp:oat-gate-runs correlation=preserved scope=terminal-received-gate
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -1354,6 +1354,11 @@ same configured-gate generation under its persisted `block` policy.
 The receive transaction is durably corroborated by commit `56db672`; policy
 attempt 1 of 2 is consumed before Phase 7 implementation begins.
 
+After receive reconciliation completed, the result receipt was retained in
+ignored local OAT state and the deleted transient marker was normalized to a
+repo-neutral logical marker reference. Run/artifact/receive correlation remains
+in the typed exit-gate state.
+
 ---
 
 ## Phase 7: Configured Exit-Gate Remediation

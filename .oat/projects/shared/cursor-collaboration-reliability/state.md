@@ -54,7 +54,7 @@ oat_implement_exit_gate:
   launch_attempt_id: 55369892-1344-48b0-be2e-22605af4a252
   launch_started_at: '2026-07-24T03:34:45Z'
   launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/55369892-1344-48b0-be2e-22605af4a252.result.json'
-  gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/09729d68-6f2a-4a63-be4f-b344c8ac96a0.json'
+  gate_run_marker: 'system-temp:oat-gate-runs/09729d68-6f2a-4a63-be4f-b344c8ac96a0.json'
   gate_run_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0
   envelope_status: blocked
   artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
@@ -69,13 +69,13 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'review_completed_blocking_findings: critical=1 important=3 medium=0 minor=0 threshold=important'
-  updated_at: '2026-07-24T04:47:21Z'
+  updated_at: '2026-07-24T04:48:16Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T04:47:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T04:48:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
