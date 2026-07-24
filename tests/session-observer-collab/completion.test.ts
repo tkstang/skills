@@ -218,7 +218,72 @@ describe('normalized completed continuation selection', () => {
     ]);
   });
 
-  test('rejects non-completion, sliced, or incomplete Cursor v2 projections', () => {
+  test('selects a complete terminal-success prefix before a valid pending Cursor suffix', () => {
+    const pending = cursorCompletionDigest(
+      [
+        {
+          role: 'assistant',
+          text: 'Synthetic completed prefix.',
+          recordIndex: 5,
+          sourceFrameIndex: 4,
+          kind: 'message',
+          entryKey: 'entry-assistant-4',
+          turnId: 'turn-3',
+          availability: 'completed',
+        },
+      ],
+      3,
+      8,
+    );
+    pending.range.toIndex = 5;
+    pending.range.nextIndex = 6;
+    pending.range.newFrames = 3;
+    pending.accounting.raw.toIndex = 5;
+    pending.accounting.raw.count = 3;
+    pending.accounting.raw.nextIndex = 6;
+    pending.accounting.filtered.metadataFrames = 0;
+    pending.accounting.buffered = {
+      fromIndex: 6,
+      count: 2,
+      reason: 'stability-wait',
+    };
+    pending.cursorEvidence.status.lifecycle = 'pending';
+    pending.cursorEvidence.bufferedFromFrame = 6;
+    pending.cursorEvidence.selectedPrefix.nextFrameIndex = 6;
+    pending.cursorEvidence.selectedPrefix.prefixBytes = 600;
+    pending.cursorEvidence.selectedPrefix.observedSize = 600;
+
+    expect(selectCompletedContinuation(pending)).toMatchObject({
+      status: 'continuation',
+      continuation: true,
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex: 3,
+      completedIndex: 5,
+      completedRecord: 5,
+      nextCursor: 6,
+      peerCursor: 6,
+      budgetCost: 1,
+      range: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        fromIndex: 3,
+        toIndex: 5,
+      },
+      reviewEntries: [
+        expect.objectContaining({
+          text: 'Synthetic completed prefix.',
+          recordIndex: 5,
+          availability: 'completed',
+        }),
+      ],
+      selectedPrefix: {
+        nextFrameIndex: 6,
+        prefixBytes: 600,
+        observedSize: 600,
+      },
+    });
+  });
+
+  test('rejects non-completion, unbound, or invalidly buffered Cursor v2 projections', () => {
     const entry = {
       role: 'assistant',
       text: 'Synthetic completed result.',
@@ -245,19 +310,88 @@ describe('normalized completed continuation selection', () => {
     sliced.accounting.rendered.count = 2;
     expect(() => selectCompletedContinuation(sliced)).toThrow(/complete/i);
 
-    const incomplete = cursorCompletionDigest([entry]);
-    incomplete.range.nextIndex = 7;
-    incomplete.accounting.raw.nextIndex = 7;
-    incomplete.cursorEvidence.selectedPrefix.nextFrameIndex = 7;
-    incomplete.cursorEvidence.selectedPrefix.prefixBytes = 700;
-    incomplete.cursorEvidence.selectedPrefix.observedSize = 700;
-    incomplete.accounting.buffered = {
-      fromIndex: 7,
-      count: 1,
+    const invalidSuffixes = [
+      {
+        name: 'malformed',
+        mutate(value: any) {
+          value.cursorEvidence.blockingFrame = {
+            frameIndex: 8,
+            byteStart: 800,
+            byteEnd: 820,
+            parseState: 'malformed',
+          };
+          value.cursorEvidence.status.health = 'blocked';
+          value.accounting.buffered.reason = 'malformed';
+        },
+      },
+      {
+        name: 'partial',
+        mutate(value: any) {
+          value.cursorEvidence.blockingFrame = {
+            frameIndex: 8,
+            byteStart: 800,
+            byteEnd: 820,
+            parseState: 'partial',
+          };
+          value.accounting.buffered.reason = 'partial';
+        },
+      },
+      {
+        name: 'tail-sliced',
+        mutate(value: any) {
+          value.accounting.rendered.count += 1;
+        },
+      },
+      {
+        name: 'discontinuous',
+        mutate(value: any) {
+          value.accounting.raw.toIndex -= 1;
+        },
+      },
+      {
+        name: 'unaccounted',
+        mutate(value: any) {
+          value.accounting.buffered.count -= 1;
+        },
+      },
+    ];
+    const validPending = cursorCompletionDigest(
+      [
+        {
+          ...entry,
+          recordIndex: 5,
+          sourceFrameIndex: 4,
+          entryKey: 'entry-assistant-4',
+        },
+      ],
+      3,
+      8,
+    );
+    validPending.range.toIndex = 5;
+    validPending.range.nextIndex = 6;
+    validPending.range.newFrames = 3;
+    validPending.accounting.raw.toIndex = 5;
+    validPending.accounting.raw.count = 3;
+    validPending.accounting.raw.nextIndex = 6;
+    validPending.accounting.filtered.metadataFrames = 0;
+    validPending.accounting.buffered = {
+      fromIndex: 6,
+      count: 2,
       reason: 'stability-wait',
     };
-    incomplete.cursorEvidence.bufferedFromFrame = 7;
-    expect(() => selectCompletedContinuation(incomplete)).toThrow(/complete/i);
+    validPending.cursorEvidence.status.lifecycle = 'pending';
+    validPending.cursorEvidence.bufferedFromFrame = 6;
+    validPending.cursorEvidence.selectedPrefix.nextFrameIndex = 6;
+    validPending.cursorEvidence.selectedPrefix.prefixBytes = 600;
+    validPending.cursorEvidence.selectedPrefix.observedSize = 600;
+
+    for (const invalid of invalidSuffixes) {
+      const fixture = structuredClone(validPending);
+      invalid.mutate(fixture);
+      expect(() => selectCompletedContinuation(fixture), invalid.name).toThrow(
+        /complete/i,
+      );
+    }
   });
 
   test('rejects unknown digest schema and index-base combinations', () => {

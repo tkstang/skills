@@ -141,7 +141,7 @@ function validateV2Digest(input) {
   const expectedToIndex = rawCount > 0 ? nextIndex - 1 : null;
   if (
     fromIndex > nextIndex ||
-    nextIndex !== totalFrames ||
+    nextIndex > totalFrames ||
     nullableIndex(range.toIndex, 'range.toIndex') !== expectedToIndex ||
     range.newFrames !== rawCount ||
     raw.fromIndex !== fromIndex ||
@@ -157,15 +157,26 @@ function validateV2Digest(input) {
 
   const rendered = accounting.rendered;
   const buffered = accounting.buffered;
+  const bufferedCount = totalFrames - nextIndex;
+  const hasPendingSuffix = bufferedCount > 0;
+  const completeBufferedSuffix =
+    buffered &&
+    (hasPendingSuffix
+      ? buffered.fromIndex === nextIndex &&
+        buffered.count === bufferedCount &&
+        buffered.reason === 'stability-wait' &&
+        input.cursorEvidence.bufferedFromFrame === nextIndex &&
+        input.cursorEvidence.status?.lifecycle === 'pending'
+      : buffered.fromIndex === null &&
+        buffered.count === 0 &&
+        buffered.reason === null &&
+        input.cursorEvidence.bufferedFromFrame === null);
   if (
     !rendered ||
     rendered.count !== input.entries.length ||
     !buffered ||
-    buffered.fromIndex !== null ||
-    buffered.count !== 0 ||
-    buffered.reason !== null ||
+    !completeBufferedSuffix ||
     accounting.filtered?.unstableContent !== 0 ||
-    input.cursorEvidence.bufferedFromFrame !== null ||
     input.cursorEvidence.blockingFrame !== null ||
     input.cursorEvidence.status?.health !== 'healthy'
   ) {

@@ -7,10 +7,10 @@ argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
-version: '1.0.10'
+version: '1.0.11'
 metadata:
   author: thomas.stang
-  version: '1.0.10'
+  version: '1.0.11'
 ---
 
 # session-observer-collab
@@ -155,7 +155,9 @@ declared index base before reading a range:
   `recordIndex` is the delivery frame and `sourceFrameIndex` is provenance for
   the original content frame. Ordinary observation may expose stable content
   with lifecycle pending, but collaboration accepts only the explicit
-  `confirmed-completion` projection.
+  `confirmed-completion` projection. A complete terminal-success prefix may be
+  selected before a valid `stability-wait` suffix; that later open turn remains
+  unread.
 - Wake envelope v2 requires both `schema_version="2"` and `index_base`; unknown
   or missing attributes fail closed. A legacy v1 envelope is treated only as
   record-index automatic-control provenance.

@@ -167,7 +167,9 @@ Ordinary Cursor observation and collaboration completion intentionally use
 different projections. The base observer may report prefix-stable substantive
 content with lifecycle `pending`; a collaboration adapter requests
 `confirmed-completion` and requires a contiguous, unsliced, terminal-successful
-substantive range before it can emit a wake.
+substantive prefix before it can emit a wake. A later open turn is allowed only
+as a structurally complete `stability-wait` suffix; the hook checkpoints through
+the preceding success terminal and leaves that suffix unread.
 
 Consumers must dispatch by both digest schema and declared index base:
 
@@ -193,7 +195,8 @@ The wake envelope is provenance, not cursor authority. A receiver may use its
 schema/index pair to inspect the smallest exact raw range, but only the producer
 hook's successful lease CAS changes collaboration state. Unknown digest
 schemas, mismatched index bases, missing v2 attributes, discontinuous ranges,
-pending content, failure terminals, and stale continuity all fail closed.
+unaccounted or structurally invalid pending content, failure terminals, and
+stale continuity all fail closed.
 
 ## Addressing and authority
 

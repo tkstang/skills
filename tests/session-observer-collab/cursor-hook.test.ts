@@ -346,6 +346,58 @@ describe('Cursor Stop continuation hook', () => {
     });
   });
 
+  test('wakes once for a completed Cursor prefix and leaves a later pending turn unread', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(
+      root,
+      cwd,
+      transcript,
+      [
+        humanFrame('Review the completed prefix.'),
+        assistantFrame('The completed prefix is ready.'),
+        terminalFrame('success'),
+        humanFrame('Start a later turn.'),
+        assistantFrame('This later turn is still pending.'),
+      ],
+      0,
+      { waitMs: 1 },
+    );
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => START + 1,
+      }),
+    ).resolves.toEqual({
+      followup_message: expect.stringContaining('records="0-2"'),
+    });
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'armed',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+      loopCount: 1,
+      diagnostic: null,
+    });
+
+    const moments = [START + 2, START + 2, START + 3, START + 3];
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => moments.shift() ?? START + 3,
+        sleep: async () => {},
+      }),
+    ).resolves.toBeNull();
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+      loopCount: 1,
+      diagnostic: 'wait-timeout',
+    });
+  });
+
   test.each(['expired', 'disarmed'])(
     'does not observe or mutate an explicitly %s Cursor lease',
     async (state) => {

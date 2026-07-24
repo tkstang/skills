@@ -248,6 +248,64 @@ describe('Codex Stop continuation hook', () => {
     });
   });
 
+  test('wakes once for a completed Cursor prefix and leaves a later pending turn unread', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(
+      root,
+      cwd,
+      transcript,
+      [
+        humanFrame('Review the completed prefix.'),
+        assistantFrame('The completed prefix is ready.'),
+        terminalFrame('success'),
+        humanFrame('Start a later turn.'),
+        assistantFrame('This later turn is still pending.'),
+      ],
+      { waitMs: 1 },
+    );
+
+    await expect(
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+        { root, now: () => START + 1 },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'block',
+      reason: expect.stringContaining('records="0-2"'),
+    });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      state: 'armed',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+      loopCount: 1,
+      diagnostic: null,
+    });
+
+    const moments = [START + 2, START + 2, START + 3, START + 3];
+    await expect(
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+        {
+          root,
+          now: () => moments.shift() ?? START + 3,
+          sleep: async () => {},
+        },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'wait-timeout',
+    });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+      loopCount: 1,
+      diagnostic: 'wait-timeout',
+    });
+  });
+
   test('polls a pending Cursor range without advancing until terminal success', async () => {
     const { root, cwd, transcript } = await fixture();
     await armCursorFrameLease(root, cwd, transcript, [
