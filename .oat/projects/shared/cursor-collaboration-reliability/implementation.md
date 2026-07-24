@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t19
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 20    | 18/20     |
+| Phase 8 | complete    | 20    | 20/20     |
 
-**Total:** 58/60 tasks accepted
+**Total:** 60/60 tasks accepted
 
 ---
 
@@ -1568,9 +1568,9 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t15` | complete | `998892c` |
 | `p08-t16` | complete | `9c90704` |
 | `p08-t17` | complete | `e8de07d` |
-| `p08-t18` | complete | this commit |
-| `p08-t19` | pending | - |
-| `p08-t20` | pending | - |
+| `p08-t18` | complete | `40b2022` |
+| `p08-t19` | complete | `c195506` |
+| `p08-t20` | complete | `logical:p08-t20-self-commit` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1851,9 +1851,23 @@ removed retained exact artifacts under independent finite cleanup bounds.
 ### Task p08-t18: Record canonical Phase 8 task completion
 
 **Status:** completed
-**Commit:** this commit (`chore(p08-t18): record canonical phase 8 completion`)
+**Commit:** `40b2022`
 **Outcome:** Added parser-recognized Phase 8 task sections while preserving the
 existing summary and review history.
+
+### Task p08-t19: Bound provider directory enumeration
+
+**Status:** completed
+**Commit:** `c195506`
+**Outcome:** Replaced eager provider-root, nested-tree, and post-run name
+listings with entry/time-budgeted streaming iteration.
+
+### Task p08-t20: Reconcile canonical 60-task closeout
+
+**Status:** completed
+**Commit:** `logical:p08-t20-self-commit`
+**Outcome:** Reconciled plan, implementation, and state artifacts to one
+parser-recognized 20-task Phase 8 and 60-task project closeout.
 
 ---
 
