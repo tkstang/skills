@@ -153,6 +153,106 @@ describe('Cursor evidence validation', () => {
     ).toEqual([]);
   });
 
+  it('accepts typed gate IDs, Git SHAs, and qualified structural fingerprints only in gate bookkeeping', () => {
+    const sha = '5d02b9144cc263660590a7c982024bf29f7351c4';
+    const fingerprint =
+      'ce1cc10c980e670bbb5b28cd62f8c370df088ae47db55f07a4f6aa0ce262c693';
+    const runId = '09729d68-6f2a-4a63-be4f-b344c8ac96a0';
+    const safe = [
+      `reviewed_head: ${sha}`,
+      `receive_commit: ${sha}`,
+      `implementation_fingerprint: 'sha256:effective-delta-v1:${fingerprint}'`,
+      `gate_run_id: ${runId}`,
+      `launch_attempt_id: ${runId}`,
+      `launch_result_receipt: '.oat/projects/local/project/gate-runs/${runId}.result.json'`,
+      `gate_run_marker: 'system-temp:oat-gate-runs/${runId}.json'`,
+      `receive_correlation: 'run=${runId} scope=final type=code'`,
+      `status=received run=${runId} commit=${sha} correlation=preserved`,
+      `Gate run \`${runId}\` completed with a validated blocked envelope.`,
+      `command=node scripts/validate-cursor-evidence.mjs --base-ref ${sha}`,
+    ].join('\n');
+
+    expect(
+      scanCursorEvidenceText('.oat/projects/shared/project/state.md', safe),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [`session_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0`, 'raw-identity'],
+    [`lease_id=09729d68-6f2a-4a63-be4f-b344c8ac96a0`, 'raw-identity'],
+    [`event_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0`, 'raw-identity'],
+    [
+      `reviewed_head: ${'a'.repeat(40)}`,
+      'raw-identity',
+      'documentation/docs/cursor.md',
+    ],
+    [`arbitrary_hash: ${'b'.repeat(40)}`, 'raw-identity'],
+    [`fingerprint: sha256:${'c'.repeat(64)}`, 'raw-identity'],
+    [
+      `config_fingerprint: sha256:${'d'.repeat(64)}`,
+      'raw-identity',
+      'documentation/docs/cursor.md',
+    ],
+    [
+      `gate_run_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0 /Users/example/gate.json`,
+      'personal-absolute-path',
+    ],
+  ])(
+    'does not use a gate-evidence exemption for %s',
+    (text, category, file = '.oat/projects/shared/project/state.md') => {
+      expect(scanCursorEvidenceText(file, text)).toContainEqual(
+        expect.objectContaining({ category }),
+      );
+    },
+  );
+
+  it('accepts terminally normalized accepted/result/receive gate bookkeeping end to end', async () => {
+    const root = await temporaryRoot();
+    const project = '.oat/projects/shared/cursor-collaboration-reliability';
+    const runId = '09729d68-6f2a-4a63-be4f-b344c8ac96a0';
+    const launchId = '55369892-1344-48b0-be2e-22605af4a252';
+    const reviewedHead = '5d02b9144cc263660590a7c982024bf29f7351c4';
+    const receiveCommit = '56db672ca4bfbd07f4824b023c40ba9b64aadd1a';
+    const fingerprint =
+      'ce1cc10c980e670bbb5b28cd62f8c370df088ae47db55f07a4f6aa0ce262c693';
+    await write(
+      root,
+      `${project}/state.md`,
+      [
+        'oat_implement_exit_gate:',
+        '  status: stale',
+        '  resolution: configured',
+        `  reviewed_head: ${reviewedHead}`,
+        `  implementation_fingerprint: 'sha256:effective-delta-v1:${fingerprint}'`,
+        '  launch_state: result_persisted',
+        `  launch_attempt_id: ${launchId}`,
+        `  launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/${launchId}.result.json'`,
+        `  gate_run_marker: 'system-temp:oat-gate-runs/${runId}.json'`,
+        `  gate_run_id: ${runId}`,
+        '  envelope_status: blocked',
+        '  receive_state: completed',
+        `  receive_correlation: 'run=${runId} scope=final type=code source=final-review.md handoff=corroborated'`,
+        `  receive_commit: ${receiveCommit}`,
+      ].join('\n'),
+    );
+    await write(
+      root,
+      `${project}/project-log.md`,
+      [
+        `status=accepted run=${runId} reviewed_head=${reviewedHead} implementation_fingerprint=sha256:effective-delta-v1:${fingerprint}`,
+        `status=result run=${runId} exit=1 artifact=reviews/final-review.md`,
+        `status=received run=${runId} receive_state=completed receive_commit=${receiveCommit} event=final|code|final-review.md`,
+        `receipt=local-only:.oat/projects/local/cursor-collaboration-reliability/gate-runs marker=logical:system-temp:oat-gate-runs correlation=preserved scope=terminal-received-gate`,
+      ].join('\n'),
+    );
+
+    await expect(
+      validateCursorEvidence(root, {
+        files: [`${project}/project-log.md`, `${project}/state.md`],
+      }),
+    ).resolves.toMatchObject({ findings: [] });
+  });
+
   it('includes explicitly changed Markdown in the durable scan', async () => {
     const root = await temporaryRoot();
     await write(root, CURSOR_EVIDENCE_REFERENCE, '# placeholder');

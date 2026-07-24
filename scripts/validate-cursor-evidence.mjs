@@ -24,6 +24,20 @@ const PERSONAL_PATH_PATTERNS = [
 const RAW_RUNTIME_IDENTITY =
   /\b(?:cursor|codex|claude-code):(?!<|\[|\{|\$|redacted\b)[A-Za-z0-9][A-Za-z0-9._-]{2,}/iu;
 const RAW_OPAQUE_IDENTITY = /\b[A-Fa-f0-9]{32,}\b/u;
+const RAW_UUID_IDENTITY =
+  /\b[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\b/u;
+const OAT_GATE_BOOKKEEPING_FILE =
+  /^\.oat\/projects\/shared\/[^/]+\/(?:implementation|plan|project-log|state)\.md$/u;
+const SAFE_GATE_EVIDENCE = [
+  /\b(?:reviewed_head|freshness_head|receive_pre_head|receive_commit|commit)\b\s*(?::|=)\s*["'`]?[A-Fa-f0-9]{40}\b/giu,
+  /\bconfig_fingerprint\b\s*(?::|=)\s*["'`]?sha256:[A-Fa-f0-9]{64}\b/giu,
+  /\b(?:implementation|freshness)_fingerprint\b\s*(?::|=)\s*["'`]?sha256:effective-delta-v1:[A-Fa-f0-9]{64}\b/giu,
+  /\b(?:gate_run_id|launch_attempt_id|run)\b\s*(?::|=)\s*["'`]?[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\b/giu,
+  /\bGate run\s+`[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}`/gu,
+  /\.oat\/projects\/local\/[A-Za-z0-9._-]+\/gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.result\.json\b/giu,
+  /\bsystem-temp:oat-gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.json\b/giu,
+  /--base-ref\s+[A-Fa-f0-9]{40}\b/giu,
+];
 const IDENTITY_KEYS = new Set([
   'sessionid',
   'conversationid',
@@ -117,12 +131,21 @@ function containsRawIdentityAssignment(line) {
   return false;
 }
 
+function redactSafeGateEvidence(file, line) {
+  if (!OAT_GATE_BOOKKEEPING_FILE.test(file)) return line;
+  return SAFE_GATE_EVIDENCE.reduce(
+    (redacted, pattern) => redacted.replaceAll(pattern, '<gate-evidence>'),
+    line,
+  );
+}
+
 function finding(file, line, category, detail) {
   return { file, line, category, detail };
 }
 
 function scanLine(file, line, lineNumber) {
   const findings = [];
+  const identityEvidence = redactSafeGateEvidence(file, line);
 
   if (PERSONAL_PATH_PATTERNS.some((pattern) => pattern.test(line))) {
     findings.push(
@@ -136,9 +159,10 @@ function scanLine(file, line, lineNumber) {
   }
 
   if (
-    containsRawIdentityAssignment(line) ||
-    RAW_RUNTIME_IDENTITY.test(line) ||
-    RAW_OPAQUE_IDENTITY.test(line)
+    containsRawIdentityAssignment(identityEvidence) ||
+    RAW_RUNTIME_IDENTITY.test(identityEvidence) ||
+    RAW_UUID_IDENTITY.test(identityEvidence) ||
+    RAW_OPAQUE_IDENTITY.test(identityEvidence)
   ) {
     findings.push(
       finding(file, lineNumber, 'raw-identity', 'raw session/lease/identity'),
