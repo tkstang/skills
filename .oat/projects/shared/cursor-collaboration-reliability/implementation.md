@@ -569,12 +569,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Tier:** Tier 1 — native Codex subagents
 **Policy:** managed `high`
 **Phase base:** `7b2b51c`
-**Phase head:** `8989fd7`
-**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+**Phase head:** `8710c83`
+**Outcome:** Important fixes completed; whole-phase re-review pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p05   | 6/6   | `9604a3a..8989fd7` | Round 1 blocked: 2 Important | 0 completed | blocked |
+| p05   | 6/6   | `9604a3a..8710c83` | Round 1 blocked: 2 Important; round 2 pending | 1 (`8710c83`) | review_pending |
 
 **Implementation dispatch:** request
 `impl-p05-7b2b51c-20260723T230700Z`; target
@@ -584,10 +584,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 1. `reviews/p05-review-2026-07-24T001656Z.md` — blocked with 0 Critical,
    2 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+2. Original implementer continuation
+   `fix-p05-round1-8989fd7-20260724T002000Z` produced `8710c83`; whole-phase
+   re-review pending.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Evidence-validator privacy/range/taxonomy enforcement
-and exact live-probe promotion criteria.
+**Outstanding items:** Whole-phase review round 2.
 
 <!-- orchestration-runs-end -->
 
@@ -948,7 +950,7 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** blocked
+**Status:** review_pending
 
 ### Phase Summary
 
@@ -969,7 +971,8 @@ reproduction also passed; Phase 5 is next.
   docs pages, 52 clean generated outputs, exact changed-file lint/format gates,
   validation, smoke, version validation, and OAT status.
 - Independent Phase 5 review retained 2 Important evidence-contract findings;
-  bounded fix iteration 1 is pending.
+  bounded fix iteration 1 resolved both in `8710c83`, and whole-phase
+  re-review is pending.
 
 ### Task outcomes
 
@@ -1045,8 +1048,14 @@ findings and no other findings:
   exact provider-version, schema/index, content/lifecycle, status, and
   finite-stop claims recorded durably.
 
-The original Phase 5 implementer will fix exactly these evidence-contract
-paths before whole-phase re-review.
+The original Phase 5 implementer resolved both findings in `8710c83`.
+The validator now covers quoted identities, committed merge-base ranges, and
+row-level canonical labels/required fields. The live probe now proves provider
+version, schema/index, status facets, lifecycle/content, and finite-stop
+structure before promotion. RED reproduced 21 failures; GREEN passed 41
+focused tests, 204 targeted tests, and 1,448 full-suite tests with 1 skipped.
+The fresh probe passed 19/19 with an accurate split of 4 live-validated and 15
+automated-only rows. Whole-phase re-review is pending.
 
 ---
 
@@ -1073,7 +1082,7 @@ Track test execution during implementation.
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
-| 5     | Complete pre-wake release matrix | 206 focused; 1,424 full; 1 skipped; 34 docs pages; 52 generated outputs; 3 skill versions | 0 | Live acceptance, evidence privacy, docs/contracts, backlog lifecycle, provider dogfood, aggregate release readiness |
+| 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 
 ## Final Summary (for PR/docs)
 
