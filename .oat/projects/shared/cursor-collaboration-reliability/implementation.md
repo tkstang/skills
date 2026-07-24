@@ -30,7 +30,7 @@ oat_generated: false
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
-| Phase 5 | review_pending | 6     | 6/6       |
+| Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
 **Total:** 32/36 tasks accepted
@@ -570,11 +570,11 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Policy:** managed `high`
 **Phase base:** `7b2b51c`
 **Phase head:** `8710c83`
-**Outcome:** Important fixes completed; whole-phase re-review pending
+**Outcome:** passed after one bounded Important fix iteration
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p05   | 6/6   | `9604a3a..8710c83` | Round 1 blocked: 2 Important; round 2 pending | 1 (`8710c83`) | review_pending |
+| p05   | 6/6   | `9604a3a..8710c83` | Round 2 passed | 1 (`8710c83`) | passed |
 
 **Implementation dispatch:** request
 `impl-p05-7b2b51c-20260723T230700Z`; target
@@ -585,11 +585,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 1. `reviews/p05-review-2026-07-24T001656Z.md` — blocked with 0 Critical,
    2 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
-   `fix-p05-round1-8989fd7-20260724T002000Z` produced `8710c83`; whole-phase
-   re-review pending.
+   `fix-p05-round1-8989fd7-20260724T002000Z` produced `8710c83`.
+3. `reviews/p05-review-2026-07-24T004530Z.md` — passed with zero findings;
+   prior I1 and I2 resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Whole-phase review round 2.
+**Outstanding items:** None.
 
 <!-- orchestration-runs-end -->
 
@@ -950,7 +951,8 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** review_pending
+**Status:** complete
+**Completed:** 2026-07-24
 
 ### Phase Summary
 
@@ -971,8 +973,8 @@ reproduction also passed; Phase 5 is next.
   docs pages, 52 clean generated outputs, exact changed-file lint/format gates,
   validation, smoke, version validation, and OAT status.
 - Independent Phase 5 review retained 2 Important evidence-contract findings;
-  bounded fix iteration 1 resolved both in `8710c83`, and whole-phase
-  re-review is pending.
+  bounded fix iteration 1 resolved both in `8710c83`, and whole-phase round-2
+  review passed with zero findings.
 
 ### Task outcomes
 
@@ -1055,7 +1057,11 @@ version, schema/index, status facets, lifecycle/content, and finite-stop
 structure before promotion. RED reproduced 21 failures; GREEN passed 41
 focused tests, 204 targeted tests, and 1,448 full-suite tests with 1 skipped.
 The fresh probe passed 19/19 with an accurate split of 4 live-validated and 15
-automated-only rows. Whole-phase re-review is pending.
+automated-only rows.
+
+**Round-2 review:** `reviews/p05-review-2026-07-24T004530Z.md` passed with
+0 Critical, 0 Important, 0 Medium, and 0 Minor findings. I1 and I2 are
+resolved; Phase 6 is next.
 
 ---
 

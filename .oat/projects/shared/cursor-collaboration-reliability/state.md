@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T00:37:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T00:47:01Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 5 review round 2 pending
+Implementation - Phase 6 ready at p06-t01
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 5 review round 2 pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 5 is 6/6; re-review pending)
+- **Implementation:** `implementation.md` (Phase 5 complete; Phase 6 ready)
 
 ## Progress
 
@@ -137,7 +137,9 @@ Implementation - Phase 5 review round 2 pending
 - ✓ Bounded Phase 5 fix iteration 1 completed at `8710c83`
 - ✓ Fix verification passed: 41 focused, 204 targeted, and 1,448 full-suite tests, 1 skipped
 - ✓ Fresh probe passed 4 live-validated and 15 automated-only rows
-- ⧗ Whole-phase review round 2 pending
+- ✓ Whole-phase review round 2 passed with zero findings
+- ✓ Phase 5 complete: 6/6 tasks
+- ⧗ Phase 6 ready at `p06-t01`
 
 ## Blockers
 
@@ -145,4 +147,4 @@ None.
 
 ## Next Milestone
 
-Run whole-phase review round 2; if it passes, continue at `p06-t01`.
+Execute Phase 6 from `p06-t01`.
