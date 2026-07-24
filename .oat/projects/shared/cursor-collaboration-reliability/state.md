@@ -36,7 +36,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: pending
+  status: blocked
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -59,23 +59,23 @@ oat_implement_exit_gate:
   envelope_status: blocked
   artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
   handoff: 'Run oat-project-review-receive for .oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md before treating this gate review as consumed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=09729d68-6f2a-4a63-be4f-b344c8ac96a0 scope=final type=code source=final-review-2026-07-24T034752Z.md handoff=corroborated'
   receive_source_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
   receive_archived_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/archived/final-review-2026-07-24T034752Z.md'
   receive_event_identity: 'final|code|final-review-2026-07-24T034752Z.md'
   receive_pre_head: 9806e4003a36d5101f1d4f94c410181f393c2126
-  receive_commit: null
+  receive_commit: 56db672ca4bfbd07f4824b023c40ba9b64aadd1a
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: 'review_completed_blocking_findings: critical=1 important=3 medium=0 minor=0 threshold=important'
-  updated_at: '2026-07-24T04:00:50Z'
+  updated_at: '2026-07-24T04:09:44Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T04:04:30Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T04:09:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
