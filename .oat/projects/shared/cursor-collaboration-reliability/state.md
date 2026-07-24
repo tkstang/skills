@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T02:54:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T03:03:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Final review blocked; bounded fix iteration 1 pending
+Implementation - Final review fix complete; review round 2 pending
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Final review blocked; bounded fix iteration 1 pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/36 tasks complete; final review fix pending)
+- **Implementation:** `implementation.md` (36/36 tasks and final review fix complete)
 
 ## Progress
 
@@ -154,7 +154,9 @@ Implementation - Final review blocked; bounded fix iteration 1 pending
 - ✓ Whole-phase review round 3 passed with zero findings
 - ✓ Phase 6 complete: 4/4 tasks
 - ✗ Final lifecycle review round 1 retained 1 Important watch-state finding
-- ⧗ Bounded final-review fix iteration 1 pending
+- ✓ Bounded final-review fix iteration 1 completed at `15cc61f`
+- ✓ Fix verification passed: 38 focused and 1,465 full-suite tests, 1 skipped
+- ⧗ Mandatory final lifecycle review round 2 pending
 
 ## Blockers
 
@@ -162,5 +164,5 @@ None.
 
 ## Next Milestone
 
-Fix the repaired Cursor buffer-state clear, then rerun the mandatory final
-lifecycle review.
+Rerun the mandatory final lifecycle review, then continue to the configured
+implementation exit gate if it passes.

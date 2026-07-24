@@ -1212,7 +1212,7 @@ are resolved; mandatory final lifecycle review is next.
 
 ## Final Lifecycle Review
 
-**Status:** blocked
+**Status:** fix complete; review round 2 pending
 
 ### Review round 1
 
@@ -1228,6 +1228,22 @@ integration regression, and rerun the final lifecycle review.
 smoke, 1,464 tests with 1 skipped, 57 focused evidence/probe tests, a 34-file
 evidence scan, 34-page docs build, skill versions, internal flags,
 changed-file lint/format, and 188/188 OAT sync passed.
+
+### Fix iteration 1
+
+Commit `15cc61f` preserves the Cursor digest's exact `bufferedFromFrame`,
+including an explicit `null`, at both persisted-CAS and in-memory watch-state
+copy sites. The new partial-frame → repair regression first reproduced the
+stale frame-3 buffer after advancing to frame 4, then proved that persisted
+state, heartbeat output, and live `watch-ctl status` all clear the buffer and
+report `recordsBehind: 0`. Canonical TypeScript was rebuilt into the shipped
+runtime and session-observer was bumped and dogfooded at version 1.0.10.
+
+**Fix verification:** 38/38 focused watch tests and 1,465 full-suite tests
+passed with 1 skipped. Build, type-check, generated parity, validation, smoke,
+34-file evidence scan, 34-page docs build, internal flags, skill-version
+enforcement, changed-file lint/format, 188/188 OAT sync, 48/48 extension sync,
+provider-root residue checks, and byte-identical user-skill dogfood passed.
 
 ---
 
@@ -1256,6 +1272,7 @@ Track test execution during implementation.
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 | 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
+| final-fix-1 | Full suite after repaired-buffer state fix | 38 focused; 1,465 full; 1 skipped | 0 | Explicit null preservation, repaired-frame advancement, heartbeat/status zero-lag reporting, generated runtime, provider dogfood |
 
 ## Final Summary (for PR/docs)
 
