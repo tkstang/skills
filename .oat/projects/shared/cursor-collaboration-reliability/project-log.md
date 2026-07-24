@@ -440,6 +440,10 @@ tasks=p08-t19:c195506,p08-t20:2038dea status=complete live=phase8:20/20,total:60
 
 artifact=reviews/final-review-2026-07-24T141209Z.md verdict=blocked findings=critical:0,important:1,medium:0,minor:0 runtime=passed next=receive-artifact-fix
 
+### 2026-07-24 · structural · oat-project-implement · final-artifact-review-received
+
+source=reviews/final-review-2026-07-24T141209Z.md archived=reviews/archived/final-review-2026-07-24T141209Z.md findings=important:1 disposition=I1:p08-t21 next=p08-t21
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

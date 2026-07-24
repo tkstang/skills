@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t21
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 20    | 20/20     |
+| Phase 8 | in_progress | 21    | 20/21     |
 
-**Total:** 60/60 tasks accepted
+**Total:** 60/61 tasks accepted
 
 ---
 
@@ -1571,6 +1571,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t18` | complete | `40b2022` |
 | `p08-t19` | complete | `c195506` |
 | `p08-t20` | complete | `2038dea` |
+| `p08-t21` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1759,6 +1760,16 @@ Reconnaissance was attempted at the consequential Sol/high floor and rejected
 before start by the agent-thread limit; the primary reviewer completed the lane
 inline. Focused wake tests passed 26/26 and the full suite passed 1,528 with 1
 skipped.
+
+### Final artifact-closeout review received
+
+**Source:** `reviews/archived/final-review-2026-07-24T141209Z.md`
+**Disposition:** `I1 → p08-t21`
+
+The automatic review converted the sole artifact-only finding into one final
+closeout task. `p08-t21` owns the Phase 8 section status, current test/PR
+summary, chronological state history, and canonical 61-task read-back. No
+finding was deferred or rejected.
 
 ### Canonical Phase 8 task outcomes
 

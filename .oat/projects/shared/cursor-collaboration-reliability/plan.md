@@ -1284,6 +1284,26 @@ third gate launch.
 4. Read back `plan.md`, `implementation.md`, `state.md`, and `oat project status --project-path .oat/projects/shared/cursor-collaboration-reliability --json`; require Phase 8 20/20, project 60/60, no current task, and no blocker.
 5. Commit: `chore(p08-t20): reconcile canonical project closeout`.
 
+### Task p08-t21: (review) Finalize the implementation handoff narrative
+
+**Task Scope:** Minor
+**Requirements:** NFR6
+
+**Files:**
+
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/plan.md`
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/implementation.md`
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/state.md`
+
+**Steps:**
+
+1. Mark the Phase 8 journal section complete and update all plan/overview totals to Phase 8 21/21 and project 61/61.
+2. Update `## Test Results` and `## Final Summary (for PR/docs)` through `p08-t21`, including 1,528 passed, 1 skipped, bounded provider iteration, exact cleanup, and canonical closeout.
+3. Restore state history to chronological review, receive, and fix order while preserving durable task SHAs and a null current task.
+4. Add a canonical completed `p08-t21` section; root will replace its unavoidable self-reference marker with the exact task SHA in the next bookkeeping commit.
+5. Read back all three artifacts and live OAT status; require Phase 8 21/21, project 61/61, current null, no blockers, and no stale 1,515/16-task closeout claim.
+6. Commit: `chore(p08-t21): finalize implementation handoff`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -1328,7 +1348,7 @@ third gate launch.
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T141209Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

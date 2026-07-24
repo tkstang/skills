@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 2038dea
+oat_current_task: p08-t21
+oat_last_commit: 531aeaf
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T14:13:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T14:16:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - 60/60 planned tasks complete; fresh final review blocked
+Implementation - final artifact closeout in progress; 60/61 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - 60/60 planned tasks complete; fresh final review blocked
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (60/60 planned tasks complete; fresh final review blocked)
+- **Implementation:** `implementation.md` (60/61 tasks complete; artifact closeout in progress)
 
 ## Progress
 
@@ -236,12 +236,12 @@ Implementation - 60/60 planned tasks complete; fresh final review blocked
 - ✓ `p08-t20` canonical 60-task closeout complete at `2038dea`
 - ✓ Live OAT status recognizes Phase 8 at 20/20 and the project at 60/60
 - ✗ Fresh final review retained 1 Important artifact-closeout finding
+- ✓ Fresh final review received; finding mapped to `p08-t21`
 
 ## Blockers
 
-Receive `reviews/final-review-2026-07-24T141209Z.md` and add one final
-artifact-closeout task.
+None.
 
 ## Next Milestone
 
-Receive the fresh final review and execute its artifact-closeout fix.
+Execute `p08-t21` and run a fresh final lifecycle re-review.
