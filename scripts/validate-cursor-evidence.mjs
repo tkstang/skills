@@ -19,11 +19,19 @@ const PERSONAL_PATH_PATTERNS = [
   /\b[A-Za-z]:[\\/]+Users[\\/]+(?!<|\[|\{|\$)[^\\/\s"'`<>]+/iu,
 ];
 
-const RAW_ID_ASSIGNMENT =
-  /\b(?:session[_-]?id|conversation[_-]?id|generation[_-]?id|lease[_-]?id|owner[_-]?session|peer[_-]?identity)\b\s*(?::|=)\s*["'`]?(?!<|\[|\{|\$|redacted\b)[A-Za-z0-9][A-Za-z0-9._:/-]{2,}/iu;
 const RAW_RUNTIME_IDENTITY =
   /\b(?:cursor|codex|claude-code):(?!<|\[|\{|\$|redacted\b)[A-Za-z0-9][A-Za-z0-9._-]{2,}/iu;
 const RAW_OPAQUE_IDENTITY = /\b[A-Fa-f0-9]{32,}\b/u;
+const IDENTITY_KEYS = new Set([
+  'sessionid',
+  'conversationid',
+  'generationid',
+  'leaseid',
+  'ownersession',
+  'peeridentity',
+]);
+const IDENTITY_ASSIGNMENT =
+  /(?:^|[\s{,[|])(?:[*_]{1,2})?["'`]?([A-Za-z][A-Za-z0-9_-]*?)["'`]?(?:[*_]{1,2})?\s*(?::|=)\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|[^\s,}\]|]+)/gu;
 
 const CREDENTIAL_PATTERNS = [
   /\bAKIA[0-9A-Z]{16}\b/u,
@@ -49,8 +57,62 @@ function isDocumentedRedaction(value) {
   return (
     /^<[^>\r\n]+>$/u.test(normalized) ||
     /^\[(?:REDACTED|redacted)(?:[^\]\r\n]*)\]$/u.test(normalized) ||
-    /^(?:REDACTED|redacted|\*{3,})$/u.test(normalized)
+    /^(?:REDACTED|redacted|\*{3,})$/u.test(normalized) ||
+    /^redacted(?:[-_:][A-Za-z0-9._-]+)+$/iu.test(normalized) ||
+    /^(?:cc|codex)-session-0*1$/iu.test(normalized)
   );
+}
+
+function isIdentityKey(key) {
+  return IDENTITY_KEYS.has(key.replace(/[^A-Za-z0-9]/gu, '').toLowerCase());
+}
+
+function unquote(value) {
+  const normalized = value.trim();
+  if (
+    normalized.length >= 2 &&
+    ['"', "'", '`'].includes(normalized[0]) &&
+    normalized.at(-1) === normalized[0]
+  ) {
+    return normalized.slice(1, -1);
+  }
+  return normalized;
+}
+
+function isRawIdentityValue(value) {
+  const normalized = unquote(String(value));
+  if (
+    isDocumentedRedaction(normalized) ||
+    /^(?:null|none|unknown|unavailable|unmeasured|not-run)$/iu.test(normalized)
+  ) {
+    return false;
+  }
+  return /^[A-Za-z0-9][A-Za-z0-9._:/-]{2,}$/u.test(normalized);
+}
+
+function structuredRawIdentity(value) {
+  if (Array.isArray(value)) return value.some(structuredRawIdentity);
+  if (value === null || typeof value !== 'object') return false;
+  return Object.entries(value).some(
+    ([key, entry]) =>
+      (isIdentityKey(key) &&
+        (typeof entry === 'string' || typeof entry === 'number') &&
+        isRawIdentityValue(entry)) ||
+      structuredRawIdentity(entry),
+  );
+}
+
+function containsRawIdentityAssignment(line) {
+  try {
+    if (structuredRawIdentity(JSON.parse(line.trim()))) return true;
+  } catch {
+    // Most evidence lines are Markdown rather than standalone JSON.
+  }
+
+  for (const match of line.matchAll(IDENTITY_ASSIGNMENT)) {
+    if (isIdentityKey(match[1]) && isRawIdentityValue(match[2])) return true;
+  }
+  return false;
 }
 
 function finding(file, line, category, detail) {
@@ -72,7 +134,7 @@ function scanLine(file, line, lineNumber) {
   }
 
   if (
-    RAW_ID_ASSIGNMENT.test(line) ||
+    containsRawIdentityAssignment(line) ||
     RAW_RUNTIME_IDENTITY.test(line) ||
     RAW_OPAQUE_IDENTITY.test(line)
   ) {
@@ -138,21 +200,24 @@ function validateCapabilityMatrix(file, text) {
     'Outcome',
     'Evidence label',
   ];
-  const requiredLabels = [
-    '`automated-only`',
-    '`documented-but-unvalidated`',
-    '`measured-structural-only`',
-    '`unavailable`',
-  ];
+  const evidenceLabels = new Set([
+    'live-validated',
+    'automated-only',
+    'documented-but-unvalidated',
+    'unavailable',
+    'unsupported',
+  ]);
+  const lines = text.split(/\r?\n/u);
 
   if (!text.includes('## Measured capability matrix')) {
     findings.push(
       finding(file, 1, 'matrix-schema', 'missing measured capability matrix'),
     );
   }
-  const header = text
-    .split(/\r?\n/u)
-    .find((line) => line.startsWith('|') && line.includes('Capability'))
+  const headerIndex = lines.findIndex(
+    (line) => line.startsWith('|') && line.includes('Capability'),
+  );
+  const header = lines[headerIndex]
     ?.split('|')
     .slice(1, -1)
     .map((field) => field.trim());
@@ -161,23 +226,59 @@ function validateCapabilityMatrix(file, text) {
       finding(file, 1, 'matrix-schema', 'missing required capability fields'),
     );
   }
-  for (const label of requiredLabels) {
-    if (!text.includes(label)) {
-      findings.push(
-        finding(file, 1, 'matrix-schema', `missing evidence label ${label}`),
-      );
-    }
+
+  const rows = [];
+  for (let index = headerIndex + 2; index < lines.length; index += 1) {
+    if (!lines[index].startsWith('|')) break;
+    rows.push({ line: lines[index], lineNumber: index + 1 });
   }
 
-  const tableLines = text
-    .split(/\r?\n/u)
-    .filter((line) => line.startsWith('|') && /fixture/iu.test(line));
-  for (const line of tableLines) {
-    if (!line.includes('`automated-only`')) {
+  for (const row of rows) {
+    const fields = row.line
+      .split('|')
+      .slice(1, -1)
+      .map((field) => field.trim());
+    if (fields.length !== requiredFields.length) {
       findings.push(
         finding(
           file,
-          1,
+          row.lineNumber,
+          'matrix-schema',
+          `capability row has ${fields.length} fields; expected ${requiredFields.length}`,
+        ),
+      );
+      continue;
+    }
+    fields.forEach((field, index) => {
+      if (!field) {
+        findings.push(
+          finding(
+            file,
+            row.lineNumber,
+            'matrix-schema',
+            `missing required field ${requiredFields[index]}`,
+          ),
+        );
+      }
+    });
+
+    const labelMatch = /^`([^`]+)`$/u.exec(fields.at(-1) ?? '');
+    const label = labelMatch?.[1] ?? null;
+    if (label === null || !evidenceLabels.has(label)) {
+      findings.push(
+        finding(
+          file,
+          row.lineNumber,
+          'matrix-schema',
+          `invalid evidence label ${fields.at(-1) || '(empty)'}`,
+        ),
+      );
+    }
+    if (/fixture/iu.test(row.line) && label !== 'automated-only') {
+      findings.push(
+        finding(
+          file,
+          row.lineNumber,
           'matrix-schema',
           'fixture-only row must be automated-only',
         ),
@@ -185,7 +286,7 @@ function validateCapabilityMatrix(file, text) {
     }
   }
 
-  if (!/Failure outcomes are retained as failures/iu.test(text)) {
+  if (!/Failure outcomes are retained as\s+failures/iu.test(text)) {
     findings.push(
       finding(
         file,
@@ -199,20 +300,41 @@ function validateCapabilityMatrix(file, text) {
   return findings;
 }
 
-async function changedMarkdownFiles(root) {
-  try {
-    const { stdout } = await execFile(
+async function changedMarkdownFiles(root, baseRef) {
+  const requestedBase =
+    baseRef ?? process.env.CURSOR_EVIDENCE_BASE_REF ?? 'origin/main';
+  const { stdout: mergeBaseStdout } = await execFile(
+    'git',
+    ['merge-base', requestedBase, 'HEAD'],
+    { cwd: root },
+  );
+  const mergeBase = mergeBaseStdout.trim();
+  if (!mergeBase) {
+    throw new Error(
+      `could not resolve evidence merge base for ${requestedBase}`,
+    );
+  }
+
+  const diffArgs = [
+    'diff',
+    '--name-only',
+    '--diff-filter=ACMR',
+    mergeBase,
+    'HEAD',
+    '--',
+    '*.md',
+  ];
+  const [{ stdout: committed }, { stdout: working }] = await Promise.all([
+    execFile('git', diffArgs, { cwd: root }),
+    execFile(
       'git',
       ['diff', '--name-only', '--diff-filter=ACMR', 'HEAD', '--', '*.md'],
       { cwd: root },
-    );
-    return stdout
-      .split('\n')
-      .map((file) => file.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+    ),
+  ]);
+  return [...new Set(`${committed}\n${working}`.split('\n'))]
+    .map((file) => file.trim())
+    .filter(Boolean);
 }
 
 async function cursorFrameFixtures(root) {
@@ -246,12 +368,15 @@ export async function collectCursorEvidenceFiles(
   root = REPO_ROOT,
   options = {},
 ) {
-  const changedDocs = options.changedDocs ?? (await changedMarkdownFiles(root));
+  const changedDocs =
+    options.changedDocs ?? (await changedMarkdownFiles(root, options.baseRef));
   const fixtures = options.fixtures ?? (await cursorFrameFixtures(root));
   return [
     CURSOR_EVIDENCE_REFERENCE,
     ...fixtures,
-    ...changedDocs.filter((file) => file.endsWith('.md')),
+    ...changedDocs.filter(
+      (file) => file.endsWith('.md') && !/(^|\/)reviews\//u.test(file),
+    ),
   ]
     .map((file) => file.split(path.sep).join('/'))
     .filter((file, index, files) => files.indexOf(file) === index)
@@ -277,12 +402,15 @@ export async function validateCursorEvidence(root = REPO_ROOT, options = {}) {
 
 function parseArgs(argv) {
   let root = REPO_ROOT;
+  let baseRef;
   const changedDocs = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--root') {
       root = path.resolve(argv[++index] ?? '');
+    } else if (argument === '--base-ref') {
+      baseRef = argv[++index] ?? '';
     } else if (argument === '--changed-doc') {
       changedDocs.push(argv[++index] ?? '');
     } else {
@@ -292,13 +420,14 @@ function parseArgs(argv) {
 
   return {
     root,
+    baseRef,
     changedDocs: changedDocs.length > 0 ? changedDocs : undefined,
   };
 }
 
 async function main(argv = process.argv.slice(2)) {
-  const { root, changedDocs } = parseArgs(argv);
-  const result = await validateCursorEvidence(root, { changedDocs });
+  const { root, baseRef, changedDocs } = parseArgs(argv);
+  const result = await validateCursorEvidence(root, { baseRef, changedDocs });
 
   if (result.findings.length > 0) {
     console.error(

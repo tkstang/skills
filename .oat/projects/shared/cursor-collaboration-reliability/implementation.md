@@ -954,8 +954,9 @@ reproduction also passed; Phase 5 is next.
 
 **Outcome:**
 
-- Recorded sanitized, repeatable Cursor capability evidence and passed both
-  observed-side and bounded collaboration live acceptance.
+- Recorded sanitized, repeatable Cursor capability evidence, passed four
+  read-only live observed-side rows plus fifteen synthetic observation rows,
+  and passed the bounded collaboration path with automated-only evidence.
 - Updated shipped user, engineering, and skill-reference documentation for the
   v2 content/frame semantics, exact identity, recovery, status, and honest
   support tiers.
@@ -975,7 +976,7 @@ reproduction also passed; Phase 5 is next.
 | Task    | Status   | Commit    | Outcome |
 | ------- | -------- | --------- | ------- |
 | p05-t01 | complete | `9604a3a` | Added the sanitized capability-evidence matrix plus a repeatable validator for personal paths, opaque IDs, credentials, prose canaries, and honest evidence labels. |
-| p05-t02 | complete | `8bc8ee4` | Added the finite observed-side acceptance harness and recorded 19/19 passing live Cursor 3.11.13 rows while keeping provider transcripts read-only. |
+| p05-t02 | complete | `8bc8ee4` | Added the finite observed-side acceptance harness and recorded 4/4 read-only live Cursor 3.11.13 rows plus 15/15 temporary-store synthetic rows while keeping provider transcripts read-only. |
 | p05-t03 | complete | `34b702c` | Recorded the isolated exact collaboration lifecycle through shipped control/hook paths, with provider-delivered routing honestly retained as documented-but-unvalidated. |
 | p05-t04 | complete | `da09616` | Documented content-first Cursor observation, terminal-only completion, exact identity and recovery, state/status facets, schema/index dispatch, lease/wake versions, generated topology, and honest support labels. |
 | p05-t05 | complete | `e77c367` | Bumped the three changed standalone skill versions, regenerated without drift, and verified byte-identical branch dogfooding through canonical user installs and available provider links. |
@@ -992,9 +993,9 @@ files, and repository validation, formatting/lint, and diff checks passed.
 
 **Status:** completed
 **Commit:** `8bc8ee4`
-**Verification:** Tooling tests passed 3/3; the required live probe passed
-19/19 rows; evidence validation, build parity, repository validation,
-formatting/lint, and diff checks passed.
+**Verification:** Tooling tests passed 3/3; the required probe passed 4/4 live
+read-only rows and 15/15 synthetic rows (19/19 total); evidence validation,
+build parity, repository validation, formatting/lint, and diff checks passed.
 
 ### Task p05-t03: Probe the bounded collaboration lifecycle
 

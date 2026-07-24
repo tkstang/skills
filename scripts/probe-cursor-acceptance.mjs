@@ -136,6 +136,8 @@ function digestSummary(payload) {
   return {
     schemaVersion: payload?.schemaVersion ?? null,
     runtime: payload?.runtime ?? null,
+    engagement: status.engagement ?? null,
+    activity: status.activity ?? null,
     lifecycle: status.lifecycle ?? null,
     content: status.content ?? null,
     health: status.health ?? null,
@@ -803,6 +805,12 @@ export async function runLiveAcceptance(
     const versionNumber =
       /\b\d+\.\d+\.\d+\b/u.exec(version.stdout)?.[0] ?? null;
     const architecture = /\b(?:arm64|x64)\b/u.exec(version.stdout)?.[0] ?? null;
+    const providerVersionPassed =
+      version.commandRun &&
+      version.exitCode === 0 &&
+      !version.timedOut &&
+      versionNumber !== null &&
+      architecture !== null;
 
     const whoami = await commandRunner(
       process.execPath,
@@ -810,33 +818,38 @@ export async function runLiveAcceptance(
       { cwd, env, timeoutMs: COMMAND_TIMEOUT_MS },
     );
     const whoamiPayload = parseJson(whoami.stdout);
+    const whoamiOutcome =
+      whoamiPayload?.noIdentity === true
+        ? 'unavailable'
+        : whoamiPayload?.ambiguousIdentity === true
+          ? 'ambiguous'
+          : whoami.exitCode === 0 && whoamiPayload?.runtime !== undefined
+            ? 'resolved'
+            : 'invalid';
     const whoamiPassed =
+      providerVersionPassed &&
       whoami.commandRun &&
       !whoami.timedOut &&
-      whoamiPayload !== null &&
-      [0, 2, 3].includes(whoami.exitCode);
+      ((whoamiOutcome === 'resolved' && whoami.exitCode === 0) ||
+        (whoamiOutcome === 'unavailable' && whoami.exitCode === 2) ||
+        (whoamiOutcome === 'ambiguous' && whoami.exitCode === 3));
     rows.push(
       acceptanceRow({
         id: 'live-whoami',
         source: 'live-read-only',
         command: 'session-observer whoami --cwd <requested-cwd> --json',
         commandRun: whoami.commandRun,
-        expected: { outcome: 'structural-identity-result' },
+        expected: {
+          outcome: 'structural-identity-result',
+          providerVersionAvailable: true,
+        },
         actual: {
           ...commandSummary(whoami),
-          outcome:
-            whoamiPayload?.noIdentity === true
-              ? 'unavailable'
-              : whoamiPayload?.ambiguousIdentity === true
-                ? 'ambiguous'
-                : whoami.exitCode === 0 && whoamiPayload?.runtime !== undefined
-                  ? 'resolved'
-                  : 'invalid',
+          providerVersionAvailable: providerVersionPassed,
+          outcome: whoamiOutcome,
         },
         status: whoamiPassed ? 'passed' : 'failed',
-        evidenceLabel: whoamiPassed
-          ? 'measured-structural-only'
-          : 'unavailable',
+        evidenceLabel: whoamiPassed ? 'live-validated' : 'unavailable',
       }),
     );
 
@@ -853,7 +866,7 @@ export async function runLiveAcceptance(
         ? locatePayload.winner.sessionId
         : null;
     const locateStatus =
-      locate.commandRun && !locate.timedOut
+      providerVersionPassed && locate.commandRun && !locate.timedOut
         ? locateOutcome === 'exact-cursor-session-available'
           ? 'passed'
           : 'unavailable'
@@ -867,9 +880,11 @@ export async function runLiveAcceptance(
         commandRun: locate.commandRun,
         expected: {
           outcome: 'exact-cursor-session-or-honest-unavailable',
+          providerVersionAvailable: true,
         },
         actual: {
           ...commandSummary(locate),
+          providerVersionAvailable: providerVersionPassed,
           outcome: locateOutcome,
           winnerRuntime: locatePayload?.winner?.runtime ?? null,
           winnerPresent: locatePayload?.winner !== undefined,
@@ -877,8 +892,10 @@ export async function runLiveAcceptance(
         status: locateStatus,
         evidenceLabel:
           locateStatus === 'passed'
-            ? 'measured-structural-only'
-            : 'unavailable',
+            ? 'live-validated'
+            : locateOutcome === 'exact-cursor-session-available'
+              ? 'documented-but-unvalidated'
+              : 'unavailable',
       }),
     );
 
@@ -902,9 +919,19 @@ export async function runLiveAcceptance(
     );
     const catchUpActual = digestSummary(parseJson(catchUp.stdout));
     const catchUpPassed =
+      providerVersionPassed &&
       sessionId !== null &&
+      catchUp.commandRun &&
       catchUp.exitCode === 0 &&
+      !catchUp.timedOut &&
+      catchUpActual.schemaVersion === 2 &&
       catchUpActual.runtime === 'cursor' &&
+      catchUpActual.indexBase === 'zero-based-jsonl-frame-index' &&
+      catchUpActual.engagement === 'engaged' &&
+      catchUpActual.activity === 'assistant-progress' &&
+      catchUpActual.content === 'available' &&
+      catchUpActual.lifecycle === 'success' &&
+      catchUpActual.delivery === 'reserved' &&
       catchUpActual.health === 'healthy';
     rows.push(
       acceptanceRow({
@@ -913,11 +940,22 @@ export async function runLiveAcceptance(
         command: liveCommand('catch-up'),
         commandRun: catchUp.commandRun,
         expected: {
-          outcome: 'healthy-observation-or-honest-unavailable',
+          outcome: 'validated-terminal-observation-or-honest-unavailable',
+          providerVersionAvailable: true,
+          schemaVersion: 2,
+          runtime: 'cursor',
+          indexBase: 'zero-based-jsonl-frame-index',
+          engagement: 'engaged',
+          activity: 'assistant-progress',
+          content: 'available',
+          lifecycle: 'success',
+          delivery: 'reserved',
+          health: 'healthy',
           transcriptAccess: 'read-only',
         },
         actual: {
           ...commandSummary(catchUp),
+          providerVersionAvailable: providerVersionPassed,
           ...(sessionId === null
             ? { outcome: 'unavailable' }
             : {
@@ -934,8 +972,9 @@ export async function runLiveAcceptance(
             : catchUpPassed
               ? 'passed'
               : 'failed',
-        evidenceLabel:
-          sessionId === null ? 'documented-but-unvalidated' : 'live-sanitized',
+        evidenceLabel: catchUpPassed
+          ? 'live-validated'
+          : 'documented-but-unvalidated',
       }),
     );
 
@@ -966,11 +1005,30 @@ export async function runLiveAcceptance(
     );
     const watchEvents = parseJsonLines(watch.stdout);
     const eventTypes = [...new Set(watchEvents.map((event) => event.type))];
-    const stopped = watchEvents.find((event) => event.type === 'stopped');
+    const stoppedEvents = watchEvents.filter(
+      (event) => event.type === 'stopped',
+    );
+    const stopped = stoppedEvents[0];
+    const baselineIndex = watchEvents.findIndex(
+      (event) => event.type === 'baseline',
+    );
+    const stoppedIndex = watchEvents.findIndex(
+      (event) => event.type === 'stopped',
+    );
+    const finiteRuntimeConfigured = Number(WATCH_RUNTIME_MIN) > 0;
+    const baselineObserved = baselineIndex >= 0 && baselineIndex < stoppedIndex;
+    const stoppedIsFinal =
+      stoppedIndex >= 0 && stoppedIndex === watchEvents.length - 1;
     const watchPassed =
+      providerVersionPassed &&
       sessionId !== null &&
+      watch.commandRun &&
       watch.exitCode === 0 &&
       !watch.timedOut &&
+      finiteRuntimeConfigured &&
+      baselineObserved &&
+      stoppedEvents.length === 1 &&
+      stoppedIsFinal &&
       stopped?.reason === 'max-runtime';
     rows.push(
       acceptanceRow({
@@ -980,11 +1038,24 @@ export async function runLiveAcceptance(
         commandRun: watch.commandRun,
         expected: {
           outcome: 'finite-clean-stop-or-honest-unavailable',
+          providerVersionAvailable: true,
+          finiteRuntimeConfigured: true,
+          baselineObserved: true,
+          stoppedEventCount: 1,
+          stoppedIsFinal: true,
+          stopReason: 'max-runtime',
           transcriptAccess: 'read-only',
         },
         actual: {
+          commandRun: watch.commandRun,
           exitCode: watch.exitCode,
           timedOut: watch.timedOut,
+          providerVersionAvailable: providerVersionPassed,
+          requestedMaxRuntimeMin: WATCH_RUNTIME_MIN,
+          finiteRuntimeConfigured,
+          baselineObserved,
+          stoppedEventCount: stoppedEvents.length,
+          stoppedIsFinal,
           eventTypes,
           stopReason: stopped?.reason ?? null,
           outcome:
@@ -1003,8 +1074,9 @@ export async function runLiveAcceptance(
             : watchPassed
               ? 'passed'
               : 'failed',
-        evidenceLabel:
-          sessionId === null ? 'documented-but-unvalidated' : 'live-sanitized',
+        evidenceLabel: watchPassed
+          ? 'live-validated'
+          : 'documented-but-unvalidated',
       }),
     );
 
@@ -1018,6 +1090,7 @@ export async function runLiveAcceptance(
         timedOut: version.timedOut,
         version: versionNumber ?? 'unavailable',
         architecture: architecture ?? 'unavailable',
+        status: providerVersionPassed ? 'passed' : 'failed',
       },
       rows,
     };
@@ -1046,13 +1119,17 @@ export async function runCursorAcceptance({ runtime, cwd }) {
     },
     liveAvailability: live.availability,
     liveEvidenceLabel:
-      live.availability === 'controlled-session-available'
-        ? 'live-sanitized'
+      live.availability === 'controlled-session-available' &&
+      live.provider.status === 'passed' &&
+      live.rows.every((row) => row.status === 'passed')
+        ? 'live-validated'
         : 'documented-but-unvalidated',
     provider: live.provider,
     status: failedRows.length === 0 ? 'passed' : 'failed',
     totals: {
       rows: rows.length,
+      live: live.rows.length,
+      synthetic: automatedRows.length,
       passed: rows.filter((row) => row.status === 'passed').length,
       unavailable: rows.filter((row) => row.status === 'unavailable').length,
       failed: failedRows.length,

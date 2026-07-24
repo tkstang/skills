@@ -5,6 +5,111 @@ import * as cursorAcceptanceProbe from '../../scripts/probe-cursor-acceptance.mj
 
 const { runLiveAcceptance, runSyntheticAcceptance } = cursorAcceptanceProbe;
 
+function successfulLiveCommandRunner({
+  digest = {},
+  whoamiExitCode = 2,
+  whoamiPayload = { noIdentity: true },
+  versionFailure = false,
+  watchEvents = [
+    { type: 'baseline' },
+    { type: 'stopped', reason: 'max-runtime' },
+  ],
+  watchTimedOut = false,
+}: {
+  digest?: Record<string, unknown>;
+  whoamiExitCode?: number;
+  whoamiPayload?: Record<string, unknown>;
+  versionFailure?: boolean;
+  watchEvents?: Array<Record<string, unknown>>;
+  watchTimedOut?: boolean;
+} = {}) {
+  return async (
+    command: string,
+    args: string[],
+  ): Promise<Record<string, unknown>> => {
+    if (command === 'cursor') {
+      return {
+        commandRun: true,
+        exitCode: versionFailure ? 1 : 0,
+        signal: null,
+        timedOut: false,
+        stdout: versionFailure ? '' : '3.11.13 arm64\n',
+        stderr: '',
+      };
+    }
+
+    const subcommand = args[1];
+    if (subcommand === 'whoami') {
+      return {
+        commandRun: true,
+        exitCode: whoamiExitCode,
+        signal: null,
+        timedOut: false,
+        stdout: `${JSON.stringify(whoamiPayload)}\n`,
+        stderr: '',
+      };
+    }
+    if (subcommand === 'locate') {
+      return {
+        commandRun: true,
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        stdout:
+          '{"winner":{"runtime":"cursor","sessionId":"synthetic-live-session"}}\n',
+        stderr: '',
+      };
+    }
+    if (subcommand === 'catch-up') {
+      const baseStatus = {
+        engagement: 'engaged',
+        activity: 'assistant-progress',
+        content: 'available',
+        lifecycle: 'success',
+        delivery: 'reserved',
+        health: 'healthy',
+      };
+      const digestCursorEvidence =
+        (digest.cursorEvidence as Record<string, unknown> | undefined) ?? {};
+      const digestStatus =
+        (digestCursorEvidence.status as Record<string, unknown> | undefined) ??
+        {};
+      const payload = {
+        schemaVersion: 2,
+        runtime: 'cursor',
+        entries: [{ role: 'assistant', text: '<redacted>' }],
+        ...digest,
+        range: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 0,
+          nextIndex: 3,
+          ...(digest.range as Record<string, unknown> | undefined),
+        },
+        cursorEvidence: {
+          ...digestCursorEvidence,
+          status: { ...baseStatus, ...digestStatus },
+        },
+      };
+      return {
+        commandRun: true,
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        stdout: `${JSON.stringify(payload)}\n`,
+        stderr: '',
+      };
+    }
+    return {
+      commandRun: true,
+      exitCode: 0,
+      signal: null,
+      timedOut: watchTimedOut,
+      stdout: `${watchEvents.map((event) => JSON.stringify(event)).join('\n')}\n`,
+      stderr: '',
+    };
+  };
+}
+
 describe('Cursor observation acceptance probe', () => {
   it('runs every sanitized temporary-store acceptance row to a structural result', async () => {
     const rows = await runSyntheticAcceptance();
@@ -62,9 +167,19 @@ describe('Cursor observation acceptance probe', () => {
 
   it('runs all live command rows and retains unavailable support honestly', async () => {
     const commandRunner = async (
-      _command: string,
+      command: string,
       args: string[],
     ): Promise<Record<string, unknown>> => {
+      if (command === 'cursor') {
+        return {
+          commandRun: true,
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          stdout: '3.11.13 arm64\n',
+          stderr: '',
+        };
+      }
       const subcommand = args[1];
       const payload =
         subcommand === 'whoami'
@@ -104,4 +219,134 @@ describe('Cursor observation acceptance probe', () => {
       }),
     ).toBe(true);
   });
+
+  it('promotes only rows that prove the complete live claim contract', async () => {
+    const live = await runLiveAcceptance('/synthetic-cwd', {
+      commandRunner: successfulLiveCommandRunner(),
+    });
+
+    expect(live.provider.status).toBe('passed');
+    expect(live.rows).toHaveLength(4);
+    expect(live.rows.every((row: any) => row.status === 'passed')).toBe(true);
+    expect(
+      live.rows.every((row: any) => row.evidenceLabel === 'live-validated'),
+    ).toBe(true);
+    expect(live.rows[2].actual).toMatchObject({
+      schemaVersion: 2,
+      indexBase: 'zero-based-jsonl-frame-index',
+      engagement: 'engaged',
+      activity: 'assistant-progress',
+      content: 'available',
+      lifecycle: 'success',
+      delivery: 'reserved',
+      health: 'healthy',
+    });
+    expect(live.rows[3].actual).toMatchObject({
+      baselineObserved: true,
+      stoppedEventCount: 1,
+      stoppedIsFinal: true,
+      finiteRuntimeConfigured: true,
+      stopReason: 'max-runtime',
+    });
+  });
+
+  it.each([
+    ['schema', { schemaVersion: 1 }],
+    ['index base', { range: { indexBase: 'zero-based-jsonl-record-index' } }],
+    ['engagement', { cursorEvidence: { status: { engagement: 'unknown' } } }],
+    ['activity', { cursorEvidence: { status: { activity: 'none' } } }],
+    ['content', { cursorEvidence: { status: { content: 'buffered' } } }],
+    ['lifecycle', { cursorEvidence: { status: { lifecycle: 'pending' } } }],
+    ['delivery', { cursorEvidence: { status: { delivery: 'none' } } }],
+    ['health', { cursorEvidence: { status: { health: 'blocked' } } }],
+  ])(
+    'rejects a live catch-up with the wrong %s claim',
+    async (_name, digest) => {
+      const live = await runLiveAcceptance('/synthetic-cwd', {
+        commandRunner: successfulLiveCommandRunner({ digest }),
+      });
+
+      expect(live.rows[2]).toMatchObject({
+        id: 'live-pinned-catch-up',
+        status: 'failed',
+      });
+      expect(live.rows[2].evidenceLabel).not.toBe('live-validated');
+    },
+  );
+
+  it('does not promote live evidence when provider version collection fails', async () => {
+    const live = await runLiveAcceptance('/synthetic-cwd', {
+      commandRunner: successfulLiveCommandRunner({ versionFailure: true }),
+    });
+
+    expect(live.provider.status).toBe('failed');
+    expect(live.rows.some((row: any) => row.status === 'failed')).toBe(true);
+    expect(
+      live.rows.every((row: any) => row.evidenceLabel !== 'live-validated'),
+    ).toBe(true);
+  });
+
+  it('does not promote a malformed structural whoami result', async () => {
+    const live = await runLiveAcceptance('/synthetic-cwd', {
+      commandRunner: successfulLiveCommandRunner({
+        whoamiExitCode: 0,
+        whoamiPayload: {},
+      }),
+    });
+
+    expect(live.rows[0]).toMatchObject({
+      id: 'live-whoami',
+      status: 'failed',
+      actual: { outcome: 'invalid' },
+    });
+    expect(live.rows[0].evidenceLabel).not.toBe('live-validated');
+  });
+
+  it.each([
+    ['missing baseline', [{ type: 'stopped', reason: 'max-runtime' }], false],
+    [
+      'duplicate stopped events',
+      [
+        { type: 'baseline' },
+        { type: 'stopped', reason: 'max-runtime' },
+        { type: 'stopped', reason: 'max-runtime' },
+      ],
+      false,
+    ],
+    [
+      'non-final stopped event',
+      [
+        { type: 'baseline' },
+        { type: 'stopped', reason: 'max-runtime' },
+        { type: 'heartbeat' },
+      ],
+      false,
+    ],
+    [
+      'wrong stop reason',
+      [{ type: 'baseline' }, { type: 'stopped', reason: 'signal' }],
+      false,
+    ],
+    [
+      'command timeout',
+      [{ type: 'baseline' }, { type: 'stopped', reason: 'max-runtime' }],
+      true,
+    ],
+  ])(
+    'rejects inaccurate finite watch semantics: %s',
+    async (_name, watchEvents, watchTimedOut) => {
+      const live = await runLiveAcceptance('/synthetic-cwd', {
+        commandRunner: successfulLiveCommandRunner({
+          watchEvents,
+          watchTimedOut,
+        }),
+      });
+
+      expect(live.rows[3]).toMatchObject({
+        id: 'live-bounded-catch-up-then-watch',
+        status: 'failed',
+      });
+      expect(live.rows[3].evidenceLabel).not.toBe('live-validated');
+    },
+  );
 });

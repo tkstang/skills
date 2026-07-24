@@ -160,7 +160,7 @@ record offset:
   the broader reset.
 
 Cursor observed-side reading and bounded foreground watching are
-`live-sanitized` for the measured local Cursor 3.11.13 agent-transcript surface.
+`live-validated` for the measured local Cursor 3.11.13 agent-transcript surface.
 That label does not promote other Cursor stores, lifecycle continuation,
 scheduled callbacks, or background-agent surfaces. Unmeasured behavior remains
 `documented-but-unvalidated` or `unavailable`; collaboration therefore keeps
