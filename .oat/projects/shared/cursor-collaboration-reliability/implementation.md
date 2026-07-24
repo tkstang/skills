@@ -1206,13 +1206,13 @@ passed 1,464 with 1 skipped.
 
 **Round-3 review:** `reviews/p06-review-2026-07-24T023404Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Both prior findings
-are resolved; mandatory final lifecycle review is next.
+are resolved; the mandatory final lifecycle review followed.
 
 ---
 
 ## Final Lifecycle Review
 
-**Status:** fix iteration 2 complete; review round 3 pending
+**Status:** passed
 
 ### Review round 1
 
@@ -1287,6 +1287,23 @@ flags, skill-version enforcement, changed-file lint/format, 188-entry OAT
 sync, 48 extension operations, provider-root residue checks, and byte-identical
 user-skill dogfood passed.
 
+### Review round 3
+
+`reviews/final-review-2026-07-24T032809Z.md` PASSED with 0 Critical,
+0 Important, 0 Medium, and 0 Minor findings. Independent shipped-runtime
+reproduction confirmed both prior findings remain resolved: repaired Cursor
+frames clear buffering, persist cursor/count 4, keep separate status and 30/30
+later heartbeats aligned at zero lag, preserve counts for result-less
+transitions, reject every unsafe count class without mutation, and retain
+ownership/stale CAS semantics.
+
+**Final review verification:** 238/238 suites and 1,465 tests passed with 1
+skipped; 60/60 focused watch/watch-state tests and 57/57 evidence/probe tests
+passed. Build, type-check, generated parity, validation, smoke, 34-file
+evidence validation, 34-page docs build, versions, internal flags,
+changed-file lint/format, session-observer 1.0.11 dogfood, 188/188 all-scope
+and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
+
 ---
 
 ## Deviations from Plan / Design
@@ -1355,12 +1372,13 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix after Phase 6 cleanup fix: 1,464 tests passed with 1 skipped; live Cursor
-  acceptance 19/19; evidence validator 33 files; build/type/build-check,
-  validation, smoke, docs format/build (34 pages), skill-version enforcement,
-  exact PR-scoped lint/format, and OAT provider sync 188/188 passed.
-- Independent Phase 1 through Phase 5 reviews passed after bounded fixes;
-  Phase 6 round-3 and mandatory final lifecycle reviews remain pending.
+- Final release matrix: 1,465 tests passed with 1 skipped; 60/60 focused
+  watch/watch-state tests; 57/57 evidence/probe tests; evidence validator 34
+  files; build/type/build-check, validation, smoke, docs format/build (34
+  pages), skill-version enforcement, exact changed-file lint/format, and OAT
+  provider sync 188/188 all-scope plus 114/114 user-scope passed.
+- Independent Phase 1 through Phase 6 reviews and mandatory final lifecycle
+  review round 3 passed after bounded fixes, with zero remaining findings.
 
 **Design deltas (if any):**
 
