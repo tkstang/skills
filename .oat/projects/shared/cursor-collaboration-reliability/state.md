@@ -50,15 +50,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8'
   freshness_head: e82d928187a069f79d19c94540231eaaf9a61d81
   freshness_fingerprint: 'sha256:effective-delta-v1:2fec047e034fcb89393dae0631f71178f7d227418e51b00013756fd6be591cde'
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: f5cb895a-f08c-4e0e-b7a0-a5b2ad38ad72
   launch_started_at: '2026-07-24T05:23:16Z'
   launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/f5cb895a-f08c-4e0e-b7a0-a5b2ad38ad72.result.json'
   gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/24448ac0-ac55-4175-a873-1611596f0385.json'
   gate_run_id: 24448ac0-ac55-4175-a873-1611596f0385
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: blocked
+  artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md'
+  handoff: 'Run oat-project-review-receive for .oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md before treating this gate review as consumed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -66,16 +66,16 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
-  failure: null
-  updated_at: '2026-07-24T05:24:27Z'
+  failure: 'review_completed_blocking_findings: critical=3 important=5 medium=4 minor=1 threshold=important'
+  updated_at: '2026-07-24T06:04:36Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T05:24:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T06:04:36Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - mandatory final review passed; configured exit gate pending
+Implementation - configured exit-gate attempt 2 blocked; receive pending
 
 ## Artifacts
 
@@ -206,7 +206,8 @@ Implementation - mandatory final review passed; configured exit gate pending
 - ✓ Phase 7 implementation complete: 4/4 tasks
 - ✓ Independent Phase 7 review passed with zero findings
 - ✓ Mandatory final lifecycle review round 4 passed with zero findings
-- ⧗ Configured exit-gate attempt 2 pending for changed basis
+- ✗ Configured exit-gate attempt 2 retained 3 Critical and 5 Important findings
+- ⧗ Receive configured exit-gate attempt 2
 
 ## Blockers
 
@@ -214,5 +215,5 @@ None.
 
 ## Next Milestone
 
-Regenerate and execute configured exit-gate attempt 2 against the passing
-changed implementation basis.
+Receive configured exit-gate attempt 2, then apply the persisted terminal
+`block` policy at the maximum remediation-attempt boundary.

@@ -348,6 +348,10 @@ status=pending resolution=configured attempts_completed=1 max_attempts=2 reviewe
 
 Recorded gate-originated final code review at reviews/final-review-2026-07-24T055647Z.md (blocked: 3 critical, 5 important, 4 medium, 1 minor).
 
+### 2026-07-24 · structural · oat gate review · final
+
+target=cursor-gpt-5-6-sol-max threshold=important findings=critical:3,important:5,medium:4,minor:1 exit=1 status=blocked artifact=.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
