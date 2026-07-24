@@ -29,6 +29,9 @@ const PROVIDER_ARTIFACT_MAX_ENTRIES = 512;
 const PROVIDER_ARTIFACT_MAX_DEPTH = 8;
 const PROVIDER_METADATA_MAX_BYTES = 1_048_576;
 const PROVIDER_FINGERPRINT_MAX_BYTES = 67_108_864;
+const PROVIDER_STATE_SCAN_MAX_ENTRIES = 20_000;
+const PROVIDER_STATE_SCAN_MAX_BYTES = 268_435_456;
+const PROVIDER_STATE_SCAN_MAX_ELAPSED_MS = 10_000;
 
 export const CURSOR_PROVIDER_STATE_ROOTS = Object.freeze([
   Object.freeze({
@@ -449,7 +452,75 @@ async function pathExists(target) {
   }
 }
 
-async function fingerprintProviderEntry(target) {
+class ProviderStateScanBudgetError extends Error {
+  constructor(diagnostic) {
+    super(diagnostic);
+    this.name = 'ProviderStateScanBudgetError';
+    this.diagnostic = diagnostic;
+  }
+}
+
+function positiveBound(value, fallback) {
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function createProviderStateScanBudget(options) {
+  const now = options.providerStateScanNow ?? Date.now;
+  return {
+    entryCount: 0,
+    byteCount: 0,
+    startedAtMs: now(),
+    maxEntries: positiveBound(
+      options.providerStateScanMaxEntries,
+      PROVIDER_STATE_SCAN_MAX_ENTRIES,
+    ),
+    maxBytes: positiveBound(
+      options.providerStateScanMaxBytes,
+      PROVIDER_STATE_SCAN_MAX_BYTES,
+    ),
+    maxElapsedMs: positiveBound(
+      options.providerStateScanMaxElapsedMs,
+      PROVIDER_STATE_SCAN_MAX_ELAPSED_MS,
+    ),
+    now,
+  };
+}
+
+function assertProviderStateScanElapsed(budget) {
+  if (budget.now() - budget.startedAtMs > budget.maxElapsedMs) {
+    throw new ProviderStateScanBudgetError(
+      'provider-state-scan-time-budget-exceeded',
+    );
+  }
+}
+
+function consumeProviderStateScanEntry(budget) {
+  assertProviderStateScanElapsed(budget);
+  budget.entryCount += 1;
+  if (budget.entryCount > budget.maxEntries) {
+    throw new ProviderStateScanBudgetError(
+      'provider-state-scan-entry-budget-exceeded',
+    );
+  }
+}
+
+function consumeProviderStateScanBytes(budget, bytes) {
+  assertProviderStateScanElapsed(budget);
+  budget.byteCount += bytes;
+  if (budget.byteCount > budget.maxBytes) {
+    throw new ProviderStateScanBudgetError(
+      'provider-state-scan-byte-budget-exceeded',
+    );
+  }
+}
+
+function providerStateScanDiagnostic(error, fallback) {
+  return error instanceof ProviderStateScanBudgetError
+    ? error.diagnostic
+    : fallback;
+}
+
+async function fingerprintProviderEntry(target, aggregateBudget) {
   const digest = createHash('sha256');
   const queue = [{ target, relative: '.', depth: 0 }];
   let entryCount = 0;
@@ -459,6 +530,7 @@ async function fingerprintProviderEntry(target) {
     const current = queue.shift();
     const stats = await lstat(current.target);
     entryCount += 1;
+    consumeProviderStateScanEntry(aggregateBudget);
     if (
       entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
       current.depth > PROVIDER_ARTIFACT_MAX_DEPTH
@@ -481,11 +553,13 @@ async function fingerprintProviderEntry(target) {
       throw new Error('provider entry contains unsupported artifact type');
     }
     byteCount += stats.size;
+    consumeProviderStateScanBytes(aggregateBudget, stats.size);
     if (byteCount > PROVIDER_FINGERPRINT_MAX_BYTES) {
       throw new Error('provider entry exceeds fingerprint byte bound');
     }
     digest.update(`file:${current.relative}:${stats.size}\0`);
     for await (const chunk of createReadStream(current.target)) {
+      assertProviderStateScanElapsed(aggregateBudget);
       digest.update(chunk);
     }
     digest.update('\0');
@@ -507,7 +581,9 @@ async function snapshotProviderState(options) {
     }
 
     const snapshots = [];
+    const aggregateBudget = createProviderStateScanBudget(options);
     for (const root of roots) {
+      assertProviderStateScanElapsed(aggregateBudget);
       const stats = await lstat(root.path);
       if (!stats.isDirectory() || stats.isSymbolicLink()) {
         return {
@@ -522,7 +598,10 @@ async function snapshotProviderState(options) {
       for (const name of await readdir(root.path)) {
         entries.set(
           name,
-          await fingerprintProviderEntry(path.join(root.path, name)),
+          await fingerprintProviderEntry(
+            path.join(root.path, name),
+            aggregateBudget,
+          ),
         );
       }
       snapshots.push({
@@ -538,12 +617,15 @@ async function snapshotProviderState(options) {
       takenAtMs: Date.now(),
       diagnostic: 'snapshotted-declared-provider-roots',
     };
-  } catch {
+  } catch (error) {
     return {
       succeeded: false,
       roots: [],
       takenAtMs: Date.now(),
-      diagnostic: 'provider-root-snapshot-failed',
+      diagnostic: providerStateScanDiagnostic(
+        error,
+        'provider-root-snapshot-failed',
+      ),
     };
   }
 }
@@ -665,7 +747,12 @@ async function inspectProviderArtifact(
   }
 }
 
-async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
+async function discoverProviderArtifacts(
+  snapshot,
+  workspace,
+  providerWindow,
+  options,
+) {
   const canonicalWorkspace = await realpath(workspace);
   const exactWorkspaces = new Set([workspace, canonicalWorkspace]);
   const workspaceContext = {
@@ -684,8 +771,11 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
   };
   const artifacts = [];
   let preExistingPreserved = true;
+  let preservationDiagnostic = null;
+  const aggregateBudget = createProviderStateScanBudget(options);
 
   for (const root of snapshot.roots) {
+    assertProviderStateScanElapsed(aggregateBudget);
     const currentRootStats = await lstat(root.path);
     const currentRootCanonical = await realpath(root.path);
     if (
@@ -705,10 +795,12 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
       try {
         const currentFingerprint = await fingerprintProviderEntry(
           path.join(root.path, name),
+          aggregateBudget,
         );
         if (currentFingerprint !== fingerprint) preExistingPreserved = false;
-      } catch {
+      } catch (error) {
         preExistingPreserved = false;
+        preservationDiagnostic ??= providerStateScanDiagnostic(error, null);
       }
     }
     const newNames = (await readdir(root.path)).filter(
@@ -731,9 +823,11 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
     preExistingPreserved,
     workspaceContext,
     artifacts,
-    diagnostic: preExistingPreserved
-      ? 'discovered-new-provider-state'
-      : 'pre-existing-provider-state-changed',
+    diagnostic:
+      preservationDiagnostic ??
+      (preExistingPreserved
+        ? 'discovered-new-provider-state'
+        : 'pre-existing-provider-state-changed'),
   };
 }
 
@@ -764,13 +858,17 @@ async function cleanupProviderArtifacts(
       snapshot,
       workspace,
       providerWindow,
+      options,
     );
-  } catch {
+  } catch (error) {
     discovery = {
       succeeded: false,
       workspaceContext: null,
       artifacts: [],
-      diagnostic: 'provider-artifact-discovery-failed',
+      diagnostic: providerStateScanDiagnostic(
+        error,
+        'provider-artifact-discovery-failed',
+      ),
     };
   }
   if (!discovery.succeeded) {
@@ -851,7 +949,7 @@ async function cleanupProviderArtifacts(
     diagnostic: succeeded
       ? 'removed-exact-proven-provider-state'
       : !discovery.preExistingPreserved
-        ? 'pre-existing-provider-state-changed'
+        ? discovery.diagnostic
         : ambiguous.length > 0
           ? 'ambiguous-provider-state-preserved'
           : 'provider-state-cleanup-failed',

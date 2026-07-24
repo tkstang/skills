@@ -46,6 +46,9 @@ import {
 import path from 'node:path';
 
 const arguments_ = process.argv.slice(2);
+if (process.env.CURSOR_WAKE_FAKE_INVOCATION_MARKER) {
+  writeFileSync(process.env.CURSOR_WAKE_FAKE_INVOCATION_MARKER, 'invoked\\n');
+}
 if (arguments_.includes('--version')) {
   if (process.env.CURSOR_WAKE_FAKE_VERSION_UNAVAILABLE === '1') {
     process.exit(1);
@@ -120,6 +123,12 @@ if (process.env.CURSOR_WAKE_FAKE_MUTATE_EXISTING) {
   writeFileSync(
     process.env.CURSOR_WAKE_FAKE_MUTATE_EXISTING,
     'mutated structural fake\\n',
+  );
+}
+if (process.env.CURSOR_WAKE_FAKE_EXPAND_EXISTING) {
+  writeFileSync(
+    path.join(process.env.CURSOR_WAKE_FAKE_EXPAND_EXISTING, 'expanded.log'),
+    'expanded structural fake\\n',
   );
 }
 if (process.env.CURSOR_WAKE_FAKE_HANG === '1') {
@@ -635,6 +644,182 @@ describe('Cursor wake-surface probe', () => {
     expect(await readFile(preexistingFile, 'utf8')).toBe(
       'mutated structural fake\n',
     );
+  });
+
+  it('fails before provider launch when the shared pre-run state budget is exceeded', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const invocationMarker = join(root, 'provider-invoked');
+    await Promise.all(
+      [
+        join(boundary.projects, 'project-one'),
+        join(boundary.projects, 'project-two'),
+        join(boundary.chats, 'chat-one'),
+        join(boundary.chats, 'chat-two'),
+      ].map(async (entry) => {
+        await mkdir(entry);
+        await writeFile(join(entry, 'state.log'), 'bounded structural fake\n');
+      }),
+    );
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        providerStateScanMaxEntries: 7,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_INVOCATION_MARKER: invocationMarker,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      provider: { version: 'unavailable' },
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          snapshotSucceeded: false,
+          succeeded: false,
+          diagnostic: 'provider-state-scan-entry-budget-exceeded',
+        },
+      },
+    });
+    expect(result.rows.map(({ id }: { id: string }) => id)).toEqual([
+      'provider-state-boundary',
+    ]);
+    await expect(access(invocationMarker)).rejects.toThrow();
+  });
+
+  it.each([
+    [
+      'byte',
+      { providerStateScanMaxBytes: 20 },
+      'provider-state-scan-byte-budget-exceeded',
+    ],
+    [
+      'time',
+      {
+        providerStateScanMaxElapsedMs: 2,
+        providerStateScanNow: (() => {
+          let tick = 0;
+          return () => tick++;
+        })(),
+      },
+      'provider-state-scan-time-budget-exceeded',
+    ],
+  ])(
+    'fails before provider launch when the shared pre-run %s budget is exceeded',
+    async (_budget, budgetOptions, diagnostic) => {
+      const root = await temporaryRoot();
+      const boundary = await providerBoundary(root);
+      const invocationMarker = join(root, 'provider-invoked');
+      const project = join(boundary.projects, 'project-one');
+      const chat = join(boundary.chats, 'chat-one');
+      await Promise.all([mkdir(project), mkdir(chat)]);
+      await Promise.all([
+        writeFile(join(project, 'state.log'), 'project structural fake\n'),
+        writeFile(join(chat, 'state.log'), 'chat structural fake\n'),
+      ]);
+      const provider = await fakeProvider(root);
+      const result = await runCursorWakeProbe(
+        CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+        {
+          providerCommand: process.execPath,
+          providerArgumentPrefix: [provider],
+          providerStateRoots: boundary.providerStateRoots,
+          temporaryParent: root,
+          processCapMs: 2_000,
+          env: {
+            ...process.env,
+            CURSOR_WAKE_FAKE_INVOCATION_MARKER: invocationMarker,
+          },
+          ...budgetOptions,
+        },
+      );
+
+      expect(result).toMatchObject({
+        executionStatus: 'safety-failed',
+        evidenceLabel: 'unavailable',
+        provider: { version: 'unavailable' },
+        cleanup: {
+          succeeded: false,
+          workspaceExistsAfter: false,
+          providerArtifacts: {
+            snapshotSucceeded: false,
+            succeeded: false,
+            diagnostic,
+          },
+        },
+      });
+      await expect(access(invocationMarker)).rejects.toThrow();
+    },
+  );
+
+  it('surfaces shared post-run preservation budget exhaustion while cleaning proven new state', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const preexistingProject = join(
+      boundary.projects,
+      'cursor-wake-probe-preexisting-project',
+    );
+    await mkdir(preexistingProject);
+    await writeFile(
+      join(preexistingProject, 'worker.log'),
+      'original structural fake\n',
+    );
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        providerStateScanMaxEntries: 2,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+          CURSOR_WAKE_FAKE_EXPAND_EXISTING: preexistingProject,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          snapshotSucceeded: true,
+          preExistingPreserved: false,
+          discoveredNewCount: 4,
+          ownershipProvenCount: 4,
+          removedCount: 4,
+          existsAfterCount: 0,
+          succeeded: false,
+          diagnostic: 'provider-state-scan-entry-budget-exceeded',
+        },
+      },
+    });
+    expect(await readdir(boundary.projects)).toEqual([
+      'cursor-wake-probe-preexisting-project',
+    ]);
+    expect(await readdir(preexistingProject)).toEqual([
+      'expanded.log',
+      'worker.log',
+    ]);
+    expect(await readdir(boundary.chats)).toEqual([]);
   });
 
   it('fails closed and preserves a new symlink that escapes a provider root', async () => {
