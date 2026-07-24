@@ -1602,6 +1602,20 @@ Build, type-check, generated parity, validation, smoke, live acceptance,
 evidence/privacy, skill versions, internal flags, docs build, changed-file
 lint/format, provider sync/dogfood, residue, and orphan-process checks passed.
 
+### Independent Phase 8 review
+
+**Artifact:** `reviews/p08-review-2026-07-24T125308Z.md`
+**Verdict:** passed — 0 Critical, 0 Important, 1 Medium, 0 Minor
+
+The review independently verified all 14 tasks and the full matrix. Its
+mechanical reconnaissance launch was rejected before start by the thread
+limit, so the primary reviewer covered the lane inline and recorded complete
+orchestration evidence. The non-blocking Medium notes that provider-state
+fingerprinting resets per-entry limits across an unbounded number of
+provider-root entries; it should receive an aggregate entry/byte/time budget
+in follow-up work. Per-phase blocking policy requires zero Critical and zero
+Important findings, so no Phase 8 fix loop was opened.
+
 ---
 
 ## Deviations from Plan / Design
@@ -1675,9 +1689,9 @@ Track test execution during implementation.
   passed 117/117 and 162/162; evidence validator 34 files; build/type/build-check,
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact changed-file lint/format, and OAT provider synchronization passed.
-- Independent Phase 1 through Phase 7 reviews and mandatory final lifecycle
-  review round 4 passed after bounded fixes. Phase 8 implementation is complete
-  and awaiting its fresh independent review.
+- Independent Phase 1 through Phase 8 reviews passed after bounded fixes.
+  Phase 8 retained one non-blocking Medium aggregate probe-scan bound concern;
+  the fresh final lifecycle review is next.
 
 **Design deltas (if any):**
 

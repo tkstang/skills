@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T12:43:05Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T12:55:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 complete; independent review pending
+Implementation - Phase 8 review passed; fresh final review pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Phase 8 complete; independent review pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (54/54 tasks complete; Phase 8 review pending)
+- **Implementation:** `implementation.md` (54/54 tasks complete; Phase 8 review passed)
 
 ## Progress
 
@@ -219,6 +219,7 @@ Implementation - Phase 8 complete; independent review pending
 - ✓ `p08-t13` current-state reconciliation complete at `bb435f4`
 - ✓ `p08-t14` deterministic readiness handshake and full matrix complete at `0712627`
 - ✓ Phase 8 complete: 14/14 tasks and 1,515 full-suite tests passed, 1 skipped
+- ✓ Independent Phase 8 review passed with 0 Critical, 0 Important, 1 Medium, 0 Minor
 
 ## Blockers
 
@@ -226,6 +227,5 @@ None.
 
 ## Next Milestone
 
-Run the independent Phase 8 review, then the fresh final lifecycle review.
-Only after both pass, resolve a fresh configured gate generation. Do not
-relaunch the exhausted generation.
+Run the fresh final lifecycle review. After it passes, resolve a fresh
+configured gate generation. Do not relaunch the exhausted generation.
