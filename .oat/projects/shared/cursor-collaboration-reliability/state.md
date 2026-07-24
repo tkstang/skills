@@ -1,7 +1,8 @@
 ---
 oat_current_task: null
-oat_last_commit: 779f1ce
-oat_blockers: []
+oat_last_commit: 8cc9177
+oat_blockers:
+  - "Configured exit gate exhausted 2/2 remediation attempts with 3 Critical and 5 Important findings"
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
   - { type: backlog, ref: "BL-260713-stronger-cursor-collaboration" }
@@ -36,7 +37,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: pending
+  status: blocked
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -44,7 +45,7 @@ oat_implement_exit_gate:
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
   on_failure: block
   max_attempts: 2
-  attempts_completed: 1
+  attempts_completed: 2
   reviewed_head: 090f507373b0f7a8c5848c62af846e08dfb95393
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8'
@@ -54,28 +55,28 @@ oat_implement_exit_gate:
   launch_attempt_id: f5cb895a-f08c-4e0e-b7a0-a5b2ad38ad72
   launch_started_at: '2026-07-24T05:23:16Z'
   launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/f5cb895a-f08c-4e0e-b7a0-a5b2ad38ad72.result.json'
-  gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/24448ac0-ac55-4175-a873-1611596f0385.json'
+  gate_run_marker: 'system-temp:oat-gate-runs/24448ac0-ac55-4175-a873-1611596f0385.json'
   gate_run_id: 24448ac0-ac55-4175-a873-1611596f0385
   envelope_status: blocked
   artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md'
   handoff: 'Run oat-project-review-receive for .oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md before treating this gate review as consumed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=24448ac0-ac55-4175-a873-1611596f0385 scope=final type=code source=final-review-2026-07-24T055647Z.md handoff=corroborated'
   receive_source_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T055647Z.md'
   receive_archived_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/archived/final-review-2026-07-24T055647Z.md'
   receive_event_identity: 'final|code|final-review-2026-07-24T055647Z.md'
   receive_pre_head: bb84e62fd46195b12606cc4c811054f40dc916df
-  receive_commit: null
+  receive_commit: 8cc91770f5b1002e4def797c8f09c62338dccb02
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: 'review_completed_blocking_findings: critical=3 important=5 medium=4 minor=1 threshold=important'
-  updated_at: '2026-07-24T06:05:21Z'
+  updated_at: '2026-07-24T06:12:14Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T06:05:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T06:12:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +88,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 fixes queued; gate receive reconciliation pending
+Implementation - blocked at configured exit-gate attempt limit
 
 ## Artifacts
 
@@ -209,13 +210,17 @@ Implementation - Phase 8 fixes queued; gate receive reconciliation pending
 - ✗ Configured exit-gate attempt 2 retained 3 Critical and 5 Important findings
 - ✓ Configured exit-gate result corroborated and converted into 13 Phase 8 tasks
 - ✓ Gate review archived at `reviews/archived/final-review-2026-07-24T055647Z.md`
-- ⧗ Reconcile the durable receive commit and apply terminal `block` policy
+- ✓ Durable receive reconciled at `8cc9177`
+- ✗ Configured `block` policy reached `maxAttempts` at attempt 2 of 2
 
 ## Blockers
 
-None.
+Configured exit gate exhausted 2 of 2 remediation attempts with 3 Critical,
+5 Important, 4 Medium, and 1 Minor active findings. Phase 8 contains 13
+queued fix tasks, but another remediation/gate cycle requires explicit
+operator authorization.
 
 ## Next Milestone
 
-Reconcile the configured gate receive commit, persist attempt 2 of 2 as
-consumed, and stop at the configured terminal `block` boundary.
+Obtain explicit operator direction before reopening remediation. Do not launch
+a third configured gate attempt from this generation.

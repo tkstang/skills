@@ -356,6 +356,10 @@ target=cursor-gpt-5-6-sol-max threshold=important findings=critical:3,important:
 
 run=24448ac0-ac55-4175-a873-1611596f0385 source=reviews/final-review-2026-07-24T055647Z.md archived=reviews/archived/final-review-2026-07-24T055647Z.md findings=critical:3,important:5,medium:4,minor:1 tasks=p08-t01..p08-t13 disposition=block attempts=2_of_2 next=terminal-policy-reconciliation
 
+### 2026-07-24 · structural · oat-project-implement · exit-gate-terminal-block
+
+run=24448ac0-ac55-4175-a873-1611596f0385 receive_state=completed receive_commit=8cc91770f5b1002e4def797c8f09c62338dccb02 status=blocked policy=block attempts_completed=2 max_attempts=2 marker=logical:system-temp:oat-gate-runs next=explicit-operator-direction
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

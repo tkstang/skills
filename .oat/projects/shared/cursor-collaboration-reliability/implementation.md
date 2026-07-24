@@ -1366,7 +1366,7 @@ The mandatory final lifecycle review passed on `090f507` after all four
 attempt-1 findings were remediated. The same persisted gate configuration and
 `block` policy are retained, with attempt 1 of 2 consumed. The new reviewed
 basis is fingerprinted against `origin/main` as
-`sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8`.
+`implementation_fingerprint: sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8`.
 Launch and receive state are reset for the second and final attempt.
 
 ### Attempt 2 result
@@ -1530,6 +1530,11 @@ No finding was deferred or rejected. The task order serializes overlapping
 generated observer output, collaboration contracts, probe tooling, evidence
 bookkeeping, and final release reconciliation. The configured gate has reached
 `maxAttempts`; Phase 8 cannot begin automatically within this gate generation.
+
+The receive transaction is durably corroborated by commit `8cc9177`. Attempt
+2 of 2 is consumed, the terminal marker is normalized to a repo-neutral
+logical reference, and the configured `block` policy prevents another launch
+without explicit operator authorization.
 
 ---
 
