@@ -366,7 +366,7 @@ scope=p08-t01..p08-t13 authorization=one-bounded-remediation-cycle exhausted_gen
 
 ### 2026-07-24 · structural · oat-project-implement · p08-blocked
 
-request=a7a7f515-e7f7-43f1-bb59-8572159d5548 target=oat-phase-implementer-gpt-5-6-sol-high status=blocked completed=12_of_13 commits=6da8f79..b606771 failure=p08-t09_fixture_readiness_race preserved=.oat/repo/pjm/current-state.md next=explicit-continuation-boundary
+request=logical:phase8-blocked-attempt target=oat-phase-implementer-gpt-5-6-sol-high status=blocked completed=12_of_13 commits=6da8f79..b606771 failure=p08-t09_fixture_readiness_race preserved=.oat/repo/pjm/current-state.md next=explicit-continuation-boundary
 
 ### 2026-07-24 · structural · operator-authorization · p08-continuation
 

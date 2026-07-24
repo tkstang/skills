@@ -1545,7 +1545,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 
 ### Phase implementation attempt
 
-**Request:** `a7a7f515-e7f7-43f1-bb59-8572159d5548`
+**Request:** `logical:phase8-blocked-attempt`
 **Dispatch:** `oat-phase-implementer-gpt-5-6-sol-high`
 **Base:** `3b4ea80`
 **Status:** `BLOCKED`
