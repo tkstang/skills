@@ -282,6 +282,39 @@ describe('createCursorTurnAccumulator', () => {
     expect(analysis.turns[0].finalSubstantiveEntryKey).toBeNull();
   });
 
+  it('rejects unsupported top-level assistant content and message shapes', async () => {
+    const analysis = await analyzeRecords([
+      user('Synthetic unsupported-shape request.'),
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Top-level content is unmeasured.' }],
+      },
+      {
+        role: 'assistant',
+        message: 'Non-object message content is unmeasured.',
+      },
+      {
+        role: 'assistant',
+      },
+      terminal('success'),
+    ]);
+
+    expect(
+      analysis.turns[0].assistantRecords.map(
+        ({ classification, text, sourceFrameIndex }) => ({
+          classification,
+          text,
+          sourceFrameIndex,
+        }),
+      ),
+    ).toEqual([
+      { classification: 'unsupported', text: '', sourceFrameIndex: 1 },
+      { classification: 'unsupported', text: '', sourceFrameIndex: 2 },
+      { classification: 'unsupported', text: '', sourceFrameIndex: 3 },
+    ]);
+    expect(analysis.turns[0].finalSubstantiveEntryKey).toBeNull();
+  });
+
   it.each([
     ['success', 'success'],
     ['aborted', 'aborted'],

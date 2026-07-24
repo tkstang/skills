@@ -119,7 +119,10 @@ function validateIdentity(identity: CursorIdentityEvidence): void {
 }
 
 function contentBlocks(record: JsonObject): ContentBlock[] {
-  const message = isJsonObject(record.message) ? record.message : record;
+  if (!isJsonObject(record.message)) {
+    return [{ blockIndex: 0, kind: 'unsupported', text: '' }];
+  }
+  const message = record.message;
   const content = message.content;
 
   if (typeof content === 'string') {

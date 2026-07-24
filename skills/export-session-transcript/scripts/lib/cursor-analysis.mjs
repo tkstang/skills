@@ -37,7 +37,10 @@ function validateIdentity(identity) {
   }
 }
 function contentBlocks(record) {
-  const message = isJsonObject(record.message) ? record.message : record;
+  if (!isJsonObject(record.message)) {
+    return [{ blockIndex: 0, kind: "unsupported", text: "" }];
+  }
+  const message = record.message;
   const content = message.content;
   if (typeof content === "string") {
     return [{ blockIndex: 0, kind: "text", text: content }];

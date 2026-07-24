@@ -7,10 +7,10 @@ argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--mat
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
-version: '1.0.5'
+version: '1.0.6'
 metadata:
   author: thomas.stang
-  version: '1.0.5'
+  version: '1.0.6'
 ---
 
 # export-session-transcript
