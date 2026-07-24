@@ -1,10 +1,12 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import {
   access,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -25,6 +27,7 @@ const {
   CURSOR_WAKE_PROBE_MODES,
   describeCursorWakeProbeRecipes,
   runCursorWakeProbe,
+  verifyCursorWakeProbeIsolationContract,
 } = wakeProbe;
 const { scanCursorEvidenceText } = cursorEvidence;
 const execFile = promisify(execFileCallback);
@@ -32,7 +35,14 @@ const temporaryRoots: string[] = [];
 
 const FAKE_PROVIDER = `#!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 const arguments_ = process.argv.slice(2);
@@ -40,11 +50,72 @@ if (arguments_.includes('--version')) {
   process.stdout.write('test-version\\n');
   process.exit(0);
 }
+const workspaceIndex = arguments_.indexOf('--workspace');
+const workspace = arguments_[workspaceIndex + 1];
+const encodeWorkspace = (value) =>
+  value
+    .replace(/[^a-zA-Z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+const compactProjectName = (root, value) => {
+  const unbounded = path.join(root, encodeWorkspace(value));
+  if (unbounded.length <= 92) return path.basename(unbounded);
+  const digest = createHash('sha256')
+    .update(unbounded)
+    .digest('hex')
+    .substring(0, 7);
+  return path.basename(
+    \`\${unbounded.substring(0, Math.min(84, unbounded.length))}-\${digest}\`,
+  );
+};
+if (process.env.CURSOR_WAKE_FAKE_PROJECTS_ROOT) {
+  const projectNames = process.env.CURSOR_WAKE_FAKE_PROJECT_SYMLINK_TARGET
+    ? [encodeWorkspace(workspace)]
+    : [
+        encodeWorkspace(workspace),
+        encodeWorkspace(realpathSync(workspace)),
+        compactProjectName(
+          process.env.CURSOR_WAKE_FAKE_PROJECTS_ROOT,
+          workspace,
+        ),
+      ];
+  const uniqueProjectNames = [...new Set(projectNames)];
+  const project = path.join(
+    process.env.CURSOR_WAKE_FAKE_PROJECTS_ROOT,
+    uniqueProjectNames[0],
+  );
+  if (process.env.CURSOR_WAKE_FAKE_PROJECT_SYMLINK_TARGET) {
+    symlinkSync(process.env.CURSOR_WAKE_FAKE_PROJECT_SYMLINK_TARGET, project);
+  } else {
+    for (const name of uniqueProjectNames) {
+      const owned = path.join(process.env.CURSOR_WAKE_FAKE_PROJECTS_ROOT, name);
+      mkdirSync(owned, { recursive: true });
+      writeFileSync(path.join(owned, 'worker.log'), 'structural fake\\n');
+    }
+  }
+  if (process.env.CURSOR_WAKE_FAKE_AMBIGUOUS_PROJECT === '1') {
+    const ambiguous = path.join(
+      process.env.CURSOR_WAKE_FAKE_PROJECTS_ROOT,
+      \`unrelated-\${path.basename(workspace)}\`,
+    );
+    mkdirSync(ambiguous, { recursive: true });
+    writeFileSync(path.join(ambiguous, 'worker.log'), 'ambiguous fake\\n');
+  }
+}
+if (process.env.CURSOR_WAKE_FAKE_CHATS_ROOT) {
+  const chat = path.join(
+    process.env.CURSOR_WAKE_FAKE_CHATS_ROOT,
+    \`chat-\${path.basename(workspace)}\`,
+  );
+  mkdirSync(chat, { recursive: true });
+  writeFileSync(
+    path.join(chat, 'metadata.json'),
+    JSON.stringify({ workspace: realpathSync(workspace) }),
+  );
+}
 if (process.env.CURSOR_WAKE_FAKE_HANG === '1') {
   setInterval(() => {}, 1000);
 } else {
-  const workspaceIndex = arguments_.indexOf('--workspace');
-  const workspace = arguments_[workspaceIndex + 1];
   const hooks = JSON.parse(
     readFileSync(path.join(workspace, '.cursor', 'hooks.json'), 'utf8'),
   );
@@ -99,6 +170,20 @@ async function fakeProvider(root: string) {
   return script;
 }
 
+async function providerBoundary(root: string) {
+  const projects = join(root, 'provider-projects');
+  const chats = join(root, 'provider-chats');
+  await Promise.all([mkdir(projects), mkdir(chats)]);
+  return {
+    projects,
+    chats,
+    providerStateRoots: [
+      { id: 'projects', path: projects, policy: 'encoded-workspace' },
+      { id: 'chats', path: chats, policy: 'workspace-metadata' },
+    ],
+  };
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryRoots.splice(0).map((root) => rm(root, { recursive: true })),
@@ -116,14 +201,28 @@ describe('Cursor wake-surface probe', () => {
       versionProcessCapMs: 10_000,
     });
     expect(description.safety).toMatchObject({
-      temporaryWorkspaceOnly: true,
-      existingProviderTranscripts: 'not-read-or-mutated',
+      workspacePolicy: 'exact-created-workspace',
+      providerStatePolicy: 'snapshot-new-exact-owned-remove',
+      preExistingArtifacts: 'preserved',
+      ambiguousArtifacts: 'fail-without-removal',
       credentialsRequested: false,
       daemonStarted: false,
       schedulerStarted: false,
       externalServiceStarted: false,
-      cleanup: 'remove-exact-created-workspace',
+      cleanup: 'remove-exact-created-workspace-and-proven-provider-state',
     });
+    expect(description.safety.declaredProviderRoots).toEqual([
+      {
+        id: 'projects',
+        location: 'cursor-home/projects',
+        attribution: 'exact-encoded-workspace',
+      },
+      {
+        id: 'chats',
+        location: 'cursor-home/chats',
+        attribution: 'exact-workspace-metadata',
+      },
+    ]);
     expect(description.modes.map(({ mode }: { mode: string }) => mode)).toEqual(
       [
         CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
@@ -223,9 +322,11 @@ describe('Cursor wake-surface probe', () => {
     async (mode) => {
       const root = await temporaryRoot();
       const provider = await fakeProvider(root);
+      const boundary = await providerBoundary(root);
       const result = await runCursorWakeProbe(mode, {
         providerCommand: process.execPath,
         providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
         temporaryParent: root,
         processCapMs: 2_000,
       });
@@ -246,8 +347,10 @@ describe('Cursor wake-surface probe', () => {
           followupLoopLimit: 1,
         },
         safety: {
-          temporaryWorkspaceOnly: true,
-          existingProviderTranscripts: 'not-read-or-mutated',
+          workspacePolicy: 'exact-created-workspace',
+          providerStatePolicy: 'snapshot-new-exact-owned-remove',
+          preExistingArtifacts: 'preserved',
+          ambiguousArtifacts: 'fail-without-removal',
           credentialsRequested: false,
           daemonStarted: false,
           schedulerStarted: false,
@@ -257,6 +360,12 @@ describe('Cursor wake-surface probe', () => {
           attempted: true,
           succeeded: true,
           workspaceExistsAfter: false,
+          providerArtifacts: {
+            snapshotSucceeded: true,
+            ambiguousCount: 0,
+            existsAfterCount: 0,
+            succeeded: true,
+          },
         },
       });
       expect(result.rows.map(({ id }: { id: string }) => id)).toEqual([
@@ -265,6 +374,7 @@ describe('Cursor wake-surface probe', () => {
         'lifecycle-hooks',
         'fixed-markers',
         'surface-outcome',
+        'provider-state-boundary',
       ]);
       expect(result.rows).toEqual(
         expect.arrayContaining([
@@ -298,14 +408,21 @@ describe('Cursor wake-surface probe', () => {
   it('terminates an over-cap provider process and still removes the workspace', async () => {
     const root = await temporaryRoot();
     const provider = await fakeProvider(root);
+    const boundary = await providerBoundary(root);
     const result = await runCursorWakeProbe(
       CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
       {
         providerCommand: process.execPath,
         providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
         temporaryParent: root,
-        processCapMs: 50,
-        env: { ...process.env, CURSOR_WAKE_FAKE_HANG: '1' },
+        processCapMs: 500,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_HANG: '1',
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+        },
       },
     );
 
@@ -320,12 +437,271 @@ describe('Cursor wake-surface probe', () => {
       attempted: true,
       succeeded: true,
       workspaceExistsAfter: false,
+      providerArtifacts: {
+        discoveredNewCount: 4,
+        removedCount: 4,
+        existsAfterCount: 0,
+        succeeded: true,
+      },
     });
+    expect(await readdir(boundary.projects)).toEqual([]);
+    expect(await readdir(boundary.chats)).toEqual([]);
     expect(
       (await readdir(root)).filter((entry) =>
         entry.startsWith('cursor-wake-probe-'),
       ),
     ).toEqual([]);
+  });
+
+  it('removes exact provider-owned artifacts written outside --workspace', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+        },
+      },
+    );
+
+    expect(result.cleanup).toMatchObject({
+      succeeded: true,
+      workspaceExistsAfter: false,
+      providerArtifacts: {
+        declaredRootCount: 2,
+        discoveredNewCount: 4,
+        ownershipProvenCount: 4,
+        ambiguousCount: 0,
+        removedCount: 4,
+        existsAfterCount: 0,
+        succeeded: true,
+      },
+    });
+    expect(await readdir(boundary.projects)).toEqual([]);
+    expect(await readdir(boundary.chats)).toEqual([]);
+  });
+
+  it('preserves every pre-existing provider entry while removing newly owned state', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const preexistingProject = 'cursor-wake-probe-preexisting-project';
+    const preexistingChat = 'cursor-wake-probe-preexisting-chat';
+    await Promise.all([
+      mkdir(join(boundary.projects, preexistingProject)),
+      mkdir(join(boundary.chats, preexistingChat)),
+    ]);
+    await writeFile(
+      join(boundary.chats, preexistingChat, 'metadata.json'),
+      JSON.stringify({ workspace: '/private/var/old-cursor-wake-probe' }),
+    );
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+        },
+      },
+    );
+
+    expect(result.cleanup.providerArtifacts).toMatchObject({
+      discoveredNewCount: 4,
+      ownershipProvenCount: 4,
+      removedCount: 4,
+      ambiguousCount: 0,
+      succeeded: true,
+    });
+    expect(await readdir(boundary.projects)).toEqual([preexistingProject]);
+    expect(await readdir(boundary.chats)).toEqual([preexistingChat]);
+  });
+
+  it('fails closed and preserves a new symlink that escapes a provider root', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const escapeTarget = join(root, 'unrelated-provider-state');
+    await mkdir(escapeTarget);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_PROJECT_SYMLINK_TARGET: escapeTarget,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          discoveredNewCount: 1,
+          ownershipProvenCount: 0,
+          ambiguousCount: 1,
+          removedCount: 0,
+          existsAfterCount: 1,
+          succeeded: false,
+          diagnostic: 'ambiguous-provider-state-preserved',
+        },
+      },
+    });
+    expect(await readdir(boundary.projects)).toHaveLength(1);
+    expect(await readdir(escapeTarget)).toEqual([]);
+  });
+
+  it('removes proven state but fails closed on an unrelated new provider entry', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_AMBIGUOUS_PROJECT: '1',
+        },
+      },
+    );
+
+    expect(result.cleanup.providerArtifacts).toMatchObject({
+      discoveredNewCount: 4,
+      ownershipProvenCount: 3,
+      ambiguousCount: 1,
+      removedCount: 3,
+      existsAfterCount: 1,
+      succeeded: false,
+    });
+    expect(result.executionStatus).toBe('safety-failed');
+    expect(await readdir(boundary.projects)).toEqual([
+      expect.stringMatching(/^unrelated-cursor-wake-probe-/u),
+    ]);
+  });
+
+  it('surfaces exact provider-state deletion failure and verifies the artifact remains', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+        },
+        removeProviderArtifact: async () => {
+          throw new Error('synthetic deletion failure');
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          ownershipProvenCount: 3,
+          removedCount: 0,
+          existsAfterCount: 3,
+          succeeded: false,
+          diagnostic: 'provider-state-cleanup-failed',
+        },
+      },
+    });
+    expect(await readdir(boundary.projects)).toHaveLength(3);
+  });
+
+  it('rejects a symlinked provider root before invoking the provider', async () => {
+    const root = await temporaryRoot();
+    const actualProjects = join(root, 'actual-projects');
+    const linkedProjects = join(root, 'linked-projects');
+    const chats = join(root, 'provider-chats');
+    await Promise.all([mkdir(actualProjects), mkdir(chats)]);
+    await symlink(actualProjects, linkedProjects);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: [
+          {
+            id: 'projects',
+            path: linkedProjects,
+            policy: 'encoded-workspace',
+          },
+          { id: 'chats', path: chats, policy: 'workspace-metadata' },
+        ],
+        temporaryParent: root,
+        processCapMs: 2_000,
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      provider: { version: 'unavailable' },
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          snapshotSucceeded: false,
+          succeeded: false,
+          diagnostic: 'unsafe-provider-root',
+        },
+      },
+    });
+    expect(result.rows.map(({ id }: { id: string }) => id)).toEqual([
+      'provider-state-boundary',
+    ]);
+    expect(await readdir(actualProjects)).toEqual([]);
+  });
+
+  it('executes the provider-state isolation contract used by the validator', async () => {
+    await expect(verifyCursorWakeProbeIsolationContract()).resolves.toEqual({
+      schemaVersion: 1,
+      succeeded: true,
+      declaredRootCount: 2,
+      ownershipProvenCount: 2,
+      removedCount: 2,
+      preExistingPreserved: true,
+      ownedArtifactsAbsent: true,
+    });
   });
 
   it('exposes the same complete recipe through the structural CLI', async () => {

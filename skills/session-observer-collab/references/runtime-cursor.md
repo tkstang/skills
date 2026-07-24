@@ -131,14 +131,21 @@ pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts tests/ses
 pnpm exec vitest run tests/transcript-core/runtimes.test.ts
 ```
 
-The Phase 6 live probes used the authenticated `agent` command in isolated
-trusted temporary workspaces with finite process and hook caps. One probe
-targeted top-level `stop`; a second installed a fixed project child definition
-while targeting `subagentStart`/`subagentStop`. Neither project lifecycle hook
-produced an invocation record or same-parent follow-up. The managed parent
-marker appeared, but the child marker was not exposed in parent output. The
-probes retained no raw identity, transcript path, provider prose, or credential
-and changed no provider configuration. No complete live lifecycle,
+The Phase 6 live probes used the authenticated `agent` command in temporary
+trusted workspaces with finite process and hook caps. Before invoking the
+provider, each probe snapshotted the declared Cursor `projects` and `chats`
+state roots. Cleanup removed only new direct children whose ownership was
+proved by Cursor's exact encoded/compact workspace naming or bounded metadata
+containing the exact workspace path; it then verified both the temporary
+workspace and all four proved provider artifacts were absent. Pre-existing
+entries are preserved, and any ambiguous new entry fails the probe without
+being deleted. One probe targeted top-level `stop`; a second installed a fixed
+project child definition while targeting `subagentStart`/`subagentStop`.
+Neither project lifecycle hook produced an invocation record or same-parent
+follow-up. The managed parent marker appeared, but the child marker was not
+exposed in parent output. The probes retained no raw identity, transcript path,
+provider prose, credential, or personal path and changed no provider
+configuration. No complete live lifecycle,
 Stop/`turn_ended` ordering, interaction-during-wait, restart/resume, recurring
 loop, or scheduled-callback sequence passed, so those provider wake surfaces
 are **unavailable** and buffered-manual is selected.
@@ -159,14 +166,14 @@ raw session, lease, or identity value, credential, personal hostname, or
 personal absolute path. Version commands were rerun on the sanitized local
 host; they did not launch a conversation or validate provider behavior.
 
-| Capability                            | Host                             | Provider                           | Version                    | Store                                                                   | Path shape                                                                               | Record shape                                                                                                                | Identity                                                                                                            | Action                                                           | Outcome                                                                                                             | Evidence label   |
-| ------------------------------------- | -------------------------------- | ---------------------------------- | -------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| Agent-transcript structural baseline  | `Darwin arm64`; hostname omitted | Cursor desktop CLI                 | `3.11.13` (`arm64`)        | Local Cursor agent-transcript store                                     | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` | Closed JSONL frames have top-level `role` plus nested `message.content`; terminal frames have top-level `type` and `status` | Transcript directory and filename placeholders matched; device and inode availability was recorded only as booleans | `cursor --version`; structural-only local store inspection       | Store shape and provider version measured live; automated structural coverage passed; no lifecycle ordering claimed | `live-validated` |
-| Streaming frame and terminal variants | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | `tests/session-observer/fixtures/cursor/framed-*.jsonl`                 | Repository-relative fixture paths only                                                   | Closed, blank, malformed-middle, partial-tail, repaired, appended, and same-length-replaced frames                          | No session, lease, or provider identity stored                                                                      | Focused fixture and reader suites                                | Structural scenarios pass automated checks; fixture prose is explicitly synthetic                                   | `automated-only` |
-| Terminal failure retention            | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | Cursor terminal fixtures                                                | Repository-relative fixture paths only                                                   | `aborted`, `error`, and `cancelled` terminal outcomes remain diagnostics and do not promote provisional content             | No raw identity stored                                                                                              | Focused analyzer and runtime suites                              | Failure outcomes retained as failures; no success promotion                                                         | `automated-only` |
-| Cursor agent CLI behavior             | `Darwin arm64`; hostname omitted | Cursor agent CLI and `agent` alias | `2026.07.23-e383d2b`       | Isolated temporary workspaces; existing transcripts not read or mutated | Created temporary path omitted                                                           | Two finite provider runs with exact structural hooks, fixed prompts, child definition, markers, and cleanup                 | Raw provider identity omitted; no delivered lifecycle callback to compare                                           | Executable top-level Stop and managed-subagent callback probes   | Normal bounded exits; no lifecycle hook or same-parent follow-up; managed parent marker only                        | `live-validated` |
-| Stop-hook lifecycle continuation      | Sanitized local host             | Cursor top-level `stop` hook       | Agent `2026.07.23-e383d2b` | Owner-only collaboration lease plus pinned peer transcript              | Isolated temporary workspace; retained path omitted                                      | Current hook contract does not expose `followup_message` for top-level `stop`; controlled project hook was not invoked      | No provider identity retained; exact same-parent identity and ordering remain unproved                              | Finite read-only Cursor Agent probe plus automated adapter tests | Agent returned only the initial response; no callback record or same-parent follow-up was delivered                 | `unavailable`    |
-| Background or other transcript stores | Sanitized local host             | Cursor background/other surfaces   | `unavailable`              | No candidate store produced by a controlled probe                       | Unmeasured                                                                               | Unmeasured                                                                                                                  | Unmeasured                                                                                                          | Preserve the non-claim until a controlled candidate exists       | Unavailable; no fallback store inferred                                                                             | `unavailable`    |
+| Capability                            | Host                             | Provider                           | Version                    | Store                                                                 | Path shape                                                                               | Record shape                                                                                                                | Identity                                                                                                            | Action                                                           | Outcome                                                                                                               | Evidence label   |
+| ------------------------------------- | -------------------------------- | ---------------------------------- | -------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| Agent-transcript structural baseline  | `Darwin arm64`; hostname omitted | Cursor desktop CLI                 | `3.11.13` (`arm64`)        | Local Cursor agent-transcript store                                   | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` | Closed JSONL frames have top-level `role` plus nested `message.content`; terminal frames have top-level `type` and `status` | Transcript directory and filename placeholders matched; device and inode availability was recorded only as booleans | `cursor --version`; structural-only local store inspection       | Store shape and provider version measured live; automated structural coverage passed; no lifecycle ordering claimed   | `live-validated` |
+| Streaming frame and terminal variants | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | `tests/session-observer/fixtures/cursor/framed-*.jsonl`               | Repository-relative fixture paths only                                                   | Closed, blank, malformed-middle, partial-tail, repaired, appended, and same-length-replaced frames                          | No session, lease, or provider identity stored                                                                      | Focused fixture and reader suites                                | Structural scenarios pass automated checks; fixture prose is explicitly synthetic                                     | `automated-only` |
+| Terminal failure retention            | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | Cursor terminal fixtures                                              | Repository-relative fixture paths only                                                   | `aborted`, `error`, and `cancelled` terminal outcomes remain diagnostics and do not promote provisional content             | No raw identity stored                                                                                              | Focused analyzer and runtime suites                              | Failure outcomes retained as failures; no success promotion                                                           | `automated-only` |
+| Cursor agent CLI behavior             | `Darwin arm64`; hostname omitted | Cursor agent CLI and `agent` alias | `2026.07.23-e383d2b`       | Temporary workspace plus declared Cursor `projects` and `chats` roots | Personal paths omitted; exact provider names used only in memory for ownership proof     | Two finite provider runs with structural hooks, fixed prompts, markers, pre-snapshots, exact cleanup, and absence checks    | Raw provider identity omitted; no delivered lifecycle callback to compare                                           | Executable top-level Stop and managed-subagent callback probes   | Normal bounded exits; each run proved and removed four provider artifacts; no lifecycle hook or same-parent follow-up | `live-validated` |
+| Stop-hook lifecycle continuation      | Sanitized local host             | Cursor top-level `stop` hook       | Agent `2026.07.23-e383d2b` | Owner-only collaboration lease plus pinned peer transcript            | Isolated temporary workspace; retained path omitted                                      | Current hook contract does not expose `followup_message` for top-level `stop`; controlled project hook was not invoked      | No provider identity retained; exact same-parent identity and ordering remain unproved                              | Finite read-only Cursor Agent probe plus automated adapter tests | Agent returned only the initial response; no callback record or same-parent follow-up was delivered                   | `unavailable`    |
+| Background or other transcript stores | Sanitized local host             | Cursor background/other surfaces   | `unavailable`              | No candidate store produced by a controlled probe                     | Unmeasured                                                                               | Unmeasured                                                                                                                  | Unmeasured                                                                                                          | Preserve the non-claim until a controlled candidate exists       | Unavailable; no fallback store inferred                                                                               | `unavailable`    |
 
 Evidence labels use the governing taxonomy row by row: `live-validated`,
 `automated-only`, `documented-but-unvalidated`, `unavailable`, or
@@ -258,12 +265,15 @@ restart/resume, recurring live loops, or `subagentStop`.
 ## Same-parent Stop callback evaluation (2026-07-24)
 
 A controlled Cursor Agent run evaluated the real top-level `stop` surface in
-an isolated trusted temporary workspace. The executable probe creates the
-exact project `hooks.json`, a structural-only logger/follow-up hook, fixed
-prompt and markers, and then removes the exact workspace it created. The hook
-has a ten-second timeout and one-loop cap. An independent parent-process timer
-enforces the 90-second Agent cap with termination and kill fallback; this is
-separate from the provider hook timeout.
+a trusted temporary workspace. The executable probe creates the exact project
+`hooks.json`, a structural-only logger/follow-up hook, fixed prompt and
+markers, and snapshots the declared Cursor `projects` and `chats` roots before
+provider invocation. It removes only exact new ownership-proven state and
+verifies absence afterward; pre-existing state is preserved and ambiguous new
+state fails closed. The hook has a ten-second timeout and one-loop cap. An
+independent parent-process timer enforces the 90-second Agent cap with
+termination and kill fallback; this is separate from the provider hook
+timeout.
 
 ```text
 node scripts/probe-cursor-wake-surfaces.mjs --describe --json
@@ -285,6 +295,12 @@ provider prose, raw identity, credential, personal path, or transcript content:
     "processCapMs": 90000,
     "hookTimeoutSeconds": 10,
     "followupLoopLimit": 1
+  },
+  "safety": {
+    "workspacePolicy": "exact-created-workspace",
+    "providerStatePolicy": "snapshot-new-exact-owned-remove",
+    "preExistingArtifacts": "preserved",
+    "ambiguousArtifacts": "fail-without-removal"
   },
   "setup": {
     "hooksConfigVersion": 1,
@@ -336,13 +352,37 @@ provider prose, raw identity, credential, personal path, or transcript content:
         "outcome": "callback-unavailable"
       },
       "status": "unavailable"
+    },
+    {
+      "id": "provider-state-boundary",
+      "expected": {
+        "snapshotSucceeded": true,
+        "ambiguousCount": 0,
+        "existsAfterCount": 0
+      },
+      "actual": {
+        "snapshotSucceeded": true,
+        "ambiguousCount": 0,
+        "existsAfterCount": 0
+      },
+      "status": "passed"
     }
   ],
   "cleanup": {
     "attempted": true,
     "succeeded": true,
     "workspaceExistsAfter": false,
-    "diagnostic": "removed-exact-created-workspace"
+    "providerArtifacts": {
+      "declaredRootCount": 2,
+      "snapshotSucceeded": true,
+      "discoveredNewCount": 4,
+      "ownershipProvenCount": 4,
+      "ambiguousCount": 0,
+      "removedCount": 4,
+      "existsAfterCount": 0,
+      "succeeded": true
+    },
+    "diagnostic": "removed-exact-probe-state"
   }
 }
 ```
@@ -352,8 +392,10 @@ The current installed Cursor hook contract lists `followup_message` for
 returned only the requested initial response. The project `stop` hook produced
 no structural invocation record, so there was no callback from which to prove
 exact owner identity, one-consumer delivery, v2 envelope delivery, duplicate
-suppression, or disarm/restart recovery. The temporary workspace was removed
-after the probe; no provider configuration or live transcript was mutated.
+suppression, or disarm/restart recovery. The temporary workspace and all four
+new exact ownership-proven provider artifacts were removed and independently
+verified absent after the probe; no provider configuration or pre-existing
+provider state was mutated.
 
 | Probe facet              | Expected structural outcome                                                | Actual structural outcome                                                     | Evidence label   |
 | ------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------- |
@@ -377,7 +419,9 @@ structural logger/follow-up hook, and a fixed `.cursor/agents/` child
 definition. That child can only return fixed markers and has no file, shell,
 network, or credential task. The hook timeout is ten seconds with a one-loop
 cap, while an independent parent-process timer enforces the 120-second Agent
-cap.
+cap. The same pre-snapshot, exact ownership proof, targeted removal, and final
+absence checks cover the temporary workspace and both declared provider-state
+roots.
 
 ```text
 node scripts/probe-cursor-wake-surfaces.mjs --mode managed-subagent --json
@@ -397,6 +441,12 @@ The rerun emitted this sanitized structural result:
     "processCapMs": 120000,
     "hookTimeoutSeconds": 10,
     "followupLoopLimit": 1
+  },
+  "safety": {
+    "workspacePolicy": "exact-created-workspace",
+    "providerStatePolicy": "snapshot-new-exact-owned-remove",
+    "preExistingArtifacts": "preserved",
+    "ambiguousArtifacts": "fail-without-removal"
   },
   "setup": {
     "hooksConfigVersion": 1,
@@ -457,13 +507,37 @@ The rerun emitted this sanitized structural result:
         "outcome": "callback-unavailable"
       },
       "status": "unavailable"
+    },
+    {
+      "id": "provider-state-boundary",
+      "expected": {
+        "snapshotSucceeded": true,
+        "ambiguousCount": 0,
+        "existsAfterCount": 0
+      },
+      "actual": {
+        "snapshotSucceeded": true,
+        "ambiguousCount": 0,
+        "existsAfterCount": 0
+      },
+      "status": "passed"
     }
   ],
   "cleanup": {
     "attempted": true,
     "succeeded": true,
     "workspaceExistsAfter": false,
-    "diagnostic": "removed-exact-created-workspace"
+    "providerArtifacts": {
+      "declaredRootCount": 2,
+      "snapshotSucceeded": true,
+      "discoveredNewCount": 4,
+      "ownershipProvenCount": 4,
+      "ambiguousCount": 0,
+      "removedCount": 4,
+      "existsAfterCount": 0,
+      "succeeded": true
+    },
+    "diagnostic": "removed-exact-probe-state"
   }
 }
 ```
@@ -481,15 +555,16 @@ cron entry and no matching LaunchAgent. The Cursor Agent CLI exposes no
 scheduled callback command. Its private cloud `worker` command requires an
 operator-managed authentication token and a long-running service; starting it
 would introduce the exact credential, external service, and daemon authority
-this phase forbids, so it was not run. Both temporary probe workspaces were
-removed after their finite invocations; the probe did not read or mutate an
-existing provider transcript.
+this phase forbids, so it was not run. Both temporary probe workspaces and each
+run's four exact ownership-proven provider artifacts were removed and verified
+absent after their finite invocations. The probe preserved all pre-existing
+provider entries.
 
 | Candidate surface                    | Required proof                                                                  | Actual structural outcome                                                                                           | Evidence label |
 | ------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Managed local `subagentStop`         | One paired child lifecycle callback delivers one v2 wake to the exact parent    | Fixed managed prompt returned its parent marker, but no child marker, project-hook record, or follow-up was exposed | `unavailable`  |
 | Exact ownership and one consumer     | Parent/child identities match structurally and exactly one callback is consumed | Not measurable because no managed callback payload was delivered                                                    | `unavailable`  |
-| Interruption/restart and suppression | Finite interruption, restart, duplicate suppression, and cleanup all pass       | Prerequisite callback delivery was unavailable; only temporary-workspace cleanup passed                             | `unavailable`  |
+| Interruption/restart and suppression | Finite interruption, restart, duplicate suppression, and cleanup all pass       | Prerequisite callback delivery was unavailable; exact temporary and provider-state cleanup passed                   | `unavailable`  |
 | Existing scheduled callback          | An already-running deterministic surface submits a future pinned catch-up       | No Cursor/observer cron, LaunchAgent, or Cursor scheduler command was available                                     | `unavailable`  |
 | Cursor private cloud worker          | Existing authorized local callback with no new credential, daemon, or service   | Requires a token and long-running external-service connection; deliberately not started                             | `unsupported`  |
 

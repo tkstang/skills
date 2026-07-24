@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmod,
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
   readdir,
+  realpath,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +23,23 @@ const HOOK_TIMEOUT_SECONDS = 10;
 const FOLLOWUP_LOOP_LIMIT = 1;
 const TERMINATION_GRACE_MS = 2_000;
 const OUTPUT_TAIL_LIMIT = 8_192;
+const PROVIDER_ARTIFACT_CLOCK_SKEW_MS = 2_000;
+const PROVIDER_ARTIFACT_MAX_ENTRIES = 512;
+const PROVIDER_ARTIFACT_MAX_DEPTH = 8;
+const PROVIDER_METADATA_MAX_BYTES = 1_048_576;
+
+export const CURSOR_PROVIDER_STATE_ROOTS = Object.freeze([
+  Object.freeze({
+    id: 'projects',
+    relativePath: '.cursor/projects',
+    policy: 'encoded-workspace',
+  }),
+  Object.freeze({
+    id: 'chats',
+    relativePath: '.cursor/chats',
+    policy: 'workspace-metadata',
+  }),
+]);
 
 export const CURSOR_WAKE_PROBE_MODES = Object.freeze({
   TOP_LEVEL_STOP: 'top-level-stop',
@@ -209,13 +229,25 @@ export function describeCursorWakeProbeRecipes() {
       versionProcessCapMs: VERSION_PROCESS_CAP_MS,
     },
     safety: {
-      temporaryWorkspaceOnly: true,
-      existingProviderTranscripts: 'not-read-or-mutated',
+      workspacePolicy: 'exact-created-workspace',
+      providerStatePolicy: 'snapshot-new-exact-owned-remove',
+      declaredProviderRoots: CURSOR_PROVIDER_STATE_ROOTS.map(
+        ({ id, relativePath, policy }) => ({
+          id,
+          location: `cursor-home/${path.basename(relativePath)}`,
+          attribution:
+            policy === 'encoded-workspace'
+              ? 'exact-encoded-workspace'
+              : 'exact-workspace-metadata',
+        }),
+      ),
+      preExistingArtifacts: 'preserved',
+      ambiguousArtifacts: 'fail-without-removal',
       credentialsRequested: false,
       daemonStarted: false,
       schedulerStarted: false,
       externalServiceStarted: false,
-      cleanup: 'remove-exact-created-workspace',
+      cleanup: 'remove-exact-created-workspace-and-proven-provider-state',
     },
     modes: [
       CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
@@ -324,6 +356,510 @@ export async function createCursorWakeProbeWorkspace(
     workspace,
     cleanup: () => removeTemporaryWorkspace(workspace, temporaryParent),
   };
+}
+
+function cursorWakeProbeSafety() {
+  return describeCursorWakeProbeRecipes().safety;
+}
+
+function encodeWorkspaceForProjectState(workspace) {
+  return workspace
+    .replace(/[^a-zA-Z0-9]/gu, '-')
+    .replace(/-+/gu, '-')
+    .replace(/^-+|-+$/gu, '');
+}
+
+function compactProjectStateName(root, workspace) {
+  const unbounded = path.join(
+    root.path,
+    encodeWorkspaceForProjectState(workspace),
+  );
+  if (unbounded.length <= 92) return path.basename(unbounded);
+  const digest = createHash('sha256')
+    .update(unbounded)
+    .digest('hex')
+    .substring(0, 7);
+  return path.basename(
+    `${unbounded.substring(0, Math.min(84, unbounded.length))}-${digest}`,
+  );
+}
+
+function resolveProviderStateRoots(options) {
+  const configured = options.providerStateRoots;
+  if (configured !== undefined) {
+    if (!Array.isArray(configured)) {
+      throw new Error('provider state roots must be an array');
+    }
+    return configured.map((root) => ({
+      id: root.id,
+      path: path.resolve(root.path),
+      policy: root.policy,
+    }));
+  }
+
+  const providerEnvironment = options.env ?? process.env;
+  const cursorHome = providerEnvironment.CURSOR_DATA_DIR?.trim()
+    ? path.resolve(providerEnvironment.CURSOR_DATA_DIR)
+    : path.join(
+        providerEnvironment.HOME ?? process.env.HOME ?? homedir(),
+        '.cursor',
+      );
+  return CURSOR_PROVIDER_STATE_ROOTS.map(({ id, relativePath, policy }) => ({
+    id,
+    path: path.join(cursorHome, path.basename(relativePath)),
+    policy,
+  }));
+}
+
+function validProviderRootSet(roots) {
+  return (
+    roots.length === CURSOR_PROVIDER_STATE_ROOTS.length &&
+    CURSOR_PROVIDER_STATE_ROOTS.every(({ id, policy }) => {
+      const matches = roots.filter((root) => root.id === id);
+      return (
+        matches.length === 1 &&
+        matches[0].policy === policy &&
+        path.isAbsolute(matches[0].path)
+      );
+    })
+  );
+}
+
+function safeArtifactFingerprint(stats) {
+  return {
+    device: stats.dev,
+    inode: stats.ino,
+    birthtimeMs: stats.birthtimeMs,
+  };
+}
+
+function sameArtifactFingerprint(left, right) {
+  return left.device === right.dev && left.inode === right.ino;
+}
+
+async function pathExists(target) {
+  try {
+    await lstat(target);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function snapshotProviderState(options) {
+  try {
+    const roots = resolveProviderStateRoots(options);
+    if (!validProviderRootSet(roots)) {
+      return {
+        succeeded: false,
+        roots: [],
+        takenAtMs: Date.now(),
+        diagnostic: 'invalid-provider-root-contract',
+      };
+    }
+
+    const snapshots = [];
+    for (const root of roots) {
+      const stats = await lstat(root.path);
+      if (!stats.isDirectory() || stats.isSymbolicLink()) {
+        return {
+          succeeded: false,
+          roots: [],
+          takenAtMs: Date.now(),
+          diagnostic: 'unsafe-provider-root',
+        };
+      }
+      const canonical = await realpath(root.path);
+      snapshots.push({
+        ...root,
+        realPath: canonical,
+        fingerprint: safeArtifactFingerprint(stats),
+        entries: new Set(await readdir(root.path)),
+      });
+    }
+    return {
+      succeeded: true,
+      roots: snapshots,
+      takenAtMs: Date.now(),
+      diagnostic: 'snapshotted-declared-provider-roots',
+    };
+  } catch {
+    return {
+      succeeded: false,
+      roots: [],
+      takenAtMs: Date.now(),
+      diagnostic: 'provider-root-snapshot-failed',
+    };
+  }
+}
+
+function containsExactWorkspace(value, workspaces) {
+  if (typeof value === 'string') return workspaces.has(value);
+  if (Array.isArray(value)) {
+    return value.some((entry) => containsExactWorkspace(entry, workspaces));
+  }
+  if (value === null || typeof value !== 'object') return false;
+  return Object.values(value).some((entry) =>
+    containsExactWorkspace(entry, workspaces),
+  );
+}
+
+async function inspectArtifactTree(
+  target,
+  workspaces,
+  { readWorkspaceMetadata },
+) {
+  const queue = [{ target, depth: 0 }];
+  let entryCount = 0;
+  let workspaceMetadataPresent = false;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const stats = await lstat(current.target);
+    entryCount += 1;
+    if (
+      stats.isSymbolicLink() ||
+      entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
+      current.depth > PROVIDER_ARTIFACT_MAX_DEPTH
+    ) {
+      return {
+        safe: false,
+        workspaceMetadataPresent: false,
+        diagnostic: 'unsafe-provider-artifact-tree',
+      };
+    }
+    if (stats.isDirectory()) {
+      const entries = await readdir(current.target);
+      queue.push(
+        ...entries.map((entry) => ({
+          target: path.join(current.target, entry),
+          depth: current.depth + 1,
+        })),
+      );
+      continue;
+    }
+    if (
+      readWorkspaceMetadata &&
+      stats.isFile() &&
+      path.extname(current.target) === '.json' &&
+      stats.size <= PROVIDER_METADATA_MAX_BYTES
+    ) {
+      try {
+        const value = JSON.parse(await readFile(current.target, 'utf8'));
+        workspaceMetadataPresent ||= containsExactWorkspace(value, workspaces);
+      } catch {
+        // Non-metadata JSON is not sufficient to establish ownership.
+      }
+    }
+  }
+
+  return {
+    safe: true,
+    workspaceMetadataPresent,
+    diagnostic: 'bounded-provider-artifact-tree',
+  };
+}
+
+async function inspectProviderArtifact(
+  root,
+  name,
+  workspaceContext,
+  providerWindow,
+) {
+  const target = path.join(root.path, name);
+  try {
+    const stats = await lstat(target);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      return { target, owned: false, diagnostic: 'unsafe-artifact-target' };
+    }
+    const canonical = await realpath(target);
+    if (path.dirname(canonical) !== root.realPath) {
+      return { target, owned: false, diagnostic: 'artifact-root-escape' };
+    }
+    if (
+      stats.birthtimeMs <
+        providerWindow.startedAtMs - PROVIDER_ARTIFACT_CLOCK_SKEW_MS ||
+      stats.birthtimeMs >
+        providerWindow.endedAtMs + PROVIDER_ARTIFACT_CLOCK_SKEW_MS
+    ) {
+      return { target, owned: false, diagnostic: 'artifact-time-ambiguous' };
+    }
+
+    const tree = await inspectArtifactTree(
+      target,
+      workspaceContext.exactWorkspaces,
+      { readWorkspaceMetadata: root.policy === 'workspace-metadata' },
+    );
+    if (!tree.safe) {
+      return { target, owned: false, diagnostic: tree.diagnostic };
+    }
+    const owned =
+      (root.policy === 'encoded-workspace' &&
+        workspaceContext.encodedWorkspacesByRoot.get(root.id)?.has(name)) ||
+      (root.policy === 'workspace-metadata' && tree.workspaceMetadataPresent);
+    return {
+      target,
+      name,
+      root,
+      owned,
+      fingerprint: safeArtifactFingerprint(stats),
+      diagnostic: owned ? 'exact-provider-ownership-proven' : 'ambiguous-state',
+    };
+  } catch {
+    return { target, owned: false, diagnostic: 'artifact-inspection-failed' };
+  }
+}
+
+async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
+  const canonicalWorkspace = await realpath(workspace);
+  const exactWorkspaces = new Set([workspace, canonicalWorkspace]);
+  const workspaceContext = {
+    exactWorkspaces,
+    encodedWorkspacesByRoot: new Map(
+      snapshot.roots.map((root) => [
+        root.id,
+        new Set(
+          [...exactWorkspaces].flatMap((exactWorkspace) => [
+            encodeWorkspaceForProjectState(exactWorkspace),
+            compactProjectStateName(root, exactWorkspace),
+          ]),
+        ),
+      ]),
+    ),
+  };
+  const artifacts = [];
+
+  for (const root of snapshot.roots) {
+    const currentRootStats = await lstat(root.path);
+    const currentRootCanonical = await realpath(root.path);
+    if (
+      !currentRootStats.isDirectory() ||
+      currentRootStats.isSymbolicLink() ||
+      currentRootCanonical !== root.realPath ||
+      !sameArtifactFingerprint(root.fingerprint, currentRootStats)
+    ) {
+      return {
+        succeeded: false,
+        workspaceContext,
+        artifacts: [],
+        diagnostic: 'provider-root-changed-during-probe',
+      };
+    }
+    const newNames = (await readdir(root.path)).filter(
+      (name) => !root.entries.has(name),
+    );
+    for (const name of newNames) {
+      artifacts.push(
+        await inspectProviderArtifact(
+          root,
+          name,
+          workspaceContext,
+          providerWindow,
+        ),
+      );
+    }
+  }
+
+  return {
+    succeeded: true,
+    workspaceContext,
+    artifacts,
+    diagnostic: 'discovered-new-provider-state',
+  };
+}
+
+async function cleanupProviderArtifacts(
+  snapshot,
+  workspace,
+  providerWindow,
+  options,
+) {
+  if (!snapshot.succeeded) {
+    return {
+      declaredRootCount: CURSOR_PROVIDER_STATE_ROOTS.length,
+      snapshotSucceeded: false,
+      discoveredNewCount: 0,
+      ownershipProvenCount: 0,
+      ambiguousCount: 0,
+      removedCount: 0,
+      existsAfterCount: 0,
+      succeeded: false,
+      diagnostic: snapshot.diagnostic,
+    };
+  }
+
+  let discovery;
+  try {
+    discovery = await discoverProviderArtifacts(
+      snapshot,
+      workspace,
+      providerWindow,
+    );
+  } catch {
+    discovery = {
+      succeeded: false,
+      workspaceContext: null,
+      artifacts: [],
+      diagnostic: 'provider-artifact-discovery-failed',
+    };
+  }
+  if (!discovery.succeeded) {
+    return {
+      declaredRootCount: snapshot.roots.length,
+      snapshotSucceeded: true,
+      discoveredNewCount: 0,
+      ownershipProvenCount: 0,
+      ambiguousCount: 0,
+      removedCount: 0,
+      existsAfterCount: 0,
+      succeeded: false,
+      diagnostic: discovery.diagnostic,
+    };
+  }
+
+  const owned = discovery.artifacts.filter((artifact) => artifact.owned);
+  const ambiguous = discovery.artifacts.filter((artifact) => !artifact.owned);
+  const removeProviderArtifact =
+    options.removeProviderArtifact ??
+    ((target) => rm(target, { recursive: true, force: false }));
+  let removedCount = 0;
+  let removalFailed = false;
+
+  for (const artifact of owned) {
+    try {
+      const reinspection = await inspectProviderArtifact(
+        artifact.root,
+        artifact.name,
+        discovery.workspaceContext,
+        providerWindow,
+      );
+      const stats = await lstat(artifact.target);
+      if (
+        !reinspection.owned ||
+        reinspection.target !== artifact.target ||
+        !sameArtifactFingerprint(artifact.fingerprint, stats)
+      ) {
+        removalFailed = true;
+        continue;
+      }
+      await removeProviderArtifact(artifact.target);
+      if (await pathExists(artifact.target)) {
+        removalFailed = true;
+      } else {
+        removedCount += 1;
+      }
+    } catch {
+      removalFailed = true;
+    }
+  }
+
+  let existsAfterCount = 0;
+  for (const artifact of discovery.artifacts) {
+    try {
+      if (await pathExists(artifact.target)) existsAfterCount += 1;
+    } catch {
+      existsAfterCount += 1;
+    }
+  }
+  const succeeded =
+    ambiguous.length === 0 &&
+    !removalFailed &&
+    removedCount === owned.length &&
+    existsAfterCount === 0;
+  return {
+    declaredRootCount: snapshot.roots.length,
+    snapshotSucceeded: true,
+    discoveredNewCount: discovery.artifacts.length,
+    ownershipProvenCount: owned.length,
+    ambiguousCount: ambiguous.length,
+    removedCount,
+    existsAfterCount,
+    succeeded,
+    diagnostic: succeeded
+      ? 'removed-exact-proven-provider-state'
+      : ambiguous.length > 0
+        ? 'ambiguous-provider-state-preserved'
+        : 'provider-state-cleanup-failed',
+  };
+}
+
+function combineCleanup(workspaceCleanup, providerArtifacts) {
+  return {
+    attempted: workspaceCleanup.attempted,
+    succeeded: workspaceCleanup.succeeded && providerArtifacts.succeeded,
+    workspaceExistsAfter: workspaceCleanup.workspaceExistsAfter,
+    providerArtifacts,
+    diagnostic:
+      workspaceCleanup.succeeded && providerArtifacts.succeeded
+        ? 'removed-exact-probe-state'
+        : 'probe-state-cleanup-failed',
+  };
+}
+
+export async function verifyCursorWakeProbeIsolationContract() {
+  const root = await mkdtemp(
+    path.join(tmpdir(), 'cursor-wake-isolation-contract-'),
+  );
+  try {
+    const workspace = path.join(root, `${TEMPORARY_PREFIX}contract`);
+    const projects = path.join(root, 'projects');
+    const chats = path.join(root, 'chats');
+    await Promise.all([
+      mkdir(workspace),
+      mkdir(projects),
+      mkdir(chats),
+      mkdir(path.join(root, 'preexisting-placeholder')),
+    ]);
+    const preexisting = path.join(projects, 'preexisting-provider-state');
+    await mkdir(preexisting);
+    const options = {
+      providerStateRoots: [
+        { id: 'projects', path: projects, policy: 'encoded-workspace' },
+        { id: 'chats', path: chats, policy: 'workspace-metadata' },
+      ],
+    };
+    const snapshot = await snapshotProviderState(options);
+    const startedAtMs = Date.now();
+    const project = path.join(
+      projects,
+      encodeWorkspaceForProjectState(await realpath(workspace)),
+    );
+    const chat = path.join(chats, 'contract-chat');
+    await Promise.all([mkdir(project), mkdir(chat)]);
+    await Promise.all([
+      writeFile(path.join(project, 'worker.log'), 'contract\n'),
+      writeFile(
+        path.join(chat, 'metadata.json'),
+        JSON.stringify({ workspace: await realpath(workspace) }),
+      ),
+    ]);
+    const endedAtMs = Date.now();
+    const cleanup = await cleanupProviderArtifacts(
+      snapshot,
+      workspace,
+      { startedAtMs, endedAtMs },
+      options,
+    );
+    return {
+      schemaVersion: 1,
+      succeeded:
+        cleanup.succeeded &&
+        cleanup.ownershipProvenCount === 2 &&
+        cleanup.removedCount === 2 &&
+        (await pathExists(preexisting)) &&
+        !(await pathExists(project)) &&
+        !(await pathExists(chat)),
+      declaredRootCount: cleanup.declaredRootCount,
+      ownershipProvenCount: cleanup.ownershipProvenCount,
+      removedCount: cleanup.removedCount,
+      preExistingPreserved: await pathExists(preexisting),
+      ownedArtifactsAbsent:
+        !(await pathExists(project)) && !(await pathExists(chat)),
+    };
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 function appendOutputTail(current, chunk) {
@@ -470,10 +1006,73 @@ export async function runCursorWakeProbe(mode, options = {}) {
   const providerArgumentPrefix = options.providerArgumentPrefix ?? [];
   const processCapMs = options.processCapMs ?? recipe.bounds.processCapMs;
   const temporary = await createCursorWakeProbeWorkspace(mode, options);
-  let result;
+  const providerSnapshot = await snapshotProviderState(options);
 
+  if (!providerSnapshot.succeeded) {
+    const workspaceCleanup = await temporary.cleanup();
+    const providerArtifacts = await cleanupProviderArtifacts(
+      providerSnapshot,
+      temporary.workspace,
+      {
+        startedAtMs: providerSnapshot.takenAtMs,
+        endedAtMs: Date.now(),
+      },
+      options,
+    );
+    return {
+      schemaVersion: 1,
+      probe: PROBE_NAME,
+      mode,
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      provider: {
+        name: 'Cursor Agent',
+        version: 'unavailable',
+        architecture: process.arch,
+      },
+      bounds: {
+        processCapMs,
+        hookTimeoutSeconds: recipe.bounds.hookTimeoutSeconds,
+        followupLoopLimit: recipe.bounds.followupLoopLimit,
+      },
+      safety: cursorWakeProbeSafety(),
+      setup: {
+        hooksConfigVersion: recipe.hooksConfig.version,
+        hookEvents: Object.keys(recipe.hooksConfig.hooks),
+        hookScriptPresent: true,
+        childDefinitionPresent: recipe.childDefinition !== null,
+        fixedPrompt: true,
+        fixedMarkers: recipe.markers,
+      },
+      rows: [
+        outcomeRow(
+          'provider-state-boundary',
+          {
+            snapshotSucceeded: true,
+            ambiguousCount: 0,
+            existsAfterCount: 0,
+          },
+          {
+            snapshotSucceeded: false,
+            ambiguousCount: 0,
+            existsAfterCount: 0,
+          },
+          'failed',
+        ),
+      ],
+      cleanup: combineCleanup(workspaceCleanup, providerArtifacts),
+    };
+  }
+
+  const providerStartedAtMs = Date.now();
+  let versionRun;
+  let providerRun;
+  let events;
+  let providerEndedAtMs;
+  let providerArtifacts;
+  let workspaceCleanup;
   try {
-    const versionRun = await runBoundedProcess(
+    versionRun = await runBoundedProcess(
       providerCommand,
       [...providerArgumentPrefix, '--version'],
       {
@@ -482,7 +1081,7 @@ export async function runCursorWakeProbe(mode, options = {}) {
         timeoutMs: options.versionProcessCapMs ?? VERSION_PROCESS_CAP_MS,
       },
     );
-    const providerRun = await runBoundedProcess(
+    providerRun = await runBoundedProcess(
       providerCommand,
       [
         ...providerArgumentPrefix,
@@ -501,113 +1100,125 @@ export async function runCursorWakeProbe(mode, options = {}) {
         timeoutMs: processCapMs,
       },
     );
-    const events = await readHookEvents(temporary.workspace);
-    const hooks = actualHookCounts(events, recipe.expectedHooks);
-    const markers = markerPresence(providerRun.stdoutTail, recipe.markers);
-    const providerCompleted =
-      providerRun.commandRun &&
-      providerRun.exitCode === 0 &&
-      providerRun.timedOut === false;
-    const callbacksRan = allExpectedHooksRan(hooks);
-    const followupDelivered = deliveredFollowup(mode, markers);
-    const surfaceOutcome =
-      providerCompleted && callbacksRan && followupDelivered
-        ? 'callback-delivered'
-        : providerCompleted
-          ? 'callback-unavailable'
-          : versionRun.spawnFailed
-            ? 'provider-unavailable'
-            : 'provider-process-failed';
-
-    result = {
-      schemaVersion: 1,
-      probe: PROBE_NAME,
-      mode,
-      executionStatus: 'completed',
-      evidenceLabel:
-        surfaceOutcome === 'callback-delivered'
-          ? 'live-validated'
-          : 'unavailable',
-      provider: {
-        name: 'Cursor Agent',
-        version: sanitizedProviderVersion(versionRun),
-        architecture: process.arch,
-      },
-      bounds: {
-        processCapMs,
-        hookTimeoutSeconds: recipe.bounds.hookTimeoutSeconds,
-        followupLoopLimit: recipe.bounds.followupLoopLimit,
-      },
-      safety: {
-        temporaryWorkspaceOnly: true,
-        existingProviderTranscripts: 'not-read-or-mutated',
-        credentialsRequested: false,
-        daemonStarted: false,
-        schedulerStarted: false,
-        externalServiceStarted: false,
-      },
-      setup: {
-        hooksConfigVersion: recipe.hooksConfig.version,
-        hookEvents: Object.keys(recipe.hooksConfig.hooks),
-        hookScriptPresent: true,
-        childDefinitionPresent: recipe.childDefinition !== null,
-        fixedPrompt: true,
-        fixedMarkers: recipe.markers,
-      },
-      rows: [
-        outcomeRow(
-          'provider-version',
-          { available: true },
-          { available: sanitizedProviderVersion(versionRun) !== 'unavailable' },
-          sanitizedProviderVersion(versionRun) !== 'unavailable'
-            ? 'passed'
-            : 'unavailable',
-        ),
-        outcomeRow(
-          'bounded-provider-process',
-          { commandRun: true, exitCode: 0, timedOut: false },
-          {
-            commandRun: providerRun.commandRun,
-            exitCode: providerRun.exitCode,
-            timedOut: providerRun.timedOut,
-          },
-          providerCompleted ? 'passed' : 'unavailable',
-        ),
-        outcomeRow(
-          'lifecycle-hooks',
-          Object.fromEntries(recipe.expectedHooks.map((hook) => [hook, 1])),
-          hooks,
-          callbacksRan ? 'passed' : 'unavailable',
-        ),
-        outcomeRow(
-          'fixed-markers',
-          Object.fromEntries(recipe.markers.map((marker) => [marker, true])),
-          markers,
-          followupDelivered ? 'passed' : 'unavailable',
-        ),
-        outcomeRow(
-          'surface-outcome',
-          { callbackDelivered: true },
-          {
-            callbackDelivered: followupDelivered,
-            outcome: surfaceOutcome,
-          },
-          surfaceOutcome === 'callback-delivered' ? 'passed' : 'unavailable',
-        ),
-      ],
-      cleanup: {
-        attempted: false,
-        succeeded: false,
-        workspaceExistsAfter: true,
-        diagnostic: 'pending',
-      },
-    };
+    providerEndedAtMs = Date.now();
+    events = await readHookEvents(temporary.workspace);
   } finally {
-    const cleanup = await temporary.cleanup();
-    if (result) result.cleanup = cleanup;
+    providerEndedAtMs ??= Date.now();
+    try {
+      providerArtifacts = await cleanupProviderArtifacts(
+        providerSnapshot,
+        temporary.workspace,
+        { startedAtMs: providerStartedAtMs, endedAtMs: providerEndedAtMs },
+        options,
+      );
+    } finally {
+      workspaceCleanup = await temporary.cleanup();
+    }
   }
+  const cleanup = combineCleanup(workspaceCleanup, providerArtifacts);
+  const hooks = actualHookCounts(events, recipe.expectedHooks);
+  const markers = markerPresence(providerRun.stdoutTail, recipe.markers);
+  const providerCompleted =
+    providerRun.commandRun &&
+    providerRun.exitCode === 0 &&
+    providerRun.timedOut === false;
+  const callbacksRan = allExpectedHooksRan(hooks);
+  const followupDelivered = deliveredFollowup(mode, markers);
+  const surfaceOutcome =
+    providerCompleted && callbacksRan && followupDelivered
+      ? 'callback-delivered'
+      : providerCompleted
+        ? 'callback-unavailable'
+        : versionRun.spawnFailed
+          ? 'provider-unavailable'
+          : 'provider-process-failed';
+  const safetySucceeded = cleanup.succeeded;
 
-  return result;
+  return {
+    schemaVersion: 1,
+    probe: PROBE_NAME,
+    mode,
+    executionStatus: safetySucceeded ? 'completed' : 'safety-failed',
+    evidenceLabel:
+      safetySucceeded && surfaceOutcome === 'callback-delivered'
+        ? 'live-validated'
+        : 'unavailable',
+    provider: {
+      name: 'Cursor Agent',
+      version: sanitizedProviderVersion(versionRun),
+      architecture: process.arch,
+    },
+    bounds: {
+      processCapMs,
+      hookTimeoutSeconds: recipe.bounds.hookTimeoutSeconds,
+      followupLoopLimit: recipe.bounds.followupLoopLimit,
+    },
+    safety: cursorWakeProbeSafety(),
+    setup: {
+      hooksConfigVersion: recipe.hooksConfig.version,
+      hookEvents: Object.keys(recipe.hooksConfig.hooks),
+      hookScriptPresent: true,
+      childDefinitionPresent: recipe.childDefinition !== null,
+      fixedPrompt: true,
+      fixedMarkers: recipe.markers,
+    },
+    rows: [
+      outcomeRow(
+        'provider-version',
+        { available: true },
+        { available: sanitizedProviderVersion(versionRun) !== 'unavailable' },
+        sanitizedProviderVersion(versionRun) !== 'unavailable'
+          ? 'passed'
+          : 'unavailable',
+      ),
+      outcomeRow(
+        'bounded-provider-process',
+        { commandRun: true, exitCode: 0, timedOut: false },
+        {
+          commandRun: providerRun.commandRun,
+          exitCode: providerRun.exitCode,
+          timedOut: providerRun.timedOut,
+        },
+        providerCompleted ? 'passed' : 'unavailable',
+      ),
+      outcomeRow(
+        'lifecycle-hooks',
+        Object.fromEntries(recipe.expectedHooks.map((hook) => [hook, 1])),
+        hooks,
+        callbacksRan ? 'passed' : 'unavailable',
+      ),
+      outcomeRow(
+        'fixed-markers',
+        Object.fromEntries(recipe.markers.map((marker) => [marker, true])),
+        markers,
+        followupDelivered ? 'passed' : 'unavailable',
+      ),
+      outcomeRow(
+        'surface-outcome',
+        { callbackDelivered: true },
+        {
+          callbackDelivered: followupDelivered,
+          outcome: surfaceOutcome,
+        },
+        surfaceOutcome === 'callback-delivered' ? 'passed' : 'unavailable',
+      ),
+      outcomeRow(
+        'provider-state-boundary',
+        {
+          snapshotSucceeded: true,
+          ambiguousCount: 0,
+          existsAfterCount: 0,
+        },
+        {
+          snapshotSucceeded: providerArtifacts.snapshotSucceeded,
+          ambiguousCount: providerArtifacts.ambiguousCount,
+          existsAfterCount: providerArtifacts.existsAfterCount,
+        },
+        providerArtifacts.succeeded ? 'passed' : 'failed',
+      ),
+    ],
+    cleanup,
+  };
 }
 
 function parseArgs(argv) {

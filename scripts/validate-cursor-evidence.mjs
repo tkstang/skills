@@ -340,18 +340,40 @@ export function validateCursorWakeProbeDescription(reference, description) {
   }
 
   const requiredSafety = {
-    temporaryWorkspaceOnly: true,
-    existingProviderTranscripts: 'not-read-or-mutated',
+    workspacePolicy: 'exact-created-workspace',
+    providerStatePolicy: 'snapshot-new-exact-owned-remove',
+    preExistingArtifacts: 'preserved',
+    ambiguousArtifacts: 'fail-without-removal',
     credentialsRequested: false,
     daemonStarted: false,
     schedulerStarted: false,
     externalServiceStarted: false,
-    cleanup: 'remove-exact-created-workspace',
+    cleanup: 'remove-exact-created-workspace-and-proven-provider-state',
   };
   for (const [field, expected] of Object.entries(requiredSafety)) {
     if (description?.safety?.[field] !== expected) {
       findings.push(probeRecipeFinding(`missing safe probe boundary ${field}`));
     }
+  }
+  const requiredProviderRoots = [
+    {
+      id: 'projects',
+      location: 'cursor-home/projects',
+      attribution: 'exact-encoded-workspace',
+    },
+    {
+      id: 'chats',
+      location: 'cursor-home/chats',
+      attribution: 'exact-workspace-metadata',
+    },
+  ];
+  if (
+    JSON.stringify(description?.safety?.declaredProviderRoots) !==
+    JSON.stringify(requiredProviderRoots)
+  ) {
+    findings.push(
+      probeRecipeFinding('missing exact declared provider-state roots'),
+    );
   }
 
   const expectedModes = new Map([
@@ -456,6 +478,7 @@ export function validateCursorWakeProbeDescription(reference, description) {
     'lifecycle-hooks',
     'fixed-markers',
     'surface-outcome',
+    'provider-state-boundary',
     'cleanup',
   ];
   for (const required of requiredReferenceText) {
@@ -481,13 +504,40 @@ export function validateCursorWakeProbeDescription(reference, description) {
   return findings;
 }
 
+export function validateCursorWakeProbeIsolationContract(contract) {
+  const findings = [];
+  const required = {
+    schemaVersion: 1,
+    succeeded: true,
+    declaredRootCount: 2,
+    ownershipProvenCount: 2,
+    removedCount: 2,
+    preExistingPreserved: true,
+    ownedArtifactsAbsent: true,
+  };
+  for (const [field, expected] of Object.entries(required)) {
+    if (contract?.[field] !== expected) {
+      findings.push(
+        probeRecipeFinding(`executable isolation contract failed: ${field}`),
+      );
+    }
+  }
+  return findings;
+}
+
 async function loadCursorWakeProbeDescription(root) {
   const script = confinedPath(root, CURSOR_WAKE_PROBE_SCRIPT);
   const module = await import(pathToFileURL(script).href);
-  if (typeof module.describeCursorWakeProbeRecipes !== 'function') {
-    throw new Error('probe description export is unavailable');
+  if (
+    typeof module.describeCursorWakeProbeRecipes !== 'function' ||
+    typeof module.verifyCursorWakeProbeIsolationContract !== 'function'
+  ) {
+    throw new Error('probe executable contract export is unavailable');
   }
-  return module.describeCursorWakeProbeRecipes();
+  return {
+    description: module.describeCursorWakeProbeRecipes(),
+    isolation: await module.verifyCursorWakeProbeIsolationContract(),
+  };
 }
 
 async function changedMarkdownFiles(root, baseRef) {
@@ -592,9 +642,11 @@ export async function validateCursorEvidence(root = REPO_ROOT, options = {}) {
 
   if (reference) {
     try {
-      const description = await loadCursorWakeProbeDescription(root);
+      const { description, isolation } =
+        await loadCursorWakeProbeDescription(root);
       findings.push(
         ...validateCursorWakeProbeDescription(reference, description),
+        ...validateCursorWakeProbeIsolationContract(isolation),
       );
     } catch {
       findings.push(
