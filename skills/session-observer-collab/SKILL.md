@@ -76,11 +76,11 @@ The peer runtime belongs only in the exact observation pin and peer transcript;
 it does not select the local harness setup. Do not load all runtime references
 into the same turn.
 
-| Acting/self runtime | Load this file                      | Initial wake posture                                                                             |
-| ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Claude Code         | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual                                                         |
-| Codex               | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven                                               |
-| Cursor              | `references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered manual |
+| Acting/self runtime | Load this file                      | Initial wake posture                                                                            |
+| ------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Claude Code         | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual                                                        |
+| Codex               | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven                                              |
+| Cursor              | `references/runtime-cursor.md`      | Buffered-manual; re-probe provider callbacks or an existing scheduler before promoting the tier |
 
 Examples keep the local setup and peer observation separate:
 
