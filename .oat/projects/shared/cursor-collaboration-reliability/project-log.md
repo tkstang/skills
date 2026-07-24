@@ -472,6 +472,10 @@ Tasks p08-t22 through p08-t28 completed at f8707e6, 55446d7, 6babe32, cb58dd9, 6
 
 Fresh Phase 8 review retained 1 Critical and 2 Important findings; all were accepted as p08-t29 through p08-t31 for under-lock authorization time, bounded generic Cursor discovery, and final handoff reconciliation.
 
+### 2026-07-24 · structural · oat-project-implement · p08-t29-p08-t31-complete
+
+Review fixes completed at ddd9794 and ff74098; root reconciled the final handoff at 71/71 tasks, and the post-fix matrix passed 1,543 tests with 1 skipped plus type, generated-output, validation, and smoke gates.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t29
-oat_last_commit: 2400691
+oat_current_task: null
+oat_last_commit: ff74098
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T16:13:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:26:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Phase 8 Review Remediation In Progress
+**Status:** Phase 8 Review Remediation Complete; Re-Reviews Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - fresh Phase 8 review received; 68/71 tasks complete
+Implementation - fresh Phase 8 review remediated; 71/71 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - fresh Phase 8 review received; 68/71 tasks complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (68/71 tasks complete; Phase 8 review remediation in progress)
+- **Implementation:** `implementation.md` (71/71 tasks complete; fresh reviews pending)
 
 ## Progress
 
@@ -251,6 +251,10 @@ Implementation - fresh Phase 8 review received; 68/71 tasks complete
 - ✓ Both stronger-wake modes failed safely before launch with exact bounded diagnostics and zero residue
 - ✗ Fresh Phase 8 review retained 1 Critical and 2 Important findings
 - ✓ Findings mapped to `p08-t29` through `p08-t31`
+- ✓ `p08-t29` under-lock wake authorization complete at `ddd9794`
+- ✓ `p08-t30` bounded generic Cursor discovery complete at `ff74098`
+- ✓ `p08-t31` final implementation handoff reconciled
+- ✓ Post-fix matrix passed: 1,543 tests, 1 skipped; type/build/validate/smoke green
 
 ## Blockers
 
@@ -258,6 +262,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t29` through `p08-t31`, then run fresh Phase 8 and final lifecycle
-reviews. The operator explicitly waived the configured exit-gate rerun for this
-project.
+Run fresh Phase 8 and final lifecycle reviews. The operator explicitly waived
+the configured exit-gate rerun for this project.
