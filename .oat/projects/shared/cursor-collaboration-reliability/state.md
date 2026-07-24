@@ -1,8 +1,7 @@
 ---
-oat_current_task: null
-oat_last_commit: 8cc9177
-oat_blockers:
-  - "Configured exit gate exhausted 2/2 remediation attempts with 3 Critical and 5 Important findings"
+oat_current_task: p08-t01
+oat_last_commit: d1908d3
+oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
   - { type: backlog, ref: "BL-260713-stronger-cursor-collaboration" }
@@ -76,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T06:13:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T11:48:59Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -84,11 +83,11 @@ oat_generated: false
 
 **Status:** Implementation In Progress
 **Started:** 2026-07-17
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - blocked at configured exit-gate attempt limit
+Implementation - Phase 8 remediation authorized; `p08-t01` ready
 
 ## Artifacts
 
@@ -212,15 +211,15 @@ Implementation - blocked at configured exit-gate attempt limit
 - ✓ Gate review archived at `reviews/archived/final-review-2026-07-24T055647Z.md`
 - ✓ Durable receive reconciled at `8cc9177`
 - ✗ Configured `block` policy reached `maxAttempts` at attempt 2 of 2
+- ✓ Operator authorized one bounded Phase 8 remediation cycle and a fresh gate generation after a passing review
 
 ## Blockers
 
-Configured exit gate exhausted 2 of 2 remediation attempts with 3 Critical,
-5 Important, 4 Medium, and 1 Minor active findings. Phase 8 contains 13
-queued fix tasks, but another remediation/gate cycle requires explicit
-operator authorization.
+None. The exhausted two-attempt gate generation remains immutable audit
+history while the explicitly authorized Phase 8 remediation proceeds.
 
 ## Next Milestone
 
-Obtain explicit operator direction before reopening remediation. Do not launch
-a third configured gate attempt from this generation.
+Execute Phase 8 tasks `p08-t01` through `p08-t13`, complete independent and
+final lifecycle review, then resolve and launch a fresh configured gate
+generation. Do not launch a third attempt from the exhausted generation.

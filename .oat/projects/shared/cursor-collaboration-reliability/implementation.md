@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t01
 oat_generated: false
 ---
 
 # Implementation: cursor-collaboration-reliability
 
 **Started:** 2026-07-17
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-24
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -33,7 +33,7 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | pending     | 13    | 0/13      |
+| Phase 8 | in_progress | 13    | 0/13      |
 
 **Total:** 40/53 tasks accepted
 
@@ -1492,7 +1492,14 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** pending; explicit recovery authorization required
+**Status:** in progress; bounded recovery authorized
+
+### Operator authorization
+
+On 2026-07-24 the operator authorized one bounded remediation cycle for all
+13 Phase 8 tasks and, after a fresh passing review, a new configured-gate
+generation. The exhausted two-attempt generation remains immutable audit
+history and must not be relaunched.
 
 ### Review Received: configured exit gate attempt 2
 
@@ -1532,9 +1539,9 @@ bookkeeping, and final release reconciliation. The configured gate has reached
 `maxAttempts`; Phase 8 cannot begin automatically within this gate generation.
 
 The receive transaction is durably corroborated by commit `8cc9177`. Attempt
-2 of 2 is consumed, the terminal marker is normalized to a repo-neutral
-logical reference, and the configured `block` policy prevents another launch
-without explicit operator authorization.
+2 of 2 is consumed and the terminal marker is normalized to a repo-neutral
+logical reference. Remediation begins at `p08-t01`; a fresh gate generation is
+allowed only after Phase 8 and its fresh reviews pass.
 
 ---
 

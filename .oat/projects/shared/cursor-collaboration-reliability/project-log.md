@@ -360,6 +360,10 @@ run=24448ac0-ac55-4175-a873-1611596f0385 source=reviews/final-review-2026-07-24T
 
 run=24448ac0-ac55-4175-a873-1611596f0385 receive_state=completed receive_commit=8cc91770f5b1002e4def797c8f09c62338dccb02 status=blocked policy=block attempts_completed=2 max_attempts=2 marker=logical:system-temp:oat-gate-runs next=explicit-operator-direction
 
+### 2026-07-24 · structural · operator-authorization · phase-8-remediation
+
+scope=p08-t01..p08-t13 authorization=one-bounded-remediation-cycle exhausted_generation=immutable attempts=2_of_2 fresh_gate=permitted_after-passing-review next=p08-t01
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
