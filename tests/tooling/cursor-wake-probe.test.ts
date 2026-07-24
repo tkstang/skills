@@ -47,6 +47,9 @@ import path from 'node:path';
 
 const arguments_ = process.argv.slice(2);
 if (arguments_.includes('--version')) {
+  if (process.env.CURSOR_WAKE_FAKE_VERSION_UNAVAILABLE === '1') {
+    process.exit(1);
+  }
   process.stdout.write('test-version\\n');
   process.exit(0);
 }
@@ -451,6 +454,50 @@ describe('Cursor wake-surface probe', () => {
         entry.startsWith('cursor-wake-probe-'),
       ),
     ).toEqual([]);
+  });
+
+  it('does not promote successful callbacks without provider version evidence', async () => {
+    const root = await temporaryRoot();
+    const provider = await fakeProvider(root);
+    const boundary = await providerBoundary(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_VERSION_UNAVAILABLE: '1',
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'completed',
+      evidenceLabel: 'unavailable',
+      provider: { version: 'unavailable' },
+      cleanup: { succeeded: true },
+    });
+    expect(result.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'provider-version',
+          status: 'unavailable',
+          actual: { available: false },
+        }),
+        expect.objectContaining({
+          id: 'surface-outcome',
+          status: 'passed',
+          actual: {
+            callbackDelivered: true,
+            outcome: 'callback-delivered',
+          },
+        }),
+      ]),
+    );
   });
 
   it('removes exact provider-owned artifacts written outside --workspace', async () => {

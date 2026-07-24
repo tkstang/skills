@@ -1124,6 +1124,12 @@ export async function runCursorWakeProbe(mode, options = {}) {
     providerRun.timedOut === false;
   const callbacksRan = allExpectedHooksRan(hooks);
   const followupDelivered = deliveredFollowup(mode, markers);
+  const providerVersion = sanitizedProviderVersion(versionRun);
+  const providerVersionPassed =
+    versionRun.commandRun &&
+    versionRun.exitCode === 0 &&
+    versionRun.timedOut === false &&
+    providerVersion !== 'unavailable';
   const surfaceOutcome =
     providerCompleted && callbacksRan && followupDelivered
       ? 'callback-delivered'
@@ -1140,12 +1146,14 @@ export async function runCursorWakeProbe(mode, options = {}) {
     mode,
     executionStatus: safetySucceeded ? 'completed' : 'safety-failed',
     evidenceLabel:
-      safetySucceeded && surfaceOutcome === 'callback-delivered'
+      safetySucceeded &&
+      providerVersionPassed &&
+      surfaceOutcome === 'callback-delivered'
         ? 'live-validated'
         : 'unavailable',
     provider: {
       name: 'Cursor Agent',
-      version: sanitizedProviderVersion(versionRun),
+      version: providerVersion,
       architecture: process.arch,
     },
     bounds: {
@@ -1166,10 +1174,8 @@ export async function runCursorWakeProbe(mode, options = {}) {
       outcomeRow(
         'provider-version',
         { available: true },
-        { available: sanitizedProviderVersion(versionRun) !== 'unavailable' },
-        sanitizedProviderVersion(versionRun) !== 'unavailable'
-          ? 'passed'
-          : 'unavailable',
+        { available: providerVersionPassed },
+        providerVersionPassed ? 'passed' : 'unavailable',
       ),
       outcomeRow(
         'bounded-provider-process',
