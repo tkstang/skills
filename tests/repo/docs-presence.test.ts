@@ -436,9 +436,11 @@ describe('docs-presence', () => {
     expect(collabDoc).toMatch(/scheduled-poll/);
     expect(collabDoc).toMatch(/buffered-manual/);
     expect(collabDoc).toMatch(/Codex validated/);
-    expect(collabDoc).toMatch(/Cursor documented-but-unvalidated/);
     expect(collabDoc).toMatch(
-      /Cursor's lifecycle recipe[\s\S]*effective scheduler proof[\s\S]*otherwise use buffered manual/i,
+      /Cursor unavailable[\s\S]*top-level Stop[\s\S]*managed-subagent/,
+    );
+    expect(collabDoc).toMatch(
+      /Cursor uses buffered manual[\s\S]*top-level Stop and managed-subagent project hooks[\s\S]*no existing scheduled callback/i,
     );
     expect(cursorRuntime).toMatch(
       /scheduled poll only when effective scheduler proof exists;[\s\S]*otherwise use buffered manual/i,

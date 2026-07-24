@@ -1,7 +1,7 @@
 ---
 id: BL-260713-stronger-cursor-collaboration
 title: Stronger Cursor collaboration wake surfaces
-status: open
+status: closed
 priority: low
 scope: feature
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - wake
 assignee: null
 created: 2026-07-13T04:02:18Z
-updated: 2026-07-13T04:02:18Z
+updated: 2026-07-24T01:10:00Z
 associated_issues: []
 ---
 
@@ -38,3 +38,14 @@ live path is proven.
 - Documentation labels each tier as validated or documented-but-unvalidated
   and includes the exact probe evidence; no Cursor support claim is inferred
   from configuration presence alone.
+
+## Outcome
+
+Finite live probes on Cursor Agent `2026.07.23-e383d2b` found top-level Stop,
+managed-subagent callback, and an already-existing scheduled callback
+unavailable. The private cloud worker route was excluded because it requires a
+credential plus a long-running external service. No stronger adapter was
+selected or shipped; `buffered-manual` remains the highest evidence-backed
+tier. The retained adapter suites cover the bounded lifecycle, duplicate,
+restart, disarm, cleanup, and fallback contracts without promoting provider
+configuration presence to support.

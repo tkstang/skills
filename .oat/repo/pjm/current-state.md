@@ -73,10 +73,10 @@ release checklist proves them.
 The final collaboration pass hardens the production XML wake contract,
 transaction-scoped queued-input normalization, fail-closed identity candidates,
 and acting-runtime setup routing. Codex's measured bounded lifecycle path is
-live-validated; Cursor continuation and Claude Monitor remain
-documented-but-unvalidated, with buffered/manual or separately proven scheduler
-fallbacks. The canonical skill and user/provider copies are in parity; the
-four v2 backlog items remain the authoritative deferred boundary.
+live-validated. Cursor's finite Stop and managed-subagent probes found no
+effective callback or existing scheduled surface, so buffered-manual is its
+strongest evidence-backed tier; Claude Monitor remains unvalidated. The
+canonical skill and user/provider copies are in parity.
 
 ### transcript-core (`src/transcript/core/`)
 
@@ -115,11 +115,13 @@ The v1 collaboration skill is intentionally bounded to a user plus two
 mutually observing agents. **BL-260713-cursor-transcript-store** is closed with
 evidence-gated Cursor agent-transcript discovery, dotted-path slug handling,
 canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up
-coverage, and explicit non-claims for unsupported stores. Three independently
-verifiable v2 follow-ups remain tracked in the backlog:
+coverage, and explicit non-claims for unsupported stores.
+**BL-260713-stronger-cursor-collaboration** is also closed after finite
+version-gated probes found no effective top-level Stop, managed-subagent, or
+existing scheduled callback; buffered-manual remains selected. Two
+independently verifiable v2 follow-ups remain tracked in the backlog:
 **BL-260713-per-observer-offsets-and-safe** (consumer offset namespaces and safe
-N>2 mesh), **BL-260713-stronger-cursor-collaboration** (stronger Cursor wake
-surfaces), and **BL-260713-optional-idle-session** (opt-in application
+N>2 mesh) and **BL-260713-optional-idle-session** (opt-in application
 integrations for idle sessions). The existing shared-session-log substrate and
 inter-agent direct messaging initiatives remain open and unchanged.
 
