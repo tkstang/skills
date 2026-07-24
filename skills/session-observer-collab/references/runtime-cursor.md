@@ -288,6 +288,50 @@ remains unavailable on the measured path, and buffered-manual catch-up remains
 the operational fallback pending evaluation of an already-existing managed
 callback surface.
 
+## Managed and scheduled callback evaluation (2026-07-24)
+
+Because the same-parent top-level Stop route was unavailable, a second
+controlled Cursor Agent run evaluated the existing managed `Subagent` surface.
+An isolated trusted temporary workspace registered structural-only
+`subagentStart` and `subagentStop` hooks with ten-second hook timeouts and a
+one-loop follow-up cap. The child definition could only return one fixed marker
+and had no file, shell, or network task. The parent invocation had a finite
+120-second process cap:
+
+```text
+agent -p --output-format text --trust \
+  --workspace "<temporary-workspace>" "<sanitized-managed-probe-prompt>"
+```
+
+The provider transcript structurally recorded one native `Subagent` tool use,
+but neither project lifecycle hook produced an invocation record. The parent
+returned its no-callback marker rather than the redacted v2 wake
+acknowledgement. This measured Cursor Agent terminal surface therefore did not
+prove managed callback effectiveness or same-parent delivery. Without a
+delivered callback, exact ownership, start/stop pairing, one-consumer
+semantics, interruption/restart behavior, duplicate suppression, and bounded
+recovery could not be promoted.
+
+The existing scheduled-surface inventory found no Cursor or Session Observer
+cron entry and no matching LaunchAgent. The Cursor Agent CLI exposes no
+scheduled callback command. Its private cloud `worker` command requires an
+operator-managed authentication token and a long-running service; starting it
+would introduce the exact credential, external service, and daemon authority
+this phase forbids, so it was not run. Both temporary probe workspaces were
+removed after their finite invocations.
+
+| Candidate surface                    | Required proof                                                                  | Actual structural outcome                                                                  | Evidence label |
+| ------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------- |
+| Managed local `subagentStop`         | One paired child lifecycle callback delivers one v2 wake to the exact parent    | Native `Subagent` tool ran, but no project lifecycle-hook record or follow-up was produced | `unavailable`  |
+| Exact ownership and one consumer     | Parent/child identities match structurally and exactly one callback is consumed | Not measurable because no managed callback payload was delivered                           | `unavailable`  |
+| Interruption/restart and suppression | Finite interruption, restart, duplicate suppression, and cleanup all pass       | Prerequisite callback delivery was unavailable; only temporary-workspace cleanup passed    | `unavailable`  |
+| Existing scheduled callback          | An already-running deterministic surface submits a future pinned catch-up       | No Cursor/observer cron, LaunchAgent, or Cursor scheduler command was available            | `unavailable`  |
+| Cursor private cloud worker          | Existing authorized local callback with no new credential, daemon, or service   | Requires a token and long-running external-service connection; deliberately not started    | `unsupported`  |
+
+No managed or scheduled adapter is shipped from these results. Buffered-manual
+catch-up remains the strongest evidence-backed tier on the measured Cursor
+surfaces.
+
 The post-implementation probe will:
 
 1. Create one controlled synthetic Cursor turn and record provider version,
