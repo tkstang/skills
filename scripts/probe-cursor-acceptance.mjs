@@ -24,6 +24,8 @@ const FIXTURE_DIRECTORY = path.join(
   'tests/session-observer/fixtures/cursor',
 );
 const COMMAND_TIMEOUT_MS = 5_000;
+const COMMAND_TERMINATION_GRACE_MS = 250;
+const COMMAND_RESOLUTION_GRACE_MS = 250;
 const WATCH_RUNTIME_MIN = '0.002';
 
 const HARNESS_ENVIRONMENT_KEYS = [
@@ -52,21 +54,76 @@ function sanitizedEnvironment(overrides = {}, clearHarness = false) {
 export function runCommand(
   command,
   args,
-  { cwd = REPO_ROOT, env = process.env, timeoutMs = COMMAND_TIMEOUT_MS } = {},
+  {
+    cwd = REPO_ROOT,
+    env = process.env,
+    timeoutMs = COMMAND_TIMEOUT_MS,
+    terminationGraceMs = COMMAND_TERMINATION_GRACE_MS,
+    resolutionGraceMs = COMMAND_RESOLUTION_GRACE_MS,
+    useProcessGroup = process.platform !== 'win32',
+  } = {},
 ) {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
     let timedOut = false;
     let commandRun = false;
+    let settled = false;
+    let lastSignal = null;
     const child = spawn(command, args, {
       cwd,
       env,
+      detached: useProcessGroup,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    const timer = setTimeout(() => {
+    let terminationTimer;
+    let resolutionTimer;
+
+    const signalChild = (signal) => {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      lastSignal = signal;
+      if (useProcessGroup && Number.isInteger(child.pid)) {
+        try {
+          process.kill(-child.pid, signal);
+          return;
+        } catch (error) {
+          if (error?.code !== 'ESRCH') {
+            child.kill(signal);
+            return;
+          }
+        }
+      }
+      child.kill(signal);
+    };
+
+    const finish = (exitCode, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      clearTimeout(terminationTimer);
+      clearTimeout(resolutionTimer);
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.unref();
+      resolve({
+        commandRun,
+        exitCode,
+        signal: signal ?? lastSignal,
+        timedOut,
+        stdout,
+        stderr,
+      });
+    };
+
+    const timeoutTimer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
+      signalChild('SIGTERM');
+      terminationTimer = setTimeout(() => {
+        signalChild('SIGKILL');
+        resolutionTimer = setTimeout(() => {
+          finish(child.exitCode, child.signalCode);
+        }, resolutionGraceMs);
+      }, terminationGraceMs);
     }, timeoutMs);
 
     child.stdout.setEncoding('utf8');
@@ -81,26 +138,10 @@ export function runCommand(
       commandRun = true;
     });
     child.once('error', () => {
-      clearTimeout(timer);
-      resolve({
-        commandRun,
-        exitCode: null,
-        signal: null,
-        timedOut,
-        stdout,
-        stderr,
-      });
+      finish(null, null);
     });
     child.once('close', (exitCode, signal) => {
-      clearTimeout(timer);
-      resolve({
-        commandRun,
-        exitCode,
-        signal,
-        timedOut,
-        stdout,
-        stderr,
-      });
+      finish(exitCode, signal);
     });
   });
 }

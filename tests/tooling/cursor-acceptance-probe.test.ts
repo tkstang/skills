@@ -3,7 +3,25 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error The probe is an authored Node CLI without declarations.
 import * as cursorAcceptanceProbe from '../../scripts/probe-cursor-acceptance.mjs';
 
-const { runLiveAcceptance, runSyntheticAcceptance } = cursorAcceptanceProbe;
+const { runCommand, runLiveAcceptance, runSyntheticAcceptance } =
+  cursorAcceptanceProbe;
+
+function processExists(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error: any) {
+    if (error?.code === 'ESRCH') return false;
+    throw error;
+  }
+}
+
+async function waitForProcessExit(pid: number) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    if (!processExists(pid)) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
 
 function successfulLiveCommandRunner({
   digest = {},
@@ -111,6 +129,95 @@ function successfulLiveCommandRunner({
 }
 
 describe('Cursor observation acceptance probe', () => {
+  it.skipIf(process.platform === 'win32')(
+    'hard-bounds a SIGTERM-resistant process tree',
+    async () => {
+      const startedAt = Date.now();
+      const result = await runCommand(
+        process.execPath,
+        [
+          '-e',
+          `
+            const { spawn } = require('node:child_process');
+            process.on('SIGTERM', () => {});
+            const descendant = spawn(
+              process.execPath,
+              ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1_000);"],
+              { stdio: 'ignore' },
+            );
+            process.stdout.write(JSON.stringify({ parent: process.pid, descendant: descendant.pid }));
+            setInterval(() => {}, 1_000);
+          `,
+        ],
+        {
+          timeoutMs: 40,
+          terminationGraceMs: 40,
+          resolutionGraceMs: 80,
+        },
+      );
+      const pids = JSON.parse(result.stdout);
+
+      await Promise.all([
+        waitForProcessExit(pids.parent),
+        waitForProcessExit(pids.descendant),
+      ]);
+
+      expect(result).toMatchObject({
+        commandRun: true,
+        exitCode: null,
+        signal: 'SIGKILL',
+        timedOut: true,
+      });
+      expect(Date.now() - startedAt).toBeLessThan(1_000);
+      expect(processExists(pids.parent)).toBe(false);
+      expect(processExists(pids.descendant)).toBe(false);
+    },
+  );
+
+  it('hard-bounds a SIGTERM-resistant child without process-group support', async () => {
+    const result = await runCommand(
+      process.execPath,
+      [
+        '-e',
+        "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1_000);",
+      ],
+      {
+        timeoutMs: 40,
+        terminationGraceMs: 40,
+        resolutionGraceMs: 80,
+        useProcessGroup: false,
+      },
+    );
+
+    expect(result).toMatchObject({
+      commandRun: true,
+      exitCode: null,
+      signal: 'SIGKILL',
+      timedOut: true,
+      stdout: 'ready',
+    });
+  });
+
+  it('preserves normal command completion before the hard deadline', async () => {
+    const result = await runCommand(
+      process.execPath,
+      ['-e', "process.stdout.write('complete')"],
+      {
+        timeoutMs: 500,
+        terminationGraceMs: 40,
+        resolutionGraceMs: 80,
+      },
+    );
+
+    expect(result).toMatchObject({
+      commandRun: true,
+      exitCode: 0,
+      signal: null,
+      timedOut: false,
+      stdout: 'complete',
+    });
+  });
+
   it('runs every sanitized temporary-store acceptance row to a structural result', async () => {
     const rows = await runSyntheticAcceptance();
 
