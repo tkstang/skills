@@ -1702,6 +1702,23 @@ tasks. Live OAT status read-back now reports Phase 8 at 18/18 and the project at
 smoke, evidence, docs, provider, privacy, residue, and orphan-process gates
 passed.
 
+### Fresh final review after exact cleanup closeout
+
+**Artifact:** `reviews/final-review-2026-07-24T135210Z.md`
+**Verdict:** blocked — 0 Critical, 1 Important, 1 Medium, 0 Minor
+
+The prior cleanup-inventory and parser-recognition findings are resolved. The
+Important finding identifies stale closeout fields that still say 16/56, retain
+`p08-t17` as current, and leave the `p08-t18` commit as a placeholder. The
+Medium finding identifies eager whole-directory `readdir()` allocation before
+provider-state aggregate entry and time budgets consume names.
+
+The independent reviewer attempted a consequential Sol/high reconnaissance
+lane; corrected launch was rejected before start by the agent-thread limit, so
+the primary reviewer completed it inline. Focused tests passed 141/141, the full
+suite passed 1,526 with 1 skipped, and all build, type, validation, smoke,
+evidence, skill, docs, diff, and live status gates passed.
+
 ### Canonical Phase 8 task outcomes
 
 ### Task p08-t01: Await native stdout delivery before checkpoint commit

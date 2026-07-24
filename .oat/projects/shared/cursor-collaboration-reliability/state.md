@@ -1,5 +1,5 @@
 ---
-oat_current_task: p08-t17
+oat_current_task: null
 oat_last_commit: 40b2022
 oat_blockers: []
 associated_issues:
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:46:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:55:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - 58/58 tasks complete; fresh final re-review pending
+Implementation - 58/58 planned tasks complete; fresh final review blocked
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - 58/58 tasks complete; fresh final re-review pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (58/58 tasks complete; fresh final re-review pending)
+- **Implementation:** `implementation.md` (58/58 planned tasks complete; fresh final review blocked)
 
 ## Progress
 
@@ -230,12 +230,14 @@ Implementation - 58/58 tasks complete; fresh final re-review pending
 - ✓ `p08-t17` exact cleanup preservation complete at `e8de07d`
 - ✓ `p08-t18` canonical Phase 8 task records complete at `40b2022`
 - ✓ Live OAT status recognizes Phase 8 at 18/18 and the project at 58/58
+- ✗ Fresh final review retained 1 Important and 1 Medium finding
 
 ## Blockers
 
-None.
+Receive `reviews/final-review-2026-07-24T135210Z.md` and add bounded tasks for
+provider directory iteration and final canonical lifecycle closeout.
 
 ## Next Milestone
 
-Run a fresh final lifecycle re-review. Only after it passes may a fresh
-configured gate generation begin.
+Receive the fresh final review and execute its bounded fixes. Only after a
+passing re-review may a fresh configured gate generation begin.
