@@ -18,7 +18,6 @@
  * test files resolve it via fileURLToPath(new URL('./session-observer.mjs', import.meta.url)).
  */
 
-import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -322,18 +321,30 @@ class StdoutWriteError extends Error {
 
 async function writeStdout(content: string): Promise<void> {
   let result: unknown;
+  const write = process.stdout.write as unknown as (
+    chunk: string,
+    complete?: (error?: Error | null) => void,
+  ) => unknown;
+  const callbackExpected = write.length >= 2;
+  let completeCallback: ((error?: Error | null) => void) | undefined;
+  const callbackCompletion = callbackExpected
+    ? new Promise<void>((fulfill, reject) => {
+        completeCallback = (error) => {
+          if (error) reject(error);
+          else fulfill();
+        };
+      })
+    : null;
   try {
-    result = (process.stdout.write as unknown as (chunk: string) => unknown)(
-      content,
-    );
+    result = write.call(process.stdout, content, completeCallback);
   } catch (error) {
     throw new StdoutWriteError(error, false);
   }
   try {
     if (result && typeof result === 'object' && 'then' in result) {
       await result;
-    } else if (result === false) {
-      await once(process.stdout, 'drain');
+    } else if (callbackCompletion) {
+      await callbackCompletion;
     }
   } catch (error) {
     throw new StdoutWriteError(error, true);

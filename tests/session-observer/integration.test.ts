@@ -76,7 +76,10 @@ async function spawnCliWithStdoutFailure(
   root: string,
   args: string[],
   env: NodeJS.ProcessEnv = {},
-  { asynchronous = false }: { asynchronous?: boolean } = {},
+  {
+    asynchronous = false,
+    callback = false,
+  }: { asynchronous?: boolean; callback?: boolean } = {},
 ): Promise<SpawnSyncReturns<string>> {
   const preloadPath = join(root, 'inject-stdout-failure.mjs');
   await writeFile(
@@ -84,9 +87,11 @@ async function spawnCliWithStdoutFailure(
     [
       "const error = new Error('INJECTED_STDOUT_FAILURE');",
       "error.code = 'EPIPE';",
-      asynchronous
-        ? 'process.stdout.write = function injectedStdoutFailure() { return Promise.reject(error); };'
-        : 'process.stdout.write = function injectedStdoutFailure() { throw error; };',
+      callback
+        ? 'process.stdout.write = function injectedStdoutFailure(_chunk, complete) { setTimeout(() => complete(error), 10); return true; };'
+        : asynchronous
+          ? 'process.stdout.write = function injectedStdoutFailure() { return Promise.reject(error); };'
+          : 'process.stdout.write = function injectedStdoutFailure() { throw error; };',
       '',
     ].join('\n'),
     'utf8',
@@ -380,6 +385,61 @@ describe('integration: catch-up', () => {
       if (previousStateDir === undefined) delete process.env.STATE_DIR;
       else process.env.STATE_DIR = previousStateDir;
       await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('Cursor catch-up awaits callback-confirmed stdout delivery before committing', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'integration-cursor-stdout-callback-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'cursor-stdout-callback');
+      const stateDir = join(home, '.state');
+      const sessionId = 'cursor-stdout-callback';
+      await mkdir(cwd, { recursive: true });
+      await mkdir(stateDir, { recursive: true });
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Confirm native delivery.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Await the stdout callback.' }],
+          },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+
+      const failed = await spawnCliWithStdoutFailure(
+        home,
+        [
+          'catch-up',
+          '--runtime',
+          'cursor',
+          '--cwd',
+          cwd,
+          '--session',
+          `cursor:${sessionId}`,
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+        { callback: true },
+      );
+
+      expect(failed.status).toBe(1);
+      expect(failed.stderr).toContain('INJECTED_STDOUT_FAILURE');
+      const session = JSON.parse(
+        await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      ).sessions[`cursor:${sessionId}`];
+      expect(session.lastRecordIndex).toBe(0);
+      expect(session.pendingDelivery).not.toBe(null);
+      expect(session.lastStatus.delivery).toBe('uncertain');
+    } finally {
+      await rm(home, { recursive: true, force: true });
     }
   });
 

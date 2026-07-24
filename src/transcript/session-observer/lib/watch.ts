@@ -2,7 +2,6 @@
  * watch.mjs — foreground polling watcher for debounced catch-up events.
  */
 
-import { once } from 'node:events';
 import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -101,7 +100,10 @@ interface ResolvedWatchDeps {
   now: () => number;
   sleep: (ms: number) => Promise<unknown>;
   stat: (path: string) => Promise<FileSignature>;
-  writeStdout: (chunk: string) => boolean | number | void | Promise<unknown>;
+  writeStdout: (
+    chunk: string,
+    complete?: (error?: Error | null) => void,
+  ) => boolean | number | void | Promise<unknown>;
   onCursorScan?: () => void;
 }
 
@@ -248,16 +250,34 @@ function stdoutEvent(ts: string, digest: SessionDigest, rendered: string) {
 }
 
 async function writeProcessStdout(chunk: string): Promise<void> {
-  if (process.stdout.write(chunk)) return;
-  await once(process.stdout, 'drain');
+  await new Promise<void>((fulfill, reject) => {
+    process.stdout.write(chunk, (error) => {
+      if (error) reject(error);
+      else fulfill();
+    });
+  });
 }
 
 async function writeStdoutChunk(
   deps: ResolvedWatchDeps,
   chunk: string,
 ): Promise<void> {
-  const result = deps.writeStdout(chunk);
-  if (result && typeof result === 'object' && 'then' in result) await result;
+  const callbackExpected = deps.writeStdout.length >= 2;
+  let completeCallback: ((error?: Error | null) => void) | undefined;
+  const callbackCompletion = callbackExpected
+    ? new Promise<void>((fulfill, reject) => {
+        completeCallback = (error) => {
+          if (error) reject(error);
+          else fulfill();
+        };
+      })
+    : null;
+  const result = deps.writeStdout(chunk, completeCallback);
+  if (result && typeof result === 'object' && 'then' in result) {
+    await result;
+  } else if (callbackCompletion) {
+    await callbackCompletion;
+  }
 }
 
 function lockedTargetEvent(target: WatchTarget) {
@@ -935,10 +955,23 @@ async function finalizeCursorOutput(
 ): Promise<void> {
   let asynchronous = false;
   try {
-    const output = deps.writeStdout(chunk);
+    const callbackExpected = deps.writeStdout.length >= 2;
+    let completeCallback: ((error?: Error | null) => void) | undefined;
+    const callbackCompletion = callbackExpected
+      ? new Promise<void>((fulfill, reject) => {
+          completeCallback = (error) => {
+            if (error) reject(error);
+            else fulfill();
+          };
+        })
+      : null;
+    const output = deps.writeStdout(chunk, completeCallback);
     if (output && typeof output === 'object' && 'then' in output) {
       asynchronous = true;
       await output;
+    } else if (callbackCompletion) {
+      asynchronous = true;
+      await callbackCompletion;
     }
   } catch (error) {
     if (result.delivery) {

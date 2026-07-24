@@ -1450,6 +1450,85 @@ describe('runWatchLoop', () => {
     },
   );
 
+  test('awaits a native-style stdout callback before committing a Cursor watch delta', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-output-callback');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-output-callback';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Output callback baseline.' },
+        { content: 'Output callback baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let changed = false;
+
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'cursor',
+            cwd,
+            session: `cursor:${sessionId}`,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+            json: true,
+          },
+          {
+            writeStdout: (
+              chunk: string,
+              complete?: (error?: Error | null) => void,
+            ) => {
+              if (!chunk.includes('"type":"delta"')) {
+                complete?.();
+                return true;
+              }
+              setTimeout(
+                () => complete?.(new Error('delayed Cursor stdout failure')),
+                10,
+              );
+              return true;
+            },
+            now: () => nowMs,
+            sleep: async (ms: number) => {
+              nowMs += ms;
+              if (changed) return;
+              const state = await readJsonIfExists(
+                join(stateDir, 'cursor-state.json'),
+              );
+              if (
+                state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                  ?.nextFrameIndex !== 3
+              )
+                return;
+              changed = true;
+              await appendCursorFrame(transcriptPath, {
+                role: 'assistant',
+                message: {
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Cursor callback delivery must finish first.',
+                    },
+                  ],
+                },
+              });
+            },
+          },
+        ),
+      ).rejects.toThrow('delayed Cursor stdout failure');
+
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      const session = state?.sessions?.[`cursor:${sessionId}`];
+      expect(session?.continuity?.nextFrameIndex).toBe(3);
+      expect(session?.pendingDelivery).not.toBe(null);
+      expect(session?.lastStatus?.delivery).toBe('uncertain');
+    });
+  });
+
   test('surfaces a pre-existing Cursor delivery reservation as uncertain without replaying or advancing it', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = join(home, 'workspace', 'watch-cursor-reservation');
