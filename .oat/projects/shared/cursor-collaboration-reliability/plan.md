@@ -1348,7 +1348,7 @@ third gate launch.
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
-| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md                       |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

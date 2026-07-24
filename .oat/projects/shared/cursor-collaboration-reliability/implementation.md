@@ -1572,7 +1572,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t18` | complete | `40b2022` |
 | `p08-t19` | complete | `c195506` |
 | `p08-t20` | complete | `2038dea` |
-| `p08-t21` | complete | `logical:p08-t21-self-commit` |
+| `p08-t21` | complete | `3357696` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1913,7 +1913,7 @@ parser-recognized 20-task Phase 8 and 60-task project closeout.
 ### Task p08-t21: Finalize the implementation handoff narrative
 
 **Status:** completed
-**Commit:** `logical:p08-t21-self-commit`
+**Commit:** `3357696`
 **Outcome:** Finalized the current test, task, review, and handoff narrative on
 the parser-recognized 21-task Phase 8 and 61-task project basis.
 

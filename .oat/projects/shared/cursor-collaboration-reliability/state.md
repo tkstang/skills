@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: fa8cba9
+oat_last_commit: 3357696
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T14:16:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T14:19:05Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -238,7 +238,7 @@ pending
 - ✓ Live OAT status recognizes Phase 8 at 20/20 and the project at 60/60
 - ✗ Fresh final review retained 1 Important artifact-closeout finding
 - ✓ Fresh final review received; finding mapped to `p08-t21`
-- ✓ `p08-t21` final implementation handoff complete at `logical:p08-t21-self-commit`
+- ✓ `p08-t21` final implementation handoff complete at `3357696`
 - ✓ Live OAT status recognizes Phase 8 at 21/21 and the project at 61/61
 
 ## Blockers
