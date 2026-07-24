@@ -1170,6 +1170,47 @@ third gate launch.
 5. Confirm no generated drift, machine-local tracked marker, untyped fingerprint prose, unsupported provider claim, orphan probe process, or provider residue remains.
 6. Commit: `test(p08-t14): stabilize acceptance probe readiness`.
 
+### Task p08-t15: (review) Bound exact Cursor identity indexing
+
+**Task Scope:** Moderate
+**Requirements:** FR1, NFR5
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify if a shared path-only helper is required: `src/transcript/core/runtimes.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Modify if the shared helper changes: `tests/transcript-core/runtimes.test.ts`
+- Regenerate: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED fixtures with many transcripts and a large transcript body proving exact Cursor identity resolution currently reads accumulated bodies without an aggregate bound.
+2. Derive Cursor session IDs from canonical transcript paths without reading transcript content.
+3. Bound or cache duplicate-session indexing across project directories with finite entry/time budgets and a fail-visible diagnostic when the budget is exceeded.
+4. Verify exact canonical identity, duplicate-session ambiguity, containment, large-body no-read behavior, finite-budget failure, generated parity, full observer/core compatibility, privacy, and provider dogfood sync.
+5. Commit: `fix(p08-t15): bound cursor identity indexing`.
+
+### Task p08-t16: (review) Bound aggregate provider-state preservation scans
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR5, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+- Modify if evidence wording changes: `skills/session-observer-collab/references/runtime-cursor.md`
+
+**Steps:**
+
+1. Add a RED provider-state fixture with enough individually valid entries to exceed a shared aggregate budget.
+2. Apply shared aggregate entry, byte, and elapsed-time budgets across both provider roots and the post-run preservation check.
+3. Fail visibly before provider launch when the pre-run budget is exceeded, and fail visibly during cleanup verification without masking provider-state uncertainty.
+4. Verify focused wake-probe tests, live-mode cleanup, finite process/runtime behavior, evidence labels, privacy, residue, validation, smoke, and the complete final release matrix.
+5. Commit: `fix(p08-t16): bound provider state scan`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -1211,7 +1252,7 @@ third gate launch.
 | final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T051704Z.md                                |
 | final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T055647Z.md                       |
 | p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                                  |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T130507Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1233,11 +1274,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 14 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, and release reconciliation.
+- Phase 8: 16 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, bounded identity/provider-state scans, and release reconciliation.
 
-**Total: 54 tasks**
+**Total: 56 tasks**
 
-Ready for code review and merge after all 54 tasks and review rows pass.
+Ready for code review and merge after all 56 tasks and review rows pass.
 
 ## References
 

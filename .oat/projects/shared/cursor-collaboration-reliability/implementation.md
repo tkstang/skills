@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t15
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 14    | 14/14     |
+| Phase 8 | in_progress | 16    | 14/16     |
 
-**Total:** 54/54 tasks accepted
+**Total:** 54/56 tasks accepted
 
 ---
 
@@ -990,8 +990,7 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** complete
-**Completed:** 2026-07-24
+**Status:** in progress; fresh final-review fixes added
 
 ### Phase Summary
 
@@ -1567,6 +1566,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t12` | complete | `b606771` |
 | `p08-t13` | complete | `bb435f4` |
 | `p08-t14` | complete | `0712627` |
+| `p08-t15` | pending; bound exact identity indexing | - |
+| `p08-t16` | pending; bound provider-state scan | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1628,6 +1629,17 @@ auto-dispositioned for bounded fix tasks because this was an automatic final
 review. The operator's explicit authorization to continue through reviews and
 a fresh gate generation is the review-cycle override for this new Phase 8
 basis.
+
+### Final review received
+
+**Source:** `reviews/archived/final-review-2026-07-24T130507Z.md`
+**Disposition:** `I1 → p08-t15`, `M1 → p08-t16`
+
+The auto-review path converted both findings without a disposition prompt.
+`p08-t15` removes full-body transcript reads from exact identity indexing and
+adds a finite duplicate-session index budget. `p08-t16` applies aggregate
+entry/byte/time budgets to provider-state preservation scans. No finding was
+deferred or rejected.
 
 ---
 
@@ -1702,9 +1714,9 @@ Track test execution during implementation.
   passed 117/117 and 162/162; evidence validator 34 files; build/type/build-check,
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact changed-file lint/format, and OAT provider synchronization passed.
-- Independent Phase 1 through Phase 8 reviews passed after bounded fixes.
-  Phase 8 retained one non-blocking Medium aggregate probe-scan bound concern;
-  the fresh final lifecycle review is next.
+- Independent Phase 1 through Phase 8 reviews passed after bounded fixes. The
+  fresh final lifecycle review added `p08-t15` and `p08-t16`; re-review follows
+  those fixes.
 
 **Design deltas (if any):**
 
