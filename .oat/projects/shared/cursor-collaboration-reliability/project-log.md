@@ -328,6 +328,10 @@ status=complete commit=31c49e61b5050a31e99c90abe9667d4f2c579b1f red=3_selector_o
 
 receipt=local-only:.oat/projects/local/cursor-collaboration-reliability/gate-runs marker=logical:system-temp:oat-gate-runs correlation=preserved scope=terminal-received-gate
 
+### 2026-07-24 · structural · oat-project-implement · p07-t04
+
+status=complete commit=0e6cd1c red=13_live_raw_identity,2_structural_acceptance green=34_focused,34_file_live,1490_full,1_skipped oat_sync=188_all,114_user versions=session-observer_1.0.12,session-observer-collab_1.0.11 residue=zero next=p07-review
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

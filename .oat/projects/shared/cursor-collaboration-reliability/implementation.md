@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p07-t04
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -32,9 +32,9 @@ oat_generated: false
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
-| Phase 7 | in_progress | 4     | 3/4       |
+| Phase 7 | complete    | 4     | 4/4       |
 
-**Total:** 39/40 tasks accepted
+**Total:** 40/40 tasks accepted
 
 ---
 
@@ -1363,7 +1363,7 @@ in the typed exit-gate state.
 
 ## Phase 7: Configured Exit-Gate Remediation
 
-**Status:** in progress
+**Status:** complete; phase review pending
 
 ### Task Outcomes
 
@@ -1372,7 +1372,7 @@ in the typed exit-gate state.
 | p07-t01 | complete    | `6454740` | Bound selected Cursor success bytes through both owner-hook CAS paths. |
 | p07-t02 | complete    | `a1a8999` | Confirmed bounded stability prefixes without starvation during growth. |
 | p07-t03 | complete    | `31c49e6` | Selected completed prefixes while leaving later pending turns unread. |
-| p07-t04 | in_progress | -         | Make gate bookkeeping evidence-safe and rerun release gates. |
+| p07-t04 | complete    | `0e6cd1c` | Made typed gate bookkeeping evidence-safe and reran release gates. |
 
 ### Task p07-t01: Bind selected Cursor success bytes through collaboration CAS
 
@@ -1427,6 +1427,25 @@ green. Session-observer-collab 1.0.11 is dogfooded and synchronized.
 type-check, generated parity, validation, smoke, internal flags, changed-file
 lint/format, 34-page docs build, version enforcement, dogfood, and user
 synchronization passed.
+
+### Task p07-t04: Make exit-gate bookkeeping evidence-safe and rerun release gates
+
+**Status:** completed
+**Commit:** `0e6cd1c`
+
+The Cursor evidence validator now recognizes only exact file-qualified,
+typed gate/commit/fingerprint bookkeeping fields while continuing to reject
+session IDs, lease IDs, arbitrary UUID assignments, credentials, transcript
+prose, and personal paths. Terminal gate receipts remain local-only and the
+completed marker is repo-neutral. The live branch and an end-to-end accepted /
+result / receive fixture pass without broad identity allowlisting.
+
+**Verification:** 34/34 focused evidence tests, the live 34-file validator,
+and 1,490 full-suite tests passed with 1 skipped. Build, type-check, generated
+parity, validation, smoke, internal flags, changed-file lint/format, 34-page
+docs build, skill-version enforcement, 188/188 all-scope and 114/114 user-scope
+OAT synchronization, dogfood exact-copy, privacy, and probe-residue checks
+passed.
 
 ---
 
