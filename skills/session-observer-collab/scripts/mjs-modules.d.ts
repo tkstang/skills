@@ -110,7 +110,7 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   export function run(
     argv: string[],
     env?: NodeJS.ProcessEnv,
-    clock?: number | (() => number),
+    now?: number,
   ): Promise<{
     ok: true;
     command: string;
