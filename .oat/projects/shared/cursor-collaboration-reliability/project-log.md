@@ -480,6 +480,10 @@ Review fixes completed at ddd9794 and ff74098; root reconciled the final handoff
 
 Phase 8 re-review verified all runtime and discovery fixes and retained one Medium ambient declaration mismatch; accepted as p08-t32.
 
+### 2026-07-24 · structural · oat-project-implement · p08-t32-complete
+
+Ambient clock declaration parity completed at 6197aa7; ambient and aggregate type checks, validation, and version structure passed; Phase 8 is 32/32 and the project is 72/72.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
