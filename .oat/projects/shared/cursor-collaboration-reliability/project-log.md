@@ -276,6 +276,14 @@ dispatch accepted request=review-p06-round3-0ef8e5d-5375770-20260724T022800Z tar
 
 verdict=passed fix_loops=2 review=.oat/projects/shared/cursor-collaboration-reliability/reviews/p06-review-2026-07-24T023404Z.md findings=critical:0,important:0,medium:0,minor:0 prior_findings=resolved next=final-review
 
+### 2026-07-24 · structural · oat-project-implement · final-review
+
+dispatch accepted request=review-final-8c006a5-c21bbec-20260724T023800Z target=oat-reviewer-gpt-5-6-sol-high model_axis=selected:gpt-5.6-sol effort_axis=selected:high capability_floor=satisfied fallback=unused execution_model=subagent scope=final artifact=.oat/projects/shared/cursor-collaboration-reliability/implementation.md#final-summary-for-prdocs
+
+### 2026-07-24 · structural · oat-project-implement · final-review-round-1
+
+verdict=blocked findings=critical:0,important:1,medium:0,minor:0 reconnaissance=attempted review=.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T025100Z.md continuation=fix-final-round1-c21bbec-20260724T025500Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

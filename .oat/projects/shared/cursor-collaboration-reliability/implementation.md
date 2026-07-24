@@ -1210,6 +1210,27 @@ are resolved; mandatory final lifecycle review is next.
 
 ---
 
+## Final Lifecycle Review
+
+**Status:** blocked
+
+### Review round 1
+
+`reviews/final-review-2026-07-24T025100Z.md` is BLOCKED with 1 Important
+finding and no other findings. When a buffered Cursor frame is repaired and
+consumed, both watch-state copy sites discard the digest's explicit `null`
+clear through nullish fallback, retaining the stale frame and repeatedly
+reporting `recordsBehind: 1`. A bounded final-review fix will preserve the
+explicit clear in canonical TypeScript, regenerate shipped output, add an
+integration regression, and rerun the final lifecycle review.
+
+**Verification before fix:** Build, type-check, generated parity, validation,
+smoke, 1,464 tests with 1 skipped, 57 focused evidence/probe tests, a 34-file
+evidence scan, 34-page docs build, skill versions, internal flags,
+changed-file lint/format, and 188/188 OAT sync passed.
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
