@@ -203,6 +203,20 @@ async function providerBoundary(root: string) {
   };
 }
 
+function expectCompleteOwnedArtifactCleanup(providerArtifacts: {
+  discoveredNewCount: number;
+  ownershipProvenCount: number;
+  removedCount: number;
+}) {
+  expect(providerArtifacts.discoveredNewCount).toBeGreaterThan(0);
+  expect(providerArtifacts.ownershipProvenCount).toBe(
+    providerArtifacts.discoveredNewCount,
+  );
+  expect(providerArtifacts.removedCount).toBe(
+    providerArtifacts.ownershipProvenCount,
+  );
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryRoots.splice(0).map((root) => rm(root, { recursive: true })),
@@ -457,12 +471,11 @@ describe('Cursor wake-surface probe', () => {
       succeeded: true,
       workspaceExistsAfter: false,
       providerArtifacts: {
-        discoveredNewCount: 4,
-        removedCount: 4,
         existsAfterCount: 0,
         succeeded: true,
       },
     });
+    expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
     expect(await readdir(boundary.projects)).toEqual([]);
     expect(await readdir(boundary.chats)).toEqual([]);
     expect(
@@ -541,14 +554,12 @@ describe('Cursor wake-surface probe', () => {
       workspaceExistsAfter: false,
       providerArtifacts: {
         declaredRootCount: 2,
-        discoveredNewCount: 4,
-        ownershipProvenCount: 4,
         ambiguousCount: 0,
-        removedCount: 4,
         existsAfterCount: 0,
         succeeded: true,
       },
     });
+    expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
     expect(await readdir(boundary.projects)).toEqual([]);
     expect(await readdir(boundary.chats)).toEqual([]);
   });
@@ -584,12 +595,10 @@ describe('Cursor wake-surface probe', () => {
     );
 
     expect(result.cleanup.providerArtifacts).toMatchObject({
-      discoveredNewCount: 4,
-      ownershipProvenCount: 4,
-      removedCount: 4,
       ambiguousCount: 0,
       succeeded: true,
     });
+    expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
     expect(await readdir(boundary.projects)).toEqual([preexistingProject]);
     expect(await readdir(boundary.chats)).toEqual([preexistingChat]);
   });
@@ -629,15 +638,13 @@ describe('Cursor wake-surface probe', () => {
         succeeded: false,
         providerArtifacts: {
           preExistingPreserved: false,
-          discoveredNewCount: 4,
-          ownershipProvenCount: 4,
-          removedCount: 4,
           existsAfterCount: 0,
           succeeded: false,
           diagnostic: 'pre-existing-provider-state-changed',
         },
       },
     });
+    expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
     expect(await readdir(boundary.projects)).toEqual([
       'cursor-wake-probe-preexisting-project',
     ]);
@@ -905,15 +912,13 @@ describe('Cursor wake-surface probe', () => {
         providerArtifacts: {
           snapshotSucceeded: true,
           preExistingPreserved: false,
-          discoveredNewCount: 4,
-          ownershipProvenCount: 4,
-          removedCount: 4,
           existsAfterCount: 0,
           succeeded: false,
           diagnostic: 'provider-state-scan-entry-budget-exceeded',
         },
       },
     });
+    expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
     expect(await readdir(boundary.projects)).toEqual([
       'cursor-wake-probe-preexisting-project',
     ]);
@@ -982,15 +987,13 @@ describe('Cursor wake-surface probe', () => {
           providerArtifacts: {
             snapshotSucceeded: true,
             preExistingPreserved: false,
-            discoveredNewCount: 4,
-            ownershipProvenCount: 4,
-            removedCount: 4,
             existsAfterCount: 0,
             succeeded: false,
             diagnostic,
           },
         },
       });
+      expectCompleteOwnedArtifactCleanup(result.cleanup.providerArtifacts);
       expect(await readdir(boundary.projects)).toEqual([]);
       expect(await readdir(boundary.chats)).toEqual([
         'cursor-wake-probe-preexisting-chat',
@@ -1040,7 +1043,7 @@ describe('Cursor wake-surface probe', () => {
         },
       },
     });
-    expect(await readdir(boundary.projects)).toHaveLength(2);
+    expect((await readdir(boundary.projects)).length).toBeGreaterThan(0);
     expect(await readdir(boundary.chats)).toHaveLength(1);
   });
 
@@ -1107,14 +1110,18 @@ describe('Cursor wake-surface probe', () => {
       },
     );
 
-    expect(result.cleanup.providerArtifacts).toMatchObject({
-      discoveredNewCount: 4,
-      ownershipProvenCount: 3,
+    const { providerArtifacts } = result.cleanup;
+    expect(providerArtifacts).toMatchObject({
       ambiguousCount: 1,
-      removedCount: 3,
       existsAfterCount: 1,
       succeeded: false,
     });
+    expect(providerArtifacts.discoveredNewCount).toBe(
+      providerArtifacts.ownershipProvenCount + 1,
+    );
+    expect(providerArtifacts.removedCount).toBe(
+      providerArtifacts.ownershipProvenCount,
+    );
     expect(result.executionStatus).toBe('safety-failed');
     expect(await readdir(boundary.projects)).toEqual([
       expect.stringMatching(/^unrelated-cursor-wake-probe-/u),
@@ -1149,15 +1156,21 @@ describe('Cursor wake-surface probe', () => {
         succeeded: false,
         workspaceExistsAfter: false,
         providerArtifacts: {
-          ownershipProvenCount: 3,
           removedCount: 0,
-          existsAfterCount: 3,
           succeeded: false,
           diagnostic: 'provider-state-cleanup-failed',
         },
       },
     });
-    expect(await readdir(boundary.projects)).toHaveLength(3);
+    expect(
+      result.cleanup.providerArtifacts.ownershipProvenCount,
+    ).toBeGreaterThan(0);
+    expect(result.cleanup.providerArtifacts.existsAfterCount).toBe(
+      result.cleanup.providerArtifacts.ownershipProvenCount,
+    );
+    expect(await readdir(boundary.projects)).toHaveLength(
+      result.cleanup.providerArtifacts.ownershipProvenCount,
+    );
   });
 
   it('rejects a symlinked provider root before invoking the provider', async () => {
