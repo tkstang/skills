@@ -1138,6 +1138,104 @@ test('cursor identity: direct hit still detects same-session duplicates in anoth
   });
 });
 
+test('cursor identity: duplicate indexing is path-only across many and large transcripts', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'path-only-identity-project');
+    await mkdir(targetCwd, { recursive: true });
+    const targetTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-path-only',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const accumulatedTranscripts: string[] = [];
+
+    for (let index = 0; index < 24; index += 1) {
+      const transcriptDir = join(
+        home,
+        '.cursor',
+        'projects',
+        `accumulated-project-${index}`,
+        'agent-transcripts',
+        `accumulated-session-${index}`,
+      );
+      await mkdir(transcriptDir, { recursive: true });
+      const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+      await writeFile(
+        transcriptPath,
+        index === 0
+          ? `${JSON.stringify({
+              role: 'assistant',
+              message: { content: 'x'.repeat(2_000_000) },
+            })}\n`
+          : CURSOR_TYPICAL,
+        'utf8',
+      );
+      accumulatedTranscripts.push(transcriptPath);
+    }
+
+    classifyCountHarness.reset();
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-path-only', {
+        maxEntries: 1_000,
+        maxElapsedMs: 5_000,
+      }),
+    ).resolves.toMatchObject({
+      strength: 'exact',
+      reasons: [],
+    });
+    expect(classifyCountHarness.countFor(targetTranscript)).toBe(0);
+    expect(
+      accumulatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor identity: duplicate indexing fails visibly at its aggregate entry budget', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'entry-budget-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(home, targetCwd, 'session-entry-budget');
+    const [candidate] = await discover('cursor', targetCwd);
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-entry-budget', {
+        maxEntries: 1,
+        maxElapsedMs: 5_000,
+      }),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED']),
+    });
+  });
+});
+
+test('cursor identity: duplicate indexing fails visibly at its elapsed-time budget', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'time-budget-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(home, targetCwd, 'session-time-budget');
+    const [candidate] = await discover('cursor', targetCwd);
+    let now = 0;
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-time-budget', {
+        maxEntries: 100,
+        maxElapsedMs: 1,
+        now: () => {
+          now += 2;
+          return now;
+        },
+      }),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_TIME_BUDGET_EXCEEDED']),
+    });
+  });
+});
+
 test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
   'cursor identity: canonical store candidate stays exact through a %s cwd alias',
   async (placement) => {

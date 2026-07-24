@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   readdir,
+  opendir,
   stat,
   mkdir,
   readFile,
@@ -28,6 +29,8 @@ import {
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
+const CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 2e4;
+const CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2e3;
 const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5e3;
 class ClassificationCache {
   maxEntries;
@@ -510,35 +513,93 @@ async function canonicalPath(path) {
     return null;
   }
 }
-async function cursorSessionCanonicalPaths(sessionId) {
+function cursorSessionIdFromTranscriptPath(transcriptPath) {
+  const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
+  return transcriptBase && !["transcript", "conversation", "messages"].includes(transcriptBase) ? transcriptBase : basename(join(transcriptPath, ".."));
+}
+async function cursorSessionCanonicalPaths(sessionId, options = {}) {
   const [projectsRoot] = discoverPaths("cursor");
   const canonicalPaths = /* @__PURE__ */ new Set();
-  let projectDirs = [];
-  try {
-    projectDirs = await readdir(projectsRoot, { withFileTypes: true });
-  } catch {
-    return canonicalPaths;
-  }
-  for (const projectDir of projectDirs) {
-    if (!projectDir.isDirectory()) continue;
-    const paths = await collectCursorAgentTranscripts(
-      join(projectsRoot, projectDir.name, "agent-transcripts")
-    );
-    for (const transcriptPath of paths) {
-      let discoveredSessionId = null;
-      try {
-        discoveredSessionId = (await extractMeta("cursor", transcriptPath))?.sessionId ?? null;
-      } catch {
-      }
-      if (discoveredSessionId !== sessionId) continue;
-      canonicalPaths.add(
-        await canonicalPath(transcriptPath) ?? transcriptPath
-      );
+  const maxEntries = options.maxEntries ?? CURSOR_IDENTITY_INDEX_MAX_ENTRIES;
+  const maxElapsedMs = options.maxElapsedMs ?? CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  let entryCount = 0;
+  const budgetFailure = (consumeEntry = false) => {
+    if (now() - startedAt > maxElapsedMs) {
+      return "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED";
     }
+    if (consumeEntry) {
+      entryCount += 1;
+      if (entryCount > maxEntries) {
+        return "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED";
+      }
+    }
+    return null;
+  };
+  try {
+    const projects = await opendir(projectsRoot);
+    for await (const projectDir of projects) {
+      let failure = budgetFailure(true);
+      if (failure) return { canonicalPaths, failure };
+      if (!projectDir.isDirectory()) continue;
+      let sessions;
+      try {
+        sessions = await opendir(
+          join(projectsRoot, projectDir.name, "agent-transcripts")
+        );
+      } catch {
+        continue;
+      }
+      failure = budgetFailure();
+      if (failure) return { canonicalPaths, failure };
+      for await (const sessionDir of sessions) {
+        failure = budgetFailure(true);
+        if (failure) return { canonicalPaths, failure };
+        if (!sessionDir.isDirectory()) continue;
+        let transcripts;
+        try {
+          transcripts = await opendir(
+            join(
+              projectsRoot,
+              projectDir.name,
+              "agent-transcripts",
+              sessionDir.name
+            )
+          );
+        } catch {
+          continue;
+        }
+        failure = budgetFailure();
+        if (failure) return { canonicalPaths, failure };
+        for await (const entry of transcripts) {
+          failure = budgetFailure(true);
+          if (failure) return { canonicalPaths, failure };
+          if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+          const transcriptPath = join(
+            projectsRoot,
+            projectDir.name,
+            "agent-transcripts",
+            sessionDir.name,
+            entry.name
+          );
+          if (cursorSessionIdFromTranscriptPath(transcriptPath) !== sessionId) {
+            continue;
+          }
+          canonicalPaths.add(
+            await canonicalPath(transcriptPath) ?? transcriptPath
+          );
+          failure = budgetFailure();
+          if (failure) return { canonicalPaths, failure };
+        }
+      }
+    }
+  } catch {
+    return { canonicalPaths, failure: null };
   }
-  return canonicalPaths;
+  return { canonicalPaths, failure: null };
 }
-async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId) {
+async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId, indexOptions) {
   if (candidate.runtime !== "cursor") {
     throw new TypeError("resolveCursorIdentity requires a Cursor candidate");
   }
@@ -592,8 +653,13 @@ async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId)
       reasons.push("HARNESS_SESSION_MISMATCH");
     }
   }
-  const distinctPaths = await cursorSessionCanonicalPaths(candidate.sessionId);
+  const identityIndex = await cursorSessionCanonicalPaths(
+    candidate.sessionId,
+    indexOptions
+  );
+  const distinctPaths = identityIndex.canonicalPaths;
   distinctPaths.add(canonicalTranscriptPath);
+  if (identityIndex.failure) reasons.push(identityIndex.failure);
   if (distinctPaths.size > 1) {
     reasons.push("DUPLICATE_SESSION_CANDIDATES");
   }
@@ -607,7 +673,9 @@ async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId)
       "CANDIDATE_CWD_MISMATCH",
       "IDENTITY_MISMATCH",
       "HARNESS_SESSION_MISMATCH",
-      "DUPLICATE_SESSION_CANDIDATES"
+      "DUPLICATE_SESSION_CANDIDATES",
+      "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED"
     ].includes(reason)
   );
   const canonicalIdentityReady = requestedCanonicalCwd !== null && resolvedTranscriptPath !== null && resolvedStoreRoot !== null && (candidate.recordedCwd === null || canonicalRecordedCwd !== null);
