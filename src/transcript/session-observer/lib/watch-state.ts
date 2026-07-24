@@ -787,6 +787,19 @@ export async function compareAndSetCursorWatchTarget({
     if (current.observationCursor !== expectedObservationCursor) {
       return { status: 'stale', target: structuredClone(current) };
     }
+    if (
+      next.recordCount !== undefined &&
+      (!isNonNegativeInteger(next.recordCount) ||
+        next.recordCount < next.observationCursor ||
+        (current.recordCount !== null &&
+          next.recordCount < current.recordCount))
+    ) {
+      throw new TypeError(
+        'Cursor watch target frame count must be safe and monotonic',
+      );
+    }
+    const recordCount =
+      next.recordCount === undefined ? current.recordCount : next.recordCount;
 
     const candidate = cursorTargetRecord(
       {
@@ -794,15 +807,15 @@ export async function compareAndSetCursorWatchTarget({
         sessionId: current.sessionId,
         transcriptPath: current.transcriptPath,
         recordedCwd: current.cwd,
-        recordCount: current.recordCount,
         baselineRecordIndex: current.baselineRecordIndex,
         engagementStatus: current.engagementStatus,
         lockedAt: current.lockedAt,
         indexBase: 'zero-based-jsonl-frame-index',
         canonicalTranscriptPath: current.canonicalTranscriptPath,
         ...next,
+        recordCount,
       },
-      current,
+      { ...current, recordCount },
       pid,
     );
     if (

@@ -500,21 +500,27 @@ async function compareAndSetCursorWatchTarget({
     if (current.observationCursor !== expectedObservationCursor) {
       return { status: "stale", target: structuredClone(current) };
     }
+    if (next.recordCount !== void 0 && (!isNonNegativeInteger(next.recordCount) || next.recordCount < next.observationCursor || current.recordCount !== null && next.recordCount < current.recordCount)) {
+      throw new TypeError(
+        "Cursor watch target frame count must be safe and monotonic"
+      );
+    }
+    const recordCount = next.recordCount === void 0 ? current.recordCount : next.recordCount;
     const candidate = cursorTargetRecord(
       {
         runtime: "cursor",
         sessionId: current.sessionId,
         transcriptPath: current.transcriptPath,
         recordedCwd: current.cwd,
-        recordCount: current.recordCount,
         baselineRecordIndex: current.baselineRecordIndex,
         engagementStatus: current.engagementStatus,
         lockedAt: current.lockedAt,
         indexBase: "zero-based-jsonl-frame-index",
         canonicalTranscriptPath: current.canonicalTranscriptPath,
-        ...next
+        ...next,
+        recordCount
       },
-      current,
+      { ...current, recordCount },
       pid
     );
     if (candidate.continuity.device !== current.continuity.device || candidate.continuity.inode !== current.continuity.inode || candidate.observationCursor < current.observationCursor || candidate.continuity.prefixBytes < current.continuity.prefixBytes || candidate.continuity.prefixBytes === current.continuity.prefixBytes && candidate.continuity.prefixSha256 !== current.continuity.prefixSha256) {

@@ -662,6 +662,7 @@ test('CAS-updates blocked and repaired Cursor targets for the owning watcher onl
         indexBase: 'zero-based-jsonl-frame-index',
         canonicalTranscriptPath: '/canonical/cursor-transition.jsonl',
         observationCursor: 3,
+        recordCount: 3,
         bufferedFromFrame: 3,
         continuity: cursorCheckpoint,
         pendingCandidateDeadline: '2026-07-22T12:00:02.000Z',
@@ -709,6 +710,7 @@ test('CAS-updates blocked and repaired Cursor targets for the owning watcher onl
       status: 'updated',
       target: {
         observationCursor: 3,
+        recordCount: 3,
         continuityState: 'blocked',
         lastStatus: { health: 'blocked' },
       },
@@ -768,6 +770,33 @@ test('CAS-updates blocked and repaired Cursor targets for the owning watcher onl
     expect(
       await readFile(join(process.env.STATE_DIR!, 'watch.json'), 'utf8'),
     ).toBe(blockedState);
+    await expect(
+      watchState.compareAndSetCursorWatchTarget({
+        pid: 9191,
+        key: 'cursor:cursor-transition',
+        expectedObservationCursor: 3,
+        next: {
+          observationCursor: 4,
+          recordCount: 2,
+          bufferedFromFrame: null,
+          continuity: {
+            ...cursorCheckpoint,
+            nextFrameIndex: 4,
+            prefixBytes: 300,
+            prefixSha256: 'b'.repeat(64),
+          },
+          pendingCandidateDeadline: null,
+          lastStatus: {
+            ...cursorStatus,
+            content: 'none',
+          },
+          continuityState: 'verified',
+        },
+      }),
+    ).rejects.toThrow(/frame count must be safe and monotonic/);
+    expect(
+      await readFile(join(process.env.STATE_DIR!, 'watch.json'), 'utf8'),
+    ).toBe(blockedState);
 
     const repaired = await watchState.compareAndSetCursorWatchTarget({
       pid: 9191,
@@ -775,6 +804,7 @@ test('CAS-updates blocked and repaired Cursor targets for the owning watcher onl
       expectedObservationCursor: 3,
       next: {
         observationCursor: 4,
+        recordCount: 4,
         bufferedFromFrame: null,
         continuity: {
           ...cursorCheckpoint,
@@ -794,6 +824,7 @@ test('CAS-updates blocked and repaired Cursor targets for the owning watcher onl
       status: 'updated',
       target: {
         observationCursor: 4,
+        recordCount: 4,
         bufferedFromFrame: null,
         pendingCandidateDeadline: null,
         continuityState: 'verified',

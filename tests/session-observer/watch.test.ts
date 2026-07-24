@@ -1019,10 +1019,12 @@ describe('runWatchLoop', () => {
       expect(repairedTarget).toMatchObject({
         observationCursor: 4,
         bufferedFromFrame: null,
+        recordCount: 4,
       });
       expect(repairedStatus.targets[0]).toMatchObject({
         runtime: 'cursor',
         sessionId,
+        transcriptRecords: 4,
         lastRecordIndex: 4,
         bufferedFromFrame: null,
         recordsBehind: 0,
@@ -1038,16 +1040,19 @@ describe('runWatchLoop', () => {
           (line) =>
             line.type === 'heartbeat' && line.targets[0]?.lastRecordIndex === 4,
         );
-      expect(repairedHeartbeats.length).toBeGreaterThan(0);
-      expect(repairedHeartbeats.at(-1)).toMatchObject({
-        recordsBehind: 0,
-        targets: [
-          {
-            bufferedFromFrame: null,
-            recordsBehind: 0,
-          },
-        ],
-      });
+      expect(repairedHeartbeats.length).toBeGreaterThanOrEqual(30);
+      for (const heartbeat of repairedHeartbeats) {
+        expect(heartbeat).toMatchObject({
+          recordsBehind: 0,
+          targets: [
+            {
+              transcriptRecords: 4,
+              bufferedFromFrame: null,
+              recordsBehind: 0,
+            },
+          ],
+        });
+      }
     });
   });
 

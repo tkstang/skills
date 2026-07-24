@@ -608,6 +608,7 @@ export interface WatcherTargetInput {
 
 export interface CursorWatchTargetTransition {
   observationCursor: number;
+  recordCount?: number;
   bufferedFromFrame: number | null;
   continuity: TranscriptContinuityCheckpoint;
   pendingCandidateDeadline: string | Date | null;

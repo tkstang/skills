@@ -526,6 +526,7 @@ async function persistCursorTarget(target, pid, state, result) {
     expectedObservationCursor,
     next: {
       observationCursor: state.continuity.nextFrameIndex,
+      recordCount: result?.digest.range.totalFrames,
       bufferedFromFrame: cursorBufferedFromFrame(target, result),
       continuity: state.continuity,
       pendingCandidateDeadline: state.stabilityCandidate?.confirmAfter ?? null,
