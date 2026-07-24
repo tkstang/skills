@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t17
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 18    | 16/18     |
+| Phase 8 | complete    | 18    | 18/18     |
 
-**Total:** 56/58 tasks accepted
+**Total:** 58/58 tasks accepted
 
 ---
 
@@ -1568,8 +1568,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t14` | complete | `0712627` |
 | `p08-t15` | complete | `998892c` |
 | `p08-t16` | complete | `9c90704` |
-| `p08-t17` | pending | - |
-| `p08-t18` | pending | - |
+| `p08-t17` | complete | `e8de07d` |
+| `p08-t18` | complete | this commit |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1687,6 +1687,130 @@ failure from discarding already proven cleanup ownership and gives exact
 artifact removal its own finite aggregate bounds. `p08-t18` records all Phase 8
 outcomes in the canonical task-section shape and requires live OAT status
 read-back. No finding was deferred or rejected.
+
+### Canonical Phase 8 task outcomes
+
+### Task p08-t01: Await native stdout delivery before checkpoint commit
+
+**Status:** completed
+**Commit:** `6da8f79`
+**Outcome:** Deferred checkpoint commit until native Cursor stdout delivery is
+confirmed.
+
+### Task p08-t02: Advance beyond delivered same-turn stability candidates
+
+**Status:** completed
+**Commit:** `0376ec7`
+**Outcome:** Advanced selection past already delivered same-turn candidates.
+
+### Task p08-t03: Enforce watch runtime budgets through stability waits
+
+**Status:** completed
+**Commit:** `59dcc97`
+**Outcome:** Propagated the remaining watch deadline through stability waits.
+
+### Task p08-t04: Require canonical transcript identity before exact ownership
+
+**Status:** completed
+**Commit:** `103e915`
+**Outcome:** Required successful canonicalization and containment for exact
+Cursor transcript ownership.
+
+### Task p08-t05: Reject unsupported top-level assistant content
+
+**Status:** completed
+**Commit:** `ca4f573`
+**Outcome:** Rejected unsupported top-level assistant content shapes
+fail-closed.
+
+### Task p08-t06: Bound Cursor digests by structural turn identity
+
+**Status:** completed
+**Commit:** `2a07bd8`
+**Outcome:** Sliced Cursor digest output at the selected structural `turnId`.
+
+### Task p08-t07: Claim substantive completion before safe no-op suffixes
+
+**Status:** completed
+**Commit:** `4601949`
+**Outcome:** Bound collaboration completion claims to the substantive selected
+completion boundary.
+
+### Task p08-t08: Synchronize collaboration ambient declarations
+
+**Status:** completed
+**Commit:** `b02ddc7`
+**Outcome:** Synchronized ambient collaboration declarations and consumer
+coverage.
+
+### Task p08-t09: Enforce a hard acceptance-probe process timeout
+
+**Status:** completed
+**Commit:** `0a9442c`
+**Outcome:** Added finite TERM-to-KILL process bounds to acceptance probing.
+
+### Task p08-t10: Require provider version evidence for live promotion
+
+**Status:** completed
+**Commit:** `bf24dde`
+**Outcome:** Required successful provider-version evidence before live
+promotion.
+
+### Task p08-t11: Verify pre-existing provider state remains unchanged
+
+**Status:** completed
+**Commit:** `2c68bb6`
+**Outcome:** Fingerprinted declared provider roots and failed visibly when
+pre-existing state changed.
+
+### Task p08-t12: Keep active and terminal gate bookkeeping evidence-safe
+
+**Status:** completed
+**Commit:** `b606771`
+**Outcome:** Kept accepted and terminal gate bookkeeping within the sanitized
+evidence contract.
+
+### Task p08-t13: Reconcile Cursor current-state summary
+
+**Status:** completed
+**Commit:** `bb435f4`
+**Outcome:** Reconciled Cursor documentation, provider synchronization, and
+release-state claims.
+
+### Task p08-t14: Stabilize acceptance-probe readiness and run final gates
+
+**Status:** completed
+**Commit:** `0712627`
+**Outcome:** Added the child-readiness handshake and passed the complete release
+matrix.
+
+### Task p08-t15: Bound exact Cursor identity indexing
+
+**Status:** completed
+**Commit:** `998892c`
+**Outcome:** Made duplicate identity indexing path-only, aggregate-bounded, and
+fail-visible.
+
+### Task p08-t16: Bound aggregate provider-state preservation scans
+
+**Status:** completed
+**Commit:** `9c90704`
+**Outcome:** Added shared entry, byte, and elapsed-time budgets to pre-run and
+post-run provider-state preservation.
+
+### Task p08-t17: Preserve exact cleanup under budget exhaustion
+
+**Status:** completed
+**Commit:** `e8de07d`
+**Outcome:** Separated bounded preservation from exact cleanup discovery and
+removed retained exact artifacts under independent finite cleanup bounds.
+
+### Task p08-t18: Record canonical Phase 8 task completion
+
+**Status:** completed
+**Commit:** this commit (`chore(p08-t18): record canonical phase 8 completion`)
+**Outcome:** Added parser-recognized Phase 8 task sections while preserving the
+existing summary and review history.
 
 ---
 
