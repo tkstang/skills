@@ -2,8 +2,8 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-07-23
-oat_current_task_id: null
+oat_last_updated: 2026-07-24
+oat_current_task_id: p07-t02
 oat_generated: false
 ---
 
@@ -32,8 +32,9 @@ oat_generated: false
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
+| Phase 7 | in_progress | 4     | 1/4       |
 
-**Total:** 36/36 tasks accepted
+**Total:** 37/40 tasks accepted
 
 ---
 
@@ -1308,7 +1309,7 @@ and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
 
 ## Configured Implementation Exit Gate
 
-**Status:** blocked; remediation attempt 1 active
+**Status:** stale; remediation attempt 1 active
 
 The resolved configured gate is a structured cross-family final code review
 with an Important blocking threshold, `onFailure: block`, and at most two
@@ -1352,6 +1353,39 @@ same configured-gate generation under its persisted `block` policy.
 
 The receive transaction is durably corroborated by commit `56db672`; policy
 attempt 1 of 2 is consumed before Phase 7 implementation begins.
+
+---
+
+## Phase 7: Configured Exit-Gate Remediation
+
+**Status:** in progress
+
+### Task Outcomes
+
+| Task    | Status      | Commit    | Outcome |
+| ------- | ----------- | --------- | ------- |
+| p07-t01 | complete    | `6454740` | Bound selected Cursor success bytes through both owner-hook CAS paths. |
+| p07-t02 | in_progress | -         | Confirm bounded stability prefixes during transcript growth. |
+| p07-t03 | pending     | -         | Select a completed prefix before a pending Cursor turn. |
+| p07-t04 | pending     | -         | Make gate bookkeeping evidence-safe and rerun release gates. |
+
+### Task p07-t01: Bind selected Cursor success bytes through collaboration CAS
+
+**Status:** completed
+**Commit:** `6454740`
+
+The Cursor-owner and Codex-owner hooks now share an authored selected-prefix
+snapshot seam. Observation carries the selected boundary/hash/device/inode,
+and an exact bounded reread immediately before lease CAS must match before
+either hook can wake, spend budget, or advance private continuity. Eight
+success-to-non-success mutation interleavings plus inode replacement now fail
+closed, while unchanged success and existing completion/install behavior
+remain intact. Session-observer-collab 1.0.10 is dogfooded and synchronized.
+
+**Verification:** 78/78 focused tests and 125/125 collaboration tests passed;
+type-check, generated parity, validation, smoke, internal flags, changed-file
+lint/format, 34-page docs build, version enforcement, dogfood, and 114-entry
+user synchronization passed.
 
 ---
 

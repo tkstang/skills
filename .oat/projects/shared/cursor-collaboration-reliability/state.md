@@ -1,6 +1,6 @@
 ---
-oat_current_task: p07-t01
-oat_last_commit: 6afb9bf
+oat_current_task: p07-t02
+oat_last_commit: 6454740
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -36,7 +36,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: blocked
+  status: stale
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -69,13 +69,13 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'review_completed_blocking_findings: critical=1 important=3 medium=0 minor=0 threshold=important'
-  updated_at: '2026-07-24T04:10:39Z'
+  updated_at: '2026-07-24T04:26:25Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T04:10:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T04:26:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -95,7 +95,7 @@ Implementation - Phase 7 configured exit-gate remediation
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/40 tasks complete; Phase 7 queued)
+- **Implementation:** `implementation.md` (37/40 tasks complete; Phase 7 active)
 
 ## Progress
 
@@ -198,7 +198,9 @@ Implementation - Phase 7 configured exit-gate remediation
 - ✗ Configured exit gate attempt 1 retained 1 Critical and 3 Important findings
 - ✓ Configured exit-gate review received into 4 Phase 7 tasks
 - ✓ Receive reconciled at `56db672`; remediation attempt 1 consumed
-- ⧗ `p07-t01` selected-success snapshot binding pending
+- ✓ `p07-t01` selected-success snapshot binding complete at `6454740`
+- ✓ Configured gate basis marked stale after substantive remediation
+- ⧗ `p07-t02` bounded stability-prefix confirmation pending
 
 ## Blockers
 
@@ -206,5 +208,5 @@ None.
 
 ## Next Milestone
 
-Execute `p07-t01`, binding selected Cursor success bytes through the
-collaboration CAS boundary.
+Execute `p07-t02`, confirming bounded Cursor stability prefixes during
+continuous transcript growth.
