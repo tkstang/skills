@@ -1652,6 +1652,29 @@ The final matrix passed 1,522 tests with 1 skipped, live acceptance 19/19,
 evidence validation over 34 files, the 34-page docs build, provider sync
 188/188, dogfood parity, privacy, residue, and orphan-process checks.
 
+### Fresh final re-review after bounded scan fixes
+
+**Artifact:** `reviews/final-review-2026-07-24T133133Z.md`
+**Verdict:** blocked — 0 Critical, 2 Important, 0 Medium, 0 Minor
+
+The first Important finding identifies a post-run cleanup path where exhausting
+the aggregate time budget while scanning a later provider root replaces all
+partial discovery with an empty artifact set. That can leave an exactly proven
+new provider artifact behind. The fix must preserve partial exact discoveries
+or separate preservation scanning from cleanup discovery so every exactly
+owned artifact is removed under its own finite bounds.
+
+The second Important finding identifies lifecycle bookkeeping drift:
+`implementation.md` records Phase 8 only in a summary table, while the live OAT
+status parser recognizes canonical task sections. Live status therefore reports
+40/56 total and 0/16 for Phase 8 despite the completed commits. The fix must add
+canonical task sections for every Phase 8 task and verify status by read-back.
+
+The independent reviewer attempted the required reconnaissance lane; launch was
+rejected before start by the agent-thread limit, so it completed the lane inline
+and recorded the fallback. The operator's authorization to continue through
+reviews and a fresh gate generation remains the review-cycle override.
+
 ---
 
 ## Deviations from Plan / Design

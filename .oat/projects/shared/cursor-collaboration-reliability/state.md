@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:21:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:36:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - 56/56 tasks complete; fresh final re-review pending
+Implementation - 56/56 planned tasks complete; fresh final re-review blocked
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - 56/56 tasks complete; fresh final re-review pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (56/56 tasks complete; final re-review pending)
+- **Implementation:** `implementation.md` (56/56 planned tasks complete; final re-review blocked)
 
 ## Progress
 
@@ -225,12 +225,14 @@ Implementation - 56/56 tasks complete; fresh final re-review pending
 - ✓ `p08-t15` bounded exact identity indexing complete at `998892c`
 - ✓ `p08-t16` aggregate provider-state scan budgets complete at `9c90704`
 - ✓ Full matrix passed: 1,522 tests, 1 skipped; live acceptance 19/19
+- ✗ Fresh final re-review retained 2 Important findings
 
 ## Blockers
 
-None.
+Receive `reviews/final-review-2026-07-24T133133Z.md` and add bounded fix tasks
+for exact cleanup under budget exhaustion and canonical Phase 8 task records.
 
 ## Next Milestone
 
-Run the fresh final lifecycle re-review. Only after it passes may a fresh
-configured gate generation begin.
+Receive the fresh final lifecycle re-review and execute its two bounded fixes.
+Only after a passing re-review may a fresh configured gate generation begin.
