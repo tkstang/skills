@@ -1308,7 +1308,7 @@ and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
 
 ## Configured Implementation Exit Gate
 
-**Status:** blocked; receive pending
+**Status:** blocked; remediation attempt 1 active
 
 The resolved configured gate is a structured cross-family final code review
 with an Important blocking threshold, `onFailure: block`, and at most two
@@ -1349,6 +1349,9 @@ the resulting full changed tree. No finding was deferred or rejected.
 **Next:** Execute Phase 7 through `oat-project-implement`, rerun the mandatory
 final lifecycle review for the changed implementation basis, then resume the
 same configured-gate generation under its persisted `block` policy.
+
+The receive transaction is durably corroborated by commit `56db672`; policy
+attempt 1 of 2 is consumed before Phase 7 implementation begins.
 
 ---
 
