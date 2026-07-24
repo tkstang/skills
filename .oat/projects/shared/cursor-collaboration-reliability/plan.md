@@ -1504,6 +1504,25 @@ third gate launch.
 3. Preserve the historical review and configured-gate narrative.
 4. Commit: `chore(p08-t31): reconcile final cursor handoff`.
 
+### Task p08-t32: Correct ambient collaboration clock declarations
+
+**Task Scope:** Minor
+**Requirements:** NFR3, NFR6
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/mjs-modules.d.ts`
+- Modify: `tests/session-observer-collab/ambient-types.ts`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Restore `arm()` to its scalar `now?: number` runtime contract.
+2. Apply the number-or-clock callback union to `compareAndSwapTrigger()`.
+3. Add ambient compile assertions accepting the CAS callback and rejecting an `arm()` callback.
+4. Bump the collaboration skill version and run ambient, aggregate type, validation, and version gates.
+5. Commit: `fix(p08-t32): correct ambient clock declarations`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                      |
@@ -1552,6 +1571,7 @@ third gate launch.
 | final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T142453Z.md                    |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T144744Z.md           |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T161117Z.md             |
+| p08    | code     | fixes_added     | 2026-07-24 | reviews/p08-review-2026-07-24T163113Z.md                      |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1573,11 +1593,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 31 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, under-lock authorization deadlines, fully bounded generic discovery, fail-closed indexing, deterministic watch coverage, live evidence/dogfood reconciliation, and final handoff.
+- Phase 8: 32 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, under-lock authorization deadlines, fully bounded generic discovery, fail-closed indexing, deterministic watch coverage, ambient clock declaration parity, live evidence/dogfood reconciliation, and final handoff.
 
-**Total: 71 tasks**
+**Total: 72 tasks**
 
-Ready for code review and merge after all 71 tasks and review rows pass.
+Ready for code review and merge after all 72 tasks and review rows pass.
 
 ## References
 

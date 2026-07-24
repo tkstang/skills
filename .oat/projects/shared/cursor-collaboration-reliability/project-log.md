@@ -476,6 +476,10 @@ Fresh Phase 8 review retained 1 Critical and 2 Important findings; all were acce
 
 Review fixes completed at ddd9794 and ff74098; root reconciled the final handoff at 71/71 tasks, and the post-fix matrix passed 1,543 tests with 1 skipped plus type, generated-output, validation, and smoke gates.
 
+### 2026-07-24 · structural · oat-project-review-receive · p08-review-2026-07-24T163113Z
+
+Phase 8 re-review verified all runtime and discovery fixes and retained one Medium ambient declaration mismatch; accepted as p08-t32.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
