@@ -5,8 +5,8 @@
  * exit-style outcomes they can render for CLI, watch, or future integrations.
  */
 
-import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { open, readFile } from 'node:fs/promises';
 
 import { createCursorTurnAccumulator } from '../../core/cursor-analysis.js';
 import {
@@ -28,6 +28,7 @@ import type {
   BuildDigestOptions,
   CursorDeliveryHandle,
   CursorDeliveryUncertain,
+  CursorCandidateObservation,
   CursorDigestV2,
   CursorDigestEntryV2,
   CursorIdentityEvidence,
@@ -480,6 +481,7 @@ interface CursorScanResult {
   analysis: ReturnType<
     ReturnType<typeof createCursorTurnAccumulator>['finish']
   >;
+  frameEnds: Array<number | null>;
 }
 
 function initialCursorStatus(): CursorSessionStateEntry['lastStatus'] {
@@ -527,20 +529,26 @@ async function scanCursor(
   deps: ObserveDeps,
 ): Promise<CursorScanResult> {
   const accumulator = createCursorTurnAccumulator(identity, fromFrameIndex);
+  const frameEnds: Array<number | null> = [];
   const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
     verifyPrefixBytes,
     onFrame(frame) {
       accumulator.onFrame(frame);
+      frameEnds[frame.frameIndex] =
+        frame.closed &&
+        (frame.parseState === 'parsed' || frame.parseState === 'blank')
+          ? frame.byteEnd
+          : null;
     },
   });
   deps.onCursorScan?.();
-  return { scan, analysis: accumulator.finish(scan) };
+  return { scan, analysis: accumulator.finish(scan), frameEnds };
 }
 
 function cursorCandidateObservation(
   result: CursorScanResult,
   observedAt: string,
-) {
+): CursorCandidateObservation | null {
   const turn = result.analysis.turns.findLast(
     (candidate) =>
       candidate.lifecycle === 'pending' &&
@@ -560,6 +568,123 @@ function cursorCandidateObservation(
     prefixSha256: result.scan.safePrefixSha256,
     observedAt,
   };
+}
+
+function sameEntryKeys(left: readonly string[], right: readonly string[]) {
+  return (
+    left.length === right.length &&
+    left.every((entryKey, index) => entryKey === right[index])
+  );
+}
+
+function cursorObservationAtBoundary(
+  result: CursorScanResult,
+  boundary: Omit<CursorCandidateObservation, 'observedAt'>,
+  observedAt: string,
+): CursorCandidateObservation | null {
+  if (
+    result.scan.safeThroughFrame === null ||
+    result.scan.safeThroughFrame < boundary.throughFrameIndex ||
+    result.frameEnds[boundary.throughFrameIndex] !== boundary.prefixBytes
+  ) {
+    return null;
+  }
+  const turn = result.analysis.turns.find(
+    (candidate) => candidate.turnId === boundary.turnId,
+  );
+  if (turn === undefined || turn.fromFrameIndex !== boundary.fromFrameIndex) {
+    return null;
+  }
+  const entryKeys = turn.assistantRecords
+    .filter(
+      (record) =>
+        record.classification === 'substantive' &&
+        record.sourceFrameIndex <= boundary.throughFrameIndex,
+    )
+    .map((record) => record.entryKey);
+  if (!sameEntryKeys(entryKeys, boundary.entryKeys)) return null;
+  return {
+    turnId: boundary.turnId,
+    fromFrameIndex: boundary.fromFrameIndex,
+    throughFrameIndex: boundary.throughFrameIndex,
+    entryKeys,
+    prefixBytes: boundary.prefixBytes,
+    prefixSha256: boundary.prefixSha256,
+    observedAt,
+  };
+}
+
+async function captureCursorCheckpoint(
+  transcriptPath: string,
+  result: CursorScanResult,
+  nextFrameIndex: number,
+): Promise<TranscriptContinuityCheckpoint | null> {
+  const prefixBytes =
+    nextFrameIndex === 0 ? 0 : result.frameEnds[nextFrameIndex - 1];
+  if (
+    !Number.isSafeInteger(nextFrameIndex) ||
+    nextFrameIndex < 0 ||
+    prefixBytes === null ||
+    prefixBytes === undefined ||
+    result.scan.file.device === null ||
+    result.scan.file.inode === null ||
+    prefixBytes > result.scan.safePrefixBytes
+  ) {
+    return null;
+  }
+
+  const selectedHash = createHash('sha256');
+  const safeHash = createHash('sha256');
+  const handle = await open(transcriptPath, 'r');
+  try {
+    const before = await handle.stat();
+    if (
+      before.dev !== result.scan.file.device ||
+      before.ino !== result.scan.file.inode ||
+      before.size < result.scan.safePrefixBytes
+    ) {
+      return null;
+    }
+    let bytesRead = 0;
+    if (result.scan.safePrefixBytes > 0) {
+      const stream = handle.createReadStream({
+        autoClose: false,
+        start: 0,
+        end: result.scan.safePrefixBytes - 1,
+      });
+      for await (const chunk of stream) {
+        const selectedRemaining = prefixBytes - bytesRead;
+        if (selectedRemaining > 0) {
+          selectedHash.update(
+            chunk.subarray(0, Math.min(selectedRemaining, chunk.byteLength)),
+          );
+        }
+        safeHash.update(chunk);
+        bytesRead += chunk.byteLength;
+      }
+    }
+    const after = await handle.stat();
+    if (
+      bytesRead !== result.scan.safePrefixBytes ||
+      after.dev !== before.dev ||
+      after.ino !== before.ino ||
+      after.size < result.scan.safePrefixBytes ||
+      safeHash.digest('hex') !== result.scan.safePrefixSha256
+    ) {
+      return null;
+    }
+    return {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex,
+      prefixBytes,
+      prefixSha256: selectedHash.digest('hex'),
+      observedSize: prefixBytes,
+      device: before.dev,
+      inode: before.ino,
+    };
+  } finally {
+    await handle.close();
+  }
 }
 
 function reconstructUncertainReplay(
@@ -681,6 +806,8 @@ function createDeliveryHandle(input: {
   ownerPid: number;
   entryKeys: string[];
   nextState: CursorSessionStateEntry;
+  nextCandidateObservation: CursorCandidateObservation | null;
+  stabilityMs: number;
 }): CursorDeliveryHandle {
   let finalized = false;
   const finalize = (): void => {
@@ -696,11 +823,22 @@ function createDeliveryHandle(input: {
     entryKeys: [...input.entryKeys],
     async commit() {
       finalize();
-      return cursorStateLib.commitCursorDelivery({
+      const committed = await cursorStateLib.commitCursorDelivery({
         sessionId: input.sessionId,
         deliveryId: input.deliveryId,
         nextState: input.nextState,
       });
+      if (
+        committed === 'committed' &&
+        input.nextCandidateObservation !== null
+      ) {
+        await cursorStateLib.checkpointCursorCandidate({
+          sessionId: input.sessionId,
+          stabilityMs: input.stabilityMs,
+          observation: input.nextCandidateObservation,
+        });
+      }
+      return committed;
     },
     async abandon(options) {
       finalize();
@@ -814,46 +952,96 @@ async function observeCursorSession(
   }
 
   let selected = first;
+  let selectedObservedAt = new Date(deps.now?.() ?? Date.now()).toISOString();
+  let confirmedObservation: CursorCandidateObservation | null = null;
+  const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
   let uncertainReplay: CursorDigestEntryV2[] | null = null;
   if (deliveryUncertain === null) {
-    const firstObservation = cursorCandidateObservation(
-      first,
-      new Date(deps.now?.() ?? Date.now()).toISOString(),
-    );
+    const storedCandidate = state.stabilityCandidate;
+    let firstObservation: CursorCandidateObservation | null = null;
+    if (storedCandidate !== null) {
+      const storedCheckpoint = await captureCursorCheckpoint(
+        identity.canonicalTranscriptPath,
+        first,
+        storedCandidate.throughFrameIndex + 1,
+      );
+      if (
+        storedCheckpoint?.prefixBytes === storedCandidate.prefixBytes &&
+        storedCheckpoint.prefixSha256 === storedCandidate.prefixSha256
+      ) {
+        firstObservation = cursorObservationAtBoundary(
+          first,
+          storedCandidate,
+          selectedObservedAt,
+        );
+      }
+    }
+    firstObservation ??= cursorCandidateObservation(first, selectedObservedAt);
     if (firstObservation !== null) {
-      const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
       const checkpoint = await cursorStateLib.checkpointCursorCandidate({
         sessionId: identity.sessionId,
         stabilityMs,
         observation: firstObservation,
       });
-      if (checkpoint.status !== 'confirmed') {
+      if (checkpoint.status === 'confirmed') {
+        const verifiedBoundary = await captureCursorCheckpoint(
+          identity.canonicalTranscriptPath,
+          first,
+          firstObservation.throughFrameIndex + 1,
+        );
+        if (
+          verifiedBoundary?.prefixBytes === firstObservation.prefixBytes &&
+          verifiedBoundary.prefixSha256 === firstObservation.prefixSha256
+        ) {
+          confirmedObservation = cursorObservationAtBoundary(
+            first,
+            firstObservation,
+            selectedObservedAt,
+          );
+        }
+      } else {
         await (deps.sleep?.(stabilityMs) ??
           new Promise((resolve) => setTimeout(resolve, stabilityMs)));
+        selectedObservedAt = new Date(
+          Math.max(
+            deps.now?.() ?? Date.now(),
+            Date.parse(firstObservation.observedAt) + stabilityMs,
+          ),
+        ).toISOString();
         const second = await scanCursor(
           identity,
           analysisFromFrame,
           firstObservation.prefixBytes,
           deps,
         );
-        const secondObservation = cursorCandidateObservation(
+        const confirmedBoundary = cursorObservationAtBoundary(
           second,
-          new Date(
-            Math.max(
-              deps.now?.() ?? Date.now(),
-              Date.parse(firstObservation.observedAt) + stabilityMs,
-            ),
-          ).toISOString(),
+          firstObservation,
+          selectedObservedAt,
         );
-        if (
-          secondObservation !== null &&
-          second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256
-        ) {
-          await cursorStateLib.checkpointCursorCandidate({
-            sessionId: identity.sessionId,
-            stabilityMs,
-            observation: secondObservation,
-          });
+        if (confirmedBoundary !== null) {
+          const verifiedBoundary = await captureCursorCheckpoint(
+            identity.canonicalTranscriptPath,
+            second,
+            firstObservation.throughFrameIndex + 1,
+          );
+          if (
+            verifiedBoundary?.prefixBytes === firstObservation.prefixBytes &&
+            verifiedBoundary.prefixSha256 ===
+              second.scan.verifiedPrefixSha256 &&
+            verifiedBoundary.prefixSha256 === firstObservation.prefixSha256
+          ) {
+            const confirmation = await cursorStateLib.checkpointCursorCandidate(
+              {
+                sessionId: identity.sessionId,
+                stabilityMs,
+                observation: confirmedBoundary,
+              },
+            );
+            if (confirmation.status === 'confirmed') {
+              confirmedObservation = confirmedBoundary;
+            }
+          }
         }
         selected = second;
       }
@@ -914,7 +1102,10 @@ async function observeCursorSession(
     cursorIdentity: identity,
     cursorScan: selected.scan,
     cursorAnalysis: selected.analysis,
-    cursorState: state,
+    cursorState:
+      deliveryUncertain === null && confirmedObservation === null
+        ? { ...state, stabilityCandidate: null }
+        : state,
     cursorContinuity: continuity.status,
   })) as CursorDigestV2;
 
@@ -966,22 +1157,15 @@ async function observeCursorSession(
   }
 
   let delivery: CursorDeliveryHandle | null = null;
-  const safeNextIndex = (selected.scan.safeThroughFrame ?? -1) + 1;
+  const intendedCheckpoint = await captureCursorCheckpoint(
+    identity.canonicalTranscriptPath,
+    selected,
+    digest.range.nextIndex,
+  );
   if (
     digest.range.nextIndex > continuity.fromFrameIndex &&
-    digest.range.nextIndex === safeNextIndex &&
-    selected.scan.file.device !== null &&
-    selected.scan.file.inode !== null
+    intendedCheckpoint !== null
   ) {
-    const intendedCheckpoint: TranscriptContinuityCheckpoint = {
-      indexBase: 'zero-based-jsonl-frame-index',
-      nextFrameIndex: digest.range.nextIndex,
-      prefixBytes: selected.scan.safePrefixBytes,
-      prefixSha256: selected.scan.safePrefixSha256,
-      observedSize: selected.scan.file.size,
-      device: selected.scan.file.device,
-      inode: selected.scan.file.inode,
-    };
     const ownerPid = deps.ownerPid ?? process.pid;
     const deliveryId = randomUUID();
     const entryKeys = digest.entries.map((entry) => entry.entryKey);
@@ -1022,6 +1206,11 @@ async function observeCursorSession(
       );
     }
     digest.cursorEvidence.status.delivery = 'reserved';
+    const safeNextIndex = (selected.scan.safeThroughFrame ?? -1) + 1;
+    const nextObservation =
+      digest.range.nextIndex < safeNextIndex
+        ? cursorCandidateObservation(selected, selectedObservedAt)
+        : null;
     const nextState: CursorSessionStateEntry = {
       ...state,
       lastRecordIndex: digest.range.nextIndex,
@@ -1034,12 +1223,25 @@ async function observeCursorSession(
       stabilityCandidate: null,
       pendingDelivery: null,
     };
+    const nextCandidateObservation =
+      nextObservation !== null &&
+      (confirmedObservation === null ||
+        nextObservation.throughFrameIndex !==
+          confirmedObservation.throughFrameIndex ||
+        !sameEntryKeys(
+          nextObservation.entryKeys,
+          confirmedObservation.entryKeys,
+        ))
+        ? nextObservation
+        : null;
     delivery = createDeliveryHandle({
       sessionId: identity.sessionId,
       deliveryId,
       ownerPid,
       entryKeys,
       nextState,
+      nextCandidateObservation,
+      stabilityMs,
     });
   }
 

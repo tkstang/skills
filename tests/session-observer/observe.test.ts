@@ -430,6 +430,134 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test('delivers the confirmed Cursor prefix while retaining growth from its confirmation interval', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-prefix-growth');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-prefix-growth';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Bound the stable prefix.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Frame A is stable.' }],
+          },
+        },
+      ]);
+      const prefixBytes = Buffer.byteLength(
+        await readFile(transcriptPath, 'utf8'),
+      );
+      const laterMetadata = JSON.stringify({
+        type: 'metadata',
+        note: 'safe bytes after frame A',
+      });
+      let nowMs = Date.parse('2026-07-22T01:00:00.000Z');
+      let appended = false;
+
+      const first = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0.1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (appended) return;
+            appended = true;
+            await appendFile(
+              transcriptPath,
+              `${laterMetadata}\n${JSON.stringify({
+                role: 'assistant',
+                message: {
+                  content: [{ type: 'text', text: 'Frame B arrived later.' }],
+                },
+              })}\n`,
+              'utf8',
+            );
+          },
+          ownerPid: 7102,
+        },
+      );
+
+      expect(appended).toBe(true);
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor') {
+        throw new Error(first.ok ? 'expected Cursor result' : first.message);
+      }
+      expect(first.digest.entries.map((entry) => entry.text)).toEqual([
+        'Frame A is stable.',
+      ]);
+      expect(first.digest.range).toMatchObject({
+        fromIndex: 0,
+        toIndex: 2,
+        nextIndex: 3,
+        totalFrames: 4,
+      });
+      expect(first.digest.accounting.buffered).toEqual({
+        fromIndex: 3,
+        count: 1,
+        reason: 'stability-wait',
+      });
+      expect(first.delivery).not.toBeNull();
+      expect(
+        (await getCursorSession(sessionId))?.pendingDelivery
+          ?.intendedCheckpoint,
+      ).toMatchObject({
+        nextFrameIndex: 3,
+        prefixBytes: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
+        observedSize: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
+      });
+
+      await expect(first.delivery!.commit()).resolves.toBe('committed');
+      expect(
+        (await getCursorSession(sessionId))?.stabilityCandidate,
+      ).toMatchObject({
+        entryKeys: [expect.any(String), expect.any(String)],
+        throughFrameIndex: 3,
+        confirmedAt: null,
+      });
+
+      nowMs += 100;
+      const second = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0.1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async () => {
+            throw new Error('the retained candidate is already due');
+          },
+          ownerPid: 7102,
+        },
+      );
+      expect(second.ok).toBe(true);
+      if (!second.ok || second.runtime !== 'cursor') {
+        throw new Error(second.ok ? 'expected Cursor result' : second.message);
+      }
+      expect(second.digest.entries.map((entry) => entry.text)).toEqual([
+        'Frame B arrived later.',
+      ]);
+      expect(second.digest.range).toMatchObject({
+        fromIndex: 3,
+        toIndex: 3,
+        nextIndex: 4,
+      });
+      await expect(second.delivery!.commit()).resolves.toBe('committed');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(4);
+    });
+  });
+
   test('blocks Cursor continuity mismatch without mutating its committed checkpoint', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = join(home, 'workspace', 'observe-cursor-continuity');

@@ -845,6 +845,107 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('delivers bounded Cursor prefixes without starvation during continuous max-pending growth', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-prefix-growth');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-prefix-growth';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Continuous growth baseline direction.' },
+        { content: 'Continuous growth baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const stdout: string[] = [];
+      const writtenMessages: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 13, 0, 0);
+      let firstDeltaEmitted = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.1,
+          maxPendingSec: 0.06,
+          maxRuntimeMin: 0.006,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => {
+            stdout.push(chunk);
+            if (
+              chunk
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .some((line) => JSON.parse(line).type === 'delta')
+            ) {
+              firstDeltaEmitted = true;
+            }
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const state = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
+            if (
+              firstDeltaEmitted ||
+              state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                ?.nextFrameIndex !== 3
+            ) {
+              return;
+            }
+            const text = `Continuous Cursor growth ${writtenMessages.length + 1}.`;
+            writtenMessages.push(text);
+            await appendCursorFrame(transcriptPath, {
+              role: 'assistant',
+              message: {
+                content: [{ type: 'text', text }],
+              },
+            });
+          },
+        },
+      );
+
+      const deltas = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'delta');
+      const deliveredMessages = deltas.flatMap((delta) =>
+        delta.digest.entries.map((entry: { text: string }) => entry.text),
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(writtenMessages.length).toBeGreaterThanOrEqual(4);
+      expect(deltas.length).toBeGreaterThanOrEqual(2);
+      expect(deltas[0].digest.accounting.buffered).toMatchObject({
+        count: 1,
+        reason: 'stability-wait',
+      });
+      expect(
+        deltas[0].digest.entries.map((entry: { text: string }) => entry.text),
+      ).not.toContain(writtenMessages.at(-1));
+      expect(deliveredMessages).toEqual(writtenMessages);
+      expect(new Set(deliveredMessages).size).toBe(deliveredMessages.length);
+
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      expect(
+        state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
+      ).toBe(3 + writtenMessages.length);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.stabilityCandidate).toBe(
+        null,
+      );
+    });
+  });
+
   test('reports Cursor heartbeat facets without rescanning an unchanged transcript and cleans up ownership', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = join(home, 'workspace', 'watch-cursor-heartbeat');
