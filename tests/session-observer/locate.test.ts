@@ -103,6 +103,23 @@ const classifyCountHarness = vi.hoisted(() => {
   };
 });
 
+const opendirFailureHarness = vi.hoisted(() => {
+  let failedPath: string | null = null;
+  return {
+    failOnceAt: (path: string) => {
+      failedPath = path;
+    },
+    consume: (path: string) => {
+      if (failedPath !== path) return false;
+      failedPath = null;
+      return true;
+    },
+    reset: () => {
+      failedPath = null;
+    },
+  };
+});
+
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
   return {
@@ -116,6 +133,17 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       if (typeof args[0] === 'string') classifyCountHarness.record(args[0]);
       return (actual.readFile as (...a: unknown[]) => unknown)(...args);
     }) as typeof actual.readFile,
+    opendir: (async (...args: Parameters<typeof actual.opendir>) => {
+      if (
+        typeof args[0] === 'string' &&
+        opendirFailureHarness.consume(args[0])
+      ) {
+        throw Object.assign(new Error('permission denied by test'), {
+          code: 'EACCES',
+        });
+      }
+      return actual.opendir(...args);
+    }) as typeof actual.opendir,
   };
 });
 
@@ -133,6 +161,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
   const prevStateDir = process.env.STATE_DIR;
   process.env.HOME = dir;
   process.env.STATE_DIR = join(dir, '.local', 'state', 'session-observer');
+  opendirFailureHarness.reset();
   try {
     await fn(dir);
   } finally {
@@ -1218,6 +1247,35 @@ test('cursor identity: duplicate indexing is path-only across many and large tra
         (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
       ),
     ).toBe(true);
+  });
+});
+
+test('cursor identity: duplicate indexing fails closed on an unreadable store branch', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'incomplete-index-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-incomplete-index',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const unreadableRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      'unreadable-project',
+      'agent-transcripts',
+    );
+    await mkdir(join(unreadableRoot, 'unrelated-session'), { recursive: true });
+    opendirFailureHarness.failOnceAt(unreadableRoot);
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-incomplete-index'),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_INCOMPLETE']),
+    });
   });
 });
 

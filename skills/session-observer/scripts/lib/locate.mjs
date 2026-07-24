@@ -588,6 +588,9 @@ async function canonicalPath(path) {
     return null;
   }
 }
+function isMissingPathError(error) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
 function cursorSessionIdFromTranscriptPath(transcriptPath) {
   const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
   return transcriptBase && !["transcript", "conversation", "messages"].includes(transcriptBase) ? transcriptBase : basename(join(transcriptPath, ".."));
@@ -612,8 +615,16 @@ async function cursorSessionCanonicalPaths(sessionId, options = {}) {
     }
     return null;
   };
+  let projects;
   try {
-    const projects = await opendir(projectsRoot);
+    projects = await opendir(projectsRoot);
+  } catch (error) {
+    return {
+      canonicalPaths,
+      failure: isMissingPathError(error) ? null : "IDENTITY_INDEX_INCOMPLETE"
+    };
+  }
+  try {
     for await (const projectDir of projects) {
       let failure = budgetFailure(true);
       if (failure) return { canonicalPaths, failure };
@@ -623,8 +634,12 @@ async function cursorSessionCanonicalPaths(sessionId, options = {}) {
         sessions = await opendir(
           join(projectsRoot, projectDir.name, "agent-transcripts")
         );
-      } catch {
-        continue;
+      } catch (error) {
+        if (isMissingPathError(error)) continue;
+        return {
+          canonicalPaths,
+          failure: "IDENTITY_INDEX_INCOMPLETE"
+        };
       }
       failure = budgetFailure();
       if (failure) return { canonicalPaths, failure };
@@ -642,8 +657,12 @@ async function cursorSessionCanonicalPaths(sessionId, options = {}) {
               sessionDir.name
             )
           );
-        } catch {
-          continue;
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          return {
+            canonicalPaths,
+            failure: "IDENTITY_INDEX_INCOMPLETE"
+          };
         }
         failure = budgetFailure();
         if (failure) return { canonicalPaths, failure };
@@ -661,16 +680,24 @@ async function cursorSessionCanonicalPaths(sessionId, options = {}) {
           if (cursorSessionIdFromTranscriptPath(transcriptPath) !== sessionId) {
             continue;
           }
-          canonicalPaths.add(
-            await canonicalPath(transcriptPath) ?? transcriptPath
-          );
+          let canonicalTranscriptPath;
+          try {
+            canonicalTranscriptPath = await realpath(transcriptPath);
+          } catch (error) {
+            if (isMissingPathError(error)) continue;
+            return {
+              canonicalPaths,
+              failure: "IDENTITY_INDEX_INCOMPLETE"
+            };
+          }
+          canonicalPaths.add(canonicalTranscriptPath);
           failure = budgetFailure();
           if (failure) return { canonicalPaths, failure };
         }
       }
     }
   } catch {
-    return { canonicalPaths, failure: null };
+    return { canonicalPaths, failure: "IDENTITY_INDEX_INCOMPLETE" };
   }
   return { canonicalPaths, failure: null };
 }
@@ -750,7 +777,8 @@ async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId,
       "HARNESS_SESSION_MISMATCH",
       "DUPLICATE_SESSION_CANDIDATES",
       "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED",
-      "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED"
+      "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_INCOMPLETE"
     ].includes(reason)
   );
   const canonicalIdentityReady = requestedCanonicalCwd !== null && resolvedTranscriptPath !== null && resolvedStoreRoot !== null && (candidate.recordedCwd === null || canonicalRecordedCwd !== null);
