@@ -96,7 +96,7 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   export function arm(
     root: string,
     options: ArmOptions,
-    clock?: number | (() => number),
+    now?: number,
   ): Promise<{ changed: boolean; lease: Lease }>;
   export function disarm(
     root: string,
@@ -110,7 +110,7 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   export function run(
     argv: string[],
     env?: NodeJS.ProcessEnv,
-    now?: number,
+    clock?: number | (() => number),
   ): Promise<{
     ok: true;
     command: string;
@@ -209,7 +209,7 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
       terminal?: boolean;
       diagnostic?: string | null;
     },
-    now?: number,
+    clock?: number | (() => number),
   ): Promise<
     { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
   >;

@@ -1,4 +1,5 @@
 import { selectCompletedContinuation } from '../../skills/session-observer-collab/scripts/lib/completion-selection.mjs';
+import { arm } from '../../skills/session-observer-collab/scripts/collab-control.mjs';
 import {
   compareAndSwapTrigger,
   validateOwnerRuntime,
@@ -46,6 +47,11 @@ const triggerUpdate: Parameters<typeof compareAndSwapTrigger>[3] = {
   peerCursor: completion.peerCursor,
   peerContinuity: completion.peerContinuity,
 };
+const triggerClock: NonNullable<
+  Parameters<typeof compareAndSwapTrigger>[4]
+> = () => Date.now();
+// @ts-expect-error arm accepts a scalar timestamp, not a clock callback.
+const invalidArmClock: NonNullable<Parameters<typeof arm>[2]> = () => Date.now();
 
 void peerRuntime;
 void ownerRuntime;
@@ -55,3 +61,5 @@ void indexBase;
 void selectedPrefix;
 void completion;
 void triggerUpdate;
+void triggerClock;
+void invalidArmClock;
