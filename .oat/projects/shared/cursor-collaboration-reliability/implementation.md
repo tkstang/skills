@@ -1309,7 +1309,7 @@ and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
 
 ## Configured Implementation Exit Gate
 
-**Status:** stale; remediation attempt 1 active
+**Status:** pending; remediation attempt 2 ready
 
 The resolved configured gate is a structured cross-family final code review
 with an Important blocking threshold, `onFailure: block`, and at most two
@@ -1358,6 +1358,15 @@ After receive reconciliation completed, the result receipt was retained in
 ignored local OAT state and the deleted transient marker was normalized to a
 repo-neutral logical marker reference. Run/artifact/receive correlation remains
 in the typed exit-gate state.
+
+### Attempt 2 basis
+
+The mandatory final lifecycle review passed on `090f507` after all four
+attempt-1 findings were remediated. The same persisted gate configuration and
+`block` policy are retained, with attempt 1 of 2 consumed. The new reviewed
+basis is fingerprinted against `origin/main` as
+`sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8`.
+Launch and receive state are reset for the second and final attempt.
 
 ---
 

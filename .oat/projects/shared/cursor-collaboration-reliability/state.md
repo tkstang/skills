@@ -36,7 +36,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: stale
+  status: pending
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -45,37 +45,37 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 1
-  reviewed_head: 5d02b9144cc263660590a7c982024bf29f7351c4
+  reviewed_head: 090f507373b0f7a8c5848c62af846e08dfb95393
   implementation_base_ref: origin/main
-  implementation_fingerprint: 'sha256:effective-delta-v1:ce1cc10c980e670bbb5b28cd62f8c370df088ae47db55f07a4f6aa0ce262c693'
-  freshness_head: b743464fe9ef3e81c5ee926c9a04c236dd81c973
-  freshness_fingerprint: 'sha256:effective-delta-v1:291d9e03a24eb75eaa3407e735dc55f97fc032b55eb4ea907a85638bcbab59d1'
-  launch_state: result_persisted
-  launch_attempt_id: 55369892-1344-48b0-be2e-22605af4a252
-  launch_started_at: '2026-07-24T03:34:45Z'
-  launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/55369892-1344-48b0-be2e-22605af4a252.result.json'
-  gate_run_marker: 'system-temp:oat-gate-runs/09729d68-6f2a-4a63-be4f-b344c8ac96a0.json'
-  gate_run_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0
-  envelope_status: blocked
-  artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
-  handoff: 'Run oat-project-review-receive for .oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md before treating this gate review as consumed.'
-  receive_state: completed
-  receive_correlation: 'run=09729d68-6f2a-4a63-be4f-b344c8ac96a0 scope=final type=code source=final-review-2026-07-24T034752Z.md handoff=corroborated'
-  receive_source_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
-  receive_archived_artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/archived/final-review-2026-07-24T034752Z.md'
-  receive_event_identity: 'final|code|final-review-2026-07-24T034752Z.md'
-  receive_pre_head: 9806e4003a36d5101f1d4f94c410181f393c2126
-  receive_commit: 56db672ca4bfbd07f4824b023c40ba9b64aadd1a
-  receive_eligible: true
-  receive_completed: true
-  failure: 'review_completed_blocking_findings: critical=1 important=3 medium=0 minor=0 threshold=important'
-  updated_at: '2026-07-24T05:09:07Z'
+  implementation_fingerprint: 'sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8'
+  freshness_head: 090f507373b0f7a8c5848c62af846e08dfb95393
+  freshness_fingerprint: 'sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8'
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-07-24T05:24:00Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T05:20:09Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T05:24:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
