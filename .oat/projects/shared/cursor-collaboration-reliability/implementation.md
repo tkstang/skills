@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p05-t06
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -30,10 +30,10 @@ oat_generated: false
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
-| Phase 5 | in_progress | 6     | 5/6       |
+| Phase 5 | review_pending | 6     | 6/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 31/36 tasks accepted
+**Total:** 32/36 tasks accepted
 
 ---
 
@@ -920,7 +920,26 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** in_progress
+**Status:** review_pending
+
+### Phase Summary
+
+**Outcome:**
+
+- Recorded sanitized, repeatable Cursor capability evidence and passed both
+  observed-side and bounded collaboration live acceptance.
+- Updated shipped user, engineering, and skill-reference documentation for the
+  v2 content/frame semantics, exact identity, recovery, status, and honest
+  support tiers.
+- Bumped and dogfooded all three changed standalone skills through canonical
+  user installs; available provider links matched and OAT reported 188/188
+  synchronized surfaces.
+- Closed the satisfied Cursor transcript-store backlog item through the full
+  PJM lifecycle while leaving stronger wake evaluation to Phase 6.
+- The aggregate release matrix passed 1,424 tests with 1 skipped, 34 generated
+  docs pages, 52 clean generated outputs, exact changed-file lint/format gates,
+  validation, smoke, version validation, and OAT status.
+- Independent Phase 5 code review is pending.
 
 ### Task outcomes
 
@@ -931,6 +950,7 @@ reproduction also passed; Phase 5 is next.
 | p05-t03 | complete | `34b702c` | Recorded the isolated exact collaboration lifecycle through shipped control/hook paths, with provider-delivered routing honestly retained as documented-but-unvalidated. |
 | p05-t04 | complete | `da09616` | Documented content-first Cursor observation, terminal-only completion, exact identity and recovery, state/status facets, schema/index dispatch, lease/wake versions, generated topology, and honest support labels. |
 | p05-t05 | complete | `e77c367` | Bumped the three changed standalone skill versions, regenerated without drift, and verified byte-identical branch dogfooding through canonical user installs and available provider links. |
+| p05-t06 | complete | `8989fd7` | Closed the satisfied Cursor transcript-store backlog item and passed the complete pre-wake release matrix with clean generated, test, docs, version, and provider-sync state. |
 
 ### Task p05-t01: Record the baseline capability matrix
 
@@ -973,6 +993,16 @@ byte-for-byte, and OAT reported 188/188 synchronized surfaces with no drift,
 missing entries, or strays. Claude and Copilot links resolved to the canonical
 installs; Cursor skill entries were absent and were not claimed.
 
+### Task p05-t06: Run pre-wake gates and close satisfied baseline backlog items
+
+**Status:** completed
+**Commit:** `8989fd7`
+**Verification:** All four transcript-store acceptance criteria passed, along
+with 206 focused tests. The final matrix passed exact changed-file lint/format
+gates, evidence validation, build/type/build parity, 1,424 tests with 1
+skipped, validation, smoke, 31 formatted docs files, a 34-page production
+build, three skill-version checks, and 188/188 synchronized OAT surfaces.
+
 ---
 
 ## Deviations from Plan / Design
@@ -986,6 +1016,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p02-t03 | `plan.md` | Regenerate state runtime output | Added the exact `state.js` to `cursor-state.mjs` import rewrite in `scripts/build-generated.mjs` | Generated ESM must resolve the emitted module filename | Canonical build mapping | Bounded generated-output adaptation |
 | p04-t06 | `plan.md` | Limit safety-matrix changes to collaboration tests/runtime files | Added required `index_base` to three intended-valid v2 fixtures in `tests/transcript-core/cursor-analysis.test.ts` through append-only integration fix `f84dfd8` | Phase-wide validation exposed stale fixtures that contradicted p04-t05's intentional missing-attribute fail-closed contract | Wake-envelope v2 parser contract and full-suite validation | Bounded test-fixture adaptation; no production change |
 | p04 review fix | `reviews/p04-review-2026-07-23T224300Z.md` | Fix Codex-owner/Cursor-peer continuity in hook/runtime adapter | Also added frame analysis modules to `codex-install.mjs` hook bundle dependencies | Full fix verification exposed missing installed-hook runtime dependencies | Codex hook bundle plus full-suite validation | Bounded packaging adaptation required by the reviewed fix |
+| p05-t06 | `plan.md` | Gate verification should not require product edits unless a failure identifies one | Replaced multiline declaration-free imports in two tooling tests with equivalent one-line namespace imports | Aggregate type-check showed the multiline `@ts-expect-error` placement did not suppress both module-resolution diagnostics | TypeScript aggregate gate plus 17 focused tests | Narrow gate-implicated test-only correction |
 
 ## Test Results
 
@@ -997,7 +1028,7 @@ Track test execution during implementation.
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
-| 5     | p05-t01 through p05-t04 acceptance and docs verification | 14 evidence tests; 3 probe tests; 19 live rows; 92 collaboration tests; 34 docs pages; 10 schema/index checks | 0 | Evidence privacy, observed-side acceptance, isolated collaboration lifecycle, shipped contract documentation |
+| 5     | Complete pre-wake release matrix | 206 focused; 1,424 full; 1 skipped; 34 docs pages; 52 generated outputs; 3 skill versions | 0 | Live acceptance, evidence privacy, docs/contracts, backlog lifecycle, provider dogfood, aggregate release readiness |
 
 ## Final Summary (for PR/docs)
 

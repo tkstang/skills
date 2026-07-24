@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t06
-oat_last_commit: e77c367
+oat_current_task: p06-t01
+oat_last_commit: 8989fd7
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T23:57:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T00:07:42Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 5 in progress at p05-t06
+Implementation - Phase 5 review pending; next plan task p06-t01
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 5 in progress at p05-t06
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 5 resumes at `p05-t06`)
+- **Implementation:** `implementation.md` (Phase 5 is 6/6; review pending)
 
 ## Progress
 
@@ -131,7 +131,9 @@ Implementation - Phase 5 in progress at p05-t06
 - ✓ `p05-t03` bounded collaboration lifecycle evidence complete at `34b702c`
 - ✓ `p05-t04` shipped Cursor reliability documentation complete at `da09616`
 - ✓ `p05-t05` skill versioning and branch dogfooding complete at `e77c367`
-- ⧗ Phase 5 continues at `p05-t06`
+- ✓ `p05-t06` transcript-store closeout and baseline release gates complete at `8989fd7`
+- ✓ Phase 5 implementation complete: 6/6 tasks
+- ⧗ Independent Phase 5 review pending
 
 ## Blockers
 
@@ -139,4 +141,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 5 from `p05-t06`.
+Complete the independent Phase 5 review, then execute Phase 6 from `p06-t01`.
