@@ -601,11 +601,11 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Policy:** managed `high`
 **Phase base:** `7307adb`
 **Phase head:** `2cddafe`
-**Outcome:** Important evidence fix completed; whole-phase re-review pending
+**Outcome:** blocked after review round 2; bounded cleanup fix iteration 2 pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p06   | 4/4   | `0ef8e5d..2cddafe` | Round 1 blocked: 1 Important; round 2 pending | 1 (`2cddafe`) | review_pending |
+| p06   | 4/4   | `0ef8e5d..2cddafe` | Round 2 blocked: 1 Important | 1 (`2cddafe`) | blocked |
 
 **Implementation dispatch:** request
 `impl-p06-7307adb-20260724T005000Z`; target
@@ -618,9 +618,13 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 2. Original implementer continuation
    `fix-p06-round1-3dac3a0-20260724T012600Z` produced `2cddafe`; whole-phase
    re-review pending.
+3. `reviews/p06-review-2026-07-24T015318Z.md` — blocked with 0 Critical,
+   1 Important, 0 Medium, and 0 Minor; prior finding resolved; reconnaissance
+   not attempted.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Whole-phase review round 2.
+**Outstanding items:** Truthful, ownership-proven provider-state isolation and
+cleanup for live wake probes.
 
 <!-- orchestration-runs-end -->
 
@@ -1097,7 +1101,7 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** review_pending
+**Status:** blocked
 
 ### Phase Summary
 
@@ -1116,8 +1120,9 @@ resolved; Phase 6 is next.
   changed-file lint/format gates, version validation, and 188/188 synchronized
   OAT surfaces.
 - Independent Phase 6 review retained 1 Important evidence-reproducibility
-  finding; bounded fix iteration 1 resolved it in `2cddafe`, and whole-phase
-  re-review is pending.
+  finding; bounded fix iteration 1 resolved it in `2cddafe`. Round 2 retained
+  1 new Important provider-state cleanup finding; bounded fix iteration 2 is
+  pending.
 
 ### Task outcomes
 
@@ -1179,6 +1184,16 @@ cleanup, validator enforcement, and focused tests. Both live modes reproduced
 Focused probe/validator coverage passed 31/31, collaboration passed 115/115,
 and the full suite passed 1,457 with 1 skipped. Whole-phase re-review is
 pending.
+
+### Review round 2
+
+`reviews/p06-review-2026-07-24T015318Z.md` is BLOCKED with 1 Important finding
+and no other findings. The executable recipe is complete, but real Cursor runs
+also persisted probe-owned transcripts/logs/auth metadata under
+`~/.cursor/projects/` while cleanup reported only the temporary workspace.
+The next bounded fix must account for and safely clean exact ownership-proven
+probe artifacts, test external-write cleanup, and make validator claims match
+the true boundary. The tier and provider outcome remain unchanged.
 
 ---
 
