@@ -1744,6 +1744,22 @@ sections, state, and live status to Phase 8 at 20/20 and the project at 60/60,
 with no current task or blocker. The subsequent root bookkeeping commit
 replaced the intentional self-reference marker with this durable task SHA.
 
+### Fresh final review after bounded directory iteration
+
+**Artifact:** `reviews/final-review-2026-07-24T141209Z.md`
+**Verdict:** blocked — 0 Critical, 1 Important, 0 Medium, 0 Minor
+
+All runtime boundedness, cleanup, provider, generated, privacy, evidence, test,
+and live status checks passed. The sole Important finding is artifact-only:
+the Phase 8 journal section remains `in_progress`, the PR/docs summary stops at
+the pre-remediation 1,515-test result and `p08-t16`, and two state-history lines
+are out of chronological order.
+
+Reconnaissance was attempted at the consequential Sol/high floor and rejected
+before start by the agent-thread limit; the primary reviewer completed the lane
+inline. Focused wake tests passed 26/26 and the full suite passed 1,528 with 1
+skipped.
+
 ### Canonical Phase 8 task outcomes
 
 ### Task p08-t01: Await native stdout delivery before checkpoint commit
