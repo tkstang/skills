@@ -84,9 +84,9 @@ export async function verifyAdapterPeerContinuity(lease, transcript) {
   const checkpoint = lease.peerContinuity;
   if (checkpoint === null) {
     return Object.freeze({
-      verified: true,
-      reason: 'verified',
-      canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      verified: false,
+      reason: 'cursor-lease-rearm-required',
+      canonicalTranscriptPath: null,
     });
   }
 

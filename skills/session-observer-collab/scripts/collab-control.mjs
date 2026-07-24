@@ -31,8 +31,10 @@ import {
   validateOwnerRuntime,
   validatePeerIndexBase,
   validatePeerRuntime,
+  validatePeerTranscriptSession,
   withLeaseLock,
 } from './lib/lease-state.mjs';
+import { captureCursorArmContinuity } from './lib/selected-prefix.mjs';
 
 export const CONTROL_SCHEMA_VERSION = 1;
 
@@ -141,6 +143,11 @@ export async function arm(root, options, now = Date.now()) {
     peerRuntime,
     options.peerTranscript,
   );
+  validatePeerTranscriptSession(
+    peerRuntime,
+    peerSession,
+    peerPath.peerCanonicalTranscriptPath,
+  );
   if (options.peerIndexBase !== undefined) {
     validatePeerIndexBase(options.peerIndexBase, peerRuntime);
   }
@@ -194,10 +201,17 @@ export async function arm(root, options, now = Date.now()) {
         if (error?.code !== 'cursor-lease-rearm-required') throw error;
         existing = null;
       }
+      const peerContinuity =
+        peerRuntime === 'cursor'
+          ? await captureCursorArmContinuity(
+              peerPath.peerCanonicalTranscriptPath,
+              cursor,
+            )
+          : null;
       const request = {
         ...identity,
         peerCursor: cursor,
-        peerContinuity: null,
+        peerContinuity,
         continuationCap,
         loopCap,
         waitMs,
@@ -206,7 +220,11 @@ export async function arm(root, options, now = Date.now()) {
       if (
         existing &&
         ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
-        Object.entries(request).every(([key, value]) => existing[key] === value)
+        Object.entries(request).every(([key, value]) =>
+          value !== null && typeof value === 'object'
+            ? JSON.stringify(existing[key]) === JSON.stringify(value)
+            : existing[key] === value,
+        )
       ) {
         return { changed: false, lease: effectiveLease(existing, now) };
       }
@@ -217,7 +235,7 @@ export async function arm(root, options, now = Date.now()) {
         ...identity,
         state: 'armed',
         peerCursor: cursor,
-        peerContinuity: null,
+        peerContinuity,
         continuationCount: 0,
         continuationCap,
         loopCount: 0,

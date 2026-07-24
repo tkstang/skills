@@ -529,7 +529,13 @@ describe('collaboration lease controls', () => {
       peerCanonicalTranscriptPath: canonicalTranscript,
       peerIndexBase: 'zero-based-jsonl-frame-index',
       peerCursor: 0,
-      peerContinuity: null,
+      peerContinuity: {
+        nextFrameIndex: 0,
+        prefixBytes: 0,
+        prefixSha256:
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        observedSize: 0,
+      },
     });
     expect(armed.lease).not.toHaveProperty('lastRecordIndex');
     expect(armed.lease).not.toHaveProperty('observationCursor');
@@ -537,14 +543,29 @@ describe('collaboration lease controls', () => {
       schemaVersion: 6,
       peerCanonicalTranscriptPath: canonicalTranscript,
       peerIndexBase: 'zero-based-jsonl-frame-index',
-      peerContinuity: null,
+      peerContinuity: { nextFrameIndex: 0, prefixBytes: 0 },
     });
     expect((await disarm(root, 'owner-1', 3_000)).lease).toMatchObject({
       schemaVersion: 6,
       state: 'disarmed',
       peerCanonicalTranscriptPath: canonicalTranscript,
-      peerContinuity: null,
+      peerContinuity: { nextFrameIndex: 0, prefixBytes: 0 },
     });
+  });
+
+  test('rejects Cursor arm requests with a mismatched session or a cursor beyond the safe frame prefix', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await expect(
+      arm(
+        root,
+        { ...options(cwd, transcript), peerSession: 'other-peer' },
+        1_000,
+      ),
+    ).rejects.toMatchObject({ code: 'peer-session-transcript-mismatch' });
+    await expect(
+      arm(root, { ...options(cwd, transcript), cursor: '2' }, 1_000),
+    ).rejects.toMatchObject({ code: 'cursor-selected-prefix-mismatch' });
+    expect(await readLease(root, 'owner-1')).toBeNull();
   });
 
   test('rejects a Cursor transcript symlink that escapes its supported store', async () => {
@@ -621,6 +642,9 @@ describe('collaboration lease controls', () => {
         }),
       }),
     ).toThrow(/continuity/i);
+    expect(() =>
+      validateLease({ ...cursorLease, peerContinuity: null }),
+    ).toThrow(/explicit re-arm/i);
   });
 
   test('concurrent installs retain every distinct runtime registration', async () => {
@@ -714,7 +738,11 @@ describe('collaboration lease controls', () => {
         peerRuntime: 'cursor',
         peerIndexBase: 'zero-based-jsonl-frame-index',
         peerCursor: 0,
-        peerContinuity: null,
+        peerContinuity: {
+          nextFrameIndex: 0,
+          prefixBytes: 0,
+          observedSize: 0,
+        },
       },
     });
 
@@ -758,21 +786,13 @@ describe('collaboration lease controls', () => {
       continuationCount: 0,
       loopCount: 0,
     };
+    const update = {
+      peerCursor: 1,
+      peerContinuity: await cursorContinuity(transcript, 1),
+    };
     const claims = await Promise.all([
-      compareAndSwapTrigger(
-        root,
-        'owner-1',
-        expected,
-        { peerCursor: 4 },
-        2_000,
-      ),
-      compareAndSwapTrigger(
-        root,
-        'owner-1',
-        expected,
-        { peerCursor: 4 },
-        2_000,
-      ),
+      compareAndSwapTrigger(root, 'owner-1', expected, update, 2_000),
+      compareAndSwapTrigger(root, 'owner-1', expected, update, 2_000),
     ]);
     expect(claims.filter((claim) => claim.ok)).toHaveLength(1);
     expect(claims.filter((claim) => !claim.ok)).toHaveLength(1);
@@ -886,7 +906,7 @@ describe('collaboration lease controls', () => {
       leaseId: waiting.lease!.leaseId,
       waitToken: String(waiting.lease!.waitToken),
     };
-    await arm(root, { ...options(cwd, transcript), cursor: '4' }, 2_100);
+    await arm(root, { ...options(cwd, transcript), waitMs: '4000' }, 2_100);
     await expect(
       recoverOrphanedWait(root, 'owner-1', 2_200, {
         expected: stale,
@@ -947,7 +967,11 @@ describe('collaboration lease controls', () => {
         continuationCount: 0,
         loopCount: 0,
       },
-      { peerCursor: 1, terminal: false },
+      {
+        peerCursor: 1,
+        peerContinuity: await cursorContinuity(transcript, 1),
+        terminal: false,
+      },
       2_000,
     );
     await arm(
@@ -1092,7 +1116,11 @@ describe('collaboration lease controls', () => {
         continuationCount: 0,
         loopCount: 0,
       },
-      { peerCursor: 1, terminal: false },
+      {
+        peerCursor: 1,
+        peerContinuity: await cursorContinuity(transcript, 1),
+        terminal: false,
+      },
       101_000,
     );
     expect(
@@ -1164,6 +1192,7 @@ describe('collaboration lease controls', () => {
       waitDeadlineAt: null,
     });
 
+    await writeFile(transcript, '{}\n{}\n');
     const rearmed = await arm(
       root,
       { ...options(cwd, transcript), cursor: '1' },
@@ -1188,7 +1217,10 @@ describe('collaboration lease controls', () => {
           continuationCount: 0,
           loopCount: 0,
         },
-        { peerCursor: 2 },
+        {
+          peerCursor: 2,
+          peerContinuity: await cursorContinuity(transcript, 2),
+        },
         13_000,
       ),
     ).toMatchObject({
@@ -1278,7 +1310,7 @@ describe('collaboration lease controls', () => {
     };
     const second = await arm(
       root,
-      { ...options(cwd, transcript), cursor: '4' },
+      { ...options(cwd, transcript), waitMs: '4000' },
       2_000,
     );
     expect(second.changed).toBe(true);
@@ -1294,11 +1326,12 @@ describe('collaboration lease controls', () => {
     ).resolves.toMatchObject({ ok: false, reason: 'stale' });
     expect(await readLease(root, 'owner-1')).toMatchObject({
       leaseId: second.lease.leaseId,
-      peerCursor: 4,
+      peerCursor: 0,
       continuationCount: 0,
     });
 
-    const otherTranscript = join(transcriptStore, 'peer-1', 'other.jsonl');
+    const otherTranscript = join(transcriptStore, 'peer-2', 'peer-2.jsonl');
+    await mkdir(join(transcriptStore, 'peer-2'));
     await writeFile(otherTranscript, '{}\n');
     const changedRequests = [
       { waitMs: '6000' },
@@ -1307,9 +1340,9 @@ describe('collaboration lease controls', () => {
       { loopCap: '3' },
       { runtime: 'cursor' },
       { peerRuntime: 'codex' },
-      { peerSession: 'peer-2' },
+      { peerSession: 'peer-2', peerTranscript: otherTranscript },
       { cwd: join(cwd, 'other') },
-      { peerTranscript: otherTranscript },
+      { peerSession: 'peer-2', peerTranscript: otherTranscript },
     ];
     let generation = second.lease.leaseId;
     for (const change of changedRequests) {

@@ -189,6 +189,27 @@ export async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
   });
 }
 
+export function validatePeerTranscriptSession(
+  peerRuntime,
+  peerSession,
+  peerTranscript,
+) {
+  validatePeerRuntime(peerRuntime);
+  validateId(peerSession, 'peer-session');
+  const transcript = validateAbsolutePath(peerTranscript, 'peer-transcript');
+  if (
+    peerRuntime === 'cursor' &&
+    (basename(dirname(transcript)) !== peerSession ||
+      basename(transcript) !== `${peerSession}.jsonl`)
+  ) {
+    throw new LeaseError(
+      'peer-session-transcript-mismatch',
+      'Cursor peer session must match the canonical transcript directory and filename',
+    );
+  }
+  return transcript;
+}
+
 export function leasePath(root, ownerSession) {
   validateId(ownerSession, 'owner-session');
   const leases = join(resolve(root), 'leases');
@@ -354,6 +375,12 @@ export function validateLease(raw) {
   integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
   integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
   integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
+  if (value.peerRuntime === 'cursor' && value.peerContinuity === null) {
+    throw new LeaseError(
+      'cursor-lease-rearm-required',
+      'Cursor lease is missing a continuity checkpoint; explicit re-arm required',
+    );
+  }
   if (value.peerContinuity !== null) {
     const checkpoint = value.peerContinuity;
     if (

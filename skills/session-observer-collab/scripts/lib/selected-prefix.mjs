@@ -140,6 +140,20 @@ async function captureSelectedPrefix(
   });
 }
 
+export async function captureCursorArmContinuity(transcript, nextFrameIndex) {
+  const frameEnds = [];
+  const scan = await scanCursorTranscript(transcript, {
+    onFrame(frame) {
+      frameEnds[frame.frameIndex] =
+        frame.closed &&
+        (frame.parseState === 'parsed' || frame.parseState === 'blank')
+          ? frame.byteEnd
+          : null;
+    },
+  });
+  return captureSelectedPrefix(transcript, scan, frameEnds, nextFrameIndex);
+}
+
 export async function observeCursorCompletion(lease) {
   const identity = {
     runtime: 'cursor',
