@@ -1,44 +1,111 @@
 ---
-oat_generated: false
-purpose: project-observations
-oat_last_updated: 2026-07-23
+oat_status: complete
+oat_ready_for: null
+oat_blockers: []
+oat_last_updated: 2026-07-24
+oat_generated: true
+oat_summary_last_task: p08-t34
+oat_summary_revision_count: 0
+oat_summary_includes_revisions: []
 ---
 
-# Project Log: cursor-collaboration-reliability
+# Summary: cursor-collaboration-reliability
 
-This append-only log serves two audiences: the project team learning from this project's execution, and maintainers improving the general OAT workflow and tooling.
+## Overview
 
-## Logging contract
+This project made Cursor a reliable observed peer for coding-agent
+collaboration. It replaces the unsafe assumption that Cursor lifecycle
+terminals are dependable assistant-turn boundaries with a content-first,
+evidence-gated observation contract while retaining terminal success as the
+boundary for completion-sensitive collaboration.
 
-Append when something breaks, surprises you, requires a workaround, or works notably well enough to preserve as do-not-regress evidence. Record evidence, not a running narrative. Prior entries are never edited or struck through; append corrections as a new judgment entry that references the original entry and explains the correction. Add a version note to tool-related observations. Create entries only with `oat project log append`; run `oat project log append --help` for the complete entry contract. Reference supporting artifacts by path instead of inlining them. Never record secret values such as tokens, keys, signed URLs, or credentials because this log rolls up into tracked surfaces; reference secrets by name or source, never by value.
+All 74 of 74 tasks were accepted. The project closes with no blockers and an
+explicitly project-only waiver of the remaining configured exit-gate rerun; the
+global gate configuration was not changed.
 
-Judgment entries default to 1–3 sentences covering what happened, the impact or workaround, and any follow-up. High-value entries may instead use this structured body:
+## What Was Implemented
 
-```text
-Observation: What happened and the supporting evidence.
-Impact: Why it mattered or what workaround was required.
-Recommendation: What should change or be preserved.
-```
+- A streaming, physical-frame Cursor transcript reader and structural turn
+  analysis that distinguish stable substantive content from partial, malformed,
+  control, metadata-only, synthetic, replayed, and non-success records.
+- Exact project, runtime, session, and canonical-transcript identity; isolated
+  Cursor state v2; crash-safe migration; continuity checks; recovery guidance;
+  and deterministic source keys, delivery reservations, and compare-and-swap
+  finalization. Truncation, replacement, rotation, or ambiguous identity now
+  stop visibly rather than silently skipping or duplicating content.
+- Digest v2 and CLI/status projections that independently report engagement,
+  content availability, lifecycle completion, buffering, continuity, and
+  watcher health. Bounded foreground watch performs catch-up then watch,
+  maintains exact ownership, and emits explicit repair or health diagnostics.
+- Two-session collaboration compatibility: schema-aware confirmed-completion
+  selection, lease v6 private continuity, versioned wake envelopes, duplicate
+  and no-op suppression, and atomic delivery/wake authorization across both
+  Cursor-owner and Codex-owner routes.
+- Bounded, fail-visible provider and Cursor discovery, preservation, cleanup,
+  and reinspection. Aggregate entry, byte, elapsed-time, and retained-path
+  budgets apply before metadata or transcript-body traversal, including
+  explicit pins; cleanup preserves exactly proven ownership under exhaustion.
+- Sanitized capability evidence, release validation, synchronized generated
+  runtimes and user installs, plus user and engineering documentation for the
+  Cursor observation and collaboration contracts.
 
-Shared tracked surfaces must be written only from the root checkout, never from parallel worktrees.
+## Key Decisions
 
-## Entry format
+- **Content availability is not completion.** A closed Cursor record must be
+  confirmed as an unchanged prefix before it can be observed; lifecycle success
+  remains the only automatic-continuation boundary. This restores useful live
+  collaboration without falsely claiming a completed peer turn.
+- **Stateful work requires exact identity and continuity.** Weak discovery
+  signals remain diagnostic only. Stateful cursors, leases, and continuation
+  operations require confirmed canonical project/session/transcript evidence
+  and fail closed on mismatch, repair, or uncertainty.
+- **Observation and collaboration retain separate cursors.** Public observer
+  delivery cannot spend the private completion cursor. Lease-scoped CAS and
+  selected-prefix binding protect ownership and prevent stale success from
+  authorizing a wake.
+- **Capability claims are evidence-gated and privacy-preserving.** Supported
+  surfaces require automated coverage and sanitized live evidence; artifacts
+  retain structural evidence, never substantive transcript prose or secrets.
+- **Buffered-manual is the Cursor wake tier.** Finite authenticated probes
+  found no reliable same-parent Stop callback, managed callback, or scheduled
+  surface. The shipped behavior therefore buffers reliable observations for a
+  manually awakened Cursor session instead of claiming autonomous wake.
 
-Judgment entries:
+## Notable Challenges
 
-```text
-### 2026-07-23 · <project|general> · <bug|friction|worked-well|feedback> · <area>
-```
+Cursor’s lifecycle records could be absent or delayed while meaningful content
+was already present. Review-driven remediation also exposed stale-success wake
+authorization, unbounded discovery and provider scans, cleanup behavior under
+budget exhaustion, a load-sensitive probe fixture, and lifecycle bookkeeping
+drift. Each was converted into bounded tasks and resolved with fail-visible
+contracts, deterministic tests, and canonical closeout records.
 
-Structural entries:
+## Tradeoffs Made
 
-```text
-### 2026-07-23 · structural · <producer> · <ref>
-```
+The implementation favors integrity over lowest latency: content needs a
+stability confirmation, and ambiguous identity, continuity, delivery, or wake
+evidence blocks progress. Cursor support grows only from measured evidence,
+and autonomous wake remains deliberately unavailable rather than inferred from
+configuration, documentation, or a passing synthetic test.
 
-## Entries
+## Integration Notes
 
-Entries are chronological and append-only.
+The canonical implementation remains TypeScript under `src/`; Session Observer
+runtime outputs are generated and must stay synchronized. Changes to shipped
+skills were versioned, dogfooded through the canonical user installs, and
+synchronized to available provider entries. Existing non-Cursor behavior and
+the v1 collaboration contract remain compatible.
+
+## Verification
+
+The final release matrix passed 1,548 tests with 1 intentional skip, including
+97/97 final explicit-pin locate/watch tests and 19/19 live-acceptance checks.
+Type-check, generated-output parity, validation, smoke, skill-version,
+documentation, privacy, provider-sync/dogfood, residue, and orphan-process
+gates passed. The fresh whole-project final lifecycle re-review found zero
+Critical, Important, Medium, or Minor findings.
+
+## Workflow Observations
 
 ### 2026-07-23 · structural · oat gate review · plan
 
@@ -511,7 +578,3 @@ Fresh Phase 8 review after p08-t34 passed with zero findings.
 ### 2026-07-24 · structural · oat-project-review-receive · final-review-2026-07-24T170227Z
 
 Fresh final lifecycle review passed with zero findings at the 74-task head; operator waiver of the remaining configured exit-gate rerun is recorded project-locally with global configuration unchanged.
-
-## End-of-run synthesis
-
-The project shipped reliable, exact-identity, bounded Cursor observation and safe two-session collaboration across 74 accepted tasks. Repeated independent reviews drove fail-closed authorization, discovery, cleanup, declaration, and evidence corrections; the final Phase 8 and whole-project reviews passed with zero findings. Cursor autonomous wake remains intentionally unavailable and buffered-manual is the evidence-backed tier; the remaining configured exit-gate rerun was waived only for this project while global gate configuration stayed intact.

@@ -9,6 +9,11 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260724-content-availability-is-not | 2026-07-24 | accepted | Content availability is not completion | - |
+| DR-260724-gate-capability-claims | 2026-07-24 | accepted | Gate capability claims on evidence | - |
+| DR-260724-separate-observation | 2026-07-24 | accepted | Separate observation and collaboration cursors | - |
+| DR-260724-stateful-work-requires-exact | 2026-07-24 | accepted | Stateful work requires exact identity | - |
+| DR-260724-use-buffered-manual-wake | 2026-07-24 | accepted | Use buffered-manual wake for Cursor | - |
 | DR-260713-acting-runtime-selects-setup | 2026-07-13 | accepted | Acting runtime selects setup | - |
 | DR-260713-bounded-lifecycle-continuation | 2026-07-13 | accepted | Bounded lifecycle continuation | - |
 | DR-260713-collaboration-uses-a-sibling | 2026-07-13 | accepted | Collaboration uses a sibling layer | - |
