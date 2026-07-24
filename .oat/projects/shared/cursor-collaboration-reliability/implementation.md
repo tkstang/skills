@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t33
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 33    | 32/33     |
+| Phase 8 | complete    | 33    | 33/33     |
 
-**Total:** 72/73 tasks accepted
+**Total:** 73/73 tasks accepted
 
 ---
 
@@ -1584,7 +1584,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t30` | complete | `ff74098` |
 | `p08-t31` | complete | root bookkeeping |
 | `p08-t32` | complete | `6197aa7` |
-| `p08-t33` | pending | - |
+| `p08-t33` | complete | `d23a572` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -2052,6 +2052,13 @@ matrix, bounded unavailable wake evidence, and the final review handoff.
 the trigger CAS declaration, and added compile-time acceptance/rejection
 coverage for both contracts.
 
+### Task p08-t33: Restore the ambient control-run clock contract
+
+**Status:** completed
+**Commit:** `d23a572`
+**Outcome:** Restored wildcard `run()` to scalar time and added compile-time
+coverage accepting the scalar while rejecting an unsupported callback.
+
 ---
 
 ## Deviations from Plan / Design
@@ -2100,7 +2107,7 @@ Track test execution during implementation.
 - Sanitized live capability evidence, canonical support labels, shipped
   documentation, synchronized skill versions/user installs, and closed
   transcript-store/stronger-wake investigation backlogs, with canonical
-  lifecycle handoff records for all 72 tasks.
+  lifecycle handoff records for all 73 tasks.
 
 **Behavioral changes (user-facing):**
 
@@ -2132,7 +2139,7 @@ Track test execution during implementation.
 - Exact cleanup (`p08-t17`), bounded provider directory iteration (`p08-t19`),
   under-lock wake authorization (`p08-t29`), bounded public Cursor discovery
   (`p08-t30`), and this final handoff (`p08-t31`) are complete. Live OAT status
-  recognizes Phase 8 at 32/32 and the project at 72/72 with no current task or
+  recognizes Phase 8 at 33/33 and the project at 73/73 with no current task or
   blocker; fresh Phase 8 and final lifecycle reviews are the next actions.
 
 **Design deltas (if any):**

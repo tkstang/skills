@@ -1590,7 +1590,7 @@ third gate launch.
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T144744Z.md           |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T161117Z.md             |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163113Z.md             |
-| p08    | code     | fixes_added     | 2026-07-24 | reviews/p08-review-2026-07-24T163609Z.md                      |
+| p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163609Z.md             |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

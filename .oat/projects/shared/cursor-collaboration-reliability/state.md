@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t33
-oat_last_commit: 2586303
+oat_current_task: null
+oat_last_commit: d23a572
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T16:37:29Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:38:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Phase 8 Re-Review Remediation In Progress
+**Status:** Phase 8 Re-Review Remediation Complete
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - narrow Phase 8 re-review received; 72/73 tasks complete
+Implementation - narrow Phase 8 re-review remediated; 73/73 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - narrow Phase 8 re-review received; 72/73 tasks complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (72/73 tasks complete; ambient run declaration fix pending)
+- **Implementation:** `implementation.md` (73/73 tasks complete; fresh reviews pending)
 
 ## Progress
 
@@ -260,6 +260,7 @@ Implementation - narrow Phase 8 re-review received; 72/73 tasks complete
 - ✓ `p08-t32` ambient clock declaration parity complete at `6197aa7`
 - ✗ Narrow Phase 8 re-review retained 1 Medium ambient `run()` declaration finding
 - ✓ Medium finding mapped to `p08-t33`
+- ✓ `p08-t33` ambient `run()` clock parity complete at `d23a572`
 
 ## Blockers
 
@@ -267,5 +268,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t33`, then run fresh Phase 8 and final lifecycle reviews. The
-operator explicitly waived the configured exit-gate rerun for this project.
+Run fresh Phase 8 and final lifecycle reviews. The operator explicitly waived
+the configured exit-gate rerun for this project.
