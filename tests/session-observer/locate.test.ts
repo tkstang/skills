@@ -799,6 +799,34 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
   });
 });
 
+test('cursor: explicit session lookup does not read large sibling transcript bodies', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'bounded-pin-project');
+    const targetTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-target',
+    );
+    const siblingTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-large-sibling',
+    );
+    await writeFile(siblingTranscript, 'x'.repeat(4 * 1024 * 1024), 'utf8');
+
+    await expect(
+      findSessionCandidate('cursor', targetCwd, 'session-target'),
+    ).resolves.toMatchObject({
+      runtime: 'cursor',
+      sessionId: 'session-target',
+      transcriptPath: targetTranscript,
+    });
+    expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
+    expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
+  });
+});
+
 test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'missing-project');

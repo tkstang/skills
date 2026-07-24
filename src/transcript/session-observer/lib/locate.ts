@@ -31,7 +31,7 @@
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import type { Dirent, Stats } from 'node:fs';
+import type { Stats } from 'node:fs';
 import {
   readdir,
   opendir,
@@ -682,36 +682,41 @@ async function discoverCodex(
  * @param {string} transcriptsRoot
  * @returns {Promise<string[]>}
  */
-async function collectCursorAgentTranscripts(
+async function* collectCursorAgentTranscripts(
   transcriptsRoot: string,
-): Promise<string[]> {
-  const results: string[] = [];
-  let sessionDirs: Dirent[];
+  expectedSessionId?: string,
+): AsyncGenerator<string> {
+  let sessionDirs;
   try {
-    sessionDirs = await readdir(transcriptsRoot, { withFileTypes: true });
+    sessionDirs = await opendir(transcriptsRoot);
   } catch {
-    return results;
+    return;
   }
 
-  for (const sessionDir of sessionDirs) {
+  for await (const sessionDir of sessionDirs) {
     if (!sessionDir.isDirectory()) continue;
     const sessionPath = join(transcriptsRoot, sessionDir.name);
 
-    let entries: Dirent[];
+    let entries;
     try {
-      entries = await readdir(sessionPath, { withFileTypes: true });
+      entries = await opendir(sessionPath);
     } catch {
       continue;
     }
 
-    for (const entry of entries) {
+    for await (const entry of entries) {
       if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-        results.push(join(sessionPath, entry.name));
+        const transcriptPath = join(sessionPath, entry.name);
+        if (
+          expectedSessionId === undefined ||
+          cursorSessionIdFromTranscriptPath(transcriptPath) ===
+            expectedSessionId
+        ) {
+          yield transcriptPath;
+        }
       }
     }
   }
-
-  return results;
 }
 
 /**
@@ -815,11 +820,9 @@ async function discoverCursor(
   // an empty direct dir should still fall through to the fallback project scan.
   for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
-    const transcriptPaths =
-      await collectCursorAgentTranscripts(transcriptsRoot);
-    if (transcriptPaths.length === 0) continue;
-
-    for (const transcriptPath of transcriptPaths) {
+    for await (const transcriptPath of collectCursorAgentTranscripts(
+      transcriptsRoot,
+    )) {
       const canonicalTranscriptPath =
         (await canonicalPath(transcriptPath)) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
@@ -840,14 +843,14 @@ async function discoverCursor(
     }
   }
 
-  let projectDirs: Dirent[] = [];
+  let projectDirs;
   try {
-    projectDirs = await readdir(projectsRoot, { withFileTypes: true });
+    projectDirs = await opendir(projectsRoot);
   } catch {
     return candidates;
   }
 
-  for (const projectDir of projectDirs) {
+  for await (const projectDir of projectDirs) {
     if (!projectDir.isDirectory()) continue;
     if (encodedVariants.includes(projectDir.name)) continue;
 
@@ -856,10 +859,9 @@ async function discoverCursor(
       projectDir.name,
       'agent-transcripts',
     );
-    const transcriptPaths =
-      await collectCursorAgentTranscripts(transcriptsRoot);
-
-    for (const transcriptPath of transcriptPaths) {
+    for await (const transcriptPath of collectCursorAgentTranscripts(
+      transcriptsRoot,
+    )) {
       const canonicalTranscriptPath =
         (await canonicalPath(transcriptPath)) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
@@ -890,6 +892,92 @@ async function discoverCursor(
     }
   }
 
+  return candidates;
+}
+
+async function findCursorSessionCandidates(
+  targetCwd: string,
+  sessionId: string,
+  cache: ClassificationCache,
+): Promise<TranscriptCandidate[]> {
+  const [projectsRoot] = discoverPaths('cursor');
+  const normalizedTargetCwd = resolve(targetCwd);
+  const canonicalTargetCwd =
+    (await canonicalPath(normalizedTargetCwd)) ?? normalizedTargetCwd;
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants('cursor', canonicalTargetCwd),
+  );
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants('cursor', normalizedTargetCwd),
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: 'direct-parent-dir',
+    })),
+    ...[...rawEncodedVariants]
+      .filter((encoded) => !canonicalEncodedVariants.has(encoded))
+      .map((encoded) => ({
+        encoded,
+        cwdEvidence: suppliedCwdIsAlias ? 'raw-cwd-alias' : 'direct-parent-dir',
+      })),
+  ];
+  const directEvidence = new Map(
+    directVariants.map(({ encoded, cwdEvidence }) => [encoded, cwdEvidence]),
+  );
+  const now = Date.now() / 1000;
+  const cutoffSec = now - LOOKBACK_DAYS * 86400;
+  const candidates: TranscriptCandidate[] = [];
+  const seenTranscripts = new Set<string>();
+
+  let projectDirs;
+  try {
+    projectDirs = await opendir(projectsRoot);
+  } catch {
+    return candidates;
+  }
+
+  for await (const projectDir of projectDirs) {
+    if (!projectDir.isDirectory()) continue;
+    const cwdEvidence = directEvidence.get(projectDir.name);
+    const transcriptsRoot = join(
+      projectsRoot,
+      projectDir.name,
+      'agent-transcripts',
+    );
+    for await (const transcriptPath of collectCursorAgentTranscripts(
+      transcriptsRoot,
+      sessionId,
+    )) {
+      const canonicalTranscriptPath =
+        (await canonicalPath(transcriptPath)) ?? transcriptPath;
+      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      seenTranscripts.add(canonicalTranscriptPath);
+
+      let fileStat;
+      try {
+        fileStat = await stat(transcriptPath);
+      } catch {
+        continue;
+      }
+      const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+      if (cwdEvidence === undefined && mtime < cutoffSec) continue;
+
+      const candidate = await cursorCandidate(
+        transcriptPath,
+        now,
+        {
+          recordedCwd: cwdEvidence === undefined ? null : targetCwd,
+          cwdSlug: projectDir.name,
+          cwdEvidence: cwdEvidence ?? 'project-dir-slug',
+        },
+        fileStat,
+        cache,
+      );
+      if (candidate?.sessionId === sessionId) candidates.push(candidate);
+    }
+  }
   return candidates;
 }
 
@@ -1218,7 +1306,12 @@ export async function findSessionCandidate(
   targetCwd: string,
   sessionId: string,
 ): Promise<TranscriptCandidate | null> {
-  const matches = (await discover(runtime, targetCwd)).filter(
+  const cache = new ClassificationCache();
+  const candidates =
+    runtime === 'cursor'
+      ? await findCursorSessionCandidates(targetCwd, sessionId, cache)
+      : await discover(runtime, targetCwd, cache);
+  const matches = candidates.filter(
     (candidate) =>
       candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId,
   );
