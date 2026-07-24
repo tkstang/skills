@@ -17,7 +17,7 @@ become a runtime dependency of a shipped skill.
 
 ## Contents
 
-- [Architecture](architecture/index.md) — The shared transcript-core source of truth and the canonical-TypeScript → committed-`.mjs` generated-runtime build contract.
+- [Architecture](architecture/index.md) — Shared transcript-core, Cursor collaboration reliability, and the canonical-TypeScript → committed-`.mjs` generated-runtime build contract.
 - [Repository Layout](repository-layout.md) — Where everything lives, repo-wide and inside the consensus package.
 - [Contributing](contributing/index.md) — Development workflow and conventions, plus the docs authoring contract.
 - [Decisions](decisions.md) — Where durable architecture/product decisions are recorded.

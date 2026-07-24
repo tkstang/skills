@@ -16,8 +16,9 @@ What ships today:
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
   audit trails; `phone-a-friend` asks one peer for a one-shot advisory take.
 - **Standalone skills** — `session-observer` (review what another coding agent
-  did) and `export-session-transcript` (export the current session to sanitized
-  Markdown).
+  did), `session-observer-collab` (coordinate two exactly pinned agent
+  sessions), and `export-session-transcript` (export the current session to
+  sanitized Markdown).
 
 ## Contents
 
