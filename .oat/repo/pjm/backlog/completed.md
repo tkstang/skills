@@ -10,6 +10,7 @@
 
 ## Completed Items
 
+- 2026-07-24 — BL-260713-cursor-transcript-store — Cursor transcript-store and slug coverage — Shipped evidence-gated Cursor agent-transcript discovery with dotted-path slug handling, canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up coverage, and explicit non-claims for unsupported stores
 - 2026-07-23 — BL-260718-split-consensus-refine-into — Split consensus-refine into cohesive modules — Shipped in wave-5: consensus-refine.ts 3,890 to 1,138-line facade over 7 runtime modules; 171/171 declarations preserved; all external importers unchanged; smoke green through the facade; refine 0.1.9
 - 2026-07-23 — BL-260718-split-consensus-loop-into — Split consensus-loop into cohesive core modules — Shipped in wave-5: consensus-loop.ts 4,074 to 1,125-line facade over 7 runtime modules; 98/98 exports byte-identical; wrapper outputs OID-identical; verbatim moves verified at token level; acyclic DAG, no init-order hazards
 - 2026-07-23 — BL-260718-surface-the-live-provider-e2e — Surface the live-provider E2E gate — Shipped in wave-4: pnpm run test:live-e2e with loud-failure semantics when requested without a usable provider; RELEASING.md run-or-waive line; AGENTS.md gate entry; dispatch-only live-e2e.yml. Bonus: an accidental live call surfaced a real stub-vs-live verdict_source mismatch (follow-up filed)

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error The probe is an authored Node CLI without declarations.
-import {
-  runLiveAcceptance,
-  runSyntheticAcceptance,
-} from '../../scripts/probe-cursor-acceptance.mjs';
+import * as cursorAcceptanceProbe from '../../scripts/probe-cursor-acceptance.mjs';
+
+const { runLiveAcceptance, runSyntheticAcceptance } = cursorAcceptanceProbe;
 
 describe('Cursor observation acceptance probe', () => {
   it('runs every sanitized temporary-store acceptance row to a structural result', async () => {

@@ -1,7 +1,7 @@
 ---
 id: BL-260713-cursor-transcript-store
 title: Cursor transcript-store and slug coverage
-status: open
+status: closed
 priority: low
 scope: feature
 scope_estimate: M
@@ -13,7 +13,7 @@ labels:
   - transcripts
 assignee: null
 created: 2026-07-13T04:02:18Z
-updated: 2026-07-13T04:02:18Z
+updated: '2026-07-24T00:01:21Z'
 associated_issues: []
 ---
 

@@ -5,12 +5,14 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 // @ts-expect-error The validator is an authored Node CLI without declarations.
-import {
+import * as cursorEvidence from '../../scripts/validate-cursor-evidence.mjs';
+
+const {
   collectCursorEvidenceFiles,
   CURSOR_EVIDENCE_REFERENCE,
   scanCursorEvidenceText,
   validateCursorEvidence,
-} from '../../scripts/validate-cursor-evidence.mjs';
+} = cursorEvidence;
 
 const temporaryRoots: string[] = [];
 
