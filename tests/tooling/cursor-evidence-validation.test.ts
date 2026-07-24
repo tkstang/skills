@@ -12,8 +12,10 @@ import * as cursorEvidence from '../../scripts/validate-cursor-evidence.mjs';
 const {
   collectCursorEvidenceFiles,
   CURSOR_EVIDENCE_REFERENCE,
+  CURSOR_WAKE_PROBE_SCRIPT,
   scanCursorEvidenceText,
   validateCursorEvidence,
+  validateCursorWakeProbeDescription,
 } = cursorEvidence;
 
 const execFile = promisify(execFileCallback);
@@ -63,6 +65,7 @@ describe('Cursor evidence validation', () => {
 
     expect(result.findings).toEqual([]);
     expect(result.files).toContain(CURSOR_EVIDENCE_REFERENCE);
+    expect(result.files).toContain(CURSOR_WAKE_PROBE_SCRIPT);
     expect(result.files).toContain(
       'tests/session-observer/fixtures/cursor/framed-closed.jsonl',
     );
@@ -166,6 +169,7 @@ describe('Cursor evidence validation', () => {
 
     expect(files).toEqual([
       'documentation/docs/cursor.md',
+      CURSOR_WAKE_PROBE_SCRIPT,
       CURSOR_EVIDENCE_REFERENCE,
       'tests/session-observer/fixtures/cursor/framed-clean.jsonl',
     ]);
@@ -223,6 +227,55 @@ describe('Cursor evidence validation', () => {
       expect.objectContaining({
         category: 'matrix-schema',
         detail: expect.stringContaining(detail),
+      }),
+    );
+  });
+
+  it('rejects an incomplete Phase 6 recipe mode', async () => {
+    // @ts-expect-error The probe is an authored Node CLI without declarations.
+    const probe = await import('../../scripts/probe-cursor-wake-surfaces.mjs');
+    const reference = await readFile(
+      new URL(
+        '../../skills/session-observer-collab/references/runtime-cursor.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const description = structuredClone(probe.describeCursorWakeProbeRecipes());
+    description.modes = description.modes.filter(
+      ({ mode }: { mode: string }) => mode !== 'managed-subagent',
+    );
+
+    expect(
+      validateCursorWakeProbeDescription(reference, description),
+    ).toContainEqual(
+      expect.objectContaining({
+        category: 'phase6-probe-recipe',
+        detail: 'missing managed-subagent recipe mode',
+      }),
+    );
+  });
+
+  it('rejects placeholder Phase 6 commands even with a complete script', async () => {
+    // @ts-expect-error The probe is an authored Node CLI without declarations.
+    const probe = await import('../../scripts/probe-cursor-wake-surfaces.mjs');
+    const reference = [
+      'node scripts/probe-cursor-wake-surfaces.mjs --mode top-level-stop --json',
+      'node scripts/probe-cursor-wake-surfaces.mjs --mode managed-subagent --json',
+      'processCapMs provider-version bounded-provider-process lifecycle-hooks',
+      'fixed-markers surface-outcome cleanup',
+      '<sanitized-probe-prompt>',
+    ].join('\n');
+
+    expect(
+      validateCursorWakeProbeDescription(
+        reference,
+        probe.describeCursorWakeProbeRecipes(),
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        category: 'phase6-probe-recipe',
+        detail: 'runtime reference retains non-executable probe placeholders',
       }),
     );
   });

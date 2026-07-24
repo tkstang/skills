@@ -2,7 +2,7 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCallback);
@@ -12,6 +12,8 @@ export const CURSOR_EVIDENCE_REFERENCE =
   'skills/session-observer-collab/references/runtime-cursor.md';
 export const CURSOR_FRAME_FIXTURE_DIRECTORY =
   'tests/session-observer/fixtures/cursor';
+export const CURSOR_WAKE_PROBE_SCRIPT =
+  'scripts/probe-cursor-wake-surfaces.mjs';
 
 const PERSONAL_PATH_PATTERNS = [
   /\/(?:Users|home)\/(?!<|\[|\{|\$)[A-Za-z0-9._-]+(?:\/|\b)/iu,
@@ -300,6 +302,194 @@ function validateCapabilityMatrix(file, text) {
   return findings;
 }
 
+function probeRecipeFinding(detail) {
+  return finding(CURSOR_WAKE_PROBE_SCRIPT, 1, 'phase6-probe-recipe', detail);
+}
+
+function requiredReferenceFinding(detail) {
+  return finding(CURSOR_EVIDENCE_REFERENCE, 1, 'phase6-probe-recipe', detail);
+}
+
+function hookDefinitions(recipe) {
+  const hooks = recipe?.hooksConfig?.hooks;
+  if (hooks === null || typeof hooks !== 'object' || Array.isArray(hooks)) {
+    return [];
+  }
+  return Object.values(hooks).flatMap((definitions) =>
+    Array.isArray(definitions) ? definitions : [],
+  );
+}
+
+export function validateCursorWakeProbeDescription(reference, description) {
+  const findings = [];
+  if (
+    description?.schemaVersion !== 1 ||
+    description?.probe !== 'cursor-wake-surfaces'
+  ) {
+    findings.push(probeRecipeFinding('missing structural probe schema'));
+  }
+  if (
+    description?.provider?.name !== 'Cursor Agent' ||
+    description?.provider?.command !== 'agent' ||
+    JSON.stringify(description?.provider?.versionCommand) !==
+      JSON.stringify(['agent', '--version'])
+  ) {
+    findings.push(
+      probeRecipeFinding('missing provider/version command fields'),
+    );
+  }
+
+  const requiredSafety = {
+    temporaryWorkspaceOnly: true,
+    existingProviderTranscripts: 'not-read-or-mutated',
+    credentialsRequested: false,
+    daemonStarted: false,
+    schedulerStarted: false,
+    externalServiceStarted: false,
+    cleanup: 'remove-exact-created-workspace',
+  };
+  for (const [field, expected] of Object.entries(requiredSafety)) {
+    if (description?.safety?.[field] !== expected) {
+      findings.push(probeRecipeFinding(`missing safe probe boundary ${field}`));
+    }
+  }
+
+  const expectedModes = new Map([
+    [
+      'top-level-stop',
+      {
+        processCapMs: 90_000,
+        childDefinitionPresent: false,
+        hookEvents: ['stop'],
+        expectedHooks: ['top-level-stop'],
+      },
+    ],
+    [
+      'managed-subagent',
+      {
+        processCapMs: 120_000,
+        childDefinitionPresent: true,
+        hookEvents: ['subagentStart', 'subagentStop'],
+        expectedHooks: ['subagent-start', 'managed-subagent-stop'],
+      },
+    ],
+  ]);
+  const modes = Array.isArray(description?.modes) ? description.modes : [];
+  for (const [mode, expected] of expectedModes) {
+    const recipe = modes.find((candidate) => candidate?.mode === mode);
+    if (!recipe) {
+      findings.push(probeRecipeFinding(`missing ${mode} recipe mode`));
+      continue;
+    }
+    if (
+      recipe?.bounds?.processCapMs !== expected.processCapMs ||
+      recipe?.bounds?.hookTimeoutSeconds !== 10 ||
+      recipe?.bounds?.followupLoopLimit !== 1
+    ) {
+      findings.push(probeRecipeFinding(`invalid ${mode} finite bounds`));
+    }
+    if (
+      typeof recipe.prompt !== 'string' ||
+      recipe.prompt.length === 0 ||
+      /<[^>]+>/u.test(recipe.prompt)
+    ) {
+      findings.push(probeRecipeFinding(`incomplete ${mode} fixed prompt`));
+    }
+    if (
+      !Array.isArray(recipe.markers) ||
+      recipe.markers.length < 2 ||
+      recipe.markers.some(
+        (marker) =>
+          typeof marker !== 'string' ||
+          !marker.startsWith('CURSOR_WAKE_PROBE_'),
+      )
+    ) {
+      findings.push(probeRecipeFinding(`incomplete ${mode} fixed markers`));
+    }
+    if (
+      JSON.stringify(recipe.expectedHooks) !==
+      JSON.stringify(expected.expectedHooks)
+    ) {
+      findings.push(probeRecipeFinding(`invalid ${mode} expected hook list`));
+    }
+    if (
+      recipe?.hooksConfig?.version !== 1 ||
+      JSON.stringify(Object.keys(recipe?.hooksConfig?.hooks ?? {})) !==
+        JSON.stringify(expected.hookEvents)
+    ) {
+      findings.push(probeRecipeFinding(`incomplete ${mode} hooks.json`));
+    }
+    const definitions = hookDefinitions(recipe);
+    if (
+      definitions.length !== expected.hookEvents.length ||
+      definitions.some(
+        (definition) =>
+          typeof definition.command !== 'string' ||
+          !definition.command.startsWith(
+            'node .cursor/hooks/probe-hook.mjs ',
+          ) ||
+          definition.timeout !== 10 ||
+          definition.failClosed !== false,
+      ) ||
+      !definitions.some((definition) => definition.loop_limit === 1)
+    ) {
+      findings.push(
+        probeRecipeFinding(`incomplete ${mode} structural hook definitions`),
+      );
+    }
+    if (recipe.childDefinitionPresent !== expected.childDefinitionPresent) {
+      findings.push(
+        probeRecipeFinding(`invalid ${mode} child-definition contract`),
+      );
+    }
+  }
+  if (modes.length !== expectedModes.size) {
+    findings.push(probeRecipeFinding('unexpected probe recipe mode count'));
+  }
+
+  const requiredReferenceText = [
+    'node scripts/probe-cursor-wake-surfaces.mjs --mode top-level-stop --json',
+    'node scripts/probe-cursor-wake-surfaces.mjs --mode managed-subagent --json',
+    'processCapMs',
+    'provider-version',
+    'bounded-provider-process',
+    'lifecycle-hooks',
+    'fixed-markers',
+    'surface-outcome',
+    'cleanup',
+  ];
+  for (const required of requiredReferenceText) {
+    if (!reference.includes(required)) {
+      findings.push(
+        requiredReferenceFinding(
+          `runtime reference missing executable probe evidence: ${required}`,
+        ),
+      );
+    }
+  }
+  if (
+    reference.includes('<sanitized-probe-prompt>') ||
+    reference.includes('<sanitized-managed-probe-prompt>')
+  ) {
+    findings.push(
+      requiredReferenceFinding(
+        'runtime reference retains non-executable probe placeholders',
+      ),
+    );
+  }
+
+  return findings;
+}
+
+async function loadCursorWakeProbeDescription(root) {
+  const script = confinedPath(root, CURSOR_WAKE_PROBE_SCRIPT);
+  const module = await import(pathToFileURL(script).href);
+  if (typeof module.describeCursorWakeProbeRecipes !== 'function') {
+    throw new Error('probe description export is unavailable');
+  }
+  return module.describeCursorWakeProbeRecipes();
+}
+
 async function changedMarkdownFiles(root, baseRef) {
   const requestedBase =
     baseRef ?? process.env.CURSOR_EVIDENCE_BASE_REF ?? 'origin/main';
@@ -373,6 +563,7 @@ export async function collectCursorEvidenceFiles(
   const fixtures = options.fixtures ?? (await cursorFrameFixtures(root));
   return [
     CURSOR_EVIDENCE_REFERENCE,
+    CURSOR_WAKE_PROBE_SCRIPT,
     ...fixtures,
     ...changedDocs.filter(
       (file) => file.endsWith('.md') && !/(^|\/)reviews\//u.test(file),
@@ -387,13 +578,28 @@ export async function validateCursorEvidence(root = REPO_ROOT, options = {}) {
   const files =
     options.files ?? (await collectCursorEvidenceFiles(root, options));
   const findings = [];
+  let reference = '';
 
   for (const file of files) {
     const normalizedFile = file.split(path.sep).join('/');
     const text = await readFile(confinedPath(root, normalizedFile), 'utf8');
     findings.push(...scanCursorEvidenceText(normalizedFile, text));
     if (normalizedFile === CURSOR_EVIDENCE_REFERENCE) {
+      reference = text;
       findings.push(...validateCapabilityMatrix(normalizedFile, text));
+    }
+  }
+
+  if (reference) {
+    try {
+      const description = await loadCursorWakeProbeDescription(root);
+      findings.push(
+        ...validateCursorWakeProbeDescription(reference, description),
+      );
+    } catch {
+      findings.push(
+        probeRecipeFinding('executable probe recipe could not be loaded'),
+      );
     }
   }
 
