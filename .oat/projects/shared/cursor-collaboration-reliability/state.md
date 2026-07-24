@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p08-t22
 oat_last_commit: 3357696
 oat_blockers: []
 associated_issues:
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T14:54:15Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T14:55:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,8 +87,8 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 complete; 61/61 tasks and final review passed; fresh
-configured exit-gate generation pending
+Implementation - configured exit-gate remediation in progress; 61/66 tasks
+complete
 
 ## Artifacts
 
@@ -96,7 +96,7 @@ configured exit-gate generation pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (61/61 tasks complete; final review passed)
+- **Implementation:** `implementation.md` (61/66 tasks complete; gate remediation in progress)
 
 ## Progress
 
@@ -241,6 +241,8 @@ configured exit-gate generation pending
 - ✓ `p08-t21` final implementation handoff complete at `3357696`
 - ✓ Live OAT status recognizes Phase 8 at 21/21 and the project at 61/61
 - ✓ Fresh final lifecycle review passed with zero findings
+- ✗ Fresh configured exit gate retained 2 Critical, 2 Important, and 1 Medium finding
+- ✓ Gate findings mapped to `p08-t22` through `p08-t26`
 
 ## Blockers
 
@@ -248,5 +250,5 @@ None.
 
 ## Next Milestone
 
-Start the operator-authorized fresh configured exit-gate generation from the
-canonical 61/61 implementation basis.
+Execute `p08-t22` through `p08-t26`, then run the required fresh reviews before
+the second configured-gate attempt.

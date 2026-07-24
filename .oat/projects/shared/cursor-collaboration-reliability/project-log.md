@@ -452,6 +452,14 @@ task=p08-t21:3357696 status=complete live=phase8:21/21,total:61/61,current:null,
 
 artifact=reviews/final-review-2026-07-24T142453Z.md verdict=passed findings=critical:0,important:0,medium:0,minor:0 basis=779c694 live=phase8:21/21,total:61/61 next=fresh-configured-gate
 
+### 2026-07-24 · structural · oat gate review · final
+
+target=cursor-gpt-5-6-sol-max threshold=important findings=critical:2,important:2,medium:1,minor:0 exit=1 status=blocked artifact=.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T144744Z.md
+
+### 2026-07-24 · structural · oat-project-implement · fresh-gate-review-received
+
+source=reviews/final-review-2026-07-24T144744Z.md archived=reviews/archived/final-review-2026-07-24T144744Z.md findings=critical:2,important:2,medium:1 disposition=C1:p08-t22,C2:p08-t23,I1:p08-t24,I2:p08-t25,M1:p08-t26 next=p08-t22
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

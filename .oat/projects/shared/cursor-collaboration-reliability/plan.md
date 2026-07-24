@@ -1304,6 +1304,110 @@ third gate launch.
 5. Read back all three artifacts and live OAT status; require Phase 8 21/21, project 61/61, current null, no blockers, and no stale 1,515/16-task closeout claim.
 6. Commit: `chore(p08-t21): finalize implementation handoff`.
 
+### Task p08-t22: (gate review) Establish Cursor lease continuity at arm
+
+**Task Scope:** Moderate
+**Requirements:** FR8, NFR1
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/collab-control.mjs`
+- Modify: `skills/session-observer-collab/scripts/lib/lease-state.mjs`
+- Modify: `skills/session-observer-collab/scripts/lib/runtime-adapter.mjs`
+- Modify as required: `skills/session-observer-collab/scripts/lib/selected-prefix.mjs`
+- Modify: `tests/session-observer-collab/control.test.ts`
+- Modify: `tests/session-observer-collab/cursor-hook.test.ts`
+
+**Steps:**
+
+1. Add RED public-arm tests for peer-session/path mismatch, a requested cursor beyond the safe prefix, and same-path shrink, rewrite, or inode replacement before the first hook.
+2. Resolve and validate the Cursor peer session/path during `arm`, scan through the requested safe boundary, and atomically persist a non-null device/inode/prefix checkpoint even for cursor zero.
+3. Require the checkpoint for schema-v6 Cursor leases; make legacy null-checkpoint Cursor leases require explicit re-arm.
+4. Preserve exact ownership and generated/install compatibility across both owner routes.
+5. Run focused control/hook, collaboration aggregate, full suite, validation, smoke, privacy, version, and provider gates.
+6. Commit: `fix(p08-t22): establish cursor lease continuity at arm`.
+
+### Task p08-t23: (gate review) Recheck deadlines immediately before wake claims
+
+**Task Scope:** Moderate
+**Requirements:** FR8, NFR1, NFR5
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/hooks/cursor-stop.mjs`
+- Modify: `skills/session-observer-collab/scripts/hooks/codex-stop.mjs`
+- Modify as required: `skills/session-observer-collab/scripts/lib/lease-state.mjs`
+- Modify: `tests/session-observer-collab/cursor-hook.test.ts`
+- Modify: `tests/session-observer-collab/codex-hook.test.ts`
+
+**Steps:**
+
+1. Add RED Cursor-owner and Codex-owner tests where observation or pre-CAS verification crosses the wait deadline and lease expiry.
+2. Refresh the clock after every awaited observation/update and immediately before trigger CAS.
+3. Reject at or beyond either deadline using the fresh value; assert no wake, no budget spend, and an idle or expired lease.
+4. Verify contention, private continuity, completion selection, both owner routes, full collaboration, and full-suite behavior.
+5. Commit: `fix(p08-t23): recheck wake authorization deadlines`.
+
+### Task p08-t24: (gate review) Bound pinned and generic Cursor discovery
+
+**Task Scope:** Moderate
+**Requirements:** FR1, NFR5
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify as required: `src/transcript/core/runtimes.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Generate: `skills/session-observer/scripts/lib/locate.mjs`
+- Generate if shared runtime changes: shipped runtime mirrors
+- Modify if required: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED public locate and pinned-observe regressions with many large sibling transcripts present before discovery; prove unrelated bodies are not read.
+2. Resolve an explicit Cursor session pin through bounded canonical path metadata before classifying unrelated candidates.
+3. Stream and aggregate-bound generic candidate enumeration, retaining and classifying only the bounded set needed for ranking.
+4. Preserve exact identity ambiguity, cwd containment, generated parity, observer/export compatibility, versioning, and provider dogfood.
+5. Commit: `fix(p08-t24): bound cursor transcript discovery`.
+
+### Task p08-t25: (gate review) Fail closed on incomplete identity indexes
+
+**Task Scope:** Moderate
+**Requirements:** FR1, NFR1
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Generate: `skills/session-observer/scripts/lib/locate.mjs`
+
+**Steps:**
+
+1. Add RED root, project, and session traversal-failure regressions, including an unreadable subtree hiding a duplicate identity.
+2. Continue only for explicitly benign store-shape absence such as permitted `ENOENT`.
+3. Return a fail-visible incomplete-index reason for permission, iteration, and unexpected I/O failures and include it in the hard-failure set.
+4. Verify identity remains non-exact under incomplete enumeration while ordinary exact, duplicate, and budget cases stay green.
+5. Commit: `fix(p08-t25): fail closed on incomplete identity index`.
+
+### Task p08-t26: (gate review) Make watch runtime coverage deterministic
+
+**Task Scope:** Minor
+**Requirements:** NFR6
+
+**Files:**
+
+- Modify: `tests/session-observer/watch.test.ts`
+- Modify only if required for injection: `src/transcript/session-observer/lib/watch.ts`
+- Generate only if canonical runtime changes: `skills/session-observer/scripts/lib/watch.mjs`
+
+**Steps:**
+
+1. Replace the scheduler-sensitive real-wall-clock `<400 ms` assertion with the existing injectable or virtual clock.
+2. Assert requested waits, deadline exhaustion, state transitions, and the bounded functional outcome without a host-scheduling threshold.
+3. Run the focused watch suite repeatedly and under the complete full-suite load that exposed the 513 ms failure.
+4. Run build/type/generated, validation, smoke, evidence/privacy, docs, version/provider, residue, and final release gates.
+5. Commit: `test(p08-t26): make watch runtime test deterministic`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                      |
@@ -1350,7 +1454,7 @@ third gate launch.
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md           |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md           |
 | final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T142453Z.md                    |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T144744Z.md                    |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T144744Z.md           |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1372,11 +1476,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 21 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical task records, release reconciliation, and final implementation handoff.
+- Phase 8: 26 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, initial lease continuity, fresh authorization deadlines, bounded discovery, fail-closed indexing, deterministic watch coverage, and final handoff.
 
-**Total: 61 tasks**
+**Total: 66 tasks**
 
-Ready for code review and merge after all 61 tasks and review rows pass.
+Ready for code review and merge after all 66 tasks and review rows pass.
 
 ## References
 

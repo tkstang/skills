@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t22
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 21    | 21/21     |
+| Phase 8 | in_progress | 26    | 21/26     |
 
-**Total:** 61/61 tasks accepted
+**Total:** 61/66 tasks accepted
 
 ---
 
@@ -1573,6 +1573,11 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t19` | complete | `c195506` |
 | `p08-t20` | complete | `2038dea` |
 | `p08-t21` | complete | `3357696` |
+| `p08-t22` | pending | - |
+| `p08-t23` | pending | - |
+| `p08-t24` | pending | - |
+| `p08-t25` | pending | - |
+| `p08-t26` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1784,6 +1789,20 @@ validation, smoke, evidence/privacy, skill versions, documentation, provider
 sync, and live Phase 8 21/21 plus project 61/61 status passed. Consequential
 reconnaissance was attempted and rejected before start by the agent-thread
 limit; the primary reviewer completed it inline.
+
+### Fresh configured exit gate received
+
+**Source:** `reviews/archived/final-review-2026-07-24T144744Z.md`
+**Gate result:** blocked — 2 Critical, 2 Important, 1 Medium, 0 Minor
+**Disposition:** `C1 → p08-t22`, `C2 → p08-t23`, `I1 → p08-t24`,
+`I2 → p08-t25`, `M1 → p08-t26`
+
+The validated gate envelope was receive-eligible and correlated to the accepted
+fresh-generation run. All five findings became stable tasks: establish the
+initial Cursor lease checkpoint, refresh deadline/expiry time before wake CAS,
+bound pinned and generic discovery before body reads, fail closed on incomplete
+identity indexes, and remove the scheduler-sensitive watch timing assertion.
+No finding was deferred or rejected.
 
 ### Canonical Phase 8 task outcomes
 
