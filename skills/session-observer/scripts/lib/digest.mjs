@@ -23,7 +23,9 @@ function applyTailSlice(entries, opts) {
     return result;
   }
   if (maxTurns && maxTurns > 0) {
-    const groups = groupByRole(entries);
+    const groups = entries.every(
+      (entry) => typeof entry.turnId === "string"
+    ) ? groupByTurnId(entries) : groupByRole(entries);
     const tailGroups = groups.slice(-maxTurns);
     return tailGroups.flat();
   }
@@ -56,6 +58,22 @@ function groupByRole(entries) {
   let currentGroup = [entries[0]];
   for (let i = 1; i < entries.length; i++) {
     if ((entries[i].displayRole ?? entries[i].role) === (currentGroup[0].displayRole ?? currentGroup[0].role)) {
+      currentGroup.push(entries[i]);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [entries[i]];
+    }
+  }
+  groups.push(currentGroup);
+  return groups;
+}
+function groupByTurnId(entries) {
+  if (entries.length === 0) return [];
+  const turnId = (entry) => entry.turnId;
+  const groups = [];
+  let currentGroup = [entries[0]];
+  for (let i = 1; i < entries.length; i++) {
+    if (turnId(entries[i]) === turnId(currentGroup[0])) {
       currentGroup.push(entries[i]);
     } else {
       groups.push(currentGroup);

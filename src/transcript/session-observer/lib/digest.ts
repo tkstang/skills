@@ -88,8 +88,13 @@ function applyTailSlice<T extends DigestEntry>(
   }
 
   if (maxTurns && maxTurns > 0) {
-    // "Turn" = a consecutive block of same-role entries. Count turn groups from the tail.
-    const groups = groupByRole(entries);
+    const groups = entries.every(
+      (entry) =>
+        typeof (entry as DigestEntry & { turnId?: unknown }).turnId ===
+        'string',
+    )
+      ? groupByTurnId(entries)
+      : groupByRole(entries);
     const tailGroups = groups.slice(-maxTurns);
     return tailGroups.flat();
   }
@@ -161,6 +166,24 @@ function groupByRole<T extends DigestEntry>(entries: T[]): T[][] {
     } else {
       groups.push(currentGroup);
       currentGroup = [entries[i]];
+    }
+  }
+  groups.push(currentGroup);
+  return groups;
+}
+
+function groupByTurnId<T extends DigestEntry>(entries: T[]): T[][] {
+  if (entries.length === 0) return [];
+  const turnId = (entry: T): string => (entry as T & { turnId: string }).turnId;
+  const groups: T[][] = [];
+  let currentGroup = [entries[0]!];
+
+  for (let i = 1; i < entries.length; i++) {
+    if (turnId(entries[i]!) === turnId(currentGroup[0]!)) {
+      currentGroup.push(entries[i]!);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [entries[i]!];
     }
   }
   groups.push(currentGroup);

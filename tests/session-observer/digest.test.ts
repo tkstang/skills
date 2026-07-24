@@ -379,6 +379,47 @@ function cursorDigestOptions(
 // ---------------------------------------------------------------------------
 
 describe('Cursor digest v2 behavior', () => {
+  test('bounds maxTurns by structural Cursor turn identity', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-max-turns-'));
+    try {
+      const transcriptPath = join(tmpDir, 'max-turns.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          { role: 'user', message: { content: 'Synthetic first direction.' } },
+          {
+            role: 'assistant',
+            message: { content: 'Synthetic first answer.' },
+          },
+          { type: 'turn_ended', status: 'success' },
+          { role: 'user', message: { content: 'Synthetic second direction.' } },
+          {
+            role: 'assistant',
+            message: { content: 'Synthetic second answer.' },
+          },
+          { type: 'turn_ended', status: 'success' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+
+      const digest = await buildDigest('cursor', transcriptPath, {
+        ...cursorDigestOptions(context, 'confirmed-completion'),
+        maxTurns: 1,
+      });
+
+      expect(digest.entries.map((entry) => entry.text)).toEqual([
+        'Synthetic second answer.',
+      ]);
+      expect(new Set(digest.entries.map((entry) => entry.turnId))).toEqual(
+        new Set([context.analysis.turns[1]!.turnId]),
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('projects confirmed open-turn content with frame accounting and truthful pending status', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-pending-'));
     try {
