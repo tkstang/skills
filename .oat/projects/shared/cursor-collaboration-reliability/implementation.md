@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p07-t02
+oat_current_task_id: p07-t03
 oat_generated: false
 ---
 
@@ -32,9 +32,9 @@ oat_generated: false
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
-| Phase 7 | in_progress | 4     | 1/4       |
+| Phase 7 | in_progress | 4     | 2/4       |
 
-**Total:** 37/40 tasks accepted
+**Total:** 38/40 tasks accepted
 
 ---
 
@@ -1365,8 +1365,8 @@ attempt 1 of 2 is consumed before Phase 7 implementation begins.
 | Task    | Status      | Commit    | Outcome |
 | ------- | ----------- | --------- | ------- |
 | p07-t01 | complete    | `6454740` | Bound selected Cursor success bytes through both owner-hook CAS paths. |
-| p07-t02 | in_progress | -         | Confirm bounded stability prefixes during transcript growth. |
-| p07-t03 | pending     | -         | Select a completed prefix before a pending Cursor turn. |
+| p07-t02 | complete    | `a1a8999` | Confirmed bounded stability prefixes without starvation during growth. |
+| p07-t03 | in_progress | -         | Select a completed prefix before a pending Cursor turn. |
 | p07-t04 | pending     | -         | Make gate bookkeeping evidence-safe and rerun release gates. |
 
 ### Task p07-t01: Bind selected Cursor success bytes through collaboration CAS
@@ -1386,6 +1386,24 @@ remain intact. Session-observer-collab 1.0.10 is dogfooded and synchronized.
 type-check, generated parity, validation, smoke, internal flags, changed-file
 lint/format, 34-page docs build, version enforcement, dogfood, and 114-entry
 user synchronization passed.
+
+### Task p07-t02: Confirm bounded stability prefixes during transcript growth
+
+**Status:** completed
+**Commit:** `a1a8999`
+
+Observation now confirms the original candidate boundary and entry keys against
+the grown second scan, reserves through the digest's verified cursor, and
+retains later safe bytes as the next candidate. A frame arriving during
+confirmation no longer restarts the earlier candidate, and continuous growth
+through max-pending delivers every message exactly once and in order. The
+existing Cursor state API was sufficient; canonical TypeScript was rebuilt
+into the shipped runtime and Session Observer 1.0.12 was dogfooded.
+
+**Verification:** 107/107 focused tests and 472/472 Session Observer tests
+passed; build, type-check, generated parity, validation, smoke, internal
+flags, changed-file lint/format, 34-page docs build, version enforcement,
+dogfood, and user synchronization passed.
 
 ---
 
