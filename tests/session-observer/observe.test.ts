@@ -639,6 +639,59 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test('does not start a Cursor stability wait beyond the remaining watch deadline', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-runtime-budget');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-runtime-budget';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Respect the watch deadline.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Do not overrun the budget.' }],
+          },
+        },
+      ]);
+      const nowMs = Date.parse('2026-07-24T06:30:00.000Z');
+      const waits: number[] = [];
+
+      const result = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            waits.push(ms);
+          },
+          ownerPid: 7104,
+          deadlineMs: nowMs + 60,
+        } as Parameters<typeof observeCatchUp>[1] & { deadlineMs: number },
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.runtime !== 'cursor') {
+        throw new Error(result.ok ? 'expected Cursor result' : result.message);
+      }
+      expect(waits).toEqual([]);
+      expect(result.digest.entries).toEqual([]);
+      expect(result.digest.accounting.buffered).toMatchObject({
+        reason: 'stability-wait',
+      });
+      expect(result.delivery?.entryKeys).toEqual([]);
+      await expect(result.delivery!.abandon()).resolves.toBe('abandoned');
+    });
+  });
+
   test('blocks Cursor continuity mismatch without mutating its committed checkpoint', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = join(home, 'workspace', 'observe-cursor-continuity');

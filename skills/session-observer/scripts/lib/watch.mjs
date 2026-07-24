@@ -49,6 +49,15 @@ function heartbeatMs(value) {
 function sleep(ms) {
   return new Promise((complete) => setTimeout(complete, ms));
 }
+function cursorObserveDeps(deps, ownerPid) {
+  return {
+    now: deps.now,
+    sleep: deps.sleep,
+    ownerPid,
+    onCursorScan: deps.onCursorScan,
+    deadlineMs: deps.deadlineMs
+  };
+}
 function stateDir() {
   return process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
 }
@@ -707,12 +716,7 @@ async function establishCursorBaseline(args, targets, deps, eventState) {
   const target = await cursorBaselineTarget(args, targets, deps, eventState);
   const result = await observeCatchUp(
     { ...args, runtime: "cursor" },
-    {
-      now: deps.now,
-      sleep: deps.sleep,
-      ownerPid: eventState.pid,
-      onCursorScan: deps.onCursorScan
-    }
+    cursorObserveDeps(deps, eventState.pid)
   );
   if (!result.ok) {
     if (result.kind === "continuityBlocked") {
@@ -979,12 +983,7 @@ async function emitPending(entry, targets, args, deps, eventState) {
       session: `cursor:${entry.sessionId}`,
       suppressWatchedWarningPid: eventState.pid
     },
-    {
-      now: deps.now,
-      sleep: deps.sleep,
-      ownerPid: eventState.pid,
-      onCursorScan: deps.onCursorScan
-    }
+    cursorObserveDeps(deps, eventState.pid)
   ) : await observeCatchUp({
     ...args,
     runtime: entry.runtime,
@@ -1159,7 +1158,8 @@ async function runWatchLoop(args, deps = {}) {
     sleep: deps.sleep ?? sleep,
     stat: deps.stat ?? stat,
     writeStdout: deps.writeStdout ?? writeProcessStdout,
-    onCursorScan: deps.onCursorScan
+    onCursorScan: deps.onCursorScan,
+    deadlineMs
   };
   const targets = /* @__PURE__ */ new Map();
   const pending = /* @__PURE__ */ new Map();

@@ -66,6 +66,10 @@ type HarnessIdentityResolution =
   | { ambiguous: true; signals: IdentitySignal[] }
   | null;
 
+type BudgetedObserveDeps = ObserveDeps & {
+  deadlineMs?: number | null;
+};
+
 function isRuntime(value: unknown): value is Runtime {
   return typeof value === 'string' && VALID_RUNTIMES.includes(value as Runtime);
 }
@@ -967,6 +971,7 @@ async function observeCursorSession(
   let selectedObservedAt = new Date(deps.now?.() ?? Date.now()).toISOString();
   let confirmedObservation: CursorCandidateObservation | null = null;
   const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
+  const deadlineMs = (deps as BudgetedObserveDeps).deadlineMs ?? null;
   let uncertainReplay: CursorDigestEntryV2[] | null = null;
   if (deliveryUncertain === null) {
     const storedCandidate = state.stabilityCandidate;
@@ -1024,50 +1029,58 @@ async function observeCursorSession(
           );
         }
       } else {
-        await (deps.sleep?.(stabilityMs) ??
-          new Promise((resolve) => setTimeout(resolve, stabilityMs)));
-        selectedObservedAt = new Date(
-          Math.max(
-            deps.now?.() ?? Date.now(),
-            Date.parse(firstObservation.observedAt) + stabilityMs,
-          ),
-        ).toISOString();
-        const second = await scanCursor(
-          identity,
-          analysisFromFrame,
-          firstObservation.prefixBytes,
-          deps,
-        );
-        const confirmedBoundary = cursorObservationAtBoundary(
-          second,
-          firstObservation,
-          selectedObservedAt,
-        );
-        if (confirmedBoundary !== null) {
-          const verifiedBoundary = await captureCursorCheckpoint(
-            identity.canonicalTranscriptPath,
-            second,
-            firstObservation.throughFrameIndex + 1,
+        const nowMs = deps.now?.() ?? Date.now();
+        const remainingMs =
+          deadlineMs === null ? null : Math.max(0, deadlineMs - nowMs);
+        if (remainingMs === null || stabilityMs <= remainingMs) {
+          const waitMs =
+            remainingMs === null
+              ? stabilityMs
+              : Math.min(stabilityMs, remainingMs);
+          await (deps.sleep?.(waitMs) ??
+            new Promise((resolve) => setTimeout(resolve, waitMs)));
+          selectedObservedAt = new Date(
+            Math.max(
+              deps.now?.() ?? Date.now(),
+              Date.parse(firstObservation.observedAt) + stabilityMs,
+            ),
+          ).toISOString();
+          const second = await scanCursor(
+            identity,
+            analysisFromFrame,
+            firstObservation.prefixBytes,
+            deps,
           );
-          if (
-            verifiedBoundary?.prefixBytes === firstObservation.prefixBytes &&
-            verifiedBoundary.prefixSha256 ===
-              second.scan.verifiedPrefixSha256 &&
-            verifiedBoundary.prefixSha256 === firstObservation.prefixSha256
-          ) {
-            const confirmation = await cursorStateLib.checkpointCursorCandidate(
-              {
-                sessionId: identity.sessionId,
-                stabilityMs,
-                observation: confirmedBoundary,
-              },
+          const confirmedBoundary = cursorObservationAtBoundary(
+            second,
+            firstObservation,
+            selectedObservedAt,
+          );
+          if (confirmedBoundary !== null) {
+            const verifiedBoundary = await captureCursorCheckpoint(
+              identity.canonicalTranscriptPath,
+              second,
+              firstObservation.throughFrameIndex + 1,
             );
-            if (confirmation.status === 'confirmed') {
-              confirmedObservation = confirmedBoundary;
+            if (
+              verifiedBoundary?.prefixBytes === firstObservation.prefixBytes &&
+              verifiedBoundary.prefixSha256 ===
+                second.scan.verifiedPrefixSha256 &&
+              verifiedBoundary.prefixSha256 === firstObservation.prefixSha256
+            ) {
+              const confirmation =
+                await cursorStateLib.checkpointCursorCandidate({
+                  sessionId: identity.sessionId,
+                  stabilityMs,
+                  observation: confirmedBoundary,
+                });
+              if (confirmation.status === 'confirmed') {
+                confirmedObservation = confirmedBoundary;
+              }
             }
           }
+          selected = second;
         }
-        selected = second;
       }
       state =
         (await cursorStateLib.getCursorSession(identity.sessionId)) ?? state;

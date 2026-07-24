@@ -1529,6 +1529,38 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('bounds Cursor baseline and final flush stability waits by max runtime', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-runtime-budget');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-runtime-budget';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Bound the watcher runtime.' },
+        { content: 'A long stability wait must not overrun it.' },
+      ]);
+      const startedAt = Date.now();
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          catchUpFirst: true,
+          pollSec: 0.01,
+          debounceSec: 1,
+          maxRuntimeMin: 0.001,
+          json: true,
+        },
+        {
+          writeStdout: () => true,
+        },
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(Date.now() - startedAt).toBeLessThan(400);
+    });
+  });
+
   test('surfaces a pre-existing Cursor delivery reservation as uncertain without replaying or advancing it', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = join(home, 'workspace', 'watch-cursor-reservation');

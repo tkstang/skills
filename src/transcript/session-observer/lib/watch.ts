@@ -24,6 +24,7 @@ import type {
   DuplicateWatchTargetError,
   EngagementStatus,
   ObservationStatus,
+  ObserveDeps,
   ObserveSuccess,
   NewerSessionCandidateEvent,
   SessionDigest,
@@ -105,6 +106,11 @@ interface ResolvedWatchDeps {
     complete?: (error?: Error | null) => void,
   ) => boolean | number | void | Promise<unknown>;
   onCursorScan?: () => void;
+  deadlineMs: number | null;
+}
+
+interface BudgetedWatchObserveDeps extends ObserveDeps {
+  deadlineMs: number | null;
 }
 
 interface EventRanges {
@@ -143,6 +149,19 @@ function heartbeatMs(value: unknown): number | null {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((complete) => setTimeout(complete, ms));
+}
+
+function cursorObserveDeps(
+  deps: ResolvedWatchDeps,
+  ownerPid: number,
+): BudgetedWatchObserveDeps {
+  return {
+    now: deps.now,
+    sleep: deps.sleep,
+    ownerPid,
+    onCursorScan: deps.onCursorScan,
+    deadlineMs: deps.deadlineMs,
+  };
 }
 
 function stateDir(): string {
@@ -1053,12 +1072,7 @@ async function establishCursorBaseline(
   const target = await cursorBaselineTarget(args, targets, deps, eventState);
   const result = await observeCatchUp(
     { ...args, runtime: 'cursor' },
-    {
-      now: deps.now,
-      sleep: deps.sleep,
-      ownerPid: eventState.pid,
-      onCursorScan: deps.onCursorScan,
-    },
+    cursorObserveDeps(deps, eventState.pid),
   );
   if (!result.ok) {
     if (result.kind === 'continuityBlocked') {
@@ -1407,12 +1421,7 @@ async function emitPending(
             session: `cursor:${entry.sessionId}`,
             suppressWatchedWarningPid: eventState.pid,
           },
-          {
-            now: deps.now,
-            sleep: deps.sleep,
-            ownerPid: eventState.pid,
-            onCursorScan: deps.onCursorScan,
-          },
+          cursorObserveDeps(deps, eventState.pid),
         )
       : await observeCatchUp({
           ...args,
@@ -1657,6 +1666,7 @@ export async function runWatchLoop(
     stat: deps.stat ?? stat,
     writeStdout: deps.writeStdout ?? writeProcessStdout,
     onCursorScan: deps.onCursorScan,
+    deadlineMs,
   };
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
