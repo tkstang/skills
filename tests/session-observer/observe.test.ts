@@ -520,7 +520,8 @@ describe('observeCatchUp', () => {
       expect(
         (await getCursorSession(sessionId))?.stabilityCandidate,
       ).toMatchObject({
-        entryKeys: [expect.any(String), expect.any(String)],
+        entryKeys: [expect.any(String)],
+        fromFrameIndex: 3,
         throughFrameIndex: 3,
         confirmedAt: null,
       });
@@ -555,6 +556,86 @@ describe('observeCatchUp', () => {
       });
       await expect(second.delivery!.commit()).resolves.toBe('committed');
       expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(4);
+    });
+  });
+
+  test('advances beyond a delivered same-turn stability candidate', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-delivered-candidate');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-delivered-candidate';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Deliver every safe suffix.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: { content: [{ type: 'text', text: 'Candidate A.' }] },
+        },
+      ]);
+      let nowMs = Date.parse('2026-07-24T06:00:00.000Z');
+      const deps = {
+        now: () => nowMs,
+        sleep: async (ms: number) => {
+          nowMs += ms;
+        },
+        ownerPid: 7103,
+      };
+      const args = {
+        runtime: 'cursor' as const,
+        cwd,
+        session: `cursor:${sessionId}`,
+        debounceSec: 0.1,
+      };
+
+      const first = await observeCatchUp(args, deps);
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor') {
+        throw new Error(first.ok ? 'expected Cursor result' : first.message);
+      }
+      expect(first.digest.entries.map((entry) => entry.text)).toEqual([
+        'Candidate A.',
+      ]);
+      const deliveredCandidate = (await getCursorSession(sessionId))
+        ?.stabilityCandidate;
+      expect(deliveredCandidate).not.toBeNull();
+      await expect(first.delivery!.commit()).resolves.toBe('committed');
+
+      await mutateCursorState((state) => {
+        state.sessions[`cursor:${sessionId}`].stabilityCandidate =
+          deliveredCandidate!;
+      });
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Candidate B.' }],
+          },
+        })}\n`,
+        'utf8',
+      );
+
+      const second = await observeCatchUp(args, deps);
+      expect(second.ok).toBe(true);
+      if (!second.ok || second.runtime !== 'cursor') {
+        throw new Error(second.ok ? 'expected Cursor result' : second.message);
+      }
+      expect(second.digest.entries.map((entry) => entry.text)).toEqual([
+        'Candidate B.',
+      ]);
+      await expect(second.delivery!.commit()).resolves.toBe('committed');
+
+      const third = await observeCatchUp(args, deps);
+      expect(third.ok).toBe(true);
+      if (!third.ok || third.runtime !== 'cursor') {
+        throw new Error(third.ok ? 'expected Cursor result' : third.message);
+      }
+      expect(third.digest.entries).toEqual([]);
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(3);
     });
   });
 

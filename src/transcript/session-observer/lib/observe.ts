@@ -548,21 +548,28 @@ async function scanCursor(
 function cursorCandidateObservation(
   result: CursorScanResult,
   observedAt: string,
+  fromFrameIndex = 0,
 ): CursorCandidateObservation | null {
   const turn = result.analysis.turns.findLast(
     (candidate) =>
       candidate.lifecycle === 'pending' &&
       candidate.assistantRecords.some(
-        (record) => record.classification === 'substantive',
+        (record) =>
+          record.classification === 'substantive' &&
+          record.sourceFrameIndex >= fromFrameIndex,
       ),
   );
   if (turn === undefined || result.scan.safeThroughFrame === null) return null;
   return {
     turnId: turn.turnId,
-    fromFrameIndex: turn.fromFrameIndex,
+    fromFrameIndex: Math.max(turn.fromFrameIndex, fromFrameIndex),
     throughFrameIndex: result.scan.safeThroughFrame,
     entryKeys: turn.assistantRecords
-      .filter((record) => record.classification === 'substantive')
+      .filter(
+        (record) =>
+          record.classification === 'substantive' &&
+          record.sourceFrameIndex >= fromFrameIndex,
+      )
       .map((record) => record.entryKey),
     prefixBytes: result.scan.safePrefixBytes,
     prefixSha256: result.scan.safePrefixSha256,
@@ -592,13 +599,18 @@ function cursorObservationAtBoundary(
   const turn = result.analysis.turns.find(
     (candidate) => candidate.turnId === boundary.turnId,
   );
-  if (turn === undefined || turn.fromFrameIndex !== boundary.fromFrameIndex) {
+  if (
+    turn === undefined ||
+    boundary.fromFrameIndex < turn.fromFrameIndex ||
+    boundary.fromFrameIndex > boundary.throughFrameIndex
+  ) {
     return null;
   }
   const entryKeys = turn.assistantRecords
     .filter(
       (record) =>
         record.classification === 'substantive' &&
+        record.sourceFrameIndex >= boundary.fromFrameIndex &&
         record.sourceFrameIndex <= boundary.throughFrameIndex,
     )
     .map((record) => record.entryKey);
@@ -958,8 +970,16 @@ async function observeCursorSession(
   let uncertainReplay: CursorDigestEntryV2[] | null = null;
   if (deliveryUncertain === null) {
     const storedCandidate = state.stabilityCandidate;
+    const deliveredEntryKeys = new Set(
+      state.openTurn?.deliveredEntryKeys ?? [],
+    );
+    const storedCandidateHasUndeliveredEntry =
+      storedCandidate !== null &&
+      storedCandidate.entryKeys.some(
+        (entryKey) => !deliveredEntryKeys.has(entryKey),
+      );
     let firstObservation: CursorCandidateObservation | null = null;
-    if (storedCandidate !== null) {
+    if (storedCandidate !== null && storedCandidateHasUndeliveredEntry) {
       const storedCheckpoint = await captureCursorCheckpoint(
         identity.canonicalTranscriptPath,
         first,
@@ -976,7 +996,11 @@ async function observeCursorSession(
         );
       }
     }
-    firstObservation ??= cursorCandidateObservation(first, selectedObservedAt);
+    firstObservation ??= cursorCandidateObservation(
+      first,
+      selectedObservedAt,
+      state.continuity.nextFrameIndex,
+    );
     if (firstObservation !== null) {
       const checkpoint = await cursorStateLib.checkpointCursorCandidate({
         sessionId: identity.sessionId,
@@ -1209,7 +1233,11 @@ async function observeCursorSession(
     const safeNextIndex = (selected.scan.safeThroughFrame ?? -1) + 1;
     const nextObservation =
       digest.range.nextIndex < safeNextIndex
-        ? cursorCandidateObservation(selected, selectedObservedAt)
+        ? cursorCandidateObservation(
+            selected,
+            selectedObservedAt,
+            digest.range.nextIndex,
+          )
         : null;
     const nextState: CursorSessionStateEntry = {
       ...state,

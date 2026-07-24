@@ -361,18 +361,20 @@ async function scanCursor(identity, fromFrameIndex, verifyPrefixBytes, deps) {
   deps.onCursorScan?.();
   return { scan, analysis: accumulator.finish(scan), frameEnds };
 }
-function cursorCandidateObservation(result, observedAt) {
+function cursorCandidateObservation(result, observedAt, fromFrameIndex = 0) {
   const turn = result.analysis.turns.findLast(
     (candidate) => candidate.lifecycle === "pending" && candidate.assistantRecords.some(
-      (record) => record.classification === "substantive"
+      (record) => record.classification === "substantive" && record.sourceFrameIndex >= fromFrameIndex
     )
   );
   if (turn === void 0 || result.scan.safeThroughFrame === null) return null;
   return {
     turnId: turn.turnId,
-    fromFrameIndex: turn.fromFrameIndex,
+    fromFrameIndex: Math.max(turn.fromFrameIndex, fromFrameIndex),
     throughFrameIndex: result.scan.safeThroughFrame,
-    entryKeys: turn.assistantRecords.filter((record) => record.classification === "substantive").map((record) => record.entryKey),
+    entryKeys: turn.assistantRecords.filter(
+      (record) => record.classification === "substantive" && record.sourceFrameIndex >= fromFrameIndex
+    ).map((record) => record.entryKey),
     prefixBytes: result.scan.safePrefixBytes,
     prefixSha256: result.scan.safePrefixSha256,
     observedAt
@@ -388,11 +390,11 @@ function cursorObservationAtBoundary(result, boundary, observedAt) {
   const turn = result.analysis.turns.find(
     (candidate) => candidate.turnId === boundary.turnId
   );
-  if (turn === void 0 || turn.fromFrameIndex !== boundary.fromFrameIndex) {
+  if (turn === void 0 || boundary.fromFrameIndex < turn.fromFrameIndex || boundary.fromFrameIndex > boundary.throughFrameIndex) {
     return null;
   }
   const entryKeys = turn.assistantRecords.filter(
-    (record) => record.classification === "substantive" && record.sourceFrameIndex <= boundary.throughFrameIndex
+    (record) => record.classification === "substantive" && record.sourceFrameIndex >= boundary.fromFrameIndex && record.sourceFrameIndex <= boundary.throughFrameIndex
   ).map((record) => record.entryKey);
   if (!sameEntryKeys(entryKeys, boundary.entryKeys)) return null;
   return {
@@ -657,8 +659,14 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
   let uncertainReplay = null;
   if (deliveryUncertain === null) {
     const storedCandidate = state.stabilityCandidate;
+    const deliveredEntryKeys = new Set(
+      state.openTurn?.deliveredEntryKeys ?? []
+    );
+    const storedCandidateHasUndeliveredEntry = storedCandidate !== null && storedCandidate.entryKeys.some(
+      (entryKey) => !deliveredEntryKeys.has(entryKey)
+    );
     let firstObservation = null;
-    if (storedCandidate !== null) {
+    if (storedCandidate !== null && storedCandidateHasUndeliveredEntry) {
       const storedCheckpoint = await captureCursorCheckpoint(
         identity.canonicalTranscriptPath,
         first,
@@ -672,7 +680,11 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
         );
       }
     }
-    firstObservation ??= cursorCandidateObservation(first, selectedObservedAt);
+    firstObservation ??= cursorCandidateObservation(
+      first,
+      selectedObservedAt,
+      state.continuity.nextFrameIndex
+    );
     if (firstObservation !== null) {
       const checkpoint = await cursorStateLib.checkpointCursorCandidate({
         sessionId: identity.sessionId,
@@ -872,7 +884,11 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     }
     digest.cursorEvidence.status.delivery = "reserved";
     const safeNextIndex = (selected.scan.safeThroughFrame ?? -1) + 1;
-    const nextObservation = digest.range.nextIndex < safeNextIndex ? cursorCandidateObservation(selected, selectedObservedAt) : null;
+    const nextObservation = digest.range.nextIndex < safeNextIndex ? cursorCandidateObservation(
+      selected,
+      selectedObservedAt,
+      digest.range.nextIndex
+    ) : null;
     const nextState = {
       ...state,
       lastRecordIndex: digest.range.nextIndex,
