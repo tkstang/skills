@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T01:14:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T01:25:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Tasks complete; awaiting Phase 6 and final reviews
+Implementation - Tasks complete; Phase 6 fix iteration 1 pending
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Tasks complete; awaiting Phase 6 and final reviews
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (36/36 tasks complete; closeout reviews pending)
+- **Implementation:** `implementation.md` (36/36 tasks complete; Phase 6 review fix pending)
 
 ## Progress
 
@@ -144,7 +144,8 @@ Implementation - Tasks complete; awaiting Phase 6 and final reviews
 - ✓ `p06-t03` buffered-manual wake tier finalized at `407bfd2`
 - ✓ `p06-t04` final version/provider/backlog/release reconciliation complete at `3dac3a0`
 - ✓ Implementation tasks complete: 36/36
-- ⧗ Independent Phase 6 review pending
+- ✗ Phase 6 review round 1 retained 1 Important finding
+- ⧗ Bounded Phase 6 evidence fix iteration 1 pending
 - ⧗ Mandatory final lifecycle review pending
 
 ## Blockers
@@ -153,5 +154,5 @@ None.
 
 ## Next Milestone
 
-Run the independent Phase 6 review, then continue final implementation
-closeout through the mandatory final review and configured exit gate.
+Resume the original Phase 6 implementer for the repeatable sanitized wake-probe
+evidence fix, then run whole-phase re-review.

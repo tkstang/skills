@@ -592,6 +592,34 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Worktree:** Root checkout; sequential plan.
 **Outstanding items:** None.
 
+### Run 6 — Phase p06
+
+**Anchor:** `run-6-phase-p06`
+**Timestamp:** 2026-07-24T01:23:20Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `7307adb`
+**Phase head:** `3dac3a0`
+**Outcome:** blocked after review round 1; bounded evidence fix iteration 1 pending
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p06   | 4/4   | `0ef8e5d..3dac3a0` | Round 1 blocked: 1 Important | 0 completed | blocked |
+
+**Implementation dispatch:** request
+`impl-p06-7307adb-20260724T005000Z`; target
+`oat-phase-implementer-gpt-5-6-sol-high`.
+
+**Review rounds:**
+
+1. `reviews/p06-review-2026-07-24T012320Z.md` — blocked with 0 Critical,
+   1 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** Executable sanitized Stop and managed-subagent probe
+recipes with structural results and explicit process caps.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -1067,7 +1095,7 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** review_pending
+**Status:** blocked
 
 ### Phase Summary
 
@@ -1085,7 +1113,8 @@ resolved; Phase 6 is next.
   acceptance 19/19, a 33-file evidence scan, 34 generated docs pages, exact
   changed-file lint/format gates, version validation, and 188/188 synchronized
   OAT surfaces.
-- Independent Phase 6 code review is pending.
+- Independent Phase 6 review retained 1 Important evidence-reproducibility
+  finding; bounded fix iteration 1 is pending.
 
 ### Task outcomes
 
@@ -1135,6 +1164,16 @@ automated-only), the evidence validator passed 33 files, and 1,448 tests passed
 with 1 skipped. Build, type-check, generated parity, validation, smoke, the
 34-page docs build, three changed-skill version checks, exact PR-scoped
 lint/format, and 188/188 OAT surface synchronization passed.
+
+### Review round 1
+
+`reviews/p06-review-2026-07-24T012320Z.md` is BLOCKED with 1 Important finding
+and no other findings. The Stop and managed-subagent classifications are
+narrow and defensible, but their retained commands omit the executable
+sanitized hook setup, fixed prompts/markers, and actual 90/120-second process
+cap mechanism. The original Phase 6 implementer will add a bounded repeatable
+probe recipe and structural validation without changing the selected tier or
+shipping an adapter.
 
 ---
 
