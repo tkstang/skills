@@ -36,20 +36,20 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: stale
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: prompt_approved
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
   on_failure: block
   max_attempts: 2
   attempts_completed: 1
-  reviewed_head: 779c694c592f6e5a19c76b6d2ae2a5f7d0fc814f
+  reviewed_head: 9ae037720b915e788ece1e6069fee4ca771bb4e6
   implementation_base_ref: origin/main
-  implementation_fingerprint: 'sha256:effective-delta-v1:f9be17764ea305657aaff5ccab2280886dd44c7ae4ae1689db1bb65155a26c64'
-  freshness_head: 30572b125556ea5eb1100e60a8180b01001eca50
-  freshness_fingerprint: 'sha256:effective-delta-v1:6750723bc135e2bf76b5a3609d50ad6b15a55d1b16b183d313e042260118cc39'
+  implementation_fingerprint: 'sha256:effective-delta-v1:7f13edb9ed5d050a9c38bc501f7673d11e92baab6319339214d10172a8d3ee9f'
+  freshness_head: 9ae037720b915e788ece1e6069fee4ca771bb4e6
+  freshness_fingerprint: 'sha256:effective-delta-v1:7f13edb9ed5d050a9c38bc501f7673d11e92baab6319339214d10172a8d3ee9f'
   launch_state: result_persisted
   launch_attempt_id: 1c77a396-ad0c-4dbd-85b2-b826245b1496
   launch_started_at: '2026-07-24T14:29:49Z'
@@ -68,26 +68,26 @@ oat_implement_exit_gate:
   receive_commit: 8d3180cbdc82de92d2880b57c254dc41d4d9a7ca
   receive_eligible: true
   receive_completed: true
-  failure: 'review_completed_blocking_findings: critical=2 important=2 medium=1 minor=0 threshold=important'
-  updated_at: '2026-07-24T14:56:33Z'
+  failure: 'operator_waived_remaining_configured_gate_rerun_after_attempt_1; mandatory_phase_and_final_reviews_passed'
+  updated_at: '2026-07-24T17:02:27Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T17:00:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T17:04:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Phase 8 Passed; Final Re-Review Pending
+**Status:** Final Review Passed; Project-Specific Exit Gate Waived
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - Phase 8 re-review passed; 74/74 tasks complete
+Implementation - all 74 tasks and mandatory reviews passed; closeout ready
 
 ## Artifacts
 
@@ -267,6 +267,8 @@ Implementation - Phase 8 re-review passed; 74/74 tasks complete
 - ✓ `p08-t34` bounded explicit Cursor pin traversal complete at `3fb193f`
 - ✓ Final post-fix matrix passed: 1,548 tests, 1 skipped; focused locate/watch 97/97
 - ✓ Fresh Phase 8 re-review passed with zero findings after `p08-t34`
+- ✓ Fresh final lifecycle re-review passed with zero findings
+- ✓ Operator waiver recorded for the remaining configured exit-gate rerun; global gate configuration unchanged
 
 ## Blockers
 
@@ -274,5 +276,5 @@ None.
 
 ## Next Milestone
 
-Run the final lifecycle re-review. The operator explicitly waived the
-configured exit-gate rerun for this project.
+Complete the OAT lifecycle. The remaining configured exit-gate rerun was
+explicitly waived for this project only.
