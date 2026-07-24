@@ -1538,7 +1538,9 @@ describe('runWatchLoop', () => {
         { role: 'user', content: 'Bound the watcher runtime.' },
         { content: 'A long stability wait must not overrun it.' },
       ]);
-      const startedAt = Date.now();
+      const startedAt = 1_700_000_000_000;
+      let nowMs = startedAt;
+      const sleeps: number[] = [];
 
       const result = await runWatchLoop(
         {
@@ -1553,11 +1555,18 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: () => true,
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            sleeps.push(ms);
+            nowMs += ms;
+          },
         },
       );
 
       expect(result.reason).toBe('max-runtime');
-      expect(Date.now() - startedAt).toBeLessThan(400);
+      expect(sleeps.length).toBeGreaterThan(0);
+      expect(sleeps.every((ms) => ms >= 0 && ms <= 60)).toBe(true);
+      expect(nowMs - startedAt).toBe(60);
     });
   });
 
