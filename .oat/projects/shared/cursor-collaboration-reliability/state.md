@@ -18,7 +18,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T17:04:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T17:54:33Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Final Review Passed; Project-Specific Exit Gate Waived
+**Status:** Implementation Complete; Final PR Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - all 74 tasks and mandatory reviews passed; closeout ready
+Implementation - complete; final PR pending
 
 ## Artifacts
 
@@ -269,6 +269,7 @@ Implementation - all 74 tasks and mandatory reviews passed; closeout ready
 - ✓ Fresh Phase 8 re-review passed with zero findings after `p08-t34`
 - ✓ Fresh final lifecycle re-review passed with zero findings
 - ✓ Operator waiver recorded for the remaining configured exit-gate rerun; global gate configuration unchanged
+- ✓ Implementation lifecycle marked complete
 
 ## Blockers
 
@@ -276,5 +277,4 @@ None.
 
 ## Next Milestone
 
-Complete the OAT lifecycle. The remaining configured exit-gate rerun was
-explicitly waived for this project only.
+Open the final PR, then complete and archive the OAT project.

@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
@@ -231,7 +231,7 @@ task-scoped gate is rerun against the p02-t08 base before re-review.
 ### Review Retry Limit Exhausted
 
 **Final review artifact:**
-`reviews/p02-review-2026-07-23T054702Z.md`
+`reviews/archived/p02-review-2026-07-23T054702Z.md`
 
 **Unresolved findings:**
 
@@ -288,7 +288,7 @@ Important findings plus one Medium shipped-guidance gap.
 
 **Attempt 1:**
 
-- Artifact: `reviews/artifact-plan-review-2026-07-23T022120Z.md`
+- Artifact: `reviews/archived/artifact-plan-review-2026-07-23T022120Z.md`
 - Findings: 0 Critical, 5 Important, 2 Medium, 0 Minor
 - Disposition: all findings were applied directly to `plan.md` and the
   requirement mapping; the bound review row is `fixes_completed`.
@@ -298,7 +298,7 @@ Important findings plus one Medium shipped-guidance gap.
 
 **Attempt 2:**
 
-- Artifact: `reviews/artifact-plan-review-2026-07-23T023750Z.md`
+- Artifact: `reviews/archived/artifact-plan-review-2026-07-23T023750Z.md`
 - Findings: 0 Critical, 1 Important, 1 Medium, 0 Minor
 - Residual Important: p01-t01, p01-t03, p03-t01, and p03-t03 end at explicit
   RED verification boundaries, but every `oat-project-implement` task must
@@ -415,11 +415,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Review rounds:**
 
-1. `reviews/p01-review-2026-07-23T035505Z.md` — blocked with 0 Critical,
+1. `reviews/archived/p01-review-2026-07-23T035505Z.md` — blocked with 0 Critical,
    1 Important, 1 Medium, 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
    `fix-p01-round1-9417b8d-20260723T040000Z` produced `0b16bef`.
-3. `reviews/p01-review-2026-07-23T040650Z.md` — passed with zero findings;
+3. `reviews/archived/p01-review-2026-07-23T040650Z.md` — passed with zero findings;
    reconnaissance attempted and its complete orchestration evidence is
    retained in the artifact.
 
@@ -461,13 +461,13 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Review rounds:**
 
-1. `reviews/p02-review-2026-07-23T045715Z.md` — blocked with 0 Critical,
+1. `reviews/archived/p02-review-2026-07-23T045715Z.md` — blocked with 0 Critical,
    2 Important, 2 Medium, 0 Minor.
 2. Original implementer continuation produced `e4c50fe`.
-3. `reviews/p02-review-2026-07-23T051820Z.md` — blocked with 0 Critical,
+3. `reviews/archived/p02-review-2026-07-23T051820Z.md` — blocked with 0 Critical,
    3 Important, 1 Medium, 0 Minor.
 4. Original implementer continuation produced `ce73f80`.
-5. `reviews/p02-review-2026-07-23T054702Z.md` — blocked with 0 Critical,
+5. `reviews/archived/p02-review-2026-07-23T054702Z.md` — blocked with 0 Critical,
    2 Important, 1 Medium, 1 Minor; reconnaissance attempted with complete
    orchestration evidence.
 6. Merged `origin/main` at `aa35f45` and dispatched one operator-authorized
@@ -476,7 +476,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 8. `reviews/archived/p02-review-2026-07-23T114732Z.md` — blocked with 0 Critical,
    2 Important, 1 Medium, 0 Minor; reconnaissance attempted with complete
    orchestration evidence.
-9. `reviews/p02-review-2026-07-23T164415Z.md` — fix-task-scoped review passed
+9. `reviews/archived/p02-review-2026-07-23T164415Z.md` — fix-task-scoped review passed
    with zero findings; reconnaissance not attempted.
 
 **Review dispatch:**
@@ -515,11 +515,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Review rounds:**
 
-1. `reviews/p03-review-2026-07-23T211458Z.md` — blocked with 0 Critical,
+1. `reviews/archived/p03-review-2026-07-23T211458Z.md` — blocked with 0 Critical,
    3 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
    `fix-p03-round1-9c974f9-20260723T211800Z` produced `0623a74`.
-3. `reviews/p03-review-2026-07-23T214213Z.md` — passed with zero findings;
+3. `reviews/archived/p03-review-2026-07-23T214213Z.md` — passed with zero findings;
    prior I1, I2, and I3 resolved; reconnaissance not attempted.
 
 **Review dispatch:**
@@ -553,11 +553,11 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 **Review rounds:**
 
-1. `reviews/p04-review-2026-07-23T224300Z.md` — blocked with 1 Critical and
+1. `reviews/archived/p04-review-2026-07-23T224300Z.md` — blocked with 1 Critical and
    no other findings; reconnaissance not attempted.
 2. Original implementer continuation
    `fix-p04-round1-f84dfd8-20260723T224500Z` produced `a81847e`.
-3. `reviews/p04-review-2026-07-23T230346Z.md` — passed with zero findings;
+3. `reviews/archived/p04-review-2026-07-23T230346Z.md` — passed with zero findings;
    prior Critical resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
@@ -584,11 +584,11 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 **Review rounds:**
 
-1. `reviews/p05-review-2026-07-24T001656Z.md` — blocked with 0 Critical,
+1. `reviews/archived/p05-review-2026-07-24T001656Z.md` — blocked with 0 Critical,
    2 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
    `fix-p05-round1-8989fd7-20260724T002000Z` produced `8710c83`.
-3. `reviews/p05-review-2026-07-24T004530Z.md` — passed with zero findings;
+3. `reviews/archived/p05-review-2026-07-24T004530Z.md` — passed with zero findings;
    prior I1 and I2 resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
@@ -615,17 +615,17 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 **Review rounds:**
 
-1. `reviews/p06-review-2026-07-24T012320Z.md` — blocked with 0 Critical,
+1. `reviews/archived/p06-review-2026-07-24T012320Z.md` — blocked with 0 Critical,
    1 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
    `fix-p06-round1-3dac3a0-20260724T012600Z` produced `2cddafe`; whole-phase
    re-review pending.
-3. `reviews/p06-review-2026-07-24T015318Z.md` — blocked with 0 Critical,
+3. `reviews/archived/p06-review-2026-07-24T015318Z.md` — blocked with 0 Critical,
    1 Important, 0 Medium, and 0 Minor; prior finding resolved; reconnaissance
    not attempted.
 4. Original implementer continuation
    `fix-p06-round2-2cddafe-20260724T015600Z` produced `5375770`.
-5. `reviews/p06-review-2026-07-24T023404Z.md` — passed with zero findings;
+5. `reviews/archived/p06-review-2026-07-24T023404Z.md` — passed with zero findings;
    both prior findings resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
@@ -703,7 +703,7 @@ Chronological log of implementation progress.
   type-check, build synchronization, validation, and smoke.
 
 **Next:** Repair only the unresolved findings from
-`reviews/p02-review-2026-07-23T054702Z.md`, then run a fresh whole-Phase 2
+`reviews/archived/p02-review-2026-07-23T054702Z.md`, then run a fresh whole-Phase 2
 review against the merged basis.
 
 **Repair result:**
@@ -779,7 +779,7 @@ next boundary is the one authorized fix-task-scoped re-review.
   pre-existing unbumped changes to `export-session-transcript` and
   `session-observer-collab`; it does not flag Session Observer.
 
-**Scoped re-review:** `reviews/p02-review-2026-07-23T164415Z.md` passed with
+**Scoped re-review:** `reviews/archived/p02-review-2026-07-23T164415Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. `I1`, `I2`, and `M1`
 are resolved; Phase 2 is complete.
 
@@ -875,7 +875,7 @@ generated build parity.
 
 ### Review round 1
 
-`reviews/p03-review-2026-07-23T211458Z.md` is BLOCKED with 0 Critical,
+`reviews/archived/p03-review-2026-07-23T211458Z.md` is BLOCKED with 0 Critical,
 3 Important, 0 Medium, and 0 Minor findings:
 
 - I1: delivery-uncertain replay can lose reserved keys after lifecycle advances.
@@ -888,7 +888,7 @@ Focused Phase 3 coverage passed 175/175, the full suite passed 1,363 with 1
 skipped, and build, generated parity, type-check, validation, smoke,
 file-scoped formatting/lint, and diff checks passed.
 
-**Round-2 review:** `reviews/p03-review-2026-07-23T214213Z.md` passed with
+**Round-2 review:** `reviews/archived/p03-review-2026-07-23T214213Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. I1, I2, and I3 are
 resolved; Phase 4 is next.
 
@@ -975,14 +975,14 @@ and diff checks.
 
 ### Review round 1
 
-`reviews/p04-review-2026-07-23T224300Z.md` is BLOCKED with 1 Critical and no
+`reviews/archived/p04-review-2026-07-23T224300Z.md` is BLOCKED with 1 Critical and no
 other findings. The original Phase 4 implementer resolved it in `a81847e` with
 framed confirmed-completion, index-base validation, pending polling, and
 mandatory checkpoint-bearing trigger/suppressed CAS. Focused coverage passed
 204 tests, the full suite passed 1,407 with 1 skipped, and build parity,
 validation, smoke, type-check, formatting/lint, and diff checks passed.
 
-**Round-2 review:** `reviews/p04-review-2026-07-23T230346Z.md` passed with
+**Round-2 review:** `reviews/archived/p04-review-2026-07-23T230346Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Manual installed-hook
 reproduction also passed; Phase 5 is next.
 
@@ -1079,7 +1079,7 @@ build, three skill-version checks, and 188/188 synchronized OAT surfaces.
 
 ### Review round 1
 
-`reviews/p05-review-2026-07-24T001656Z.md` is BLOCKED with 2 Important
+`reviews/archived/p05-review-2026-07-24T001656Z.md` is BLOCKED with 2 Important
 findings and no other findings:
 
 - The evidence validator misses quoted identities, omits committed Phase 5
@@ -1098,7 +1098,7 @@ focused tests, 204 targeted tests, and 1,448 full-suite tests with 1 skipped.
 The fresh probe passed 19/19 with an accurate split of 4 live-validated and 15
 automated-only rows.
 
-**Round-2 review:** `reviews/p05-review-2026-07-24T004530Z.md` passed with
+**Round-2 review:** `reviews/archived/p05-review-2026-07-24T004530Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. I1 and I2 are
 resolved; Phase 6 is next.
 
@@ -1181,7 +1181,7 @@ lint/format, and 188/188 OAT surface synchronization passed.
 
 ### Review round 1
 
-`reviews/p06-review-2026-07-24T012320Z.md` is BLOCKED with 1 Important finding
+`reviews/archived/p06-review-2026-07-24T012320Z.md` is BLOCKED with 1 Important finding
 and no other findings. The original Phase 6 implementer resolved it in
 `2cddafe` with an executable sanitized dual-mode probe, explicit 90/120-second
 process caps, fixed structural markers, expected-versus-actual JSON, safe
@@ -1193,7 +1193,7 @@ pending.
 
 ### Review round 2
 
-`reviews/p06-review-2026-07-24T015318Z.md` is BLOCKED with 1 Important finding
+`reviews/archived/p06-review-2026-07-24T015318Z.md` is BLOCKED with 1 Important finding
 and no other findings. The executable recipe is complete, but real Cursor runs
 also persisted probe-owned transcripts/logs/auth metadata under
 `~/.cursor/projects/` while cleanup reported only the temporary workspace.
@@ -1205,7 +1205,7 @@ proved, and removed 4/4 artifacts with zero remaining; the tier and provider
 outcome remain unchanged. Focused coverage passed 38/38 and the full suite
 passed 1,464 with 1 skipped.
 
-**Round-3 review:** `reviews/p06-review-2026-07-24T023404Z.md` passed with
+**Round-3 review:** `reviews/archived/p06-review-2026-07-24T023404Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Both prior findings
 are resolved; the mandatory final lifecycle review followed.
 
@@ -1217,7 +1217,7 @@ are resolved; the mandatory final lifecycle review followed.
 
 ### Review round 1
 
-`reviews/final-review-2026-07-24T025100Z.md` is BLOCKED with 1 Important
+`reviews/archived/final-review-2026-07-24T025100Z.md` is BLOCKED with 1 Important
 finding and no other findings. When a buffered Cursor frame is repaired and
 consumed, both watch-state copy sites discard the digest's explicit `null`
 clear through nullish fallback, retaining the stale frame and repeatedly
@@ -1248,7 +1248,7 @@ provider-root residue checks, and byte-identical user-skill dogfood passed.
 
 ### Review round 2
 
-`reviews/final-review-2026-07-24T031130Z.md` is BLOCKED with 1 Medium finding
+`reviews/archived/final-review-2026-07-24T031130Z.md` is BLOCKED with 1 Medium finding
 and no other findings. The round-1 Important is resolved: independent shipped
 runtime reproduction advanced to frame 4, cleared persisted and in-memory
 buffer state, and kept 30/30 later heartbeats plus live status at zero lag.
@@ -1290,7 +1290,7 @@ user-skill dogfood passed.
 
 ### Review round 3
 
-`reviews/final-review-2026-07-24T032809Z.md` PASSED with 0 Critical,
+`reviews/archived/final-review-2026-07-24T032809Z.md` PASSED with 0 Critical,
 0 Important, 0 Medium, and 0 Minor findings. Independent shipped-runtime
 reproduction confirmed both prior findings remain resolved: repaired Cursor
 frames clear buffering, persist cursor/count 4, keep separate status and 30/30
@@ -1465,7 +1465,7 @@ docs build, skill-version enforcement, 188/188 all-scope and 114/114 user-scope
 OAT synchronization, dogfood exact-copy, privacy, and probe-residue checks
 passed.
 
-**Whole-phase review:** `reviews/p07-review-2026-07-24T050736Z.md` passed with
+**Whole-phase review:** `reviews/archived/p07-review-2026-07-24T050736Z.md` passed with
 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Independent
 adversarial coverage revalidated all four configured-gate findings, 168
 focused tests, 1,490 full-suite tests with 1 skipped, evidence/privacy,
@@ -1474,7 +1474,7 @@ review is next.
 
 ### Mandatory final lifecycle review round 4
 
-`reviews/final-review-2026-07-24T051704Z.md` PASSED with 0 Critical,
+`reviews/archived/final-review-2026-07-24T051704Z.md` PASSED with 0 Critical,
 0 Important, 0 Medium, and 0 Minor findings. The independent whole-project
 review confirmed that all four configured-gate findings and both earlier
 buffer/count findings remain resolved. It found no requirements drift, unsafe
@@ -1623,7 +1623,7 @@ lint/format, provider sync/dogfood, residue, and orphan-process checks passed.
 
 ### Independent Phase 8 review
 
-**Artifact:** `reviews/p08-review-2026-07-24T125308Z.md`
+**Artifact:** `reviews/archived/p08-review-2026-07-24T125308Z.md`
 **Verdict:** passed — 0 Critical, 0 Important, 1 Medium, 0 Minor
 
 The review independently verified all 14 tasks and the full matrix. Its
@@ -1787,7 +1787,7 @@ finding was deferred or rejected.
 
 ### Fresh final lifecycle review passed
 
-**Artifact:** `reviews/final-review-2026-07-24T142453Z.md`
+**Artifact:** `reviews/archived/final-review-2026-07-24T142453Z.md`
 **Verdict:** passed — 0 Critical, 0 Important, 0 Medium, 0 Minor
 
 The independent reviewer verified the complete `origin/main..779c694` basis:
@@ -2082,7 +2082,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p02-t02 | `plan.md` | Add the generated Cursor state module | Added exact `.oxfmtrc.json` and `.oxlintrc.json` exclusions for `cursor-state.mjs` | Repository generated-output policy requires the exclusion | Repository config plus generated-output validator | Bounded file-boundary adaptation |
 | p02-t03 | `plan.md` | Regenerate state runtime output | Added the exact `state.js` to `cursor-state.mjs` import rewrite in `scripts/build-generated.mjs` | Generated ESM must resolve the emitted module filename | Canonical build mapping | Bounded generated-output adaptation |
 | p04-t06 | `plan.md` | Limit safety-matrix changes to collaboration tests/runtime files | Added required `index_base` to three intended-valid v2 fixtures in `tests/transcript-core/cursor-analysis.test.ts` through append-only integration fix `f84dfd8` | Phase-wide validation exposed stale fixtures that contradicted p04-t05's intentional missing-attribute fail-closed contract | Wake-envelope v2 parser contract and full-suite validation | Bounded test-fixture adaptation; no production change |
-| p04 review fix | `reviews/p04-review-2026-07-23T224300Z.md` | Fix Codex-owner/Cursor-peer continuity in hook/runtime adapter | Also added frame analysis modules to `codex-install.mjs` hook bundle dependencies | Full fix verification exposed missing installed-hook runtime dependencies | Codex hook bundle plus full-suite validation | Bounded packaging adaptation required by the reviewed fix |
+| p04 review fix | `reviews/archived/p04-review-2026-07-23T224300Z.md` | Fix Codex-owner/Cursor-peer continuity in hook/runtime adapter | Also added frame analysis modules to `codex-install.mjs` hook bundle dependencies | Full fix verification exposed missing installed-hook runtime dependencies | Codex hook bundle plus full-suite validation | Bounded packaging adaptation required by the reviewed fix |
 | p05-t06 | `plan.md` | Gate verification should not require product edits unless a failure identifies one | Replaced multiline declaration-free imports in two tooling tests with equivalent one-line namespace imports | Aggregate type-check showed the multiline `@ts-expect-error` placement did not suppress both module-resolution diagnostics | TypeScript aggregate gate plus 17 focused tests | Narrow gate-implicated test-only correction |
 
 ## Test Results
