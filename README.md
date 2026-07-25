@@ -66,15 +66,31 @@ Two jobs: watching _another_ agent, and exporting _your own_ session.
 
 ## Install
 
-v0.1 installs from a local marketplace in this checkout. Claude Code, from the repo root:
+v0.1 installs from a local marketplace in this checkout. Run these from the repo root.
+
+**Claude Code**
 
 ```bash
 claude plugin marketplace add "$PWD" --scope user
 claude plugin install consensus@skills --scope user
 ```
 
+**Codex**
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add consensus --marketplace skills
+```
+
+**Cursor** — session-scoped rather than a plugin install, which is why its skills
+load unnamespaced:
+
+```bash
+cursor agent --plugin-dir "$PWD/plugins/consensus"
+```
+
 Requires Node.js 22+, plus the local provider CLIs for whichever peers you ask for.
-Codex and Cursor paths, caveats, and readiness checks:
+Prerequisites, caveats, and provider-readiness checks:
 [Installation →](https://tkstang.github.io/skills/user-guide/installation/)
 
 ## Development
