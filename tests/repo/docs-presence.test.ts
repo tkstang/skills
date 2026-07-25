@@ -69,12 +69,20 @@ describe('docs-presence', () => {
     }
   });
 
-  it('README keeps the install matrix; permissions and limitations live in the docs site', async () => {
+  it('README keeps an install entry point; the matrix, permissions, and limitations live in the docs site', async () => {
     const readme = await read('README.md');
     const docs = await readDocsSite();
 
-    // README retains the install-matrix entry point (the tag-time gate).
-    expect(readme).toMatch(/^## Local Git Repository Install$/m);
+    // README retains an install entry point that routes to the full matrix.
+    expect(readme).toMatch(/^## Install$/m);
+    expect(readme).toMatch(/user-guide\/installation\//);
+    // The full three-provider matrix is the tag-time gate; it now lives in the
+    // docs site rather than being duplicated in the README.
+    expect(docs).toMatch(/claude plugin marketplace add "\$PWD" --scope user/);
+    expect(docs).toMatch(/codex plugin add consensus --marketplace skills/);
+    expect(docs).toMatch(
+      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
+    );
     // The dense permissions/limitations detail was migrated into the site.
     expect(docs).toMatch(/^## Permissions$/m);
     expect(docs).toMatch(/^## Limitations$/m);

@@ -315,8 +315,18 @@ export async function validateReadmeInstallMatrix(root) {
   const readme = await readFile(readmePath, 'utf8');
   const issues = [];
 
-  if (!/^## Local Git Repository Install$/m.test(readme)) {
-    issues.push('README.md missing Local Git Repository Install section');
+  if (!/^## Install$/m.test(readme)) {
+    issues.push('README.md missing Install section');
+  }
+
+  // The full three-provider matrix lives on the docs site; the README must at
+  // least carry the Claude Code path and point readers at the rest.
+  if (!/claude plugin install consensus@skills --scope user/.test(readme)) {
+    issues.push('README.md missing Claude Code plugin install command');
+  }
+
+  if (!/user-guide\/installation\//.test(readme)) {
+    issues.push('README.md missing link to the Installation docs page');
   }
 
   return issues;

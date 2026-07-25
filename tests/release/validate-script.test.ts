@@ -54,7 +54,18 @@ async function createValidTempRepository() {
 
   await writeFile(
     path.join(tempRoot, 'README.md'),
-    '# Test\n\n## Local Git Repository Install\n',
+    [
+      '# Test',
+      '',
+      '## Install',
+      '',
+      '```bash',
+      'claude plugin install consensus@skills --scope user',
+      '```',
+      '',
+      'https://tkstang.github.io/skills/user-guide/installation/',
+      '',
+    ].join('\n'),
   );
   await writeFile(path.join(tempRoot, 'LICENSE'), 'MIT\n');
   await writeFile(path.join(tempRoot, 'CHANGELOG.md'), '# Changelog\n');
@@ -244,9 +255,13 @@ describe('validate-script', () => {
     expect(skillIssues.length).toBe(1);
     expect(skillIssues[0]).toMatch(/escape/i);
 
+    // This fixture README is intentionally bare, so every install-entry-point
+    // check should fire: heading, Claude Code command, and the docs link.
     const readmeIssues = await validateReadmeInstallMatrix(tempRoot);
-    expect(readmeIssues.length).toBe(1);
-    expect(readmeIssues[0]).toMatch(/Local Git Repository Install/);
+    expect(readmeIssues.length).toBe(3);
+    expect(readmeIssues[0]).toMatch(/Install section/);
+    expect(readmeIssues[1]).toMatch(/Claude Code plugin install command/);
+    expect(readmeIssues[2]).toMatch(/Installation docs page/);
   });
 
   it('version consistency and full repository validation pass', async () => {
