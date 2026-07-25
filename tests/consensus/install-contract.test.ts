@@ -42,14 +42,18 @@ describe('consensus install contract', () => {
       repoFile('src/consensus/core/consensus-loop.ts'),
     ]);
 
-    const readmeRefs = extractInstallRefs(readme);
-    expect(readmeRefs).toHaveLength(1);
-    const [readmeRef] = readmeRefs;
-    expect(readmeRef).toMatch(/^v\d+\.\d+\.\d+$/u);
-    expect(['main', 'HEAD']).not.toContain(readmeRef);
+    // The standalone-recovery installer is owned by the docs site. The README
+    // is a slim entry point and must not carry a second copy of the pinned
+    // one-liner — that duplication is what drifted previously.
+    expect(extractInstallRefs(readme)).toEqual([]);
 
     const installGuideRefs = extractInstallRefs(installGuide);
-    expect(installGuideRefs).toEqual([readmeRef]);
+    expect(installGuideRefs).toHaveLength(1);
+    const [installRef] = installGuideRefs;
+    // The installer must stay pinned to an immutable release tag. A mutable
+    // ref would let a `curl | bash` install change underneath users.
+    expect(installRef).toMatch(/^v\d+\.\d+\.\d+$/u);
+    expect(['main', 'HEAD']).not.toContain(installRef);
 
     const runtimeFacingInstallText = `${readme}\n${installGuide}\n${resolver}`;
     expect(runtimeFacingInstallText).not.toContain('<tag>');
@@ -57,11 +61,10 @@ describe('consensus install contract', () => {
       /raw\.githubusercontent\.com\/tkstang\/skills\/(?:main|HEAD)\//iu,
     );
 
-    expect(extractInstallShRef(installSh)).toBe(readmeRef);
+    expect(extractInstallShRef(installSh)).toBe(installRef);
     expect(extractInstallTargetRelative(installSh)).toBe(
       CONSENSUS_SHARED_CLI_RELATIVE_PATH,
     );
-    expect(readme).toContain(`~/${CONSENSUS_SHARED_CLI_RELATIVE_PATH}`);
     expect(installGuide).toContain(`~/${CONSENSUS_SHARED_CLI_RELATIVE_PATH}`);
     expect(installSh).toContain(
       'plugins/consensus/scripts/consensus.mjs',

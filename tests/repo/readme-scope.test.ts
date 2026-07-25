@@ -27,29 +27,37 @@ async function readDocsSite(): Promise<string> {
 }
 
 describe('readme-scope', () => {
-  it('README keeps the v0.1 local install matrix as the entry point', async () => {
+  it('README carries the Claude Code install path and routes to the full matrix', async () => {
     const readme = await read('README.md');
 
-    expect(readme).toMatch(/^## Local Git Repository Install$/m);
+    expect(readme).toMatch(/^## Install$/m);
     expect(readme).toMatch(
       /claude plugin marketplace add "\$PWD" --scope user/,
     );
     expect(readme).toMatch(
       /claude plugin install consensus@skills --scope user/,
     );
-    expect(readme).toMatch(/codex plugin marketplace add "\$PWD"/);
-    expect(readme).toMatch(/codex plugin add consensus --marketplace skills/);
-    expect(readme).toMatch(
-      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
-    );
     expect(readme).toMatch(/Node\.js 22/);
+    expect(readme).toMatch(/user-guide\/installation\//);
   });
 
-  it('README is a slim entry point that links into the docs site', async () => {
+  it('README does not duplicate the Codex and Cursor install commands', async () => {
     const readme = await read('README.md');
 
-    // Links readers into the migrated docs site.
-    expect(readme).toMatch(/documentation\/docs\//);
+    // The full three-provider matrix is owned by the docs site. Keeping a
+    // second copy here is what drifted last time; docs-presence.test.ts
+    // asserts the docs site still carries it.
+    expect(readme).not.toMatch(/codex plugin marketplace add/);
+    expect(readme).not.toMatch(/codex plugin add consensus/);
+    expect(readme).not.toMatch(/cursor agent --plugin-dir/);
+  });
+
+  it('README is a slim entry point that links into the published docs site', async () => {
+    const readme = await read('README.md');
+
+    // Links readers into the deployed site, not raw Markdown source paths.
+    expect(readme).toMatch(/https:\/\/tkstang\.github\.io\/skills\//);
+    expect(readme).not.toMatch(/documentation\/docs\//);
     // The dense reference sections were moved out of the README.
     expect(readme).not.toMatch(/^## Permissions$/m);
     expect(readme).not.toMatch(/^## Advanced Configuration$/m);
@@ -219,7 +227,7 @@ describe('readme-scope', () => {
     const readme = await read('README.md');
     const pluginReadme = await read('plugins/consensus/README.md');
 
-    expect(readme).toMatch(/consensus.*create/i);
+    expect(readme).toMatch(/consensus[\s\S]*create/i);
     expect(readme).toMatch(/brief/i);
     expect(pluginReadme).toMatch(/consensus-create/);
     expect(pluginReadme).toMatch(/--brief/);

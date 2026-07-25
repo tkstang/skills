@@ -1,93 +1,91 @@
 # skills
 
-> Status: v0.1.
+> Personal home for Agent Skills and packaged plugins, running across Claude Code,
+> Codex, and Cursor. Standalone skills in `skills/`, plugins in `plugins/<name>/`.
 
-A personal Agent Skills home: standalone skills under `skills/` and packaged
-plugins under `plugins/<name>/`, runnable across Claude Code, Codex, and Cursor.
+Status: **v0.1** · [Full documentation →](https://tkstang.github.io/skills/)
 
-It ships the **consensus** plugin — `create` (draft a new artifact from a brief),
-`decide` (choose between options while surfacing dissent), `plan` (turn a goal
-and constraints into a structured plan), `refine` (deliberate a markdown draft
-toward a converged artifact), `evaluate` (judge an artifact against a rubric),
-`panel` (ask multiple peers the same question with side-by-side attributed
-responses), and `phone-a-friend` (ask one peer for a structured advisory take) —
-plus standalone session skills (`session-observer`,
-`session-observer-collab` (coordinate a user and two mutually observing agent
-sessions with exact pins, bounded wake behavior, and explicit authority and
-closeout rules), and `export-session-transcript`).
+## Peers, not personas
 
-📖 **Full documentation** is the Fumadocs site under [`documentation/`](documentation/):
-the [User Guide](documentation/docs/user-guide/index.md) (install / use / configure)
-and [Engineering](documentation/docs/engineering/index.md) (how it works /
-contribute). Run it locally with `cd documentation && pnpm install && pnpm dev`.
+Most "multi-agent" workflows are one model wearing several hats. The **consensus**
+plugin isn't that — it invokes _other providers' CLIs as independent peers_, literally
+separate OS subprocesses: `claude --print --output-format json`, `codex exec --json`,
+`cursor-agent --output-format json`. Those peers deliberate in structured verdict
+rounds, and the wrapper writes a markdown artifact holding the converged output, a
+`consensus-resolution` block, and a full `## Deliberation Log` you can actually read.
 
-## Local Git Repository Install
+The non-obvious part is what happens when the peers _don't_ agree. **Disagreement is a
+first-class outcome, not something synthesis averages away.**
 
-The v0.1 path is local marketplace installation from this checkout. Run from the
-repository root.
+- `IMPASSE` is checked _before_ convergence — an impasse stops the run and gets
+  reported, rather than forced into a merged answer.
+- `decide` always emits a `## Dissent / Unresolved Disagreement` section.
+- `panel` refuses to synthesize at all.
 
-**Claude Code:**
+## Try it
+
+```
+/consensus:refine draft.md --goal "tighten the failure-handling section"
+
+/consensus:panel --question "Should retries live in the client or the gateway?" --panel-size 3
+```
+
+The first deliberates to convergence, or to a reported impasse. The second doesn't
+converge on purpose — you read three attributed takes and decide yourself.
+
+Invocation depends on how the skills are loaded. Installed as a plugin they're
+namespaced — `/consensus:refine` in Claude Code, `$consensus:refine` in Codex.
+Cursor's `--plugin-dir` is session-scoped rather than a plugin install, so there
+it's just `/refine`.
+
+## Consensus skills
+
+| Skill            | What it does                                             |
+| ---------------- | -------------------------------------------------------- |
+| `create`         | New artifact from a brief                                |
+| `decide`         | Choose between options, surfacing dissent                |
+| `plan`           | Goal + constraints → structured plan                     |
+| `refine`         | Deliberate a draft toward convergence                    |
+| `evaluate`       | Judge an artifact against a rubric                       |
+| `panel`          | Same question to several peers, attributed, no synthesis |
+| `phone-a-friend` | One peer, one advisory take — no deliberation loop       |
+
+[Consensus guide →](https://tkstang.github.io/skills/user-guide/consensus/)
+
+## Standalone skills
+
+Two jobs: watching _another_ agent, and exporting _your own_ session.
+
+| Skill                       | What it does                                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `session-observer`          | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new         |
+| `session-observer-collab`   | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules |
+| `export-session-transcript` | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                    |
+
+[Skills guide →](https://tkstang.github.io/skills/user-guide/skills/)
+
+## Install
+
+v0.1 installs from a local marketplace in this checkout. Claude Code, from the repo root:
 
 ```bash
 claude plugin marketplace add "$PWD" --scope user
 claude plugin install consensus@skills --scope user
-claude plugin details consensus
 ```
 
-**Codex:**
-
-```bash
-codex plugin marketplace add "$PWD"
-codex plugin add consensus --marketplace skills
-codex plugin list | rg 'consensus@skills'
-```
-
-**Cursor Agent:**
-
-```bash
-cursor agent --plugin-dir "$PWD/plugins/consensus"
-```
-
-Prerequisites: Node.js 22+ and local provider CLIs for the requested peers
-(`claude`, `codex`, `cursor`). The full install guide — caveats, prerequisites,
-and provider-readiness checks — is in the
-[User Guide → Installation](documentation/docs/user-guide/installation.md).
-
-## Alternative Consensus Installer
-
-Use the full consensus plugin install when possible. If a consensus skill was
-installed standalone through skills.sh without the plugin tree, run the pinned
-installer to provision the shared provider CLI at `~/.consensus/consensus.mjs`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash
-```
-
-This gives standalone consensus skills the same shared `consensus.mjs` runtime
-they would find in a plugin install. The remote one-liner goes live once
-`v0.1.2` is released; until then, running `bash install.sh` from a clone copies
-the in-tree `plugins/consensus/scripts/consensus.mjs` without network access.
-
-## Documentation
-
-- **[User Guide](documentation/docs/user-guide/index.md)** — install, use, and configure what this repo ships.
-  - [Installation](documentation/docs/user-guide/installation.md) · [Consensus](documentation/docs/user-guide/consensus/index.md) · [Skills](documentation/docs/user-guide/skills/index.md)
-- **[Engineering](documentation/docs/engineering/index.md)** — internals and contribution guidance.
-  - [Architecture](documentation/docs/engineering/architecture/index.md) · [Repository Layout](documentation/docs/engineering/repository-layout.md) · [Contributing](documentation/docs/engineering/contributing/index.md)
+Requires Node.js 22+, plus the local provider CLIs for whichever peers you ask for.
+Codex and Cursor paths, caveats, and readiness checks:
+[Installation →](https://tkstang.github.io/skills/user-guide/installation/)
 
 ## Development
 
-Shipped skills run with **no install step** (dependency-free Node ESM, standard
-library only); developer tooling uses pnpm. Verify with:
+Shipped skills are dependency-free Node ESM — stdlib only, no install step. Developer
+tooling uses pnpm.
 
 ```bash
-pnpm run type-check
-pnpm test
-pnpm run build:check
-pnpm run validate
-pnpm run smoke
+pnpm run premerge   # build + type-check + build:check + test + validate + smoke
 ```
 
-See [Engineering → Contributing](documentation/docs/engineering/contributing/index.md)
-for repository conventions, commit format, git hooks, and the docs authoring
-contract.
+Conventions, commit format, and the docs authoring contract:
+[Contributing →](https://tkstang.github.io/skills/engineering/contributing/) ·
+[Architecture →](https://tkstang.github.io/skills/engineering/architecture/)
