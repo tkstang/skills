@@ -319,12 +319,34 @@ export async function validateReadmeInstallMatrix(root) {
     issues.push('README.md missing Install section');
   }
 
-  // The full three-provider matrix lives on the docs site; the README must at
-  // least carry the Claude Code path and point readers at the rest.
-  if (!/claude plugin install consensus@skills --scope user/.test(readme)) {
-    issues.push('README.md missing Claude Code plugin install command');
+  // The README carries the three-provider install matrix: it is the tag-time
+  // gate, re-verified against live provider CLIs at release, and the entry
+  // point claims cross-provider support in its first sentence.
+  const matrixCommands = [
+    [
+      'Claude Code marketplace',
+      /claude plugin marketplace add "\$PWD" --scope user/,
+    ],
+    [
+      'Claude Code install',
+      /claude plugin install consensus@skills --scope user/,
+    ],
+    ['Codex marketplace', /codex plugin marketplace add "\$PWD"/],
+    ['Codex install', /codex plugin add consensus --marketplace skills/],
+    [
+      'Cursor plugin-dir',
+      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
+    ],
+  ];
+
+  for (const [label, pattern] of matrixCommands) {
+    if (!pattern.test(readme)) {
+      issues.push(`README.md missing ${label} command`);
+    }
   }
 
+  // Prerequisites and caveats stay on the docs site, so the matrix must route
+  // readers there rather than growing a second copy of that prose.
   if (!/user-guide\/installation\//.test(readme)) {
     issues.push('README.md missing link to the Installation docs page');
   }

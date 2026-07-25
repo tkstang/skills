@@ -27,7 +27,7 @@ async function readDocsSite(): Promise<string> {
 }
 
 describe('readme-scope', () => {
-  it('README carries the Claude Code install path and routes to the full matrix', async () => {
+  it('README keeps the v0.1 three-provider install matrix as the entry point', async () => {
     const readme = await read('README.md');
 
     expect(readme).toMatch(/^## Install$/m);
@@ -37,19 +37,14 @@ describe('readme-scope', () => {
     expect(readme).toMatch(
       /claude plugin install consensus@skills --scope user/,
     );
+    expect(readme).toMatch(/codex plugin marketplace add "\$PWD"/);
+    expect(readme).toMatch(/codex plugin add consensus --marketplace skills/);
+    expect(readme).toMatch(
+      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
+    );
     expect(readme).toMatch(/Node\.js 22/);
+    // Prerequisites and caveats stay on the docs site.
     expect(readme).toMatch(/user-guide\/installation\//);
-  });
-
-  it('README does not duplicate the Codex and Cursor install commands', async () => {
-    const readme = await read('README.md');
-
-    // The full three-provider matrix is owned by the docs site. Keeping a
-    // second copy here is what drifted last time; docs-presence.test.ts
-    // asserts the docs site still carries it.
-    expect(readme).not.toMatch(/codex plugin marketplace add/);
-    expect(readme).not.toMatch(/codex plugin add consensus/);
-    expect(readme).not.toMatch(/cursor agent --plugin-dir/);
   });
 
   it('README is a slim entry point that links into the published docs site', async () => {

@@ -60,7 +60,11 @@ async function createValidTempRepository() {
       '## Install',
       '',
       '```bash',
+      'claude plugin marketplace add "$PWD" --scope user',
       'claude plugin install consensus@skills --scope user',
+      'codex plugin marketplace add "$PWD"',
+      'codex plugin add consensus --marketplace skills',
+      'cursor agent --plugin-dir "$PWD/plugins/consensus"',
       '```',
       '',
       'https://tkstang.github.io/skills/user-guide/installation/',
@@ -256,12 +260,17 @@ describe('validate-script', () => {
     expect(skillIssues[0]).toMatch(/escape/i);
 
     // This fixture README is intentionally bare, so every install-entry-point
-    // check should fire: heading, Claude Code command, and the docs link.
+    // check fires: the heading, all five matrix commands, and the docs link.
     const readmeIssues = await validateReadmeInstallMatrix(tempRoot);
-    expect(readmeIssues.length).toBe(3);
+    expect(readmeIssues.length).toBe(7);
     expect(readmeIssues[0]).toMatch(/Install section/);
-    expect(readmeIssues[1]).toMatch(/Claude Code plugin install command/);
-    expect(readmeIssues[2]).toMatch(/Installation docs page/);
+    expect(readmeIssues).toContainEqual(
+      expect.stringMatching(/Codex marketplace command/),
+    );
+    expect(readmeIssues).toContainEqual(
+      expect.stringMatching(/Cursor plugin-dir command/),
+    );
+    expect(readmeIssues.at(-1)).toMatch(/Installation docs page/);
   });
 
   it('version consistency and full repository validation pass', async () => {
