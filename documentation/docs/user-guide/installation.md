@@ -38,9 +38,24 @@ codex plugin list | rg 'consensus@skills'
 cursor agent --plugin-dir "$PWD/plugins/consensus"
 ```
 
-The Cursor CLI does not currently expose `cursor plugin marketplace` or
-`cursor plugin install`; local plugin loading is session-scoped through Cursor
-Agent's `--plugin-dir` option.
+`--plugin-dir` is session-scoped: the plugin loads for that run only, and
+nothing is written under `~/.cursor/`. (`cursor agent`, `cursor-agent`, and
+`agent` are interchangeable entry points.)
+
+Cursor Agent does expose `cursor agent plugin marketplace add|list|remove|update`,
+but `add` indexes a **git repository URL**, not a local path — so the `"$PWD"`
+local-marketplace pattern used for Claude Code and Codex does not apply here.
+Adding a marketplace only makes the plugin discoverable; there is no
+`plugin install` verb on the CLI, and installing is done from the interactive
+plugin picker.
+
+Cursor Agent also lists plugins that **Claude Code** has enabled, tagged
+`(Claude Code)` and matching the `enabledPlugins` entries in
+`~/.claude/settings.json`. On a machine where consensus is installed for Claude
+Code, Cursor Agent picks it up with no separate Cursor install and no
+`--plugin-dir` flag. Observed against Cursor Agent 2026.07.23; treat it as
+current behavior rather than a guaranteed contract, and prefer `--plugin-dir`
+on machines without a Claude Code install.
 
 > If `skills` is already configured as a marketplace from a different local
 > checkout, provider CLIs may reject adding this checkout under the same
@@ -56,6 +71,34 @@ Agent's `--plugin-dir` option.
 
 The consensus wrappers always invoke peers through the generated provider CLI.
 There is no alternate backend selector in v0.1.
+
+## Updating an install
+
+Claude Code and Codex install this repo as a **local directory marketplace**, so
+the installed plugin tracks your checkout rather than a published release.
+Updating is a pull, followed by restarting the provider CLI to reload:
+
+```bash
+git -C /path/to/skills pull
+```
+
+For Claude Code, `~/.claude/settings.json` records only the enabled plugin and a
+`{"source": "directory", "path": ...}` marketplace pointer. There is no copied
+plugin tree under `~/.claude/`, so the pull _is_ the update.
+
+Two commands look like they should do this job and do not:
+
+- `claude plugin update consensus@skills` compares the plugin manifest version
+  in `plugins/consensus/.claude-plugin/plugin.json`. That version tracks
+  releases, not individual skill `SKILL.md` version bumps, so the command can
+  report `already at the latest version (0.1.0)` while the checkout genuinely
+  contains newer skill content. It also requires the qualified
+  `consensus@skills` id — a bare `consensus` fails with `Plugin not found`.
+- `claude plugin marketplace update skills` re-validates the marketplace
+  manifest. That matters for git-backed marketplaces; for a directory source it
+  fetches nothing.
+
+Neither is harmful, but neither is the signal. Use the pull.
 
 ## Standalone consensus recovery
 
