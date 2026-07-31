@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.2.16",
+  "oatVersion": "0.2.26",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",

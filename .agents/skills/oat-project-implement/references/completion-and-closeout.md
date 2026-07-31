@@ -106,10 +106,11 @@ files:
 ```bash
 oat state refresh
 git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+[ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
 git diff --cached --quiet || git commit -m "chore(oat): prepare final implementation closeout"
 ```
 
-Do not use `git add -A` or glob patterns. Only commit the three project artifacts listed above; `.oat/state.md` is a generated, gitignored dashboard.
+Do not use `git add -A` or glob patterns. Only commit the three project artifacts listed above, plus `$PROJECT_PATH/project-log.md` when it exists; `.oat/state.md` is a generated, gitignored dashboard.
 
 ### Step 12: Final Verification
 
@@ -750,7 +751,13 @@ Before generating, inspect the active project's explainer runs. A fresh `project
 Resolve recap intent through `oat-explainer-kit`. When `OAT_AUTONOMOUS=1` and no fresh recap exists, attempt `project-recap` exactly once; missing or stale persisted intent cannot suppress this autonomous attempt. Interactive mode honors the adapter's resolved persisted or workflow intent.
 
 Invoke the `oat-explainer-kit` adapter first, then run its shared tracked-run finalizer in `dedicated` mode for a successful build. Use the adapter result and finalizer result as returned; do not improvise commits, durability evidence, or reruns. Outcomes `failed` and `built-not-durable` are recorded warnings, never blockers for final HiLL approval, completion reporting, or later PR steps.
-Supply the provider-neutral critic callback (or validated critic module entry point for JSON/CLI invocation) on every federated adapter run.
+For an adapter invocation, construct exactly one brief-aware,
+provider-neutral author seam using
+`oat-explainer-kit/references/author-callback.md`. In-process callers pass
+`author`; JSON/CLI callers pass a validated `authorModulePath`. Supply it
+alongside the existing `critic` callback (or validated
+`criticModulePath`), and always invoke this implementation-tail recap with
+`mode: unattended`.
 
 Always include the selected or attempted recap's outcome and run path in the
 implementation completion report. If `summary.md` exists, append or refresh its
@@ -841,11 +848,13 @@ commit:
 ```bash
 oat state refresh
 git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+[ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
 git diff --cached --quiet || git commit -m "chore(oat): mark implementation complete"
 ```
 
 Do not use `git add -A` or glob patterns. Only commit the three project
-artifacts listed above; `.oat/state.md` is a generated, gitignored dashboard.
+artifacts listed above, plus `$PROJECT_PATH/project-log.md` when it exists;
+`.oat/state.md` is a generated, gitignored dashboard.
 
 ### Step 17: Prompt for Next Steps
 

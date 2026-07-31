@@ -20,13 +20,18 @@ responsible for file boundaries, verification, and task commits.
 Before each phase:
 
 1. Resolve the project dispatch policy and optional narrower phase maximum from
-   the plan's `## Dispatch Profile`.
+   the plan's `## Dispatch Profile`. Classify the complete phase scope and
+   record the classification source and rationale. For Codex, also classify
+   the preferred task effort.
 2. Resolve one exact phase implementer target with
-   `--role implementer --ceiling-tier <project-or-phase-named-tier> --report-scope <pNN> --report-action implementation`.
+   `--role implementer --ceiling-tier <project-or-phase-named-tier> --task-class <task-class> [--task-effort <codex-preferred-effort>] --report-scope <pNN> --report-action implementation`.
    Use the phase scope, not each task ID. Omit `--ceiling-tier` only for
    uncapped or inherit/default policy.
-3. Build the provider invocation before recording target, model/effort axes,
-   selection reason, candidates, and formal dispatch stamp.
+3. Require the completed Dispatch Report, surface its structured notices, and
+   render the report before launch. Build the provider invocation before
+   recording target, model/effort axes, selection reason, candidates, and
+   formal dispatch stamp. Runtime disclosure comes from the effective resolved
+   target, never `recommendationVersion`.
 4. Record `PHASE_BASE_HEAD=$(git rev-parse HEAD)` and require a clean worktree.
 5. Send one self-contained Phase Scope:
 
@@ -54,6 +59,10 @@ Before each phase:
    dispatch_args: {complete provider invocation payload}
    model_axis: {resolver value}
    effort_axis: {resolver value}
+   task_class: {mechanical-recon|intelligent-recon|default-implementation|hard-reasoning|consequential}
+   preferred_effort: {codex low|medium|high|xhigh|max; null for other providers}
+   classification_source: {plan dispatch profile|phase scope analysis|other explicit source}
+   classification_rationale: {short rationale grounded in the complete phase scope}
    selection_reason: {stable shared reason}
    candidates_considered: {ordered exact candidates}
    dispatch_stamp: {formal Dispatch: line}
@@ -149,9 +158,12 @@ Use the valid signal to validate the review artifact's orchestration evidence:
   one compact account of every attempted wave: task class, classification
   rationale, selected target, acceptance/outcome, floor satisfaction, fallback,
   and primary reconciliation. Missing or incomplete evidence is an
-  incomplete-artifact error. After successful validation, append exactly once
-  through `oat project log append`, creating one concise structural entry that
-  references the review artifact path.
+  incomplete-artifact error. Record one concise structural entry referencing the
+  review artifact path, but **do not append it here**: carry it to the terminal
+  phase outcome and append it exactly once through `oat project log append` with
+  the phase-outcome entry. Appending at this point dirties the tracked log
+  before the bounded fix loop below dispatches a fix child, whose step 3
+  requires a clean worktree.
 - For `not-attempted`, the artifact must not contain
   `## Review Orchestration`; treat a present section as an inconsistent,
   incomplete artifact. Do not append a log entry and do not invoke
@@ -161,6 +173,10 @@ For the attempted branch, do not mirror individual worker records. Defer flags
 and entry format to `oat project log append --help`; never pre-check project-log
 configuration because the helper no-ops when logging is disabled. The reviewer
 and workers never write `project-log.md` or append this entry.
+
+No project-log write happens anywhere between a reviewer returning and a fix
+child being dispatched. The deferred orchestration entry is appended with the
+phase-outcome entry at Step 7 and committed by that step's bookkeeping.
 
 After successful signal and orchestration validation, validate the review
 artifact scope and commit range.
@@ -221,6 +237,33 @@ Gate retry rounds use the same orchestration retry limit. Gate independence,
 configured provenance, liveness telemetry, and fail-closed behavior are
 unchanged.
 
+#### Reviews Ledger Mutation Contract
+
+Apply this contract whenever the implementation workflow directly dispositions
+a `## Reviews` event or re-points its artifact during archival or receive
+reconciliation. This includes Step 7 phase/fix outcomes and every checkpoint,
+final-review, gate-receive, and closeout path that mutates a Reviews row:
+
+- Parse the table header and resolve `Scope`, `Type`, `Status`, `Date`,
+  `Artifact`, `Reviewed Head`, `Invocation`, and `Gate Target` by header name;
+  never address a known cell by a fixed position.
+- For a legacy five-column table, append the provenance columns (`Reviewed
+Head`, `Invocation`, and `Gate Target`) to the header and separator, then pad
+  every existing row with `-`. For any shorter row in an already widened table,
+  pad missing cells with `-` through the current header width before mutation.
+- Preserve every unknown column in its original position and preserve every
+  existing known value unless the current operation explicitly advances that
+  cell. Never truncate a row to five, eight, or any other assumed width.
+- Populate missing provenance from the event's validated review artifact:
+  accept `oat_review_head_sha` only as a full 40-character hexadecimal commit
+  SHA, preserve `oat_review_invocation`, and preserve `oat_gate_target` only
+  for a gate invocation. Use `-` when validated provenance is unavailable;
+  never infer it from the current HEAD, reviewer identity, scope, or target.
+- An archive re-point changes only the bound event's `Artifact` cell (and a
+  monotonic status transition when required). It must preserve existing
+  provenance and unknown cells, while filling missing provenance when the
+  source artifact supplies validated values.
+
 ### Parallel Group Execution
 
 For a multi-phase schedule entry:
@@ -262,6 +305,8 @@ After each phase or parallel group:
   `fixes_completed` / `passed` as appropriate;
 - never select review bookkeeping by scope alone, replace an earlier event, or
   move an event status backward;
+- apply the Reviews Ledger Mutation Contract above before every disposition or
+  archive re-point;
 - update `state.md` current task, last commit, and timestamp;
 - remove legacy `oat_execution_mode: subagent-driven`; and
 - preserve any configured retry override.
@@ -271,8 +316,13 @@ Bookkeeping is mandatory:
 ```bash
 oat state refresh
 git add {PROJECT_PATH}/implementation.md {PROJECT_PATH}/state.md {PROJECT_PATH}/plan.md
+[ -f {PROJECT_PATH}/project-log.md ] && git add {PROJECT_PATH}/project-log.md
 git commit -m "chore(oat): bookkeeping after {pNN} {pass|fail}"
 ```
+
+`project-log.md` is tracked, so leaving it unstaged carries the log's dirt into
+the next dispatch and fails the child's clean-worktree preflight. Stage it only
+when it exists; logging can be disabled.
 
 ### Step 8: Check Plan Phase Completion
 
@@ -303,7 +353,14 @@ verification, final review, and stored pre-approval work before asking for
 approval.
 
 After phase summary and task pointer advancement, refresh state and commit the
-three tracking artifacts. Do not use `git add -A`.
+three tracking artifacts, plus `project-log.md` when it exists. Do not use
+`git add -A`.
+
+**Any step that appends to the project log owns committing it** before it
+returns, parks, or stops — not just the success path. STOP and park returns,
+validation failure, invalid-run aborts, and retry exhaustion all bypass this
+phase boundary, and each leaves the tracked log dirty for whatever runs next.
+Commit the log on those paths too, once no child owns the head.
 
 ### Step 9: Repeat Until Complete
 

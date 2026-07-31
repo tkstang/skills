@@ -1,6 +1,6 @@
 ---
 name: oat-project-implement
-version: 2.1.8
+version: 2.2.3
 description: Use when plan.md is ready for execution. Dispatches one phase implementer per phase, owns independent phase review and bounded fix routing, and supports plan-declared worktree-isolated parallel phases.
 oat_gateable: true
 argument-hint: '[--retry-limit <N>] [--dry-run]'
@@ -21,16 +21,14 @@ Execute the implementation plan task-by-task with full state tracking.
 
 ## Shared Subagent Dispatch Contract
 
-Before resolving or launching any phase implementer, optional nested worker,
-fix continuation, or reviewer, read and follow
-`.agents/skills/oat-project-dispatch-subagents/SKILL.md`. The project adapter
-resolves lifecycle scope and then requires
-`.agents/skills/oat-dispatch-subagents/SKILL.md` for provider-neutral
-selection, recovery, and evidence. This explicit two-skill load is mandatory;
-do not rely on ambient skill discovery. This implementation skill retains
-lifecycle sequencing, verification, integration, and approval-aware final
-closeout.
-Correctness must not require a provider restart or hot reload.
+Before resolving or launching a phase implementer, optional child, fix, or
+reviewer, read `.agents/skills/oat-project-dispatch-subagents/SKILL.md`, then
+`.agents/skills/oat-dispatch-subagents/SKILL.md`. The former resolves lifecycle
+scope; the latter owns provider-neutral selection, recovery, and evidence.
+Display structured resolver notices before every implementation, fix, or
+reviewer launch. Runtime disclosure uses the effective resolved target, never
+the bundled recommendation version. This explicit load is mandatory, and
+correctness must not require a provider restart or hot reload.
 
 Read
 `.agents/skills/subagent-orchestration/references/model-selection-principles.md`.
@@ -46,8 +44,17 @@ or mechanics.
 Defer entry flags to `oat project log append --help`; never pre-check config:
 the helper no-ops when the feature is off.
 
-- After every accepted subagent dispatch, use `oat project log append` at
-  `$PROJECT_PATH/implementation.md#<run-anchor>`; never mirror that record.
+**Never append while a dispatched child owns the worktree.** The tracked log
+dirties the tree that the child's preflight and per-task commit checks require
+to be clean; each append is committed by the bookkeeping that owns it.
+
+- After every accepted subagent dispatch, record the acceptance in the generic
+  dispatch record at `$PROJECT_PATH/implementation.md#<run-anchor>`;
+  never mirror that record. Do not write the project log at acceptance; append
+  it with the phase-outcome entry after the child's report returns.
+- Implementing a phase in the root during a Tier 1 run is a deviation, never a
+  silent default: record the phase ID, reason, and root model under a sibling
+  `Root-inline phase` heading at that run anchor. Sanctioned Tier 2 needs none.
 - Before validating the review artifact or updating project bookkeeping, consume
   exactly one brief artifact-mode confirmation of reconnaissance:
 - `**Reconnaissance:** attempted`
@@ -56,7 +63,9 @@ the helper no-ops when the feature is off.
   and fail closed before validation, bookkeeping, or logging.
 - For `attempted`, require complete `## Review Orchestration` evidence. After
   validation, append exactly once through `oat project log append`, referencing
-  the artifact without copying records.
+  the artifact without copying records. Defer that append to the terminal phase
+  outcome; appending when the reviewer returns dirties the tree before a fix
+  child is dispatched into it.
 - For `not-attempted`, the artifact must not contain `## Review Orchestration`;
   do not invoke `oat project log append` or create a log entry.
 - Before every STOP or park return, invoke `oat project log append` for a
