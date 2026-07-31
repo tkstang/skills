@@ -24,6 +24,14 @@ const scenarios = {
     labels: ['parsed', 'parsed', 'parsed'],
     newlineTerminated: true,
   },
+  'framed-grow-in-place-after.jsonl': {
+    labels: ['parsed', 'parsed', 'parsed'],
+    newlineTerminated: true,
+  },
+  'framed-grow-in-place-before.jsonl': {
+    labels: ['parsed', 'parsed'],
+    newlineTerminated: true,
+  },
   'framed-malformed-middle.jsonl': {
     labels: ['parsed', 'malformed', 'parsed'],
     newlineTerminated: true,
@@ -116,7 +124,7 @@ describe('Cursor framed fixture contract', () => {
     expect(fixtureText).toMatch(/Synthetic request/);
   });
 
-  it('keeps append and replacement pairs byte-comparable', async () => {
+  it('keeps append, grow-in-place, and replacement pairs byte-comparable', async () => {
     const appendBefore = await readFile(
       new URL('framed-append-before.jsonl', fixtureDirectory),
     );
@@ -129,8 +137,21 @@ describe('Cursor framed fixture contract', () => {
     const replacementAfter = await readFile(
       new URL('framed-replacement-after.jsonl', fixtureDirectory),
     );
+    const growBefore = await readFile(
+      new URL('framed-grow-in-place-before.jsonl', fixtureDirectory),
+    );
+    const growAfter = await readFile(
+      new URL('framed-grow-in-place-after.jsonl', fixtureDirectory),
+    );
 
     expect(appendAfter.subarray(0, appendBefore.length)).toEqual(appendBefore);
+    const growBoundary = growBefore.indexOf(0x0a) + 1;
+    expect(growAfter.subarray(0, growBoundary)).toEqual(
+      growBefore.subarray(0, growBoundary),
+    );
+    expect(growAfter.subarray(growBoundary, growBefore.length)).not.toEqual(
+      growBefore.subarray(growBoundary),
+    );
     expect(replacementAfter.length).toBe(replacementBefore.length);
     expect(replacementAfter).not.toEqual(replacementBefore);
   });

@@ -174,6 +174,8 @@ export interface CursorTurnReconciliation {
   fromFrameIndex: number;
   observedThroughFrame: number;
   deliveredEntryKeys: string[];
+  /** Content hashes let a rewritten open-turn frame be delivered again. */
+  deliveredEntryHashes?: Record<string, string>;
   assistantEntryKeys: string[];
   humanRecordIndexes: number[];
   toolRecordIndexes: number[];
@@ -212,6 +214,7 @@ export interface PendingCursorDelivery {
   expectedCheckpoint: TranscriptContinuityCheckpoint;
   reservedThroughFrameIndex: number;
   entryKeys: string[];
+  entryHashes?: Record<string, string>;
   intendedCheckpoint: TranscriptContinuityCheckpoint;
   reservedByPid: number;
   reservedAt: string;
@@ -465,6 +468,8 @@ export interface CursorDigestEntryV2 extends Omit<
   sourceFrameIndex: number;
   entryKey: string;
   turnId: string;
+  /** User-delimited presentation group; lifecycle identity remains `turnId`. */
+  renderTurnId?: string;
   availability: 'pending-lifecycle' | 'completed';
 }
 

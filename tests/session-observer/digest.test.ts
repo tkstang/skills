@@ -420,6 +420,58 @@ describe('Cursor digest v2 behavior', () => {
     }
   });
 
+  test('bounds a long terminal-delimited Cursor run by user render groups', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-user-groups-'));
+    try {
+      const transcriptPath = join(tmpDir, 'user-groups.jsonl');
+      const exchanges = Array.from({ length: 20 }, (_, index) => [
+        {
+          role: 'user',
+          message: { content: `Synthetic direction ${index}.` },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: `Synthetic answer ${index}. ${'x'.repeat(200)}`,
+          },
+        },
+      ]).flat();
+      await writeFile(
+        transcriptPath,
+        [...exchanges, { type: 'turn_ended', status: 'success' }]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+
+      const digest = await buildDigest('cursor', transcriptPath, {
+        ...cursorDigestOptions(context, 'observation'),
+        maxTurns: 4,
+      });
+      const markdown = renderMarkdown(digest);
+
+      expect(digest.entries.map((entry) => entry.text)).toEqual(
+        [16, 17, 18, 19].map(
+          (index) => `Synthetic answer ${index}. ${'x'.repeat(200)}`,
+        ),
+      );
+      expect(
+        new Set(digest.entries.map((entry) => entry.turnId)),
+      ).toHaveProperty('size', 1);
+      expect(
+        new Set(digest.entries.map((entry) => entry.renderTurnId)),
+      ).toHaveProperty('size', 4);
+      expect(digest.accounting.recovery.omittedUserMessages).toHaveLength(4);
+      expect(digest.accounting.recovery.omittedAssistantEntries).toHaveLength(
+        0,
+      );
+      expect(markdown).not.toContain('Synthetic answer 15.');
+      expect(markdown.length).toBeLessThan(6_000);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('projects confirmed open-turn content with frame accounting and truthful pending status', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-pending-'));
     try {

@@ -356,7 +356,7 @@ function isObject(value) {
 }
 function isCursorContinuity(value, observationCursor) {
   if (!isObject(value)) return false;
-  return value.indexBase === "zero-based-jsonl-frame-index" && value.nextFrameIndex === observationCursor && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && isNonNegativeInteger(value.observedSize) && value.prefixBytes <= value.observedSize && isNonNegativeInteger(value.device) && isNonNegativeInteger(value.inode);
+  return value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(observationCursor) && isNonNegativeInteger(value.nextFrameIndex) && value.nextFrameIndex <= observationCursor && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && isNonNegativeInteger(value.observedSize) && value.prefixBytes <= value.observedSize && isNonNegativeInteger(value.device) && isNonNegativeInteger(value.inode);
 }
 function isObservationStatus(value) {
   if (!isObject(value)) return false;

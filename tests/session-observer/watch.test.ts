@@ -837,7 +837,8 @@ describe('runWatchLoop', () => {
       const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
       expect(
         state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
-      ).toBe(4);
+      ).toBe(3);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(4);
       expect(state?.sessions?.[`cursor:${sessionId}`]?.pendingDelivery).toBe(
         null,
       );
@@ -939,7 +940,10 @@ describe('runWatchLoop', () => {
       const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
       expect(
         state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
-      ).toBe(3 + writtenMessages.length);
+      ).toBe(3);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(
+        3 + writtenMessages.length,
+      );
       expect(state?.sessions?.[`cursor:${sessionId}`]?.stabilityCandidate).toBe(
         null,
       );

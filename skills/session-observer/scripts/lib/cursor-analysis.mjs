@@ -6,6 +6,12 @@ import {
   isNoOpText,
   parseAutomaticControlEnvelope
 } from './runtimes.mjs';
+function cursorRenderTurnId(turn, sourceFrameIndex) {
+  const humanFrameIndex = turn.humanRecordIndexes.findLast(
+    (frameIndex) => frameIndex <= sourceFrameIndex
+  );
+  return `${turn.turnId}:render:${humanFrameIndex ?? turn.fromFrameIndex}`;
+}
 function isJsonObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -231,5 +237,6 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
   };
 }
 export {
-  createCursorTurnAccumulator
+  createCursorTurnAccumulator,
+  cursorRenderTurnId
 };

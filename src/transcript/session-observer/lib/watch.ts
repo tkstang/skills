@@ -839,8 +839,8 @@ function applyCursorTargetState(
   state: CursorSessionStateEntry,
   result?: CursorObserveSuccess,
 ): void {
-  target.observationCursor = state.continuity.nextFrameIndex;
-  target.baselineRecordIndex = state.continuity.nextFrameIndex;
+  target.observationCursor = state.lastRecordIndex;
+  target.baselineRecordIndex = state.lastRecordIndex;
   target.continuity = structuredClone(state.continuity);
   target.pendingCandidateDeadline = state.stabilityCandidate
     ? Date.parse(state.stabilityCandidate.confirmAfter)
@@ -865,7 +865,7 @@ async function persistCursorTarget(
     key: target.key,
     expectedObservationCursor,
     next: {
-      observationCursor: state.continuity.nextFrameIndex,
+      observationCursor: state.lastRecordIndex,
       recordCount: result?.digest.range.totalFrames,
       bufferedFromFrame: cursorBufferedFromFrame(target, result),
       continuity: state.continuity,
@@ -929,14 +929,14 @@ async function cursorBaselineTarget(
     recordedCwd: identity.canonicalCwd,
     signature: { mtimeMs: scan.file.mtimeMs, size: scan.file.size },
     recordCount: scan.totalFrames,
-    baselineRecordIndex: continuity.nextFrameIndex,
+    baselineRecordIndex: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
     candidateMtime: candidate.mtime,
     engagementStatus:
       prior?.lastStatus.engagement ?? candidate.engagementStatus,
     lockedAt: new Date(deps.now()).toISOString(),
     indexBase: 'zero-based-jsonl-frame-index',
     canonicalTranscriptPath: identity.canonicalTranscriptPath,
-    observationCursor: continuity.nextFrameIndex,
+    observationCursor: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
     bufferedFromFrame: null,
     continuity,
     pendingCandidateDeadline: prior?.stabilityCandidate
@@ -952,7 +952,7 @@ async function cursorBaselineTarget(
       ...target,
       indexBase: 'zero-based-jsonl-frame-index',
       canonicalTranscriptPath: identity.canonicalTranscriptPath,
-      observationCursor: continuity.nextFrameIndex,
+      observationCursor: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
       continuity,
       pendingCandidateDeadline:
         target.pendingCandidateDeadline === null ||

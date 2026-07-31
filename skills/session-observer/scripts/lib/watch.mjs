@@ -532,8 +532,8 @@ function cursorBufferedFromFrame(target, result) {
   return bufferedFromFrame === void 0 ? target.bufferedFromFrame ?? null : bufferedFromFrame;
 }
 function applyCursorTargetState(target, state, result) {
-  target.observationCursor = state.continuity.nextFrameIndex;
-  target.baselineRecordIndex = state.continuity.nextFrameIndex;
+  target.observationCursor = state.lastRecordIndex;
+  target.baselineRecordIndex = state.lastRecordIndex;
   target.continuity = structuredClone(state.continuity);
   target.pendingCandidateDeadline = state.stabilityCandidate ? Date.parse(state.stabilityCandidate.confirmAfter) : null;
   target.lastStatus = structuredClone(state.lastStatus);
@@ -549,7 +549,7 @@ async function persistCursorTarget(target, pid, state, result) {
     key: target.key,
     expectedObservationCursor,
     next: {
-      observationCursor: state.continuity.nextFrameIndex,
+      observationCursor: state.lastRecordIndex,
       recordCount: result?.digest.range.totalFrames,
       bufferedFromFrame: cursorBufferedFromFrame(target, result),
       continuity: state.continuity,
@@ -606,13 +606,13 @@ async function cursorBaselineTarget(args, targets, deps, eventState) {
     recordedCwd: identity.canonicalCwd,
     signature: { mtimeMs: scan.file.mtimeMs, size: scan.file.size },
     recordCount: scan.totalFrames,
-    baselineRecordIndex: continuity.nextFrameIndex,
+    baselineRecordIndex: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
     candidateMtime: candidate.mtime,
     engagementStatus: prior?.lastStatus.engagement ?? candidate.engagementStatus,
     lockedAt: new Date(deps.now()).toISOString(),
     indexBase: "zero-based-jsonl-frame-index",
     canonicalTranscriptPath: identity.canonicalTranscriptPath,
-    observationCursor: continuity.nextFrameIndex,
+    observationCursor: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
     bufferedFromFrame: null,
     continuity,
     pendingCandidateDeadline: prior?.stabilityCandidate ? Date.parse(prior.stabilityCandidate.confirmAfter) : null,
@@ -625,7 +625,7 @@ async function cursorBaselineTarget(args, targets, deps, eventState) {
       ...target,
       indexBase: "zero-based-jsonl-frame-index",
       canonicalTranscriptPath: identity.canonicalTranscriptPath,
-      observationCursor: continuity.nextFrameIndex,
+      observationCursor: prior?.lastRecordIndex ?? continuity.nextFrameIndex,
       continuity,
       pendingCandidateDeadline: target.pendingCandidateDeadline === null || target.pendingCandidateDeadline === void 0 ? null : new Date(target.pendingCandidateDeadline).toISOString(),
       lastStatus: target.lastStatus,

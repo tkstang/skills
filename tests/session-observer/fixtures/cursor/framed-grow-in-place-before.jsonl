@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Synthetic request for a grow-in-place observation."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Synthetic draft."},{"type":"tool_use","name":"inspect","input":{"scope":"tail"}}]}}
