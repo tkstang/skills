@@ -2,13 +2,16 @@
  * observe.test.ts — tests for the reusable catch-up observation pipeline.
  */
 
+import { createHash } from 'node:crypto';
 import {
   appendFile,
   mkdtemp,
   rm,
   mkdir,
+  open,
   readFile,
   realpath,
+  stat,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -22,6 +25,15 @@ import {
 } from '../../src/transcript/session-observer/lib/cursor-state.js';
 import { renderMarkdown } from '../../src/transcript/session-observer/lib/digest.js';
 import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
+
+const growInPlaceBeforeFixture = new URL(
+  './fixtures/cursor/framed-grow-in-place-before.jsonl',
+  import.meta.url,
+);
+const growInPlaceAfterFixture = new URL(
+  './fixtures/cursor/framed-grow-in-place-after.jsonl',
+  import.meta.url,
+);
 
 function claudeSlug(cwd: string): string {
   return cwd.replace(/[/.]/g, '-');
@@ -51,6 +63,26 @@ async function withTempSessionHome(
     else process.env.STATE_DIR = previousStateDir;
     await rm(home, { recursive: true, force: true });
   }
+}
+
+async function growTrailingCursorFrameInPlace(
+  transcriptPath: string,
+): Promise<void> {
+  const before = await readFile(growInPlaceBeforeFixture);
+  const after = await readFile(growInPlaceAfterFixture, 'utf8');
+  const byteStart = before.indexOf(0x0a) + 1;
+  const [userFrame, assistantFrame, terminalFrame] = after
+    .trimEnd()
+    .split('\n');
+  expect(byteStart).toBe(Buffer.byteLength(`${userFrame}\n`));
+  const replacement = Buffer.from(`${assistantFrame}\n`, 'utf8');
+  const handle = await open(transcriptPath, 'r+');
+  try {
+    await handle.write(replacement, 0, replacement.length, byteStart);
+  } finally {
+    await handle.close();
+  }
+  await appendFile(transcriptPath, `${terminalFrame}\n`, 'utf8');
 }
 
 async function writeClaudeTranscript(
@@ -430,6 +462,208 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test('keeps an open-turn anchor settled when the trailing frame grows in place', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-grow-in-place');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-grow-in-place';
+      const beforeRecords = (await readFile(growInPlaceBeforeFixture, 'utf8'))
+        .trimEnd()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      const transcriptPath = await writeCursorTranscript(
+        home,
+        cwd,
+        sessionId,
+        beforeRecords,
+      );
+      const siblingSessionId = 'observe-cursor-grow-in-place-sibling';
+      await writeCursorTranscript(home, cwd, siblingSessionId, [
+        { role: 'user', message: { content: 'Sibling request.' } },
+        { role: 'assistant', message: { content: 'Sibling answer.' } },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const sibling = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${siblingSessionId}`,
+        },
+        { ownerPid: 7198 },
+      );
+      expect(sibling.ok).toBe(true);
+      if (!sibling.ok || sibling.runtime !== 'cursor' || !sibling.delivery) {
+        throw new Error(
+          sibling.ok ? 'expected sibling delivery' : sibling.message,
+        );
+      }
+      await sibling.delivery.commit();
+      const siblingBefore = structuredClone(
+        await getCursorSession(siblingSessionId),
+      );
+
+      const initial = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0,
+        },
+        { ownerPid: 7199 },
+      );
+      expect(initial.ok).toBe(true);
+      if (!initial.ok || initial.runtime !== 'cursor' || !initial.delivery) {
+        throw new Error(
+          initial.ok ? 'expected Cursor delivery' : initial.message,
+        );
+      }
+      await initial.delivery.commit();
+      expect(await getCursorSession(sessionId)).toMatchObject({
+        lastRecordIndex: 2,
+        continuity: { nextFrameIndex: 0, prefixBytes: 0 },
+        openTurn: { deliveredEntryHashes: expect.any(Object) },
+      });
+
+      const fileBefore = await stat(transcriptPath);
+      await growTrailingCursorFrameInPlace(transcriptPath);
+      const fileAfter = await stat(transcriptPath);
+      expect(fileAfter.dev).toBe(fileBefore.dev);
+      expect(fileAfter.ino).toBe(fileBefore.ino);
+      expect(fileAfter.size).toBeGreaterThan(fileBefore.size);
+
+      const completed = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7199 },
+      );
+      expect(completed.ok).toBe(true);
+      if (
+        !completed.ok ||
+        completed.runtime !== 'cursor' ||
+        !completed.delivery
+      ) {
+        throw new Error(
+          completed.ok ? 'expected Cursor delivery' : completed.message,
+        );
+      }
+      expect(completed.digest.entries.map((entry) => entry.text)).toEqual([
+        'Synthetic draft that grew after the observer sampled the closed frame.',
+      ]);
+      await completed.delivery.commit();
+      expect(await getCursorSession(sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        continuity: { nextFrameIndex: 3 },
+        openTurn: null,
+      });
+      expect(await getCursorSession(siblingSessionId)).toEqual(siblingBefore);
+    });
+  });
+
+  test('scopes legacy mutable-tail re-anchoring to the affected Cursor session', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-legacy-reanchor');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-legacy-reanchor';
+      const beforeBytes = await readFile(growInPlaceBeforeFixture);
+      const beforeRecords = beforeBytes
+        .toString('utf8')
+        .trimEnd()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      const transcriptPath = await writeCursorTranscript(
+        home,
+        cwd,
+        sessionId,
+        beforeRecords,
+      );
+      const initial = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0,
+        },
+        { ownerPid: 7200 },
+      );
+      expect(initial.ok).toBe(true);
+      if (!initial.ok || initial.runtime !== 'cursor' || !initial.delivery) {
+        throw new Error(
+          initial.ok ? 'expected Cursor delivery' : initial.message,
+        );
+      }
+      await initial.delivery.commit();
+
+      const siblingSessionId = 'observe-cursor-legacy-sibling';
+      await writeCursorTranscript(home, cwd, siblingSessionId, [
+        { role: 'user', message: { content: 'Preserve sibling state.' } },
+        { role: 'assistant', message: { content: 'Sibling is settled.' } },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const sibling = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${siblingSessionId}`,
+        },
+        { ownerPid: 7201 },
+      );
+      expect(sibling.ok).toBe(true);
+      if (!sibling.ok || sibling.runtime !== 'cursor' || !sibling.delivery) {
+        throw new Error(
+          sibling.ok ? 'expected sibling delivery' : sibling.message,
+        );
+      }
+      await sibling.delivery.commit();
+      const siblingBefore = structuredClone(
+        await getCursorSession(siblingSessionId),
+      );
+
+      const fileBefore = await stat(transcriptPath);
+      await mutateCursorState((state) => {
+        const entry = state.sessions[`cursor:${sessionId}`]!;
+        entry.continuity = {
+          indexBase: 'zero-based-jsonl-frame-index',
+          nextFrameIndex: 2,
+          prefixBytes: beforeBytes.length,
+          prefixSha256: createHash('sha256').update(beforeBytes).digest('hex'),
+          observedSize: beforeBytes.length,
+          device: fileBefore.dev,
+          inode: fileBefore.ino,
+        };
+        entry.openTurn = null;
+        entry.stabilityCandidate = null;
+      });
+
+      await growTrailingCursorFrameInPlace(transcriptPath);
+      const recovered = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7200 },
+      );
+      expect(recovered.ok).toBe(true);
+      if (
+        !recovered.ok ||
+        recovered.runtime !== 'cursor' ||
+        !recovered.delivery
+      ) {
+        throw new Error(
+          recovered.ok ? 'expected Cursor recovery' : recovered.message,
+        );
+      }
+      expect(recovered.digest.warnings).toEqual([
+        expect.stringContaining('without changing sibling sessions'),
+      ]);
+      expect((await getCursorSession(sessionId))?.continuity).toMatchObject({
+        nextFrameIndex: 0,
+        prefixBytes: 0,
+      });
+      expect(await getCursorSession(siblingSessionId)).toEqual(siblingBefore);
+      await recovered.delivery.commit();
+      expect(
+        (await getCursorSession(sessionId))?.continuity.nextFrameIndex,
+      ).toBe(3);
+      expect(await getCursorSession(siblingSessionId)).toEqual(siblingBefore);
+    });
+  });
+
   test('delivers the confirmed Cursor prefix while retaining growth from its confirmation interval', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = join(home, 'workspace', 'observe-cursor-prefix-growth');
@@ -449,9 +683,6 @@ describe('observeCatchUp', () => {
           },
         },
       ]);
-      const prefixBytes = Buffer.byteLength(
-        await readFile(transcriptPath, 'utf8'),
-      );
       const laterMetadata = JSON.stringify({
         type: 'metadata',
         note: 'safe bytes after frame A',
@@ -511,9 +742,9 @@ describe('observeCatchUp', () => {
         (await getCursorSession(sessionId))?.pendingDelivery
           ?.intendedCheckpoint,
       ).toMatchObject({
-        nextFrameIndex: 3,
-        prefixBytes: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
-        observedSize: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
+        nextFrameIndex: 0,
+        prefixBytes: 0,
+        observedSize: 0,
       });
 
       await expect(first.delivery!.commit()).resolves.toBe('committed');

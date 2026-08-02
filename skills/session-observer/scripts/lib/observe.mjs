@@ -2,7 +2,10 @@
 // Source: src/transcript/session-observer/lib/observe.ts
 import { createHash, randomUUID } from "node:crypto";
 import { open, readFile } from "node:fs/promises";
-import { createCursorTurnAccumulator } from './cursor-analysis.mjs';
+import {
+  createCursorTurnAccumulator,
+  cursorRenderTurnId
+} from './cursor-analysis.mjs';
 import {
   scanCursorTranscript
 } from './cursor-frames.mjs';
@@ -351,15 +354,22 @@ function initialCursorSession(identity, scan) {
 async function scanCursor(identity, fromFrameIndex, verifyPrefixBytes, deps) {
   const accumulator = createCursorTurnAccumulator(identity, fromFrameIndex);
   const frameEnds = [];
+  const frameStarts = [];
   const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
     verifyPrefixBytes,
     onFrame(frame) {
       accumulator.onFrame(frame);
+      frameStarts[frame.frameIndex] = frame.byteStart;
       frameEnds[frame.frameIndex] = frame.closed && (frame.parseState === "parsed" || frame.parseState === "blank") ? frame.byteEnd : null;
     }
   });
   deps.onCursorScan?.();
-  return { scan, analysis: accumulator.finish(scan), frameEnds };
+  return {
+    scan,
+    analysis: accumulator.finish(scan),
+    frameEnds,
+    frameStarts
+  };
 }
 function cursorCandidateObservation(result, observedAt, fromFrameIndex = 0) {
   const turn = result.analysis.turns.findLast(
@@ -455,9 +465,27 @@ async function captureCursorCheckpoint(transcriptPath, result, nextFrameIndex) {
     await handle.close();
   }
 }
+function settledNextFrameIndex(result, throughFrameIndex, minimumNextFrameIndex) {
+  let nextFrameIndex = minimumNextFrameIndex;
+  for (const turn of result.analysis.turns) {
+    if (turn.terminalFrameIndex !== null && turn.terminalFrameIndex < throughFrameIndex) {
+      nextFrameIndex = Math.max(nextFrameIndex, turn.terminalFrameIndex + 1);
+    }
+  }
+  return nextFrameIndex;
+}
+function isLegacyMutableTailCheckpoint(state, result) {
+  if (state.pendingDelivery !== null || state.lastRecordIndex === 0 || result.scan.file.device !== state.continuity.device || result.scan.file.inode !== state.continuity.inode || result.scan.file.size < state.continuity.prefixBytes || result.scan.totalFrames < state.lastRecordIndex) {
+    return false;
+  }
+  const finalConsumedFrame = state.lastRecordIndex - 1;
+  const byteStart = result.frameStarts[finalConsumedFrame];
+  const byteEnd = result.frameEnds[finalConsumedFrame];
+  return byteStart !== void 0 && byteEnd !== null && byteEnd !== void 0 && state.continuity.prefixBytes > byteStart && state.continuity.prefixBytes < byteEnd;
+}
 function reconstructUncertainReplay(pending, result) {
   const { intendedCheckpoint } = pending;
-  if (intendedCheckpoint.nextFrameIndex !== pending.reservedThroughFrameIndex + 1 || intendedCheckpoint.nextFrameIndex < pending.expectedNextFrameIndex || result.scan.file.device !== intendedCheckpoint.device || result.scan.file.inode !== intendedCheckpoint.inode || result.scan.file.size < intendedCheckpoint.prefixBytes || result.scan.totalFrames < intendedCheckpoint.nextFrameIndex || result.scan.verifiedPrefixSha256 !== intendedCheckpoint.prefixSha256 || new Set(pending.entryKeys).size !== pending.entryKeys.length) {
+  if (intendedCheckpoint.nextFrameIndex > pending.reservedThroughFrameIndex + 1 || intendedCheckpoint.nextFrameIndex < pending.expectedCheckpoint.nextFrameIndex || result.scan.file.device !== intendedCheckpoint.device || result.scan.file.inode !== intendedCheckpoint.inode || result.scan.file.size < intendedCheckpoint.prefixBytes || result.scan.totalFrames < intendedCheckpoint.nextFrameIndex || result.scan.verifiedPrefixSha256 !== intendedCheckpoint.prefixSha256 || new Set(pending.entryKeys).size !== pending.entryKeys.length) {
     return null;
   }
   const records = new Map(
@@ -470,6 +498,10 @@ function reconstructUncertainReplay(pending, result) {
   const replay = pending.entryKeys.map((entryKey) => {
     const matched = records.get(entryKey);
     if (!matched) return null;
+    const expectedHash = pending.entryHashes?.[entryKey];
+    if (expectedHash !== void 0 && expectedHash !== createHash("sha256").update(matched.record.text).digest("hex")) {
+      return null;
+    }
     const terminalFrameIndex = matched.turn.terminalFrameIndex;
     const completedWithinReservation = matched.turn.lifecycle === "success" && terminalFrameIndex !== null && terminalFrameIndex <= pending.reservedThroughFrameIndex;
     return {
@@ -480,6 +512,10 @@ function reconstructUncertainReplay(pending, result) {
       kind: "message",
       entryKey: matched.record.entryKey,
       turnId: matched.record.turnId,
+      renderTurnId: cursorRenderTurnId(
+        matched.turn,
+        matched.record.sourceFrameIndex
+      ),
       availability: completedWithinReservation ? "completed" : "pending-lifecycle"
     };
   });
@@ -496,6 +532,15 @@ function cursorOpenTurn(state, scanResult, digest) {
   );
   if (turn === void 0) return null;
   const prior = state.openTurn?.turnId === turn.turnId ? state.openTurn : void 0;
+  const deliveredEntryHashes = {
+    ...prior?.deliveredEntryHashes,
+    ...Object.fromEntries(
+      digest.entries.map((entry) => [
+        entry.entryKey,
+        createHash("sha256").update(entry.text).digest("hex")
+      ])
+    )
+  };
   return {
     turnId: turn.turnId,
     fromFrameIndex: turn.fromFrameIndex,
@@ -506,6 +551,7 @@ function cursorOpenTurn(state, scanResult, digest) {
         ...digest.entries.map((entry) => entry.entryKey)
       ])
     ],
+    deliveredEntryHashes,
     assistantEntryKeys: [
       .../* @__PURE__ */ new Set([
         ...prior?.assistantEntryKeys ?? [],
@@ -602,17 +648,46 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
   }
   let state = await cursorStateLib.getCursorSession(identity.sessionId);
   const analysisFromFrame = state?.openTurn?.fromFrameIndex ?? state?.continuity.nextFrameIndex ?? 0;
-  const first = await scanCursor(
+  let first = await scanCursor(
     identity,
     analysisFromFrame,
     state?.continuity.prefixBytes,
     deps
   );
-  const continuity = cursorStateLib.validateCursorContinuity(
+  let continuity = cursorStateLib.validateCursorContinuity(
     identity,
     first.scan,
     state
   );
+  const warnings = [];
+  if (continuity.status === "blocked" && continuity.code === "PREFIX_MISMATCH" && state !== null && isLegacyMutableTailCheckpoint(state, first)) {
+    const full = analysisFromFrame === 0 ? first : await scanCursor(identity, 0, void 0, deps);
+    const settledNext = settledNextFrameIndex(full, state.lastRecordIndex, 0);
+    const settledCheckpoint = await captureCursorCheckpoint(
+      identity.canonicalTranscriptPath,
+      full,
+      settledNext
+    );
+    if (settledCheckpoint !== null) {
+      const reanchored = await cursorStateLib.reanchorCursorSession({
+        sessionId: identity.sessionId,
+        expectedCheckpoint: state.continuity,
+        expectedLastRecordIndex: state.lastRecordIndex,
+        continuity: settledCheckpoint
+      });
+      if (reanchored === "reanchored") {
+        state = await cursorStateLib.getCursorSession(identity.sessionId) ?? state;
+        first = full;
+        continuity = {
+          status: "verified",
+          fromFrameIndex: state.lastRecordIndex
+        };
+        warnings.push(
+          `Recovered a legacy Cursor checkpoint that ended inside a grow-in-place frame; re-anchored this session at terminal-settled frame ${settledNext} without changing sibling sessions.`
+        );
+      }
+    }
+  }
   if (continuity.status === "blocked") {
     return inputNeededOutcome(
       "continuityBlocked",
@@ -795,7 +870,7 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     recordedCwd: candidate.recordedCwd,
     matchedTier: rankResult && "tier" in rankResult ? rankResult.tier : void 0,
     active: candidate.active ?? false,
-    warnings: [],
+    warnings,
     fallbacks: rankResult && "fallbacks" in rankResult ? rankResult.fallbacks : [],
     cursorProjection: "observation",
     cursorIdentity: identity,
@@ -841,15 +916,26 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     };
   }
   let delivery = null;
+  const intendedSettledNextFrameIndex = settledNextFrameIndex(
+    selected,
+    digest.range.nextIndex,
+    state.continuity.nextFrameIndex
+  );
   const intendedCheckpoint = await captureCursorCheckpoint(
     identity.canonicalTranscriptPath,
     selected,
-    digest.range.nextIndex
+    intendedSettledNextFrameIndex
   );
   if (digest.range.nextIndex > continuity.fromFrameIndex && intendedCheckpoint !== null) {
     const ownerPid = deps.ownerPid ?? process.pid;
     const deliveryId = randomUUID();
     const entryKeys = digest.entries.map((entry) => entry.entryKey);
+    const entryHashes = Object.fromEntries(
+      digest.entries.map((entry) => [
+        entry.entryKey,
+        createHash("sha256").update(entry.text).digest("hex")
+      ])
+    );
     const reservation = await cursorStateLib.reserveCursorDelivery({
       sessionId: identity.sessionId,
       ownerPid,
@@ -858,10 +944,11 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
         deliveryId,
         canonicalCwd: state.canonicalCwd,
         transcriptPath: state.transcriptPath,
-        expectedNextFrameIndex: state.continuity.nextFrameIndex,
+        expectedNextFrameIndex: state.lastRecordIndex,
         expectedCheckpoint: state.continuity,
         reservedThroughFrameIndex: digest.range.nextIndex - 1,
         entryKeys,
+        entryHashes,
         intendedCheckpoint,
         reservedByPid: ownerPid,
         reservedAt: new Date(deps.now?.() ?? Date.now()).toISOString()

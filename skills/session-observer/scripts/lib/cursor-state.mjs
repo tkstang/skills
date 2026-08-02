@@ -52,7 +52,7 @@ function validateCursorContinuity(identity, scan, prior) {
     return { status: "new", fromFrameIndex: 0 };
   }
   const checkpoint = prior.continuity;
-  if (prior.indexBase !== "zero-based-jsonl-frame-index" || checkpoint.indexBase !== "zero-based-jsonl-frame-index" || prior.lastRecordIndex !== checkpoint.nextFrameIndex) {
+  if (prior.indexBase !== "zero-based-jsonl-frame-index" || checkpoint.indexBase !== "zero-based-jsonl-frame-index" || prior.lastRecordIndex < checkpoint.nextFrameIndex) {
     return blockedContinuity(
       "INDEX_BASE_MISMATCH",
       "The saved Cursor position is not a consistent physical-frame checkpoint.",
@@ -96,7 +96,7 @@ function validateCursorContinuity(identity, scan, prior) {
   }
   return {
     status: "verified",
-    fromFrameIndex: checkpoint.nextFrameIndex
+    fromFrameIndex: prior.lastRecordIndex
   };
 }
 function isErrnoException(error) {
@@ -132,8 +132,13 @@ function isCheckpoint(value) {
     "inode"
   ]) && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.nextFrameIndex) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && isNonNegativeInteger(value.observedSize) && value.prefixBytes <= value.observedSize && isNullableNonNegativeInteger(value.device) && isNullableNonNegativeInteger(value.inode);
 }
-function isForwardDeliveryCheckpoint(expected, intended, reservedThroughFrameIndex) {
-  return expected.device !== null && expected.inode !== null && intended.device === expected.device && intended.inode === expected.inode && intended.indexBase === expected.indexBase && reservedThroughFrameIndex >= expected.nextFrameIndex && intended.nextFrameIndex === reservedThroughFrameIndex + 1 && intended.nextFrameIndex > expected.nextFrameIndex && intended.prefixBytes >= expected.prefixBytes && (intended.prefixBytes > expected.prefixBytes || intended.prefixSha256 === expected.prefixSha256);
+function isDeliveryCheckpoint(expected, intended, reservedThroughFrameIndex, expectedNextFrameIndex) {
+  return expected.device !== null && expected.inode !== null && intended.device === expected.device && intended.inode === expected.inode && intended.indexBase === expected.indexBase && reservedThroughFrameIndex >= expectedNextFrameIndex && intended.nextFrameIndex >= expected.nextFrameIndex && intended.nextFrameIndex <= reservedThroughFrameIndex + 1 && intended.prefixBytes >= expected.prefixBytes && (intended.prefixBytes > expected.prefixBytes || intended.prefixSha256 === expected.prefixSha256);
+}
+function isHashRecord(value) {
+  return isObject(value) && Object.values(value).every(
+    (entry) => typeof entry === "string" && /^[a-f0-9]{64}$/u.test(entry)
+  );
 }
 function isObservationStatus(value) {
   return isObject(value) && hasOnlyKeys(value, [
@@ -167,13 +172,16 @@ function isOpenTurn(value) {
     "fromFrameIndex",
     "observedThroughFrame",
     "deliveredEntryKeys",
+    "deliveredEntryHashes",
     "assistantEntryKeys",
     "humanRecordIndexes",
     "toolRecordIndexes",
     "hasHumanInput",
     "hasAutomaticControlInput",
     "lifecycle"
-  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.observedThroughFrame) && isStringArray(value.deliveredEntryKeys) && isStringArray(value.assistantEntryKeys) && isIntegerArray(value.humanRecordIndexes) && isIntegerArray(value.toolRecordIndexes) && typeof value.hasHumanInput === "boolean" && typeof value.hasAutomaticControlInput === "boolean" && ["pending", "success", "aborted", "error", "cancelled", "unknown"].includes(
+  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.observedThroughFrame) && isStringArray(value.deliveredEntryKeys) && (value.deliveredEntryHashes === void 0 || isHashRecord(value.deliveredEntryHashes) && Object.keys(value.deliveredEntryHashes).every(
+    (entryKey) => value.deliveredEntryKeys.includes(entryKey)
+  )) && isStringArray(value.assistantEntryKeys) && isIntegerArray(value.humanRecordIndexes) && isIntegerArray(value.toolRecordIndexes) && typeof value.hasHumanInput === "boolean" && typeof value.hasAutomaticControlInput === "boolean" && ["pending", "success", "aborted", "error", "cancelled", "unknown"].includes(
     String(value.lifecycle)
   );
 }
@@ -210,13 +218,17 @@ function isPendingDelivery(value) {
     "expectedCheckpoint",
     "reservedThroughFrameIndex",
     "entryKeys",
+    "entryHashes",
     "intendedCheckpoint",
     "reservedByPid",
     "reservedAt"
-  ]) && typeof value.deliveryId === "string" && value.deliveryId.length > 0 && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isNonNegativeInteger(value.expectedNextFrameIndex) && isCheckpoint(value.expectedCheckpoint) && value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && isCheckpoint(value.intendedCheckpoint) && isForwardDeliveryCheckpoint(
+  ]) && typeof value.deliveryId === "string" && value.deliveryId.length > 0 && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isNonNegativeInteger(value.expectedNextFrameIndex) && isCheckpoint(value.expectedCheckpoint) && value.expectedNextFrameIndex >= value.expectedCheckpoint.nextFrameIndex && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && (value.entryHashes === void 0 || isHashRecord(value.entryHashes) && Object.keys(value.entryHashes).every(
+    (entryKey) => value.entryKeys.includes(entryKey)
+  )) && isCheckpoint(value.intendedCheckpoint) && isDeliveryCheckpoint(
     value.expectedCheckpoint,
     value.intendedCheckpoint,
-    value.reservedThroughFrameIndex
+    value.reservedThroughFrameIndex,
+    value.expectedNextFrameIndex
   ) && isNonNegativeInteger(value.reservedByPid) && value.reservedByPid > 0 && typeof value.reservedAt === "string" && Number.isFinite(Date.parse(value.reservedAt));
 }
 function isSessionEntry(value) {
@@ -232,7 +244,7 @@ function isSessionEntry(value) {
     "openTurn",
     "stabilityCandidate",
     "pendingDelivery"
-  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.lastRecordIndex) && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isCheckpoint(value.continuity) && value.lastRecordIndex === value.continuity.nextFrameIndex && isObservationStatus(value.lastStatus) && (value.openTurn === null || isOpenTurn(value.openTurn)) && (value.stabilityCandidate === null || isStabilityCandidate(value.stabilityCandidate)) && (value.pendingDelivery === null || isPendingDelivery(value.pendingDelivery) && value.pendingDelivery.canonicalCwd === value.canonicalCwd && value.pendingDelivery.transcriptPath === value.transcriptPath && checkpointsEqual(
+  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.lastRecordIndex) && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isCheckpoint(value.continuity) && value.lastRecordIndex >= value.continuity.nextFrameIndex && isObservationStatus(value.lastStatus) && (value.openTurn === null || isOpenTurn(value.openTurn)) && (value.stabilityCandidate === null || isStabilityCandidate(value.stabilityCandidate)) && (value.pendingDelivery === null || isPendingDelivery(value.pendingDelivery) && value.pendingDelivery.canonicalCwd === value.canonicalCwd && value.pendingDelivery.transcriptPath === value.transcriptPath && value.pendingDelivery.expectedNextFrameIndex === value.lastRecordIndex && checkpointsEqual(
     value.pendingDelivery.expectedCheckpoint,
     value.continuity
   ));
@@ -559,7 +571,7 @@ function sameStringArray(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 function pendingDeliveriesEqual(left, right) {
-  return left.deliveryId === right.deliveryId && left.canonicalCwd === right.canonicalCwd && left.transcriptPath === right.transcriptPath && left.expectedNextFrameIndex === right.expectedNextFrameIndex && checkpointsEqual(left.expectedCheckpoint, right.expectedCheckpoint) && left.reservedThroughFrameIndex === right.reservedThroughFrameIndex && sameStringArray(left.entryKeys, right.entryKeys) && checkpointsEqual(left.intendedCheckpoint, right.intendedCheckpoint) && left.reservedByPid === right.reservedByPid && left.reservedAt === right.reservedAt;
+  return left.deliveryId === right.deliveryId && left.canonicalCwd === right.canonicalCwd && left.transcriptPath === right.transcriptPath && left.expectedNextFrameIndex === right.expectedNextFrameIndex && checkpointsEqual(left.expectedCheckpoint, right.expectedCheckpoint) && left.reservedThroughFrameIndex === right.reservedThroughFrameIndex && sameStringArray(left.entryKeys, right.entryKeys) && JSON.stringify(left.entryHashes ?? {}) === JSON.stringify(right.entryHashes ?? {}) && checkpointsEqual(left.intendedCheckpoint, right.intendedCheckpoint) && left.reservedByPid === right.reservedByPid && left.reservedAt === right.reservedAt;
 }
 function sameStabilityBoundary(candidate, observation) {
   return candidate.turnId === observation.turnId && candidate.fromFrameIndex === observation.fromFrameIndex && candidate.throughFrameIndex === observation.throughFrameIndex && candidate.prefixBytes === observation.prefixBytes && candidate.prefixSha256 === observation.prefixSha256 && sameStringArray(candidate.entryKeys, observation.entryKeys);
@@ -610,6 +622,21 @@ async function setCursorSession(entry) {
       );
     }
     state.sessions[key] = structuredClone(entry);
+  });
+}
+async function reanchorCursorSession(input) {
+  if (!input.sessionId || !isCheckpoint(input.expectedCheckpoint) || !isNonNegativeInteger(input.expectedLastRecordIndex) || !isCheckpoint(input.continuity) || input.continuity.nextFrameIndex > input.expectedLastRecordIndex) {
+    throw new TypeError("cursor-state: invalid scoped continuity re-anchor");
+  }
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(input.sessionId)];
+    if (!entry || entry.pendingDelivery !== null || entry.lastRecordIndex !== input.expectedLastRecordIndex || !checkpointsEqual(entry.continuity, input.expectedCheckpoint) || entry.continuity.device !== input.continuity.device || entry.continuity.inode !== input.continuity.inode) {
+      return { write: false, value: "stale" };
+    }
+    entry.continuity = structuredClone(input.continuity);
+    entry.stabilityCandidate = null;
+    entry.lastStatus = { ...entry.lastStatus, health: "healthy" };
+    return { write: true, value: "reanchored" };
   });
 }
 async function checkpointCursorCandidate(input) {
@@ -672,10 +699,11 @@ async function checkpointCursorCandidate(input) {
   });
 }
 async function reserveCursorDelivery(input) {
-  if (!isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0 || !isCheckpoint(input.expected) || !isPendingDelivery(input.pending) || input.pending.reservedByPid !== input.ownerPid || input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex || !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) || !isForwardDeliveryCheckpoint(
+  if (!isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0 || !isCheckpoint(input.expected) || !isPendingDelivery(input.pending) || input.pending.reservedByPid !== input.ownerPid || !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) || !isDeliveryCheckpoint(
     input.expected,
     input.pending.intendedCheckpoint,
-    input.pending.reservedThroughFrameIndex
+    input.pending.reservedThroughFrameIndex,
+    input.pending.expectedNextFrameIndex
   )) {
     throw new TypeError("cursor-state: invalid delivery reservation");
   }
@@ -694,6 +722,9 @@ async function reserveCursorDelivery(input) {
       };
     }
     if (!checkpointsEqual(entry.continuity, input.expected)) {
+      return { write: false, value: "stale" };
+    }
+    if (entry.lastRecordIndex !== input.pending.expectedNextFrameIndex) {
       return { write: false, value: "stale" };
     }
     if (input.pending.canonicalCwd !== entry.canonicalCwd || input.pending.transcriptPath !== entry.transcriptPath) {
@@ -715,13 +746,14 @@ async function commitCursorDelivery(input) {
     if (!current || !pending || pending.deliveryId !== input.deliveryId) {
       return { write: false, value: "stale" };
     }
-    if (!checkpointsEqual(current.continuity, pending.expectedCheckpoint) || current.canonicalCwd !== pending.canonicalCwd || current.transcriptPath !== pending.transcriptPath || input.nextState.canonicalCwd !== current.canonicalCwd || input.nextState.transcriptPath !== current.transcriptPath || !checkpointsEqual(
+    if (!checkpointsEqual(current.continuity, pending.expectedCheckpoint) || current.lastRecordIndex !== pending.expectedNextFrameIndex || current.canonicalCwd !== pending.canonicalCwd || current.transcriptPath !== pending.transcriptPath || input.nextState.canonicalCwd !== current.canonicalCwd || input.nextState.transcriptPath !== current.transcriptPath || !checkpointsEqual(
       pending.intendedCheckpoint,
       input.nextState.continuity
-    ) || !isForwardDeliveryCheckpoint(
+    ) || input.nextState.lastRecordIndex !== pending.reservedThroughFrameIndex + 1 || !isDeliveryCheckpoint(
       pending.expectedCheckpoint,
       pending.intendedCheckpoint,
-      pending.reservedThroughFrameIndex
+      pending.reservedThroughFrameIndex,
+      pending.expectedNextFrameIndex
     )) {
       return { write: false, value: "stale" };
     }
@@ -847,6 +879,7 @@ export {
   getCursorSession,
   loadCursorState,
   mutateCursorState,
+  reanchorCursorSession,
   recoverCursorDelivery,
   recoverCursorStateStore,
   reserveCursorDelivery,

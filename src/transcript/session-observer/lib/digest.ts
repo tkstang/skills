@@ -20,10 +20,13 @@
  *     matchedTier, widenedFrom, active, mode, range, accounting, entries, filters, warnings, fallbacks }
  */
 
+import { createHash } from 'node:crypto';
+
 import type {
   CursorAssistantContentRecord,
   CursorTurnAnalysis,
 } from '../../core/cursor-analysis.js';
+import { cursorRenderTurnId } from '../../core/cursor-analysis.js';
 import {
   type DigestEntry,
   type Runtime,
@@ -40,6 +43,7 @@ import type {
   CursorDigestV2,
   CursorLifecycleEvent,
   CursorRecoveryPointerV2,
+  CursorSessionStateEntry,
   Digest,
   DigestAccounting,
   DigestFilters,
@@ -90,11 +94,17 @@ function applyTailSlice<T extends DigestEntry>(
   if (maxTurns && maxTurns > 0) {
     const groups = entries.every(
       (entry) =>
-        typeof (entry as DigestEntry & { turnId?: unknown }).turnId ===
-        'string',
+        typeof (entry as DigestEntry & { renderTurnId?: unknown })
+          .renderTurnId === 'string',
     )
-      ? groupByTurnId(entries)
-      : groupByRole(entries);
+      ? groupByEntryKey(entries, 'renderTurnId')
+      : entries.every(
+            (entry) =>
+              typeof (entry as DigestEntry & { turnId?: unknown }).turnId ===
+              'string',
+          )
+        ? groupByEntryKey(entries, 'turnId')
+        : groupByRole(entries);
     const tailGroups = groups.slice(-maxTurns);
     return tailGroups.flat();
   }
@@ -172,14 +182,18 @@ function groupByRole<T extends DigestEntry>(entries: T[]): T[][] {
   return groups;
 }
 
-function groupByTurnId<T extends DigestEntry>(entries: T[]): T[][] {
+function groupByEntryKey<T extends DigestEntry>(
+  entries: T[],
+  key: 'turnId' | 'renderTurnId',
+): T[][] {
   if (entries.length === 0) return [];
-  const turnId = (entry: T): string => (entry as T & { turnId: string }).turnId;
+  const groupId = (entry: T): string =>
+    (entry as T & Record<typeof key, string>)[key];
   const groups: T[][] = [];
   let currentGroup = [entries[0]!];
 
   for (let i = 1; i < entries.length; i++) {
-    if (turnId(entries[i]!) === turnId(currentGroup[0]!)) {
+    if (groupId(entries[i]!) === groupId(currentGroup[0]!)) {
       currentGroup.push(entries[i]!);
     } else {
       groups.push(currentGroup);
@@ -331,6 +345,7 @@ function cursorRecoveryPointer(
 
 function cursorEntry(
   record: CursorAssistantContentRecord,
+  renderTurnId: string,
   deliveryFrameIndex: number,
   availability: CursorDigestEntryV2['availability'],
 ): CursorDigestEntryV2 {
@@ -342,8 +357,37 @@ function cursorEntry(
     kind: 'message',
     entryKey: record.entryKey,
     turnId: record.turnId,
+    renderTurnId,
     availability,
   };
+}
+
+function cursorEntryHash(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+function cursorRecordWasDelivered(
+  record: CursorAssistantContentRecord,
+  stateTurn: CursorSessionStateEntry['openTurn'],
+): boolean {
+  if (!stateTurn) return false;
+  if (!stateTurn.deliveredEntryKeys.includes(record.entryKey)) return false;
+  const deliveredHash = stateTurn.deliveredEntryHashes?.[record.entryKey];
+  return (
+    deliveredHash === undefined ||
+    deliveredHash === cursorEntryHash(record.text)
+  );
+}
+
+function finalRecordsByRenderTurn(
+  turn: CursorTurnAnalysis,
+  records: CursorAssistantContentRecord[],
+): CursorAssistantContentRecord[] {
+  const finalByGroup = new Map<string, CursorAssistantContentRecord>();
+  for (const record of records) {
+    finalByGroup.set(cursorRenderTurnId(turn, record.sourceFrameIndex), record);
+  }
+  return [...finalByGroup.values()];
 }
 
 function isCursorBuildDigestOptions(
@@ -532,14 +576,44 @@ function buildCursorDigest(
   const omittedAssistantEntries: CursorRecoveryPointerV2[] = [];
   const seenUserPointers = new Set<string>();
   const seenAssistantPointers = new Set<string>();
+  const renderGroups = new Map<
+    string,
+    {
+      userFrameIndex: number | null;
+      assistantRecords: CursorAssistantContentRecord[];
+    }
+  >();
 
   for (const turn of analysis.turns) {
     const stateTurn = cursorStateTurn(turn, opts);
     const turnId = stateTurn?.turnId ?? turn.turnId;
-    const deliveredEntryKeys = new Set(stateTurn?.deliveredEntryKeys ?? []);
-    const substantiveRecords = turn.assistantRecords.filter(
+    const effectiveTurn: CursorTurnAnalysis = {
+      ...turn,
+      humanRecordIndexes: [
+        ...new Set([
+          ...turn.humanRecordIndexes,
+          ...(stateTurn?.humanRecordIndexes ?? []),
+        ]),
+      ].toSorted((left, right) => left - right),
+    };
+    const substantiveRecords = effectiveTurn.assistantRecords.filter(
       (record) => record.classification === 'substantive',
     );
+    for (const record of substantiveRecords) {
+      const renderTurnId = cursorRenderTurnId(
+        effectiveTurn,
+        record.sourceFrameIndex,
+      );
+      const userFrameIndex = effectiveTurn.humanRecordIndexes.findLast(
+        (frameIndex) => frameIndex <= record.sourceFrameIndex,
+      );
+      const group = renderGroups.get(renderTurnId) ?? {
+        userFrameIndex: userFrameIndex ?? null,
+        assistantRecords: [],
+      };
+      group.assistantRecords.push(record);
+      renderGroups.set(renderTurnId, group);
+    }
     hasAssistantActivity ||=
       turn.assistantRecords.length > 0 ||
       (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
@@ -550,23 +624,6 @@ function buildCursorDigest(
       turn.humanRecordIndexes.length > 0 ||
       (stateTurn?.humanRecordIndexes.length ?? 0) > 0;
     latestLifecycle = turn.lifecycle;
-
-    const humanFrameIndexes = new Set([
-      ...turn.humanRecordIndexes,
-      ...(stateTurn?.humanRecordIndexes ?? []),
-    ]);
-    for (const frameIndex of humanFrameIndexes) {
-      if (frameIndex < fromIndex || frameIndex >= safeNextIndex) continue;
-      addCursorRecoveryPointer(
-        omittedUserMessages,
-        seenUserPointers,
-        cursorRecoveryPointer(
-          transcriptPath,
-          frameIndex,
-          `${turnId}:frame:${frameIndex}:user`,
-        ),
-      );
-    }
 
     if (turn.lifecycle === 'pending') {
       if (opts.cursorProjection === 'confirmed-completion') {
@@ -583,7 +640,7 @@ function buildCursorDigest(
           ? new Set(candidate.entryKeys)
           : new Set<string>();
       for (const record of substantiveRecords) {
-        if (deliveredEntryKeys.has(record.entryKey)) continue;
+        if (cursorRecordWasDelivered(record, stateTurn)) continue;
         if (!stableEntryKeys.has(record.entryKey)) {
           unstableContent += 1;
           stabilityWaitFrom =
@@ -593,7 +650,12 @@ function buildCursorDigest(
           continue;
         }
         entriesBeforeTailSlice.push(
-          cursorEntry(record, record.sourceFrameIndex, 'pending-lifecycle'),
+          cursorEntry(
+            record,
+            cursorRenderTurnId(effectiveTurn, record.sourceFrameIndex),
+            record.sourceFrameIndex,
+            'pending-lifecycle',
+          ),
         );
       }
       continue;
@@ -610,7 +672,14 @@ function buildCursorDigest(
       lifecycle: turn.lifecycle,
       finalEntryKey,
       contentPreviouslyObservable:
-        finalEntryKey !== null && deliveredEntryKeys.has(finalEntryKey),
+        finalEntryKey !== null &&
+        (substantiveRecords.some(
+          (record) =>
+            record.entryKey === finalEntryKey &&
+            cursorRecordWasDelivered(record, stateTurn),
+        ) ||
+          (substantiveRecords.length === 0 &&
+            (stateTurn?.deliveredEntryKeys.includes(finalEntryKey) ?? false))),
     });
 
     if (turn.lifecycle !== 'success') {
@@ -620,33 +689,31 @@ function buildCursorDigest(
       continue;
     }
 
-    const finalRecord = substantiveRecords.find(
-      (record) => record.entryKey === finalEntryKey,
-    );
-    if (
-      finalRecord &&
-      (opts.cursorProjection === 'confirmed-completion' ||
-        !deliveredEntryKeys.has(finalRecord.entryKey))
-    ) {
-      entriesBeforeTailSlice.push(
-        cursorEntry(finalRecord, turn.terminalFrameIndex!, 'completed'),
-      );
-    }
-    for (const record of substantiveRecords) {
-      if (record.entryKey === finalEntryKey) continue;
+    const completedRecords =
+      opts.cursorProjection === 'confirmed-completion'
+        ? substantiveRecords.filter(
+            (record) => record.entryKey === finalEntryKey,
+          )
+        : finalRecordsByRenderTurn(effectiveTurn, substantiveRecords);
+    for (const record of completedRecords) {
+      const wasDelivered = cursorRecordWasDelivered(record, stateTurn);
+      const deliveredHash = stateTurn?.deliveredEntryHashes?.[record.entryKey];
+      const changedSinceDelivery =
+        deliveredHash !== undefined &&
+        deliveredHash !== cursorEntryHash(record.text);
       if (
         opts.cursorProjection === 'observation' &&
-        deliveredEntryKeys.has(record.entryKey)
+        (wasDelivered ||
+          (record.sourceFrameIndex < fromIndex && !changedSinceDelivery))
       ) {
         continue;
       }
-      addCursorRecoveryPointer(
-        omittedAssistantEntries,
-        seenAssistantPointers,
-        cursorRecoveryPointer(
-          transcriptPath,
-          record.sourceFrameIndex,
-          record.entryKey,
+      entriesBeforeTailSlice.push(
+        cursorEntry(
+          record,
+          cursorRenderTurnId(effectiveTurn, record.sourceFrameIndex),
+          turn.terminalFrameIndex!,
+          'completed',
         ),
       );
     }
@@ -655,22 +722,58 @@ function buildCursorDigest(
   if (stabilityWaitFrom !== null) {
     nextIndex = Math.min(nextIndex, stabilityWaitFrom);
   }
-  const entries = applyTailSlice(entriesBeforeTailSlice, {
+  let entries = applyTailSlice(entriesBeforeTailSlice, {
     maxTurns: opts.maxTurns,
     maxBytes: opts.maxBytes,
   });
-  const retainedEntries = new Set(entries);
-  for (const entry of entriesBeforeTailSlice) {
-    if (retainedEntries.has(entry)) continue;
-    addCursorRecoveryPointer(
-      omittedAssistantEntries,
-      seenAssistantPointers,
-      cursorRecoveryPointer(
-        transcriptPath,
-        entry.sourceFrameIndex,
-        entry.entryKey,
-      ),
+  const explicitTailSlice = Boolean(
+    (opts.maxTurns && opts.maxTurns > 0) ||
+    (opts.maxBytes && opts.maxBytes > 0),
+  );
+  let usedLargeDigestFallback = false;
+  if (
+    !explicitTailSlice &&
+    renderedCharCount(entries) > LARGE_OUTPUT_THRESHOLD
+  ) {
+    entries = applyTailSlice(entries, { maxTurns: AUTO_LARGE_DIGEST_TURNS });
+    usedLargeDigestFallback = true;
+  }
+
+  const retainedEntriesByGroup = new Map<string, Set<string>>();
+  for (const entry of entries) {
+    const renderTurnId = entry.renderTurnId ?? entry.turnId;
+    const entryKeys = retainedEntriesByGroup.get(renderTurnId) ?? new Set();
+    entryKeys.add(entry.entryKey);
+    retainedEntriesByGroup.set(renderTurnId, entryKeys);
+  }
+  for (const [renderTurnId, retainedEntryKeys] of retainedEntriesByGroup) {
+    const group = renderGroups.get(renderTurnId);
+    if (!group) continue;
+    if (group.userFrameIndex !== null) {
+      addCursorRecoveryPointer(
+        omittedUserMessages,
+        seenUserPointers,
+        cursorRecoveryPointer(
+          transcriptPath,
+          group.userFrameIndex,
+          `${renderTurnId.replace(/:render:\d+$/u, '')}:frame:${group.userFrameIndex}:user`,
+        ),
+      );
+    }
+    const omittedAssistant = group.assistantRecords.findLast(
+      (record) => !retainedEntryKeys.has(record.entryKey),
     );
+    if (omittedAssistant) {
+      addCursorRecoveryPointer(
+        omittedAssistantEntries,
+        seenAssistantPointers,
+        cursorRecoveryPointer(
+          transcriptPath,
+          omittedAssistant.sourceFrameIndex,
+          omittedAssistant.entryKey,
+        ),
+      );
+    }
   }
 
   const blockingFrame = scan.blockingFrame ?? analysis.blockingFrame;
@@ -749,6 +852,11 @@ function buildCursorDigest(
   };
 
   const warnings = [...(opts.warnings ?? [])];
+  if (usedLargeDigestFallback) {
+    warnings.push(
+      `Large digest fallback: rendered content exceeded ${LARGE_OUTPUT_THRESHOLD.toLocaleString()} chars; showing the last ${AUTO_LARGE_DIGEST_TURNS} user-delimited Cursor turn groups. Use --max-turns or --max-bytes for a different view.`,
+    );
+  }
   for (const event of lifecycleEvents) {
     if (event.lifecycle !== 'success') {
       warnings.push(

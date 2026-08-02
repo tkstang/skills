@@ -85,7 +85,7 @@ export function validateCursorContinuity(
   if (
     prior.indexBase !== 'zero-based-jsonl-frame-index' ||
     checkpoint.indexBase !== 'zero-based-jsonl-frame-index' ||
-    prior.lastRecordIndex !== checkpoint.nextFrameIndex
+    prior.lastRecordIndex < checkpoint.nextFrameIndex
   ) {
     return blockedContinuity(
       'INDEX_BASE_MISMATCH',
@@ -150,7 +150,7 @@ export function validateCursorContinuity(
 
   return {
     status: 'verified',
-    fromFrameIndex: checkpoint.nextFrameIndex,
+    fromFrameIndex: prior.lastRecordIndex,
   };
 }
 
@@ -212,10 +212,11 @@ function isCheckpoint(value: unknown): value is TranscriptContinuityCheckpoint {
   );
 }
 
-function isForwardDeliveryCheckpoint(
+function isDeliveryCheckpoint(
   expected: TranscriptContinuityCheckpoint,
   intended: TranscriptContinuityCheckpoint,
   reservedThroughFrameIndex: number,
+  expectedNextFrameIndex: number,
 ): boolean {
   return (
     expected.device !== null &&
@@ -223,12 +224,21 @@ function isForwardDeliveryCheckpoint(
     intended.device === expected.device &&
     intended.inode === expected.inode &&
     intended.indexBase === expected.indexBase &&
-    reservedThroughFrameIndex >= expected.nextFrameIndex &&
-    intended.nextFrameIndex === reservedThroughFrameIndex + 1 &&
-    intended.nextFrameIndex > expected.nextFrameIndex &&
+    reservedThroughFrameIndex >= expectedNextFrameIndex &&
+    intended.nextFrameIndex >= expected.nextFrameIndex &&
+    intended.nextFrameIndex <= reservedThroughFrameIndex + 1 &&
     intended.prefixBytes >= expected.prefixBytes &&
     (intended.prefixBytes > expected.prefixBytes ||
       intended.prefixSha256 === expected.prefixSha256)
+  );
+}
+
+function isHashRecord(value: unknown): value is Record<string, string> {
+  return (
+    isObject(value) &&
+    Object.values(value).every(
+      (entry) => typeof entry === 'string' && /^[a-f0-9]{64}$/u.test(entry),
+    )
   );
 }
 
@@ -276,6 +286,7 @@ function isOpenTurn(value: unknown): value is CursorTurnReconciliation {
       'fromFrameIndex',
       'observedThroughFrame',
       'deliveredEntryKeys',
+      'deliveredEntryHashes',
       'assistantEntryKeys',
       'humanRecordIndexes',
       'toolRecordIndexes',
@@ -287,6 +298,11 @@ function isOpenTurn(value: unknown): value is CursorTurnReconciliation {
     isNonNegativeInteger(value.fromFrameIndex) &&
     isNonNegativeInteger(value.observedThroughFrame) &&
     isStringArray(value.deliveredEntryKeys) &&
+    (value.deliveredEntryHashes === undefined ||
+      (isHashRecord(value.deliveredEntryHashes) &&
+        Object.keys(value.deliveredEntryHashes).every((entryKey) =>
+          (value.deliveredEntryKeys as string[]).includes(entryKey),
+        ))) &&
     isStringArray(value.assistantEntryKeys) &&
     isIntegerArray(value.humanRecordIndexes) &&
     isIntegerArray(value.toolRecordIndexes) &&
@@ -368,6 +384,7 @@ function isPendingDelivery(value: unknown): value is PendingCursorDelivery {
       'expectedCheckpoint',
       'reservedThroughFrameIndex',
       'entryKeys',
+      'entryHashes',
       'intendedCheckpoint',
       'reservedByPid',
       'reservedAt',
@@ -380,14 +397,20 @@ function isPendingDelivery(value: unknown): value is PendingCursorDelivery {
     value.transcriptPath.length > 0 &&
     isNonNegativeInteger(value.expectedNextFrameIndex) &&
     isCheckpoint(value.expectedCheckpoint) &&
-    value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex &&
+    value.expectedNextFrameIndex >= value.expectedCheckpoint.nextFrameIndex &&
     isNonNegativeInteger(value.reservedThroughFrameIndex) &&
     isStringArray(value.entryKeys) &&
+    (value.entryHashes === undefined ||
+      (isHashRecord(value.entryHashes) &&
+        Object.keys(value.entryHashes).every((entryKey) =>
+          (value.entryKeys as string[]).includes(entryKey),
+        ))) &&
     isCheckpoint(value.intendedCheckpoint) &&
-    isForwardDeliveryCheckpoint(
+    isDeliveryCheckpoint(
       value.expectedCheckpoint,
       value.intendedCheckpoint,
       value.reservedThroughFrameIndex as number,
+      value.expectedNextFrameIndex as number,
     ) &&
     isNonNegativeInteger(value.reservedByPid) &&
     value.reservedByPid > 0 &&
@@ -422,7 +445,7 @@ function isSessionEntry(value: unknown): value is CursorSessionStateEntry {
     typeof value.transcriptPath === 'string' &&
     value.transcriptPath.length > 0 &&
     isCheckpoint(value.continuity) &&
-    value.lastRecordIndex === value.continuity.nextFrameIndex &&
+    value.lastRecordIndex >= value.continuity.nextFrameIndex &&
     isObservationStatus(value.lastStatus) &&
     (value.openTurn === null || isOpenTurn(value.openTurn)) &&
     (value.stabilityCandidate === null ||
@@ -431,6 +454,8 @@ function isSessionEntry(value: unknown): value is CursorSessionStateEntry {
       (isPendingDelivery(value.pendingDelivery) &&
         value.pendingDelivery.canonicalCwd === value.canonicalCwd &&
         value.pendingDelivery.transcriptPath === value.transcriptPath &&
+        value.pendingDelivery.expectedNextFrameIndex ===
+          value.lastRecordIndex &&
         checkpointsEqual(
           value.pendingDelivery.expectedCheckpoint,
           value.continuity,
@@ -922,6 +947,8 @@ function pendingDeliveriesEqual(
     checkpointsEqual(left.expectedCheckpoint, right.expectedCheckpoint) &&
     left.reservedThroughFrameIndex === right.reservedThroughFrameIndex &&
     sameStringArray(left.entryKeys, right.entryKeys) &&
+    JSON.stringify(left.entryHashes ?? {}) ===
+      JSON.stringify(right.entryHashes ?? {}) &&
     checkpointsEqual(left.intendedCheckpoint, right.intendedCheckpoint) &&
     left.reservedByPid === right.reservedByPid &&
     left.reservedAt === right.reservedAt
@@ -1015,6 +1042,42 @@ export async function setCursorSession(
   });
 }
 
+export async function reanchorCursorSession(input: {
+  sessionId: string;
+  expectedCheckpoint: TranscriptContinuityCheckpoint;
+  expectedLastRecordIndex: number;
+  continuity: TranscriptContinuityCheckpoint;
+}): Promise<'reanchored' | 'stale'> {
+  if (
+    !input.sessionId ||
+    !isCheckpoint(input.expectedCheckpoint) ||
+    !isNonNegativeInteger(input.expectedLastRecordIndex) ||
+    !isCheckpoint(input.continuity) ||
+    input.continuity.nextFrameIndex > input.expectedLastRecordIndex
+  ) {
+    throw new TypeError('cursor-state: invalid scoped continuity re-anchor');
+  }
+
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(input.sessionId)];
+    if (
+      !entry ||
+      entry.pendingDelivery !== null ||
+      entry.lastRecordIndex !== input.expectedLastRecordIndex ||
+      !checkpointsEqual(entry.continuity, input.expectedCheckpoint) ||
+      entry.continuity.device !== input.continuity.device ||
+      entry.continuity.inode !== input.continuity.inode
+    ) {
+      return { write: false, value: 'stale' as const };
+    }
+
+    entry.continuity = structuredClone(input.continuity);
+    entry.stabilityCandidate = null;
+    entry.lastStatus = { ...entry.lastStatus, health: 'healthy' };
+    return { write: true, value: 'reanchored' as const };
+  });
+}
+
 export interface CursorCandidateCheckpointResult {
   status: 'staged' | 'waiting' | 'confirmed' | 'replaced';
   entryKeys: string[];
@@ -1103,12 +1166,12 @@ export async function reserveCursorDelivery(input: {
     !isCheckpoint(input.expected) ||
     !isPendingDelivery(input.pending) ||
     input.pending.reservedByPid !== input.ownerPid ||
-    input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex ||
     !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) ||
-    !isForwardDeliveryCheckpoint(
+    !isDeliveryCheckpoint(
       input.expected,
       input.pending.intendedCheckpoint,
       input.pending.reservedThroughFrameIndex,
+      input.pending.expectedNextFrameIndex,
     )
   ) {
     throw new TypeError('cursor-state: invalid delivery reservation');
@@ -1131,6 +1194,9 @@ export async function reserveCursorDelivery(input: {
       };
     }
     if (!checkpointsEqual(entry.continuity, input.expected)) {
+      return { write: false, value: 'stale' as const };
+    }
+    if (entry.lastRecordIndex !== input.pending.expectedNextFrameIndex) {
       return { write: false, value: 'stale' as const };
     }
     if (
@@ -1171,6 +1237,7 @@ export async function commitCursorDelivery(input: {
     }
     if (
       !checkpointsEqual(current.continuity, pending.expectedCheckpoint) ||
+      current.lastRecordIndex !== pending.expectedNextFrameIndex ||
       current.canonicalCwd !== pending.canonicalCwd ||
       current.transcriptPath !== pending.transcriptPath ||
       input.nextState.canonicalCwd !== current.canonicalCwd ||
@@ -1179,10 +1246,13 @@ export async function commitCursorDelivery(input: {
         pending.intendedCheckpoint,
         input.nextState.continuity,
       ) ||
-      !isForwardDeliveryCheckpoint(
+      input.nextState.lastRecordIndex !==
+        pending.reservedThroughFrameIndex + 1 ||
+      !isDeliveryCheckpoint(
         pending.expectedCheckpoint,
         pending.intendedCheckpoint,
         pending.reservedThroughFrameIndex,
+        pending.expectedNextFrameIndex,
       )
     ) {
       return { write: false, value: 'stale' as const };

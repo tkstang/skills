@@ -560,7 +560,9 @@ function isCursorContinuity(
   if (!isObject(value)) return false;
   return (
     value.indexBase === 'zero-based-jsonl-frame-index' &&
-    value.nextFrameIndex === observationCursor &&
+    isNonNegativeInteger(observationCursor) &&
+    isNonNegativeInteger(value.nextFrameIndex) &&
+    value.nextFrameIndex <= observationCursor &&
     isNonNegativeInteger(value.prefixBytes) &&
     typeof value.prefixSha256 === 'string' &&
     /^[a-f0-9]{64}$/u.test(value.prefixSha256) &&
