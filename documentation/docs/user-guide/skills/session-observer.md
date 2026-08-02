@@ -21,6 +21,14 @@ frame-indexed state and continuity contract.
   slash-command payload records are excluded. Opt in with `--include-tools`
   (adds compact call markers), `--include-command-messages` (adds slash-command
   payloads), or `--debug` (adds tool markers and results).
+- Keeps **ask-user exchanges** in that default view. Every runtime asks the
+  operator questions through a tool call (`AskUserQuestion`,
+  `request_user_input`, `AskQuestion`), and the answer is a human decision
+  rather than tool mechanics — so the question renders even with tools filtered.
+  Claude Code and Codex also record the answer, which renders alongside it and
+  is counted in `accounting.rendered.askUserEntries`. Cursor records no answer
+  at all, and its digest says the selected option is unrecorded rather than
+  leaving a silent gap; that narrower behavior is documented in the skill.
 - Tracks **per-session read positions**, so `catch-up` shows only input that
   arrived since the last read. Claude Code and Codex count JSONL records;
   Cursor digest schema v2 counts physical JSONL frames.
@@ -90,14 +98,14 @@ flowchart TD
 The collaboration skill composes with this CLI; it does not replace it. These
 flags are the base observer's collaboration-facing contract:
 
-| Flag or command                                  | Purpose                                                                                                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                         |
-| `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                |
-| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                        |
-| `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first. |
-| `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                     |
-| `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view.                                       |
+| Flag or command                                  | Purpose                                                                                                                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                                                                                                             |
+| `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                                                                                                    |
+| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                                                                                                            |
+| `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first.                                                                                     |
+| `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                                                                                                         |
+| `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view. On Claude Code and Codex, `--include-tools` also adds option descriptions to ask-user questions, which render either way. |
 
 Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
 diagnostics, or automatic control input. A newer-session candidate is a warning,

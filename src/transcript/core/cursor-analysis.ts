@@ -6,6 +6,7 @@ import type {
   CursorTranscriptScan,
 } from './cursor-frames.js';
 import {
+  cursorAskUserQuestionText,
   isAutomaticControlAcknowledgement,
   isNoOpText,
   parseAutomaticControlEnvelope,
@@ -36,6 +37,13 @@ export interface CursorContentRecord {
   role: 'user' | 'assistant';
   text: string;
   classification: CursorContentClassification;
+  /**
+   * Set when the record is a question put to the operator. Such records are
+   * conversation rather than assistant progress that a later final message
+   * subsumes, so the digest renders them instead of collapsing them into a
+   * recovery pointer.
+   */
+  askUser?: true;
 }
 
 export interface CursorAssistantContentRecord extends CursorContentRecord {
@@ -67,7 +75,7 @@ export interface CursorTurnAccumulator {
 
 interface ContentBlock {
   blockIndex: number;
-  kind: 'text' | 'tool' | 'runtime-diagnostic' | 'unsupported';
+  kind: 'text' | 'tool' | 'ask-user' | 'runtime-diagnostic' | 'unsupported';
   text: string;
 }
 
@@ -139,6 +147,12 @@ function contentBlocks(record: JsonObject): ContentBlock[] {
 
     const type = stringValue(block.type);
     if (type === 'tool_use') {
+      // A question put to the operator is conversation, not tool traffic: it
+      // becomes rendered content rather than a filtered tool frame.
+      const askUserText = cursorAskUserQuestionText(block);
+      if (askUserText !== null) {
+        return { blockIndex, kind: 'ask-user', text: askUserText };
+      }
       return { blockIndex, kind: 'tool', text: '' };
     }
 
@@ -333,6 +347,7 @@ export function createCursorTurnAccumulator(
           role: 'assistant',
           text: block.text,
           classification,
+          ...(block.kind === 'ask-user' ? { askUser: true as const } : {}),
         });
       }
     },

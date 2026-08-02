@@ -5,6 +5,15 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
+const ASK_USER_PROMPT_LIMIT = 500;
+const ASK_USER_OPTION_LIMIT = 120;
+const ASK_USER_DESCRIPTION_LIMIT = 300;
+const ASK_USER_ANSWER_LIMIT = 500;
+const ASK_USER_TOOL_NAMES = {
+  "claude-code": "AskUserQuestion",
+  codex: "request_user_input",
+  cursor: "AskQuestion"
+};
 const COMMAND_MESSAGE_RE = /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
 const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
 const AUTOMATIC_ACKNOWLEDGMENT = /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
@@ -160,6 +169,85 @@ function stringifyArgs(value, limit) {
   if (typeof value === "string") return truncate(value, limit);
   return truncate(JSON.stringify(value ?? {}) ?? "{}", limit);
 }
+const ASK_USER_ANSWER_PROMPT_LIMIT = 200;
+function parseAskUserQuestions(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!isObject(raw)) return [];
+    const prompt = asString(raw.question) ?? asString(raw.prompt);
+    if (!prompt) return [];
+    const header = asString(raw.header) ?? asString(raw.title);
+    const options = Array.isArray(raw.options) ? raw.options.flatMap((option) => {
+      if (typeof option === "string") return [{ label: option }];
+      if (!isObject(option)) return [];
+      const label = asString(option.label) ?? asString(option.id);
+      if (!label) return [];
+      const description = asString(option.description);
+      return [{ label, ...description ? { description } : {} }];
+    }) : [];
+    return [{ ...header ? { header } : {}, prompt, options }];
+  });
+}
+function formatAskUserQuestions(toolName, questions, opts) {
+  const numbered = questions.length > 1;
+  const lines = [];
+  const questionHead = (question) => {
+    const header = question.header ?? (numbered ? void 0 : opts.title);
+    const head = header ? `${header} \u2014 ${question.prompt}` : question.prompt;
+    return truncate(head, ASK_USER_PROMPT_LIMIT);
+  };
+  if (numbered) {
+    const title = opts.title ? `${opts.title} \u2014 ` : "";
+    lines.push(`[${toolName}] ${title}${questions.length} questions:`);
+  }
+  questions.forEach((question, index) => {
+    const head = questionHead(question);
+    lines.push(numbered ? `${index + 1}. ${head}` : `[${toolName}] ${head}`);
+    if (question.options.length === 0) return;
+    if (opts.includeDescriptions) {
+      for (const option of question.options) {
+        const description = option.description ? ` \u2014 ${truncate(option.description, ASK_USER_DESCRIPTION_LIMIT)}` : "";
+        lines.push(
+          `   - ${truncate(option.label, ASK_USER_OPTION_LIMIT)}${description}`
+        );
+      }
+    } else {
+      const labels = question.options.map((option) => truncate(option.label, ASK_USER_OPTION_LIMIT)).join(" | ");
+      lines.push(`   options: ${labels}`);
+    }
+  });
+  for (const note of opts.notes ?? []) lines.push(`   (${note})`);
+  return lines.join("\n");
+}
+function formatAskUserAnswers(toolName, answers) {
+  const numbered = answers.length > 1;
+  const lines = [];
+  if (numbered) {
+    lines.push(`[${toolName} \u2192 answered]`);
+  }
+  answers.forEach(({ label, answer, note }, index) => {
+    const body = `${truncate(label, ASK_USER_ANSWER_PROMPT_LIMIT)}: "${truncate(
+      answer,
+      ASK_USER_ANSWER_LIMIT
+    )}"`;
+    lines.push(
+      numbered ? `${index + 1}. ${body}` : `[${toolName} \u2192 answered] ${body}`
+    );
+    if (note) {
+      lines.push(`   note: ${truncate(note, ASK_USER_ANSWER_LIMIT)}`);
+    }
+  });
+  return lines.join("\n");
+}
+function askUserAnswerText(value) {
+  if (typeof value === "string") return value || void 0;
+  if (Array.isArray(value)) {
+    const labels = value.map(asString).filter((label) => Boolean(label));
+    return labels.length > 0 ? labels.join(", ") : void 0;
+  }
+  if (isObject(value)) return askUserAnswerText(value.answers);
+  return void 0;
+}
 function safeParseLine(line) {
   try {
     const parsed = JSON.parse(line);
@@ -287,6 +375,68 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
   }
   throw new Error(`Unknown runtime: ${runtime}`);
 }
+function claudeAskUserQuestionEntry(role, block, recordIndex, opts) {
+  const input = isObject(block.input) ? block.input : {};
+  const questions = parseAskUserQuestions(input.questions);
+  if (questions.length === 0) return null;
+  return {
+    role,
+    text: formatAskUserQuestions(
+      ASK_USER_TOOL_NAMES["claude-code"],
+      questions,
+      { includeDescriptions: opts.includeToolCalls }
+    ),
+    recordIndex,
+    kind: "ask_user",
+    toolName: ASK_USER_TOOL_NAMES["claude-code"]
+  };
+}
+function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
+  const toolName = ASK_USER_TOOL_NAMES["claude-code"];
+  const result = isObject(opts.toolUseResult) ? opts.toolUseResult : null;
+  const rawAnswers = result && isObject(result.answers) ? result.answers : null;
+  if (result && rawAnswers) {
+    const headerByPrompt = /* @__PURE__ */ new Map();
+    for (const question of parseAskUserQuestions(result.questions)) {
+      if (question.header) headerByPrompt.set(question.prompt, question.header);
+    }
+    const annotations = isObject(result.annotations) ? result.annotations : {};
+    const answers = Object.entries(rawAnswers).flatMap(([prompt, value]) => {
+      const answer = askUserAnswerText(value);
+      if (!answer) return [];
+      const annotation = annotations[prompt];
+      const note = isObject(annotation) ? asString(annotation.notes) : void 0;
+      return [
+        {
+          label: headerByPrompt.get(prompt) ?? prompt,
+          answer,
+          ...note ? { note } : {}
+        }
+      ];
+    });
+    if (answers.length > 0) {
+      return {
+        role,
+        text: formatAskUserAnswers(toolName, answers),
+        recordIndex,
+        kind: "ask_user",
+        toolName,
+        // Claude has no auto-resolution: a recorded answer is the operator's.
+        origin: "human"
+      };
+    }
+  }
+  const fallback = typeof block.content === "string" ? block.content : Array.isArray(block.content) ? block.content.filter(isObject).map((part) => asString(part.text) ?? "").filter(Boolean).join("\n") : "";
+  if (!fallback) return null;
+  return {
+    role,
+    text: `[${toolName} \u2192 answered] ${truncate(fallback, ASK_USER_ANSWER_LIMIT)}`,
+    recordIndex,
+    kind: "ask_user",
+    toolName,
+    origin: "human"
+  };
+}
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
   if (typeof content === "string") {
     if (!content) return [];
@@ -300,6 +450,15 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
   return content.flatMap((block) => {
     if (!isObject(block)) return [];
     if (block.type === "tool_use") {
+      if (asString(block.name) === ASK_USER_TOOL_NAMES["claude-code"]) {
+        const entry = claudeAskUserQuestionEntry(
+          role,
+          block,
+          recordIndex,
+          opts
+        );
+        if (entry) return [entry];
+      }
       if (!opts.includeToolCalls) return [];
       const name = asString(block.name) ?? "tool_use";
       const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
@@ -314,9 +473,13 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       ];
     }
     if (block.type === "tool_result") {
-      if (!opts.includeToolResults) return [];
       const toolUseId = asString(block.tool_use_id);
       const name = (toolUseId && opts.toolNameById?.get(toolUseId)) ?? "tool_result";
+      if (name === ASK_USER_TOOL_NAMES["claude-code"]) {
+        const entry = claudeAskUserAnswerEntry(role, block, recordIndex, opts);
+        if (entry) return [entry];
+      }
+      if (!opts.includeToolResults) return [];
       let resultText = "";
       if (typeof block.content === "string") {
         resultText = truncate(block.content, TOOL_RESULT_LIMIT);
@@ -398,19 +561,119 @@ function normalizeClaudeCode(records, opts) {
       includeToolCalls,
       includeToolResults,
       includeCommandMessages,
-      toolNameById
+      toolNameById,
+      toolUseResult: record.toolUseResult
     });
   });
 }
+function parseCodexFunctionArguments(value) {
+  if (isObject(value)) return value;
+  const raw = asString(value);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return isObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function codexAskUserAnswerEntry(payload, recordIndex, labelById, autoResolvable) {
+  const toolName = ASK_USER_TOOL_NAMES.codex;
+  const output = parseCodexFunctionArguments(payload.output);
+  const rawAnswers = output && isObject(output.answers) ? output.answers : null;
+  if (!rawAnswers) return null;
+  const answers = Object.entries(rawAnswers).flatMap(([id, value]) => {
+    const answer = askUserAnswerText(value);
+    if (!answer) return [];
+    return [{ label: labelById.get(id) ?? id, answer }];
+  });
+  if (answers.length === 0) return null;
+  return {
+    role: "user",
+    text: formatAskUserAnswers(toolName, answers),
+    recordIndex,
+    kind: "ask_user",
+    toolName,
+    // Only attribute the answer to the operator when the call could not have
+    // been resolved by Codex's own timer. The recorded output is identical
+    // either way, so an auto-resolvable call leaves origin unset.
+    ...autoResolvable ? {} : { origin: "human" }
+  };
+}
 function normalizeCodex(records, opts) {
   const includeToolCalls = opts.includeToolCalls ?? false;
+  const askUserToolName = ASK_USER_TOOL_NAMES.codex;
+  const askUserQuestionsByCallId = /* @__PURE__ */ new Map();
+  const askUserLabelById = /* @__PURE__ */ new Map();
+  const askUserAutoResolvableCallIds = /* @__PURE__ */ new Set();
+  for (const record of records) {
+    const payload = isObject(record.payload) ? record.payload : record;
+    if (asString(payload.type) !== "function_call") continue;
+    if ((asString(payload.name) ?? asString(record.name)) !== askUserToolName)
+      continue;
+    const callId = asString(payload.call_id) ?? asString(record.call_id);
+    if (!callId) continue;
+    const args = parseCodexFunctionArguments(
+      payload.arguments ?? record.arguments
+    );
+    const questions = parseAskUserQuestions(args?.questions);
+    if (questions.length === 0) continue;
+    askUserQuestionsByCallId.set(callId, questions);
+    const rawQuestions = Array.isArray(args?.questions) ? args.questions : [];
+    const labelById = /* @__PURE__ */ new Map();
+    for (const rawQuestion of rawQuestions) {
+      if (!isObject(rawQuestion)) continue;
+      const id = asString(rawQuestion.id);
+      const label = asString(rawQuestion.header) ?? asString(rawQuestion.question) ?? asString(rawQuestion.prompt);
+      if (id && label) labelById.set(id, label);
+    }
+    askUserLabelById.set(callId, labelById);
+    const autoResolutionMs = args?.autoResolutionMs;
+    if (typeof autoResolutionMs === "number" && autoResolutionMs > 0) {
+      askUserAutoResolvableCallIds.add(callId);
+    }
+  }
   return records.flatMap((record, recordIndex) => {
     const payload = isObject(record.payload) ? record.payload : record;
     const payloadType = asString(payload.type) ?? asString(record.type);
+    if (payloadType === "function_call_output") {
+      const callId = asString(payload.call_id) ?? asString(record.call_id);
+      if (!callId || !askUserQuestionsByCallId.has(callId)) return [];
+      const entry = codexAskUserAnswerEntry(
+        payload,
+        recordIndex,
+        askUserLabelById.get(callId) ?? /* @__PURE__ */ new Map(),
+        askUserAutoResolvableCallIds.has(callId)
+      );
+      return entry ? [entry] : [];
+    }
     if (payloadType === "function_call") {
-      if (!includeToolCalls) return [];
       const name = asString(payload.name) ?? asString(record.name) ?? "function_call";
       const args = payload.arguments ?? record.arguments;
+      if (name === askUserToolName) {
+        const callId = asString(payload.call_id) ?? asString(record.call_id);
+        const parsedArgs = parseCodexFunctionArguments(args);
+        const questions = (callId ? askUserQuestionsByCallId.get(callId) : void 0) ?? parseAskUserQuestions(parsedArgs?.questions);
+        if (questions.length > 0) {
+          const autoResolutionMs = parsedArgs?.autoResolutionMs;
+          const notes = typeof autoResolutionMs === "number" && autoResolutionMs > 0 ? [
+            `auto-resolves after ${Math.round(autoResolutionMs / 1e3)}s; a recorded answer may be the default rather than an operator choice`
+          ] : void 0;
+          return [
+            {
+              role: "assistant",
+              text: formatAskUserQuestions(askUserToolName, questions, {
+                includeDescriptions: includeToolCalls,
+                notes
+              }),
+              recordIndex,
+              kind: "ask_user",
+              toolName: askUserToolName
+            }
+          ];
+        }
+      }
+      if (!includeToolCalls) return [];
       const argsStr = stringifyArgs(args, TOOL_INPUT_LIMIT);
       return [
         {
@@ -437,6 +700,31 @@ function normalizeCodex(records, opts) {
     });
   });
 }
+function cursorAskUserQuestionText(block, opts = {}) {
+  if (asString(block.name) !== ASK_USER_TOOL_NAMES.cursor) return null;
+  const input = isObject(block.input) ? block.input : {};
+  const questions = parseAskUserQuestions(input.questions);
+  if (questions.length === 0) return null;
+  const title = asString(input.title);
+  return formatAskUserQuestions(ASK_USER_TOOL_NAMES.cursor, questions, {
+    includeDescriptions: opts.includeDescriptions ?? false,
+    notes: ["selected option not recorded in Cursor transcripts"],
+    ...title ? { title } : {}
+  });
+}
+function cursorAskUserQuestionEntry(role, block, recordIndex, opts) {
+  const text = cursorAskUserQuestionText(block, {
+    includeDescriptions: opts.includeDescriptions
+  });
+  if (!text) return null;
+  return {
+    role,
+    text,
+    recordIndex,
+    kind: "ask_user",
+    toolName: ASK_USER_TOOL_NAMES.cursor
+  };
+}
 function normalizeCursor(records, opts) {
   const includeToolCalls = opts.includeToolCalls ?? false;
   const entries = [];
@@ -453,6 +741,12 @@ function normalizeCursor(records, opts) {
     return content.flatMap((block) => {
       if (!isObject(block)) return [];
       if (block.type === "tool_use") {
+        if (role === "assistant" && asString(block.name) === ASK_USER_TOOL_NAMES.cursor) {
+          const entry = cursorAskUserQuestionEntry(role, block, recordIndex, {
+            includeDescriptions: includeToolCalls
+          });
+          if (entry) return [entry];
+        }
         if (!includeToolCalls) return [];
         const name = asString(block.name) ?? "tool_use";
         const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
@@ -481,19 +775,20 @@ function normalizeCursor(records, opts) {
       sourceRecordIndex: entry.sourceRecordIndex ?? entry.recordIndex,
       recordIndex
     });
-    const userEntries = buffered.filter((entry) => entry.role === "user").map(consumeAtTerminal);
+    const userEntries = buffered.filter((entry) => entry.role === "user" && entry.kind !== "ask_user").map(consumeAtTerminal);
+    const askUserEntries = buffered.filter((entry) => entry.kind === "ask_user").map(consumeAtTerminal);
     if (status === "success") {
       const toolEntries = includeToolCalls ? buffered.filter((entry) => entry.kind === "tool_call").map(consumeAtTerminal) : [];
       const finalAssistant = buffered.findLast(
         (entry) => entry.role === "assistant" && entry.kind === "message"
       );
-      entries.push(...userEntries, ...toolEntries);
+      entries.push(...userEntries, ...toolEntries, ...askUserEntries);
       if (finalAssistant) {
         entries.push(consumeAtTerminal(finalAssistant));
       }
     } else {
       const label = status ?? "unknown";
-      entries.push(...userEntries, {
+      entries.push(...userEntries, ...askUserEntries, {
         role: "assistant",
         text: `[Cursor turn ended with status: ${label}]`,
         recordIndex,
@@ -503,6 +798,18 @@ function normalizeCursor(records, opts) {
     }
     turnStart = recordIndex + 1;
   });
+  if (turnStart < records.length) {
+    const trailing = records.slice(turnStart).flatMap((record, offset) => normalizeRecord(record, turnStart + offset));
+    if (trailing.some((entry) => entry.kind === "ask_user")) {
+      entries.push(
+        ...trailing.filter((entry) => {
+          if (entry.kind === "ask_user") return true;
+          if (entry.role !== "user") return false;
+          return entry.origin !== "automatic-control" && entry.displayRole !== "automatic-control";
+        })
+      );
+    }
+  }
   return entries;
 }
 function normalizeEntries(runtime, records, opts = {}) {
@@ -512,6 +819,7 @@ function normalizeEntries(runtime, records, opts = {}) {
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 export {
+  cursorAskUserQuestionText,
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,

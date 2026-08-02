@@ -116,9 +116,12 @@ function formatHeader(digest) {
     lines.push(`**raw records consumed:** ${range.newRecords}`);
   }
   if (accounting?.rendered) {
-    const { count, fromIndex, toIndex } = accounting.rendered;
+    const { count, fromIndex, toIndex, askUserEntries } = accounting.rendered;
     const renderedRange = count > 0 ? `zero-based records ${fromIndex}\u2013${toIndex}` : "none";
-    lines.push(`**rendered messages:** ${count} (${renderedRange})`);
+    const askUserNote = askUserEntries > 0 ? `, including ${askUserEntries} ask-user` : "";
+    lines.push(
+      `**rendered messages:** ${count}${askUserNote} (${renderedRange})`
+    );
   }
   if (accounting?.filtered) {
     const filtered = accounting.filtered;
@@ -192,7 +195,10 @@ function cursorEntry(record, deliveryFrameIndex, availability) {
     text: record.text,
     recordIndex: deliveryFrameIndex,
     sourceFrameIndex: record.sourceFrameIndex,
-    kind: "message",
+    // Questions are tagged structurally so JSON consumers can tell them from
+    // assistant prose, matching how the v1 normalizer and the public docs
+    // describe Cursor ask-user content.
+    kind: record.askUser === true ? "ask_user" : "message",
     entryKey: record.entryKey,
     turnId: record.turnId,
     availability
@@ -240,6 +246,9 @@ function cursorEngagement(opts) {
     engaged,
     recordCount: opts.cursorScan.totalFrames,
     genuineUserMessages,
+    // Cursor records no ask-user answer at all, so there is never an
+    // operator-attributable one to count here.
+    operatorAskUserAnswers: 0,
     syntheticUserMessages,
     assistantMessages,
     realMessageCount: genuineUserMessages + assistantMessages,
@@ -395,20 +404,62 @@ function buildCursorDigest(transcriptPath, opts) {
       finalEntryKey,
       contentPreviouslyObservable: finalEntryKey !== null && deliveredEntryKeys.has(finalEntryKey)
     });
+    const emitsAskUser = opts.cursorProjection === "observation";
+    const emitAskUserRecords = (availability) => {
+      if (!emitsAskUser) return;
+      for (const record of substantiveRecords) {
+        if (record.askUser !== true || record.entryKey === finalEntryKey)
+          continue;
+        if (deliveredEntryKeys.has(record.entryKey)) continue;
+        entriesBeforeTailSlice.push(
+          cursorEntry(record, record.sourceFrameIndex, availability)
+        );
+      }
+    };
     if (turn.lifecycle !== "success") {
-      suppressedContent ||= substantiveRecords.length > 0 || (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
+      emitAskUserRecords("terminal-incomplete");
+      if (!emitsAskUser) {
+        for (const record of substantiveRecords) {
+          if (record.askUser !== true) continue;
+          addCursorRecoveryPointer(
+            omittedAssistantEntries,
+            seenAssistantPointers,
+            cursorRecoveryPointer(
+              transcriptPath,
+              record.sourceFrameIndex,
+              record.entryKey
+            )
+          );
+        }
+      }
+      suppressedContent ||= substantiveRecords.some(
+        (record) => !emitsAskUser || record.askUser !== true
+      ) || (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
       continue;
     }
     const finalRecord = substantiveRecords.find(
       (record) => record.entryKey === finalEntryKey
     );
-    if (finalRecord && (opts.cursorProjection === "confirmed-completion" || !deliveredEntryKeys.has(finalRecord.entryKey))) {
+    emitAskUserRecords("completed");
+    const finalIsQuestion = finalRecord?.askUser === true;
+    if (finalRecord && !(finalIsQuestion && !emitsAskUser) && (opts.cursorProjection === "confirmed-completion" || !deliveredEntryKeys.has(finalRecord.entryKey))) {
       entriesBeforeTailSlice.push(
         cursorEntry(finalRecord, turn.terminalFrameIndex, "completed")
+      );
+    } else if (finalRecord && finalIsQuestion && !emitsAskUser) {
+      addCursorRecoveryPointer(
+        omittedAssistantEntries,
+        seenAssistantPointers,
+        cursorRecoveryPointer(
+          transcriptPath,
+          finalRecord.sourceFrameIndex,
+          finalRecord.entryKey
+        )
       );
     }
     for (const record of substantiveRecords) {
       if (record.entryKey === finalEntryKey) continue;
+      if (emitsAskUser && record.askUser === true) continue;
       if (opts.cursorProjection === "observation" && deliveredEntryKeys.has(record.entryKey)) {
         continue;
       }
@@ -693,7 +744,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     rendered: {
       count: filteredEntries.length,
       fromIndex: renderedFromIndex,
-      toIndex: renderedToIndex
+      toIndex: renderedToIndex,
+      askUserEntries: filteredEntries.filter((e) => e.kind === "ask_user").length
     },
     filtered: {
       toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,

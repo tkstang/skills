@@ -31,8 +31,11 @@ function entriesByRecordIndex(entries) {
 }
 function visibleConversationEntries(entries) {
   return entries.filter(
-    (entry) => entry.kind === "message" || entry.kind === "command_message"
+    (entry) => entry.kind === "message" || entry.kind === "command_message" || entry.kind === "ask_user"
   );
+}
+function isOperatorAskUserAnswer(entry) {
+  return entry.kind === "ask_user" && entry.role === "user" && entry.origin === "human";
 }
 function classifyTranscriptRecords(runtime, records) {
   const allEntries = normalizeEntries(runtime, records, {
@@ -46,6 +49,7 @@ function classifyTranscriptRecords(runtime, records) {
   let syntheticUserMessages = 0;
   let assistantMessages = 0;
   let realMessageCount = 0;
+  let operatorAskUserAnswers = 0;
   let pendingTitleAssistant = false;
   for (let recordIndex = 0; recordIndex < records.length; recordIndex++) {
     const entries = visibleConversationEntries(byRecord.get(recordIndex) ?? []);
@@ -70,6 +74,11 @@ function classifyTranscriptRecords(runtime, records) {
     }
     for (const entry of entries) {
       if (entry.role === "user") {
+        if (isOperatorAskUserAnswer(entry)) {
+          operatorAskUserAnswers++;
+          realMessageCount++;
+          continue;
+        }
         if (isSyntheticForEngagement(entry)) {
           syntheticUserMessages++;
           continue;
@@ -78,22 +87,24 @@ function classifyTranscriptRecords(runtime, records) {
           genuineUserMessages++;
           realMessageCount++;
         }
-      } else if (entry.role === "assistant" && entry.kind === "message") {
+      } else if (entry.role === "assistant" && (entry.kind === "message" || entry.kind === "ask_user")) {
         assistantMessages++;
         realMessageCount++;
       }
     }
   }
-  const status = genuineUserMessages > 0 ? "engaged" : "unengaged";
+  const humanInputs = genuineUserMessages + operatorAskUserAnswers;
+  const status = humanInputs > 0 ? "engaged" : "unengaged";
   return {
     status,
     engaged: status === "engaged",
     recordCount: records.length,
     genuineUserMessages,
+    operatorAskUserAnswers,
     syntheticUserMessages,
     assistantMessages,
     realMessageCount,
-    hasAssistantAndUser: genuineUserMessages > 0 && assistantMessages > 0,
+    hasAssistantAndUser: humanInputs > 0 && assistantMessages > 0,
     bootstrapRecordIndexes: publicBootstrapIndexes(bootstrapRecordIndexes),
     bootstrapRecordCount: bootstrapRecordIndexes.size
   };

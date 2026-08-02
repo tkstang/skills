@@ -1011,3 +1011,403 @@ describe('discoverPaths', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// normalizeEntries — ask-user exchanges
+//
+// Every runtime routes operator questions through a tool call. Those calls
+// carry human decision content, so they must survive the default tool filters
+// that drop ordinary tool traffic.
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries — ask-user exchanges', () => {
+  it('claude-code: renders questions and answers with tools filtered', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 4, 'two question/answer pairs');
+    expectOk(
+      askEntries.every((e) => e.toolName === 'AskUserQuestion'),
+      'toolName must be set on ask_user entries',
+    );
+
+    const [question, answer] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectOk(
+      question.text.startsWith('[AskUserQuestion] 2 questions:'),
+      `expected numbered question header, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes('1. Pkg boundary — Where should the parser live?'),
+      `expected header-prefixed question, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes(
+        '   options: New package (Recommended) | Inside core',
+      ),
+      `expected option labels, got: ${question.text}`,
+    );
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      answer.text.includes('1. Pkg boundary: "New package (Recommended)"'),
+      `expected labeled answer, got: ${answer.text}`,
+    );
+    // Free-text answers are the whole point: an operator who types instead of
+    // picking is invisible unless the structured payload is read.
+    expectOk(
+      answer.text.includes(
+        '2. Design depth: "Actually, show me the tradeoffs first."',
+      ),
+      `expected free-text answer, got: ${answer.text}`,
+    );
+    expectOk(
+      answer.text.includes('note: Assuming we can still re-export from core.'),
+      `expected operator annotation, got: ${answer.text}`,
+    );
+
+    // Ordinary tool traffic in the same fixture stays filtered.
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call' || e.kind === 'tool_result')
+        .length,
+      0,
+      'ordinary tool entries must remain filtered',
+    );
+  });
+
+  it('claude-code: falls back to the recorded summary when toolUseResult is absent', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {});
+    const answer = entries.filter((e) => e.kind === 'ask_user')[3];
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      answer.text.startsWith(
+        '[AskUserQuestion → answered] Your questions have been answered:',
+      ),
+      `expected prose fallback, got: ${answer.text}`,
+    );
+    expectOk(
+      answer.text.includes('"Ship it?"="Ship"'),
+      `fallback must preserve the answer, got: ${answer.text}`,
+    );
+  });
+
+  it('claude-code: includeToolCalls adds option descriptions', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: true,
+    });
+    const question = entries.find((e) => e.kind === 'ask_user');
+
+    expectOk(question, 'expected an ask_user question entry');
+    expectOk(
+      question.text.includes(
+        '   - New package (Recommended) — Keeps the core untouched.',
+      ),
+      `expected option descriptions, got: ${question.text}`,
+    );
+    // The ask-user branch must not also emit a duplicate tool_call entry.
+    expectEqual(
+      entries.filter(
+        (e) => e.kind === 'tool_call' && e.toolName === 'AskUserQuestion',
+      ).length,
+      0,
+      'ask-user calls must not double-render as tool_call entries',
+    );
+  });
+
+  it('codex: correlates answers back to their question by call id', async () => {
+    const records = await readRecords(
+      fixturePath('codex', 'request-user-input.jsonl'),
+    );
+    const entries = normalizeEntries('codex', records, {});
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 4, 'two question/answer pairs');
+
+    const [question, answer] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectOk(
+      question.text.startsWith(
+        '[request_user_input] Keepers — Will the auction use keepers?',
+      ),
+      `expected header-prefixed question, got: ${question.text}`,
+    );
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      // The raw payload keys this answer as `keeper_use`; the header must win.
+      answer.text.includes('Keepers: "No keepers (Recommended)"'),
+      `expected answer labeled by header, got: ${answer.text}`,
+    );
+
+    // Non-ask function calls and their outputs stay filtered.
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call' || e.kind === 'tool_result')
+        .length,
+      0,
+      'ordinary function calls must remain filtered',
+    );
+  });
+
+  it('codex: flags auto-resolving questions so answers are not over-attributed', async () => {
+    const records = await readRecords(
+      fixturePath('codex', 'request-user-input.jsonl'),
+    );
+    const entries = normalizeEntries('codex', records, {});
+    const question = entries.filter((e) => e.kind === 'ask_user')[2];
+
+    expectOk(
+      question.text.includes(
+        '(auto-resolves after 120s; a recorded answer may be the default rather than an operator choice)',
+      ),
+      `expected auto-resolution caveat, got: ${question.text}`,
+    );
+  });
+
+  it('cursor: renders the question and states that the answer is unrecorded', async () => {
+    const records = await readRecords(
+      fixturePath('cursor', 'ask-question.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 1, 'one question, no recorded answer');
+    const [question] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectEqual(question.toolName, 'AskQuestion');
+    expectOk(
+      question.text.startsWith(
+        '[AskQuestion] Discovery convergence — 2 questions:',
+      ),
+      `expected the call title to label the group, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes('1. Proceed as one cohesive project?'),
+      `expected the question prompt, got: ${question.text}`,
+    );
+    // Cursor writes no tool-result records at all, so an observer must be able
+    // to tell "not recorded" apart from "not answered".
+    expectOk(
+      question.text.includes(
+        '(selected option not recorded in Cursor transcripts)',
+      ),
+      `expected the unrecorded-answer note, got: ${question.text}`,
+    );
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call').length,
+      0,
+      'the Shell call in the same turn must remain filtered',
+    );
+  });
+});
+
+describe('normalizeEntries — Cursor ask-user turn boundaries', () => {
+  const askQuestionText =
+    '[AskQuestion] Pending gate — Proceed with the migration?';
+
+  for (const status of ['aborted', 'error', 'cancelled'] as const) {
+    it(`cursor: preserves the question when a turn ends ${status}`, async () => {
+      const records = await readRecords(
+        fixturePath('cursor', 'ask-question.jsonl'),
+      );
+      // Swap the terminal status; the rest of the turn is unchanged.
+      const terminal = records.map((record) =>
+        record.type === 'turn_ended' ? { ...record, status } : record,
+      );
+      const entries = normalizeEntries('cursor', terminal, {});
+      const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+      expectEqual(
+        askEntries.length,
+        1,
+        `ask-user question must survive a ${status} turn`,
+      );
+      // The turn's ordinary assistant content is still withheld, and the
+      // runtime diagnostic still reports the terminal status.
+      expectOk(
+        entries.some(
+          (e) => e.origin === 'runtime-diagnostic' && e.text.includes(status),
+        ),
+        `expected the ${status} diagnostic entry`,
+      );
+      expectOk(
+        !entries.some((e) => e.text === 'Discovery is complete and committed.'),
+        'non-success turns must still withhold ordinary assistant content',
+      );
+    });
+  }
+
+  it("cursor: flushes a trailing question and the operator's typed reply", async () => {
+    const records = await readRecords(
+      fixturePath('cursor', 'ask-question-unterminated.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+    expectEqual(askEntries.length, 1, 'trailing question must be preserved');
+    expectOk(
+      askEntries[0].text.startsWith(askQuestionText),
+      `expected the pending question, got: ${askEntries[0].text}`,
+    );
+    // Cursor records a typed answer as an ordinary user message. Dropping it
+    // would lose the answer the question was asking for.
+    expectOk(
+      entries.some((e) => e.text === 'Use the safer option instead.'),
+      "the operator's typed reply must survive",
+    );
+    // Unfinished assistant progress stays hidden either way.
+    for (const hidden of [
+      'One decision before I continue.',
+      'Half-finished follow-up work.',
+    ]) {
+      expectOk(
+        !entries.some((e) => e.text === hidden),
+        `unfinished assistant progress leaked: ${hidden}`,
+      );
+    }
+  });
+
+  it('cursor: the trailing flush excludes automatic-control envelopes', () => {
+    // The gate opening for a question must not let machine coordination ride
+    // along: wake envelopes carry lease and pinned-peer identity.
+    const wake = JSON.stringify({
+      session_observer_wake: {
+        automatic: true,
+        runtime: 'cursor',
+        leaseId: 'secret-lease',
+        pinnedPeer: {
+          runtime: 'claude-code',
+          sessionId: 'SECRET-PEER-SESSION',
+        },
+        range: { fromIndex: 0, toIndex: 3 },
+      },
+    });
+    const records = [
+      { role: 'user', message: { content: [{ type: 'text', text: 'go' }] } },
+      { type: 'turn_ended', status: 'success' },
+      { role: 'user', message: { content: [{ type: 'text', text: wake }] } },
+      {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Gate',
+                questions: [
+                  {
+                    id: 'q',
+                    prompt: 'Proceed?',
+                    options: [{ id: 'y', label: 'Yes' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: 'Use the safer option.' }],
+        },
+      },
+    ] as JsonObject[];
+
+    const entries = normalizeEntries('cursor', records, {});
+    const joined = entries.map((e) => e.text).join('\n');
+
+    expectOk(
+      entries.some((e) => e.kind === 'ask_user'),
+      'the question must survive',
+    );
+    expectOk(
+      entries.some((e) => e.text === 'Use the safer option.'),
+      "the operator's typed reply must survive",
+    );
+    expectOk(
+      !entries.some((e) => e.origin === 'automatic-control'),
+      'automatic-control entry leaked into the trailing flush',
+    );
+    expectOk(!joined.includes('secret-lease'), 'lease id leaked');
+    expectOk(!joined.includes('SECRET-PEER-SESSION'), 'peer session leaked');
+  });
+
+  it('cursor: a user-role AskQuestion block does not open the tail', () => {
+    // Only the assistant asks. A malformed or synthesized user-role block must
+    // not become `ask_user`, or it would release a provisional tail the
+    // question-free contract keeps hidden.
+    const records = [
+      { role: 'user', message: { content: [{ type: 'text', text: 'go' }] } },
+      { type: 'turn_ended', status: 'success' },
+      {
+        role: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Spoofed',
+                questions: [
+                  {
+                    id: 'q',
+                    prompt: 'Proceed?',
+                    options: [{ id: 'y', label: 'Yes' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'assistant',
+        message: { content: [{ type: 'text', text: 'HIDDEN_ASSISTANT_WORK' }] },
+      },
+      {
+        role: 'user',
+        message: { content: [{ type: 'text', text: 'TAIL_USER_TEXT' }] },
+      },
+    ] as JsonObject[];
+
+    const entries = normalizeEntries('cursor', records, {});
+
+    expectOk(
+      !entries.some((e) => e.kind === 'ask_user'),
+      'a user-role block must not become an ask_user entry',
+    );
+    expectOk(
+      !entries.some((e) => e.text === 'TAIL_USER_TEXT'),
+      'the provisional tail must stay hidden',
+    );
+    expectOk(
+      !entries.some((e) => e.text === 'HIDDEN_ASSISTANT_WORK'),
+      'unfinished assistant work must stay hidden',
+    );
+  });
+
+  it('cursor: a provisional tail with no question stays hidden', async () => {
+    // The flush is scoped to the ask-user exchange that justifies it; an
+    // ordinary unterminated tail keeps the existing hide-it-all guarantee.
+    const records = await readRecords(
+      fixturePath('cursor', 'unterminated.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+
+    expectEqual(entries.length, 0, 'provisional tail must stay hidden');
+  });
+});

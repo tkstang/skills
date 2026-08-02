@@ -14,6 +14,9 @@ export type ExportRuntime = 'claude-code' | 'codex' | 'cursor';
 export interface SanitizableEntry {
   role?: string;
   text?: string;
+  /** Structural provenance set by the normalizers, when known. */
+  origin?: string;
+  displayRole?: string;
 }
 
 export interface HiddenPayloadMatcher {
@@ -127,6 +130,19 @@ export function sanitizeEntries<T extends SanitizableEntry>(
 ): T[] | SanitizableEntry[] {
   if (!Array.isArray(entries)) return [];
   return entries.filter((entry) => {
+    // Structural check first. Automatic-control wake envelopes carry lease ids
+    // and pinned peer-session identity — internal collaboration metadata that
+    // must never reach a file intended for sharing. The text matchers below
+    // cannot be relied on for this: the payload is JSON whose shape can change,
+    // and the normalizers already tag it unambiguously. Applies to every
+    // runtime and turn status.
+    if (
+      entry?.origin === 'automatic-control' ||
+      entry?.displayRole === 'automatic-control'
+    ) {
+      return false;
+    }
+
     const text = entry?.text ?? '';
     const role = entry?.role ?? '';
     for (const matcher of HIDDEN_PAYLOAD_MATCHERS) {

@@ -16,13 +16,15 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
-import type { DigestEntry, Runtime } from '../../src/transcript/core/runtimes.js';
-import type { SanitizableEntry } from '../../src/transcript/export-session/sanitize.js';
-
+import type {
+  DigestEntry,
+  Runtime,
+} from '../../src/transcript/core/runtimes.js';
 import {
   normalizeEntries,
   readRecords,
 } from '../../src/transcript/core/runtimes.js';
+import type { SanitizableEntry } from '../../src/transcript/export-session/sanitize.js';
 import {
   HIDDEN_PAYLOAD_MATCHERS,
   sanitizeEntries,
@@ -297,5 +299,68 @@ describe('sanitizeEntries — input handling', () => {
     expect(input).toEqual(copy);
     expect(out).toHaveLength(1);
     expect(out[0]?.text).toBe('a real message');
+  });
+});
+
+describe('sanitizeEntries — automatic-control envelopes', () => {
+  const wakeText = JSON.stringify({
+    session_observer_wake: {
+      automatic: true,
+      schemaVersion: 1,
+      runtime: 'cursor',
+      leaseId: 'secret-lease',
+      pinnedPeer: { runtime: 'claude-code', sessionId: 'SECRET-PEER-SESSION' },
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 0, toIndex: 3 },
+    },
+  });
+
+  // Lease ids and pinned peer-session identity are internal collaboration
+  // metadata. The normalizers tag these structurally, so the sanitizer must not
+  // depend on matching their JSON body — the shape can change, the tag will not.
+  for (const runtime of ['claude-code', 'codex', 'cursor'] as const) {
+    test(`${runtime}: drops a structurally tagged control envelope`, () => {
+      const kept = sanitizeEntries(
+        [
+          { role: 'user', text: 'Genuine human direction.' },
+          {
+            role: 'user',
+            text: wakeText,
+            kind: 'message',
+            origin: 'automatic-control',
+            displayRole: 'automatic-control',
+          },
+        ] as SanitizableEntry[],
+        { runtime },
+      );
+
+      expect(kept).toHaveLength(1);
+      expect(kept[0]!.text).toBe('Genuine human direction.');
+      const joined = kept.map((entry) => entry.text).join('\n');
+      expect(joined).not.toContain('secret-lease');
+      expect(joined).not.toContain('SECRET-PEER-SESSION');
+    });
+  }
+
+  test('drops a control envelope tagged only by displayRole', () => {
+    const kept = sanitizeEntries(
+      [
+        { role: 'user', text: wakeText, displayRole: 'automatic-control' },
+      ] as SanitizableEntry[],
+      { runtime: 'cursor' },
+    );
+
+    expect(kept).toHaveLength(0);
+  });
+
+  test('keeps ordinary user text that merely mentions a lease', () => {
+    const kept = sanitizeEntries(
+      [
+        { role: 'user', text: 'The lease id looked wrong to me.' },
+      ] as SanitizableEntry[],
+      { runtime: 'cursor' },
+    );
+
+    expect(kept).toHaveLength(1);
   });
 });

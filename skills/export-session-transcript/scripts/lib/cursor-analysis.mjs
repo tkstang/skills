@@ -2,6 +2,7 @@
 // Source: src/transcript/core/cursor-analysis.ts
 import { createHash } from "node:crypto";
 import {
+  cursorAskUserQuestionText,
   isAutomaticControlAcknowledgement,
   isNoOpText,
   parseAutomaticControlEnvelope
@@ -54,6 +55,10 @@ function contentBlocks(record) {
     }
     const type = stringValue(block.type);
     if (type === "tool_use") {
+      const askUserText = cursorAskUserQuestionText(block);
+      if (askUserText !== null) {
+        return { blockIndex, kind: "ask-user", text: askUserText };
+      }
       return { blockIndex, kind: "tool", text: "" };
     }
     const text = stringValue(block.text) ?? stringValue(block.content) ?? "";
@@ -206,7 +211,8 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
           blockIndex: block.blockIndex,
           role: "assistant",
           text: block.text,
-          classification
+          classification,
+          ...block.kind === "ask-user" ? { askUser: true } : {}
         });
       }
     },

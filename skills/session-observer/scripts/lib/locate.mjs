@@ -129,6 +129,7 @@ const UNKNOWN_CLASSIFICATION = {
   engaged: true,
   recordCount: null,
   genuineUserMessages: 0,
+  operatorAskUserAnswers: 0,
   syntheticUserMessages: 0,
   assistantMessages: 0,
   realMessageCount: 0,

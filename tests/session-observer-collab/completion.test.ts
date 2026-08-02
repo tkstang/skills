@@ -1,8 +1,13 @@
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
 import { selectCompletedContinuation } from '../../skills/session-observer-collab/scripts/lib/completion-selection.mjs';
+// @ts-expect-error shipped collaboration runtime; no type declarations here.
+import { observeCursorCompletion } from '../../skills/session-observer-collab/scripts/lib/selected-prefix.mjs';
 
 function digest(entries: object[], fromIndex = 0, totalRecords = 8) {
   return {
@@ -683,5 +688,121 @@ describe('normalized completed continuation selection', () => {
     expect(source).not.toMatch(
       /readFile|readRecords|normalizeEntries|JSON\.parse|turn_ended|response_item|claude-code/i,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-skill regression: ask-user content must not strand a continuation
+//
+// session-observer renders Cursor questions as digest content. This selector
+// requires every schema-v2 entry to be the final message of a terminal-success
+// turn, so a question leaking into the confirmed-completion projection makes an
+// otherwise valid collaboration turn `observer-invalid`.
+// ---------------------------------------------------------------------------
+
+describe('Cursor ask-user content and the confirmed-completion contract', () => {
+  const FIXTURE_DIR = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../session-observer/fixtures/cursor',
+  );
+
+  /**
+   * Drive the REAL production handoff. `observeCursorCompletion` builds the
+   * confirmed-completion digest and attaches the selected-prefix envelope that
+   * `selectCompletedContinuation` verifies; the synthetic
+   * `cursorCompletionDigest()` helper invents both, so using it here would let
+   * a regression in that handoff pass unnoticed.
+   *
+   * The fixture is copied to a temp dir because the lease reads by path and the
+   * suite must leave the working tree clean.
+   */
+  async function observeFixture(
+    name: string,
+    run: (observed: any) => void | Promise<void>,
+  ) {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-collab-'));
+    try {
+      const peerTranscript = join(tmpDir, name);
+      await writeFile(
+        peerTranscript,
+        await readFile(join(FIXTURE_DIR, name), 'utf8'),
+      );
+      const observed: any = await observeCursorCompletion({
+        peerSession: 'cursor-ask',
+        ownerCwd: tmpDir,
+        peerTranscript,
+        peerCanonicalTranscriptPath: peerTranscript,
+        peerCursor: 0,
+        peerContinuity: null,
+      });
+      await run(observed);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  test('a successful turn containing AskQuestion still selects a continuation', async () => {
+    await observeFixture('ask-question.jsonl', (observed) => {
+      // The question is observation-only content; the confirmed projection
+      // keeps exactly the final message.
+      expect(observed.entries).toHaveLength(1);
+      expect(observed.entries[0].text).toBe(
+        'Discovery is complete and committed.',
+      );
+      expect(observed.entries[0].kind).toBe('message');
+      expect(observed.cursorEvidence.selectedPrefix).toBeTruthy();
+
+      const result: any = selectCompletedContinuation(observed);
+      expect(result.status).toBe('continuation');
+      expect(result.continuation).toBe(true);
+    });
+  });
+
+  test('a turn ending on the question yields no continuation, not observer-invalid', async () => {
+    // Production shape `user → AskQuestion → turn_ended(success)`.
+    await observeFixture('ask-question-final.jsonl', (observed) => {
+      // The question is never promoted here...
+      expect(observed.entries).toHaveLength(0);
+      // ...but it stays reachable.
+      expect(
+        observed.accounting.recovery.omittedAssistantEntries.length,
+      ).toBeGreaterThan(0);
+      expect(observed.cursorEvidence.selectedPrefix).toBeTruthy();
+
+      const result: any = selectCompletedContinuation(observed);
+      expect(result.status).not.toBe('observer-invalid');
+      expect(result.continuation).toBeFalsy();
+    });
+  });
+
+  test('an ask-user entry in that projection would be rejected', async () => {
+    // Guards the invariant itself: if ask-user content ever reaches the
+    // confirmed projection again, this is the failure it produces.
+    expect(() =>
+      selectCompletedContinuation(
+        cursorCompletionDigest([
+          {
+            role: 'assistant',
+            text: '[AskQuestion] Gate — Proceed?',
+            recordIndex: 5,
+            sourceFrameIndex: 5,
+            kind: 'ask_user',
+            entryKey: 'entry-assistant-5',
+            turnId: 'turn-3',
+            availability: 'completed',
+          },
+          {
+            role: 'assistant',
+            text: 'Done.',
+            recordIndex: 7,
+            sourceFrameIndex: 6,
+            kind: 'message',
+            entryKey: 'entry-assistant-6',
+            turnId: 'turn-3',
+            availability: 'completed',
+          },
+        ]),
+      ),
+    ).toThrow(/confirmed-completion contract/);
   });
 });

@@ -63,7 +63,29 @@ function entriesByRecordIndex(
 
 function visibleConversationEntries(entries: DigestEntry[]): DigestEntry[] {
   return entries.filter(
-    (entry) => entry.kind === 'message' || entry.kind === 'command_message',
+    (entry) =>
+      entry.kind === 'message' ||
+      entry.kind === 'command_message' ||
+      entry.kind === 'ask_user',
+  );
+}
+
+/**
+ * An ask-user answer the runtime attributes to the operator.
+ *
+ * Answering a structured prompt is real human engagement, so a session whose
+ * only human input arrived that way must not classify as unengaged — that is
+ * exactly the session an observer needs. Attribution is deliberately narrow:
+ * the normalizers set `origin: 'human'` only where the runtime's record proves
+ * a person answered. Codex calls that could auto-resolve on a timer produce
+ * output indistinguishable from an operator's choice, so they are left
+ * unattributed and do not count here.
+ */
+function isOperatorAskUserAnswer(entry: DigestEntry): boolean {
+  return (
+    entry.kind === 'ask_user' &&
+    entry.role === 'user' &&
+    entry.origin === 'human'
   );
 }
 
@@ -90,6 +112,7 @@ export function classifyTranscriptRecords(
   let syntheticUserMessages = 0;
   let assistantMessages = 0;
   let realMessageCount = 0;
+  let operatorAskUserAnswers = 0;
   let pendingTitleAssistant = false;
 
   for (let recordIndex = 0; recordIndex < records.length; recordIndex++) {
@@ -125,6 +148,14 @@ export function classifyTranscriptRecords(
 
     for (const entry of entries) {
       if (entry.role === 'user') {
+        if (isOperatorAskUserAnswer(entry)) {
+          // Counted separately from free-form messages so the distinction
+          // stays visible to ranking and diagnostics rather than silently
+          // inflating the genuine-message count.
+          operatorAskUserAnswers++;
+          realMessageCount++;
+          continue;
+        }
         if (isSyntheticForEngagement(entry)) {
           syntheticUserMessages++;
           continue;
@@ -133,23 +164,32 @@ export function classifyTranscriptRecords(
           genuineUserMessages++;
           realMessageCount++;
         }
-      } else if (entry.role === 'assistant' && entry.kind === 'message') {
+      } else if (
+        entry.role === 'assistant' &&
+        (entry.kind === 'message' || entry.kind === 'ask_user')
+      ) {
+        // A question put to the operator is the assistant's half of the
+        // exchange. Ranking compares `hasAssistantAndUser` before recency, so
+        // omitting it would leave a prompt-only session engaged-but-outranked
+        // by any older ordinary session.
         assistantMessages++;
         realMessageCount++;
       }
     }
   }
 
-  const status = genuineUserMessages > 0 ? 'engaged' : 'unengaged';
+  const humanInputs = genuineUserMessages + operatorAskUserAnswers;
+  const status = humanInputs > 0 ? 'engaged' : 'unengaged';
   return {
     status,
     engaged: status === 'engaged',
     recordCount: records.length,
     genuineUserMessages,
+    operatorAskUserAnswers,
     syntheticUserMessages,
     assistantMessages,
     realMessageCount,
-    hasAssistantAndUser: genuineUserMessages > 0 && assistantMessages > 0,
+    hasAssistantAndUser: humanInputs > 0 && assistantMessages > 0,
     bootstrapRecordIndexes: publicBootstrapIndexes(bootstrapRecordIndexes),
     bootstrapRecordCount: bootstrapRecordIndexes.size,
   };

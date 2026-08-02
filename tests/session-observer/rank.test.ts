@@ -72,7 +72,10 @@ test('Tier A wins over Tier B and non-A candidates are not in fallbacks', () => 
   expect(result.winner.sessionId, 'Tier A should win').toBe(tierA.sessionId);
   expect(result.tier, 'result tier should be A').toBe('A');
   // Tier B should appear in fallbacks, not bumped to winner
-  expect(Array.isArray(result.fallbacks), 'fallbacks should be an array').toBeTruthy();
+  expect(
+    Array.isArray(result.fallbacks),
+    'fallbacks should be an array',
+  ).toBeTruthy();
 });
 
 test('Tier A exact cwd beats newer unrelated candidate', () => {
@@ -141,10 +144,9 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
 
   expect(result.winner, 'winner should be null on noMatch').toBe(null);
   expect(result.noMatch, 'noMatch should be true').toBe(true);
-  expect(
-    result.sisters,
-    'sisters should come from opts.gitWorktrees',
-  ).toEqual(mockSisters);
+  expect(result.sisters, 'sisters should come from opts.gitWorktrees').toEqual(
+    mockSisters,
+  );
   expect(
     Array.isArray(result.globalRecent),
     'globalRecent should be an array',
@@ -215,7 +217,10 @@ test('Cursor project-dir slug match beats newer unrelated global candidate', () 
 
   const result: any = rank([unrelatedRecent, sameWorktree], targetCwd);
 
-  expect(result.winner, 'Cursor slug match should produce a winner').toBeTruthy();
+  expect(
+    result.winner,
+    'Cursor slug match should produce a winner',
+  ).toBeTruthy();
   expect(result.winner.sessionId).toBe('cursor-same-worktree');
   expect(result.tier).toBe('C');
 });
@@ -289,10 +294,9 @@ test('active: true set on winner when ageSec < 60', () => {
   const result: any = rank([activeCandidate], TARGET_CWD);
 
   expect(result.winner, 'should have a winner').toBeTruthy();
-  expect(
-    result.winner.active,
-    'active should be true when ageSec < 60',
-  ).toBe(true);
+  expect(result.winner.active, 'active should be true when ageSec < 60').toBe(
+    true,
+  );
 });
 
 test('active: false set on winner when ageSec >= 60', () => {
@@ -306,10 +310,9 @@ test('active: false set on winner when ageSec >= 60', () => {
   const result: any = rank([inactiveCandidate], TARGET_CWD);
 
   expect(result.winner, 'should have a winner').toBeTruthy();
-  expect(
-    result.winner.active,
-    'active should be false when ageSec >= 60',
-  ).toBe(false);
+  expect(result.winner.active, 'active should be false when ageSec >= 60').toBe(
+    false,
+  );
 });
 
 test('realpathSafe handles ENOENT without throwing', async () => {
@@ -341,10 +344,9 @@ test('Within a tier, candidates sorted by mtime DESC', () => {
   const result: any = rank([older, middle, newer], TARGET_CWD);
 
   expect(result.winner, 'should have a winner').toBeTruthy();
-  expect(
-    result.winner.sessionId,
-    'newest (highest mtime) should win',
-  ).toBe('sess-newer');
+  expect(result.winner.sessionId, 'newest (highest mtime) should win').toBe(
+    'sess-newer',
+  );
   // fallbacks should be sorted by mtime DESC as well
   if (result.fallbacks && result.fallbacks.length > 0) {
     for (let i = 1; i < result.fallbacks.length; i++) {

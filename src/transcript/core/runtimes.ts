@@ -53,7 +53,8 @@ export type DigestEntryKind =
   | 'message'
   | 'tool_call'
   | 'tool_result'
-  | 'command_message';
+  | 'command_message'
+  | 'ask_user';
 
 export interface AutomaticControlProvenance {
   automatic: true;
@@ -95,6 +96,19 @@ interface ClaudeContentOptions {
   includeToolResults: boolean;
   includeCommandMessages: boolean;
   toolNameById: Map<string, string>;
+  /**
+   * Claude records the structured answer payload on the record, not on the
+   * tool_result block. Threaded through so the ask-user branch can read it.
+   */
+  toolUseResult?: unknown;
+}
+
+/** One question as asked by a runtime's ask-user tool. */
+interface AskUserQuestion {
+  /** Short chip/label, when the runtime records one. */
+  header?: string;
+  prompt: string;
+  options: { label: string; description?: string }[];
 }
 
 type SafeParseResult =
@@ -107,6 +121,22 @@ type SafeParseResult =
 
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
+// Ask-user content renders by default, so it needs its own headroom: a
+// question plus its option labels routinely exceeds the tool-call limit.
+const ASK_USER_PROMPT_LIMIT = 500;
+const ASK_USER_OPTION_LIMIT = 120;
+const ASK_USER_DESCRIPTION_LIMIT = 300;
+const ASK_USER_ANSWER_LIMIT = 500;
+/**
+ * Per-runtime name of the tool that puts a question to the human operator.
+ * These are the only tool calls whose payload is human decision content rather
+ * than tool mechanics, so the digest keeps them even when tools are filtered.
+ */
+const ASK_USER_TOOL_NAMES: Record<Runtime, string> = {
+  'claude-code': 'AskUserQuestion',
+  codex: 'request_user_input',
+  cursor: 'AskQuestion',
+};
 const COMMAND_MESSAGE_RE =
   /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
 const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
@@ -369,6 +399,142 @@ function isClaudeCommandMessageText(text: string): boolean {
 function stringifyArgs(value: unknown, limit: number): string {
   if (typeof value === 'string') return truncate(value, limit);
   return truncate(JSON.stringify(value ?? {}) ?? '{}', limit);
+}
+
+// ---------------------------------------------------------------------------
+// Ask-user helpers
+//
+// Every runtime routes operator questions through a tool call, so the default
+// tool filters would drop both the question and the human's answer. These
+// helpers render that exchange as conversation instead: option labels always,
+// option descriptions only when tool detail is requested.
+// ---------------------------------------------------------------------------
+
+/** Short prompt restatement used to label an answer line. */
+const ASK_USER_ANSWER_PROMPT_LIMIT = 200;
+
+/**
+ * Parse one runtime's recorded question list into the shared shape.
+ * Accepts Claude's `{ question, header, options: [{ label, description }] }`,
+ * Codex's `{ question, header, options: [{ label, description }] }`, and
+ * Cursor's `{ prompt, options: [{ label }] }`.
+ */
+function parseAskUserQuestions(value: unknown): AskUserQuestion[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw): AskUserQuestion[] => {
+    if (!isObject(raw)) return [];
+    const prompt = asString(raw.question) ?? asString(raw.prompt);
+    if (!prompt) return [];
+    const header = asString(raw.header) ?? asString(raw.title);
+    const options = Array.isArray(raw.options)
+      ? raw.options.flatMap((option): AskUserQuestion['options'] => {
+          if (typeof option === 'string') return [{ label: option }];
+          if (!isObject(option)) return [];
+          const label = asString(option.label) ?? asString(option.id);
+          if (!label) return [];
+          const description = asString(option.description);
+          return [{ label, ...(description ? { description } : {}) }];
+        })
+      : [];
+    return [{ ...(header ? { header } : {}), prompt, options }];
+  });
+}
+
+/**
+ * Render the assistant side of an ask-user exchange: the questions put to the
+ * operator and the options offered.
+ */
+function formatAskUserQuestions(
+  toolName: string,
+  questions: AskUserQuestion[],
+  opts: { includeDescriptions: boolean; notes?: string[]; title?: string },
+): string {
+  const numbered = questions.length > 1;
+  const lines: string[] = [];
+
+  const questionHead = (question: AskUserQuestion): string => {
+    // A single question absorbs the call-level title as its header; with
+    // several, the title labels the group instead.
+    const header = question.header ?? (numbered ? undefined : opts.title);
+    const head = header ? `${header} — ${question.prompt}` : question.prompt;
+    return truncate(head, ASK_USER_PROMPT_LIMIT);
+  };
+
+  if (numbered) {
+    const title = opts.title ? `${opts.title} — ` : '';
+    lines.push(`[${toolName}] ${title}${questions.length} questions:`);
+  }
+
+  questions.forEach((question, index) => {
+    const head = questionHead(question);
+    lines.push(numbered ? `${index + 1}. ${head}` : `[${toolName}] ${head}`);
+    if (question.options.length === 0) return;
+    if (opts.includeDescriptions) {
+      for (const option of question.options) {
+        const description = option.description
+          ? ` — ${truncate(option.description, ASK_USER_DESCRIPTION_LIMIT)}`
+          : '';
+        lines.push(
+          `   - ${truncate(option.label, ASK_USER_OPTION_LIMIT)}${description}`,
+        );
+      }
+    } else {
+      const labels = question.options
+        .map((option) => truncate(option.label, ASK_USER_OPTION_LIMIT))
+        .join(' | ');
+      lines.push(`   options: ${labels}`);
+    }
+  });
+
+  for (const note of opts.notes ?? []) lines.push(`   (${note})`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Render the human side of an ask-user exchange. `note` carries operator-authored
+ * annotations when the runtime records them.
+ */
+function formatAskUserAnswers(
+  toolName: string,
+  answers: { label: string; answer: string; note?: string }[],
+): string {
+  const numbered = answers.length > 1;
+  const lines: string[] = [];
+
+  if (numbered) {
+    lines.push(`[${toolName} → answered]`);
+  }
+
+  answers.forEach(({ label, answer, note }, index) => {
+    const body = `${truncate(label, ASK_USER_ANSWER_PROMPT_LIMIT)}: "${truncate(
+      answer,
+      ASK_USER_ANSWER_LIMIT,
+    )}"`;
+    lines.push(
+      numbered ? `${index + 1}. ${body}` : `[${toolName} → answered] ${body}`,
+    );
+    if (note) {
+      lines.push(`   note: ${truncate(note, ASK_USER_ANSWER_LIMIT)}`);
+    }
+  });
+
+  return lines.join('\n');
+}
+
+/**
+ * Normalize a recorded answer value to display text. Runtimes record either a
+ * plain string (Claude single-select and free text), an array of labels
+ * (multi-select), or Codex's `{ answers: [label] }` wrapper.
+ */
+function askUserAnswerText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value || undefined;
+  if (Array.isArray(value)) {
+    const labels = value.map(asString).filter((label) => Boolean(label));
+    return labels.length > 0 ? labels.join(', ') : undefined;
+  }
+  if (isObject(value)) return askUserAnswerText(value.answers);
+  return undefined;
 }
 
 /**
@@ -699,6 +865,109 @@ export function extractMetaFromRecords(
 // ---------------------------------------------------------------------------
 
 /**
+ * Build the ask_user entry for a Claude `AskUserQuestion` tool_use block.
+ * Returns null when the block carries no parseable questions, so the caller can
+ * fall back to ordinary tool_call handling.
+ */
+function claudeAskUserQuestionEntry(
+  role: DigestEntryRole,
+  block: JsonObject,
+  recordIndex: number,
+  opts: ClaudeContentOptions,
+): DigestEntry | null {
+  const input = isObject(block.input) ? block.input : {};
+  const questions = parseAskUserQuestions(input.questions);
+  if (questions.length === 0) return null;
+  return {
+    role,
+    text: formatAskUserQuestions(
+      ASK_USER_TOOL_NAMES['claude-code'],
+      questions,
+      { includeDescriptions: opts.includeToolCalls },
+    ),
+    recordIndex,
+    kind: 'ask_user',
+    toolName: ASK_USER_TOOL_NAMES['claude-code'],
+  };
+}
+
+/**
+ * Build the ask_user entry for a Claude `AskUserQuestion` tool_result block.
+ *
+ * The structured answers live on the record's `toolUseResult`, keyed by the
+ * full question text, with operator annotations alongside. When that payload is
+ * absent the block's own prose summary already names each question and answer,
+ * so it is used verbatim rather than dropping the operator's decision.
+ */
+function claudeAskUserAnswerEntry(
+  role: DigestEntryRole,
+  block: JsonObject,
+  recordIndex: number,
+  opts: ClaudeContentOptions,
+): DigestEntry | null {
+  const toolName = ASK_USER_TOOL_NAMES['claude-code'];
+  const result = isObject(opts.toolUseResult) ? opts.toolUseResult : null;
+  const rawAnswers = result && isObject(result.answers) ? result.answers : null;
+
+  if (result && rawAnswers) {
+    // Prefer the short header over restating the whole question.
+    const headerByPrompt = new Map<string, string>();
+    for (const question of parseAskUserQuestions(result.questions)) {
+      if (question.header) headerByPrompt.set(question.prompt, question.header);
+    }
+    const annotations = isObject(result.annotations) ? result.annotations : {};
+
+    const answers = Object.entries(rawAnswers).flatMap(([prompt, value]) => {
+      const answer = askUserAnswerText(value);
+      if (!answer) return [];
+      const annotation = annotations[prompt];
+      const note = isObject(annotation)
+        ? asString(annotation.notes)
+        : undefined;
+      return [
+        {
+          label: headerByPrompt.get(prompt) ?? prompt,
+          answer,
+          ...(note ? { note } : {}),
+        },
+      ];
+    });
+
+    if (answers.length > 0) {
+      return {
+        role,
+        text: formatAskUserAnswers(toolName, answers),
+        recordIndex,
+        kind: 'ask_user',
+        toolName,
+        // Claude has no auto-resolution: a recorded answer is the operator's.
+        origin: 'human',
+      };
+    }
+  }
+
+  const fallback =
+    typeof block.content === 'string'
+      ? block.content
+      : Array.isArray(block.content)
+        ? block.content
+            .filter(isObject)
+            .map((part) => asString(part.text) ?? '')
+            .filter(Boolean)
+            .join('\n')
+        : '';
+  if (!fallback) return null;
+  return {
+    role,
+    text: `[${toolName} → answered] ${truncate(fallback, ASK_USER_ANSWER_LIMIT)}`,
+    recordIndex,
+    kind: 'ask_user',
+    toolName,
+    origin: 'human',
+  };
+}
+
+/**
  * Extract DigestEntry objects from a single Claude Code content block.
  *
  * @param {'assistant' | 'user'} role
@@ -727,6 +996,15 @@ function claudeEntriesFromContent(
     if (!isObject(block)) return [];
 
     if (block.type === 'tool_use') {
+      if (asString(block.name) === ASK_USER_TOOL_NAMES['claude-code']) {
+        const entry = claudeAskUserQuestionEntry(
+          role,
+          block,
+          recordIndex,
+          opts,
+        );
+        if (entry) return [entry];
+      }
       if (!opts.includeToolCalls) return [];
       const name = asString(block.name) ?? 'tool_use';
       const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
@@ -742,11 +1020,15 @@ function claudeEntriesFromContent(
     }
 
     if (block.type === 'tool_result') {
-      if (!opts.includeToolResults) return [];
       // Resolve the tool name by correlating tool_use_id → tool name
       const toolUseId = asString(block.tool_use_id);
       const name =
         (toolUseId && opts.toolNameById?.get(toolUseId)) ?? 'tool_result';
+      if (name === ASK_USER_TOOL_NAMES['claude-code']) {
+        const entry = claudeAskUserAnswerEntry(role, block, recordIndex, opts);
+        if (entry) return [entry];
+      }
+      if (!opts.includeToolResults) return [];
       // Content of tool_result can be string or array
       let resultText = '';
       if (typeof block.content === 'string') {
@@ -873,6 +1155,7 @@ function normalizeClaudeCode(
       includeToolResults,
       includeCommandMessages,
       toolNameById,
+      toolUseResult: record.toolUseResult,
     });
   });
 }
@@ -880,6 +1163,58 @@ function normalizeClaudeCode(
 // ---------------------------------------------------------------------------
 // normalizeEntries — Codex adapter
 // ---------------------------------------------------------------------------
+
+/**
+ * Codex serializes function call arguments and outputs as JSON strings.
+ * Returns null when the payload is absent or not a JSON object.
+ */
+function parseCodexFunctionArguments(value: unknown): JsonObject | null {
+  if (isObject(value)) return value;
+  const raw = asString(value);
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build the ask_user entry for a Codex `request_user_input` function_call_output.
+ * `labelById` maps the call's question ids to their headers so answers read as
+ * conversation rather than as opaque id/label pairs.
+ */
+function codexAskUserAnswerEntry(
+  payload: JsonObject,
+  recordIndex: number,
+  labelById: Map<string, string>,
+  autoResolvable: boolean,
+): DigestEntry | null {
+  const toolName = ASK_USER_TOOL_NAMES.codex;
+  const output = parseCodexFunctionArguments(payload.output);
+  const rawAnswers = output && isObject(output.answers) ? output.answers : null;
+  if (!rawAnswers) return null;
+
+  const answers = Object.entries(rawAnswers).flatMap(([id, value]) => {
+    const answer = askUserAnswerText(value);
+    if (!answer) return [];
+    return [{ label: labelById.get(id) ?? id, answer }];
+  });
+  if (answers.length === 0) return null;
+
+  return {
+    role: 'user',
+    text: formatAskUserAnswers(toolName, answers),
+    recordIndex,
+    kind: 'ask_user',
+    toolName,
+    // Only attribute the answer to the operator when the call could not have
+    // been resolved by Codex's own timer. The recorded output is identical
+    // either way, so an auto-resolvable call leaves origin unset.
+    ...(autoResolvable ? {} : { origin: 'human' as const }),
+  };
+}
 
 /**
  * Normalize Codex records into DigestEntry[].
@@ -893,17 +1228,102 @@ function normalizeCodex(
   opts: NormalizeEntriesOptions,
 ): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
+  const askUserToolName = ASK_USER_TOOL_NAMES.codex;
+
+  // Codex keys its answers by question id, not question text, so the questions
+  // asked in the function_call must be correlated to the function_call_output
+  // by call_id before an answer can be labeled.
+  const askUserQuestionsByCallId = new Map<string, AskUserQuestion[]>();
+  const askUserLabelById = new Map<string, Map<string, string>>();
+  const askUserAutoResolvableCallIds = new Set<string>();
+  for (const record of records) {
+    const payload = isObject(record.payload) ? record.payload : record;
+    if (asString(payload.type) !== 'function_call') continue;
+    if ((asString(payload.name) ?? asString(record.name)) !== askUserToolName)
+      continue;
+    const callId = asString(payload.call_id) ?? asString(record.call_id);
+    if (!callId) continue;
+    const args = parseCodexFunctionArguments(
+      payload.arguments ?? record.arguments,
+    );
+    const questions = parseAskUserQuestions(args?.questions);
+    if (questions.length === 0) continue;
+    askUserQuestionsByCallId.set(callId, questions);
+
+    const rawQuestions = Array.isArray(args?.questions) ? args.questions : [];
+    const labelById = new Map<string, string>();
+    for (const rawQuestion of rawQuestions) {
+      if (!isObject(rawQuestion)) continue;
+      const id = asString(rawQuestion.id);
+      const label =
+        asString(rawQuestion.header) ??
+        asString(rawQuestion.question) ??
+        asString(rawQuestion.prompt);
+      if (id && label) labelById.set(id, label);
+    }
+    askUserLabelById.set(callId, labelById);
+
+    const autoResolutionMs = args?.autoResolutionMs;
+    if (typeof autoResolutionMs === 'number' && autoResolutionMs > 0) {
+      askUserAutoResolvableCallIds.add(callId);
+    }
+  }
 
   return records.flatMap((record, recordIndex): DigestEntry[] => {
     const payload = isObject(record.payload) ? record.payload : record;
     const payloadType = asString(payload.type) ?? asString(record.type);
 
+    // function_call_output records are tool mechanics except when they carry
+    // the operator's answer to an ask-user call.
+    if (payloadType === 'function_call_output') {
+      const callId = asString(payload.call_id) ?? asString(record.call_id);
+      if (!callId || !askUserQuestionsByCallId.has(callId)) return [];
+      const entry = codexAskUserAnswerEntry(
+        payload,
+        recordIndex,
+        askUserLabelById.get(callId) ?? new Map(),
+        askUserAutoResolvableCallIds.has(callId),
+      );
+      return entry ? [entry] : [];
+    }
+
     // function_call records
     if (payloadType === 'function_call') {
-      if (!includeToolCalls) return [];
       const name =
         asString(payload.name) ?? asString(record.name) ?? 'function_call';
       const args = payload.arguments ?? record.arguments;
+
+      if (name === askUserToolName) {
+        const callId = asString(payload.call_id) ?? asString(record.call_id);
+        const parsedArgs = parseCodexFunctionArguments(args);
+        const questions =
+          (callId ? askUserQuestionsByCallId.get(callId) : undefined) ??
+          parseAskUserQuestions(parsedArgs?.questions);
+        if (questions.length > 0) {
+          const autoResolutionMs = parsedArgs?.autoResolutionMs;
+          const notes =
+            typeof autoResolutionMs === 'number' && autoResolutionMs > 0
+              ? [
+                  `auto-resolves after ${Math.round(autoResolutionMs / 1000)}s; ` +
+                    `a recorded answer may be the default rather than an operator choice`,
+                ]
+              : undefined;
+          return [
+            {
+              role: 'assistant',
+              text: formatAskUserQuestions(askUserToolName, questions, {
+                includeDescriptions: includeToolCalls,
+                notes,
+              }),
+              recordIndex,
+              kind: 'ask_user',
+              toolName: askUserToolName,
+            },
+          ];
+        }
+      }
+
+      if (!includeToolCalls) return [];
       const argsStr = stringifyArgs(args, TOOL_INPUT_LIMIT);
       return [
         {
@@ -939,6 +1359,55 @@ function normalizeCodex(
 // ---------------------------------------------------------------------------
 // normalizeEntries — Cursor adapter
 // ---------------------------------------------------------------------------
+
+/**
+ * Render a Cursor `AskQuestion` tool_use block as digest text, or null when the
+ * block is a different tool or carries no parseable questions.
+ *
+ * Cursor transcripts contain no tool-result records at all, so a selected
+ * option is never written to disk. The rendered text says so explicitly: an
+ * observer must be able to tell "Cursor did not record the answer" apart from
+ * "the operator did not answer". A typed reply lands as an ordinary user
+ * message and is already visible.
+ *
+ * Exported because Cursor's v2 digest is built from frame analysis rather than
+ * from `normalizeEntries`, and both paths must render questions identically.
+ */
+export function cursorAskUserQuestionText(
+  block: JsonObject,
+  opts: { includeDescriptions?: boolean } = {},
+): string | null {
+  if (asString(block.name) !== ASK_USER_TOOL_NAMES.cursor) return null;
+  const input = isObject(block.input) ? block.input : {};
+  const questions = parseAskUserQuestions(input.questions);
+  if (questions.length === 0) return null;
+
+  const title = asString(input.title);
+  return formatAskUserQuestions(ASK_USER_TOOL_NAMES.cursor, questions, {
+    includeDescriptions: opts.includeDescriptions ?? false,
+    notes: ['selected option not recorded in Cursor transcripts'],
+    ...(title ? { title } : {}),
+  });
+}
+
+function cursorAskUserQuestionEntry(
+  role: DigestEntryRole,
+  block: JsonObject,
+  recordIndex: number,
+  opts: { includeDescriptions: boolean },
+): DigestEntry | null {
+  const text = cursorAskUserQuestionText(block, {
+    includeDescriptions: opts.includeDescriptions,
+  });
+  if (!text) return null;
+  return {
+    role,
+    text,
+    recordIndex,
+    kind: 'ask_user',
+    toolName: ASK_USER_TOOL_NAMES.cursor,
+  };
+}
 
 /**
  * Normalize Cursor agent JSONL records into DigestEntry[].
@@ -977,6 +1446,21 @@ function normalizeCursor(
       if (!isObject(block)) return [];
 
       if (block.type === 'tool_use') {
+        // Only the assistant asks. A user-role record carrying an AskQuestion
+        // block is malformed or synthesized, and treating it as a question
+        // would open the trailing-tail exception on input the question-free
+        // contract is supposed to keep hidden. The v2 frame analysis already
+        // recognizes questions from assistant records only; this keeps the two
+        // Cursor projections agreeing on what counts as a question.
+        if (
+          role === 'assistant' &&
+          asString(block.name) === ASK_USER_TOOL_NAMES.cursor
+        ) {
+          const entry = cursorAskUserQuestionEntry(role, block, recordIndex, {
+            includeDescriptions: includeToolCalls,
+          });
+          if (entry) return [entry];
+        }
         if (!includeToolCalls) return [];
         const name = asString(block.name) ?? 'tool_use';
         const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
@@ -1011,7 +1495,13 @@ function normalizeCursor(
       recordIndex,
     });
     const userEntries = buffered
-      .filter((entry) => entry.role === 'user')
+      .filter((entry) => entry.role === 'user' && entry.kind !== 'ask_user')
+      .map(consumeAtTerminal);
+    // Questions put to the operator are conversation, not tool traffic: they
+    // survive the turn-terminal collapse on every status, including aborted
+    // turns where the rest of the assistant's work is discarded.
+    const askUserEntries = buffered
+      .filter((entry) => entry.kind === 'ask_user')
       .map(consumeAtTerminal);
 
     if (status === 'success') {
@@ -1023,13 +1513,13 @@ function normalizeCursor(
       const finalAssistant = buffered.findLast(
         (entry) => entry.role === 'assistant' && entry.kind === 'message',
       );
-      entries.push(...userEntries, ...toolEntries);
+      entries.push(...userEntries, ...toolEntries, ...askUserEntries);
       if (finalAssistant) {
         entries.push(consumeAtTerminal(finalAssistant));
       }
     } else {
       const label = status ?? 'unknown';
-      entries.push(...userEntries, {
+      entries.push(...userEntries, ...askUserEntries, {
         role: 'assistant',
         text: `[Cursor turn ended with status: ${label}]`,
         recordIndex,
@@ -1040,6 +1530,38 @@ function normalizeCursor(
 
     turnStart = recordIndex + 1;
   });
+
+  // A transcript that is still open — or that ended mid-turn — leaves records
+  // after the last `turn_ended`. That provisional tail is normally hidden
+  // whole, because Cursor can still rewrite it.
+  //
+  // A question already put to the operator is the exception: it is recorded
+  // fact, not provisional progress. When the tail contains one, the operator's
+  // typed reply comes with it — Cursor records that as an ordinary user
+  // message, and it is the answer the question was asking for. Unfinished
+  // assistant progress stays hidden either way, and a tail with no question
+  // keeps the existing hide-it-all behavior.
+  if (turnStart < records.length) {
+    const trailing = records
+      .slice(turnStart)
+      .flatMap((record, offset) => normalizeRecord(record, turnStart + offset));
+    if (trailing.some((entry) => entry.kind === 'ask_user')) {
+      entries.push(
+        ...trailing.filter((entry) => {
+          if (entry.kind === 'ask_user') return true;
+          if (entry.role !== 'user') return false;
+          // Not every user-role record is a person. Automatic-control wake
+          // envelopes carry lease and pinned-peer identity; they are machine
+          // coordination, not the operator's reply, and must not ride this
+          // branch into a shared export.
+          return (
+            entry.origin !== 'automatic-control' &&
+            entry.displayRole !== 'automatic-control'
+          );
+        }),
+      );
+    }
+  }
 
   return entries;
 }

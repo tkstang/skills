@@ -7,10 +7,10 @@ argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--mat
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
-version: '1.0.6'
+version: '1.0.7'
 metadata:
   author: thomas.stang
-  version: '1.0.6'
+  version: '1.0.7'
 ---
 
 # export-session-transcript
@@ -18,8 +18,22 @@ metadata:
 Exports the **current** conversation (yours — Claude Code, Codex, or Cursor) to a
 sanitized Markdown transcript, named after the current git branch, written by
 default to `~/Downloads`. Tool calls, tool results, system/developer instructions,
-environment/AGENTS.md/skill payloads, subagent notifications, and the session
-marker line are all excluded — only visible user/assistant messages survive.
+environment/AGENTS.md/skill payloads, subagent notifications, automatic-control
+wake envelopes (which carry lease ids and pinned peer-session identity), and the
+session marker line are all excluded — only visible user/assistant messages
+survive. Automatic-control entries are dropped on their structural tag rather
+than by matching their payload text, so a change to that payload's shape cannot
+reopen the leak.
+
+**One exception: ask-user exchanges.** Each runtime puts questions to the
+operator through a tool call (`AskUserQuestion` on Claude Code,
+`request_user_input` on Codex, `AskQuestion` on Cursor). Those are visible
+conversation — the question you were asked and any answer the runtime recorded
+— so they are exported rather than filtered with ordinary tool traffic. What
+"recorded" covers differs: Claude Code records the answer; Codex records it but
+cannot distinguish an operator choice from an `autoResolutionMs` timeout;
+Cursor records only the question, and the export says the selected option is
+unrecorded.
 
 ---
 

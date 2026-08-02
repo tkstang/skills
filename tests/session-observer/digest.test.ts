@@ -61,6 +61,7 @@ const cursorDigestV2Fixture = {
     engaged: true,
     recordCount: 12,
     genuineUserMessages: 1,
+    operatorAskUserAnswers: 0,
     syntheticUserMessages: 0,
     assistantMessages: 2,
     realMessageCount: 3,
@@ -847,6 +848,7 @@ describe('buildDigest', () => {
           status: 'unengaged',
           engaged: false,
           genuineUserMessages: 0,
+          operatorAskUserAnswers: 0,
           syntheticUserMessages: 1,
           hasAssistantAndUser: false,
         });
@@ -1721,5 +1723,330 @@ describe('renderJson', () => {
       'entries should be an array',
     ).toBeTruthy();
     expect(parsed.runtime, 'runtime should be preserved').toBe('claude-code');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ask-user exchanges in the digest
+// ---------------------------------------------------------------------------
+
+describe('ask-user exchanges', () => {
+  const askUserClaude = join(
+    FIXTURES,
+    'claude-code',
+    'ask-user-question.jsonl',
+  );
+  const askQuestionCursor = join(FIXTURES, 'cursor', 'ask-question.jsonl');
+  const askQuestionFinalCursor = join(
+    FIXTURES,
+    'cursor',
+    'ask-question-final.jsonl',
+  );
+
+  test('renders questions and answers with the default tool filters', async () => {
+    const digest = await buildDigest('claude-code', askUserClaude, {
+      fromIndex: 0,
+      mode: 'review',
+    });
+    const md = renderMarkdown(digest);
+
+    expect(md).toContain('[AskUserQuestion] 2 questions:');
+    expect(md).toContain('Pkg boundary — Where should the parser live?');
+    // The operator's free-text answer is the context an observer loses today.
+    expect(md).toContain(
+      'Design depth: "Actually, show me the tradeoffs first."',
+    );
+    // Ordinary tool traffic in the same fixture stays out of the digest.
+    expect(md).not.toContain('[Read]');
+  });
+
+  test('counts ask-user entries as rendered rather than filtered', async () => {
+    const digest = await buildDigest('claude-code', askUserClaude, {
+      fromIndex: 0,
+      mode: 'review',
+    });
+
+    expect(digest.accounting.rendered.askUserEntries).toBe(4);
+    // The Read call/result pair is still reported as filtered tool traffic.
+    expect(digest.accounting.filtered.toolCalls).toBe(1);
+    expect(digest.accounting.filtered.toolResults).toBe(1);
+  });
+
+  test('surfaces Cursor questions through the v2 digest path', async () => {
+    const context = await cursorDigestAnalysis(askQuestionCursor);
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionCursor,
+      cursorDigestOptions(
+        context,
+        'observation',
+        cursorDigestState(askQuestionCursor, context),
+      ),
+    );
+    const md = renderMarkdown(digest);
+
+    expect(md).toContain('[AskQuestion] Discovery convergence — 2 questions:');
+    expect(md).toContain('Proceed as one cohesive project?');
+    expect(md).toContain(
+      '(selected option not recorded in Cursor transcripts)',
+    );
+    // Tagged structurally so JSON consumers can tell a question from prose.
+    expect(
+      digest.entries.find((entry) => entry.text.startsWith('[AskQuestion]'))
+        ?.kind,
+    ).toBe('ask_user');
+  });
+
+  test('the confirmed-completion projection excludes questions but keeps them recoverable', async () => {
+    // That projection is consumed only by the collaboration skill, whose
+    // selector requires every entry to be the final message of a
+    // terminal-success turn. Context entries there strand a continuation.
+    const context = await cursorDigestAnalysis(askQuestionCursor);
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionCursor,
+      cursorDigestOptions(context, 'confirmed-completion'),
+    );
+
+    expect(renderMarkdown(digest)).not.toContain('[AskQuestion]');
+    expect(digest.entries).toHaveLength(1);
+    expect(digest.entries[0]!.text).toBe(
+      'Discovery is complete and committed.',
+    );
+
+    const askRecord = context.analysis.turns[0]!.assistantRecords.find(
+      (record) => record.text.startsWith('[AskQuestion]'),
+    );
+    expect(
+      digest.accounting.recovery.omittedAssistantEntries.some(
+        (pointer) => pointer.entryKey === askRecord!.entryKey,
+      ),
+      'the excluded question must stay reachable through recovery',
+    ).toBe(true);
+  });
+
+  // `observation` is the projection normal review and catch-up use, and it has
+  // a delivered-entry branch that `confirmed-completion` skips. Cover both
+  // sides of it: first emission, then suppression once already delivered.
+  test('emits the Cursor question once under the observation projection', async () => {
+    const context = await cursorDigestAnalysis(askQuestionCursor);
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionCursor,
+      cursorDigestOptions(
+        context,
+        'observation',
+        cursorDigestState(askQuestionCursor, context),
+      ),
+    );
+    const md = renderMarkdown(digest);
+
+    expect(md).toContain('[AskQuestion] Discovery convergence — 2 questions:');
+    expect(md).toContain(
+      '(selected option not recorded in Cursor transcripts)',
+    );
+    const occurrences =
+      md.split('[AskQuestion] Discovery convergence').length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  // A question is not assistant progress the completion contract withholds:
+  // it is the context explaining what the turn was waiting on. Cover every
+  // non-success terminal status, matching the v1 normalizer.
+  for (const status of ['aborted', 'error', 'cancelled'] as const) {
+    test(`preserves the Cursor question when a turn ends ${status}`, async () => {
+      const tmpDir = await mkdtemp(join(tmpdir(), `cursor-ask-${status}-`));
+      try {
+        const transcriptPath = join(tmpDir, `${status}.jsonl`);
+        const source = await readFile(askQuestionCursor, 'utf8');
+        await writeFile(
+          transcriptPath,
+          source.replace('"status":"success"', `"status":"${status}"`),
+        );
+        const context = await cursorDigestAnalysis(transcriptPath);
+        const digest = await buildDigest(
+          'cursor',
+          transcriptPath,
+          cursorDigestOptions(
+            context,
+            'observation',
+            cursorDigestState(transcriptPath, context),
+          ),
+        );
+        const md = renderMarkdown(digest);
+
+        expect(md).toContain('[AskQuestion] Discovery convergence');
+        // Marked distinctly from a genuine terminal success.
+        expect(
+          digest.entries.every(
+            (entry) => entry.availability === 'terminal-incomplete',
+          ),
+        ).toBe(true);
+        // Ordinary assistant content from the failed turn stays withheld...
+        expect(md).not.toContain('Discovery is complete and committed.');
+        // ...but the digest now carries content, so the facet reports it
+        // rather than claiming the turn produced nothing observable.
+        expect(digest.cursorEvidence.status.content).toBe('available');
+        expect(digest.cursorEvidence.status.lifecycle).toBe(status);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  // A turn can end *on* the question. The confirmed projection must refuse it
+  // there too, or the stranded-continuation failure returns.
+  test('a turn ending on the question keeps it out of confirmed completion', async () => {
+    const context = await cursorDigestAnalysis(askQuestionFinalCursor);
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionFinalCursor,
+      cursorDigestOptions(context, 'confirmed-completion'),
+    );
+
+    expect(digest.entries).toHaveLength(0);
+    const askRecord = context.analysis.turns[0]!.assistantRecords.find(
+      (record) => record.text.startsWith('[AskQuestion]'),
+    );
+    expect(
+      digest.accounting.recovery.omittedAssistantEntries.some(
+        (pointer) => pointer.entryKey === askRecord!.entryKey,
+      ),
+      'a final question must stay recoverable',
+    ).toBe(true);
+  });
+
+  test('observation still renders a turn that ends on the question', async () => {
+    const context = await cursorDigestAnalysis(askQuestionFinalCursor);
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionFinalCursor,
+      cursorDigestOptions(
+        context,
+        'observation',
+        cursorDigestState(askQuestionFinalCursor, context),
+      ),
+    );
+
+    expect(renderMarkdown(digest)).toContain('[AskQuestion] Migration gate');
+    expect(digest.entries[0]!.kind).toBe('ask_user');
+  });
+
+  for (const status of ['aborted', 'error', 'cancelled'] as const) {
+    test(`confirmed completion pointers the excluded question on a ${status} turn`, async () => {
+      const tmpDir = await mkdtemp(join(tmpdir(), `cursor-ptr-${status}-`));
+      try {
+        const transcriptPath = join(tmpDir, `${status}.jsonl`);
+        const source = await readFile(askQuestionFinalCursor, 'utf8');
+        await writeFile(
+          transcriptPath,
+          source.replace('"status":"success"', `"status":"${status}"`),
+        );
+        const context = await cursorDigestAnalysis(transcriptPath);
+        const digest = await buildDigest(
+          'cursor',
+          transcriptPath,
+          cursorDigestOptions(context, 'confirmed-completion'),
+        );
+
+        expect(digest.entries).toHaveLength(0);
+        // The documented promise is that an excluded question stays reachable.
+        expect(
+          digest.accounting.recovery.omittedAssistantEntries,
+        ).not.toHaveLength(0);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  test('does not re-emit an already-delivered question from a failed turn', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-ask-abort-dedup-'));
+    try {
+      const transcriptPath = join(tmpDir, 'aborted.jsonl');
+      const source = await readFile(askQuestionCursor, 'utf8');
+      await writeFile(
+        transcriptPath,
+        source.replace('"status":"success"', '"status":"aborted"'),
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+      const turn = context.analysis.turns[0]!;
+      const askRecord = turn.assistantRecords.find((record) =>
+        record.text.startsWith('[AskQuestion]'),
+      );
+      expect(askRecord, 'fixture must produce an ask-user record').toBeTruthy();
+
+      const digest = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(
+          context,
+          'observation',
+          cursorDigestState(transcriptPath, context, {
+            openTurn: {
+              turnId: turn.turnId,
+              fromFrameIndex: turn.fromFrameIndex,
+              observedThroughFrame: turn.observedThroughFrame,
+              deliveredEntryKeys: [askRecord!.entryKey],
+              assistantEntryKeys: turn.assistantRecords.map((r) => r.entryKey),
+              humanRecordIndexes: turn.humanRecordIndexes,
+              toolRecordIndexes: turn.toolRecordIndexes,
+              hasHumanInput: true,
+              hasAutomaticControlInput: false,
+              lifecycle: turn.lifecycle,
+            },
+          }),
+        ),
+      );
+
+      expect(renderMarkdown(digest)).not.toContain('[AskQuestion]');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('suppresses an already-delivered Cursor question under observation', async () => {
+    const context = await cursorDigestAnalysis(askQuestionCursor);
+    const turn = context.analysis.turns[0]!;
+    const askRecord = turn.assistantRecords.find((record) =>
+      record.text.startsWith('[AskQuestion]'),
+    );
+    expect(askRecord, 'fixture must produce an ask-user record').toBeTruthy();
+
+    const digest = await buildDigest(
+      'cursor',
+      askQuestionCursor,
+      cursorDigestOptions(
+        context,
+        'observation',
+        cursorDigestState(askQuestionCursor, context, {
+          openTurn: {
+            turnId: turn.turnId,
+            fromFrameIndex: turn.fromFrameIndex,
+            observedThroughFrame: turn.observedThroughFrame,
+            deliveredEntryKeys: [askRecord!.entryKey],
+            assistantEntryKeys: turn.assistantRecords.map((r) => r.entryKey),
+            humanRecordIndexes: turn.humanRecordIndexes,
+            toolRecordIndexes: turn.toolRecordIndexes,
+            hasHumanInput: true,
+            hasAutomaticControlInput: false,
+            lifecycle: turn.lifecycle,
+          },
+        }),
+      ),
+    );
+    const md = renderMarkdown(digest);
+
+    expect(md).not.toContain('[AskQuestion] Discovery convergence');
+    // Delivered means the consumer already received it, so — matching how
+    // ordinary substantive records behave under observation — it is neither
+    // re-rendered nor re-pointered rather than being reported as omitted.
+    expect(
+      digest.accounting.recovery.omittedAssistantEntries.some(
+        (pointer) => pointer.entryKey === askRecord!.entryKey,
+      ),
+    ).toBe(false);
+    // The turn's other content is unaffected by the ask-user carve-out.
+    expect(md).toContain('Discovery is complete and committed.');
   });
 });

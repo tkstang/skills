@@ -18,7 +18,19 @@ agent session to a sanitized Markdown transcript.
 
 Only visible user/assistant messages survive: tool calls, tool results,
 system/developer instructions, environment/AGENTS.md/skill payloads, subagent
-notifications, and the session-marker line are all excluded.
+notifications, automatic-control wake envelopes, and the session-marker line are
+all excluded. Wake envelopes carry lease ids and pinned peer-session identity, so
+they are dropped on their structural provenance tag rather than by matching their
+payload text.
+
+Ask-user exchanges are the one exception. Every runtime asks the operator
+questions through a tool call (`AskUserQuestion`, `request_user_input`,
+`AskQuestion`), and the question plus any answer the runtime recorded is visible
+conversation rather than tool mechanics, so it is exported. What gets recorded
+differs by runtime: Claude Code records the answer; Codex records it but cannot
+distinguish an operator choice from an `autoResolutionMs` timeout; Cursor
+records only the question, and the export says the selected option is
+unrecorded.
 
 ## The session-marker mechanism
 
@@ -75,7 +87,8 @@ flowchart TB
 Sanitization is two layers:
 
 1. A **structural pass** (`normalizeEntries` in transcript-core) drops tool
-   calls/results and command-message records.
+   calls/results and command-message records, except ask-user exchanges, which
+   it keeps as visible conversation.
 2. An **export-owned content sanitizer** (`sanitizeEntries`) drops hidden-payload
    messages surviving as ordinary text — environment-context wrappers,
    AGENTS.md/SKILL.md/skill-body payloads, system/developer instruction records,

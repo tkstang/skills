@@ -681,3 +681,612 @@ describe('export CLI — exit codes', () => {
     assert.match(r.stdout, /export-session-transcript/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ask-user exchanges
+//
+// Ask-user calls are the one tool call the export deliberately keeps: the
+// question and the operator's decision are visible conversation. Every case
+// below pairs an ask-user exchange with ordinary tool traffic and asserts that
+// only the former survives.
+// ---------------------------------------------------------------------------
+
+function claudeAskUserTranscript(marker: string, sessionId: string): string {
+  const recs = [
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: 'Pick a package boundary for me.' },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_ask',
+            name: 'AskUserQuestion',
+            input: {
+              questions: [
+                {
+                  question: 'Where should the parser live?',
+                  header: 'Pkg boundary',
+                  options: [{ label: 'New package' }, { label: 'Inside core' }],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'toolu_ask',
+            content: 'Your questions have been answered.',
+          },
+        ],
+      },
+      toolUseResult: {
+        questions: [
+          {
+            question: 'Where should the parser live?',
+            header: 'Pkg boundary',
+            options: [],
+          },
+        ],
+        answers: { 'Where should the parser live?': 'New package' },
+        annotations: {},
+      },
+    },
+    // Ordinary tool traffic that must stay filtered.
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_read',
+            name: 'Read',
+            input: { file_path: '/project/src/parser.ts' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'toolu_read',
+            content: 'SECRET_READ_OUTPUT',
+          },
+        ],
+      },
+    },
+  ];
+  return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
+}
+
+function codexAskUserTranscript(marker: string, sessionId: string): string {
+  const recs = [
+    { type: 'session_started', sessionId, cwd: CWD },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: `EXPORT_SESSION_MARKER=${marker}`,
+      },
+    },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'function_call',
+        name: 'request_user_input',
+        call_id: 'call_ask',
+        arguments: JSON.stringify({
+          questions: [
+            {
+              id: 'keeper_use',
+              header: 'Keepers',
+              question: 'Will the auction use keepers?',
+              options: [{ label: 'No keepers' }, { label: 'Yes, keepers' }],
+            },
+          ],
+        }),
+      },
+    },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'function_call_output',
+        call_id: 'call_ask',
+        output: JSON.stringify({
+          answers: { keeper_use: { answers: ['No keepers'] } },
+        }),
+      },
+    },
+    // Ordinary tool traffic that must stay filtered.
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'function_call',
+        name: 'exec_command',
+        call_id: 'call_exec',
+        arguments: JSON.stringify({ command: 'cat /etc/SECRET_EXEC' }),
+      },
+    },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'function_call_output',
+        call_id: 'call_exec',
+        output: JSON.stringify({ output: 'SECRET_EXEC_OUTPUT' }),
+      },
+    },
+  ];
+  return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
+}
+
+function cursorAskUserTranscript(marker: string): string {
+  const recs = [
+    {
+      role: 'user',
+      message: {
+        content: [{ type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` }],
+      },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [
+          {
+            type: 'tool_use',
+            name: 'AskQuestion',
+            input: {
+              title: 'Discovery convergence',
+              questions: [
+                {
+                  id: 'scope_check',
+                  prompt: 'Proceed as one cohesive project?',
+                  options: [
+                    { id: 'one', label: 'Proceed as one project' },
+                    { id: 'split', label: 'Split it' },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [
+          {
+            type: 'tool_use',
+            name: 'Shell',
+            input: { command: 'cat SECRET_SHELL' },
+          },
+        ],
+      },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [{ type: 'text', text: 'Discovery is complete.' }],
+      },
+    },
+    { type: 'turn_ended', status: 'success' },
+  ];
+  return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
+}
+
+function cursorUnterminatedAskUserTranscript(marker: string): string {
+  const recs = [
+    {
+      role: 'user',
+      message: {
+        content: [{ type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` }],
+      },
+    },
+    { type: 'turn_ended', status: 'success' },
+    {
+      role: 'assistant',
+      message: { content: [{ type: 'text', text: 'SECRET_UNFINISHED_WORK' }] },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [
+          {
+            type: 'tool_use',
+            name: 'AskQuestion',
+            input: {
+              title: 'Pending gate',
+              questions: [
+                {
+                  id: 'proceed',
+                  prompt: 'Proceed with the migration?',
+                  options: [{ id: 'yes', label: 'Proceed' }],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      role: 'user',
+      message: {
+        content: [{ type: 'text', text: 'Use the safer option instead.' }],
+      },
+    },
+  ];
+  return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
+}
+
+describe('export CLI — ask-user exchanges', () => {
+  test('claude-code: exports the question and answer, still drops ordinary tools', async () => {
+    const home = await setupHome();
+    const marker = 'ccask1234';
+    await writeClaude(
+      home,
+      claudeAskUserTranscript(marker, 'cc-ask'),
+      'cc-ask',
+    );
+    const out = join(home, 'cc-ask.md');
+    const r = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--match',
+        marker,
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    assert.ok(
+      md.includes(
+        '[AskUserQuestion] Pkg boundary — Where should the parser live?',
+      ),
+      'ask-user question missing from export',
+    );
+    assert.ok(
+      md.includes('[AskUserQuestion → answered] Pkg boundary: "New package"'),
+      'ask-user answer missing from export',
+    );
+    assert.ok(!md.includes('[Read]'), 'ordinary tool call leaked');
+    assert.ok(
+      !md.includes('SECRET_READ_OUTPUT'),
+      'ordinary tool result leaked',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('codex: exports the question and answer, still drops ordinary function calls', async () => {
+    const home = await setupHome();
+    const marker = 'cxask5678';
+    await writeCodex(
+      home,
+      codexAskUserTranscript(marker, 'codex-ask'),
+      'codex-ask',
+    );
+    const out = join(home, 'codex-ask.md');
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    assert.ok(
+      md.includes(
+        '[request_user_input] Keepers — Will the auction use keepers?',
+      ),
+      'ask-user question missing from export',
+    );
+    assert.ok(
+      md.includes('[request_user_input → answered] Keepers: "No keepers"'),
+      'ask-user answer missing from export',
+    );
+    assert.ok(!md.includes('[exec_command]'), 'ordinary function call leaked');
+    assert.ok(!md.includes('SECRET_EXEC_OUTPUT'), 'function output leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cursor: exports the question and says the selected option is unrecorded', async () => {
+    const home = await setupHome();
+    const marker = 'curask9012';
+    await writeCursor(home, cursorAskUserTranscript(marker), 'cursor-ask');
+    const out = join(home, 'cursor-ask.md');
+    const r = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    assert.ok(
+      md.includes('[AskQuestion] Discovery convergence'),
+      'ask-user question missing from export',
+    );
+    assert.ok(
+      md.includes('(selected option not recorded in Cursor transcripts)'),
+      'unrecorded-answer note missing from export',
+    );
+    assert.ok(!md.includes('[Shell]'), 'ordinary tool call leaked');
+    assert.ok(!md.includes('SECRET_SHELL'), 'shell args leaked');
+    assert.ok(!md.includes('EXPORT_SESSION_MARKER'), 'marker line leaked');
+    assert.ok(!md.includes(marker), 'marker value leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cursor: a trailing unterminated turn keeps the question and the typed reply', async () => {
+    const home = await setupHome();
+    const marker = 'curunterm3456';
+    await writeCursor(
+      home,
+      cursorUnterminatedAskUserTranscript(marker),
+      'cursor-unterminated',
+    );
+    const out = join(home, 'cursor-unterminated.md');
+    const r = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    assert.ok(
+      md.includes('[AskQuestion] Pending gate'),
+      'trailing question missing from export',
+    );
+    // Cursor records a typed answer as an ordinary user message.
+    assert.ok(
+      md.includes('Use the safer option instead.'),
+      "the operator's typed reply must survive",
+    );
+    assert.ok(
+      !md.includes('SECRET_UNFINISHED_WORK'),
+      'unfinished assistant progress leaked',
+    );
+    assert.ok(!md.includes('EXPORT_SESSION_MARKER'), 'marker line leaked');
+    assert.ok(!md.includes(marker), 'marker value leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cursor: a trailing flush never exports automatic-control lease payloads', async () => {
+    const home = await setupHome();
+    const marker = 'curleak2468';
+    const wake = JSON.stringify({
+      session_observer_wake: {
+        automatic: true,
+        runtime: 'cursor',
+        leaseId: 'secret-lease',
+        pinnedPeer: {
+          runtime: 'claude-code',
+          sessionId: 'SECRET-PEER-SESSION',
+        },
+        range: { fromIndex: 0, toIndex: 3 },
+      },
+    });
+    const recs = [
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` }],
+        },
+      },
+      { type: 'turn_ended', status: 'success' },
+      { role: 'user', message: { content: [{ type: 'text', text: wake }] } },
+      {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Pending gate',
+                questions: [
+                  {
+                    id: 'proceed',
+                    prompt: 'Proceed with the migration?',
+                    options: [{ id: 'yes', label: 'Proceed' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: 'Use the safer option instead.' }],
+        },
+      },
+    ];
+    await writeCursor(
+      home,
+      recs.map((r) => JSON.stringify(r)).join('\n') + '\n',
+      'cursor-leak',
+    );
+    const out = join(home, 'cursor-leak.md');
+    const r = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    assert.ok(md.includes('[AskQuestion] Pending gate'), 'question missing');
+    assert.ok(
+      md.includes('Use the safer option instead.'),
+      "the operator's typed reply must survive",
+    );
+    // Internal collaboration metadata must never reach a shared export.
+    assert.ok(!md.includes('secret-lease'), 'lease id leaked into export');
+    assert.ok(
+      !md.includes('SECRET-PEER-SESSION'),
+      'pinned peer session leaked into export',
+    );
+    assert.ok(
+      !md.includes('session_observer_wake'),
+      'wake envelope leaked into export',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cursor: a completed turn never exports automatic-control lease payloads', async () => {
+    // The provisional path is covered above. This closes the other seam: a
+    // COMPLETED transcript, normalized end-to-end, must carry the structural
+    // provenance tag and have it stripped in the same export run.
+    const home = await setupHome();
+    const marker = 'curdone1357';
+    const wake = JSON.stringify({
+      session_observer_wake: {
+        automatic: true,
+        runtime: 'cursor',
+        leaseId: 'secret-lease',
+        pinnedPeer: {
+          runtime: 'claude-code',
+          sessionId: 'SECRET-PEER-SESSION',
+        },
+        range: { fromIndex: 0, toIndex: 3 },
+      },
+    });
+    const recs = [
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` }],
+        },
+      },
+      { role: 'user', message: { content: [{ type: 'text', text: wake }] } },
+      {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Completed gate',
+                questions: [
+                  {
+                    id: 'proceed',
+                    prompt: 'Proceed with the migration?',
+                    options: [{ id: 'yes', label: 'Proceed' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: 'Use the safer option instead.' }],
+        },
+      },
+      {
+        role: 'assistant',
+        message: { content: [{ type: 'text', text: 'Migration complete.' }] },
+      },
+      { type: 'turn_ended', status: 'success' },
+    ];
+    await writeCursor(
+      home,
+      recs.map((r) => JSON.stringify(r)).join('\n') + '\n',
+      'cursor-completed-leak',
+    );
+    const out = join(home, 'cursor-completed-leak.md');
+    const r = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    // Visible conversation survives.
+    assert.ok(md.includes('[AskQuestion] Completed gate'), 'question missing');
+    assert.ok(
+      md.includes('Use the safer option instead.'),
+      "the operator's typed reply must survive",
+    );
+    assert.ok(md.includes('Migration complete.'), 'final message missing');
+    // Internal collaboration metadata does not.
+    assert.ok(!md.includes('secret-lease'), 'lease id leaked into export');
+    assert.ok(
+      !md.includes('SECRET-PEER-SESSION'),
+      'pinned peer session leaked into export',
+    );
+    assert.ok(
+      !md.includes('session_observer_wake'),
+      'wake envelope leaked into export',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('the sanitization notice does not over-attribute recorded answers', async () => {
+    const home = await setupHome();
+    const marker = 'curnotice7890';
+    await writeCursor(home, cursorAskUserTranscript(marker), 'cursor-notice');
+    const out = join(home, 'cursor-notice.md');
+    const r = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const md = await readFile(out, 'utf8');
+    // The same file must not claim the answer was preserved while also saying
+    // the selected option was never recorded.
+    assert.ok(
+      md.includes('any answers the runtime recorded'),
+      'notice must stay attribution-neutral',
+    );
+    assert.ok(
+      !md.includes('the answers you gave'),
+      'notice must not assert the operator answered',
+    );
+    assert.ok(
+      md.includes('(selected option not recorded in Cursor transcripts)'),
+      'the Cursor caveat must still appear alongside the notice',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+});

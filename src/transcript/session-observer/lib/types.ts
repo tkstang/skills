@@ -37,6 +37,13 @@ export interface TranscriptClassification {
   engaged: boolean;
   recordCount: number | null;
   genuineUserMessages: number;
+  /**
+   * Ask-user answers the runtime attributes to the operator. Counted apart
+   * from `genuineUserMessages` because answering a structured prompt is human
+   * engagement of a different shape, and because Codex answers that could have
+   * auto-resolved on a timer are deliberately excluded.
+   */
+  operatorAskUserAnswers: number;
   syntheticUserMessages: number;
   assistantMessages: number;
   realMessageCount: number;
@@ -341,6 +348,13 @@ export interface DigestAccounting {
     count: number;
     fromIndex: number | null;
     toIndex: number | null;
+    /**
+     * Ask-user question/answer entries among the rendered entries. These are
+     * tool calls by transport but human decision content by substance, so they
+     * render regardless of the tool filters and are counted here rather than
+     * under `filtered`.
+     */
+    askUserEntries: number;
   };
   filtered: {
     toolCalls: number;
@@ -465,7 +479,14 @@ export interface CursorDigestEntryV2 extends Omit<
   sourceFrameIndex: number;
   entryKey: string;
   turnId: string;
-  availability: 'pending-lifecycle' | 'completed';
+  /**
+   * `terminal-incomplete` marks content from a turn that ended aborted,
+   * errored, or cancelled. Only ask-user questions reach the digest that way:
+   * the question explains what the turn was waiting on, while the rest of the
+   * turn's content stays suppressed. It is deliberately distinct from
+   * `completed`, which this schema reserves for a genuine terminal success.
+   */
+  availability: 'pending-lifecycle' | 'completed' | 'terminal-incomplete';
 }
 
 export interface CursorDigestV2 extends Omit<
