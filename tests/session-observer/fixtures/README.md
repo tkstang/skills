@@ -18,6 +18,10 @@ Claude Code transcripts follow the record shape used in `~/.claude/projects/<enc
 
 11 records: session-meta + 5 turns with 3 sequential tool_use/tool_result pairs in a row. Tests that multiple tool calls within a single session are handled correctly.
 
+### ask-user-question.jsonl
+
+9 records: two `AskUserQuestion` tool_use/tool_result pairs plus one ordinary `Read` call/result pair. The first pair carries a structured `record.toolUseResult` with `answers` (one selected label, one free-text answer) and an `annotations` note; the second omits `toolUseResult` so the prose `content` fallback is exercised. Used to verify that ask-user exchanges render with the default tool filters while ordinary tool traffic stays filtered.
+
 ### malformed.jsonl
 
 6 lines, one of which is not valid JSON (a plain-text line in the middle). Used to verify that `readRecords` emits a warning but does not throw, and returns all valid records before and after the bad line.
@@ -50,6 +54,10 @@ Codex transcripts follow the record shape used in `~/.codex/sessions/**/*.jsonl`
 
 11 records: session-meta + 5 turns with 4 function_calls. Tests that multiple consecutive function calls are handled correctly under the `--include-tools` flag.
 
+### request-user-input.jsonl
+
+9 records: two `request_user_input` function_call/function_call_output pairs plus one ordinary `exec_command` pair. Arguments and outputs are JSON strings, and answers are keyed by question `id`, so this fixture exercises the `call_id → questions` correlation pass. The second call sets `autoResolutionMs` to verify the auto-resolution caveat.
+
 ### no-cwd-record.jsonl
 
 4 records with no session-meta record containing `cwd`. Used to verify that `extractMeta` returns `{ sessionId, recordedCwd: null }` gracefully.
@@ -79,6 +87,18 @@ Cursor agent transcripts follow the record shape used in `~/.cursor/projects/<en
 ### with-tool-use.jsonl
 
 2 records: assistant content with text plus a `tool_use` block. Used to verify that Cursor tool calls are filtered by default and included as compact markers when `includeToolCalls` is enabled.
+
+### ask-question.jsonl
+
+6 records: a user turn, an `AskQuestion` tool_use with a call-level `title` and two questions, an ordinary `Shell` call, a final assistant message, and a successful `turn_ended`. Used to verify that the question renders through both the v1 normalizer and the v2 frame-analysis digest, survives the completed-turn collapse to the final message, and states that Cursor records no answer.
+
+### ask-question-final.jsonl
+
+3 records: a user turn, an `AskQuestion` tool_use, and a successful `turn_ended` — so the question is the turn's **final** substantive record. Models a turn that ends on the question itself. Used to verify that the `confirmed-completion` projection refuses to promote a final question (its consumer accepts only a final `message` bound to a terminal success) and recovery-pointers it instead, while `observation` still renders it.
+
+### ask-question-unterminated.jsonl
+
+6 records: a completed opening turn, then an unterminated turn containing assistant prose, an `AskQuestion` tool_use, a typed user reply, and further assistant work — with **no** trailing `turn_ended`. Models a still-open or truncated turn. Used to verify that the trailing buffer is flushed for the question and for the operator's typed reply (Cursor records a typed answer as an ordinary user message), while unfinished assistant progress stays hidden. A provisional tail containing no question keeps the existing hide-it-all behavior — see `unterminated.jsonl`.
 
 ### malformed.jsonl
 

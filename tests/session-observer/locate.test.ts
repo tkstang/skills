@@ -369,6 +369,7 @@ test.each(automaticWakeFixtures)(
         engagement: expect.objectContaining({
           status: 'unengaged',
           genuineUserMessages: 0,
+          operatorAskUserAnswers: 0,
           syntheticUserMessages: 1,
         }),
       });
@@ -1944,6 +1945,7 @@ function derivedFields(recordCount: number, sessionId = 'sess') {
       engaged: true,
       recordCount,
       genuineUserMessages: 1,
+      operatorAskUserAnswers: 0,
       syntheticUserMessages: 0,
       assistantMessages: 1,
       realMessageCount: 2,

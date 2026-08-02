@@ -40,7 +40,6 @@ import { parseArgs } from 'node:util';
 import { promisify } from 'node:util';
 
 import type { DigestEntry, Runtime } from '../core/runtimes.js';
-
 import {
   discoverPaths,
   encodeCwdVariants,
@@ -103,7 +102,9 @@ function errorMessage(error: unknown): string {
 }
 
 function errorStackOrMessage(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+  return error instanceof Error
+    ? (error.stack ?? error.message)
+    : String(error);
 }
 
 // ---------------------------------------------------------------------------
@@ -499,9 +500,11 @@ async function resolveOutputPath(
 // ---------------------------------------------------------------------------
 
 const SANITIZE_NOTE =
-  'Note: Only visible user/assistant messages. Tool calls, tool outputs, ' +
+  'Note: Only visible conversation. Ordinary tool calls, tool outputs, ' +
   'developer/system instructions, environment/AGENTS.md/skill payloads, and ' +
-  'subagent notifications are excluded.';
+  'subagent notifications are excluded. Ask-user exchanges — the questions ' +
+  'put to you and any answers the runtime recorded — are preserved as ' +
+  'visible conversation.';
 
 function stripMarkerAndEmpty(entries: readonly DigestEntry[]): DigestEntry[] {
   const out: DigestEntry[] = [];

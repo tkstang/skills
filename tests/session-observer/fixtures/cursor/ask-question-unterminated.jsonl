@@ -1,0 +1,6 @@
+{"role": "user", "message": {"content": [{"type": "text", "text": "Start the discovery gate."}]}}
+{"type": "turn_ended", "status": "success"}
+{"role": "assistant", "message": {"content": [{"type": "text", "text": "One decision before I continue."}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "name": "AskQuestion", "input": {"title": "Pending gate", "questions": [{"id": "proceed", "prompt": "Proceed with the migration?", "options": [{"id": "yes", "label": "Proceed"}, {"id": "no", "label": "Hold"}]}]}}]}}
+{"role": "user", "message": {"content": [{"type": "text", "text": "Use the safer option instead."}]}}
+{"role": "assistant", "message": {"content": [{"type": "text", "text": "Half-finished follow-up work."}]}}

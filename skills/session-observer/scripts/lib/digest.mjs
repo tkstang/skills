@@ -120,9 +120,12 @@ function formatHeader(digest) {
     lines.push(`**raw records consumed:** ${range.newRecords}`);
   }
   if (accounting?.rendered) {
-    const { count, fromIndex, toIndex } = accounting.rendered;
+    const { count, fromIndex, toIndex, askUserEntries } = accounting.rendered;
     const renderedRange = count > 0 ? `zero-based records ${fromIndex}\u2013${toIndex}` : "none";
-    lines.push(`**rendered messages:** ${count} (${renderedRange})`);
+    const askUserNote = askUserEntries > 0 ? `, including ${askUserEntries} ask-user` : "";
+    lines.push(
+      `**rendered messages:** ${count}${askUserNote} (${renderedRange})`
+    );
   }
   if (accounting?.filtered) {
     const filtered = accounting.filtered;
@@ -196,7 +199,10 @@ function cursorEntry(record, renderTurnId, deliveryFrameIndex, availability) {
     text: record.text,
     recordIndex: deliveryFrameIndex,
     sourceFrameIndex: record.sourceFrameIndex,
-    kind: "message",
+    // Questions are tagged structurally so JSON consumers can tell them from
+    // assistant prose, matching how the v1 normalizer and the public docs
+    // describe Cursor ask-user content.
+    kind: record.askUser === true ? "ask_user" : "message",
     entryKey: record.entryKey,
     turnId: record.turnId,
     renderTurnId,
@@ -261,6 +267,9 @@ function cursorEngagement(opts) {
     engaged,
     recordCount: opts.cursorScan.totalFrames,
     genuineUserMessages,
+    // Cursor records no ask-user answer at all, so there is never an
+    // operator-attributable one to count here.
+    operatorAskUserAnswers: 0,
     syntheticUserMessages,
     assistantMessages,
     realMessageCount: genuineUserMessages + assistantMessages,
@@ -431,14 +440,64 @@ function buildCursorDigest(transcriptPath, opts) {
         (record) => record.entryKey === finalEntryKey && cursorRecordWasDelivered(record, stateTurn)
       ) || substantiveRecords.length === 0 && (stateTurn?.deliveredEntryKeys.includes(finalEntryKey) ?? false))
     });
+    const emitsAskUser = opts.cursorProjection === "observation";
+    const emitAskUserRecords = (availability, alreadyRendered = /* @__PURE__ */ new Set()) => {
+      if (!emitsAskUser) return;
+      for (const record of substantiveRecords) {
+        if (record.askUser !== true) continue;
+        if (alreadyRendered.has(record.entryKey)) continue;
+        if (cursorRecordWasDelivered(record, stateTurn)) continue;
+        entriesBeforeTailSlice.push(
+          cursorEntry(
+            record,
+            cursorRenderTurnId(effectiveTurn, record.sourceFrameIndex),
+            record.sourceFrameIndex,
+            availability
+          )
+        );
+      }
+    };
     if (turn.lifecycle !== "success") {
-      suppressedContent ||= substantiveRecords.length > 0 || (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
+      emitAskUserRecords("terminal-incomplete");
+      if (!emitsAskUser) {
+        for (const record of substantiveRecords) {
+          if (record.askUser !== true) continue;
+          addCursorRecoveryPointer(
+            omittedAssistantEntries,
+            seenAssistantPointers,
+            cursorRecoveryPointer(
+              transcriptPath,
+              record.sourceFrameIndex,
+              record.entryKey
+            )
+          );
+        }
+      }
+      suppressedContent ||= substantiveRecords.some(
+        (record) => !emitsAskUser || record.askUser !== true
+      ) || (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
       continue;
     }
     const completedRecords = opts.cursorProjection === "confirmed-completion" ? substantiveRecords.filter(
       (record) => record.entryKey === finalEntryKey
     ) : finalRecordsByRenderTurn(effectiveTurn, substantiveRecords);
+    const completedKeys = new Set(
+      completedRecords.map((record) => record.entryKey)
+    );
+    emitAskUserRecords("completed", completedKeys);
     for (const record of completedRecords) {
+      if (!emitsAskUser && record.askUser === true) {
+        addCursorRecoveryPointer(
+          omittedAssistantEntries,
+          seenAssistantPointers,
+          cursorRecoveryPointer(
+            transcriptPath,
+            record.sourceFrameIndex,
+            record.entryKey
+          )
+        );
+        continue;
+      }
       const wasDelivered = cursorRecordWasDelivered(record, stateTurn);
       const deliveredHash = stateTurn?.deliveredEntryHashes?.[record.entryKey];
       const changedSinceDelivery = deliveredHash !== void 0 && deliveredHash !== cursorEntryHash(record.text);
@@ -761,7 +820,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     rendered: {
       count: filteredEntries.length,
       fromIndex: renderedFromIndex,
-      toIndex: renderedToIndex
+      toIndex: renderedToIndex,
+      askUserEntries: filteredEntries.filter((e) => e.kind === "ask_user").length
     },
     filtered: {
       toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,

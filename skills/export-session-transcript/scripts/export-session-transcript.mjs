@@ -319,7 +319,7 @@ async function resolveOutputPath(opts, branch, session, multi) {
   }
   return join(homedir(), "Downloads", fileName);
 }
-const SANITIZE_NOTE = "Note: Only visible user/assistant messages. Tool calls, tool outputs, developer/system instructions, environment/AGENTS.md/skill payloads, and subagent notifications are excluded.";
+const SANITIZE_NOTE = "Note: Only visible conversation. Ordinary tool calls, tool outputs, developer/system instructions, environment/AGENTS.md/skill payloads, and subagent notifications are excluded. Ask-user exchanges \u2014 the questions put to you and any answers the runtime recorded \u2014 are preserved as visible conversation.";
 function stripMarkerAndEmpty(entries) {
   const out = [];
   for (const entry of entries) {

@@ -7,10 +7,10 @@ argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|w
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
-version: '1.0.24'
+version: '1.0.25'
 metadata:
   author: thomas.stang
-  version: '1.0.24'
+  version: '1.0.25'
 ---
 
 # session-observer
@@ -109,6 +109,25 @@ Use this skill when any of the following applies:
 ### Default content filter
 
 By default, only natural-language `user`/`assistant` messages are included. Tool calls, tool results, and Claude Code slash-command payload records (`<command-message>`, `<command-name>`, `<command-args>`) are excluded. Opt in with `--include-tools` (adds call markers), `--include-command-messages` (adds slash-command payloads), or `--debug` (adds tool markers and results).
+
+**Exception — ask-user exchanges.** Every runtime puts questions to the operator through a tool call (`AskUserQuestion` on Claude Code, `request_user_input` on Codex, `AskQuestion` on Cursor). The answer is human decision content, not tool mechanics, so those exchanges render by default as `ask_user` entries regardless of the tool filters, on every runtime.
+
+Two parts of that behavior are **schema-v1 only** (Claude Code and Codex), because Cursor's digest is built by frame analysis that runs before digest options are known:
+
+| Behavior                                        | Claude Code / Codex (schema v1) | Cursor (schema v2)                                     |
+| ----------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| Question and option labels render by default    | Yes                             | Yes                                                    |
+| Answer recorded by the runtime and rendered     | Yes                             | No — the digest says the selected option is unrecorded |
+| `--include-tools` adds option descriptions      | Yes                             | No — Cursor entries never carry descriptions           |
+| Counted in `accounting.rendered.askUserEntries` | Yes                             | No — `CursorDigestAccountingV2` has no such field      |
+
+A question is preserved on every terminal status, not only success: when a turn ends aborted, errored, or cancelled the rest of its content stays withheld but the question still renders, and schema v2 marks it `availability: terminal-incomplete` so it is never read as a confirmed completion. A question in a still-open or truncated final turn is likewise preserved, together with any reply the operator typed after it — Cursor records that as an ordinary user message. Unfinished assistant progress from such a turn stays hidden, and a provisional tail with no question is still hidden whole.
+
+Cursor questions appear in the **`observation`** projection, which is what `review` and `catch-up`/watch use. They are deliberately absent from the internal `confirmed-completion` projection, whose only consumer is the `session-observer-collab` skill — its selector requires every entry to be the final message of a terminal-success turn, so context entries there would strand a valid continuation. Under that projection the question remains reachable through `accounting.recovery.omittedAssistantEntries`.
+
+Answering a prompt also counts as **engagement** for candidate selection, so a session whose only human input arrived that way is still discoverable by `locate`, `review`, `catch-up`, and `watch`. Attribution is deliberately narrow — the count lives in `engagement.operatorAskUserAnswers`, separate from `genuineUserMessages`, and a Codex call that set `autoResolutionMs` is excluded because its recorded output is the same whether the operator chose or the timer fired.
+
+See [`references/transcript-formats.md`](references/transcript-formats.md) for the per-runtime record shapes and what each runtime does and does not record.
 
 A filtered or empty digest is not evidence that the peer was idle or that the transcript contains no activity. It only means no entries matched the current rendering options. Check the digest schema, declared index base, and raw accounting; broaden the filters when appropriate; or inspect the pinned transcript before drawing an absence conclusion.
 
@@ -451,6 +470,7 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 - [ ] `SKILL.md` exists, frontmatter valid, and top-level `version` matches `metadata.version`.
 - [ ] `review`, `catch-up`, `locate`, and `state` subcommands respond correctly.
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
+- [ ] Ask-user questions render by default on every runtime, on every terminal status, and from a still-open final turn. On schema v1 the answer renders too, `--include-tools` adds option descriptions, and `accounting.rendered.askUserEntries` counts them; Cursor states that the selected option is unrecorded and supports neither of the last two.
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."
 - [ ] Cursor delivery progress may advance within an open turn, but its continuity hash advances only through `turn_ended`; grow-in-place trailing frames do not cause `PREFIX_MISMATCH`.
 - [ ] Non-Cursor resets zero offsets; Cursor session/runtime resets delete scoped state for replay; subsequent `catch-up` re-emits transcript content.

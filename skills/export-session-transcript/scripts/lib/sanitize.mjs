@@ -73,6 +73,9 @@ const HIDDEN_PAYLOAD_MATCHERS = [
 function sanitizeEntries(entries, { runtime } = {}) {
   if (!Array.isArray(entries)) return [];
   return entries.filter((entry) => {
+    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control") {
+      return false;
+    }
     const text = entry?.text ?? "";
     const role = entry?.role ?? "";
     for (const matcher of HIDDEN_PAYLOAD_MATCHERS) {

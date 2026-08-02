@@ -251,10 +251,16 @@ function formatHeader(digest: Digest): string {
     lines.push(`**raw records consumed:** ${range.newRecords}`);
   }
   if (accounting?.rendered) {
-    const { count, fromIndex, toIndex } = accounting.rendered;
+    const { count, fromIndex, toIndex, askUserEntries } = accounting.rendered;
     const renderedRange =
       count > 0 ? `zero-based records ${fromIndex}–${toIndex}` : 'none';
-    lines.push(`**rendered messages:** ${count} (${renderedRange})`);
+    // Call out ask-user entries: they are the one kind of tool call the default
+    // filters keep, so their presence would otherwise be unexplained.
+    const askUserNote =
+      askUserEntries > 0 ? `, including ${askUserEntries} ask-user` : '';
+    lines.push(
+      `**rendered messages:** ${count}${askUserNote} (${renderedRange})`,
+    );
   }
   if (accounting?.filtered) {
     const filtered = accounting.filtered;
@@ -354,7 +360,10 @@ function cursorEntry(
     text: record.text,
     recordIndex: deliveryFrameIndex,
     sourceFrameIndex: record.sourceFrameIndex,
-    kind: 'message',
+    // Questions are tagged structurally so JSON consumers can tell them from
+    // assistant prose, matching how the v1 normalizer and the public docs
+    // describe Cursor ask-user content.
+    kind: record.askUser === true ? 'ask_user' : 'message',
     entryKey: record.entryKey,
     turnId: record.turnId,
     renderTurnId,
@@ -460,6 +469,9 @@ function cursorEngagement(
     engaged,
     recordCount: opts.cursorScan.totalFrames,
     genuineUserMessages,
+    // Cursor records no ask-user answer at all, so there is never an
+    // operator-attributable one to count here.
+    operatorAskUserAnswers: 0,
     syntheticUserMessages,
     assistantMessages,
     realMessageCount: genuineUserMessages + assistantMessages,
@@ -682,20 +694,100 @@ function buildCursorDigest(
             (stateTurn?.deliveredEntryKeys.includes(finalEntryKey) ?? false))),
     });
 
+    // A question put to the operator is not assistant progress the completion
+    // contract withholds — it is the context explaining what the turn was
+    // waiting on — so `observation` keeps it on every terminal status, matching
+    // the v1 normalizer.
+    //
+    // `confirmed-completion` is deliberately excluded. That projection is
+    // consumed only by the collaboration skill, whose selector requires every
+    // entry to be the single final message of a terminal-success turn; adding
+    // context entries strands an otherwise valid continuation. Both user-facing
+    // paths (`review` and `catch-up`/watch) use `observation`, so no digest a
+    // user reads loses the question. Under the confirmed projection these
+    // records fall through to the recovery pointers below instead.
+    const emitsAskUser = opts.cursorProjection === 'observation';
+    const emitAskUserRecords = (
+      availability: CursorDigestEntryV2['availability'],
+      alreadyRendered: ReadonlySet<string> = new Set(),
+    ): void => {
+      if (!emitsAskUser) return;
+      for (const record of substantiveRecords) {
+        if (record.askUser !== true) continue;
+        // Skip anything the completed-record loop already renders, so a
+        // question that is its render group's final entry is not emitted twice.
+        if (alreadyRendered.has(record.entryKey)) continue;
+        if (cursorRecordWasDelivered(record, stateTurn)) continue;
+        entriesBeforeTailSlice.push(
+          cursorEntry(
+            record,
+            cursorRenderTurnId(effectiveTurn, record.sourceFrameIndex),
+            record.sourceFrameIndex,
+            availability,
+          ),
+        );
+      }
+    };
+
     if (turn.lifecycle !== 'success') {
+      emitAskUserRecords('terminal-incomplete');
+      if (!emitsAskUser) {
+        // This branch returns before the recovery loop below, so the questions
+        // the confirmed projection just declined to emit would otherwise be
+        // unreachable — contradicting the documented promise that excluded
+        // questions stay recoverable.
+        for (const record of substantiveRecords) {
+          if (record.askUser !== true) continue;
+          addCursorRecoveryPointer(
+            omittedAssistantEntries,
+            seenAssistantPointers,
+            cursorRecoveryPointer(
+              transcriptPath,
+              record.sourceFrameIndex,
+              record.entryKey,
+            ),
+          );
+        }
+      }
       suppressedContent ||=
-        substantiveRecords.length > 0 ||
-        (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
+        substantiveRecords.some(
+          (record) => !emitsAskUser || record.askUser !== true,
+        ) || (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
       continue;
     }
 
+    // Compute the completed set first: `emitAskUserRecords` must not re-emit a
+    // question that is already its render group's final record.
     const completedRecords =
       opts.cursorProjection === 'confirmed-completion'
         ? substantiveRecords.filter(
             (record) => record.entryKey === finalEntryKey,
           )
         : finalRecordsByRenderTurn(effectiveTurn, substantiveRecords);
+    const completedKeys = new Set(
+      completedRecords.map((record) => record.entryKey),
+    );
+    emitAskUserRecords('completed', completedKeys);
+
     for (const record of completedRecords) {
+      // A turn can end *on* the question, making it the final record. The
+      // confirmed projection must still refuse it: its consumer accepts only a
+      // final `message` bound to a terminal success, so promoting a question
+      // here strands the continuation. It stays reachable through a pointer —
+      // the post-tail-slice recovery pass only covers groups that rendered
+      // something, so this group would otherwise leave no trace at all.
+      if (!emitsAskUser && record.askUser === true) {
+        addCursorRecoveryPointer(
+          omittedAssistantEntries,
+          seenAssistantPointers,
+          cursorRecoveryPointer(
+            transcriptPath,
+            record.sourceFrameIndex,
+            record.entryKey,
+          ),
+        );
+        continue;
+      }
       const wasDelivered = cursorRecordWasDelivered(record, stateTurn);
       const deliveredHash = stateTurn?.deliveredEntryHashes?.[record.entryKey];
       const changedSinceDelivery =
@@ -1146,6 +1238,8 @@ export async function buildDigest(
       count: filteredEntries.length,
       fromIndex: renderedFromIndex,
       toIndex: renderedToIndex,
+      askUserEntries: filteredEntries.filter((e) => e.kind === 'ask_user')
+        .length,
     },
     filtered: {
       toolCalls: includeToolCalls
