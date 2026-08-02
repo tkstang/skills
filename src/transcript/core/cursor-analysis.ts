@@ -73,6 +73,19 @@ export interface CursorTurnAccumulator {
   finish(scan: CursorTranscriptScan): CursorTranscriptAnalysis;
 }
 
+export function cursorRenderTurnId(
+  turn: Pick<
+    CursorTurnAnalysis,
+    'turnId' | 'fromFrameIndex' | 'humanRecordIndexes'
+  >,
+  sourceFrameIndex: number,
+): string {
+  const humanFrameIndex = turn.humanRecordIndexes.findLast(
+    (frameIndex) => frameIndex <= sourceFrameIndex,
+  );
+  return `${turn.turnId}:render:${humanFrameIndex ?? turn.fromFrameIndex}`;
+}
+
 interface ContentBlock {
   blockIndex: number;
   kind: 'text' | 'tool' | 'ask-user' | 'runtime-diagnostic' | 'unsupported';

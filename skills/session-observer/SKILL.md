@@ -7,10 +7,10 @@ argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|w
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
-version: '1.0.24'
+version: '1.0.25'
 metadata:
   author: thomas.stang
-  version: '1.0.24'
+  version: '1.0.25'
 ---
 
 # session-observer
@@ -292,7 +292,7 @@ collaboration continuation.
 
 If raw accounting says 8 consumed positions and one rendered entry, that is normal: the active projection/filter omitted the others. Do not describe this as a range bug, peer idleness, or evidence that the omitted input does not exist.
 
-The stored high-water mark is exclusive. In compatibility fields it may still be named `lastRecordIndex`; for Cursor v2 it means the next unread zero-based physical frame, not a parsed-record conversion.
+The stored delivery high-water mark is exclusive. In compatibility fields it may still be named `lastRecordIndex`; for Cursor v2 it means the next unread zero-based physical frame, not a parsed-record conversion. Cursor continuity is a separate terminal-settled checkpoint: its byte hash advances only through `turn_ended`, so an open turn's mutable trailing frame is never part of the immutable anchor.
 
 If you used `review` and want the same bookkeeping, pass `--mark-read`.
 
@@ -405,9 +405,11 @@ rm ~/.local/state/session-observer/state.json.lock
 
 For non-Cursor schema-v1 state, the existing record-offset compatibility behavior applies when a transcript shrinks.
 
-Cursor v2 does not silently reset. A shrink, prefix mismatch, replacement, unsupported rotation, file-identity failure, or unverified legacy position returns a structured continuity-blocked result and leaves state unchanged.
+Cursor v2 fails closed when a terminal-settled prefix changes, the transcript shrinks, file identity changes, rotation is unsupported, or a legacy position cannot be verified. A frame still inside an open turn is outside that immutable anchor and may grow without poisoning state.
 
-**Recovery:** Confirm the exact Cursor identity and choose explicit replay with `state reset --session cursor:<session-id>`. Use the broader runtime reset only when every Cursor session can be replayed.
+Older state may contain a checkpoint that ends inside the physical frame it claimed to consume. When the same file grew in place and that legacy shape is detected, `catch-up` re-anchors only the affected session at its last terminal-settled frame and continues; sibling Cursor sessions are preserved. The digest reports a recovery warning. A mismatch at a valid settled frame boundary is not auto-recovered.
+
+**Recovery:** For a genuine settled-history mismatch, confirm the exact Cursor identity and choose explicit replay with `state reset --session cursor:<session-id>`. Use the broader runtime reset only when every Cursor session can be replayed.
 
 ### Corrupt legacy offset state (warning on startup)
 
@@ -470,6 +472,7 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
 - [ ] Ask-user questions render by default on every runtime, on every terminal status, and from a still-open final turn. On schema v1 the answer renders too, `--include-tools` adds option descriptions, and `accounting.rendered.askUserEntries` counts them; Cursor states that the selected option is unrecorded and supports neither of the last two.
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."
+- [ ] Cursor delivery progress may advance within an open turn, but its continuity hash advances only through `turn_ended`; grow-in-place trailing frames do not cause `PREFIX_MISMATCH`.
 - [ ] Non-Cursor resets zero offsets; Cursor session/runtime resets delete scoped state for replay; subsequent `catch-up` re-emits transcript content.
 - [ ] Exit codes 0 / 1 / 2 / 3 are produced as documented for their respective conditions.
 - [ ] `--runtime auto` resolves the peer via `SESSION_OBSERVER_SELF`, prior same-cwd state, or tier-population; exits 3 when multiple runtimes have candidates.

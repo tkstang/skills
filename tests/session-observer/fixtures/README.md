@@ -123,6 +123,7 @@ not renumber later physical frames.
 | `framed-unterminated-tail.jsonl` | parsed, partial | A parseable tail without a newline remains partial |
 | `framed-repair-before.jsonl` / `framed-repair-after.jsonl` | parsed, malformed, parsed → parsed, parsed, parsed | A blocking frame is repaired without discarding the following frame |
 | `framed-append-before.jsonl` / `framed-append-after.jsonl` | parsed, parsed → parsed, parsed, parsed | Appended growth preserves the exact prior byte prefix |
+| `framed-grow-in-place-before.jsonl` / `framed-grow-in-place-after.jsonl` | parsed, parsed → parsed, parsed, parsed | The trailing assistant frame grows before a successful terminal frame arrives |
 | `framed-replacement-before.jsonl` / `framed-replacement-after.jsonl` | parsed, parsed | Same-length prefix replacement must not be mistaken for append-only growth |
 
 The fixture-contract suite checks inventory, raw UTF-8 round trips, newline

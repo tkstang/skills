@@ -146,9 +146,11 @@ record offset:
   pin switch.
 - **Digest and index:** Cursor returns digest schema v2 with
   `indexBase: "zero-based-jsonl-frame-index"`. `fromIndex` is inclusive and
-  `nextIndex` is the first unconsumed safe frame. Entry `recordIndex` is the
+  `nextIndex` is the first undelivered safe frame. Entry `recordIndex` is the
   delivery frame; `sourceFrameIndex` identifies the original content frame.
-  Do not reinterpret these values as schema-v1 record indices.
+  User frames also define presentation groups, so `--max-turns N` remains
+  useful even when Cursor emits many exchanges before one terminal frame. Do
+  not reinterpret these values as schema-v1 record indices.
 - **Observation versus completion:** the ordinary observer requests the
   `observation` projection. After one unchanged stability interval,
   substantive content may be `available` with entry availability
@@ -156,16 +158,20 @@ record offset:
   aborted, error, cancelled, or unknown. Completion-sensitive collaboration
   separately requests `confirmed-completion` and cannot consume an open turn.
 - **State and continuity:** Cursor state lives in the owner-only
-  `cursor-state.json` schema-v2 store. Its first-unconsumed frame, canonical
-  identity, prefix checkpoint, open turn, stability candidate, delivery
-  reservation, and last status are isolated from legacy `state.json` record
-  offsets. Shrink, prefix mismatch, replacement, unsupported rotation, or
-  unverified legacy state blocks advancement instead of silently resetting.
-- **Recovery:** use `state reset --session cursor:<session-id>` to discard one
-  Cursor session's state and explicitly replay from frame zero. Use
-  `state reset --runtime cursor` only when every Cursor session can be reset and
-  replayed. The CLI reports the recovery scope and destructive effect before
-  the broader reset.
+  `cursor-state.json` schema-v2 store. Delivery progress is separate from the
+  continuity checkpoint: pending content can advance the former, while the
+  byte-prefix hash advances only through `turn_ended`. Open-turn frames are
+  therefore never treated as immutable history. Canonical identity, open-turn
+  reconciliation, stability candidates, delivery reservations, and last status
+  remain isolated from legacy `state.json` record offsets.
+- **Recovery:** a legacy checkpoint found inside a grow-in-place trailing frame
+  is re-anchored automatically at the affected session's last terminal-settled
+  boundary; sibling Cursor sessions are preserved. A changed settled prefix,
+  shrink, replacement, unsupported rotation, or unverified legacy state still
+  fails closed. Use `state reset --session cursor:<session-id>` for explicit
+  single-session replay. Use `state reset --runtime cursor` only when every
+  Cursor session can be reset and replayed; the CLI reports the broader reset's
+  destructive scope.
 
 Cursor observed-side reading and bounded foreground watching are
 `live-validated` for the measured local Cursor 3.11.13 agent-transcript surface.

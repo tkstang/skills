@@ -421,6 +421,58 @@ describe('Cursor digest v2 behavior', () => {
     }
   });
 
+  test('bounds a long terminal-delimited Cursor run by user render groups', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-user-groups-'));
+    try {
+      const transcriptPath = join(tmpDir, 'user-groups.jsonl');
+      const exchanges = Array.from({ length: 20 }, (_, index) => [
+        {
+          role: 'user',
+          message: { content: `Synthetic direction ${index}.` },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: `Synthetic answer ${index}. ${'x'.repeat(200)}`,
+          },
+        },
+      ]).flat();
+      await writeFile(
+        transcriptPath,
+        [...exchanges, { type: 'turn_ended', status: 'success' }]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+
+      const digest = await buildDigest('cursor', transcriptPath, {
+        ...cursorDigestOptions(context, 'observation'),
+        maxTurns: 4,
+      });
+      const markdown = renderMarkdown(digest);
+
+      expect(digest.entries.map((entry) => entry.text)).toEqual(
+        [16, 17, 18, 19].map(
+          (index) => `Synthetic answer ${index}. ${'x'.repeat(200)}`,
+        ),
+      );
+      expect(
+        new Set(digest.entries.map((entry) => entry.turnId)),
+      ).toHaveProperty('size', 1);
+      expect(
+        new Set(digest.entries.map((entry) => entry.renderTurnId)),
+      ).toHaveProperty('size', 4);
+      expect(digest.accounting.recovery.omittedUserMessages).toHaveLength(4);
+      expect(digest.accounting.recovery.omittedAssistantEntries).toHaveLength(
+        0,
+      );
+      expect(markdown).not.toContain('Synthetic answer 15.');
+      expect(markdown.length).toBeLessThan(6_000);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('projects confirmed open-turn content with frame accounting and truthful pending status', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-pending-'));
     try {
@@ -2037,15 +2089,18 @@ describe('ask-user exchanges', () => {
     );
     const md = renderMarkdown(digest);
 
+    // Delivered means the consumer already received it, so it is not rendered
+    // a second time.
     expect(md).not.toContain('[AskQuestion] Discovery convergence');
-    // Delivered means the consumer already received it, so — matching how
-    // ordinary substantive records behave under observation — it is neither
-    // re-rendered nor re-pointered rather than being reported as omitted.
+    // It is still reported as omitted: the render-group recovery pass points at
+    // the last unrendered record in any group that rendered something, whether
+    // or not it was previously delivered. Ask-user records follow the same rule
+    // as ordinary content here.
     expect(
       digest.accounting.recovery.omittedAssistantEntries.some(
         (pointer) => pointer.entryKey === askRecord!.entryKey,
       ),
-    ).toBe(false);
+    ).toBe(true);
     // The turn's other content is unaffected by the ask-user carve-out.
     expect(md).toContain('Discovery is complete and committed.');
   });
