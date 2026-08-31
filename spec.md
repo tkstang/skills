@@ -377,22 +377,22 @@ from reporting success.
 
 | ID | Description | Priority | Verification | Planned Tasks |
 | --- | --- | --- | --- | --- |
-| FR1 | Exact-worktree provider-qualified discovery | P0 | unit + integration: exact/related/global candidate fixtures | Pending plan mapping |
-| FR2 | Bounded hidden-payload-sanitized preview | P1 | unit: preview filtering and bounds | Pending plan mapping |
-| FR3 | Explicit one, many, or all selection | P0 | unit + CLI: selection parser and boundary validation | Pending plan mapping |
-| FR4 | Existing target and Git safety evidence | P0 | unit + integration: registered-worktree Git fixtures | Pending plan mapping |
-| FR5 | Successor, resume, and plan semantics | P0 | unit + CLI: mode and writer/current-turn decisions | Pending plan mapping |
-| FR6 | Provider syntax and behavioral gates | P0 | unit + live gate: receipt-bound exact-version matrix | Pending plan mapping |
-| FR7 | Complete digest-confirmed batch plan | P0 | unit + CLI: digest freshness and stale-plan refusal | Pending plan mapping |
-| FR8 | Provider-native mutation and truthful deferral | P0 | unit + live gate: bounded machine successor execution | Pending plan mapping |
-| FR9 | Separate native/reporting outcomes and retries | P0 | unit: mixed outcome and reconciliation ledger | Pending plan mapping |
-| FR10 | Public standalone skill workflow | P0 | integration: layout, docs, version, and provider sync | Pending plan mapping |
-| NFR1 | Mutation-free inspection and cache bypass | P0 | integration: empty/stale state remains unchanged | Pending plan mapping |
-| NFR2 | Privacy-minimized output and no durable state | P0 | unit + integration: output absence assertions | Pending plan mapping |
-| NFR3 | Fail-closed no-shell security | P0 | unit: adversarial IDs, paths, drift, and ambiguity | Pending plan mapping |
-| NFR4 | Dependency-free generated Node runtime | P0 | build: generated-output and dependency checks | Pending plan mapping |
-| NFR5 | Bounded resource use | P1 | unit: preview/probe/time/output limits | Pending plan mapping |
-| NFR6 | Repository and installation compatibility | P0 | integration: validate, test, smoke, docs, sync | Pending plan mapping |
+| FR1 | Exact-worktree provider-qualified discovery | P0 | unit + integration: exact/related/global candidate fixtures | p01-t01, p01-t02, p02-t02 |
+| FR2 | Bounded hidden-payload-sanitized preview | P1 | unit: preview filtering and bounds | p01-t01, p02-t03 |
+| FR3 | Explicit one, many, or all selection | P0 | unit + CLI: selection parser and boundary validation | p02-t01, p03-t03, p03-t05 |
+| FR4 | Existing target and Git safety evidence | P0 | unit + integration: registered-worktree Git fixtures | p02-t04, p03-t03 |
+| FR5 | Successor, resume, and plan semantics | P0 | unit + CLI: mode and writer/current-turn decisions | p03-t03, p03-t05 |
+| FR6 | Provider syntax and behavioral gates | P0 | unit + live gate: receipt-bound exact-version matrix | p03-t01, p03-t04, p04-t01, p04-t02, p05-t01, p05-t02, p05-t03 |
+| FR7 | Complete digest-confirmed batch plan | P0 | unit + CLI: digest freshness and stale-plan refusal | p03-t03, p03-t05 |
+| FR8 | Provider-native mutation and truthful deferral | P0 | unit + live gate: bounded machine successor execution | p03-t01, p03-t03, p03-t04, p04-t01, p04-t02, p05-t03, p05-t04 |
+| FR9 | Separate native/reporting outcomes and retries | P0 | unit: mixed outcome and reconciliation ledger | p03-t02, p03-t03, p05-t04 |
+| FR10 | Public standalone skill workflow | P0 | integration: layout, docs, version, and provider sync | p03-t05, p03-t06, p06-t01, p06-t02, p06-t03 |
+| NFR1 | Mutation-free inspection and cache bypass | P0 | integration: empty/stale state remains unchanged | p01-t01, p01-t02, p01-t03, p02-t02 |
+| NFR2 | Privacy-minimized output and no durable state | P0 | unit + integration: output absence assertions | p01-t01, p02-t03, p03-t03, p03-t04, p03-t05, p05-t01, p05-t02 |
+| NFR3 | Fail-closed no-shell security | P0 | unit: adversarial IDs, paths, drift, and ambiguity | p02-t04, p03-t01, p03-t03, p03-t04, p04-t01, p04-t02, p05-t04 |
+| NFR4 | Dependency-free generated Node runtime | P0 | build: generated-output and dependency checks | p03-t06, p06-t01, p06-t03 |
+| NFR5 | Bounded resource use | P1 | unit: preview/probe/time/output limits | p01-t01, p01-t02, p02-t03, p03-t01, p03-t03, p03-t04 |
+| NFR6 | Repository and installation compatibility | P0 | integration: validate, test, smoke, docs, sync | p03-t06, p06-t01, p06-t02, p06-t03, p06-t04 |
 
 ## Open Questions
 
@@ -401,8 +401,9 @@ from reporting success.
   proven, stop with a product blocker; do not silently ship plan-only behavior.
 - **Same-ID proof:** No installed provider currently exposes writer-closed proof, so
   what future provider/host evidence could enable `resume` without weakening v1?
-- **Claude lineage:** Which stable native output or transcript field can corroborate a
-  successor child without relying on recency?
+- **Claude behavioral proof:** Does the exact pre-generated child UUID match machine
+  output and target transcript records, inherit the source UUID prefix, and preserve
+  later source-only resumability in the bounded installed-version gate?
 
 ## Assumptions
 

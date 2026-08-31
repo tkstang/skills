@@ -5,208 +5,792 @@ oat_blockers: []
 oat_last_updated: 2026-08-31
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_plan_parallel_groups: []
+oat_plan_source: spec-driven
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
 # Implementation Plan: coding-session-handoff
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`. Phases are sequential because each
+> phase consumes contracts or reviewed evidence produced by the preceding phase.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Ship one public dependency-free skill that safely hands explicitly selected
+Codex and Claude Code sessions to an existing sibling worktree through verified
+provider-native successor operations, with exact parent-to-child outcomes and truthful
+deferral when evidence is missing or unsafe.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Extend the shared transcript substrate with bounded zero-persistence
+reads, then compose handoff-specific discovery, preview, Git evidence, provider
+contracts, immutable planning, native execution, and reconciliation under
+`src/transcript/coding-session-handoff/`. Bundle one generated runtime for the public
+skill; keep provider stores immutable and activate exact-version execution only after
+disposable live gates and independent receipt review.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node.js 22+, TypeScript, Node standard library, Vitest, Git CLI, Codex
+CLI 0.151.0, Claude Code 2.1.251, repository generated-runtime tooling, Fumadocs/MDX.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}(pNN-tNN): {description}`
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+- [x] Defer HiLL checkpoint confirmation to `oat-project-implement`
+- [x] Evaluated phase parallelism; all six phases have hard evidence or source dependencies
+- [x] Set `oat_plan_parallel_groups: []`
+- [x] Mapped every FR/NFR to stable task IDs in `spec.md`
+- [ ] Pass independent plan artifact review
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+There are useful peer lanes inside phases, but no safe phase-level parallel group:
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+- p01 transcript readers feed p02 discovery/preview.
+- p02 freezes handoff types and Git evidence consumed by p03.
+- p03 builds the unverified runtime that p04 executes.
+- p04 produces raw receipts consumed by p05 independent review and activation.
+- p05 must activate both reviewed contracts before p06 can ship public guidance.
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model                     | Codex effort                   | Rationale                     |
-| ----- | -------------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|fable\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them when a capped managed dispatch policy exists, selects them directly under managed `Uncapped`, and maps selected efforts to pinned implementer variants when available. Codex provider default effort is informational only for explicit inherit/default behavior or base/unpinned fallback paths.
+Within a phase, implementers may use bounded workers only for file-disjoint
+reconnaissance or test generation. The phase implementer retains integration ownership.
+Shared generated outputs, behavior-contract source, and project bookkeeping are always
+single-owner surfaces.
 
 ---
 
-RED/GREEN/Refactor is the recommended default where work is testable, not a validator requirement. Other task-body shapes, including non-TDD shapes, are allowed when appropriate, provided the plan preserves stable `pNN-tNN` IDs, per-task verification, and atomic commits.
+## Phase p01: Mutation-free transcript substrate
 
-## Phase 1: {Phase Name}
+**Goal:** Add bounded quiet readers and an exact-all, persistence-forbid discovery seam
+without changing existing session-observer defaults.
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add bounded quiet transcript readers
+
+**Dependencies:** None.
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
 
-**Step 1: Write test (RED)**
+**RED:** Add tests for bounded metadata-prefix and tail readers covering byte/record
+caps, malformed/oversized records, deadlines, partial final lines, and path-free
+diagnostics.
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+Run: `pnpm exec vitest run tests/transcript-core/runtimes.test.ts`
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+Expected: new bounded-reader cases fail before the APIs exist.
 
-**Step 2: Implement (GREEN)**
+**GREEN:** Implement standard-library-only readers that never fall back to whole-file
+loading and never emit transcript paths. Preserve existing reader behavior for current
+callers.
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
+**Refactor:** Centralize byte/record/deadline accounting and safe diagnostic emission.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts && pnpm run type-check`
 
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
-
-**Step 3: Refactor**
-
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
-
-```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
-```
+**Commit:** `feat(p01-t01): add bounded transcript readers`
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Add exact-all zero-persistence discovery
+
+**Dependencies:** p01-t01.
 
 **Files:**
 
-- {File list}
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
 
-**Step 1: Write test (RED)**
+**RED:** Add stale-cache, no-cache-write, older-than-seven-days, aggregate budget,
+per-entry bound, and deadline tests. Pin existing default cache/recency behavior.
 
-{Test code}
+Run: `pnpm exec vitest run tests/session-observer/locate.test.ts`
 
-**Step 2: Implement (GREEN)**
+Expected: exact-all and persistence-forbid cases fail while baseline cases pass.
 
-{Implementation code or signatures}
+**GREEN:** Add optional `persistence`, `recency`, budget, and safe-diagnostic policies.
+Under handoff policies, bypass both Codex cache reads and writes, skip the seven-day
+cutoff, classify all entries within fixed bounds, and return no partial candidate set.
 
-**Step 3: Refactor**
+**Refactor:** Keep option defaults identical for existing session-observer consumers.
 
-{Optional cleanup}
+**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check`
 
-**Step 4: Verify**
-
-Run: `{verification command}`
-Expected: {output}
-
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
-
-**Step 5: Commit**
-
-```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
-```
+**Commit:** `feat(p01-t02): add exact read-only session discovery`
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Prove shared-substrate non-mutation
 
-### Task p02-t01: {Task Name}
+**Dependencies:** p01-t01, p01-t02.
 
-{Continue TDD pattern...}
+**Files:**
+
+- Modify: `tests/session-observer/integration.test.ts`
+- Modify: `tests/session-observer/cli.test.ts`
+
+**RED:** Add integration assertions that an absent state directory remains absent, a
+seeded cache stays byte-identical, transcripts and observer offsets do not change, and
+legacy observer CLI behavior remains stable.
+
+Run: `pnpm exec vitest run tests/session-observer/integration.test.ts tests/session-observer/cli.test.ts`
+
+Expected: non-mutation coverage fails until the new seam is wired correctly.
+
+**GREEN:** Make only bounded corrections required by the integration tests; do not add
+handoff policy to session-observer defaults.
+
+**Refactor:** Consolidate fixture hashing and state-absence assertions.
+
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts tests/session-observer/integration.test.ts tests/session-observer/cli.test.ts`
+
+**Commit:** `test(p01-t03): prove read-only discovery invariants`
+
+---
+
+## Phase p02: Handoff discovery, preview, and Git evidence
+
+**Goal:** Freeze handoff schemas, enumerate exact provider-qualified candidates, render
+bounded opt-in previews, and prove source/target worktree identity.
+
+### Task p02-t01: Define handoff schemas and limits
+
+**Dependencies:** p01 complete.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/types.ts`
+- Create: `tests/coding-session-handoff/types.test.ts`
+
+**RED:** Add runtime-schema fixtures for qualified IDs, candidates, preview limits, Git
+evidence, capability states, plans, receipts, cross-discriminated outcomes, and JSON
+envelopes. Reject contradictory retry/child combinations.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/types.test.ts`
+
+Expected: schema imports and validation cases fail.
+
+**GREEN:** Implement leaf types, constants, and validators only. Keep preview types
+structurally separate from plan and outcome types.
+
+**Refactor:** Remove circular dependencies and expose stable reason-code unions.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/types.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p02-t01): define handoff contracts`
+
+---
+
+### Task p02-t02: Implement exact candidate discovery
+
+**Dependencies:** p02-t01.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/discovery.ts`
+- Create: `tests/coding-session-handoff/discovery.test.ts`
+
+**RED:** Cover exact/sister/global cwd fixtures, provider-native ID collisions,
+deterministic ordering, direct current identity, old Codex sessions, duplicate records,
+and incomplete discovery refusal.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts`
+
+Expected: handoff discovery cases fail.
+
+**GREEN:** Compose the shared exact-all/persistence-forbid seam into provider-qualified
+candidate discovery. Ignore same-cwd fallback as current evidence and never select by
+recency.
+
+**Refactor:** Keep provider mapping and candidate signature projection deterministic.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts tests/session-observer/locate.test.ts`
+
+**Commit:** `feat(p02-t02): discover exact handoff candidates`
+
+---
+
+### Task p02-t03: Implement aggregate-bounded sanitized preview
+
+**Dependencies:** p02-t01 and p01 bounded readers; peer to p02-t02 after types freeze.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/preview.ts`
+- Create: `tests/coding-session-handoff/preview.test.ts`
+- Modify: `tests/export-session-transcript/sanitize.test.ts` only if a shared sanitizer regression is required
+
+**RED:** Cover hidden/control/tool filtering, malformed tails, per-candidate round/char
+limits, 21 candidates, aggregate bytes/records/render/deadline crossings, sanitizer
+warning, path-free failures, and absence of preview from plan/outcome serialization.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/preview.test.ts tests/export-session-transcript/sanitize.test.ts`
+
+Expected: preview behavior and aggregate all-or-error limits fail.
+
+**GREEN:** Normalize and sanitize only bounded user/assistant entries. Enforce 20
+candidates, 32 MiB/100,000 input records, 10 seconds, and 128 KiB aggregate rendered
+text; discard partial output on any aggregate crossing.
+
+**Refactor:** Reuse canonical sanitizer functions without broadening their secret-free
+claim.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/preview.test.ts tests/export-session-transcript/sanitize.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p02-t03): add bounded session previews`
+
+---
+
+### Task p02-t04: Validate exact Git worktree targets
+
+**Dependencies:** p02-t01; peer to p02-t02/p02-t03.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/git-target.ts`
+- Create: `tests/coding-session-handoff/git-target.test.ts`
+
+**RED:** Cover missing paths, non-worktrees, separate clones with similar remotes,
+symlink aliases, same common Git directory, detached HEAD, dirty source refusal, dirty
+target fingerprinting, oversized status, timeout, and evidence drift.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/git-target.test.ts`
+
+Expected: typed Git evidence cases fail.
+
+**GREEN:** Use bounded `execFile`/argv Git calls with shell disabled. Canonicalize roots
+and common directories, hash status without exposing filenames, and preserve detached
+state.
+
+**Refactor:** Centralize bounded Git subprocess/result parsing and typed failures.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/git-target.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p02-t04): validate handoff worktrees`
+
+---
+
+## Phase p03: Provider contracts, planning, execution, and CLI
+
+**Goal:** Build the initially unverified provider matrix, immutable plan/execution state
+machine, disposable gate harness, and one bundled CLI runtime.
+
+### Task p03-t01: Implement provider probes and unverified contracts
+
+**Dependencies:** p02 complete.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/providers.ts`
+- Create: `src/transcript/coding-session-handoff/behavior-contracts.ts`
+- Create: `tests/coding-session-handoff/providers.test.ts`
+
+**RED:** Cover missing binaries, exact versions, version/help/feature drift, 10-second
+and 64 KiB probe bounds, auth metadata, Codex hook isolation, Claude safe mode, context
+fingerprint drift/unreadable inputs, literal malicious argv, and forbidden bypass flags.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts`
+
+Expected: provider probe and invocation cases fail.
+
+**GREEN:** Implement bounded probes, redacted syntax/context fingerprints, exact safe
+argv builders, and source-controlled Codex 0.151.0 / Claude 2.1.251 entries whose
+successor status begins `unverified`.
+
+**Refactor:** Separate pure fingerprint/argv policy from subprocess boundaries.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p03-t01): add provider handoff contracts`
+
+---
+
+### Task p03-t02: Add exact provider lineage metadata
+
+**Dependencies:** p01-t01; peer to p03-t01.
+
+**Files:**
+
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+
+**RED:** Cover Codex `payload.id`, optional root `payload.session_id`,
+`forked_from_id`, cwd, and Claude `sessionId`/`uuid`/`parentUuid`/cwd fields while
+pinning existing `sessionId` caller compatibility.
+
+Run: `pnpm exec vitest run tests/transcript-core/runtimes.test.ts`
+
+Expected: native/root/lineage metadata cases fail.
+
+**GREEN:** Extend shared metadata with explicit native/root/fork fields without changing
+legacy session identity semantics.
+
+**Refactor:** Keep provider record ownership inside transcript core.
+
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p03-t02): expose exact transcript lineage`
+
+---
+
+### Task p03-t03: Implement selection, plans, execution, and reconciliation
+
+**Dependencies:** p03-t01, p03-t02, p02 discovery/Git/types.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/handoff.ts`
+- Create: `tests/coding-session-handoff/handoff.test.ts`
+- Create: `tests/coding-session-handoff/reconcile.test.ts`
+
+**RED:** Cover one/many/all selection, resume refusal, current-turn deferral, canonical
+digest stability/drift, exact revalidation, sequential bounded execution, child
+corroboration, `failed-before-child` proof, indeterminate handling, mapped/unresolved
+reporting, exact reconcile selectors/baselines, and retry-key invariants.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts`
+
+Expected: orchestration cases fail.
+
+**GREEN:** Implement pure selection/policy/digest functions plus injected bounded
+execution and read-only reconcile boundaries. Reject every contradictory runtime
+outcome, including failed-plus-child evidence.
+
+**Refactor:** Keep canonical digest projection, native state, and reporting state
+separate and deterministic.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p03-t03): orchestrate verified session handoffs`
+
+---
+
+### Task p03-t04: Implement disposable behavioral gates
+
+**Dependencies:** p03-t01, p03-t02; may develop alongside p03-t03 before CLI join.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Create: `tests/coding-session-handoff/behavior-gate.test.ts`
+
+**RED:** Cover mutation-free `behavior-plan`, digest mismatch, new receipt-path
+requirement, atomic mode-0600 finalization, exact Codex/Claude fixture argv, bounded
+output/time/budget, evidence parsing, provider/Git cleanup order, cleanup failure to
+inconclusive, and stdout redaction.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts`
+
+Expected: gate engine cases fail.
+
+**GREEN:** Create fresh temporary repositories/worktrees and disposable sessions only
+after confirmation. Finalize cleanup outcomes before receipt write/hash; never unlink
+provider stores or expose raw IDs/paths/output on stdout.
+
+**Refactor:** Isolate injectable provider/Git/filesystem boundaries for deterministic
+mock coverage.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/providers.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p03-t04): add disposable behavior gates`
+
+---
+
+### Task p03-t05: Implement CLI commands and renderers
+
+**Dependencies:** p03-t03, p03-t04.
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/cli.ts`
+- Create: `tests/coding-session-handoff/cli.test.ts`
+
+**RED:** Cover all seven commands, stable exit codes/envelopes, one JSON object on
+stdout, explicit qualified selection, no recency/force option, digest confirmation,
+provider-control isolation, parsed-unverified guidance, adversarial IDs/paths, and safe
+errors.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/cli.test.ts`
+
+Expected: CLI cases fail.
+
+**GREEN:** Add thin argument parsing and human/JSON rendering over services. Make
+behavior verification unavailable on auth failure and execution unavailable for
+unverified/context-drift contracts.
+
+**Refactor:** Keep policy out of renderers and raw provider output out of envelopes.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/cli.test.ts tests/coding-session-handoff/handoff.test.ts && pnpm run type-check`
+
+**Commit:** `feat(p03-t05): add handoff command interface`
+
+---
+
+### Task p03-t06: Generate the dependency-free runtime
+
+**Dependencies:** p03-t01 through p03-t05.
+
+**Files:**
+
+- Modify: `scripts/build-generated.mjs`
+- Modify: `.oxfmtrc.json`
+- Modify: `.oxlintrc.json`
+- Modify: `tests/tooling/generated-output-sync.test.ts`
+- Create (generated): `skills/coding-session-handoff/scripts/coding-session-handoff.mjs`
+
+**RED:** Add generated-output mapping/ignore coverage and a build parity assertion.
+
+Run: `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts`
+
+Expected: the new mapping/output synchronization case fails.
+
+**GREEN:** Add one bundled canonical TypeScript mapping, run `pnpm run build`, and
+commit the generated `.mjs`. Never hand-edit the generated output.
+
+**Refactor:** Keep import rewrites derived by the existing builder.
+
+**Verify:** `pnpm run build:check && pnpm exec vitest run tests/tooling/generated-output-sync.test.ts`
+
+**Commit:** `build(p03-t06): generate handoff runtime`
+
+---
+
+## Phase p04: Exact installed-version live gates
+
+**Goal:** Root-authorized execution proves real Codex and Claude successors in fresh
+disposable worktrees. Raw receipts remain untracked and mode 0600.
+
+**Root-inline authority:** Provider-session creation/deletion and irreversible quota use
+are executed by the root orchestrator. The phase implementer may verify harness code but
+must not run a gate, authenticate, or clean provider state on the root's behalf.
+
+### Task p04-t01: Run the Codex 0.151.0 successor gate
+
+**Dependencies:** p03 complete with unverified Codex contract.
+
+**Files:**
+
+- Modify: project `implementation.md` with redacted receipt digest/status only
+- Create outside repository: fresh mode-0600 Codex receipt under a `mktemp -d` root
+
+**Plan check:** Run `behavior-plan --provider codex --json`; verify exact version,
+hook-disable/context fingerprint, three bounded calls, cleanup argv, and confirmation
+digest without mutation.
+
+**Execute:** Root runs digest-confirmed `behavior-verify` once. It must prove exact
+parent/child IDs, target cwd, `forked_from_id`, source resumability, cleanup of exact
+session IDs, and final receipt hash. No bypass or real project session is allowed.
+
+**Verify:** Independent read-only checks confirm receipt mode 0600, `status: passed`,
+all evidence booleans, cleanup `removed`, exact version/fingerprints, and absence of
+credentials/raw output. If failed/inconclusive, record a product blocker; do not retry
+the native parent operation automatically.
+
+**Commit:** `test(p04-t01): record Codex successor gate` (project bookkeeping only)
+
+---
+
+### Task p04-t02: Run the Claude Code 2.1.251 successor gate
+
+**Dependencies:** p03 complete with unverified Claude contract; supported local Claude
+authentication is required only at this task.
+
+**Files:**
+
+- Modify: project `implementation.md` with redacted receipt digest/status only
+- Create outside repository: fresh mode-0600 Claude receipt under a `mktemp -d` root
+
+**Preflight:** Run `claude auth status --json`. If unauthenticated, stop at this exact
+task and ask the user to complete `claude auth login`; never request or record a token.
+
+**Plan check:** Run `behavior-plan --provider claude --json`; verify exact version,
+safe-mode/plan/no-tools context fingerprint, three calls, $0.15-per-call cap,
+project-scoped purge cleanup, and digest without mutation.
+
+**Execute:** Root runs digest-confirmed `behavior-verify` once. It must prove the
+pre-generated child UUID in machine output/transcript, target cwd, inherited parent UUID
+prefix, source-only resume, both fresh project purges, and final receipt hash.
+
+**Verify:** Apply the same mode/status/evidence/cleanup/privacy checks as p04-t01. Any
+negative, unauthenticated, or unobservable result is a product blocker, not permission
+to ship plan-only behavior.
+
+**Commit:** `test(p04-t02): record Claude successor gate` (project bookkeeping only)
+
+---
+
+## Phase p05: Independent receipt review and behavior activation
+
+**Goal:** Independently validate both raw receipts, activate only reviewed exact
+contracts, and prove executable/native/reporting behavior without weakening drift rules.
+
+### Task p05-t01: Independently review the Codex receipt
+
+**Dependencies:** p04-t01 passed.
+
+**Files:**
+
+- Create: redacted project review artifact under `reviews/`
+- Read only: raw Codex receipt and relevant gate/contract source
+
+**Review:** A reviewer distinct from the implementer and gate executor checks receipt
+schema/digest, exact version, syntax/context fingerprints, confirmation, parent/child/
+cwd/lineage/resumability evidence, bounds, cleanup, and credential/raw-output absence.
+
+**Verify:** Review disposition is `pass`; `fail` or `inconclusive` blocks activation.
+The reviewer must not edit behavior contracts, generated output, or the raw receipt.
+
+**Commit:** `docs(p05-t01): record Codex gate review` (project artifact only)
+
+---
+
+### Task p05-t02: Independently review the Claude receipt
+
+**Dependencies:** p04-t02 passed; peer to p05-t01.
+
+**Files:**
+
+- Create: redacted project review artifact under `reviews/`
+- Read only: raw Claude receipt and relevant gate/contract source
+
+**Review:** A distinct reviewer checks all common evidence plus pre-generated UUID,
+output/transcript match, inherited UUID prefix, source-only resume, spend bounds, exact
+project-purge cleanup, and credential absence.
+
+**Verify:** Review disposition is `pass`; `fail` or `inconclusive` blocks activation.
+The reviewer must not edit source or receipts.
+
+**Commit:** `docs(p05-t02): record Claude gate review` (project artifact only)
+
+---
+
+### Task p05-t03: Activate both reviewed exact-version contracts
+
+**Dependencies:** p05-t01 and p05-t02 both pass.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-contracts.ts`
+- Modify: `tests/coding-session-handoff/providers.test.ts`
+- Modify (generated): `skills/coding-session-handoff/scripts/coding-session-handoff.mjs`
+
+**RED:** Add exact expected receipt digest, version, syntax/context fingerprints, review
+date/status, and tests proving no raw ID/path/body enters source. Exact versions should
+remain deferred before activation.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts`
+
+Expected: exact contracts are still unverified.
+
+**GREEN:** Store only reviewed redacted bindings for both successors and regenerate the
+bundle through `pnpm run build`.
+
+**Refactor:** Keep resume unverified and remove no drift/auth/context checks.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts && pnpm run build:check`
+
+**Commit:** `feat(p05-t03): activate reviewed successor contracts`
+
+---
+
+### Task p05-t04: Verify exact executable and partial-outcome behavior
+
+**Dependencies:** p05-t03.
+
+**Files:**
+
+- Modify: `tests/coding-session-handoff/handoff.test.ts`
+- Modify: `tests/coding-session-handoff/reconcile.test.ts`
+- Modify: `tests/coding-session-handoff/cli.test.ts`
+
+**RED:** Add activated exact-version execution cases plus version/help/context drift,
+missing auth, mixed batches, mapped and observed-unverified success, indeterminate
+creation, failed-before-child proof, no-repeat retries, and exact reconcile.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts tests/coding-session-handoff/cli.test.ts`
+
+Expected: activation integration gaps fail.
+
+**GREEN:** Make only bounded orchestration/schema corrections required by the activated
+contract tests.
+
+**Refactor:** Preserve strict cross-discrimination and one-result-per-selected-parent.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `test(p05-t04): verify activated handoff behavior`
+
+---
+
+## Phase p06: Public skill, documentation, and repository completion
+
+**Goal:** Ship the public 1.0.0 workflow, document exact support/safety boundaries, and
+pass repository-wide verification plus independent final review.
+
+### Task p06-t01: Author the public 1.0.0 skill
+
+**Dependencies:** p05 complete.
+
+**Files:**
+
+- Create: `skills/coding-session-handoff/SKILL.md`
+- Create: `tests/coding-session-handoff/install-contract.test.ts`
+- Modify: `README.md`
+
+**RED:** Add frontmatter/version/public-discovery/invocation tests and README inventory
+expectations.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/install-contract.test.ts`
+
+Expected: the public skill is absent.
+
+**GREEN:** Author one provider-neutral skill with matching version `1.0.0` fields,
+explicit discover/preview/select/plan/confirm/execute/reconcile flow, mapped versus
+observed-unverified guidance, exact Codex/Claude support floor, and clear Cursor,
+cross-host, Git-sync, registry, and same-ID limitations.
+
+**Refactor:** Keep the skill concise and route mechanics through the bundled script.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/install-contract.test.ts && pnpm run validate`
+
+**Commit:** `feat(p06-t01): add coding session handoff skill`
+
+---
+
+### Task p06-t02: Document user and engineering contracts
+
+**Dependencies:** p05 complete; peer to p06-t01 after behavior is frozen.
+
+**Workflow:** Invoke `oat-project-document` and follow `documentation/AGENTS.md`.
+
+**Files:**
+
+- Create: `documentation/docs/user-guide/skills/coding-session-handoff.md`
+- Modify: `documentation/docs/user-guide/skills/index.md`
+- Modify: `documentation/docs/user-guide/skills/meta.json`
+- Modify: `documentation/docs/user-guide/index.md`
+- Modify: `documentation/docs/engineering/architecture/transcript-core.md`
+- Modify (generated): `documentation/index.md`
+
+**Draft:** Document commands, exact workflow, output state machine, disposable gate
+provenance, preview privacy warning, cleanup limits, exact-version drift, auth flow, and
+unsupported v1 surfaces. Add authored `## Contents` and `.md` links.
+
+**Verify:** `pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build`
+
+Expected: Fumadocs navigation and generated index build cleanly.
+
+**Commit:** `docs(p06-t02): document session handoff`
+
+---
+
+### Task p06-t03: Integrate repository inventories and provider views
+
+**Dependencies:** p06-t01, p03-t06; may proceed alongside docs with no shared docs files.
+
+**Files:**
+
+- Modify: `tests/repo/layout.test.ts`
+- Modify: `tests/repo/docs-presence.test.ts`
+- Modify: `tests/repo/skill-frontmatter.test.ts`
+- Modify: `tests/release/versioning.test.ts`
+- Modify only as generated by `oat sync`: provider skill mirrors/symlinks
+
+**RED:** Add the new public skill to canonical inventory, documentation presence,
+frontmatter, version, generated-runtime, dependency-free, and provider-view assertions.
+
+Run: `pnpm exec vitest run tests/repo/layout.test.ts tests/repo/docs-presence.test.ts tests/repo/skill-frontmatter.test.ts tests/release/versioning.test.ts`
+
+Expected: inventory/version/provider-view cases fail.
+
+**GREEN:** Update explicit inventories, run the required project `oat sync`, and accept
+only tool-generated mirrors. Do not hand-edit `.agents`, `.claude`, or `.cursor` skill
+content and do not install the branch version into user scope before merge.
+
+**Refactor:** Keep public and internal skill lists distinct; never stamp the public skill
+internal.
+
+**Verify:** `pnpm exec vitest run tests/repo/layout.test.ts tests/repo/docs-presence.test.ts tests/repo/skill-frontmatter.test.ts tests/release/versioning.test.ts && pnpm run validate:internal-flags && pnpm run validate:skill-versions -- --base-ref origin/main`
+
+**Commit:** `test(p06-t03): register handoff skill contracts`
+
+---
+
+### Task p06-t04: Run aggregate verification and final review
+
+**Dependencies:** p06-t01, p06-t02, p06-t03.
+
+**Files:**
+
+- Modify only files required by bounded review fixes in their owning module
+- Create/archive project review artifacts through OAT bookkeeping
+
+**Verify:** Run, in order:
+
+1. `pnpm exec vitest run tests/coding-session-handoff`
+2. `pnpm exec vitest run tests/transcript-core tests/session-observer tests/export-session-transcript`
+3. `pnpm run type-check`
+4. `pnpm run build:check`
+5. `pnpm run validate`
+6. `pnpm run test`
+7. `pnpm run smoke`
+8. `pnpm --dir documentation run build`
+9. `git diff --check`
+
+Then run independent final code review over the complete implementation range. Apply
+bounded Critical/Important fixes through the owning task/phase and re-run affected plus
+aggregate gates until clean within the configured review budget.
+
+**Commit:** `chore(p06-t04): complete handoff verification` only if verification or
+review requires tracked fixes; otherwise record completion in OAT bookkeeping without
+an empty code commit.
 
 ---
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
-| Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -    | -        | -             | -          | -           |
-| p02    | code     | pending | -    | -        | -             | -          | -           |
-| final  | code     | pending | -    | -        | -             | -          | -           |
-| spec   | artifact | pending | -    | -        | -             | -          | -           |
-| design | artifact | pending | -    | -        | -             | -          | -           |
-
-For code-review events, `Reviewed Head` is the full 40-character SHA at the
-head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
-`Gate Target` is populated only for gate events. Legacy five-column rows remain
-valid. Writers must preserve every existing row and every unknown trailing
-cell; never truncate a widened row back to five columns.
+| Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| p01 | code | pending | - | - | - | - | - |
+| p02 | code | pending | - | - | - | - | - |
+| p03 | code | pending | - | - | - | - | - |
+| p04 | code | pending | - | - | - | - | - |
+| p05 | code | pending | - | - | - | - | - |
+| p06 | code | pending | - | - | - | - | - |
+| final | code | pending | - | - | - | - | - |
+| spec | artifact | pending | - | - | - | - | - |
+| design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
+| plan | artifact | pending | - | - | - | - | - |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
+Reviewers receive bounded scope and do not edit source. Raw provider receipts never
+enter this table or Git; redacted review artifacts may record their SHA-256 digests.
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- p01: 3 tasks — bounded mutation-free transcript substrate
+- p02: 4 tasks — exact candidate/preview/Git evidence
+- p03: 6 tasks — provider contracts, orchestration, gate harness, CLI, generated runtime
+- p04: 2 tasks — root-executed exact installed-version live gates
+- p05: 4 tasks — independent receipt review and behavior activation
+- p06: 4 tasks — public skill, docs, repository gates, final review
 
-**Total: {N} tasks**
+**Total: 23 tasks**
 
-Ready for code review and merge.
-
----
+Implementation is complete only when both live gates and receipt reviews pass, exact
+contracts are activated, all verification succeeds, and final independent review has no
+Critical or Important findings. Claude authentication remains a task-local external
+precondition for p04-t02; failure there is a product blocker.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
+- Design: `design.md`
+- Spec: `spec.md`
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Clean design review: `reviews/archived/artifact-design-review-2026-08-31T023100Z.md`

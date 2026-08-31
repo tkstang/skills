@@ -11,9 +11,13 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
+oat_dispatch_policy:
+  mode: managed
+  policy: frontier
+  source: project-state
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -76,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T02:22:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T02:35:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -86,20 +90,20 @@ oat_project_recap:
 
 # Project State: coding-session-handoff
 
-**Status:** Design complete
+**Status:** Planning in progress
 **Started:** 2026-08-31
 **Last Updated:** 2026-08-31
 
 ## Current Phase
 
-Design - Complete and independently reviewed; ready for planning
+Planning - Six-phase implementation plan drafted for independent review
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
-- **Plan:** `plan.md` (scaffolded template — not started)
+- **Plan:** `plan.md` (drafted; awaiting independent review)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -112,7 +116,9 @@ Design - Complete and independently reviewed; ready for planning
 - ✓ Design complete
 - ✓ Design artifact independently reviewed with no findings
 - ✓ Design HiLL checkpoint completed under the autonomous review contract
-- ⧗ Ready to author the implementation plan
+- ✓ Six dependency-ordered implementation phases drafted
+- ✓ Managed Frontier dispatch ceiling selected for consequential implementation/review
+- ⧗ Plan artifact review pending
 
 ## Blockers
 
@@ -120,4 +126,4 @@ None
 
 ## Next Milestone
 
-Author and independently review the implementation plan
+Pass independent plan review and complete planning
