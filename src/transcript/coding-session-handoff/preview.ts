@@ -235,27 +235,76 @@ export async function previewHandoffCandidates(
       startedAt,
       batchLimits,
     );
+    const remainingInputBytes =
+      batchLimits.maxAggregateInputBytes - aggregateInputBytes;
+    const remainingInputRecords =
+      batchLimits.maxAggregateInputRecords - aggregateInputRecords;
+    if (remainingInputBytes <= 0) {
+      throw new HandoffPreviewError('aggregate-input-bytes');
+    }
+    if (remainingInputRecords <= 0) {
+      throw new HandoffPreviewError('aggregate-input-records');
+    }
+    const maxBytes = Math.min(PER_TRANSCRIPT_MAX_BYTES, remainingInputBytes);
+    const maxInspectedRecords = Math.min(
+      PER_TRANSCRIPT_MAX_RECORDS,
+      remainingInputRecords,
+    );
     const diagnostics: SafeTranscriptDiagnosticCode[] = [];
     const read = await deps.readTailRecordsBounded(source.transcriptPath, {
-      maxBytes: PER_TRANSCRIPT_MAX_BYTES,
+      maxBytes,
       maxRecords: PER_TRANSCRIPT_MAX_RECORDS,
+      maxInspectedRecords,
       deadlineMs: remainingDeadlineMs,
       diagnostic: ({ code }) => diagnostics.push(code),
     });
     ensureDeadline(deps.now, startedAt, batchLimits);
+    if (read.recordLimitExceeded === true) {
+      throw new HandoffPreviewError(
+        remainingInputRecords <= PER_TRANSCRIPT_MAX_RECORDS
+          ? 'aggregate-input-records'
+          : 'transcript-oversized',
+        source.candidate.key,
+      );
+    }
     diagnosticFailure(diagnostics, source.candidate.key);
 
     if (
       !Number.isSafeInteger(read.bytesRead) ||
       read.bytesRead < 0 ||
-      read.bytesRead > PER_TRANSCRIPT_MAX_BYTES ||
+      read.bytesRead > maxBytes
+    ) {
+      throw new HandoffPreviewError(
+        maxBytes < PER_TRANSCRIPT_MAX_BYTES
+          ? 'aggregate-input-bytes'
+          : 'transcript-read-failed',
+        source.candidate.key,
+      );
+    }
+    if (
       !Number.isSafeInteger(read.recordsInspected) ||
-      read.recordsInspected < read.records.length
+      read.recordsInspected < read.records.length ||
+      read.records.length > PER_TRANSCRIPT_MAX_RECORDS
     ) {
       throw new HandoffPreviewError(
         'transcript-read-failed',
         source.candidate.key,
       );
+    }
+    if (read.recordsInspected > maxInspectedRecords) {
+      throw new HandoffPreviewError(
+        maxInspectedRecords < PER_TRANSCRIPT_MAX_RECORDS
+          ? 'aggregate-input-records'
+          : 'transcript-read-failed',
+        source.candidate.key,
+      );
+    }
+    if (
+      read.truncated &&
+      maxBytes < PER_TRANSCRIPT_MAX_BYTES &&
+      read.bytesRead === maxBytes
+    ) {
+      throw new HandoffPreviewError('aggregate-input-bytes');
     }
     aggregateInputBytes += read.bytesRead;
     if (aggregateInputBytes > batchLimits.maxAggregateInputBytes) {

@@ -41,6 +41,7 @@ export interface SafeTranscriptDiagnostic {
 export interface BoundedTranscriptReadOptions {
   maxBytes: number;
   maxRecords: number;
+  maxInspectedRecords?: number;
   deadlineMs?: number;
   diagnostic: (event: SafeTranscriptDiagnostic) => void;
 }
@@ -57,6 +58,7 @@ export interface BoundedTailReadResult {
   truncated: boolean;
   bytesRead: number;
   recordsInspected: number;
+  recordLimitExceeded?: true;
 }
 
 export interface CursorIdentityEvidence {
@@ -669,6 +671,13 @@ function validateBoundedReadOptions(
     throw new TypeError('maxRecords must be a positive safe integer');
   }
   if (
+    options.maxInspectedRecords !== undefined &&
+    (!Number.isSafeInteger(options.maxInspectedRecords) ||
+      options.maxInspectedRecords <= 0)
+  ) {
+    throw new TypeError('maxInspectedRecords must be a positive safe integer');
+  }
+  if (
     options.deadlineMs !== undefined &&
     (!Number.isFinite(options.deadlineMs) || options.deadlineMs < 0)
   ) {
@@ -756,6 +765,7 @@ function parseBoundedLines(
   incomplete: boolean;
   deadlineExceeded: boolean;
   recordsInspected: number;
+  recordLimitExceeded: boolean;
 } {
   let start = 0;
   let incomplete = false;
@@ -771,6 +781,7 @@ function parseBoundedLines(
         incomplete: true,
         deadlineExceeded: false,
         recordsInspected,
+        recordLimitExceeded: false,
       };
     }
     start = newline + 1;
@@ -785,6 +796,7 @@ function parseBoundedLines(
         incomplete: true,
         deadlineExceeded: true,
         recordsInspected,
+        recordLimitExceeded: false,
       };
     }
 
@@ -801,6 +813,18 @@ function parseBoundedLines(
     if (line.at(-1) === 0x0d) line = line.subarray(0, -1);
     const text = line.toString('utf8').trim();
     if (text) {
+      if (
+        options.maxInspectedRecords !== undefined &&
+        recordsInspected >= options.maxInspectedRecords
+      ) {
+        return {
+          records,
+          incomplete: true,
+          deadlineExceeded: false,
+          recordsInspected,
+          recordLimitExceeded: true,
+        };
+      }
       recordsInspected += 1;
       const parsed = safeParseLine(text);
       if (parsed.ok) {
@@ -827,7 +851,13 @@ function parseBoundedLines(
     start = newline + 1;
   }
 
-  return { records, incomplete, deadlineExceeded: false, recordsInspected };
+  return {
+    records,
+    incomplete,
+    deadlineExceeded: false,
+    recordsInspected,
+    recordLimitExceeded: false,
+  };
 }
 
 /**
@@ -908,6 +938,9 @@ export async function readTailRecordsBounded(
     truncated: window.offset > 0 || parsed.incomplete,
     bytesRead: window.buffer.length,
     recordsInspected: parsed.recordsInspected,
+    ...(parsed.recordLimitExceeded
+      ? { recordLimitExceeded: true as const }
+      : {}),
   };
 }
 

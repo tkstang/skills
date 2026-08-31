@@ -1,3 +1,7 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, test, vi } from 'vitest';
 
 import {
@@ -58,12 +62,18 @@ function dependencies(
     bytesRead?: number;
     recordsInspected?: number;
     onNormalize?: () => void;
+    onRead?: (options: {
+      maxBytes: number;
+      maxRecords: number;
+      maxInspectedRecords?: number;
+    }) => void;
   } = {},
 ) {
   const byPath = new Map<string, JsonObject[]>();
   const deps: HandoffPreviewDependencies = {
     now: options.now ?? (() => 0),
     readTailRecordsBounded: vi.fn(async (path, readOptions) => {
+      options.onRead?.(readOptions);
       if (options.diagnosticCode) {
         readOptions.diagnostic({
           code: options.diagnosticCode as 'malformed-record',
@@ -267,6 +277,77 @@ describe('bounded sanitized session preview', () => {
       code: 'preview-incomplete',
       reason: 'aggregate-input-records',
     });
+  });
+
+  test('passes remaining aggregate work into each physical read and validates dependency results', async () => {
+    const byteAllowances: number[] = [];
+    const recordAllowances: (number | undefined)[] = [];
+    let calls = 0;
+    const sources = [
+      source('codex:a', [entry('user', 'one')]),
+      source('codex:b', [entry('user', 'two')]),
+    ];
+    const fixture = dependencies({
+      bytesRead: 2,
+      recordsInspected: 2,
+      onRead: (options) => {
+        byteAllowances.push(options.maxBytes);
+        recordAllowances.push(options.maxInspectedRecords);
+        calls += 1;
+      },
+    });
+    fixture.register(sources);
+
+    await expect(
+      previewHandoffCandidates(sources, {
+        deps: fixture.deps,
+        batchLimits: {
+          maxCandidates: 20,
+          maxAggregateInputBytes: 3,
+          maxAggregateInputRecords: 3,
+          deadlineMs: 10_000,
+          maxAggregateRenderedCharacters: 131_072,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'preview-incomplete',
+      reason: 'aggregate-input-bytes',
+    });
+    expect(calls).toBe(2);
+    expect(byteAllowances).toEqual([3, 1]);
+    expect(recordAllowances).toEqual([3, 1]);
+  });
+
+  test('rejects a real 10,001-record transcript at the physical inspection boundary', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'handoff-preview-budget-'));
+    const transcriptPath = join(directory, 'oversized-record-count.jsonl');
+    await writeFile(
+      transcriptPath,
+      Array.from({ length: 10_001 }, (_, index) =>
+        JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: index % 2 === 0 ? 'user' : 'assistant',
+            content: `message-${index}`,
+          },
+        }),
+      ).join('\n') + '\n',
+    );
+    const candidate = source('codex:real-budget', []);
+    candidate.transcriptPath = transcriptPath;
+
+    try {
+      await expect(previewHandoffCandidates([candidate])).rejects.toMatchObject(
+        {
+          code: 'preview-incomplete',
+          reason: 'transcript-oversized',
+          key: 'codex:real-budget',
+        },
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test('fails the complete batch when the aggregate deadline crosses', async () => {

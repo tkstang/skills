@@ -299,6 +299,26 @@ describe('bounded transcript readers', () => {
     });
   });
 
+  it('stops physical parsing before the inspected-record budget overshoots', async () => {
+    const transcriptPath = join(tmpDir, 'records-inspection-capped.jsonl');
+    await writeFile(
+      transcriptPath,
+      Array.from({ length: 10_001 }, (_, index) =>
+        JSON.stringify({ index }),
+      ).join('\n') + '\n',
+    );
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 1024 * 1024,
+      maxRecords: 10_000,
+      maxInspectedRecords: 10_000,
+      diagnostic: () => {},
+    });
+
+    expect(result.recordsInspected).toBe(10_000);
+    expect(result.truncated).toBe(true);
+    expect(result.recordLimitExceeded).toBe(true);
+  });
+
   it('drops malformed and partial final records with path-free diagnostics', async () => {
     const transcriptPath = join(tmpDir, 'sensitive-session-name.jsonl');
     await writeFile(transcriptPath, '{"ok":true}\nnot-json\n{"partial":');

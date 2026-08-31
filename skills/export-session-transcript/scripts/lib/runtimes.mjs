@@ -292,6 +292,9 @@ function validateBoundedReadOptions(options) {
   if (!Number.isSafeInteger(options.maxRecords) || options.maxRecords <= 0) {
     throw new TypeError("maxRecords must be a positive safe integer");
   }
+  if (options.maxInspectedRecords !== void 0 && (!Number.isSafeInteger(options.maxInspectedRecords) || options.maxInspectedRecords <= 0)) {
+    throw new TypeError("maxInspectedRecords must be a positive safe integer");
+  }
   if (options.deadlineMs !== void 0 && (!Number.isFinite(options.deadlineMs) || options.deadlineMs < 0)) {
     throw new TypeError("deadlineMs must be a non-negative finite number");
   }
@@ -362,7 +365,8 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
         records: [],
         incomplete: true,
         deadlineExceeded: false,
-        recordsInspected
+        recordsInspected,
+        recordLimitExceeded: false
       };
     }
     start = newline + 1;
@@ -375,7 +379,8 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
         records: [],
         incomplete: true,
         deadlineExceeded: true,
-        recordsInspected
+        recordsInspected,
+        recordLimitExceeded: false
       };
     }
     const newline = buffer.indexOf(10, start);
@@ -390,6 +395,15 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
     if (line.at(-1) === 13) line = line.subarray(0, -1);
     const text = line.toString("utf8").trim();
     if (text) {
+      if (options.maxInspectedRecords !== void 0 && recordsInspected >= options.maxInspectedRecords) {
+        return {
+          records,
+          incomplete: true,
+          deadlineExceeded: false,
+          recordsInspected,
+          recordLimitExceeded: true
+        };
+      }
       recordsInspected += 1;
       const parsed = safeParseLine(text);
       if (parsed.ok) {
@@ -414,7 +428,13 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
     if (isFinalFragment) break;
     start = newline + 1;
   }
-  return { records, incomplete, deadlineExceeded: false, recordsInspected };
+  return {
+    records,
+    incomplete,
+    deadlineExceeded: false,
+    recordsInspected,
+    recordLimitExceeded: false
+  };
 }
 async function readMetadataRecordsBounded(transcriptPath, options) {
   validateBoundedReadOptions(options);
@@ -477,7 +497,8 @@ async function readTailRecordsBounded(transcriptPath, options) {
     records: parsed.records,
     truncated: window.offset > 0 || parsed.incomplete,
     bytesRead: window.buffer.length,
-    recordsInspected: parsed.recordsInspected
+    recordsInspected: parsed.recordsInspected,
+    ...parsed.recordLimitExceeded ? { recordLimitExceeded: true } : {}
   };
 }
 async function readRecords(transcriptPath) {
