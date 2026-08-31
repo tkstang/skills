@@ -720,6 +720,77 @@ the only runtime p04 may execute before behavior activation. Do not create any
 
 ---
 
+### Task p03-t07: (review) Propagate exact Codex native identity
+
+**Dependencies:** p03-t01 through p03-t06 and fix commits `703918c` and `304ec86`.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/discovery.ts`
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `src/transcript/coding-session-handoff/cli.ts`
+- Modify: `tests/coding-session-handoff/discovery.test.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify: `tests/coding-session-handoff/cli.test.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add fixtures where the legacy/top-level Codex session ID, `payload.id`, and
+`payload.session_id` are distinct. Prove selection argv, gate child corroboration, and
+read-only reconciliation require the exact provider-native `payload.id`.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts tests/transcript-core/runtimes.test.ts`
+
+Expected: discovery and corroboration still use the legacy candidate ID.
+
+**GREEN:** Carry required exact Codex native identity from bounded exact-all discovery
+into `SessionCandidate.nativeId`; fail closed on missing or contradictory metadata.
+Locate gate and production reconciliation evidence by parsed `meta.nativeSessionId`,
+never by the legacy candidate ID. Regenerate the development bundle.
+
+**Refactor:** Keep legacy transcript/session-observer identity behavior unchanged for
+existing consumers; isolate the handoff-specific exact-native projection.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/discovery.ts src/transcript/coding-session-handoff/behavior-gate.ts src/transcript/coding-session-handoff/cli.ts tests/coding-session-handoff/discovery.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts tests/transcript-core/runtimes.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p03-t07): propagate exact Codex native identity`
+
+---
+
+### Task p03-t08: (review) Make partial Codex cleanup truthful
+
+**Dependencies:** p03-t07.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Exercise default cleanup for an attempted creation with unknown parent ID,
+known parent with unknown child ID, and known parent/child IDs.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts`
+
+Expected: unknown-ID cases falsely finalize cleanup as `removed`.
+
+**GREEN:** Track every Codex creation/successor attempt and whether it produced the
+complete exact-ID set needed for cleanup. Delete every known ID, but return `failed`
+whenever any attempted creation boundary lacks a provably complete exact cleanup ID.
+
+**Refactor:** Keep cleanup state monotonic and receipt finalization redacted; never
+guess an ID or directly unlink provider state.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts tests/coding-session-handoff/behavior-gate.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p03-t08): make partial Codex cleanup truthful`
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1095,7 +1166,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p02 | code | fixes_completed | 2026-08-31 | reviews/archived/p02-review-2026-08-31T074327Z.md | ab975ff7ec18a21c5059aa8800091475cf4f4442 | manual | - |
 | p02-t13 | code | passed | 2026-08-31 | reviews/archived/p02-t13-review-2026-08-31T145043Z.md | 63d27033ae049f925e475246a4da2724a03756ab | manual | - |
 | p03 | code | fixes_completed | 2026-08-31 | reviews/archived/p03-review-2026-08-31T163214Z.md | ed28bec732892a5c12f99300dcd558cb09a26124 | manual | - |
-| p03 | code | received | 2026-08-31 | reviews/archived/p03-review-2026-08-31T223047Z.md | 304ec8618b8dd9377c06f226d19ffbf8473c85c4 | manual | - |
+| p03 | code | fixes_added | 2026-08-31 | reviews/archived/p03-review-2026-08-31T223047Z.md | 304ec8618b8dd9377c06f226d19ffbf8473c85c4 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1121,13 +1192,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 6 tasks — provider contracts, orchestration, gate harness, CLI, development runtime
+- p03: 8 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, and two final-review repairs
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 26 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 28 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 26 tasks have exactly one verified commit,
+Implementation is complete only when all 28 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

@@ -1,9 +1,7 @@
 ---
-oat_current_task: p05-t03
+oat_current_task: p03-t07
 oat_last_commit: 304ec8618b8dd9377c06f226d19ffbf8473c85c4
-oat_blockers:
-  - task_id: p03
-    reason: 'Final authorized p03 review found one Critical exact Codex native-identity propagation defect and one Important unknown-ID cleanup-truthfulness defect.'
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -82,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T22:39:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T23:19:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -102,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - Phase p03 tasks complete; blocked by final authorized p03 review
+Implementation - p03-t07 is next after authorized final-review receive
 
 ## Artifacts
 
@@ -110,7 +108,7 @@ Implementation - Phase p03 tasks complete; blocked by final authorized p03 revie
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 blocked after final authorized review)
+- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 repair tasks queued)
 
 ## Progress
 
@@ -152,18 +150,15 @@ Implementation - Phase p03 tasks complete; blocked by final authorized p03 revie
 - ✓ Final authorized p03 review completed at reviewed head `304ec86`
 - ✗ Phase p03 blocked by 1 Critical and 1 Important final-review finding
 - ⏸ Root-owned live provider gates and p05 remain unstarted
+- ✓ User authorized receive, repair of the Critical/Important findings, and one fresh independent p03 review
+- ✓ Review findings converted to p03-t07 and p03-t08; three Mediums remain explicitly deferred
+- ⧗ p03-t07 is next
 
 ## Blockers
 
-- **p03 Critical:** Exact Codex `payload.id` native identity is extracted but handoff
-  discovery, execution corroboration, and read-only reconciliation still use the legacy
-  candidate ID, so an exact fork may select or reject the wrong session.
-- **p03 Important:** Default Codex cleanup can report `providerState: removed` when a
-  creation attempt produced no exact cleanup ID, leaving possible residue with a false
-  receipt disposition.
+None. The two blocking findings are now queued as p03-t07 and p03-t08.
 
 ## Next Milestone
 
-Receive `reviews/archived/p03-review-2026-08-31T223047Z.md` into bounded p03 repair
-tasks only after explicit user authorization. Fix the Critical and Important findings,
-then run a fresh independent p03 review before any p04 live-provider gate.
+Execute p03-t07 and p03-t08, then run the authorized fresh independent p03 review
+before any p04 live-provider gate.

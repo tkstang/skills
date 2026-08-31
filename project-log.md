@@ -60,6 +60,10 @@ Phase p03 ended BLOCKED after 2 authorized fix loops; final review reviews/archi
 
 Stopped before p04 because the final authorized p03 review found unresolved exact Codex native-identity propagation and unknown-ID cleanup-truthfulness blockers; resume through oat-project-review-receive after explicit user authorization.
 
+### 2026-08-31 · structural · oat-project-review-receive · p03
+
+Authorized receive advanced reviews/archived/p03-review-2026-08-31T223047Z.md from received to fixes_added; C1 and I1 became p03-t07 and p03-t08, while M1-M3 remain explicitly deferred under the user-authorized blocking-finding scope.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

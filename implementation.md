@@ -1,11 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p03
-    reason: 'Final authorized p03 review found one Critical exact Codex native-identity propagation defect and one Important unknown-ID cleanup-truthfulness defect.'
+oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p05-t03
+oat_current_task_id: p03-t07
 oat_generated: false
 ---
 
@@ -30,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | blocked     | 6     | 6/6       |
+| p03   | in_progress | 8     | 6/8       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 22/26 tasks completed
+**Total:** 22/28 tasks completed
 
 ---
 
@@ -168,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** blocked
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -223,6 +221,16 @@ authorized review found 1 Critical, 1 Important, and 3 Medium findings and block
 
 **Status:** completed
 **Commit:** `ed28bec732892a5c12f99300dcd558cb09a26124`
+
+### Task p03-t07: (review) Propagate exact Codex native identity
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t08: (review) Make partial Codex cleanup truthful
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -487,14 +495,29 @@ load-bearing defect with immediate pre-resume source evidence and child immutabi
 
 **Findings:** 1 Critical, 1 Important, 3 Medium, 0 Minor
 
-**Disposition:** BLOCKED. Exact Codex `payload.id` metadata is parsed but not propagated
+**Disposition:** Exact Codex `payload.id` metadata is parsed but not propagated
 into handoff selection/corroboration, and default Codex cleanup can report `removed`
-when an attempted creation produced no exact cleanup ID. The three earlier Medium
-contract/diagnostic/path-alias issues remain unresolved and nonblocking.
+when an attempted creation produced no exact cleanup ID.
 
-**Next:** Await explicit authorization to receive the review into bounded p03 repair
-tasks, implement the Critical and Important findings, and run a fresh independent p03
-review. Do not run p04 or p05.
+**New tasks added:** p03-t07, p03-t08
+
+**Finding disposition map:**
+
+- C1 → p03-t07 (`code_fix_required`) — propagate exact Codex provider-native identity.
+- I1 → p03-t08 (`code_fix_required`) — make unknown-ID cleanup fail truthfully.
+- M1 → `explicit_deferral` — intentional Claude empty-argv schema round-trip remains
+  outside the authorized blocking-finding repair scope.
+- M2 → `explicit_deferral` — authentication-required diagnostic preservation remains
+  outside the authorized blocking-finding repair scope.
+- M3 → `explicit_deferral` — canonical path-alias corroboration remains outside the
+  authorized blocking-finding repair scope.
+
+**Deferred Findings (Medium):** M1, M2, and M3 remain nonblocking and explicitly
+deferred under the user's authorization of the Critical and Important repair scope.
+They must resurface at final review if still unresolved.
+
+**Next:** Execute p03-t07 and p03-t08, then run the authorized fresh independent p03
+review. Do not run p04 or p05 before that review passes its blocking threshold.
 
 ---
 
@@ -534,7 +557,8 @@ review. Do not run p04 or p05.
 - [x] p03-t06 — `ed28bec`
 - [x] p03 initial blocking review fixes — `703918c`
 - [x] p03 residual Claude source-resume proof — `304ec86`
-- [ ] p03 final Critical/Important review findings — blocked pending user direction
+- [ ] p03-t07 — propagate exact Codex native identity
+- [ ] p03-t08 — make partial Codex cleanup truthful
 
 ---
 
