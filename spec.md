@@ -137,8 +137,13 @@ session or prove that a source writer is closed.
     resumability, or metadata effects.
   - Each executable operation requires disposable two-worktree evidence covering
     parent/child IDs, runtime cwd, source resumability, and metadata effects.
-  - Version/help drift or missing behavioral evidence produces a labeled plan/deferred
-    item and never native success.
+  - Implementation must run that gate for successor mode on the exact installed Codex
+    and Claude versions. Both providers must pass before v1 is considered complete;
+    inability to establish either contract is a reported product blocker rather than a
+    silent plan-only scope reduction.
+  - After verified contracts are recorded, exact matching versions may execute;
+    version/help drift or missing behavioral evidence still produces a labeled
+    plan/deferred item and never native success.
 - **Priority:** P0
 
 **FR7: Complete plan and explicit confirmation**
@@ -161,6 +166,9 @@ session or prove that a source writer is closed.
 - **Acceptance Criteria:**
   - No provider store or transcript record is edited directly.
   - Only the locally verified Codex and Claude Code invocation shapes are planned.
+  - A digest-confirmed successor on each exact verified installed version can launch
+    the provider-native operation and report the exact child identity after the native
+    session exits or reconciliation completes.
   - Non-TTY, current-turn, unverified, and unsafe batch conditions become itemized
     deferrals or refusals.
   - No dangerous bypass flag appears in a planned or executed invocation.
@@ -261,8 +269,10 @@ session or prove that a source writer is closed.
 - Current verified syntax evidence is scoped to Codex CLI 0.151.0 and Claude Code
   2.1.251; later versions require revalidation.
 - Neither installed provider exposes trustworthy writer-closed evidence.
-- Live provider behavioral verification is opt-in because it mutates provider-owned
-  session state and may consume provider quota.
+- This project's autonomous implementation authorization includes bounded disposable
+  live-provider successor verification for the exact installed versions. The gate may
+  mutate only disposable provider-owned sessions/worktrees and may consume bounded
+  provider quota; it must not use real project sessions as fixtures.
 - Provider stores and transcript files remain immutable inputs.
 - Default persistence is none.
 - Local implementation commits are allowed; push, PR, publishing, release, and GitHub
@@ -319,6 +329,9 @@ from reporting success.
   bypass-flag invocation.
 - Every mixed batch has a one-to-one selected-parent outcome ledger and never places a
   successful parent in the native retry set.
+- Disposable native gates pass for successor mode on exact Codex 0.151.0 and Claude
+  Code 2.1.251, and the resulting source-controlled contracts enable confirmed native
+  execution with exact parent-to-child outcomes for those versions.
 - All repository, build, test, smoke, docs, and provider-install compatibility gates
   pass.
 
@@ -345,9 +358,9 @@ from reporting success.
 
 ## Open Questions
 
-- **Behavioral authorization:** Which exact operations will be enabled after an
-  explicitly authorized disposable live-provider gate? Until then, they remain
-  plan/deferred.
+- **Behavioral authorization:** The implementation gate must decide whether successor
+  mode passes for exact Codex 0.151.0 and Claude Code 2.1.251. If either cannot be
+  proven, stop with a product blocker; do not silently ship plan-only behavior.
 - **Same-ID proof:** No installed provider currently exposes writer-closed proof, so
   what future provider/host evidence could enable `resume` without weakening v1?
 - **Claude lineage:** Which stable native output or transcript field can corroborate a
