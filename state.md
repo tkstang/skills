@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: ed8be6f7f3c23fa299ca14e4ba3f28735eefbb65
+oat_current_task: p01-t01
+oat_last_commit: 3b806e04d2345da623ab714d19357d2e8c88b634
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 oat_dispatch_policy:
   mode: managed
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T03:55:56.665Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T03:58:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -94,13 +94,13 @@ oat_project_explainer:
 
 # Project State: coding-session-handoff
 
-**Status:** Planning complete
+**Status:** Implementation in progress
 **Started:** 2026-08-31
 **Last Updated:** 2026-08-31
 
 ## Current Phase
 
-Planning - Ready for implementation
+Implementation - Phase p01 in progress
 
 ## Artifacts
 
@@ -128,6 +128,8 @@ Planning - Ready for implementation
 - ✓ Cross-family plan gate passed and its review artifact was received
 - ✓ Plan complete; awaiting implementation
 - ✓ Optional post-plan project explainer skipped by interactive decision
+- ✓ Autonomous implementation defaults resolved: final-phase HiLL checkpoint with automatic review
+- ⧗ Phase p01 started at task p01-t01
 
 ## Blockers
 
@@ -135,4 +137,4 @@ None
 
 ## Next Milestone
 
-Begin implementation at p01-t01
+Complete phase p01 and its independent root-owned review

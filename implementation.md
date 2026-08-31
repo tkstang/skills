@@ -24,84 +24,141 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase | Status      | Tasks | Completed |
+| ----- | ----------- | ----- | --------- |
+| p01   | in_progress | 3     | 0/3       |
+| p02   | pending     | 4     | 0/4       |
+| p03   | pending     | 6     | 0/6       |
+| p05   | pending     | 2     | 0/2       |
+| p06   | pending     | 2     | 0/2       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/17 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase p01: Mutation-free transcript substrate
 
 **Status:** in_progress
 **Started:** 2026-08-31
 
-### Phase Summary (fill when phase is complete)
+### Task p01-t01: Add bounded quiet transcript readers
 
-**Outcome (what changed):**
+**Status:** in_progress
+**Commit:** -
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Add exact-all zero-persistence discovery
 
 **Status:** pending
 **Commit:** -
 
-**Notes:**
+### Task p01-t03: Prove shared-substrate non-mutation
 
-- {Notes will be added during implementation}
+**Status:** pending
+**Commit:** -
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase p02: Handoff discovery, preview, and Git evidence
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Define handoff schemas and limits
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t02: Implement exact candidate discovery
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t03: Implement aggregate-bounded sanitized preview
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t04: Validate exact Git worktree targets
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase p03: Provider contracts, planning, execution, and CLI
+
+**Status:** pending
+**Started:** -
+
+### Task p03-t01: Implement provider probes and unverified contracts
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t02: Add exact provider lineage metadata
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t03: Implement selection, plans, execution, and reconciliation
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t04: Implement disposable behavioral gates
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t05: Implement CLI commands and renderers
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t06: Generate the pre-activation development runtime
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Root Entry Gates
+
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate
+- [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
+- [ ] p05-t01 — Independent Codex receipt review
+- [ ] p05-t02 — Independent Claude Code receipt review
+
+---
+
+## Phase p05: Reviewed behavior activation
+
+**Status:** pending
+**Started:** -
+
+### Task p05-t03: Activate both reviewed exact-version contracts
+
+**Status:** pending
+**Commit:** -
+
+### Task p05-t04: Verify exact executable and partial-outcome behavior
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase p06: Public skill, documentation, and repository completion
+
+**Status:** pending
+**Started:** -
+
+### Task p06-t01: Author the public 1.0.0 skill
+
+**Status:** pending
+**Commit:** -
+
+### Task p06-t03: Synchronize project-only provider views
 
 **Status:** pending
 **Commit:** -
@@ -119,6 +176,16 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 1 — 2026-08-31T03:58:39Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1 — subagents available without additional authorization
+- Dispatch policy: managed `frontier` from project state
+- Schedule: p01 → p02 → p03 → root entry gates → p05 → p06
+- HiLL: final phase p06; automatic lifecycle review enabled
+- Autonomous gates: `IMPLEMENT-03` (p06 checkpoint), `IMPLEMENT-08` (bounded phase implementer and reviewer delegation)
+- Status: p01 dispatch pending
 
 <!-- orchestration-runs-end -->
 
@@ -151,36 +218,12 @@ Chronological log of implementation progress.
 
 ### 2026-08-31
 
-**Session Start:** {time}
+**Session Start:** 03:58:39Z
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-08-31
-
-**Session Start:** {time}
-
-{Continue log...}
+- Planning completed and passed structured plus cross-family review.
+- Post-plan project explainer skipped by explicit coordinator decision.
+- Implementation preflight selected Tier 1 with managed Frontier policy.
+- Phase p01 is the first sequential dispatch.
 
 ---
 
@@ -198,8 +241,11 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| p01   | -         | -      | -      | -        |
+| p02   | -         | -      | -      | -        |
+| p03   | -         | -      | -      | -        |
+| p05   | -         | -      | -      | -        |
+| p06   | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
