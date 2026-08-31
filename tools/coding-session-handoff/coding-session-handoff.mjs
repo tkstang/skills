@@ -2936,7 +2936,25 @@ var HandoffDiscoveryError = class extends Error {
 };
 var DEFAULT_DEPENDENCIES = {
   discover,
-  canonicalize: async (path) => realpath2(path).catch(() => null)
+  canonicalize: async (path) => realpath2(path).catch(() => null),
+  readCodexNativeId: async (candidate) => {
+    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+      maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+      maxRecords: 128,
+      diagnostic: () => {
+      }
+    });
+    if (bounded.incomplete) return null;
+    const meta = extractMetaFromRecords(
+      "codex",
+      bounded.records,
+      candidate.transcriptPath
+    );
+    if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
+      return null;
+    }
+    return meta.nativeSessionId;
+  }
 };
 function candidateSignature(candidate) {
   return JSON.stringify([
@@ -2967,7 +2985,7 @@ function validateProviders(providers) {
   }
   return selected.toSorted();
 }
-async function projectCandidate(provider2, candidate, sourceCanonicalPath, current, canonicalize3) {
+async function projectCandidate(provider2, candidate, sourceCanonicalPath, current, deps) {
   if (candidate.runtime !== PROVIDER_RUNTIME[provider2]) {
     throw new HandoffDiscoveryError("discovery-incomplete", provider2);
   }
@@ -2976,7 +2994,7 @@ async function projectCandidate(provider2, candidate, sourceCanonicalPath, curre
   }
   let recordedCwd;
   try {
-    recordedCwd = await canonicalize3(candidate.recordedCwd);
+    recordedCwd = await deps.canonicalize(candidate.recordedCwd);
   } catch {
     throw new HandoffDiscoveryError("discovery-incomplete", provider2);
   }
@@ -2984,12 +3002,25 @@ async function projectCandidate(provider2, candidate, sourceCanonicalPath, curre
     throw new HandoffDiscoveryError("discovery-incomplete", provider2);
   }
   if (recordedCwd !== sourceCanonicalPath) return null;
-  const key = `${provider2}:${candidate.sessionId}`;
+  let nativeId2 = candidate.sessionId;
+  if (provider2 === "codex") {
+    try {
+      const exactNativeId = await deps.readCodexNativeId(candidate);
+      if (exactNativeId === null) {
+        throw new HandoffDiscoveryError("discovery-incomplete", provider2);
+      }
+      nativeId2 = exactNativeId;
+    } catch (error) {
+      if (error instanceof HandoffDiscoveryError) throw error;
+      throw new HandoffDiscoveryError("discovery-incomplete", provider2);
+    }
+  }
+  const key = `${provider2}:${nativeId2}`;
   try {
     return parseSessionCandidate({
       key,
       provider: provider2,
-      nativeId: candidate.sessionId,
+      nativeId: nativeId2,
       recordedCwd,
       modifiedAtMs: candidate.mtime * 1e3,
       size: candidate.size,
@@ -3032,7 +3063,7 @@ async function discoverHandoffCandidates(sourcePath, options = {}) {
         candidate,
         sourceCanonicalPath,
         current,
-        deps.canonicalize
+        deps
       );
       if (result !== null) projected.push(result);
     }
@@ -3510,15 +3541,21 @@ async function exactTranscriptSnapshot(provider2, cwd, nativeId2) {
     new ClassificationCache(),
     HANDOFF_DISCOVERY_OPTIONS
   );
-  const matches = candidates.filter(
-    (candidate) => candidate.sessionId === nativeId2 && candidate.recordedCwd === cwd
+  const snapshots = await Promise.all(
+    candidates.filter((candidate) => candidate.recordedCwd === cwd).map((candidate) => snapshotTranscriptCandidate(provider2, candidate))
+  );
+  const matches = snapshots.filter(
+    (snapshot) => snapshot.nativeSessionId === nativeId2
   );
   if (matches.length !== 1) throw new Error("exact-transcript-unavailable");
-  const beforeStat = await stat2(matches[0].transcriptPath);
+  return matches[0];
+}
+async function snapshotTranscriptCandidate(provider2, candidate) {
+  const beforeStat = await stat2(candidate.transcriptPath);
   if (beforeStat.size > 256 * 1024) {
     throw new Error("exact-transcript-oversized");
   }
-  const bounded = await readMetadataRecordsBounded(matches[0].transcriptPath, {
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
     maxBytes: 256 * 1024,
     maxRecords: 128,
     diagnostic: () => {
@@ -3528,11 +3565,11 @@ async function exactTranscriptSnapshot(provider2, cwd, nativeId2) {
   const meta = extractMetaFromRecords(
     runtime(provider2),
     bounded.records,
-    matches[0].transcriptPath
+    candidate.transcriptPath
   );
   if (meta === null) throw new Error("exact-transcript-metadata-unavailable");
-  const contents = await readFile3(matches[0].transcriptPath);
-  const afterStat = await stat2(matches[0].transcriptPath);
+  const contents = await readFile3(candidate.transcriptPath);
+  const afterStat = await stat2(candidate.transcriptPath);
   if (contents.byteLength > 256 * 1024) {
     throw new Error("exact-transcript-oversized");
   }
@@ -5119,11 +5156,12 @@ async function defaultPreview(source, selected, rounds, maxCharacters) {
       throw Object.assign(new Error("unknown-session"), {
         code: "unknown-session"
       });
-    const discovered = await rawCandidates(candidate.provider, source);
-    const matches = discovered.filter(
-      (entry) => entry.sessionId === candidate.nativeId && entry.recordedCwd === candidate.recordedCwd
+    const exact = await exactTranscript(
+      candidate.provider,
+      source,
+      candidate.nativeId
     );
-    if (matches.length !== 1) {
+    if (exact === null || exact.status !== "one") {
       throw Object.assign(new Error("preview-incomplete"), {
         code: "preview-incomplete"
       });
@@ -5131,7 +5169,7 @@ async function defaultPreview(source, selected, rounds, maxCharacters) {
     sources.push({
       candidate,
       runtime: runtime2(candidate.provider),
-      transcriptPath: matches[0].transcriptPath
+      transcriptPath: exact.candidate.transcriptPath
     });
   }
   return previewHandoffCandidates(
@@ -5227,27 +5265,36 @@ async function runNative(invocationValue, executablePath) {
     };
   }
 }
-async function exactMeta(providerValue, cwd, nativeId2) {
+async function exactTranscript(providerValue, cwd, nativeId2) {
   const discovered = await rawCandidates(providerValue, cwd);
-  const matches = discovered.filter(
-    (candidate) => candidate.sessionId === nativeId2 && candidate.recordedCwd === cwd
-  );
+  const matches = [];
+  for (const candidate of discovered) {
+    if (candidate.recordedCwd !== cwd) continue;
+    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+      maxBytes: 256 * 1024,
+      maxRecords: 128,
+      diagnostic: () => {
+      }
+    });
+    if (bounded.incomplete) continue;
+    const meta = extractMetaFromRecords(
+      runtime2(providerValue),
+      bounded.records,
+      candidate.transcriptPath
+    );
+    if (meta?.nativeSessionId === nativeId2) {
+      matches.push({ candidate, meta });
+    }
+  }
   if (matches.length !== 1) {
     return matches.length > 1 ? { status: "ambiguous" } : null;
   }
-  const bounded = await readMetadataRecordsBounded(matches[0].transcriptPath, {
-    maxBytes: 256 * 1024,
-    maxRecords: 128,
-    diagnostic: () => {
-    }
-  });
-  if (bounded.incomplete) return null;
-  const meta = extractMetaFromRecords(
-    runtime2(providerValue),
-    bounded.records,
-    matches[0].transcriptPath
-  );
-  return meta === null ? null : { status: "one", meta };
+  return { status: "one", ...matches[0] };
+}
+async function exactMeta(providerValue, cwd, nativeId2) {
+  const exact = await exactTranscript(providerValue, cwd, nativeId2);
+  if (exact === null || exact.status === "ambiguous") return exact;
+  return { status: "one", meta: exact.meta };
 }
 async function corroborateExact(source, target, request) {
   const selector = request.expectedChildNativeId ?? request.observedChildNativeId;
@@ -5368,5 +5415,6 @@ if (process.argv[1] && resolve2(process.argv[1]) === fileURLToPath(import.meta.u
   });
 }
 export {
+  corroborateExact,
   runHandoffCli
 };

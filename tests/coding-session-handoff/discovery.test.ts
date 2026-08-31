@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import { describe, expect, test, vi } from 'vitest';
 
+import { buildNativeInvocation } from '../../src/transcript/coding-session-handoff/behavior-contracts.js';
 import {
   HandoffDiscoveryError,
   discoverHandoffCandidates,
@@ -75,10 +76,116 @@ function dependencies(
       });
       return byRuntime[runtime as 'codex' | 'claude-code'] ?? [];
     }),
+    readCodexNativeId: async (candidate) => candidate.sessionId,
   };
 }
 
 describe('exact handoff candidate discovery', () => {
+  test.sequential('projects exact Codex payload.id instead of legacy or root IDs', async () => {
+    const createdHome = await mkdtemp(join(tmpdir(), 'handoff-codex-native-'));
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const sourceRoot = join(home, 'repo', 'source');
+      await mkdir(sourceRoot, { recursive: true });
+      const canonicalSource = await realpath(sourceRoot);
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(
+        join(sessionDir, 'legacy-candidate-id.jsonl'),
+        `${JSON.stringify({
+          type: 'session_meta',
+          sessionId: 'legacy-candidate-id',
+          payload: {
+            id: 'native-payload-id',
+            session_id: 'root-payload-session-id',
+            cwd: canonicalSource,
+          },
+        })}\n`,
+        'utf8',
+      );
+
+      const candidates = await discoverHandoffCandidates(canonicalSource, {
+        providers: ['codex'],
+      });
+      expect(candidates).toEqual([
+        expect.objectContaining({
+          key: 'codex:native-payload-id',
+          nativeId: 'native-payload-id',
+          recordedCwd: canonicalSource,
+        }),
+      ]);
+      const invocation = buildNativeInvocation(
+        'codex',
+        candidates[0].nativeId,
+        canonicalSource,
+      );
+      expect(invocation.argv).toContain('native-payload-id');
+      expect(invocation.argv).not.toContain('legacy-candidate-id');
+      expect(invocation.argv).not.toContain('root-payload-session-id');
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test.sequential('fails closed when Codex payload.id metadata is contradictory', async () => {
+    const createdHome = await mkdtemp(
+      join(tmpdir(), 'handoff-codex-native-conflict-'),
+    );
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const sourceRoot = join(home, 'repo', 'source');
+      await mkdir(sourceRoot, { recursive: true });
+      const canonicalSource = await realpath(sourceRoot);
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(
+        join(sessionDir, 'contradictory-native-id.jsonl'),
+        [
+          {
+            type: 'session_meta',
+            sessionId: 'legacy-candidate-id',
+            payload: { id: 'native-one', cwd: canonicalSource },
+          },
+          {
+            type: 'session_meta',
+            sessionId: 'legacy-candidate-id',
+            payload: { id: 'native-two', cwd: canonicalSource },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      await expect(
+        discoverHandoffCandidates(canonicalSource, { providers: ['codex'] }),
+      ).rejects.toMatchObject({
+        code: 'discovery-incomplete',
+        provider: 'codex',
+      });
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test.sequential('refuses a Codex transcript with late conflicting cwd evidence', async () => {
     const createdHome = await mkdtemp(join(tmpdir(), 'handoff-codex-cwd-'));
     const home = await realpath(createdHome);

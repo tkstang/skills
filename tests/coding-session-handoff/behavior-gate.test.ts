@@ -1,8 +1,13 @@
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, test, vi } from 'vitest';
 
 import {
   createBehaviorPlan,
   evaluateSourceResumeSnapshots,
+  exactTranscriptSnapshot,
   ProviderGateError,
   verifyProviderBehavior,
   type BehaviorGateDependencies,
@@ -174,6 +179,51 @@ describe('behavior-plan', () => {
 });
 
 describe('behavior-verify', () => {
+  test.sequential('locates exact Codex evidence by payload.id, not legacy or root ID', async () => {
+    const createdHome = await mkdtemp(join(tmpdir(), 'gate-codex-native-'));
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const target = join(home, 'repo', 'target');
+      await mkdir(target, { recursive: true });
+      const canonicalTarget = await realpath(target);
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(
+        join(sessionDir, 'legacy-child-id.jsonl'),
+        `${JSON.stringify({
+          type: 'session_meta',
+          sessionId: 'legacy-child-id',
+          payload: {
+            id: 'native-child-id',
+            session_id: 'root-session-id',
+            forked_from_id: 'native-parent-id',
+            cwd: canonicalTarget,
+          },
+        })}\n`,
+        'utf8',
+      );
+
+      await expect(
+        exactTranscriptSnapshot('codex', canonicalTarget, 'native-child-id'),
+      ).resolves.toMatchObject({
+        nativeSessionId: 'native-child-id',
+        forkedFromSessionId: 'native-parent-id',
+        recordedCwd: canonicalTarget,
+      });
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('rejects digest mismatch, auth failure, and an existing receipt before mutation', async () => {
     const events: string[] = [];
     const receipts: BehavioralGateReceipt[] = [];

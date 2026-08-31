@@ -1,6 +1,10 @@
 import { realpath } from 'node:fs/promises';
 
 import {
+  extractMetaFromRecords,
+  readMetadataRecordsBounded,
+} from '../core/runtimes.js';
+import {
   ClassificationCache,
   discover,
 } from '../session-observer/lib/locate.js';
@@ -50,6 +54,7 @@ export interface HandoffCurrentIdentity {
 export interface HandoffDiscoveryDependencies {
   discover: typeof discover;
   canonicalize: (path: string) => Promise<string | null>;
+  readCodexNativeId: (candidate: TranscriptCandidate) => Promise<string | null>;
 }
 
 export interface DiscoverHandoffCandidatesOptions {
@@ -78,6 +83,28 @@ export class HandoffDiscoveryError extends Error {
 const DEFAULT_DEPENDENCIES: HandoffDiscoveryDependencies = {
   discover,
   canonicalize: async (path) => realpath(path).catch(() => null),
+  readCodexNativeId: async (candidate) => {
+    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+      maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+      maxRecords: 128,
+      diagnostic: () => {},
+    });
+    if (bounded.incomplete) return null;
+    const meta = extractMetaFromRecords(
+      'codex',
+      bounded.records,
+      candidate.transcriptPath,
+    );
+    if (
+      meta === null ||
+      meta.sessionId !== candidate.sessionId ||
+      meta.nativeSessionId === undefined ||
+      meta.nativeSessionId.length === 0
+    ) {
+      return null;
+    }
+    return meta.nativeSessionId;
+  },
 };
 
 function candidateSignature(candidate: SessionCandidate): string {
@@ -131,7 +158,7 @@ async function projectCandidate(
   candidate: TranscriptCandidate,
   sourceCanonicalPath: string,
   current: ReadonlyMap<string, HandoffCurrentIdentity['evidence']>,
-  canonicalize: HandoffDiscoveryDependencies['canonicalize'],
+  deps: HandoffDiscoveryDependencies,
 ): Promise<SessionCandidate | null> {
   if (candidate.runtime !== PROVIDER_RUNTIME[provider]) {
     throw new HandoffDiscoveryError('discovery-incomplete', provider);
@@ -141,7 +168,7 @@ async function projectCandidate(
   }
   let recordedCwd: string | null;
   try {
-    recordedCwd = await canonicalize(candidate.recordedCwd);
+    recordedCwd = await deps.canonicalize(candidate.recordedCwd);
   } catch {
     throw new HandoffDiscoveryError('discovery-incomplete', provider);
   }
@@ -149,12 +176,25 @@ async function projectCandidate(
     throw new HandoffDiscoveryError('discovery-incomplete', provider);
   }
   if (recordedCwd !== sourceCanonicalPath) return null;
-  const key = `${provider}:${candidate.sessionId}` as const;
+  let nativeId = candidate.sessionId;
+  if (provider === 'codex') {
+    try {
+      const exactNativeId = await deps.readCodexNativeId(candidate);
+      if (exactNativeId === null) {
+        throw new HandoffDiscoveryError('discovery-incomplete', provider);
+      }
+      nativeId = exactNativeId;
+    } catch (error) {
+      if (error instanceof HandoffDiscoveryError) throw error;
+      throw new HandoffDiscoveryError('discovery-incomplete', provider);
+    }
+  }
+  const key = `${provider}:${nativeId}` as const;
   try {
     return parseSessionCandidate({
       key,
       provider,
-      nativeId: candidate.sessionId,
+      nativeId,
       recordedCwd,
       modifiedAtMs: candidate.mtime * 1_000,
       size: candidate.size,
@@ -207,7 +247,7 @@ export async function discoverHandoffCandidates(
         candidate,
         sourceCanonicalPath,
         current,
-        deps.canonicalize,
+        deps,
       );
       if (result !== null) projected.push(result);
     }

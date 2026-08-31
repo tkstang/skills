@@ -16,6 +16,7 @@ import {
   ClassificationCache,
   discover,
 } from '../session-observer/lib/locate.js';
+import type { TranscriptCandidate } from '../session-observer/lib/types.js';
 import { createBehaviorPlan, verifyProviderBehavior } from './behavior-gate.js';
 import {
   discoverHandoffCandidates,
@@ -456,13 +457,12 @@ async function defaultPreview(
       throw Object.assign(new Error('unknown-session'), {
         code: 'unknown-session',
       });
-    const discovered = await rawCandidates(candidate.provider, source);
-    const matches = discovered.filter(
-      (entry) =>
-        entry.sessionId === candidate.nativeId &&
-        entry.recordedCwd === candidate.recordedCwd,
+    const exact = await exactTranscript(
+      candidate.provider,
+      source,
+      candidate.nativeId,
     );
-    if (matches.length !== 1) {
+    if (exact === null || exact.status !== 'one') {
       throw Object.assign(new Error('preview-incomplete'), {
         code: 'preview-incomplete',
       });
@@ -470,7 +470,7 @@ async function defaultPreview(
     sources.push({
       candidate,
       runtime: runtime(candidate.provider) as 'codex' | 'claude-code',
-      transcriptPath: matches[0].transcriptPath,
+      transcriptPath: exact.candidate.transcriptPath,
     });
   }
   return previewHandoffCandidates(
@@ -595,6 +595,47 @@ async function runNative(
   }
 }
 
+type ExactTranscriptResult =
+  | {
+      status: 'one';
+      candidate: TranscriptCandidate;
+      meta: TranscriptMeta;
+    }
+  | { status: 'ambiguous' };
+
+async function exactTranscript(
+  providerValue: HandoffProvider,
+  cwd: string,
+  nativeId: string,
+): Promise<ExactTranscriptResult | null> {
+  const discovered = await rawCandidates(providerValue, cwd);
+  const matches: Array<{
+    candidate: TranscriptCandidate;
+    meta: TranscriptMeta;
+  }> = [];
+  for (const candidate of discovered) {
+    if (candidate.recordedCwd !== cwd) continue;
+    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+      maxBytes: 256 * 1024,
+      maxRecords: 128,
+      diagnostic: () => {},
+    });
+    if (bounded.incomplete) continue;
+    const meta = extractMetaFromRecords(
+      runtime(providerValue),
+      bounded.records,
+      candidate.transcriptPath,
+    );
+    if (meta?.nativeSessionId === nativeId) {
+      matches.push({ candidate, meta });
+    }
+  }
+  if (matches.length !== 1) {
+    return matches.length > 1 ? { status: 'ambiguous' } : null;
+  }
+  return { status: 'one', ...matches[0] };
+}
+
 async function exactMeta(
   providerValue: HandoffProvider,
   cwd: string,
@@ -602,29 +643,12 @@ async function exactMeta(
 ): Promise<
   { status: 'one'; meta: TranscriptMeta } | { status: 'ambiguous' } | null
 > {
-  const discovered = await rawCandidates(providerValue, cwd);
-  const matches = discovered.filter(
-    (candidate) =>
-      candidate.sessionId === nativeId && candidate.recordedCwd === cwd,
-  );
-  if (matches.length !== 1) {
-    return matches.length > 1 ? { status: 'ambiguous' } : null;
-  }
-  const bounded = await readMetadataRecordsBounded(matches[0].transcriptPath, {
-    maxBytes: 256 * 1024,
-    maxRecords: 128,
-    diagnostic: () => {},
-  });
-  if (bounded.incomplete) return null;
-  const meta = extractMetaFromRecords(
-    runtime(providerValue),
-    bounded.records,
-    matches[0].transcriptPath,
-  );
-  return meta === null ? null : { status: 'one', meta };
+  const exact = await exactTranscript(providerValue, cwd, nativeId);
+  if (exact === null || exact.status === 'ambiguous') return exact;
+  return { status: 'one', meta: exact.meta };
 }
 
-async function corroborateExact(
+export async function corroborateExact(
   source: string,
   target: string,
   request: ReconcileEvidenceRequest,

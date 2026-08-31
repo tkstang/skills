@@ -24,6 +24,7 @@ import {
   ClassificationCache,
   discover,
 } from '../session-observer/lib/locate.js';
+import type { TranscriptCandidate } from '../session-observer/lib/types.js';
 import {
   buildNativeInvocation,
   HANDOFF_MARKER_PROMPT,
@@ -809,7 +810,7 @@ function runtime(provider: HandoffProvider): Runtime {
   return provider === 'codex' ? 'codex' : 'claude-code';
 }
 
-async function exactTranscriptSnapshot(
+export async function exactTranscriptSnapshot(
   provider: HandoffProvider,
   cwd: string,
   nativeId: string,
@@ -820,16 +821,27 @@ async function exactTranscriptSnapshot(
     new ClassificationCache(),
     HANDOFF_DISCOVERY_OPTIONS,
   );
-  const matches = candidates.filter(
-    (candidate) =>
-      candidate.sessionId === nativeId && candidate.recordedCwd === cwd,
+  const snapshots = await Promise.all(
+    candidates
+      .filter((candidate) => candidate.recordedCwd === cwd)
+      .map((candidate) => snapshotTranscriptCandidate(provider, candidate)),
+  );
+  const matches = snapshots.filter(
+    (snapshot) => snapshot.nativeSessionId === nativeId,
   );
   if (matches.length !== 1) throw new Error('exact-transcript-unavailable');
-  const beforeStat = await stat(matches[0].transcriptPath);
+  return matches[0];
+}
+
+async function snapshotTranscriptCandidate(
+  provider: HandoffProvider,
+  candidate: TranscriptCandidate,
+): Promise<TranscriptEvidenceSnapshot> {
+  const beforeStat = await stat(candidate.transcriptPath);
   if (beforeStat.size > 256 * 1024) {
     throw new Error('exact-transcript-oversized');
   }
-  const bounded = await readMetadataRecordsBounded(matches[0].transcriptPath, {
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
     maxBytes: 256 * 1024,
     maxRecords: 128,
     diagnostic: () => {},
@@ -838,11 +850,11 @@ async function exactTranscriptSnapshot(
   const meta = extractMetaFromRecords(
     runtime(provider),
     bounded.records,
-    matches[0].transcriptPath,
+    candidate.transcriptPath,
   );
   if (meta === null) throw new Error('exact-transcript-metadata-unavailable');
-  const contents = await readFile(matches[0].transcriptPath);
-  const afterStat = await stat(matches[0].transcriptPath);
+  const contents = await readFile(candidate.transcriptPath);
+  const afterStat = await stat(candidate.transcriptPath);
   if (contents.byteLength > 256 * 1024) {
     throw new Error('exact-transcript-oversized');
   }

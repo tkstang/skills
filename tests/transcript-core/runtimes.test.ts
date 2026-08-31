@@ -658,6 +658,10 @@ describe('exact provider lineage metadata', () => {
       rootSessionId: 'root-id',
       forkedFromSessionId: 'native-parent-id',
     });
+    expect(
+      new Set([meta?.sessionId, meta?.nativeSessionId, meta?.rootSessionId])
+        .size,
+    ).toBe(3);
   });
 
   it('does not mistake Codex message payload IDs for native session IDs', () => {
