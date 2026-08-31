@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t07
-oat_last_commit: 304ec8618b8dd9377c06f226d19ffbf8473c85c4
+oat_current_task: p05-t03
+oat_last_commit: a20c138b349e2afbfb4251b51edf1c338cca2783
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T23:19:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T23:41:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t07 is next after authorized final-review receive
+Implementation - p03 repair tasks complete; awaiting authorized third p03 review
 
 ## Artifacts
 
@@ -108,7 +108,7 @@ Implementation - p03-t07 is next after authorized final-review receive
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 repair tasks queued)
+- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 repairs awaiting re-review)
 
 ## Progress
 
@@ -152,13 +152,16 @@ Implementation - p03-t07 is next after authorized final-review receive
 - ⏸ Root-owned live provider gates and p05 remain unstarted
 - ✓ User authorized receive, repair of the Critical/Important findings, and one fresh independent p03 review
 - ✓ Review findings converted to p03-t07 and p03-t08; three Mediums remain explicitly deferred
-- ⧗ p03-t07 is next
+- ✓ p03-t07 completed at `6380426d`; exact Codex native identity is propagated
+- ✓ p03-t08 completed at `a20c138b`; partial Codex cleanup is truthful
+- ✓ Root independently verified the exact two-commit repair range and 235 reviewer-facing tests
+- ⧗ Authorized third p03 review is next
 
 ## Blockers
 
-None. The two blocking findings are now queued as p03-t07 and p03-t08.
+None in implementation. The final review's blocking findings are fixed and awaiting
+independent re-review.
 
 ## Next Milestone
 
-Execute p03-t07 and p03-t08, then run the authorized fresh independent p03 review
-before any p04 live-provider gate.
+Run the authorized fresh independent p03 review before any p04 live-provider gate.

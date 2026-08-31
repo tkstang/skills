@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p03-t07
+oat_current_task_id: p05-t03
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 8     | 6/8       |
+| p03   | in_progress | 8     | 8/8       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 22/28 tasks completed
+**Total:** 24/28 tasks completed
 
 ---
 
@@ -178,9 +178,10 @@ review passed with zero findings; both Mediums remain explicitly deferred.
   and the generated pre-activation development runtime.
 - Fixed the first review's six blocking findings in `703918c` and the independently
   identified residual Claude source-resume proof defect in `304ec86`.
-- Parked before live provider gates because the final authorized review found two new
-  blocking defects: exact Codex native identity is not propagated into selection and
-  corroboration, and default cleanup can report unknown provider state as removed.
+- Converted the final authorized review's two blocking defects into p03-t07 and
+  p03-t08, then fixed exact Codex native-identity propagation and cleanup truthfulness
+  in `6380426` and `a20c138`.
+- Awaiting the authorized third standard p03 review before any live provider gate.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
@@ -190,7 +191,8 @@ focused tests plus type-check, build parity, and diff hygiene successfully.
 **Review:** Initial review found 3 Critical, 3 Important, and 3 Medium findings. Two
 authorized fix continuations resolved the six original blockers and the residual Claude
 proof defect. A failed intermediate review transport produced no artifact. The final
-authorized review found 1 Critical, 1 Important, and 3 Medium findings and blocked p04.
+authorized review found 1 Critical, 1 Important, and 3 Medium findings; its Critical
+and Important findings are fixed, while all three Mediums remain explicitly deferred.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -224,13 +226,13 @@ authorized review found 1 Critical, 1 Important, and 3 Medium findings and block
 
 ### Task p03-t07: (review) Propagate exact Codex native identity
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `6380426d3d7f95926af3fed635875b9632aa2877`
 
 ### Task p03-t08: (review) Make partial Codex cleanup truthful
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `a20c138b349e2afbfb4251b51edf1c338cca2783`
 
 ---
 
@@ -374,6 +376,29 @@ Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oa
 
 Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
+### Run 3 — 2026-08-31T23:41:44Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1 — exact original implementer continuation
+- Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
+- Scope: p03-t07 and p03-t08 only
+- Status: repair tasks complete; awaiting authorized third p03 review
+
+#### p03 Repair Outcome
+
+- Base/head: `304ec8618b8dd9377c06f226d19ffbf8473c85c4` → `a20c138b349e2afbfb4251b51edf1c338cca2783`
+- p03-t07: `6380426d` — exact Codex native identity propagation
+- p03-t08: `a20c138b` — truthful partial Codex cleanup
+- Fix request: `dispatch-1ca45dd9-3552-4466-9c9a-ca2eac501511`
+- Original request: `dispatch-775f832c-1831-4de3-b52c-40137beb62a7`
+- Continuation: `continuation-p03-final-review-1ca45dd9`
+- Verification: implementer 218/218 focused plus 244/244 broader; root 235/235 reviewer-facing; type-check and generated parity passed
+- Deferred Mediums M1-M3 untouched; live provider gates not run
+
+Dispatch policy: frontier; selected=high; cap=max (codex, enforced — variant oat-phase-implementer-gpt-5-6-sol-high)
+
+Dispatch: scope=p03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-high
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -516,8 +541,12 @@ when an attempted creation produced no exact cleanup ID.
 deferred under the user's authorization of the Critical and Important repair scope.
 They must resurface at final review if still unresolved.
 
-**Next:** Execute p03-t07 and p03-t08, then run the authorized fresh independent p03
-review. Do not run p04 or p05 before that review passes its blocking threshold.
+**Fix completion:** p03-t07 committed as `6380426d`; p03-t08 committed as
+`a20c138b`. Root independently verified the exact two-commit range, declared file
+boundaries, 235 reviewer-facing tests, type-check, generated parity, and diff hygiene.
+
+**Next:** Run the authorized fresh independent p03 review. Do not run p04 or p05 before
+that review passes its blocking threshold.
 
 ---
 
@@ -557,8 +586,8 @@ review. Do not run p04 or p05 before that review passes its blocking threshold.
 - [x] p03-t06 — `ed28bec`
 - [x] p03 initial blocking review fixes — `703918c`
 - [x] p03 residual Claude source-resume proof — `304ec86`
-- [ ] p03-t07 — propagate exact Codex native identity
-- [ ] p03-t08 — make partial Codex cleanup truthful
+- [x] p03-t07 — `6380426d`
+- [x] p03-t08 — `a20c138b`
 
 ---
 
@@ -578,7 +607,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 focused phase tests plus reviewer rerun of 213 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Six tasks and two blocking-finding repair commits at `304ec86`; live provider gates not run |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, and root 235 reviewer-facing tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Eight tasks plus review-fix commits through `a20c138`; live provider gates not run |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
