@@ -113,10 +113,10 @@ The kickoff requirements are authoritative. Cursor is experimental and outside t
 1. **Public concept:** Ship one cross-provider skill named `coding-session-handoff`; keep provider differences behind the common UX.
 2. **Discovery boundary:** Enumerate all and only exact-source-worktree Codex and Claude candidates by default, deduplicated by provider-qualified native identity.
 3. **Current identity:** Mark a session `current` only from direct identity evidence; never hide other candidates or promote recency into identity.
-4. **Preview privacy:** Offer bounded, sanitized user/assistant previews without advancing observer offsets or persisting transcript content.
+4. **Read-only inspection:** Enumeration, preview, comparison, and plan mode must not advance observer offsets, persist transcript content, or write transcript-discovery caches such as `codex-cwd-cache.json`. Design must reuse or introduce a mutation-free discovery seam instead of calling a cache-writing entry point.
 5. **Git safety:** Require an existing target for the same intended repository, report branch/commit/dirty evidence, and fail closed on a distinct dirty source in v1.
 6. **Continuity semantics:** Default to `successor`; make `resume` advanced and refuse unknown or concurrent source writers; keep `plan` read-only.
-7. **Mutation boundary:** Show the complete batch and obtain explicit confirmation before any provider operation. Never add approval, sandbox, or hook-trust bypass flags.
+7. **Mutation boundary:** Show the complete batch and obtain explicit confirmation before any provider operation. CLI help authorizes only the exact syntax it reports; native cross-directory execution remains unavailable until a disposable two-worktree behavioral gate proves its semantics. Never add approval, sandbox, or hook-trust bypass flags.
 8. **Outcome model:** Keep native-operation and reporting outcomes separate; mixed batches are itemized and only failed or deferred items may be retried.
 9. **Persistence:** Retain no transcript bodies, credentials, or durable lineage registry by default.
 
@@ -125,18 +125,22 @@ The kickoff requirements are authoritative. Cursor is experimental and outside t
 - Shipped runtime code is dependency-free and requires Node.js 22+.
 - Canonical TypeScript and skill sources generate committed runtime outputs; provider mirrors are generated, not hand-edited.
 - Provider session stores and transcript databases are immutable inputs.
+- Enumeration, preview, comparison, and plan mode must leave both observer state and transcript-discovery caches unchanged, including when Codex cwd resolution starts from an empty cache.
 - V1 does not create/move worktrees, transfer Git state, push/pull, or synchronize uncommitted changes.
 - No Orc repository or adapter changes belong in this project.
 - Installed evidence on 2026-08-31 is Codex CLI 0.151.0 and Claude Code 2.1.251; capability drift must fail closed.
 - Neither installed CLI exposes a trustworthy active-writer preflight.
+- CLI help/version probes establish command shape only. They do not prove target cwd persistence, child identity, source resumability, or metadata effects.
 
 ## Success Criteria
 
 - Exact-worktree discovery lists several Codex and Claude candidates without recency auto-selection, related/global leakage, or provider-ID collisions.
 - Users can preview or compare selected candidates through bounded sanitized conversation rounds without state mutation.
+- Exact-worktree enumeration, preview, comparison, and plan mode leave a temporary empty observer-state directory unchanged, including no `codex-cwd-cache.json` creation.
 - Single, multi, and all selection produce a complete target-validated batch preview and explicit confirmation boundary.
 - Successor, resume, and plan semantics remain distinct; current/active-turn and one-writer limitations produce truthful deferral or refusal.
-- Provider capability drift, dirty-source risk, and ambiguous target identity fail closed with actionable diagnostics.
+- Provider capability drift, dirty-source risk, ambiguous target identity, and unverified cross-directory semantics fail closed with actionable diagnostics.
+- Disposable two-worktree verification records parent/child identity, runtime cwd, source resumability, and metadata effects for every executable Codex and Claude operation. Any operation whose behavior cannot be established remains `plan`/deferred and is labeled unverified.
 - Mixed native outcomes produce a recoverable parent-to-child ledger without repeating successful operations.
 - Plans and results contain no transcript bodies, hidden instructions, secrets, provider-store mutations, or dangerous bypass flags.
 - Repository tests, generated-output checks, validation, smoke, docs, and cross-provider installation compatibility pass.
@@ -174,7 +178,11 @@ The kickoff requirements are authoritative. Cursor is experimental and outside t
 - **Provider capability drift:** Help shape or semantics may change after upgrade.
   - **Likelihood:** Medium
   - **Impact:** High
-  - **Mitigation Ideas:** Probe exact capabilities and fail closed with the detected version and missing contract.
+  - **Mitigation Ideas:** Probe exact syntax, then require disposable two-worktree behavioral evidence before enabling execution; help output alone is insufficient.
+- **Inspection side effects:** Reusing the existing Codex discovery entry point can populate `codex-cwd-cache.json` even when no provider store changes.
+  - **Likelihood:** High
+  - **Impact:** Medium
+  - **Mitigation Ideas:** Introduce a read-only discovery seam and test from an empty temporary observer-state directory that remains byte-for-byte unchanged.
 - **False writer inference:** Recent or quiet transcripts can be mistaken for open or closed sessions.
   - **Likelihood:** High
   - **Impact:** High
