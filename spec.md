@@ -67,11 +67,13 @@ session or prove that a source writer is closed.
   canonical source worktree, qualified by provider and deduplicated by native identity.
 - **Acceptance Criteria:**
   - All exact-source candidates are returned, including multiple candidates per
-    provider.
+    provider and Codex sessions older than the observer's normal recency window.
   - Related-worktree and global candidates are excluded from the default result.
   - No candidate is selected or marked current merely because it is recent.
   - `current` is set only from direct provider/session identity evidence; otherwise the
     candidate reports no current identity.
+  - If bounded scanning cannot establish the complete exact set, discovery fails closed
+    as incomplete and cannot feed selection or mutation.
 - **Priority:** P0
 
 **FR2: Bounded sanitized preview and comparison**
@@ -82,6 +84,9 @@ session or prove that a source writer is closed.
   - Tool calls/results, commands, control messages, hidden/injected payload classes,
     transcript paths, and provider metadata are excluded from preview content.
   - Round and character limits are enforced before rendering.
+  - Transcript reads have explicit per-file and aggregate bounds; malformed, oversized,
+    or unreadable input yields path-free reason codes and never falls back to an
+    unbounded whole-file read.
   - Preview output is never copied into a handoff plan, confirmation digest, native
     result, or reconciliation ledger.
   - The UI states that sanitization removes hidden/control payloads but is not a
@@ -137,6 +142,9 @@ session or prove that a source writer is closed.
     resumability, or metadata effects.
   - Each executable operation requires disposable two-worktree evidence covering
     parent/child IDs, runtime cwd, source resumability, and metadata effects.
+  - A machine-validated receipt binds that evidence to the exact provider version and
+    normalized syntax fingerprint; reviewed source records only the receipt digest and
+    redacted contract metadata.
   - Implementation must run that gate for successor mode on the exact installed Codex
     and Claude versions. Both providers must pass before v1 is considered complete;
     inability to establish either contract is a reported product blocker rather than a
@@ -167,10 +175,10 @@ session or prove that a source writer is closed.
   - No provider store or transcript record is edited directly.
   - Only the locally verified Codex and Claude Code invocation shapes are planned.
   - A digest-confirmed successor on each exact verified installed version can launch
-    the provider-native operation and report the exact child identity after the native
-    session exits or reconciliation completes.
-  - Non-TTY, current-turn, unverified, and unsafe batch conditions become itemized
-    deferrals or refusals.
+    a bounded provider-native non-interactive marker operation and report the exact
+    child identity from machine output plus transcript corroboration.
+  - Current-turn, unavailable-authentication, unverified, and unsafe batch conditions
+    become itemized deferrals or refusals.
   - No dangerous bypass flag appears in a planned or executed invocation.
 - **Priority:** P0
 
@@ -344,9 +352,9 @@ from reporting success.
 | FR3 | Explicit one, many, or all selection | P0 | unit + CLI: selection parser and boundary validation | Pending plan mapping |
 | FR4 | Existing target and Git safety evidence | P0 | unit + integration: registered-worktree Git fixtures | Pending plan mapping |
 | FR5 | Successor, resume, and plan semantics | P0 | unit + CLI: mode and writer/current-turn decisions | Pending plan mapping |
-| FR6 | Provider syntax and behavioral gates | P0 | unit + manual: probe fixtures and opt-in live matrix | Pending plan mapping |
+| FR6 | Provider syntax and behavioral gates | P0 | unit + live gate: receipt-bound exact-version matrix | Pending plan mapping |
 | FR7 | Complete digest-confirmed batch plan | P0 | unit + CLI: digest freshness and stale-plan refusal | Pending plan mapping |
-| FR8 | Provider-native mutation and truthful deferral | P0 | unit + manual: argv invariants and opt-in TTY behavior | Pending plan mapping |
+| FR8 | Provider-native mutation and truthful deferral | P0 | unit + live gate: bounded machine successor execution | Pending plan mapping |
 | FR9 | Separate native/reporting outcomes and retries | P0 | unit: mixed outcome and reconciliation ledger | Pending plan mapping |
 | FR10 | Public standalone skill workflow | P0 | integration: layout, docs, version, and provider sync | Pending plan mapping |
 | NFR1 | Mutation-free inspection and cache bypass | P0 | integration: empty/stale state remains unchanged | Pending plan mapping |
@@ -380,8 +388,8 @@ from reporting success.
 - **Provider drift:** CLI syntax or behavior changes after upgrade.
   - **Likelihood:** Medium
   - **Impact:** High
-  - **Mitigation:** Exact-version/help probes plus separate opt-in behavioral evidence;
-    drift remains plan-only.
+  - **Mitigation:** Exact-version/help probes plus required receipt-bound behavioral
+    evidence; drift remains plan-only.
 - **False writer inference:** Quiet transcripts appear safe to resume.
   - **Likelihood:** High
   - **Impact:** High

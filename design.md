@@ -92,9 +92,11 @@ public runtime self-contained while preserving canonical imports from shared sou
 8. Classify each item ready/deferred/refused and construct structured argv.
 9. Canonicalize the mutation-relevant plan and compute SHA-256 confirmation digest.
 10. For execute, repeat steps 1-9 and require the exact supplied digest.
-11. Launch only ready items through provider-native argv with shell=false and TTY
-    inheritance; record exit/signal without capturing provider content.
-12. Rediscover target candidates and reconcile only exact parent/child lineage.
+11. Launch only ready successors through bounded provider-native non-interactive argv
+    with shell=false; parse the provider's machine event/result stream for the exact
+    child ID and discard raw content after validation.
+12. Corroborate that explicit child ID against the target transcript metadata and
+    reconcile only the expected exact parent/child pair.
 13. Return independent native/reporting states and failed/deferred retry keys.
 ```
 
@@ -113,17 +115,36 @@ strictly observational discovery path.
 
 **Responsibilities:**
 
-- Extend `discover` and exact-ID lookup with an optional persistence policy.
+- Extend discovery with explicit persistence, recency, and completeness policies.
 - Preserve `default` behavior for current consumers.
 - Under `forbid`, bypass both load and save of `codex-cwd-cache.json`.
+- Under `exact-all`, do not apply session-observer's seven-day Codex cutoff. Enumerate
+  every store entry within the declared scan budget and fail the complete discovery if
+  any entry cannot be classified safely.
 - Continue using only the request-local bounded classification cache.
-- Derive Codex cwd and identity through existing record readers/metadata extraction.
+- Add bounded prefix/tail record readers with a redacted diagnostic sink. Metadata
+  classification reads only a bounded prefix; preview reads a bounded tail. Neither
+  reader emits transcript paths or uses the current `console.warn` path.
 
 **Interfaces:**
 
 ```typescript
 interface DiscoveryOptions {
   persistence?: 'default' | 'forbid';
+  recency?: 'default' | 'exact-all';
+  budget?: {
+    maxEntries: number;
+    maxAggregateBytes: number;
+    maxMetadataBytesPerEntry: number;
+    deadlineMs: number;
+  };
+  diagnostic?: (event: SafeTranscriptDiagnostic) => void;
+}
+
+interface SafeTranscriptDiagnostic {
+  code: 'malformed-record' | 'oversized-record' | 'read-failed';
+  provider: HandoffProvider;
+  nativeId?: string;
 }
 
 function discover(
@@ -139,6 +160,16 @@ function findSessionCandidate(
   sessionId: string,
   options?: DiscoveryOptions,
 ): Promise<LocatedSession | null>;
+
+function readMetadataRecordsBounded(
+  transcriptPath: string,
+  options: { maxBytes: number; maxRecords: number; diagnostic: SafeDiagnosticSink },
+): Promise<unknown[]>;
+
+function readTailRecordsBounded(
+  transcriptPath: string,
+  options: { maxBytes: number; maxRecords: number; diagnostic: SafeDiagnosticSink },
+): Promise<{ records: unknown[]; truncated: boolean }>;
 ```
 
 **Design Decisions:**
@@ -147,6 +178,14 @@ function findSessionCandidate(
   influence a mutating selection, so `forbid` bypasses both directions.
 - Existing defaults remain unchanged to avoid altering session-observer performance or
   cache semantics.
+- Handoff always requests `persistence=forbid` and `recency=exact-all`. Its fixed scan
+  budget is 50,000 entries, 512 MiB aggregate stat size, 256 KiB/128 records for each
+  metadata prefix, and a 30-second deadline. Crossing any bound returns
+  `discovery-incomplete` and makes selection/planning unavailable; a partial candidate
+  set is never presented as complete.
+- Preview reads at most a 2 MiB/10,000-record tail per selected session before applying
+  the stricter round/character render limits. Oversize or unreadable previews fail that
+  preview only and do not weaken discovery completeness.
 
 ### Candidate Discovery and Preview
 
@@ -160,9 +199,9 @@ function findSessionCandidate(
   time may be displayed but never drives selection.
 - Mark current only from an exact explicit provider/session identity signal. The
   session-observer unique-same-cwd fallback is intentionally ignored.
-- Read candidate records, normalize conversation entries, structurally filter tool and
-  command content, apply the shared hidden-payload sanitizer, then bound rounds and
-  characters.
+- Read only the bounded transcript tail through the quiet reader, normalize conversation
+  entries, structurally filter tool and command content, apply the shared hidden-payload
+  sanitizer, then enforce the stricter round and character rendering bounds.
 - Use provider plus shortened ID and safe activity/engagement metadata as labels; do
   not derive a label from conversation content or transcript path.
 
@@ -203,6 +242,9 @@ interface SessionPreview {
   type and serialization boundary, not merely an instruction.
 - Default preview limits are 3 rounds and 4,000 characters per candidate; hard maximums
   are 20 rounds and 32 KiB.
+- A malformed/oversized/unreadable transcript yields a safe provider-qualified reason
+  code without its transcript path. Discovery never silently omits it; preview never
+  falls back to an unbounded read.
 
 ### Git Target Validator
 
@@ -257,9 +299,17 @@ behind one narrow boundary.
 
 - Probe version and required help shapes with a 10-second timeout and 64 KiB output cap.
 - Normalize capability fingerprints and discard raw help output.
-- Construct exact argv/cwd for Codex fork/resume and Claude successor/resume.
+- Construct bounded non-interactive successor argv/cwd that returns machine-readable
+  child identity. Keep interactive resume argv as post-handoff guidance, not as the
+  operation transport.
 - Consult a source-controlled exact-version operation matrix before marking an item
   executable; only reviewed disposable-gate evidence can set an entry to verified.
+- Expose a two-step live-gate command (`behavior-plan`, then digest-confirmed
+  `behavior-verify`) that creates its own disposable repository/worktrees/sessions,
+  performs bounded provider calls, and writes a user-selected mode-0600 receipt.
+- Preflight supported provider authentication metadata only. Missing authentication
+  returns `provider-auth-required` and names the supported login command; it never reads
+  or prints credentials.
 - Scan argv for forbidden bypass flags as a defense-in-depth invariant.
 
 **Interfaces:**
@@ -285,9 +335,13 @@ interface CapabilityProbe {
 interface ProviderBehaviorContract {
   provider: HandoffProvider;
   exactVersion: string;
-  successor: 'verified' | 'unverified';
-  resume: 'verified' | 'unverified';
-  evidenceNote: string;
+  syntaxFingerprint: string;
+  successor: {
+    status: 'verified' | 'unverified';
+    receiptDigest?: string;
+    verifiedAt?: string;
+  };
+  resume: { status: 'unverified' };
 }
 
 interface NativeInvocation {
@@ -295,26 +349,99 @@ interface NativeInvocation {
   argv: string[];
   cwd: string;
   shell: false;
-  stdio: 'inherit';
+  stdio: 'pipe';
+  timeoutMs: 60_000;
+  maxOutputBytes: 65_536;
+}
+
+interface BehavioralGateReceipt {
+  schemaVersion: 1;
+  provider: HandoffProvider;
+  executablePath: string;
+  exactVersion: string;
+  syntaxFingerprint: string;
+  operation: 'successor';
+  fixture: {
+    repositoryRoot: string;
+    sourceWorktree: string;
+    targetWorktree: string;
+  };
+  observations: {
+    parentNativeId: string;
+    requestedChildNativeId?: string;
+    observedChildNativeId: string;
+    recordedChildCwd: string;
+    exactParentLineage: boolean;
+    sourceParentResumable: boolean;
+    metadataEffects: string[];
+  };
+  bounds: {
+    calls: number;
+    timeoutMsPerCall: number;
+    outputBytesPerCall: number;
+    maxBudgetUsd?: number;
+  };
+  cleanup: {
+    gitFixture: 'removed' | 'failed';
+    providerSessions: 'removed' | 'failed';
+    reasonCodes: string[];
+  };
+  status: 'passed' | 'failed' | 'inconclusive';
+  reasonCodes: string[];
+  createdAt: string;
 }
 ```
 
-Exact syntax contracts:
+Exact successor operation contracts:
 
 ```text
-Codex successor: cwd=target, argv=[fork, -C, target, parentId]
-Codex resume:    cwd=target, argv=[resume, -C, target, parentId]
-Claude successor:cwd=target, argv=[--resume, parentId, --fork-session]
-Claude resume:   cwd=target, argv=[--resume, parentId]
+Codex successor:
+  cwd=target
+  argv=[exec, fork, --json, -c, sandbox_mode="read-only", parentId,
+        "Reply exactly HANDOFF_READY. Do not use tools."]
+  child ID=parse exact thread.started.thread_id
+
+Claude successor:
+  cwd=target
+  childId=pre-generated UUID
+  argv=[--safe-mode, --print, --output-format, json,
+        --resume, parentId, --fork-session, --session-id, childId,
+        --permission-mode, plan, --tools, "", --max-budget-usd, 0.15,
+        "Reply exactly HANDOFF_READY. Do not use tools."]
+  child ID=exact requested UUID corroborated by output session_id and transcript
+
+Post-handoff user guidance:
+  Codex:  codex resume -C target childId
+  Claude: cwd=target claude --resume childId
 ```
 
 Installed help establishes these shapes for Codex 0.151.0 and Claude Code 2.1.251.
+The non-interactive marker turn is visible in the complete plan and keeps the operation
+bounded while producing an exact child ID; it is part of the confirmed mutation.
 The implementation begins with all operations `unverified`, then must run the bounded
 disposable successor gate for both providers. Passing evidence must include the exact
 parent ID, child ID, child runtime/recorded target cwd, source resumability, and metadata
 effects. Reviewed evidence changes only the corresponding exact-version successor
-entry to `verified`. Resume remains `unverified` unless a separate writer-closed proof
-contract is added. Failure to verify either installed successor is a product blocker.
+entry to `verified` and binds it to the normalized syntax fingerprint plus the SHA-256
+of the reviewed raw receipt. Exact IDs and fixture paths remain in the local receipt and
+do not enter committed product output; the committed matrix stores only the digest,
+version, fingerprint, date, and pass status. Resume remains `unverified` unless a
+separate writer-closed proof contract is added. Failure to verify either installed
+successor is a product blocker.
+
+`behavior-plan` reports provider, detected authentication/version, disposable fixture
+shape, calls, prompts, bounds, cleanup limitations, and a confirmation digest without
+mutation. `behavior-verify --confirm DIGEST --receipt NEW_PATH` recomputes that plan,
+requires an unused receipt path, runs the gate, writes the raw receipt atomically with
+mode 0600, and prints only its digest/status. Matrix activation is a reviewed source
+change whose tests recompute the receipt digest and syntax fingerprint; no runtime flag
+can activate or override a contract.
+
+After capturing and hashing all evidence, the verifier removes the temporary Git
+worktrees/repository and deletes only the exact disposable provider sessions through
+provider-owned cleanup commands. The receipt records cleanup outcomes. Failed cleanup
+makes the gate `inconclusive` and blocks matrix activation; provider telemetry/caches and
+consumed quota may remain and are stated as irreversible limitations.
 
 ### Handoff Orchestrator
 
@@ -325,12 +452,19 @@ and outcome semantics without durable state.
 
 - Validate provider-qualified selection or explicit all selection.
 - Classify every item `ready`, `deferred`, or `refused` with stable reason codes.
-- Refuse resume when writer proof is absent; defer current-turn and non-TTY execution.
+- Refuse resume when writer proof is absent. A current active parent turn is deferred;
+  successor execution itself is non-interactive and does not require a TTY.
 - Create a canonical JSON projection and SHA-256 confirmation digest.
 - Rebuild the full plan on execute and require the supplied digest.
-- Spawn only ready items sequentially with inherited stdio and shell disabled.
-- Record only exit code/signal, never provider stdout/stderr content.
-- Reconcile successors against a target baseline using exact lineage only.
+- Spawn only ready items sequentially with bounded captured stdio and shell disabled.
+- Parse the minimum exact child-ID fields from bounded provider machine output, then
+  discard raw stdout/stderr and retain only exit/signal plus safe reason codes.
+- Corroborate Codex `thread.started.thread_id` against child metadata
+  (`payload.id`, `payload.cwd`, `payload.forked_from_id`). Corroborate Claude's
+  pre-generated UUID against output `session_id`, the exact transcript filename/
+  records, target cwd, and inherited parent-record UUID prefix observed by the gate.
+- Classify timeout/termination as `indeterminate` unless exact child corroboration proves
+  creation; indeterminate operations are never automatically retryable.
 - Produce retry keys from failed/deferred native outcomes, never native successes.
 
 **Interfaces:**
@@ -360,7 +494,13 @@ interface HandoffPlan {
 }
 
 interface NativeOutcome {
-  status: 'not-run' | 'deferred' | 'refused' | 'succeeded' | 'failed';
+  status:
+    | 'not-run'
+    | 'deferred'
+    | 'refused'
+    | 'succeeded'
+    | 'failed'
+    | 'indeterminate';
   exitCode?: number | null;
   signal?: string | null;
   retryable: boolean;
@@ -409,6 +549,8 @@ plan --source PATH --target PATH (--session PROVIDER:ID...|--all)
 execute --source PATH --target PATH (--session PROVIDER:ID...|--all)
         --mode successor|resume --confirm SHA256 [--json]
 reconcile --source PATH --target PATH --input PATH|- [--json]
+behavior-plan --provider codex|claude [--json]
+behavior-verify --provider codex|claude --confirm SHA256 --receipt NEW_PATH [--json]
 ```
 
 **Validation Rules:**
@@ -417,25 +559,41 @@ reconcile --source PATH --target PATH --input PATH|- [--json]
 - There is no implicit or recency selector and no bare native ID.
 - `execute` never accepts `plan` mode or a force/unverified bypass.
 - Reconcile input is capped at 1 MiB and strictly validated as a v1 batch outcome.
+- Native successor subprocesses use bounded pipe capture, so provider control traffic
+  never reaches the handoff CLI's stdout; `--json` still emits exactly one envelope.
+- `behavior-verify` refuses an existing receipt path and unavailable provider auth. It
+  emits no raw provider output, IDs, fixture paths, or credentials to stdout.
 - JSON errors use stable `code`, `message`, and safe `details`; human errors never
   include transcript paths or raw subprocess output.
 
 ## Data Models
 
-All handoff objects are ephemeral in-memory values serialized only to stdout when the
-user requests human or JSON output. The runtime creates no state directory or registry.
-The only persistent feature data is source-controlled code, tests, documentation, and
-the generated runtime.
+Normal handoff objects are ephemeral in-memory values serialized only to stdout when
+the user requests human or JSON output. The runtime creates no state directory or
+registry. The development/revalidation-only `behavior-verify` command is the sole
+exception: after separate digest confirmation it writes one explicitly selected,
+mode-0600 raw evidence receipt so a reviewer can validate matrix activation. That
+receipt is not consulted at runtime, is never auto-discovered, and is not committed;
+the source-controlled matrix retains only its digest and redacted contract metadata.
 
 Candidate native IDs and worktree paths are operational metadata and may appear in
 plans/results. Transcript file paths and transcript bodies may not. Preview has its own
 output type and cannot be embedded in a plan or outcome.
 
-To support exact Codex successor reconciliation, shared extracted metadata may gain an
-optional `forkedFromSessionId`. Unknown providers and Claude records leave it absent.
-The orchestrator maps a child only when exactly one newly discovered target candidate
-has an exact parent ID match. Same-ID resume, if ever enabled, maps to the parent ID by
-definition.
+Shared Codex metadata gains separate `nativeSessionId` (`payload.id`), optional
+`rootSessionId` (`payload.session_id`), and optional `forkedFromSessionId`
+(`payload.forked_from_id`); existing callers retain their current `sessionId` contract.
+The successor path requires all three observed values it uses to agree with the parsed
+`thread.started.thread_id`, selected parent, and target cwd.
+
+Claude successor identity is explicit rather than inferred: the runtime pre-generates a
+child UUID and passes it through provider-supported `--session-id` together with
+`--resume PARENT --fork-session`. It requires output `session_id`, child transcript
+identity/records, and target cwd to match that exact UUID. The disposable gate also
+proves that the parent's ordered pre-fork record UUIDs are inherited by the child and
+that resuming the source parent does not change the child. Production reconciliation
+never uses recency or set-size inference. Same-ID resume, if ever enabled, maps to the
+parent ID by definition.
 
 ## API Design
 
@@ -449,7 +607,14 @@ Successful commands emit exactly one object:
 ```typescript
 interface SuccessEnvelope<T> {
   ok: true;
-  command: 'discover' | 'preview' | 'plan' | 'execute' | 'reconcile';
+  command:
+    | 'discover'
+    | 'preview'
+    | 'plan'
+    | 'execute'
+    | 'reconcile'
+    | 'behavior-plan'
+    | 'behavior-verify';
   data: T;
 }
 
@@ -477,7 +642,9 @@ The skill must:
 6. Explain that current/unverified/multi-host-limited items are post-turn deferrals, not
    native success.
 7. Run execute only after confirmation; never fabricate child mappings.
-8. Report each native and reporting outcome and retry only listed keys.
+8. For each native success, show the exact verified parent→child mapping and the
+   provider-native command that opens the child in the target worktree.
+9. Report each native and reporting outcome and retry only listed keys.
 
 ## Security Considerations
 
@@ -518,16 +685,20 @@ token, not a security credential.
 
 ## Performance Considerations
 
-Discovery retains the existing bounded record readers and a request-local metadata
-cache, while persistent Codex cache access is disabled for correctness. Candidates are
-sorted deterministically after deduplication. Preview reads only selected candidates
-and truncates after its round/character budget.
+Exact discovery uses the new quiet bounded prefix reader and a request-local metadata
+cache while persistent Codex cache access and the seven-day cutoff are disabled.
+Completeness is all-or-error within 50,000 store entries, 512 MiB aggregate stat size,
+256 KiB/128 metadata records per entry, and 30 seconds. Candidates are sorted
+deterministically only after every entry is classified. Preview reads only selected
+candidates through a 2 MiB/10,000-record bounded tail and then applies round/character
+limits. No path-bearing shared warning is used.
 
 Provider probes are sequential per provider and bounded to 10 seconds and 64 KiB per
-invocation. Git commands have a 10-second timeout and bounded output; an oversized
-porcelain result becomes a safe failure rather than partial evidence. Reconcile reads at
-most 1 MiB of input. The expected scale is local developer session stores, not an
-unbounded service workload.
+invocation. Native marker calls and live-gate calls are bounded to 60 seconds and 64 KiB
+per call; Claude additionally uses a $0.15 maximum per call. Git commands have a
+10-second timeout and bounded output; an oversized porcelain result becomes a safe
+failure rather than partial evidence. Reconcile reads at most 1 MiB of input. The
+expected scale is local developer session stores, not an unbounded service workload.
 
 No database, network service, cache TTL, or horizontal scaling design applies.
 
@@ -538,20 +709,25 @@ No database, network service, cache TTL, or horizontal scaling design applies.
 - **User/input:** Invalid option combinations, bare/unknown IDs, empty selection,
   nonexistent target, same source/target.
 - **Safety refusal:** Distinct dirty source, distinct repository, unknown writer for
-  resume, stale confirmation, capability/behavior drift, forbidden flag invariant.
-- **Deferral:** Current turn, non-TTY host, unverified behavioral contract, or execution
+  resume, incomplete exact discovery, stale confirmation, provider auth unavailable,
+  capability/behavior drift, forbidden flag invariant.
+- **Deferral:** Current active parent turn, unverified behavioral contract, or execution
   timing that cannot be observed honestly.
-- **Native failure:** Provider exits nonzero or by signal after launch.
+- **Native failure:** Provider fails before any child is corroborated.
+- **Native indeterminate:** Timeout/termination or malformed provider output where child
+  creation cannot be proved or disproved; never automatically retryable.
 - **Reporting failure:** Exact child lineage is absent, ambiguous, or cannot be read.
 - **System:** Bounded file/Git/probe errors, malformed transcript records, or invalid
   reconciliation input.
 
 ### Retry Logic
 
-Discovery, preview, and plan are safe to rerun. Native operations are never retried by
-the runtime automatically. The batch outcome exposes only failed/deferred native keys;
-the caller must build and reconfirm a fresh plan for those keys. Reporting reconciliation
-is read-only and may be rerun for a native success without rerunning the provider.
+Discovery, preview, and plan are safe to rerun after correcting an incomplete-input
+condition. Native operations are never retried by the runtime automatically. The batch
+outcome exposes only definitively failed-before-child or deferred native keys; refused,
+succeeded, and indeterminate items are excluded. The caller must build and reconfirm a
+fresh plan for eligible keys. Reporting reconciliation is read-only and may be rerun for
+a native success or indeterminate item without rerunning the provider.
 
 ### Logging
 
@@ -565,21 +741,21 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 
 | ID | Verification | Key Scenarios |
 | --- | --- | --- |
-| FR1 | unit + integration | multiple Codex/Claude candidates; exact vs sister/global cwd; provider ID collision; direct-only current identity |
-| FR2 | unit | hidden/control/tool filtering; round/char bounds; malformed records; no preview in plan/result serialization |
+| FR1 | unit + integration | multiple Codex/Claude candidates including Codex older than seven days; exact vs sister/global cwd; provider ID collision; direct-only current identity; incomplete-budget refusal |
+| FR2 | unit | bounded tail/prefix reads; hidden/control/tool filtering; round/char bounds; malformed/oversized records; path-free diagnostics; no preview in plan/result serialization |
 | FR3 | unit + CLI | single, repeated, all, mutual exclusion, bare/unknown/duplicate IDs, no recency option |
 | FR4 | unit + integration | missing/non-worktree target, separate clone, symlink alias, detached HEAD, dirty source/target, changed evidence |
 | FR5 | unit + CLI | successor default, resume unknown-writer refusal, current-turn and plan-only decisions |
-| FR6 | unit + manual | exact version/help, missing binary/token, timeout/output cap, version drift, unverified behavior, opt-in two-worktree matrix |
+| FR6 | unit + live gate | exact version/help/auth, timeout/output cap, version drift, receipt schema/digest/fingerprint binding, required two-worktree activation |
 | FR7 | unit + CLI | canonical digest, wrong/missing digest, candidate/Git/capability drift, preview exclusion |
-| FR8 | unit + manual | four exact argv shapes, shell false, TTY/current/unverified deferrals, no forbidden flags |
-| FR9 | unit | partial native success, unresolved/ambiguous lineage, native/reporting independence, retry key safety |
+| FR8 | unit + live gate | exact non-interactive successor argv/marker, shell false, bounded machine output, exact child IDs, current/unverified deferrals, no forbidden flags |
+| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, partial/indeterminate outcomes, native/reporting independence, retry safety |
 | FR10 | integration | public skill inventory, frontmatter/version, docs/navigation, generated runtime and provider sync |
 | NFR1 | integration | stale cache ignored; empty state remains absent; observer/transcript/provider byte identity |
 | NFR2 | unit + integration | no transcript body/path/raw output/credentials in plan, errors, outcome, or digest inputs |
 | NFR3 | unit | adversarial IDs/paths/help, ANSI/control output, ambiguous repository/writer/lineage, no shell |
 | NFR4 | build | bundled generated output, source/output sync, no runtime dependency |
-| NFR5 | unit | preview, probe, Git, and reconcile input caps; deterministic ordering |
+| NFR5 | unit + integration | all-or-error discovery scan, prefix/tail, probe, Git, native, and reconcile caps; deterministic ordering |
 | NFR6 | integration | focused suites, full tests, validate, build check, smoke, docs index, provider install views |
 
 ### Unit Tests
@@ -592,9 +768,12 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 
 ### Integration Tests
 
-- Build temporary Codex and Claude stores with exact, sister, and global cwd records.
+- Build temporary Codex and Claude stores with exact, sister, and global cwd records,
+  including an exact Codex record older than seven days.
 - Assert `persistence=forbid` ignores a seeded stale Codex cache and leaves an empty
   state directory nonexistent.
+- Assert entry/aggregate/prefix/tail/deadline overflow returns safe incomplete or preview
+  errors without a partial discovery result or transcript path.
 - Create temporary Git repository worktrees for same-common-dir and separate-clone
   cases; assert status fingerprints and drift behavior.
 - Exercise CLI commands as subprocesses with fixture environment variables and mocked
@@ -603,15 +782,20 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 ### End-to-End Tests
 
 The normal suite uses mocked provider CLIs and must prove both verified-execution and
-unverified-plan/deferred behavior without real mutation. A bounded live-provider gate
+unverified-plan/deferred behavior without real mutation, including exact machine-output
+parsing and raw-output isolation from the JSON envelope. A bounded live-provider gate
 creates a disposable Git repository with two worktrees and disposable Codex/Claude
 parent sessions, invokes each native successor contract, captures exact parent/child
 identity, verifies the child target cwd, proves the source parent remains resumable, and
-records metadata effects. This gate is explicitly authorized for the current
+records metadata effects. Codex parses `thread.started.thread_id` and corroborates
+`payload.id/cwd/forked_from_id`; Claude pre-generates `--session-id`, requires matching
+output/transcript records and target cwd, and proves the inherited parent UUID prefix
+plus later source-only resume record. The gate is explicitly authorized for the current
 implementation and exact installed versions. It must use no real project session, no
-bypass flag, and a strict prompt/quota/time bound. Only reviewed passing evidence may
-change the source-controlled behavior matrix; either provider's failure blocks v1
-completion.
+bypass flag, and a strict prompt/quota/time bound. A reviewer validates the local raw
+receipt before its digest and syntax fingerprint activate canonical source. Only then do
+the normal tests switch the exact contract to verified. Either provider's failure blocks
+v1 completion.
 
 ## Deployment Strategy
 
@@ -652,16 +836,24 @@ is a code revert; existing session-observer behavior remains unchanged.
 
 ## Open Questions
 
+**Nonblocking follow-up:**
+
 - Which future provider/host signal can supply conservative writer-closed proof for
   same-ID resume?
-- Which exact Claude-native result or transcript field proves successor lineage during
-  the required disposable gate?
-- Do exact Codex 0.151.0 and Claude Code 2.1.251 successor operations both satisfy the
-  required gate? This must be answered during implementation; a negative or
-  unobservable result is a product blocker.
 
-These questions do not block v1 because their affected paths fail closed as refused,
-unresolved, or plan/deferred.
+**Blocking implementation gates:**
+
+- Does exact Codex 0.151.0 successor execution corroborate returned child ID, target
+  cwd, `forked_from_id`, and source parent resumability?
+- Does exact Claude Code 2.1.251 successor execution honor the pre-generated child UUID,
+  target cwd, inherited parent UUID prefix, and source parent resumability? Claude is
+  currently unauthenticated on this host, so the supported `claude auth login` flow is
+  a prerequisite; credentials must never be pasted into chat or captured in receipts.
+
+Both successor questions must pass during implementation. A negative, unauthenticated,
+or unobservable result blocks v1 completion rather than reducing the product to
+plan-only. The same-ID question does not block v1 because resume remains explicitly
+refused.
 
 ## Implementation Phases
 
@@ -672,9 +864,10 @@ behavior.
 
 **Tasks:**
 
-- Test and add persistent-cache bypass options to shared discovery.
+- Test and add persistent-cache/recency bypass plus bounded quiet prefix/tail readers to
+  shared discovery.
 - Implement provider-qualified exact candidate discovery and direct-only current
-  evidence.
+  evidence with all-or-error completeness budgets.
 - Implement bounded sanitized preview without plan/result coupling.
 
 **Verification:** Focused transcript-core/session-observer and new discovery/preview
@@ -703,12 +896,20 @@ and read-only reconciliation.
 
 - Implement Codex/Claude syntax probes, behavior matrix, invocation builders, and
   forbidden-flag checks.
-- Implement confirmation revalidation, TTY/native outcome semantics, and no automatic
-  retries.
-- Extend exact Codex lineage extraction and implement reconcile outcomes.
+- Implement confirmation revalidation, bounded non-interactive native outcome parsing,
+  exact child corroboration, indeterminate handling, and no automatic retries.
+- Extend exact Codex lineage/native ID extraction, implement predetermined Claude child
+  UUID corroboration, and add read-only reconcile outcomes.
+- Implement `behavior-plan`/`behavior-verify`, receipt validation/redaction rules, auth
+  preflight, digest/fingerprint binding, and disposable fixture cleanup guidance.
+- Run the required Codex and Claude successor gates, submit both raw receipts for
+  independent evidence review, then activate only reviewed passing exact-version
+  contracts in canonical source.
 
 **Verification:** Mock provider and outcome suites prove every ready/defer/refuse/native/
-reporting state. Live provider behavior remains opt-in and unclaimed.
+reporting/indeterminate state. Both exact installed successor receipts pass independent
+review, their digests/fingerprints match canonical contracts, and an exact-version
+mocked/native plan becomes executable while drift remains deferred.
 
 ### Phase 4: Public skill and repository integration
 
