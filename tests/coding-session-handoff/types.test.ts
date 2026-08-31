@@ -217,6 +217,35 @@ describe('preview schemas and limits', () => {
       }),
     ).toThrow('preview-entry-role');
   });
+
+  test('allows preview newlines and tabs while rejecting unsafe controls', () => {
+    const preview = {
+      key: 'claude:abc',
+      rounds: [
+        [
+          {
+            role: 'user',
+            text: 'first line\n\tindented second line',
+          },
+        ],
+      ],
+      truncated: false,
+      omittedEntries: 0,
+      warning: 'hidden-payload-sanitized-not-secret-free',
+    };
+
+    expect(parseSessionPreview(preview).rounds[0]?.[0]?.text).toBe(
+      'first line\n\tindented second line',
+    );
+    for (const control of ['\0', '\u001b', '\u007f', '\u009b']) {
+      expect(() =>
+        parseSessionPreview({
+          ...preview,
+          rounds: [[{ role: 'user', text: `unsafe${control}text` }]],
+        }),
+      ).toThrow('preview-entry-text');
+    }
+  });
 });
 
 describe('Git, capability, invocation, plan, and envelope schemas', () => {

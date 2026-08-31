@@ -370,6 +370,25 @@ function string(value: unknown, code: string): string {
   return value;
 }
 
+function previewText(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    fail('preview-entry-text');
+  }
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    const allowedWhitespace =
+      codePoint === 0x09 || codePoint === 0x0a || codePoint === 0x0d;
+    if (
+      codePoint === undefined ||
+      (codePoint < 0x20 && !allowedWhitespace) ||
+      (codePoint >= 0x7f && codePoint <= 0x9f)
+    ) {
+      fail('preview-entry-text');
+    }
+  }
+  return value;
+}
+
 function boolean(value: unknown, code: string): boolean {
   if (typeof value !== 'boolean') fail(code);
   return value;
@@ -567,7 +586,7 @@ function parsePreviewEntry(value: unknown): PreviewEntry {
       ['user', 'assistant'] as const,
       'preview-entry-role',
     ),
-    text: string(entry.text, 'preview-entry-text'),
+    text: previewText(entry.text),
   };
 }
 

@@ -10,6 +10,7 @@ import {
   type HandoffPreviewDependencies,
   type PreviewSource,
 } from '../../src/transcript/coding-session-handoff/preview.js';
+import { parseSessionPreview } from '../../src/transcript/coding-session-handoff/types.js';
 import type {
   DigestEntry,
   JsonObject,
@@ -139,6 +140,23 @@ describe('bounded sanitized session preview', () => {
         warning: 'hidden-payload-sanitized-not-secret-free',
       },
     ]);
+  });
+
+  test('round-trips produced multiline and tabbed preview text through the schema', async () => {
+    const sources = [
+      source('codex:multiline', [
+        entry('user', 'first line\n\tindented second line'),
+        entry('assistant', 'answer line one\nanswer line two'),
+      ]),
+    ];
+    const fixture = dependencies();
+    fixture.register(sources);
+
+    const [preview] = await previewHandoffCandidates(sources, {
+      deps: fixture.deps,
+    });
+
+    expect(parseSessionPreview(preview)).toEqual(preview);
   });
 
   test('orders candidates by qualified key and keeps only the newest configured rounds', async () => {
