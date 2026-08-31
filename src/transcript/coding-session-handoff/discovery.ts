@@ -20,6 +20,16 @@ const PROVIDER_RUNTIME = {
   codex: 'codex',
 } as const;
 
+/** Compare qualified IDs by UTF-16 code units without host-locale state. */
+export function compareQualifiedSessionIds(
+  left: SessionCandidate['key'],
+  right: SessionCandidate['key'],
+): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 export const HANDOFF_DISCOVERY_OPTIONS = Object.freeze({
   persistence: 'forbid',
   recency: 'exact-all',
@@ -222,5 +232,5 @@ export async function discoverHandoffCandidates(
 
   return [...byKey.values()]
     .map(({ candidate }) => candidate)
-    .toSorted((left, right) => left.key.localeCompare(right.key));
+    .toSorted((left, right) => compareQualifiedSessionIds(left.key, right.key));
 }

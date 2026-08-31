@@ -6,6 +6,7 @@ import {
   type SafeTranscriptDiagnosticCode,
 } from '../core/runtimes.js';
 import { sanitizeEntries } from '../export-session/sanitize.js';
+import { compareQualifiedSessionIds } from './discovery.js';
 import {
   DEFAULT_PREVIEW_BATCH_LIMITS,
   DEFAULT_SESSION_PREVIEW_LIMITS,
@@ -216,7 +217,7 @@ export async function previewHandoffCandidates(
   const ordered = sources
     .map(validateSource)
     .toSorted((left, right) =>
-      left.candidate.key.localeCompare(right.candidate.key),
+      compareQualifiedSessionIds(left.candidate.key, right.candidate.key),
     );
   const keys = ordered.map(({ candidate }) => candidate.key);
   if (new Set(keys).size !== keys.length) {

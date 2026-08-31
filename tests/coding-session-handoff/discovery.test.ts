@@ -289,6 +289,26 @@ describe('exact handoff candidate discovery', () => {
     ]);
   });
 
+  test('orders mixed-case, punctuation, and non-ASCII qualified IDs by code unit', async () => {
+    const deps = dependencies({
+      codex: [
+        transcriptCandidate('codex', 'é', '/repo/source'),
+        transcriptCandidate('codex', 'a', '/repo/source'),
+        transcriptCandidate('codex', '_', '/repo/source'),
+        transcriptCandidate('codex', 'Z', '/repo/source'),
+      ],
+    });
+
+    const result = await discoverHandoffCandidates('/repo/source', { deps });
+
+    expect(result.map(({ key }) => key)).toEqual([
+      'codex:Z',
+      'codex:_',
+      'codex:a',
+      'codex:é',
+    ]);
+  });
+
   test('includes old Codex sessions and never marks current from candidate active/recency fields', async () => {
     const deps = dependencies({
       codex: [

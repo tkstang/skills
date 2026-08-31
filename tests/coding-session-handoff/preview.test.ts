@@ -166,6 +166,25 @@ describe('bounded sanitized session preview', () => {
     });
   });
 
+  test('orders mixed-case, punctuation, and non-ASCII qualified IDs by code unit', async () => {
+    const sources = ['é', 'a', '_', 'Z'].map((nativeId) =>
+      source(`codex:${nativeId}`, [entry('user', nativeId)]),
+    );
+    const fixture = dependencies();
+    fixture.register(sources);
+
+    const result = await previewHandoffCandidates(sources, {
+      deps: fixture.deps,
+    });
+
+    expect(result.map(({ key }) => key)).toEqual([
+      'codex:Z',
+      'codex:_',
+      'codex:a',
+      'codex:é',
+    ]);
+  });
+
   test('enforces per-candidate character bounds before returning preview text', async () => {
     const sources = [
       source('codex:one', [
