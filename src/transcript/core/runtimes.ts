@@ -18,7 +18,7 @@
 
 import { open, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 
 export type Runtime = 'claude-code' | 'codex' | 'cursor';
 export type JsonObject = Record<string, unknown>;
@@ -1046,6 +1046,30 @@ export async function extractMeta(
 ): Promise<TranscriptMeta | null> {
   const records = await readRecords(transcriptPath);
   return extractMetaFromRecords(runtime, records, transcriptPath);
+}
+
+/**
+ * Extract exact Claude Code cwd evidence from top-level transcript records.
+ * Every present cwd field must be a non-empty absolute string, and all
+ * observed values must agree. A transcript without exact evidence is not
+ * classifiable for complete discovery.
+ */
+export function extractClaudeRecordedCwdFromRecords(
+  records: JsonObject[],
+): string | null {
+  let recordedCwd: string | null = null;
+
+  for (const record of records) {
+    if (!Object.hasOwn(record, 'cwd')) continue;
+    const cwd = record.cwd;
+    if (typeof cwd !== 'string' || cwd.length === 0 || !isAbsolute(cwd)) {
+      return null;
+    }
+    if (recordedCwd !== null && cwd !== recordedCwd) return null;
+    recordedCwd = cwd;
+  }
+
+  return recordedCwd;
 }
 
 /**

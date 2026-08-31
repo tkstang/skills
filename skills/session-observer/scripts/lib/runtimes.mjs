@@ -2,7 +2,7 @@
 // Source: src/transcript/core/runtimes.ts
 import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
 const ASK_USER_PROMPT_LIMIT = 500;
@@ -512,6 +512,19 @@ async function extractMeta(runtime, transcriptPath) {
   const records = await readRecords(transcriptPath);
   return extractMetaFromRecords(runtime, records, transcriptPath);
 }
+function extractClaudeRecordedCwdFromRecords(records) {
+  let recordedCwd = null;
+  for (const record of records) {
+    if (!Object.hasOwn(record, "cwd")) continue;
+    const cwd = record.cwd;
+    if (typeof cwd !== "string" || cwd.length === 0 || !isAbsolute(cwd)) {
+      return null;
+    }
+    if (recordedCwd !== null && cwd !== recordedCwd) return null;
+    recordedCwd = cwd;
+  }
+  return recordedCwd;
+}
 function extractMetaFromRecords(runtime, records, transcriptPath) {
   if (runtime === "claude-code") {
     let sessionId;
@@ -1006,6 +1019,7 @@ export {
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
   extractMeta,
   extractMetaFromRecords,
   isAutomaticControlAcknowledgement,

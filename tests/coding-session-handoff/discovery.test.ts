@@ -1,3 +1,7 @@
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, test, vi } from 'vitest';
 
 import {
@@ -68,6 +72,79 @@ function dependencies(
 }
 
 describe('exact handoff candidate discovery', () => {
+  test.sequential('separates colliding Claude slugs using exact transcript cwd evidence', async () => {
+    const createdHome = await mkdtemp(
+      join(tmpdir(), 'handoff-claude-collision-'),
+    );
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const hyphenRoot = join(home, 'roots', 'a-b');
+      const nestedRoot = join(home, 'roots', 'a', 'b');
+      await mkdir(hyphenRoot, { recursive: true });
+      await mkdir(nestedRoot, { recursive: true });
+      const canonicalHyphenRoot = await realpath(hyphenRoot);
+      const canonicalNestedRoot = await realpath(nestedRoot);
+      const sharedSlug = canonicalHyphenRoot.replace(/[/.]/gu, '-');
+      expect(canonicalNestedRoot.replace(/[/.]/gu, '-')).toBe(sharedSlug);
+      const projectDir = join(home, '.claude', 'projects', sharedSlug);
+      await mkdir(projectDir, { recursive: true });
+
+      const transcript = (cwd: string, sessionId: string) =>
+        [
+          { type: 'summary', sessionId, cwd },
+          {
+            type: 'user',
+            sessionId,
+            cwd,
+            message: { role: 'user', content: 'Hello' },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            cwd,
+            message: {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'Hi' }],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n';
+      await writeFile(
+        join(projectDir, 'hyphen.jsonl'),
+        transcript(canonicalHyphenRoot, 'claude-hyphen'),
+        'utf8',
+      );
+      await writeFile(
+        join(projectDir, 'nested.jsonl'),
+        transcript(canonicalNestedRoot, 'claude-nested'),
+        'utf8',
+      );
+
+      await expect(
+        discoverHandoffCandidates(canonicalHyphenRoot),
+      ).resolves.toEqual([
+        expect.objectContaining({ key: 'claude:claude-hyphen' }),
+      ]);
+      await expect(
+        discoverHandoffCandidates(canonicalNestedRoot),
+      ).resolves.toEqual([
+        expect.objectContaining({ key: 'claude:claude-nested' }),
+      ]);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('returns only exact canonical cwd candidates from both providers', async () => {
     const deps = dependencies({
       codex: [

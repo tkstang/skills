@@ -24,6 +24,7 @@ import {
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
   extractMeta,
   isAutomaticControlAcknowledgement,
   isNoOpText,
@@ -403,6 +404,28 @@ describe('encodeCwd', () => {
       '/Users/thomas.stang/Code/vox/duet',
     );
     expectDeepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
+  });
+});
+
+describe('extractClaudeRecordedCwdFromRecords', () => {
+  it('returns agreeing absolute top-level cwd evidence', () => {
+    expect(
+      extractClaudeRecordedCwdFromRecords([
+        { cwd: '/repo/exact', nested: { cwd: '/ignored' } },
+        { type: 'message' },
+        { cwd: '/repo/exact' },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['malformed', [{ cwd: 42 }]],
+    ['empty', [{ cwd: '' }]],
+    ['relative', [{ cwd: 'repo/relative' }]],
+    ['conflicting', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractClaudeRecordedCwdFromRecords(records)).toBeNull();
   });
 });
 

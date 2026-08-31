@@ -204,6 +204,10 @@ const CLAUDE_CODE_TYPICAL = `{"sessionId":"cc-session-001","type":"summary","sum
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi!"}]},"sessionId":"cc-session-001"}
 `;
 
+function makeClaudeTypical(cwd: string, sessionId = 'cc-session-001'): string {
+  return `${JSON.stringify({ sessionId, type: 'summary', cwd })}\n${JSON.stringify({ type: 'user', cwd, message: { role: 'user', content: 'Hello' }, sessionId })}\n${JSON.stringify({ type: 'assistant', cwd, message: { role: 'assistant', content: [{ type: 'text', text: 'Hi!' }] }, sessionId })}\n`;
+}
+
 // A transcript with hidden bootstrap user records (environment_context) plus a
 // genuine exchange. Used to prove the classification cache stores a compact
 // projection that drops the uncapped bootstrapRecordIndexes array while keeping
@@ -419,6 +423,73 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
       typeof c.ageSec === 'number' && c.ageSec >= 0,
       'ageSec should be a non-negative number',
     ).toBeTruthy();
+  });
+});
+
+test.each([
+  ['missing', CLAUDE_CODE_TYPICAL],
+  [
+    'conflicting',
+    `${JSON.stringify({ sessionId: 'cc-conflict', cwd: '/private/one' })}\n${JSON.stringify({ type: 'user', sessionId: 'cc-conflict', cwd: '/private/two', message: { role: 'user', content: 'Hello' } })}\n`,
+  ],
+] as const)(
+  'claude-code exact-all rejects %s exact cwd evidence path-free',
+  async (_kind, transcript) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'secret-project');
+      const projectDir = join(
+        home,
+        '.claude',
+        'projects',
+        encodeCwd(targetCwd),
+      );
+      await mkdir(projectDir, { recursive: true });
+      const transcriptPath = join(projectDir, 'secret-session.jsonl');
+      await writeFile(transcriptPath, transcript, 'utf8');
+
+      let thrown: unknown;
+      try {
+        await discover(
+          'claude-code',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
+test('claude-code exact-all uses exact transcript cwd evidence', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'exact-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(
+      join(projectDir, 'exact.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-exact'),
+      'utf8',
+    );
+
+    await expect(
+      discover(
+        'claude-code',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        sessionId: 'cc-exact',
+        recordedCwd: targetCwd,
+        cwdEvidence: 'transcript-record',
+      }),
+    ]);
   });
 });
 

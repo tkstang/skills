@@ -50,6 +50,7 @@ import type { Runtime, TranscriptMeta } from '../../core/runtimes.js';
 import {
   discoverPaths,
   encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
   extractMeta,
   extractMetaFromRecords,
   readMetadataRecordsBounded,
@@ -489,7 +490,14 @@ async function candidateDerivedFieldsBounded(
   const classification = compactClassificationForCache(
     classifyTranscriptRecords(runtime, records),
   );
-  const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+  let meta = extractMetaFromRecords(runtime, records, transcriptPath);
+  if (runtime === 'claude-code') {
+    const recordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    if (!meta || recordedCwd === null) {
+      throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
+    }
+    meta = { ...meta, recordedCwd };
+  }
   if (runtime === 'codex' && (!meta || meta.recordedCwd === null)) {
     throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
   }
@@ -702,10 +710,9 @@ async function discoverClaudeCode(
           runtime: 'claude-code',
           transcriptPath,
           sessionId,
-          // Guaranteed exact match: do NOT use decodeCwdDirName (lossy).
-          recordedCwd: targetCwd,
+          recordedCwd: budget ? (derived.meta?.recordedCwd ?? null) : targetCwd,
           cwdSlug: encoded,
-          cwdEvidence: 'direct-parent-dir',
+          cwdEvidence: budget ? 'transcript-record' : 'direct-parent-dir',
           mtime,
           size: fileStat.size,
           ageSec,
@@ -801,7 +808,7 @@ async function discoverClaudeCode(
           sessionId,
           recordedCwd,
           cwdSlug: dirName,
-          cwdEvidence: 'decoded-parent-dir',
+          cwdEvidence: budget ? 'transcript-record' : 'decoded-parent-dir',
           mtime,
           size: fileStat.size,
           ageSec,
