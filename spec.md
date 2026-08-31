@@ -87,6 +87,11 @@ session or prove that a source writer is closed.
   - Transcript reads have explicit per-file and aggregate bounds; malformed, oversized,
     or unreadable input yields path-free reason codes and never falls back to an
     unbounded whole-file read.
+  - A preview request accepts at most 20 candidates and is bounded across the whole
+    batch by 32 MiB/100,000 input records, 10 seconds elapsed time, and 128 KiB of
+    rendered conversation text. Crossing any aggregate bound fails the complete
+    comparison as `preview-incomplete`; it never returns a partial batch that appears
+    complete.
   - Preview output is never copied into a handoff plan, confirmation digest, native
     result, or reconciliation ledger.
   - The UI states that sanitization removes hidden/control payloads but is not a
@@ -143,8 +148,15 @@ session or prove that a source writer is closed.
   - Each executable operation requires disposable two-worktree evidence covering
     parent/child IDs, runtime cwd, source resumability, and metadata effects.
   - A machine-validated receipt binds that evidence to the exact provider version and
-    normalized syntax fingerprint; reviewed source records only the receipt digest and
-    redacted contract metadata.
+    normalized syntax and execution-context fingerprints; reviewed source records only
+    the receipt digest and redacted contract metadata.
+  - The Codex contract disables lifecycle hooks through the documented `--disable
+    hooks` capability. The gate, plan digest, and pre-execution check bind a
+    privacy-safe fingerprint of the remaining executable/configuration context and
+    defer when that context is unreadable or drifts.
+  - Gate cleanup uses only documented provider-owned operations scoped to the fresh
+    disposable fixture. Cleanup outcomes are finalized before the mode-0600 receipt is
+    written and hashed; failed cleanup makes the gate inconclusive.
   - Implementation must run that gate for successor mode on the exact installed Codex
     and Claude versions. Both providers must pass before v1 is considered complete;
     inability to establish either contract is a reported product blocker rather than a
@@ -177,6 +189,8 @@ session or prove that a source writer is closed.
   - A digest-confirmed successor on each exact verified installed version can launch
     a bounded provider-native non-interactive marker operation and report the exact
     child identity from machine output plus transcript corroboration.
+  - The verified safety argv and execution-context fingerprint are revalidated before
+    launch; unsupported hook isolation or context drift defers the item.
   - Current-turn, unavailable-authentication, unverified, and unsafe batch conditions
     become itemized deferrals or refusals.
   - No dangerous bypass flag appears in a planned or executed invocation.
@@ -189,6 +203,11 @@ session or prove that a source writer is closed.
 - **Acceptance Criteria:**
   - Each item reports native status and reporting status independently.
   - Native success remains success if child mapping is unresolved.
+  - Outcomes retain any provider-generated expected child ID, parsed machine child ID,
+    and provider-qualified target baseline independently from corroboration status, so
+    read-only reconciliation can retry exact evidence without recency inference.
+  - A parsed-but-uncorroborated child is labeled as such and is never presented as a
+    verified mapping.
   - Reconciliation maps a child only from exact lineage evidence and never from
     recency alone.
   - Only failed or deferred native items are eligible for native retry; successful
@@ -240,6 +259,8 @@ session or prove that a source writer is closed.
   - Native commands use argv arrays with shell execution disabled.
   - Ambiguous repository identity, writer state, lineage, capability state, or plan
     freshness never silently proceeds.
+  - Provider execution-context isolation and fingerprints are revalidated before
+    mutation; unreadable or changed context defers rather than executing.
 - **Priority:** P0
 
 **NFR4: Dependency-free shipped runtime**
@@ -258,6 +279,8 @@ session or prove that a source writer is closed.
 - **Acceptance Criteria:**
   - Preview round/character limits, probe time/output caps, and deterministic candidate
     ordering are enforced.
+  - Preview candidate count, aggregate input bytes/records, elapsed time, and aggregate
+    rendered characters are hard bounded with all-or-error comparison semantics.
   - Malformed or oversized provider/transcript input yields bounded diagnostics.
 - **Priority:** P1
 
@@ -282,6 +305,9 @@ session or prove that a source writer is closed.
   mutate only disposable provider-owned sessions/worktrees and may consume bounded
   provider quota; it must not use real project sessions as fixtures.
 - Provider stores and transcript files remain immutable inputs.
+- Provider-owned cleanup may delete only state associated with the gate's fresh
+  disposable IDs or project paths, using documented native commands. It never unlinks
+  provider files directly.
 - Default persistence is none.
 - Local implementation commits are allowed; push, PR, publishing, release, and GitHub
   mutation are not.

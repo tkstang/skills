@@ -186,6 +186,11 @@ function readTailRecordsBounded(
 - Preview reads at most a 2 MiB/10,000-record tail per selected session before applying
   the stricter round/character render limits. Oversize or unreadable previews fail that
   preview only and do not weaken discovery completeness.
+- A preview request accepts at most 20 selected candidates and additionally caps the
+  whole comparison at 32 MiB/100,000 input records, a 10-second deadline, and 128 KiB
+  of rendered conversation text. Crossing any aggregate bound returns one
+  `preview-incomplete` result for the batch, with no partial comparison represented as
+  complete and no fallback read.
 
 ### Candidate Discovery and Preview
 
@@ -234,6 +239,14 @@ interface SessionPreview {
   omittedEntries: number;
   warning: 'hidden-payload-sanitized-not-secret-free';
 }
+
+interface PreviewBatchLimits {
+  maxCandidates: 20;
+  maxAggregateInputBytes: 33_554_432;
+  maxAggregateInputRecords: 100_000;
+  deadlineMs: 10_000;
+  maxAggregateRenderedCharacters: 131_072;
+}
 ```
 
 **Design Decisions:**
@@ -242,6 +255,9 @@ interface SessionPreview {
   type and serialization boundary, not merely an instruction.
 - Default preview limits are 3 rounds and 4,000 characters per candidate; hard maximums
   are 20 rounds and 32 KiB.
+- Aggregate bounds are checked before and during each deterministic provider/ID-ordered
+  read. Any crossing discards accumulated render data and returns `preview-incomplete`;
+  callers never receive a prefix that could be mistaken for the full comparison.
 - A malformed/oversized/unreadable transcript yields a safe provider-qualified reason
   code without its transcript path. Discovery never silently omits it; preview never
   falls back to an unbounded read.
@@ -311,6 +327,16 @@ behind one narrow boundary.
   returns `provider-auth-required` and names the supported login command; it never reads
   or prints credentials.
 - Scan argv for forbidden bypass flags as a defense-in-depth invariant.
+- Require the documented Codex `--disable hooks` capability for every gate, successor,
+  and source-resumability probe. Normalize and hash the remaining execution context:
+  canonical executable bytes, exact version, feature/help fingerprints, safety argv,
+  and bounded readable provider configuration inputs with credential values excluded.
+  Unreadable context is unsafe; any fingerprint drift defers execution.
+- Require Claude's documented `--safe-mode`, `--permission-mode plan`, and empty tool
+  set for gate and successor calls. Its execution-context fingerprint binds the
+  canonical executable bytes, exact version, normalized help shape, safety argv, and
+  non-secret authentication-method metadata; raw credentials and configuration content
+  are never read into the receipt or committed matrix.
 
 **Interfaces:**
 
@@ -327,8 +353,11 @@ interface CapabilityProbe {
     | 'missing'
     | 'version-drift'
     | 'help-shape-drift'
+    | 'execution-context-unreadable'
+    | 'execution-context-drift'
     | 'probe-failed';
   contractFingerprint?: string;
+  executionContextFingerprint?: string;
   missingCapabilities: string[];
 }
 
@@ -336,6 +365,7 @@ interface ProviderBehaviorContract {
   provider: HandoffProvider;
   exactVersion: string;
   syntaxFingerprint: string;
+  executionContextFingerprint: string;
   successor: {
     status: 'verified' | 'unverified';
     receiptDigest?: string;
@@ -360,6 +390,7 @@ interface BehavioralGateReceipt {
   executablePath: string;
   exactVersion: string;
   syntaxFingerprint: string;
+  executionContextFingerprint: string;
   operation: 'successor';
   fixture: {
     repositoryRoot: string;
@@ -383,7 +414,10 @@ interface BehavioralGateReceipt {
   };
   cleanup: {
     gitFixture: 'removed' | 'failed';
-    providerSessions: 'removed' | 'failed';
+    providerState: 'removed' | 'failed';
+    method:
+      | 'codex-delete-exact-session-ids'
+      | 'claude-purge-exact-disposable-project-paths';
     reasonCodes: string[];
   };
   status: 'passed' | 'failed' | 'inconclusive';
@@ -397,7 +431,8 @@ Exact successor operation contracts:
 ```text
 Codex successor:
   cwd=target
-  argv=[exec, fork, --json, -c, sandbox_mode="read-only", parentId,
+  argv=[exec, fork, --json, --disable, hooks,
+        -c, sandbox_mode="read-only", parentId,
         "Reply exactly HANDOFF_READY. Do not use tools."]
   child ID=parse exact thread.started.thread_id
 
@@ -415,19 +450,21 @@ Post-handoff user guidance:
   Claude: cwd=target claude --resume childId
 ```
 
-Installed help establishes these shapes for Codex 0.151.0 and Claude Code 2.1.251.
+Installed help establishes these shapes plus `codex delete --force <UUID>` and
+`claude project purge -y <path>` cleanup for Codex 0.151.0 and Claude Code 2.1.251.
 The non-interactive marker turn is visible in the complete plan and keeps the operation
 bounded while producing an exact child ID; it is part of the confirmed mutation.
 The implementation begins with all operations `unverified`, then must run the bounded
 disposable successor gate for both providers. Passing evidence must include the exact
 parent ID, child ID, child runtime/recorded target cwd, source resumability, and metadata
 effects. Reviewed evidence changes only the corresponding exact-version successor
-entry to `verified` and binds it to the normalized syntax fingerprint plus the SHA-256
-of the reviewed raw receipt. Exact IDs and fixture paths remain in the local receipt and
-do not enter committed product output; the committed matrix stores only the digest,
-version, fingerprint, date, and pass status. Resume remains `unverified` unless a
-separate writer-closed proof contract is added. Failure to verify either installed
-successor is a product blocker.
+entry to `verified` and binds it to the normalized syntax fingerprint,
+execution-context fingerprint, and SHA-256 of the reviewed raw receipt. Exact IDs and
+fixture paths remain in the local receipt and do not enter committed product output;
+the committed matrix stores only the digest, exact version, redacted fingerprints,
+date, and pass status. Resume remains `unverified` unless a separate writer-closed
+proof contract is added. Failure to verify either installed successor is a product
+blocker.
 
 `behavior-plan` reports provider, detected authentication/version, disposable fixture
 shape, calls, prompts, bounds, cleanup limitations, and a confirmation digest without
@@ -435,13 +472,20 @@ mutation. `behavior-verify --confirm DIGEST --receipt NEW_PATH` recomputes that 
 requires an unused receipt path, runs the gate, writes the raw receipt atomically with
 mode 0600, and prints only its digest/status. Matrix activation is a reviewed source
 change whose tests recompute the receipt digest and syntax fingerprint; no runtime flag
-can activate or override a contract.
+can activate or override a contract. Those tests also recompute the redacted
+execution-context fingerprint projection used by the gate and plan.
 
-After capturing and hashing all evidence, the verifier removes the temporary Git
-worktrees/repository and deletes only the exact disposable provider sessions through
-provider-owned cleanup commands. The receipt records cleanup outcomes. Failed cleanup
-makes the gate `inconclusive` and blocks matrix activation; provider telemetry/caches and
-consumed quota may remain and are stated as irreversible limitations.
+After capturing all behavioral evidence, the verifier performs exact provider-owned
+cleanup before finalizing the receipt. Codex 0.151.0 uses `codex delete --force
+<child-id>` followed by the exact parent ID. Claude Code 2.1.251 uses `claude project
+purge -y <target-worktree>` followed by the exact source worktree; these paths are fresh
+fixture roots, so the documented project-scoped command deletes only provider state
+created for the disposable gate. The verifier then removes the temporary Git
+worktrees/repository, records every cleanup outcome, atomically writes the final
+mode-0600 receipt, and only then hashes it. A failed cleanup makes the gate
+`inconclusive` and blocks matrix activation. Provider telemetry/caches and consumed
+quota may remain and are stated as irreversible limitations. Direct provider-store
+unlinking is forbidden.
 
 ### Handoff Orchestrator
 
@@ -479,6 +523,7 @@ interface HandoffPlanItem {
   mode: ContinuityMode;
   disposition: PlanDisposition;
   reasonCodes: string[];
+  expectedChildNativeId?: string;
   invocation?: NativeInvocation;
 }
 
@@ -493,33 +538,63 @@ interface HandoffPlan {
   confirmationDigest: string;
 }
 
-interface NativeOutcome {
-  status:
-    | 'not-run'
-    | 'deferred'
-    | 'refused'
-    | 'succeeded'
-    | 'failed'
-    | 'indeterminate';
-  exitCode?: number | null;
-  signal?: string | null;
-  retryable: boolean;
-  reasonCode?: string;
-}
+type NativeOutcome =
+  | {
+      status: 'not-run' | 'refused';
+      retryable: false;
+      reasonCode: string;
+    }
+  | { status: 'deferred'; retryable: true; reasonCode: string }
+  | { status: 'succeeded'; retryable: false; exitCode: 0 }
+  | {
+      status: 'failed';
+      retryable: true;
+      exitCode: number | null;
+      signal?: string | null;
+      reasonCode: string;
+    }
+  | {
+      status: 'indeterminate';
+      retryable: false;
+      exitCode?: number | null;
+      signal?: string | null;
+      reasonCode: string;
+    };
 
-interface ReportingOutcome {
-  status: 'not-attempted' | 'mapped' | 'ambiguous' | 'unresolved' | 'failed';
-  childNativeId?: string;
-  candidateChildIds?: string[];
-  reasonCode?: string;
-}
+type ReportingOutcome =
+  | { status: 'not-attempted'; reasonCode?: string }
+  | {
+      status: 'mapped';
+      childNativeId: string;
+      evidence: 'machine-output-and-transcript';
+    }
+  | {
+      status: 'ambiguous' | 'unresolved' | 'failed';
+      reasonCode: string;
+      candidateChildIds?: string[];
+    };
 
-interface ItemOutcome {
+interface ItemOutcomeBase {
   key: QualifiedSessionId;
   parentNativeId: string;
-  native: NativeOutcome;
+  expectedChildNativeId?: string;
+  targetBaselineIds: QualifiedSessionId[];
   reporting: ReportingOutcome;
 }
+
+type ItemOutcome =
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'succeeded' }>;
+      observedChildNativeId: string;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'indeterminate' }>;
+      observedChildNativeId?: string;
+    })
+  | (ItemOutcomeBase & {
+      native: Exclude<NativeOutcome, { status: 'succeeded' | 'indeterminate' }>;
+      observedChildNativeId?: string;
+    });
 
 interface BatchOutcome {
   schemaVersion: 1;
@@ -531,8 +606,19 @@ interface BatchOutcome {
 
 The canonical digest projection includes schema version, canonical worktree evidence,
 selected IDs, candidate stat signatures without transcript paths, continuity mode,
-capability fingerprints, behavior-contract state, item dispositions, and argv/cwd. It
-excludes display labels, timestamps, preview, raw Git status, and raw provider output.
+capability and execution-context fingerprints, behavior-contract state, any
+pre-generated child selector, item dispositions, and argv/cwd. It excludes display
+labels, timestamps, preview, raw Git status, and raw provider output.
+
+For Claude, `expectedChildNativeId` is the pre-generated UUID from the confirmed plan.
+For either provider, `observedChildNativeId` is retained as soon as bounded machine
+output parses it, independently from transcript corroboration. `succeeded` requires an
+observed child ID; `indeterminate` may retain an expected and/or observed ID. `mapped`
+requires the corroborated child ID to equal the applicable selector. `unresolved` and
+`ambiguous` preserve safe selectors plus the provider-qualified target baseline so
+`reconcile` can retry only exact ID/lineage/cwd evidence. A parsed but uncorroborated ID
+is displayed as `observed-unverified`, never as an exact mapping. These selector fields
+do not make a successful or indeterminate native operation retryable.
 
 ### CLI and Renderers
 
@@ -559,6 +645,9 @@ behavior-verify --provider codex|claude --confirm SHA256 --receipt NEW_PATH [--j
 - There is no implicit or recency selector and no bare native ID.
 - `execute` never accepts `plan` mode or a force/unverified bypass.
 - Reconcile input is capped at 1 MiB and strictly validated as a v1 batch outcome.
+- Reconcile requires the retained expected/observed selector and target baseline for
+  every successful or indeterminate item; it refuses inputs that would require recency
+  or target-set inference.
 - Native successor subprocesses use bounded pipe capture, so provider control traffic
   never reaches the handoff CLI's stdout; `--json` still emits exactly one envelope.
 - `behavior-verify` refuses an existing receipt path and unavailable provider auth. It
@@ -681,6 +770,11 @@ token, not a security credential.
   closure.
 - **Unrelated target child:** Reconciliation requires exact lineage, never newest-only.
 - **Capability drift:** Exact-version/help mismatch and unverified behavior defer.
+- **Execution-context drift:** Codex hooks are disabled through documented provider
+  syntax; safe-mode/argv and redacted configuration fingerprints are revalidated and
+  unreadable or changed context defers.
+- **Gate residue:** Cleanup uses exact provider-owned IDs or fresh fixture project paths,
+  runs before receipt finalization, and any failure makes the receipt inconclusive.
 - **Unsafe override pressure:** No force, allow-unverified, or bypass option exists.
 
 ## Performance Considerations
@@ -689,9 +783,10 @@ Exact discovery uses the new quiet bounded prefix reader and a request-local met
 cache while persistent Codex cache access and the seven-day cutoff are disabled.
 Completeness is all-or-error within 50,000 store entries, 512 MiB aggregate stat size,
 256 KiB/128 metadata records per entry, and 30 seconds. Candidates are sorted
-deterministically only after every entry is classified. Preview reads only selected
-candidates through a 2 MiB/10,000-record bounded tail and then applies round/character
-limits. No path-bearing shared warning is used.
+deterministically only after every entry is classified. Preview reads at most 20
+selected candidates through a 2 MiB/10,000-record bounded tail, with a 32 MiB/100,000
+record/10-second aggregate input cap, then applies per-candidate and 128 KiB aggregate
+render limits. No path-bearing shared warning is used.
 
 Provider probes are sequential per provider and bounded to 10 seconds and 64 KiB per
 invocation. Native marker calls and live-gate calls are bounded to 60 seconds and 64 KiB
@@ -742,20 +837,20 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 | ID | Verification | Key Scenarios |
 | --- | --- | --- |
 | FR1 | unit + integration | multiple Codex/Claude candidates including Codex older than seven days; exact vs sister/global cwd; provider ID collision; direct-only current identity; incomplete-budget refusal |
-| FR2 | unit | bounded tail/prefix reads; hidden/control/tool filtering; round/char bounds; malformed/oversized records; path-free diagnostics; no preview in plan/result serialization |
+| FR2 | unit | bounded tail/prefix reads; hidden/control/tool filtering; per-candidate and aggregate candidate/input/time/render bounds; malformed/oversized records; all-or-error comparison; path-free diagnostics; no preview in plan/result serialization |
 | FR3 | unit + CLI | single, repeated, all, mutual exclusion, bare/unknown/duplicate IDs, no recency option |
 | FR4 | unit + integration | missing/non-worktree target, separate clone, symlink alias, detached HEAD, dirty source/target, changed evidence |
 | FR5 | unit + CLI | successor default, resume unknown-writer refusal, current-turn and plan-only decisions |
-| FR6 | unit + live gate | exact version/help/auth, timeout/output cap, version drift, receipt schema/digest/fingerprint binding, required two-worktree activation |
+| FR6 | unit + live gate | exact version/help/auth, timeout/output cap, version/context drift, hook isolation, receipt schema/digest/fingerprint/cleanup binding, required two-worktree activation |
 | FR7 | unit + CLI | canonical digest, wrong/missing digest, candidate/Git/capability drift, preview exclusion |
 | FR8 | unit + live gate | exact non-interactive successor argv/marker, shell false, bounded machine output, exact child IDs, current/unverified deferrals, no forbidden flags |
-| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, partial/indeterminate outcomes, native/reporting independence, retry safety |
+| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, expected/observed selectors and baselines, partial/indeterminate outcomes, native/reporting independence, exact reconcile, retry safety |
 | FR10 | integration | public skill inventory, frontmatter/version, docs/navigation, generated runtime and provider sync |
 | NFR1 | integration | stale cache ignored; empty state remains absent; observer/transcript/provider byte identity |
 | NFR2 | unit + integration | no transcript body/path/raw output/credentials in plan, errors, outcome, or digest inputs |
-| NFR3 | unit | adversarial IDs/paths/help, ANSI/control output, ambiguous repository/writer/lineage, no shell |
+| NFR3 | unit | adversarial IDs/paths/help, ANSI/control output, ambiguous repository/writer/lineage, hook isolation, execution-context drift, no shell |
 | NFR4 | build | bundled generated output, source/output sync, no runtime dependency |
-| NFR5 | unit + integration | all-or-error discovery scan, prefix/tail, probe, Git, native, and reconcile caps; deterministic ordering |
+| NFR5 | unit + integration | all-or-error discovery scan and preview batch, prefix/tail, probe, Git, native, and reconcile caps; deterministic ordering |
 | NFR6 | integration | focused suites, full tests, validate, build check, smoke, docs index, provider install views |
 
 ### Unit Tests
@@ -774,10 +869,14 @@ body content, raw provider output, raw help, credentials, and Git filenames.
   state directory nonexistent.
 - Assert entry/aggregate/prefix/tail/deadline overflow returns safe incomplete or preview
   errors without a partial discovery result or transcript path.
+- Assert 21-candidate, aggregate-byte, aggregate-record, aggregate-render, and deadline
+  preview crossings return one incomplete batch and no partial comparison.
 - Create temporary Git repository worktrees for same-common-dir and separate-clone
   cases; assert status fingerprints and drift behavior.
 - Exercise CLI commands as subprocesses with fixture environment variables and mocked
   provider binaries.
+- Exercise Codex hook disablement plus execution-context fingerprint match, drift, and
+  unreadable-input deferral without retaining configuration or credential content.
 
 ### End-to-End Tests
 
@@ -792,10 +891,12 @@ records metadata effects. Codex parses `thread.started.thread_id` and corroborat
 output/transcript records and target cwd, and proves the inherited parent UUID prefix
 plus later source-only resume record. The gate is explicitly authorized for the current
 implementation and exact installed versions. It must use no real project session, no
-bypass flag, and a strict prompt/quota/time bound. A reviewer validates the local raw
-receipt before its digest and syntax fingerprint activate canonical source. Only then do
-the normal tests switch the exact contract to verified. Either provider's failure blocks
-v1 completion.
+bypass flag, and a strict prompt/quota/time bound. Codex uses documented hook
+disablement, both providers bind their reviewed execution-context fingerprints, and
+final receipts include provider/Git cleanup outcomes before hashing. A reviewer
+validates each local raw receipt before its digest and fingerprints activate canonical
+source. Only then do the normal tests switch the exact contract to verified. Either
+provider's failure blocks v1 completion.
 
 ## Deployment Strategy
 
@@ -868,7 +969,8 @@ behavior.
   shared discovery.
 - Implement provider-qualified exact candidate discovery and direct-only current
   evidence with all-or-error completeness budgets.
-- Implement bounded sanitized preview without plan/result coupling.
+- Implement per-candidate and aggregate all-or-error bounded sanitized preview without
+  plan/result coupling.
 
 **Verification:** Focused transcript-core/session-observer and new discovery/preview
 tests pass; empty/stale state remains unchanged.
@@ -895,21 +997,25 @@ and read-only reconciliation.
 **Tasks:**
 
 - Implement Codex/Claude syntax probes, behavior matrix, invocation builders, and
-  forbidden-flag checks.
+  forbidden-flag checks, including Codex hook isolation and privacy-safe
+  execution-context fingerprints.
 - Implement confirmation revalidation, bounded non-interactive native outcome parsing,
   exact child corroboration, indeterminate handling, and no automatic retries.
 - Extend exact Codex lineage/native ID extraction, implement predetermined Claude child
-  UUID corroboration, and add read-only reconcile outcomes.
+  UUID corroboration, retain expected/observed selectors and target baselines, and add
+  exact read-only reconcile outcomes.
 - Implement `behavior-plan`/`behavior-verify`, receipt validation/redaction rules, auth
-  preflight, digest/fingerprint binding, and disposable fixture cleanup guidance.
+  preflight, digest/fingerprint binding, and exact provider-owned disposable fixture
+  cleanup with cleanup-before-receipt finalization.
 - Run the required Codex and Claude successor gates, submit both raw receipts for
   independent evidence review, then activate only reviewed passing exact-version
   contracts in canonical source.
 
 **Verification:** Mock provider and outcome suites prove every ready/defer/refuse/native/
 reporting/indeterminate state. Both exact installed successor receipts pass independent
-review, their digests/fingerprints match canonical contracts, and an exact-version
-mocked/native plan becomes executable while drift remains deferred.
+review, their digests/fingerprints/cleanup outcomes match canonical contracts, and an
+exact-version/context-matching mocked/native plan becomes executable while drift remains
+deferred.
 
 ### Phase 4: Public skill and repository integration
 
