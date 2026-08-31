@@ -399,7 +399,7 @@ async function discoverClaudeCode(targetCwd, cache, options) {
       }
     }
   }
-  if (!directHit) {
+  if (!directHit || budget !== null) {
     let projectDirs;
     try {
       projectDirs = await opendir(projectsRoot);

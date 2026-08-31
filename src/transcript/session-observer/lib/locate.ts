@@ -729,7 +729,7 @@ async function discoverClaudeCode(
     }
   }
 
-  if (!directHit) {
+  if (!directHit || budget !== null) {
     // Glob fallback: scan all project dirs
     let projectDirs;
     try {

@@ -493,6 +493,48 @@ test('claude-code exact-all uses exact transcript cwd evidence', async () => {
   });
 });
 
+test('claude-code exact-all enumerates unexpected project slugs after a direct hit', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'exact-project');
+    const directDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    const unexpectedDir = join(
+      home,
+      '.claude',
+      'projects',
+      'unexpected-alias-slug',
+    );
+    await mkdir(directDir, { recursive: true });
+    await mkdir(unexpectedDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'direct.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-direct'),
+      'utf8',
+    );
+    await writeFile(
+      join(unexpectedDir, 'unexpected.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-unexpected'),
+      'utf8',
+    );
+
+    const candidates = await discover(
+      'claude-code',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    expect(candidates.map(({ sessionId }) => sessionId).toSorted()).toEqual([
+      'cc-direct',
+      'cc-unexpected',
+    ]);
+    expect(
+      candidates.every(
+        ({ cwdEvidence }) => cwdEvidence === 'transcript-record',
+      ),
+    ).toBe(true);
+  });
+});
+
 test('findSessionCandidate returns only an exact same-cwd session match', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'identity-project');

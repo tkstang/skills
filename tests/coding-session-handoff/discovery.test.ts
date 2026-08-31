@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -72,6 +79,92 @@ function dependencies(
 }
 
 describe('exact handoff candidate discovery', () => {
+  test.sequential('returns exact Claude sessions from direct and unexpected slugs only', async () => {
+    const createdHome = await mkdtemp(
+      join(tmpdir(), 'handoff-claude-complete-'),
+    );
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const sourceRoot = join(home, 'roots', 'source');
+      const aliasRoot = join(home, 'roots', 'source-alias');
+      const unrelatedRoot = join(home, 'roots', 'unrelated');
+      await mkdir(sourceRoot, { recursive: true });
+      await mkdir(unrelatedRoot, { recursive: true });
+      await symlink(sourceRoot, aliasRoot, 'dir');
+      const canonicalSource = await realpath(sourceRoot);
+      const canonicalUnrelated = await realpath(unrelatedRoot);
+      const directDir = join(
+        home,
+        '.claude',
+        'projects',
+        canonicalSource.replace(/[/.]/gu, '-'),
+      );
+      const unexpectedDir = join(
+        home,
+        '.claude',
+        'projects',
+        'unexpected-alias-slug',
+      );
+      await mkdir(directDir, { recursive: true });
+      await mkdir(unexpectedDir, { recursive: true });
+
+      const transcript = (cwd: string, sessionId: string) =>
+        [
+          { type: 'summary', sessionId, cwd },
+          {
+            type: 'user',
+            sessionId,
+            cwd,
+            message: { role: 'user', content: 'Hello' },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            cwd,
+            message: {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'Hi' }],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n';
+      await writeFile(
+        join(directDir, 'direct.jsonl'),
+        transcript(canonicalSource, 'claude-direct'),
+        'utf8',
+      );
+      await writeFile(
+        join(unexpectedDir, 'alias.jsonl'),
+        transcript(aliasRoot, 'claude-alias'),
+        'utf8',
+      );
+      await writeFile(
+        join(unexpectedDir, 'unrelated.jsonl'),
+        transcript(canonicalUnrelated, 'claude-unrelated'),
+        'utf8',
+      );
+
+      await expect(discoverHandoffCandidates(canonicalSource)).resolves.toEqual(
+        [
+          expect.objectContaining({ key: 'claude:claude-alias' }),
+          expect.objectContaining({ key: 'claude:claude-direct' }),
+        ],
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test.sequential('separates colliding Claude slugs using exact transcript cwd evidence', async () => {
     const createdHome = await mkdtemp(
       join(tmpdir(), 'handoff-claude-collision-'),
