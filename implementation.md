@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p02-t13
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,12 +27,12 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | in_progress | 13    | 12/13     |
+| p02   | completed   | 13    | 13/13     |
 | p03   | pending     | 6     | 0/6       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 15/26 tasks completed
+**Total:** 16/26 tasks completed
 
 ---
 
@@ -75,27 +75,27 @@ repository validation, skill-version validation, lint/format, and diff hygiene p
 
 ## Phase p02: Handoff discovery, preview, and Git evidence
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-08-31
 
 ### Phase Summary
 
-**Outcome so far:**
+**Outcome:**
 
 - Froze the handoff schema and cross-discriminated outcome contracts.
 - Added exact provider-qualified discovery, sanitized bounded preview, and Git worktree evidence.
 - Completed three initial review repair commits through `e488dfb`.
 - Completed the eight-finding repair cycle through `ab975ff`; all eight findings were independently confirmed resolved.
-- Received one new Critical Codex cwd-conflict finding; p02-t13 is the only authorized repair.
+- Resolved the new Critical Codex cwd-conflict finding in p02-t13.
 
-**Verification:** 838 focused/shared tests plus type-check, build parity, repository
-validation, skill-version validation, focused lint/format, and diff hygiene passed at
-`ab975ff`.
+**Verification:** 852 focused/shared tests plus the targeted 201-test suite, type-check,
+build parity, repository validation, skill-version validation, focused lint/format,
+and diff hygiene passed at `63d2703`.
 
 **Review:** The full-p02 review at `ab975ff` confirmed all eight preceding findings
 resolved, then found 1 new Critical and 2 Medium issues. The user authorized only the
-Critical Codex cwd-conflict fix and one targeted independent review; both Mediums are
-explicitly deferred.
+Critical Codex cwd-conflict fix and one targeted independent review. The targeted
+review passed with zero findings; both Mediums remain explicitly deferred.
 
 ### Task p02-t01: Define handoff schemas and limits
 
@@ -159,8 +159,8 @@ explicitly deferred.
 
 ### Task p02-t13: (review) Reject conflicting Codex cwd evidence
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `63d27033ae049f925e475246a4da2724a03756ab`
 
 ---
 
@@ -264,7 +264,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Schedule: p01 → p02 → p03 → root entry gates → p05 → p06
 - HiLL: final phase p06; automatic lifecycle review enabled
 - Autonomous gates: `IMPLEMENT-03` (p06 checkpoint), `IMPLEMENT-08` (bounded phase implementer and reviewer delegation)
-- Status: p01 passed; p02 Critical-only targeted repair queued
+- Status: p01 and p02 passed; stopped before p03 by explicit user scope
 
 #### p01 Outcome
 
@@ -289,16 +289,18 @@ Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oa
 
 Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
-#### p02 Outcome (in progress)
+#### p02 Outcome
 
-- Phase base/current head: `3b60b06623e8ca533f7ae4298f751fddb8d95ebf` → `ab975ff7ec18a21c5059aa8800091475cf4f4442`
+- Phase base/head: `3b60b06623e8ca533f7ae4298f751fddb8d95ebf` → `63d27033ae049f925e475246a4da2724a03756ab`
 - Task commits: `b9a0403` (p02-t01), `1e92355` (p02-t02), `6ba1c47` (p02-t03), `1c9da58` (p02-t04)
 - Prior repair commits: `9e3401a`, `e20ea1f`, `e488dfb`
 - Eight-finding repair commits: `38ada9f`, `f632d34`, `154f421`, `a0efd3d`, `465110f`, `1ad0454`, `bb1b261`, `ab975ff`
+- Critical-only repair: `63d2703` (p02-t13)
 - Full-p02 review: `reviews/archived/p02-review-2026-08-31T074327Z.md` — 1 Critical, 0 Important, 2 Medium, 0 Minor; all eight preceding findings resolved
+- Targeted p02-t13 review: `reviews/archived/p02-t13-review-2026-08-31T145043Z.md` — PASS, 0 findings
 - Authorized action: fix only the Critical Codex cwd conflict and run one targeted independent review
 - Deferred by explicit user scope: exact-128 newline boundary and newline-bearing path schema round-trip
-- Next task: p02-t13
+- Next task if implementation resumes: p03-t01
 
 <!-- orchestration-runs-end -->
 
@@ -385,6 +387,23 @@ over the full p02 range. Any remaining Critical or Important finding stops the l
 **Next:** Execute p02-t13, then run one targeted independent review of the Codex cwd
 fix. Any Critical or Important finding in that review stops the lifecycle.
 
+### Review Received: p02-t13
+
+**Date:** 2026-08-31
+**Review artifact:** `reviews/archived/p02-t13-review-2026-08-31T145043Z.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor
+
+**New tasks added:** None.
+
+**Disposition:** The Critical Codex cwd-conflict defect is resolved. Bounded exact-all
+discovery now validates every recognized top-level and payload cwd value, rejects
+missing, invalid, or contradictory evidence through path-free errors, accepts agreeing
+repeated evidence, and preserves legacy/default behavior. The two Medium findings from
+the preceding full-p02 review remain explicitly deferred and were outside this review.
+
+**Next:** p02 is complete. Stop before p03 under the user's Critical-only scope.
+
 ---
 
 ### 2026-08-31
@@ -413,7 +432,9 @@ fix. Any Critical or Important finding in that review stops the lifecycle.
 - [x] p02-t10 — `1ad0454`
 - [x] p02-t11 — `bb1b261`
 - [x] p02-t12 — `ab975ff`
-- [ ] p02-t13 — next
+- [x] p02-t13 — `63d2703`
+- [x] p02-t13 targeted independent review — passed with zero findings
+- [ ] p03-t01 — next if implementation resumes
 
 ---
 
@@ -432,7 +453,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
-| p02   | 838 focused/shared tests; type-check; build-check; validate; skill versions; lint/format | all at `ab975ff` | 0 | Original tasks plus eight-finding repair cycle; Critical-only follow-up pending |
+| p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
 | p03   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |

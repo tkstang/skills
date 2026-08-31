@@ -1092,7 +1092,8 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | p01 | code | passed | 2026-08-31 | reviews/archived/p01-review-2026-08-31T044051Z.md | 3b60b06623e8ca533f7ae4298f751fddb8d95ebf | manual | - |
 | p02 | code | fixes_completed | 2026-08-31 | reviews/archived/p02-review-2026-08-31T063722Z.md | e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6 | manual | - |
-| p02 | code | fixes_added | 2026-08-31 | reviews/archived/p02-review-2026-08-31T074327Z.md | ab975ff7ec18a21c5059aa8800091475cf4f4442 | manual | - |
+| p02 | code | fixes_completed | 2026-08-31 | reviews/archived/p02-review-2026-08-31T074327Z.md | ab975ff7ec18a21c5059aa8800091475cf4f4442 | manual | - |
+| p02-t13 | code | passed | 2026-08-31 | reviews/archived/p02-t13-review-2026-08-31T145043Z.md | 63d27033ae049f925e475246a4da2724a03756ab | manual | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
