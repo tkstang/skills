@@ -26,6 +26,19 @@ export type JsonObject = Record<string, unknown>;
 export interface TranscriptMeta {
   sessionId: string;
   recordedCwd: string | null;
+  /** Provider-native session identity when exact transcript metadata exposes it. */
+  nativeSessionId?: string;
+  /** Optional provider root identity, distinct from the native child identity. */
+  rootSessionId?: string;
+  /** Exact provider-native parent identity for a forked session. */
+  forkedFromSessionId?: string;
+  /** Ordered Claude record lineage, retained only when every observed pair is valid. */
+  recordLineage?: TranscriptRecordLineage[];
+}
+
+export interface TranscriptRecordLineage {
+  uuid: string;
+  parentUuid: string | null;
 }
 
 export type SafeTranscriptDiagnosticCode =
@@ -1066,6 +1079,74 @@ function codexSessionIdFromRecord(record: JsonObject): string | undefined {
   );
 }
 
+function consistentNonEmptyString(
+  values: readonly unknown[],
+): string | undefined {
+  let observed: string | undefined;
+  for (const value of values) {
+    if (typeof value !== 'string' || value.length === 0) return undefined;
+    if (observed !== undefined && observed !== value) return undefined;
+    observed = value;
+  }
+  return observed;
+}
+
+function codexLineageMetadata(
+  records: JsonObject[],
+): Pick<
+  TranscriptMeta,
+  'nativeSessionId' | 'rootSessionId' | 'forkedFromSessionId'
+> {
+  const sessionMetadata = records.filter(
+    (record) => record.type === 'session_meta' && isObject(record.payload),
+  );
+  const payloads = sessionMetadata.map(
+    (record) => record.payload as JsonObject,
+  );
+  const nativeValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'id'))
+    .map((payload) => payload.id);
+  const rootValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'session_id'))
+    .map((payload) => payload.session_id);
+  const forkValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'forked_from_id'))
+    .map((payload) => payload.forked_from_id);
+  const nativeSessionId = consistentNonEmptyString(nativeValues);
+  const rootSessionId = consistentNonEmptyString(rootValues);
+  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+  return {
+    ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+    ...(rootSessionId === undefined ? {} : { rootSessionId }),
+    ...(forkedFromSessionId === undefined ? {} : { forkedFromSessionId }),
+  };
+}
+
+function claudeRecordLineage(
+  records: JsonObject[],
+): TranscriptRecordLineage[] | undefined {
+  const result: TranscriptRecordLineage[] = [];
+  for (const record of records) {
+    if (!Object.hasOwn(record, 'uuid')) continue;
+    if (typeof record.uuid !== 'string' || record.uuid.length === 0) {
+      return undefined;
+    }
+    if (
+      Object.hasOwn(record, 'parentUuid') &&
+      record.parentUuid !== null &&
+      (typeof record.parentUuid !== 'string' || record.parentUuid.length === 0)
+    ) {
+      return undefined;
+    }
+    result.push({
+      uuid: record.uuid,
+      parentUuid:
+        typeof record.parentUuid === 'string' ? record.parentUuid : null,
+    });
+  }
+  return result.length === 0 ? undefined : result;
+}
+
 // ---------------------------------------------------------------------------
 // extractMeta
 // ---------------------------------------------------------------------------
@@ -1184,11 +1265,24 @@ export function extractMetaFromRecords(
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
     }
 
-    // Decode cwd from the parent directory name
-    const parentDirName = basename(dirname(transcriptPath));
-    const recordedCwd = decodeCwdDirName(parentDirName);
+    const nativeSessionId = consistentNonEmptyString(
+      records
+        .filter((record) => Object.hasOwn(record, 'sessionId'))
+        .map((record) => record.sessionId),
+    );
+    const exactRecordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    const recordLineage = claudeRecordLineage(records);
 
-    return { sessionId, recordedCwd };
+    // Retain the legacy directory decode when exact top-level cwd is absent.
+    const parentDirName = basename(dirname(transcriptPath));
+    const recordedCwd = exactRecordedCwd ?? decodeCwdDirName(parentDirName);
+
+    return {
+      sessionId,
+      recordedCwd,
+      ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+      ...(recordLineage === undefined ? {} : { recordLineage }),
+    };
   }
 
   if (runtime === 'codex') {
@@ -1217,7 +1311,7 @@ export function extractMetaFromRecords(
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
     }
 
-    return { sessionId, recordedCwd };
+    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
   }
 
   if (runtime === 'cursor') {

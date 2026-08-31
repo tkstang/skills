@@ -541,6 +541,51 @@ function codexSessionIdFromRecord(record) {
   const payload = isObject(record.payload) ? record.payload : record;
   return asString(record.sessionId) ?? asString(record.session_id) ?? asString(payload.sessionId) ?? asString(payload.session_id);
 }
+function consistentNonEmptyString(values) {
+  let observed;
+  for (const value of values) {
+    if (typeof value !== "string" || value.length === 0) return void 0;
+    if (observed !== void 0 && observed !== value) return void 0;
+    observed = value;
+  }
+  return observed;
+}
+function codexLineageMetadata(records) {
+  const sessionMetadata = records.filter(
+    (record) => record.type === "session_meta" && isObject(record.payload)
+  );
+  const payloads = sessionMetadata.map(
+    (record) => record.payload
+  );
+  const nativeValues = payloads.filter((payload) => Object.hasOwn(payload, "id")).map((payload) => payload.id);
+  const rootValues = payloads.filter((payload) => Object.hasOwn(payload, "session_id")).map((payload) => payload.session_id);
+  const forkValues = payloads.filter((payload) => Object.hasOwn(payload, "forked_from_id")).map((payload) => payload.forked_from_id);
+  const nativeSessionId = consistentNonEmptyString(nativeValues);
+  const rootSessionId = consistentNonEmptyString(rootValues);
+  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+  return {
+    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+    ...rootSessionId === void 0 ? {} : { rootSessionId },
+    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId }
+  };
+}
+function claudeRecordLineage(records) {
+  const result = [];
+  for (const record of records) {
+    if (!Object.hasOwn(record, "uuid")) continue;
+    if (typeof record.uuid !== "string" || record.uuid.length === 0) {
+      return void 0;
+    }
+    if (Object.hasOwn(record, "parentUuid") && record.parentUuid !== null && (typeof record.parentUuid !== "string" || record.parentUuid.length === 0)) {
+      return void 0;
+    }
+    result.push({
+      uuid: record.uuid,
+      parentUuid: typeof record.parentUuid === "string" ? record.parentUuid : null
+    });
+  }
+  return result.length === 0 ? void 0 : result;
+}
 async function extractMeta(runtime, transcriptPath) {
   const records = await readRecords(transcriptPath);
   return extractMetaFromRecords(runtime, records, transcriptPath);
@@ -589,9 +634,19 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
     }
+    const nativeSessionId = consistentNonEmptyString(
+      records.filter((record) => Object.hasOwn(record, "sessionId")).map((record) => record.sessionId)
+    );
+    const exactRecordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    const recordLineage = claudeRecordLineage(records);
     const parentDirName = basename(dirname(transcriptPath));
-    const recordedCwd = decodeCwdDirName(parentDirName);
-    return { sessionId, recordedCwd };
+    const recordedCwd = exactRecordedCwd ?? decodeCwdDirName(parentDirName);
+    return {
+      sessionId,
+      recordedCwd,
+      ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+      ...recordLineage === void 0 ? {} : { recordLineage }
+    };
   }
   if (runtime === "codex") {
     let sessionId;
@@ -612,7 +667,7 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
     }
-    return { sessionId, recordedCwd };
+    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
   }
   if (runtime === "cursor") {
     const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");

@@ -27,6 +27,7 @@ import {
   extractClaudeRecordedCwdFromRecords,
   extractCodexRecordedCwdFromRecords,
   extractMeta,
+  extractMetaFromRecords,
   isAutomaticControlAcknowledgement,
   isNoOpText,
   normalizeEntries,
@@ -627,6 +628,109 @@ describe('extractMeta (codex)', () => {
     expectOk(meta !== null, 'meta should not be null');
     expectEqual(meta.sessionId, 'codex-payload-cwd-001');
     expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+  });
+});
+
+describe('exact provider lineage metadata', () => {
+  it('exposes Codex native, optional root, fork, and cwd fields without changing legacy sessionId', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-caller-id',
+          payload: {
+            id: 'native-child-id',
+            session_id: 'root-id',
+            forked_from_id: 'native-parent-id',
+            cwd: '/repo/target',
+          },
+        },
+        { type: 'response_item', payload: { id: 'message-id' } },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'legacy-caller-id',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'native-child-id',
+      rootSessionId: 'root-id',
+      forkedFromSessionId: 'native-parent-id',
+    });
+  });
+
+  it('does not mistake Codex message payload IDs for native session IDs', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [{ type: 'response_item', payload: { id: 'message-id' } }],
+      '/private/legacy-id.jsonl',
+    );
+    expect(meta).toEqual({
+      sessionId: 'legacy-id',
+      recordedCwd: null,
+    });
+  });
+
+  it('exposes ordered Claude uuid/parentUuid lineage and exact cwd', () => {
+    const meta = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: null,
+          cwd: '/repo/target',
+        },
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-2',
+          parentUuid: 'record-1',
+          cwd: '/repo/target',
+        },
+      ],
+      '/private/not-an-encoded-dir/session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'claude-child',
+      recordLineage: [
+        { uuid: 'record-1', parentUuid: null },
+        { uuid: 'record-2', parentUuid: 'record-1' },
+      ],
+    });
+  });
+
+  it('omits contradictory or malformed optional lineage fields', () => {
+    const codex = extractMetaFromRecords(
+      'codex',
+      [
+        { type: 'session_meta', payload: { id: 'one', cwd: '/repo' } },
+        { type: 'session_meta', payload: { id: 'two', cwd: '/repo' } },
+      ],
+      '/private/fallback.jsonl',
+    );
+    expect(codex).toEqual({ sessionId: 'fallback', recordedCwd: '/repo' });
+
+    const claude = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: 42,
+          cwd: 'relative',
+        },
+      ],
+      '/private/plain/session.jsonl',
+    );
+    expect(claude).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: null,
+      nativeSessionId: 'claude-child',
+    });
   });
 });
 
