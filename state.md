@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: c7f0f0beb31227e5193c4e306322d4ee9ddb5a4d
+oat_last_commit: 5a2abd43e20562805960b7d82bba84ca83014667
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -9,10 +9,10 @@ oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
-oat_hill_completed: ['discovery'] # Progress: which HiLL checkpoints have been completed
+oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -76,7 +76,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T01:33:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T02:22:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -86,19 +86,19 @@ oat_project_recap:
 
 # Project State: coding-session-handoff
 
-**Status:** Design in progress
+**Status:** Design complete
 **Started:** 2026-08-31
 **Last Updated:** 2026-08-31
 
 ## Current Phase
 
-Design - Requirements confirmed; technical design drafted for independent review
+Design - Complete and independently reviewed; ready for planning
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete)
-- **Design:** `design.md` (drafted; awaiting independent review)
+- **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -109,7 +109,10 @@ Design - Requirements confirmed; technical design drafted for independent review
 - ✓ Discovery HiLL checkpoint completed under the autonomous review contract
 - ✓ Downstream lifecycle files scaffolded
 - ✓ Specification complete
-- ⧗ Design draft awaiting independent review
+- ✓ Design complete
+- ✓ Design artifact independently reviewed with no findings
+- ✓ Design HiLL checkpoint completed under the autonomous review contract
+- ⧗ Ready to author the implementation plan
 
 ## Blockers
 
@@ -117,4 +120,4 @@ None
 
 ## Next Milestone
 
-Complete independent design review and the design HiLL checkpoint
+Author and independently review the implementation plan
