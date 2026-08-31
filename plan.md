@@ -298,6 +298,194 @@ state.
 
 ---
 
+### Task p02-t05: (review) Enumerate every exact Claude store entry
+
+**Dependencies:** p02-t02.
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Modify: `tests/coding-session-handoff/discovery.test.ts`
+- Regenerate: `skills/session-observer/scripts/lib/locate.mjs`
+
+**RED:** Add simultaneous direct-slug and alias/unexpected-slug Claude fixtures whose
+transcript-record cwd values canonicalize to the same source, plus an unrelated cwd
+control. Exact-all discovery must return both exact sessions and exclude the control.
+
+**GREEN:** In bounded exact-all mode, enumerate every Claude project directory even
+after direct hits, deduplicate transcript paths, and qualify candidates only from exact
+canonical transcript-record cwd evidence. Preserve the legacy direct-first optimization
+for default observer discovery.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts tests/coding-session-handoff/discovery.test.ts && pnpm run build:check`
+
+**Commit:** `fix(p02-t05): complete exact Claude enumeration`
+
+---
+
+### Task p02-t06: (review) Fail closed on metadata-prefix truncation
+
+**Dependencies:** p02-t02; peer to p02-t05 after shared discovery behavior is understood.
+
+**Files:**
+
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Regenerate: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Regenerate: `skills/export-session-transcript/scripts/lib/runtimes.mjs`
+- Regenerate: `skills/session-observer/scripts/lib/locate.mjs`
+
+**RED:** Cover a clean 129th metadata record, a late contradictory cwd, and a
+byte-boundary truncation. Exact-all discovery must fail with stable path-free reason
+codes instead of accepting a partial prefix.
+
+**GREEN:** Surface every bounded-prefix incomplete condition to callers and make
+exact-all reject incomplete metadata derivation. Preserve existing default-reader
+behavior and diagnostic redaction.
+
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts && pnpm run build:check`
+
+**Commit:** `fix(p02-t06): reject incomplete metadata prefixes`
+
+---
+
+### Task p02-t07: (review) Enforce preview input-work budgets during reads
+
+**Dependencies:** p02-t03 and p02-t06.
+
+**Files:**
+
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/coding-session-handoff/preview.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+- Modify: `tests/coding-session-handoff/preview.test.ts`
+- Regenerate: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Regenerate: `skills/export-session-transcript/scripts/lib/runtimes.mjs`
+
+**RED:** Prove the 10,001st per-transcript inspection and aggregate byte/record
+boundaries stop physical parsing before overshoot, including real-reader fixtures and
+dependency-result validation.
+
+**GREEN:** Separate retained-record and inspected-record budgets, pass each request's
+remaining aggregate byte/record allowance into the reader, and stop I/O/parsing at the
+boundary. Discard partial batch output on any crossing.
+
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/coding-session-handoff/preview.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p02-t07): enforce preview work budgets`
+
+---
+
+### Task p02-t08: (review) Make qualified-ID ordering locale independent
+
+**Dependencies:** p02-t02 and p02-t03.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/discovery.ts`
+- Modify: `src/transcript/coding-session-handoff/preview.ts`
+- Modify: `tests/coding-session-handoff/discovery.test.ts`
+- Modify: `tests/coding-session-handoff/preview.test.ts`
+
+**RED:** Cover mixed-case, punctuation, and non-ASCII qualified IDs in discovery and
+preview ordering.
+
+**GREEN:** Use one shared locale-independent code-unit comparator for qualified IDs.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts tests/coding-session-handoff/preview.test.ts`
+
+**Commit:** `fix(p02-t08): stabilize qualified ID ordering`
+
+---
+
+### Task p02-t09: (review) Round-trip multiline preview text
+
+**Dependencies:** p02-t01 and p02-t03.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/types.ts`
+- Modify: `tests/coding-session-handoff/types.test.ts`
+- Modify: `tests/coding-session-handoff/preview.test.ts`
+
+**RED:** Add a producer-to-parser fixture containing ordinary newlines and tabs while
+retaining rejection of NUL and unsafe terminal controls.
+
+**GREEN:** Add a preview-specific text validator that permits intended multiline
+whitespace without weakening other generic string fields.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/types.test.ts tests/coding-session-handoff/preview.test.ts && pnpm run type-check`
+
+**Commit:** `fix(p02-t09): allow sanitized multiline previews`
+
+---
+
+### Task p02-t10: (review) Ignore unrelated stale worktree registrations
+
+**Dependencies:** p02-t04.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/git-target.ts`
+- Modify: `tests/coding-session-handoff/git-target.test.ts`
+
+**RED:** Add a real-Git fixture with a valid requested worktree and an unrelated
+missing/prunable registered sibling.
+
+**GREEN:** Establish registration of the requested canonical root without requiring
+unrelated entries to resolve, while still failing if the requested root is absent or
+ambiguous.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/git-target.test.ts`
+
+**Commit:** `fix(p02-t10): tolerate stale sibling worktrees`
+
+---
+
+### Task p02-t11: (review) Preserve NUL-delimited worktree paths
+
+**Dependencies:** p02-t04; peer to p02-t10.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/git-target.ts`
+- Modify: `tests/coding-session-handoff/git-target.test.ts`
+
+**RED:** Add a real-Git fixture whose registered worktree path contains a newline.
+
+**GREEN:** Parse the `worktree list --porcelain -z` grammar strictly by NUL fields
+without newline tokenization, and retain literal argv/shell-disabled execution.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/git-target.test.ts`
+
+**Commit:** `fix(p02-t11): parse NUL worktree records safely`
+
+---
+
+### Task p02-t12: (review) Align candidate timestamps to milliseconds
+
+**Dependencies:** p02-t02.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/discovery.ts`
+- Modify: `tests/coding-session-handoff/discovery.test.ts`
+
+**RED:** Assert a transcript candidate expressed in epoch seconds projects to the
+schema's `modifiedAtMs` millisecond contract.
+
+**GREEN:** Multiply the shared candidate mtime by 1,000 at the handoff projection
+boundary without changing session-observer's established seconds contract.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts`
+
+**Commit:** `fix(p02-t12): project candidate timestamps in milliseconds`
+
+---
+
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
 **Goal:** Build the initially unverified provider matrix, immutable plan/execution state
@@ -872,7 +1060,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | p01 | code | passed | 2026-08-31 | reviews/archived/p01-review-2026-08-31T044051Z.md | 3b60b06623e8ca533f7ae4298f751fddb8d95ebf | manual | - |
-| p02 | code | pending | - | - | - | - | - |
+| p02 | code | fixes_added | 2026-08-31 | reviews/archived/p02-review-2026-08-31T063722Z.md | e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6 | manual | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
@@ -898,14 +1086,14 @@ root-repository task commit.
 **Summary:**
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
-- p02: 4 tasks — exact candidate/preview/Git evidence
+- p02: 12 tasks — exact candidate/preview/Git evidence plus eight review repairs
 - p03: 6 tasks — provider contracts, orchestration, gate harness, CLI, development runtime
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 17 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 25 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 17 tasks have exactly one verified commit,
+Implementation is complete only when all 25 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

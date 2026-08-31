@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p02-t01
+oat_current_task_id: p02-t05
 oat_generated: false
 ---
 
@@ -27,12 +27,12 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | pending     | 4     | 0/4       |
+| p02   | in_progress | 12    | 4/12      |
 | p03   | pending     | 6     | 0/6       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 3/17 tasks completed
+**Total:** 7/25 tasks completed
 
 ---
 
@@ -75,25 +75,81 @@ repository validation, skill-version validation, lint/format, and diff hygiene p
 
 ## Phase p02: Handoff discovery, preview, and Git evidence
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-08-31
+
+### Phase Summary
+
+**Outcome so far:**
+
+- Froze the handoff schema and cross-discriminated outcome contracts.
+- Added exact provider-qualified discovery, sanitized bounded preview, and Git worktree evidence.
+- Completed three append-only review repair commits through `e488dfb`.
+- Received the final bounded review with eight validated repairs now queued as p02-t05 through p02-t12.
+
+**Verification:** 267 focused tests plus type-check, build parity, repository validation,
+skill-version validation, focused lint/format, and diff hygiene passed at `e488dfb`.
+
+**Review:** Four review rounds are archived. The authorized final repair cycle addresses
+2 Critical, 1 Important, 4 Medium, and 1 Minor finding before one fresh independent
+full-p02 review.
 
 ### Task p02-t01: Define handoff schemas and limits
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `b9a0403f8b5537c01c001dabfeec98538b9c744a`
 
 ### Task p02-t02: Implement exact candidate discovery
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `1e92355be8d2855b29c10bc89f4e287cfeb8aaf1`
 
 ### Task p02-t03: Implement aggregate-bounded sanitized preview
 
+**Status:** completed
+**Commit:** `6ba1c47992925fb87a82eeae4ed69f96be5d2ba2`
+
+### Task p02-t04: Validate exact Git worktree targets
+
+**Status:** completed
+**Commit:** `1c9da58c3debe3ab5d489a58598fcc72480b1e27`
+
+### Task p02-t05: (review) Enumerate every exact Claude store entry
+
 **Status:** pending
 **Commit:** -
 
-### Task p02-t04: Validate exact Git worktree targets
+### Task p02-t06: (review) Fail closed on metadata-prefix truncation
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t07: (review) Enforce preview input-work budgets during reads
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t08: (review) Make qualified-ID ordering locale independent
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t09: (review) Round-trip multiline preview text
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t10: (review) Ignore unrelated stale worktree registrations
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t11: (review) Preserve NUL-delimited worktree paths
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t12: (review) Align candidate timestamps to milliseconds
 
 **Status:** pending
 **Commit:** -
@@ -200,7 +256,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Schedule: p01 → p02 → p03 → root entry gates → p05 → p06
 - HiLL: final phase p06; automatic lifecycle review enabled
 - Autonomous gates: `IMPLEMENT-03` (p06 checkpoint), `IMPLEMENT-08` (bounded phase implementer and reviewer delegation)
-- Status: p01 passed; p02 pending
+- Status: p01 passed; p02 review repairs queued
 
 #### p01 Outcome
 
@@ -224,6 +280,15 @@ Dispatch: scope=p01 action=implementation role=implementer producer=unknown prov
 Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oat-reviewer-gpt-5-6-sol-max)
 
 Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+
+#### p02 Outcome (in progress)
+
+- Phase base/current head: `3b60b06623e8ca533f7ae4298f751fddb8d95ebf` → `e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6`
+- Task commits: `b9a0403` (p02-t01), `1e92355` (p02-t02), `6ba1c47` (p02-t03), `1c9da58` (p02-t04)
+- Prior repair commits: `9e3401a`, `e20ea1f`, `e488dfb`
+- Final review: `reviews/archived/p02-review-2026-08-31T063722Z.md` — 2 Critical, 1 Important, 4 Medium, 1 Minor
+- Authorized action: exactly one additional bounded repair-and-review cycle addressing all eight findings
+- Next task: p02-t05
 
 <!-- orchestration-runs-end -->
 
@@ -252,6 +317,41 @@ Chronological log of implementation progress.
 **New tasks added:** None.
 **Next:** Complete planning and begin `oat-project-implement`.
 
+### Review Received: p02
+
+**Date:** 2026-08-31
+**Review artifact:** `reviews/archived/p02-review-2026-08-31T063722Z.md`
+
+**Findings:**
+
+- Critical: 2
+- Important: 1
+- Medium: 4
+- Minor: 1
+
+**New tasks added:** p02-t05, p02-t06, p02-t07, p02-t08, p02-t09, p02-t10,
+p02-t11, p02-t12
+
+**Finding disposition map:**
+
+- C1 → p02-t05 (`code_fix_required`) — enumerate all Claude store entries under exact-all.
+- C2 → p02-t06 (`code_fix_required`) — reject incomplete metadata-prefix evidence.
+- I1 → p02-t07 (`code_fix_required`) — stop preview parsing at per-session and remaining aggregate budgets.
+- M1 → p02-t08 (`code_fix_required`) — make qualified-ID ordering locale independent.
+- M2 → p02-t09 (`code_fix_required`) — permit safe multiline preview text to round-trip.
+- M3 → p02-t10 (`code_fix_required`) — ignore unrelated stale worktree registrations.
+- M4 → p02-t11 (`code_fix_required`) — preserve NUL-delimited newline-bearing worktree paths.
+- m1 → p02-t12 (`code_fix_required`) — project epoch seconds as milliseconds.
+
+**Prior review provenance:**
+
+- `reviews/archived/p02-review-2026-08-31T051837Z.md`
+- `reviews/archived/p02-review-2026-08-31T055209Z.md`
+- `reviews/archived/p02-review-2026-08-31T060803Z.md`
+
+**Next:** Execute the eight review tasks, then run exactly one fresh independent review
+over the full p02 range. Any remaining Critical or Important finding stops the lifecycle.
+
 ---
 
 ### 2026-08-31
@@ -267,7 +367,12 @@ Chronological log of implementation progress.
 - [x] p01-t03 — `a2928a2`
 - [x] p01 Important review findings — fixed by `3b60b06`
 - [x] p01 fresh re-review — passed with zero findings
-- [ ] p02-t01 — next
+- [x] p02-t01 — `b9a0403`
+- [x] p02-t02 — `1e92355`
+- [x] p02-t03 — `6ba1c47`
+- [x] p02-t04 — `1c9da58`
+- [x] p02 prior review fixes — `9e3401a`, `e20ea1f`, `e488dfb`
+- [ ] p02-t05 — next
 
 ---
 
@@ -286,7 +391,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
-| p02   | -         | -      | -      | -        |
+| p02   | 267 focused tests; type-check; build-check; validate; skill versions; lint/format | all at `e488dfb` | 0 | Original tasks plus three prior fix rounds; final repair tasks pending |
 | p03   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
