@@ -52,6 +52,14 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 Phase p01 passed fresh root-owned re-review at 3b60b06623e8ca533f7ae4298f751fddb8d95ebf; review evidence is archived in reviews/archived/p01-review-2026-08-31T042628Z.md and reviews/archived/p01-review-2026-08-31T044051Z.md.
 
+### 2026-08-31 · structural · oat-project-implement · p03
+
+Phase p03 ended BLOCKED after 2 authorized fix loops; final review reviews/archived/p03-review-2026-08-31T223047Z.md reports critical:1,important:1,medium:3,minor:0 at 304ec8618b8dd9377c06f226d19ffbf8473c85c4.
+
+### 2026-08-31 · structural · oat-project-implement · p03-stop
+
+Stopped before p04 because the final authorized p03 review found unresolved exact Codex native-identity propagation and unknown-ID cleanup-truthfulness blockers; resume through oat-project-review-receive after explicit user authorization.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

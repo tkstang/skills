@@ -1,7 +1,9 @@
 ---
-oat_current_task: p03-t01
-oat_last_commit: 63d27033ae049f925e475246a4da2724a03756ab
-oat_blockers: []
+oat_current_task: p05-t03
+oat_last_commit: 304ec8618b8dd9377c06f226d19ffbf8473c85c4
+oat_blockers:
+  - task_id: p03
+    reason: 'Final authorized p03 review found one Critical exact Codex native-identity propagation defect and one Important unknown-ID cleanup-truthfulness defect.'
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +82,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T14:56:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T22:39:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +102,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - Phase p02 passed; p03-t01 is next if implementation resumes
+Implementation - Phase p03 tasks complete; blocked by final authorized p03 review
 
 ## Artifacts
 
@@ -108,7 +110,7 @@ Implementation - Phase p02 passed; p03-t01 is next if implementation resumes
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, stopped before p03 by explicit scope)
+- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 blocked after final authorized review)
 
 ## Progress
 
@@ -144,12 +146,24 @@ Implementation - Phase p02 passed; p03-t01 is next if implementation resumes
 - ✓ Phase p02 Critical-only fix completed at `63d2703`
 - ✓ Targeted independent p02-t13 review passed with zero findings
 - ✓ Phase p02 completed; two nonblocking Medium findings remain explicitly deferred
-- ⏸ Stopped before p03 by the user's Critical-only scope
+- ✓ Phase p03 implemented in six planned commits through `ed28bec`
+- ✓ Six initial p03 Critical/Important review findings repaired in `703918c`
+- ✓ Residual Claude source-resume proof defect repaired in `304ec86`
+- ✓ Final authorized p03 review completed at reviewed head `304ec86`
+- ✗ Phase p03 blocked by 1 Critical and 1 Important final-review finding
+- ⏸ Root-owned live provider gates and p05 remain unstarted
 
 ## Blockers
 
-None. The targeted p02-t13 review reported no findings in the authorized fix scope.
+- **p03 Critical:** Exact Codex `payload.id` native identity is extracted but handoff
+  discovery, execution corroboration, and read-only reconciliation still use the legacy
+  candidate ID, so an exact fork may select or reject the wrong session.
+- **p03 Important:** Default Codex cleanup can report `providerState: removed` when a
+  creation attempt produced no exact cleanup ID, leaving possible residue with a false
+  receipt disposition.
 
 ## Next Milestone
 
-Resume at p03-t01 only when the user broadens the current Critical-only scope.
+Receive `reviews/archived/p03-review-2026-08-31T223047Z.md` into bounded p03 repair
+tasks only after explicit user authorization. Fix the Critical and Important findings,
+then run a fresh independent p03 review before any p04 live-provider gate.
