@@ -98,7 +98,7 @@ callers. Bump both affected existing skills once for the complete branch diff, r
 
 **Format:** `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/runtimes.test.ts skills/session-observer/SKILL.md skills/export-session-transcript/SKILL.md`; regenerate generated runtimes with `pnpm run build` and do not format generated files.
 
-**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions --base-ref origin/main`
 
 **Commit:** `feat(p01-t01): add bounded transcript readers`
 
@@ -132,7 +132,7 @@ version was already bumped in p01-t01 for this branch's canonical skill changes.
 
 **Format:** `pnpm exec oxfmt --write src/transcript/session-observer/lib/types.ts src/transcript/session-observer/lib/locate.ts tests/session-observer/locate.test.ts`; regenerate `locate.mjs` with `pnpm run build`.
 
-**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
+**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions --base-ref origin/main`
 
 **Commit:** `feat(p01-t02): add exact read-only session discovery`
 
@@ -363,7 +363,7 @@ p01-t01.
 
 **Format:** `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/runtimes.test.ts`; regenerate both runtime outputs with `pnpm run build`.
 
-**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions --base-ref origin/main`
 
 **Commit:** `feat(p03-t02): expose exact transcript lineage`
 
@@ -827,7 +827,7 @@ OAT-synced and excluded by root `AGENTS.md`.
 
 **Verify:** Re-check the user-level versions/targets are byte/version-identical to the
 pre-sync snapshot, inspect repository-only generated changes, then run
-`pnpm run validate:internal-flags && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run validate`.
+`pnpm run validate:internal-flags && pnpm run validate:skill-versions --base-ref origin/main && pnpm run validate`.
 
 **Commit:** `chore(p06-t03): sync project handoff views`
 
@@ -871,7 +871,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| p01 | code | pending | - | - | - | - | - |
+| p01 | code | passed | 2026-08-31 | reviews/archived/p01-review-2026-08-31T044051Z.md | 3b60b06623e8ca533f7ae4298f751fddb8d95ebf | manual | - |
 | p02 | code | pending | - | - | - | - | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |

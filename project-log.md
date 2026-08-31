@@ -48,6 +48,10 @@ target=claude-fable-skip-permissions threshold=important exit=1 status=review_fa
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:2 exit=0 status=ok artifact=.oat/projects/synced/coding-session-handoff/reviews/artifact-plan-review-2026-08-31T034519Z.md
 
+### 2026-08-31 · structural · oat-project-implement · p01
+
+Phase p01 passed fresh root-owned re-review at 3b60b06623e8ca533f7ae4298f751fddb8d95ebf; review evidence is archived in reviews/archived/p01-review-2026-08-31T042628Z.md and reviews/archived/p01-review-2026-08-31T044051Z.md.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

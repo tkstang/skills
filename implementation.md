@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,35 +26,50 @@ oat_generated: false
 
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
-| p01   | in_progress | 3     | 0/3       |
+| p01   | completed   | 3     | 3/3       |
 | p02   | pending     | 4     | 0/4       |
 | p03   | pending     | 6     | 0/6       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 0/17 tasks completed
+**Total:** 3/17 tasks completed
 
 ---
 
 ## Phase p01: Mutation-free transcript substrate
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-08-31
+
+### Phase Summary
+
+**Outcome:**
+
+- Added bounded quiet transcript readers with stable path-free diagnostics.
+- Added exact-all, zero-persistence discovery without changing legacy defaults.
+- Proved state, cache, transcript, and observer-offset non-mutation.
+- Isolated bounded/default classification caches and bounded every traversed entry after independent review.
+
+**Verification:** 223 focused tests, 68 export tests, type-check, build parity,
+repository validation, skill-version validation, lint/format, and diff hygiene passed.
+
+**Review:** Initial review found two Important boundary defects; fix commit
+`3b60b06` addressed both and fresh narrowed re-review passed with zero findings.
 
 ### Task p01-t01: Add bounded quiet transcript readers
 
-**Status:** in_progress
-**Commit:** -
+**Status:** completed
+**Commit:** `78cbfd872ca15267f5a5a99c7bb6e727c3d41423`
 
 ### Task p01-t02: Add exact-all zero-persistence discovery
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `491a551aa450e990bc4d307dbe26b3da52f95d45`
 
 ### Task p01-t03: Prove shared-substrate non-mutation
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `a2928a2e69183936187f52eab8711e7c2b155c37`
 
 ---
 
@@ -185,7 +200,30 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Schedule: p01 → p02 → p03 → root entry gates → p05 → p06
 - HiLL: final phase p06; automatic lifecycle review enabled
 - Autonomous gates: `IMPLEMENT-03` (p06 checkpoint), `IMPLEMENT-08` (bounded phase implementer and reviewer delegation)
-- Status: p01 dispatch pending
+- Status: p01 passed; p02 pending
+
+#### p01 Outcome
+
+- Phase base/head: `3b806e04d2345da623ab714d19357d2e8c88b634` → `3b60b06623e8ca533f7ae4298f751fddb8d95ebf`
+- Task commits: `78cbfd8` (p01-t01), `491a551` (p01-t02), `a2928a2` (p01-t03)
+- Fix continuation: `continuation-e7121b52-ce25-4876-93c7-d26796fd470b`; commit `3b60b06`
+- Initial review: `reviews/archived/p01-review-2026-08-31T042628Z.md` — 2 Important; reconnaissance not attempted
+- Passing re-review: `reviews/archived/p01-review-2026-08-31T044051Z.md` — no findings; reconnaissance not attempted
+- Recovery attempts: 0/10; optional nested dispatches: none; outstanding items: none
+
+**Implementation dispatch:** request `dispatch-77b5baa1-db24-4817-b85e-d84642c25a4c`; target `oat-phase-implementer-gpt-5-6-sol-high`; accepted; outcome `DONE_WITH_CONCERNS`, then bounded fix `DONE`; selection reason `native-catalog`; candidates `gpt-5.6-sol/high`, `gpt-5.6-sol/xhigh`, `gpt-5.6-sol/max`.
+
+Dispatch policy: frontier; selected=high; cap=max (codex, enforced — variant oat-phase-implementer-gpt-5-6-sol-high)
+
+Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-high
+
+**Review dispatch round 1:** request `dispatch-a826b41b-1cf6-4359-8958-9bec12bfd063`; target `oat-reviewer-gpt-5-6-sol-max`; accepted; outcome complete.
+
+**Review dispatch round 2:** request `dispatch-8aee992f-580e-4a19-94b5-235d6abeb115`; target `oat-reviewer-gpt-5-6-sol-max`; accepted; outcome complete.
+
+Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oat-reviewer-gpt-5-6-sol-max)
+
+Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
 <!-- orchestration-runs-end -->
 
@@ -224,6 +262,12 @@ Chronological log of implementation progress.
 - Post-plan project explainer skipped by explicit coordinator decision.
 - Implementation preflight selected Tier 1 with managed Frontier policy.
 - Phase p01 is the first sequential dispatch.
+- [x] p01-t01 — `78cbfd8`
+- [x] p01-t02 — `491a551`
+- [x] p01-t03 — `a2928a2`
+- [x] p01 Important review findings — fixed by `3b60b06`
+- [x] p01 fresh re-review — passed with zero findings
+- [ ] p02-t01 — next
 
 ---
 
@@ -233,7 +277,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01 verification | plan.md | `pnpm run validate:skill-versions -- --base-ref origin/main` | `pnpm run validate:skill-versions --base-ref origin/main` | The package script rejects the standalone `--`; the corrected invocation passed and all remaining plan occurrences were aligned. | `package.json` script contract | None |
 
 ## Test Results
 
@@ -241,7 +285,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| p01   | -         | -      | -      | -        |
+| p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | -         | -      | -      | -        |
 | p03   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
