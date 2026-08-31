@@ -80,12 +80,16 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T03:50:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T03:55:56.665Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
   source: autonomous_policy
   decided_at: '2026-08-31T00:54:18.558Z'
+oat_project_explainer:
+  decision: skip
+  source: interactive
+  decided_at: '2026-08-31T03:55:56.665Z'
 ---
 
 # Project State: coding-session-handoff
@@ -123,6 +127,7 @@ Planning - Ready for implementation
 - ✓ Clean structured re-review passed with no findings
 - ✓ Cross-family plan gate passed and its review artifact was received
 - ✓ Plan complete; awaiting implementation
+- ✓ Optional post-plan project explainer skipped by interactive decision
 
 ## Blockers
 
