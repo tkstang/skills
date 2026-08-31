@@ -36,6 +36,7 @@ import {
   realpath,
   symlink,
   readdir,
+  stat,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -183,6 +184,7 @@ import {
   resolveCursorIdentity,
 } from '../../src/transcript/session-observer/lib/locate.js';
 import { resolveSelfIdentity } from '../../src/transcript/session-observer/lib/observe.js';
+import type { DiscoveryOptions } from '../../src/transcript/session-observer/lib/types.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -220,6 +222,11 @@ function makeCodexTypical(cwd: string): string {
 {"type":"response_item","sessionId":"codex-sess-001","payload":{"type":"message","role":"assistant","content":"Hi!","id":"msg-002"}}
 `;
 }
+
+const exactReadOnlyDiscovery: DiscoveryOptions = {
+  persistence: 'forbid',
+  recency: 'exact-all',
+};
 
 const CURSOR_TYPICAL = `{"role":"user","message":{"content":"Hello"}}
 {"role":"assistant","message":{"content":[{"type":"text","text":"Hi!"}]}}
@@ -602,6 +609,187 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
   });
 });
 
+test('codex exact-all includes old sessions while default discovery remains recent-only', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/exact-all-project';
+    const staleDir = join(home, '.codex', 'sessions', '2025', '01', '01');
+    await mkdir(staleDir, { recursive: true });
+    const stalePath = join(staleDir, 'session-exact-all.jsonl');
+    await writeFile(stalePath, makeCodexTypical(targetCwd), 'utf8');
+    const staleTime = Date.now() / 1000 - 30 * 86400;
+    await utimes(stalePath, staleTime, staleTime);
+
+    expect(
+      (await discover('codex', targetCwd)).some(
+        (candidate) => candidate.transcriptPath === stalePath,
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await discover(
+          'codex',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        )
+      ).some((candidate) => candidate.transcriptPath === stalePath),
+    ).toBe(true);
+  });
+});
+
+test('codex persistence=forbid ignores stale cache reads and leaves the cache byte-identical', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/read-only-cache-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '20');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session-read-only.jsonl');
+    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
+    const transcriptStat = await stat(transcriptPath);
+    const cachePath = join(process.env.STATE_DIR!, 'codex-cwd-cache.json');
+    await mkdir(dirname(cachePath), { recursive: true });
+    const seeded = JSON.stringify({
+      [`${transcriptPath}:${Math.floor(transcriptStat.mtimeMs / 1000)}`]: {
+        recordedCwd: '/stale/cache/value',
+        sessionId: 'stale-cache-id',
+      },
+    });
+    await writeFile(cachePath, seeded, 'utf8');
+
+    const candidates = await discover(
+      'codex',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        sessionId: 'codex-sess-001',
+        recordedCwd: targetCwd,
+      }),
+    ]);
+    expect(await readFile(cachePath, 'utf8')).toBe(seeded);
+  });
+});
+
+test('codex persistence=forbid does not create an absent state directory', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/no-cache-write-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '21');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'session-no-cache-write.jsonl'),
+      makeCodexTypical(targetCwd),
+      'utf8',
+    );
+
+    await discover(
+      'codex',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    await expect(readdir(process.env.STATE_DIR!)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+});
+
+test('exact-all rejects the complete discovery when aggregate entry or byte budgets are crossed', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/budget-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '22');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'one.jsonl'), makeCodexTypical(targetCwd));
+    await writeFile(join(sessionDir, 'two.jsonl'), makeCodexTypical(targetCwd));
+
+    const options: DiscoveryOptions = {
+      ...exactReadOnlyDiscovery,
+      budget: {
+        maxEntries: 1,
+        maxAggregateBytes: 1_000_000,
+        maxMetadataBytesPerEntry: 256 * 1024,
+        deadlineMs: 30_000,
+      },
+    };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_ENTRY_BUDGET_EXCEEDED' });
+
+    options.budget = {
+      ...options.budget!,
+      maxEntries: 10,
+      maxAggregateBytes: 1,
+    };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_BYTE_BUDGET_EXCEEDED' });
+  });
+});
+
+test('exact-all rejects an unclassifiable oversized metadata prefix with path-free diagnostics', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/per-entry-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '23');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'secret-transcript-name.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ padding: 'x'.repeat(512) })}\n${makeCodexTypical(targetCwd)}`,
+    );
+    const diagnostics: unknown[] = [];
+
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 64,
+          deadlineMs: 30_000,
+        },
+        diagnostic: (event) => diagnostics.push(event),
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+    expect(diagnostics).toEqual([
+      { code: 'oversized-record', runtime: 'codex' },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+    expect(JSON.stringify(diagnostics)).not.toContain('secret-transcript-name');
+  });
+});
+
+test('exact-all rejects an expired aggregate deadline without returning partial candidates', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/deadline-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '24');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'deadline.jsonl'),
+      makeCodexTypical(targetCwd),
+    );
+    const diagnostics: unknown[] = [];
+
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 256 * 1024,
+          deadlineMs: 0,
+        },
+        diagnostic: (event) => diagnostics.push(event),
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_DEADLINE_EXCEEDED' });
+    expect(diagnostics).toContainEqual({
+      code: 'deadline-exceeded',
+      runtime: 'codex',
+    });
+  });
+});
+
 test('codex cwd cache: cache hit proved by observable cache-file state', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/cached-project';
@@ -626,7 +814,6 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     ).toBeTruthy();
 
     // Read the original mtime
-    const { stat } = await import('node:fs/promises');
     const statResult = await stat(transcriptPath);
     const origMtime = statResult.mtime;
 
@@ -903,11 +1090,7 @@ test('cursor: explicit locate pin resolves the exact canonical candidate through
     });
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).resolves.toMatchObject({
       runtime: 'cursor',
       sessionId: fixture.targetSession,
@@ -934,11 +1117,7 @@ test('cursor: explicit locate pin surfaces aggregate metadata-entry exhaustion i
     });
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).rejects.toMatchObject({
       name: 'CursorDiscoveryError',
       code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
@@ -1039,11 +1218,7 @@ test('cursor: explicit pin preserves incomplete-index failure semantics', async 
     );
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).rejects.toMatchObject({
       name: 'CursorDiscoveryError',
       code: 'IDENTITY_INDEX_INCOMPLETE',
