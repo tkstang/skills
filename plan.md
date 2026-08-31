@@ -878,6 +878,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
+| plan | artifact | received | 2026-08-31 | reviews/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
