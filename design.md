@@ -549,6 +549,7 @@ type NativeOutcome =
   | {
       status: 'failed';
       retryable: true;
+      failureBoundary: 'before-child-creation';
       exitCode: number | null;
       signal?: string | null;
       reasonCode: string;
@@ -561,18 +562,18 @@ type NativeOutcome =
       reasonCode: string;
     };
 
-type ReportingOutcome =
-  | { status: 'not-attempted'; reasonCode?: string }
-  | {
-      status: 'mapped';
-      childNativeId: string;
-      evidence: 'machine-output-and-transcript';
-    }
-  | {
-      status: 'ambiguous' | 'unresolved' | 'failed';
-      reasonCode: string;
-      candidateChildIds?: string[];
-    };
+type NotAttemptedReporting = { status: 'not-attempted'; reasonCode?: string };
+type MappedReporting = {
+  status: 'mapped';
+  childNativeId: string;
+  evidence: 'machine-output-and-transcript';
+};
+type UnmappedReporting = {
+  status: 'ambiguous' | 'unresolved' | 'failed';
+  reasonCode: string;
+  candidateChildIds?: string[];
+};
+type ReportingOutcome = NotAttemptedReporting | MappedReporting | UnmappedReporting;
 
 interface ItemOutcomeBase {
   key: QualifiedSessionId;
@@ -586,14 +587,27 @@ type ItemOutcome =
   | (ItemOutcomeBase & {
       native: Extract<NativeOutcome, { status: 'succeeded' }>;
       observedChildNativeId: string;
+      reporting: MappedReporting | UnmappedReporting;
     })
   | (ItemOutcomeBase & {
       native: Extract<NativeOutcome, { status: 'indeterminate' }>;
-      observedChildNativeId?: string;
+      observedChildNativeId: string;
+      reporting: MappedReporting | UnmappedReporting;
     })
   | (ItemOutcomeBase & {
-      native: Exclude<NativeOutcome, { status: 'succeeded' | 'indeterminate' }>;
-      observedChildNativeId?: string;
+      native: Extract<NativeOutcome, { status: 'indeterminate' }>;
+      observedChildNativeId?: never;
+      reporting: UnmappedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'failed' }>;
+      observedChildNativeId?: never;
+      reporting: NotAttemptedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'not-run' | 'deferred' | 'refused' }>;
+      observedChildNativeId?: never;
+      reporting: NotAttemptedReporting;
     });
 
 interface BatchOutcome {
@@ -619,6 +633,14 @@ requires the corroborated child ID to equal the applicable selector. `unresolved
 `reconcile` can retry only exact ID/lineage/cwd evidence. A parsed but uncorroborated ID
 is displayed as `observed-unverified`, never as an exact mapping. These selector fields
 do not make a successful or indeterminate native operation retryable.
+
+`failed` additionally requires `failureBoundary: before-child-creation`, forbids every
+observed/candidate/mapped child field, and is the only non-deferred retryable terminal
+state. Any nonzero, signaled, or timed-out call for which child creation cannot be
+excluded is `indeterminate`, even when no child ID was parsed. Runtime schema validation
+rejects `failed + observed`, `failed + mapped`, a mapped ID that differs from the
+observed/expected selector, and any `retryableKeys` member whose item has child evidence.
+`retryableKeys` is exactly the set of `deferred` and proven-before-child `failed` items.
 
 ### CLI and Renderers
 
@@ -731,8 +753,10 @@ The skill must:
 6. Explain that current/unverified/multi-host-limited items are post-turn deferrals, not
    native success.
 7. Run execute only after confirmation; never fabricate child mappings.
-8. For each native success, show the exact verified parent→child mapping and the
-   provider-native command that opens the child in the target worktree.
+8. When reporting is `mapped`, show the exact verified parent→child mapping and the
+   provider-native command that opens the child in the target worktree. For unresolved
+   native success, show the safe `observed-unverified` child selector and read-only
+   reconcile guidance without claiming a verified mapping.
 9. Report each native and reporting outcome and retry only listed keys.
 
 ## Security Considerations
@@ -844,7 +868,7 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 | FR6 | unit + live gate | exact version/help/auth, timeout/output cap, version/context drift, hook isolation, receipt schema/digest/fingerprint/cleanup binding, required two-worktree activation |
 | FR7 | unit + CLI | canonical digest, wrong/missing digest, candidate/Git/capability drift, preview exclusion |
 | FR8 | unit + live gate | exact non-interactive successor argv/marker, shell false, bounded machine output, exact child IDs, current/unverified deferrals, no forbidden flags |
-| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, expected/observed selectors and baselines, partial/indeterminate outcomes, native/reporting independence, exact reconcile, retry safety |
+| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, expected/observed selectors and baselines, cross-discriminated partial/indeterminate outcomes, failed-before-child proof, native/reporting independence, exact reconcile, retry safety |
 | FR10 | integration | public skill inventory, frontmatter/version, docs/navigation, generated runtime and provider sync |
 | NFR1 | integration | stale cache ignored; empty state remains absent; observer/transcript/provider byte identity |
 | NFR2 | unit + integration | no transcript body/path/raw output/credentials in plan, errors, outcome, or digest inputs |
@@ -858,6 +882,8 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 - Test leaf selection, schema validation, canonical digest projection, policy decisions,
   invocation builders, forbidden-flag scanner, mixed outcomes, and renderers with no
   provider process.
+- Reject failed-plus-observed, failed-plus-mapped, selector mismatch, and any retry key
+  carrying child evidence; require indeterminate for every uncertain creation boundary.
 - Use existing transcript sanitization fixtures plus handoff-specific preview bounds.
 - Mock `execFile`/spawn boundaries with literal malicious paths and IDs.
 

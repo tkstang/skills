@@ -212,6 +212,10 @@ session or prove that a source writer is closed.
     recency alone.
   - Only failed or deferred native items are eligible for native retry; successful
     parent operations are never repeated automatically.
+  - `failed` is valid only with explicit proof that the operation ended before child
+    creation and contains no observed, candidate, or mapped child evidence. Any
+    nonzero, terminated, or timed-out operation with possible child creation is
+    non-retryable `indeterminate`.
 - **Priority:** P0
 
 **FR10: Public standalone skill workflow**
