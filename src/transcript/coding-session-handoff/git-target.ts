@@ -201,12 +201,17 @@ export async function inspectWorktree(
     ['worktree', 'list', '--porcelain', '-z'],
     options,
   );
-  const registeredRoots = await Promise.all(
-    registeredWorktreePaths(worktreeList).map((path) =>
-      canonicalize(path, options.deps, 'not-registered-worktree'),
-    ),
-  );
-  if (!registeredRoots.includes(worktreeRoot)) {
+  let matchingRegistrations = 0;
+  for (const registeredPath of registeredWorktreePaths(worktreeList)) {
+    let registeredRoot: string;
+    try {
+      registeredRoot = await options.deps.realpath(registeredPath);
+    } catch {
+      continue;
+    }
+    if (registeredRoot === worktreeRoot) matchingRegistrations += 1;
+  }
+  if (matchingRegistrations !== 1) {
     throw new GitTargetError('not-registered-worktree');
   }
 

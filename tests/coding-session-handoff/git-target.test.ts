@@ -84,6 +84,22 @@ describe('Git worktree target evidence', () => {
     expect(evidence.source.dirty).toBe(false);
   });
 
+  test('ignores an unrelated stale registered sibling while proving the requested roots', async () => {
+    const { root, source, target } = await fixture();
+    const stale = join(root, 'stale-sibling');
+    await git(source, ['worktree', 'add', '-b', 'stale-sibling', stale]);
+    await rm(stale, { recursive: true, force: true });
+
+    const registered = await git(source, ['worktree', 'list', '--porcelain']);
+    expect(registered).toContain('stale-sibling');
+    expect(registered).toContain('prunable');
+
+    await expect(validateHandoffTarget(source, target)).resolves.toMatchObject({
+      source: { canonicalPath: await realpath(source) },
+      target: { canonicalPath: await realpath(target) },
+    });
+  });
+
   test('accepts a symlink alias only when it resolves to the registered worktree root', async () => {
     const { root, source, target } = await fixture();
     const alias = join(root, 'target-alias');
