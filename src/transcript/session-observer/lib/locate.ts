@@ -51,6 +51,7 @@ import {
   discoverPaths,
   encodeCwdVariants,
   extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
   extractMeta,
   extractMetaFromRecords,
   readMetadataRecordsBounded,
@@ -497,8 +498,12 @@ async function candidateDerivedFieldsBounded(
     }
     meta = { ...meta, recordedCwd };
   }
-  if (runtime === 'codex' && (!meta || meta.recordedCwd === null)) {
-    throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
+  if (runtime === 'codex') {
+    const recordedCwd = extractCodexRecordedCwdFromRecords(records);
+    if (!meta || recordedCwd === null) {
+      throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
+    }
+    meta = { ...meta, recordedCwd };
   }
   const result = { meta, classification };
   cache.set(

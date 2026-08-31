@@ -25,6 +25,7 @@ import {
   encodeCwd,
   encodeCwdVariants,
   extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
   extractMeta,
   isAutomaticControlAcknowledgement,
   isNoOpText,
@@ -502,6 +503,32 @@ describe('extractClaudeRecordedCwdFromRecords', () => {
     ['conflicting', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
   ])('rejects %s cwd evidence', (_name, records) => {
     expect(extractClaudeRecordedCwdFromRecords(records)).toBeNull();
+  });
+});
+
+describe('extractCodexRecordedCwdFromRecords', () => {
+  it('returns one absolute cwd when every top-level and payload value agrees', () => {
+    expect(
+      extractCodexRecordedCwdFromRecords([
+        { cwd: '/repo/exact' },
+        { payload: { cwd: '/repo/exact' } },
+        { cwd: '/repo/exact', payload: { cwd: '/repo/exact' } },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['late top-level conflict', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+    [
+      'late payload conflict',
+      [{ cwd: '/repo/one' }, { payload: { cwd: '/repo/two' } }],
+    ],
+    ['empty', [{ cwd: '/repo/one' }, { payload: { cwd: '' } }]],
+    ['relative', [{ cwd: '/repo/one' }, { cwd: 'repo/relative' }]],
+    ['malformed', [{ cwd: '/repo/one' }, { payload: { cwd: 42 } }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractCodexRecordedCwdFromRecords(records)).toBeNull();
   });
 });
 

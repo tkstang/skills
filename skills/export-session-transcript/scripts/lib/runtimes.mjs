@@ -558,6 +558,24 @@ function extractClaudeRecordedCwdFromRecords(records) {
   }
   return recordedCwd;
 }
+function extractCodexRecordedCwdFromRecords(records) {
+  let recordedCwd = null;
+  for (const record of records) {
+    const values = [];
+    if (Object.hasOwn(record, "cwd")) values.push(record.cwd);
+    if (isObject(record.payload) && Object.hasOwn(record.payload, "cwd")) {
+      values.push(record.payload.cwd);
+    }
+    for (const cwd of values) {
+      if (typeof cwd !== "string" || cwd.length === 0 || !isAbsolute(cwd)) {
+        return null;
+      }
+      if (recordedCwd !== null && cwd !== recordedCwd) return null;
+      recordedCwd = cwd;
+    }
+  }
+  return recordedCwd;
+}
 function extractMetaFromRecords(runtime, records, transcriptPath) {
   if (runtime === "claude-code") {
     let sessionId;
@@ -1053,6 +1071,7 @@ export {
   encodeCwd,
   encodeCwdVariants,
   extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
   extractMeta,
   extractMetaFromRecords,
   isAutomaticControlAcknowledgement,

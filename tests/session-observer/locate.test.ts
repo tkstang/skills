@@ -465,6 +465,99 @@ test.each([
   },
 );
 
+test.each([
+  [
+    'late top-level conflict',
+    (targetCwd: string) => ({ cwd: `${targetCwd}-conflict` }),
+  ],
+  [
+    'late payload conflict',
+    (targetCwd: string) => ({ payload: { cwd: `${targetCwd}-conflict` } }),
+  ],
+  ['empty payload cwd', () => ({ payload: { cwd: '' } })],
+  ['relative top-level cwd', () => ({ cwd: 'relative/project' })],
+  ['malformed payload cwd', () => ({ payload: { cwd: 42 } })],
+] as const)(
+  'codex exact-all rejects %s path-free',
+  async (_name, lateEvidence) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'codex-cwd-evidence');
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      const transcriptPath = join(sessionDir, 'secret-cwd-evidence.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'session_started',
+            sessionId: 'codex-cwd-evidence',
+            cwd: targetCwd,
+          },
+          { type: 'response_item', ...lateEvidence(targetCwd) },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      let thrown: unknown;
+      try {
+        await discover(
+          'codex',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toMatchObject({
+        code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE',
+      });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
+test('codex exact-all accepts repeated agreeing top-level and payload cwd evidence', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'codex-agreeing-cwd');
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'agreeing-cwd.jsonl'),
+      [
+        {
+          type: 'session_started',
+          sessionId: 'codex-agreeing-cwd',
+          cwd: targetCwd,
+        },
+        { type: 'session_meta', payload: { cwd: targetCwd } },
+        { type: 'response_item', cwd: targetCwd },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+      'utf8',
+    );
+
+    await expect(
+      discover(
+        'codex',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        sessionId: 'codex-agreeing-cwd',
+        recordedCwd: targetCwd,
+      }),
+    ]);
+  });
+});
+
 test('claude-code exact-all uses exact transcript cwd evidence', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'exact-project');

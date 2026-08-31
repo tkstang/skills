@@ -79,6 +79,60 @@ function dependencies(
 }
 
 describe('exact handoff candidate discovery', () => {
+  test.sequential('refuses a Codex transcript with late conflicting cwd evidence', async () => {
+    const createdHome = await mkdtemp(join(tmpdir(), 'handoff-codex-cwd-'));
+    const home = await realpath(createdHome);
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    process.env.HOME = home;
+    process.env.STATE_DIR = join(home, '.local', 'state', 'session-observer');
+
+    try {
+      const sourceRoot = join(home, 'roots', 'source');
+      await mkdir(sourceRoot, { recursive: true });
+      const canonicalSource = await realpath(sourceRoot);
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      const transcriptPath = join(sessionDir, 'secret-conflicting-cwd.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'session_started',
+            sessionId: 'codex-conflicting-cwd',
+            cwd: canonicalSource,
+          },
+          {
+            type: 'response_item',
+            payload: { cwd: join(home, 'roots', 'other') },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      let thrown: unknown;
+      try {
+        await discoverHandoffCandidates(canonicalSource);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toMatchObject({
+        code: 'discovery-incomplete',
+        provider: 'codex',
+      });
+      expect(String(thrown)).not.toContain(canonicalSource);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test.sequential('returns exact Claude sessions from direct and unexpected slugs only', async () => {
     const createdHome = await mkdtemp(
       join(tmpdir(), 'handoff-claude-complete-'),

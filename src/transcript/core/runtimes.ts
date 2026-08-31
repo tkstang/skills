@@ -1125,6 +1125,35 @@ export function extractClaudeRecordedCwdFromRecords(
 }
 
 /**
+ * Extract exact Codex cwd evidence from every recognized top-level `cwd` and
+ * `payload.cwd` field. Every present value must be a non-empty absolute string,
+ * and all observed values must agree.
+ */
+export function extractCodexRecordedCwdFromRecords(
+  records: JsonObject[],
+): string | null {
+  let recordedCwd: string | null = null;
+
+  for (const record of records) {
+    const values: unknown[] = [];
+    if (Object.hasOwn(record, 'cwd')) values.push(record.cwd);
+    if (isObject(record.payload) && Object.hasOwn(record.payload, 'cwd')) {
+      values.push(record.payload.cwd);
+    }
+
+    for (const cwd of values) {
+      if (typeof cwd !== 'string' || cwd.length === 0 || !isAbsolute(cwd)) {
+        return null;
+      }
+      if (recordedCwd !== null && cwd !== recordedCwd) return null;
+      recordedCwd = cwd;
+    }
+  }
+
+  return recordedCwd;
+}
+
+/**
  * Same extraction as `extractMeta`, but synchronous over an already-parsed
  * record array instead of reading the file. Split out so callers that also
  * need other record-derived data (e.g. session-observer's discovery, which
