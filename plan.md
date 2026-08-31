@@ -38,10 +38,10 @@ CLI 0.151.0, Claude Code 2.1.251, repository generated-runtime tooling, Fumadocs
 ## Planning Checklist
 
 - [x] Defer HiLL checkpoint confirmation to `oat-project-implement`
-- [x] Evaluated phase parallelism; all six phases have hard evidence or source dependencies
+- [x] Evaluated phase parallelism; all five implementation phases and the root gate boundary have hard evidence or source dependencies
 - [x] Set `oat_plan_parallel_groups: []`
 - [x] Mapped every FR/NFR to stable task IDs in `spec.md`
-- [ ] Pass independent plan artifact review
+- [x] Pass independent plan artifact review
 
 ## Parallelism
 
@@ -49,9 +49,10 @@ There are useful peer lanes inside phases, but no safe phase-level parallel grou
 
 - p01 transcript readers feed p02 discovery/preview.
 - p02 freezes handoff types and Git evidence consumed by p03.
-- p03 builds the unverified runtime that p04 executes.
-- p04 produces raw receipts consumed by p05 independent review and activation.
-- p05 must activate both reviewed contracts before p06 can ship public guidance.
+- p03 builds and receives normal phase review for the unverified gate runtime.
+- Root then runs the four mandatory live-execution and receipt-review entry gates.
+- p05 cannot start until all four gates pass, and it must activate both reviewed
+  contracts before p06 can ship public guidance.
 
 Within a phase, implementers may use bounded workers only for file-disjoint
 reconnaissance or test generation. The phase implementer retains integration ownership.
@@ -93,6 +94,8 @@ callers. Bump both affected existing skills once for the complete branch diff, r
 
 **Refactor:** Centralize byte/record/deadline accounting and safe diagnostic emission.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/runtimes.test.ts skills/session-observer/SKILL.md skills/export-session-transcript/SKILL.md`; regenerate generated runtimes with `pnpm run build` and do not format generated files.
+
 **Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
 
 **Commit:** `feat(p01-t01): add bounded transcript readers`
@@ -125,6 +128,8 @@ version was already bumped in p01-t01 for this branch's canonical skill changes.
 
 **Refactor:** Keep option defaults identical for existing session-observer consumers.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/session-observer/lib/types.ts src/transcript/session-observer/lib/locate.ts tests/session-observer/locate.test.ts`; regenerate `locate.mjs` with `pnpm run build`.
+
 **Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
 
 **Commit:** `feat(p01-t02): add exact read-only session discovery`
@@ -152,6 +157,8 @@ Expected: non-mutation coverage fails until the new seam is wired correctly.
 handoff policy to session-observer defaults.
 
 **Refactor:** Consolidate fixture hashing and state-absence assertions.
+
+**Format:** `pnpm exec oxfmt --write tests/session-observer/integration.test.ts tests/session-observer/cli.test.ts`.
 
 **Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts tests/session-observer/integration.test.ts tests/session-observer/cli.test.ts`
 
@@ -186,6 +193,8 @@ structurally separate from plan and outcome types.
 
 **Refactor:** Remove circular dependencies and expose stable reason-code unions.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/types.ts tests/coding-session-handoff/types.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/types.test.ts && pnpm run type-check`
 
 **Commit:** `feat(p02-t01): define handoff contracts`
@@ -214,6 +223,8 @@ candidate discovery. Ignore same-cwd fallback as current evidence and never sele
 recency.
 
 **Refactor:** Keep provider mapping and candidate signature projection deterministic.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/discovery.ts tests/coding-session-handoff/discovery.test.ts`.
 
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/discovery.test.ts tests/session-observer/locate.test.ts`
 
@@ -246,6 +257,8 @@ text; discard partial output on any aggregate crossing.
 **Refactor:** Reuse canonical sanitizer functions without broadening their secret-free
 claim.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/preview.ts tests/coding-session-handoff/preview.test.ts`; if the optional sanitizer test changes, include `tests/export-session-transcript/sanitize.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/preview.test.ts tests/export-session-transcript/sanitize.test.ts && pnpm run type-check`
 
 **Commit:** `feat(p02-t03): add bounded session previews`
@@ -274,6 +287,8 @@ and common directories, hash status without exposing filenames, and preserve det
 state.
 
 **Refactor:** Centralize bounded Git subprocess/result parsing and typed failures.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/git-target.ts tests/coding-session-handoff/git-target.test.ts`.
 
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/git-target.test.ts && pnpm run type-check`
 
@@ -310,6 +325,8 @@ successor status begins `unverified`.
 
 **Refactor:** Separate pure fingerprint/argv policy from subprocess boundaries.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/providers.ts src/transcript/coding-session-handoff/behavior-contracts.ts tests/coding-session-handoff/providers.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts && pnpm run type-check`
 
 **Commit:** `feat(p03-t01): add provider handoff contracts`
@@ -341,6 +358,8 @@ runtime outputs; the existing skill versions remain the branch-level bumps from
 p01-t01.
 
 **Refactor:** Keep provider record ownership inside transcript core.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/runtimes.test.ts`; regenerate both runtime outputs with `pnpm run build`.
 
 **Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
 
@@ -374,6 +393,8 @@ outcome, including failed-plus-child evidence.
 **Refactor:** Keep canonical digest projection, native state, and reporting state
 separate and deterministic.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/handoff.ts tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts && pnpm run type-check`
 
 **Commit:** `feat(p03-t03): orchestrate verified session handoffs`
@@ -405,6 +426,8 @@ provider stores or expose raw IDs/paths/output on stdout.
 **Refactor:** Isolate injectable provider/Git/filesystem boundaries for deterministic
 mock coverage.
 
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts tests/coding-session-handoff/behavior-gate.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/providers.test.ts && pnpm run type-check`
 
 **Commit:** `feat(p03-t04): add disposable behavior gates`
@@ -434,6 +457,8 @@ behavior verification unavailable on auth failure and execution unavailable for
 unverified/context-drift contracts.
 
 **Refactor:** Keep policy out of renderers and raw provider output out of envelopes.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/cli.ts tests/coding-session-handoff/cli.test.ts`.
 
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/cli.test.ts tests/coding-session-handoff/handoff.test.ts && pnpm run type-check`
 
@@ -466,30 +491,39 @@ the only runtime p04 may execute before behavior activation. Do not create any
 
 **Refactor:** Keep import rewrites derived by the existing builder.
 
+**Format:** `pnpm exec oxfmt --write scripts/build-generated.mjs .oxfmtrc.json .oxlintrc.json tests/tooling/generated-output-sync.test.ts`; create the generated tool runtime only through `pnpm run build`.
+
 **Verify:** `pnpm run build:check && pnpm exec vitest run tests/tooling/generated-output-sync.test.ts`
 
 **Commit:** `build(p03-t06): generate handoff gate runtime`
 
 ---
 
-## Phase p04: Exact installed-version live gates
+## Root-owned entry gates between p03 and p05
 
-**Goal:** Root-authorized execution proves real Codex and Claude successors in fresh
-disposable worktrees. Raw receipts remain untracked and mode 0600. Before either gate,
-the root creates `.oat/projects/local/coding-session-handoff-gate-evidence/` mode 0700
-and a mode-0600 local-only receipt locator there. The directory is already ignored by
-the repository. The locator stores only provider, exact receipt path, SHA-256 digest,
-and lifecycle status; it contains no provider IDs, fixture paths, transcript content, or
+These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
+stable IDs remain reserved for traceability and are never reused or renumbered. They
+produce no root-repository code commit. Root-owned project bookkeeping remains separate
+from phase task commits.
+
+Root-authorized execution proves real Codex and Claude successors in fresh disposable
+worktrees. Raw receipts remain untracked and mode 0600. Before either gate, the root
+creates `.oat/projects/local/coding-session-handoff-gate-evidence/` mode 0700 and a
+mode-0600 local-only receipt locator there. The directory is already ignored by the
+repository. The locator stores only provider, exact receipt path, SHA-256 digest, and
+lifecycle status; it contains no provider IDs, fixture paths, transcript content, or
 credentials. It survives a Claude-auth pause/restart, is never consulted by the shipped
 runtime, and is never committed to the root branch or synced project ref.
 
 **Root-inline authority:** Provider-session creation/deletion and irreversible quota use
-are executed by the root orchestrator. The phase implementer may verify harness code but
-must not run a gate, authenticate, or clean provider state on the root's behalf.
+are executed by the root orchestrator. The p03 implementer may verify harness code but
+must not run a gate, authenticate, or clean provider state on the root's behalf. Root
+must not dispatch p05 until all four entry-gate dispositions pass.
 
-### Task p04-t01: Run the Codex 0.151.0 successor gate
+### Entry gate p04-t01: Run the Codex 0.151.0 successor gate
 
-**Dependencies:** p03 complete with unverified Codex contract.
+**Gate dependency:** p03 complete, committed, and independently phase-reviewed with an
+unverified Codex contract.
 
 **Files:**
 
@@ -513,14 +547,17 @@ locator and passes that locator path directly to p05-t01; reviewers never scan f
 receipt. If failed/inconclusive, record a product blocker; do not retry the native
 parent operation automatically.
 
-**Commit:** `test(p04-t01): record Codex successor gate` (project bookkeeping only)
+**Bookkeeping:** Root records only the redacted digest/status in project artifacts and
+commits that lifecycle bookkeeping separately; no phase task or root-repository code
+commit is created.
 
 ---
 
-### Task p04-t02: Run the Claude Code 2.1.251 successor gate
+### Entry gate p04-t02: Run the Claude Code 2.1.251 successor gate
 
-**Dependencies:** p03 complete with unverified Claude contract; supported local Claude
-authentication is required only at this task.
+**Gate dependency:** p03 complete, committed, and independently phase-reviewed with an
+unverified Claude contract; supported local Claude authentication is required only at
+this gate.
 
 **Files:**
 
@@ -545,18 +582,23 @@ negative, unauthenticated, or unobservable result is a product blocker, not perm
 to ship plan-only behavior. Root atomically updates the locator and passes its exact
 path directly to p05-t02; no reviewer auto-discovers local evidence.
 
-**Commit:** `test(p04-t02): record Claude successor gate` (project bookkeeping only)
+**Bookkeeping:** Root records only the redacted digest/status in project artifacts and
+commits that lifecycle bookkeeping separately; no phase task or root-repository code
+commit is created.
 
 ---
 
-## Phase p05: Independent receipt review and behavior activation
+## Root-owned independent receipt review gates
 
-**Goal:** Independently validate both raw receipts, activate only reviewed exact
-contracts, and prove executable/native/reporting behavior without weakening drift rules.
+These reviews are root-dispatched lifecycle gates, not phase tasks. Each reviewer is
+distinct from the p03 implementer and root gate executor, remains read-only, validates
+locator and receipt mode/digest before reading, and never scans local state. A `fail` or
+`inconclusive` disposition blocks p05 without activation, plan-only fallback, or an
+automatic provider retry.
 
-### Task p05-t01: Independently review the Codex receipt
+### Entry gate p05-t01: Independently review the Codex receipt
 
-**Dependencies:** p04-t01 passed.
+**Gate dependency:** p04-t01 passed.
 
 **Files:**
 
@@ -571,13 +613,14 @@ cwd/lineage/resumability evidence, bounds, cleanup, and credential/raw-output ab
 **Verify:** Review disposition is `pass`; `fail` or `inconclusive` blocks activation.
 The reviewer must not edit behavior contracts, generated output, or the raw receipt.
 
-**Commit:** `docs(p05-t01): record Codex gate review` (project artifact only)
+**Bookkeeping:** Root receives and archives the redacted review artifact in the synced
+project ref; no phase task or root-repository code commit is created.
 
 ---
 
-### Task p05-t02: Independently review the Claude receipt
+### Entry gate p05-t02: Independently review the Claude receipt
 
-**Dependencies:** p04-t02 passed; peer to p05-t01.
+**Gate dependency:** p04-t02 passed; peer to p05-t01.
 
 **Files:**
 
@@ -592,13 +635,20 @@ digest before reading and never searches local state.
 **Verify:** Review disposition is `pass`; `fail` or `inconclusive` blocks activation.
 The reviewer must not edit source or receipts.
 
-**Commit:** `docs(p05-t02): record Claude gate review` (project artifact only)
+**Bookkeeping:** Root receives and archives the redacted review artifact in the synced
+project ref; no phase task or root-repository code commit is created.
 
 ---
 
+## Phase p05: Reviewed behavior activation
+
+**Goal:** Activate only independently reviewed exact contracts and prove
+executable/native/reporting behavior without weakening drift rules.
+
 ### Task p05-t03: Activate both reviewed exact-version contracts
 
-**Dependencies:** p05-t01 and p05-t02 both pass.
+**Dependencies:** all four entry gates p04-t01, p04-t02, p05-t01, and p05-t02 pass and
+their redacted dispositions are validated by root.
 
 **Files:**
 
@@ -618,6 +668,8 @@ Expected: exact contracts are still unverified.
 pre-public development bundle through `pnpm run build`.
 
 **Refactor:** Keep resume unverified and remove no drift/auth/context checks.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-contracts.ts tests/coding-session-handoff/providers.test.ts`; regenerate the generated tool runtime with `pnpm run build`.
 
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts && pnpm run build:check`
 
@@ -648,6 +700,8 @@ contract tests.
 
 **Refactor:** Preserve strict cross-discrimination and one-result-per-selected-parent.
 
+**Format:** `pnpm exec oxfmt --write tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/reconcile.test.ts tests/coding-session-handoff/cli.test.ts`.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff && pnpm run type-check && pnpm run build:check`
 
 **Commit:** `test(p05-t04): verify activated handoff behavior`
@@ -656,8 +710,11 @@ contract tests.
 
 ## Phase p06: Public skill, documentation, and repository completion
 
-**Goal:** Ship the public 1.0.0 workflow, document exact support/safety boundaries, and
-pass repository-wide verification plus independent final review.
+**Goal:** Ship the public 1.0.0 workflow and document exact support/safety boundaries.
+Repository-wide verification, independent final review, and the implementation exit
+gate run first in root-owned lifecycle closeout after the phase's two code-producing
+tasks and standard phase review. The root-owned documentation step runs afterward in
+the stored completion-and-closeout sequence.
 
 ### Task p06-t01: Author the public 1.0.0 skill
 
@@ -698,17 +755,25 @@ runtime, and layout/version contracts.
 
 **Refactor:** Keep the skill concise and route mechanics through the bundled script.
 
+**Format:** `pnpm exec oxfmt --write skills/coding-session-handoff/SKILL.md tests/coding-session-handoff/install-contract.test.ts scripts/build-generated.mjs .oxfmtrc.json .oxlintrc.json tests/tooling/generated-output-sync.test.ts tests/repo/layout.test.ts tests/repo/skill-frontmatter.test.ts tests/release/versioning.test.ts README.md`; generate and delete runtime outputs through `pnpm run build`, never hand-format generated files.
+
 **Verify:** `pnpm exec vitest run tests/coding-session-handoff/install-contract.test.ts tests/repo/layout.test.ts tests/repo/skill-frontmatter.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts && pnpm run build:check && pnpm run validate`
 
 **Commit:** `feat(p06-t01): add coding session handoff skill`
 
 ---
 
-### Task p06-t02: Document user and engineering contracts
+### Reserved closeout documentation gate p06-t02: Document user and engineering contracts
 
-**Dependencies:** p05 complete; peer to p06-t01 after behavior is frozen.
+This stable ID is retired from the implementation-task set and will never be reused or
+renumbered. The standard `oat-project-implement` completion-and-closeout `document`
+step invokes `oat-project-document` after implementation behavior is frozen; that
+root-owned lifecycle skill owns its own documentation and project-state commits. This
+gate runs only after p06-t04 has completed aggregate verification, final review, and the
+implementation exit gate; it is not a prerequisite for p06-t04.
 
-**Workflow:** Invoke `oat-project-document` and follow `documentation/AGENTS.md`.
+**Closeout workflow:** Follow `documentation/AGENTS.md` and carry this exact declared
+scope and verification into the root-owned document-step brief.
 
 **Files:**
 
@@ -723,17 +788,21 @@ runtime, and layout/version contracts.
 provenance, preview privacy warning, cleanup limits, exact-version drift, auth flow, and
 unsupported v1 surfaces. Add authored `## Contents` and `.md` links.
 
+**Documentation formatting:** `pnpm --dir documentation exec oxfmt --write docs/user-guide/skills/coding-session-handoff.md docs/user-guide/skills/index.md docs/user-guide/skills/meta.json docs/user-guide/index.md docs/engineering/architecture/transcript-core.md`; regenerate `documentation/index.md` with `pnpm --dir documentation run build` and never hand-edit it.
+
 **Verify:** `pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build`
 
 Expected: Fumadocs navigation and generated index build cleanly.
 
-**Commit:** `docs(p06-t02): document session handoff`
+**Closeout commits:** Let `oat-project-document` create only its documented bounded
+documentation commit(s) and separate synced-project bookkeeping commit; do not create a
+phase task commit for this gate.
 
 ---
 
 ### Task p06-t03: Synchronize project-only provider views
 
-**Dependencies:** p06-t01; may proceed alongside docs with no shared docs files.
+**Dependencies:** p06-t01.
 
 **Files:**
 
@@ -750,6 +819,9 @@ repository mirrors/symlinks. Do not run bare `oat sync` and do not use `--scope 
 **Refactor:** Keep public and internal skill lists distinct; never stamp the public skill
 internal and never hand-edit a provider mirror.
 
+**Format:** Do not run a formatter; every changed file in this task is generated or
+OAT-synced and excluded by root `AGENTS.md`.
+
 **Verify:** Re-check the user-level versions/targets are byte/version-identical to the
 pre-sync snapshot, inspect repository-only generated changes, then run
 `pnpm run validate:internal-flags && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run validate`.
@@ -758,9 +830,14 @@ pre-sync snapshot, inspect repository-only generated changes, then run
 
 ---
 
-### Task p06-t04: Run aggregate verification and final review
+### Reserved closeout gate p06-t04: Aggregate verification and final review
 
-**Dependencies:** p06-t01, p06-t02, p06-t03.
+This stable ID is retired from the implementation-task set and will never be reused or
+renumbered. It names the standard root-owned lifecycle closeout that runs after p06-t01
+and p06-t03 have each produced exactly one verified commit and p06 has passed its
+built-in root phase review. It completes aggregate verification, independent final
+review, and the implementation exit gate before the stored p06-t02 document step may
+run.
 
 **Files:**
 
@@ -779,13 +856,11 @@ pre-sync snapshot, inspect repository-only generated changes, then run
 8. `pnpm --dir documentation run build`
 9. `git diff --check`
 
-Then run independent final code review over the complete implementation range. Apply
-bounded Critical/Important fixes through the owning task/phase and re-run affected plus
-aggregate gates until clean within the configured review budget.
-
-**Commit:** `chore(p06-t04): complete handoff verification` only if verification or
-review requires tracked fixes; otherwise record completion in OAT bookkeeping without
-an empty code commit.
+Then use the standard `oat-project-implement` completion-and-closeout route for the
+independent final code review over the complete implementation range. Apply bounded
+Critical/Important fixes through their owning phase recovery path and re-run affected
+plus aggregate gates until clean within the configured review budget. Root commits only
+the resulting lifecycle bookkeeping; no empty root-repository task commit is created.
 
 ---
 
@@ -802,12 +877,17 @@ an empty code commit.
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
-| plan | artifact | fixes_completed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
+| plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
 Reviewers receive bounded scope and do not edit source. Raw provider receipts never
 enter this table or Git; redacted review artifacts may record their SHA-256 digests.
+The preserved p04 code placeholder predates the refreshed implementation contract and
+does not identify an executable phase. The stable p04-t01/p04-t02 and p05-t01/p05-t02
+IDs are mandatory root-owned entry gates, while p06-t02 and p06-t04 are reserved
+lifecycle closeout gates; none is counted as an implementation task or
+root-repository task commit.
 
 ## Implementation Complete
 
@@ -816,16 +896,16 @@ enter this table or Git; redacted review artifacts may record their SHA-256 dige
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 4 tasks — exact candidate/preview/Git evidence
 - p03: 6 tasks — provider contracts, orchestration, gate harness, CLI, development runtime
-- p04: 2 tasks — root-executed exact installed-version live gates
-- p05: 4 tasks — independent receipt review and behavior activation
-- p06: 4 tasks — atomic public skill/runtime/inventories, docs, project-only sync, final review
+- p05: 2 tasks — reviewed behavior activation and exact outcome coverage
+- p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 23 tasks**
+**Total: 17 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when both live gates and receipt reviews pass, exact
-contracts are activated, all verification succeeds, and final independent review has no
-Critical or Important findings. Claude authentication remains a task-local external
-precondition for p04-t02; failure there is a product blocker.
+Implementation is complete only when all 17 tasks have exactly one verified commit,
+both live gates and receipt reviews pass, exact contracts are activated, aggregate
+verification and the root-owned documentation gate succeed, and final independent
+review has no Critical or Important findings. Claude authentication remains a
+gate-local external precondition for p04-t02; failure there is a product blocker.
 
 ## References
 
