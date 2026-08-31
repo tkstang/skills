@@ -3378,12 +3378,15 @@ async function verifyProviderBehavior(input) {
     provider: input.provider,
     executablePath: input.providerProbe.capability.executable,
     fixture,
+    parentCreationAttempted: false,
+    successorCreationAttempted: false,
     ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId }
   };
   let childEvidence;
   let resumeEvidence;
   let incomplete = false;
   try {
+    state.parentCreationAttempted = true;
     const parentResult = await safeRun(
       deps,
       parentInvocation(
@@ -3408,6 +3411,7 @@ async function verifyProviderBehavior(input) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     state.parentEvidence = parentEvidence;
+    state.successorCreationAttempted = true;
     const successorResult = await safeRun(
       deps,
       buildNativeInvocation(
@@ -3679,21 +3683,28 @@ async function inspectDefaultSourceResumeEvidence(context, sourceBeforeResume, c
     childAfterResume
   );
 }
-async function cleanupDefaultProvider(context) {
-  const commands = context.provider === "codex" ? [context.childNativeId, context.parentNativeId].filter((id) => id !== void 0).map((id) => ["delete", "--force", id]) : [
+async function cleanupDefaultProvider(context, runCleanupCommand = async (executablePath, argv) => {
+  await execFileAsync2(executablePath, argv, {
+    timeout: 6e4,
+    maxBuffer: 65536,
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true
+  });
+}) {
+  const hasExactParentId = typeof context.parentNativeId === "string" && context.parentNativeId.length > 0;
+  const hasExactChildId = typeof context.childNativeId === "string" && context.childNativeId.length > 0;
+  const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
+    (id) => typeof id === "string" && id.length > 0
+  );
+  const commands = context.provider === "codex" ? [...new Set(exactCodexIds)].map((id) => ["delete", "--force", id]) : [
     ["project", "purge", "-y", context.fixture.targetWorktree],
     ["project", "purge", "-y", context.fixture.sourceWorktree]
   ];
-  let failed = false;
+  let failed = context.provider === "codex" && (context.parentCreationAttempted && !hasExactParentId || context.successorCreationAttempted && !hasExactChildId);
   for (const argv of commands) {
     try {
-      await execFileAsync2(context.executablePath, argv, {
-        timeout: 6e4,
-        maxBuffer: 65536,
-        encoding: "utf8",
-        shell: false,
-        windowsHide: true
-      });
+      await runCleanupCommand(context.executablePath, argv);
     } catch {
       failed = true;
     }

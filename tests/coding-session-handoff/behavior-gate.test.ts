@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+  cleanupDefaultProvider,
   createBehaviorPlan,
   evaluateSourceResumeSnapshots,
   exactTranscriptSnapshot,
@@ -179,6 +180,66 @@ describe('behavior-plan', () => {
 });
 
 describe('behavior-verify', () => {
+  test.each([
+    {
+      name: 'unknown parent after an attempted parent creation',
+      state: {
+        parentCreationAttempted: true,
+        successorCreationAttempted: false,
+      },
+      expectedIds: [],
+      expectedStatus: 'failed',
+    },
+    {
+      name: 'known parent and unknown child after an attempted successor',
+      state: {
+        parentCreationAttempted: true,
+        successorCreationAttempted: true,
+        parentNativeId: 'parent-id',
+      },
+      expectedIds: ['parent-id'],
+      expectedStatus: 'failed',
+    },
+    {
+      name: 'known parent and child after both creation attempts',
+      state: {
+        parentCreationAttempted: true,
+        successorCreationAttempted: true,
+        parentNativeId: 'parent-id',
+        childNativeId: 'child-id',
+      },
+      expectedIds: ['child-id', 'parent-id'],
+      expectedStatus: 'removed',
+    },
+  ] as const)(
+    'makes default Codex cleanup truthful for $name',
+    async (fixture) => {
+      const deletedIds: string[] = [];
+      const result = await cleanupDefaultProvider(
+        {
+          provider: 'codex',
+          executablePath: '/usr/local/bin/codex',
+          fixture: {
+            repositoryRoot: '/tmp/private-gate',
+            sourceWorktree: '/tmp/private-gate/source',
+            targetWorktree: '/tmp/private-gate/target',
+          },
+          ...fixture.state,
+        },
+        async (_executablePath, argv) => {
+          expect(argv.slice(0, 2)).toEqual(['delete', '--force']);
+          deletedIds.push(argv[2]);
+        },
+      );
+
+      expect(deletedIds).toEqual(fixture.expectedIds);
+      expect(result.status).toBe(fixture.expectedStatus);
+      expect(result.reasonCodes).toEqual(
+        fixture.expectedStatus === 'failed' ? ['reporting-failed'] : [],
+      );
+    },
+  );
+
   test.sequential('locates exact Codex evidence by payload.id, not legacy or root ID', async () => {
     const createdHome = await mkdtemp(join(tmpdir(), 'gate-codex-native-'));
     const home = await realpath(createdHome);
@@ -581,6 +642,8 @@ describe('behavior-verify', () => {
       const events: string[] = [];
       const receipts: BehavioralGateReceipt[] = [];
       const cleanupStates: Array<{
+        parentCreationAttempted: boolean;
+        successorCreationAttempted: boolean;
         parentNativeId?: string;
         childNativeId?: string;
       }> = [];
@@ -633,6 +696,8 @@ describe('behavior-verify', () => {
           cleanupProvider: async (state) => {
             events.push('cleanup:provider');
             cleanupStates.push({
+              parentCreationAttempted: state.parentCreationAttempted,
+              successorCreationAttempted: state.successorCreationAttempted,
               parentNativeId: state.parentNativeId,
               childNativeId: state.childNativeId,
             });
@@ -660,6 +725,12 @@ describe('behavior-verify', () => {
         },
       });
       expect(cleanupStates).toHaveLength(1);
+      expect(cleanupStates[0]).toMatchObject({
+        parentCreationAttempted: true,
+        successorCreationAttempted: !['provider-1', 'parent-evidence'].includes(
+          failureStage,
+        ),
+      });
       expect(events.indexOf('cleanup:provider')).toBeLessThan(
         events.indexOf('cleanup:git'),
       );

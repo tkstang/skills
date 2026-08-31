@@ -140,6 +140,8 @@ export interface PartialBehaviorGateContext {
   provider: HandoffProvider;
   executablePath: string;
   fixture: BehaviorGateFixture;
+  parentCreationAttempted: boolean;
+  successorCreationAttempted: boolean;
   parentNativeId?: string;
   childNativeId?: string;
   requestedChildNativeId?: string;
@@ -615,6 +617,8 @@ export async function verifyProviderBehavior(
     provider: input.provider,
     executablePath: input.providerProbe.capability.executable,
     fixture,
+    parentCreationAttempted: false,
+    successorCreationAttempted: false,
     ...(requestedChildId === undefined
       ? {}
       : { requestedChildNativeId: requestedChildId }),
@@ -624,6 +628,7 @@ export async function verifyProviderBehavior(
   let incomplete = false;
 
   try {
+    state.parentCreationAttempted = true;
     const parentResult = await safeRun(
       deps,
       parentInvocation(
@@ -655,6 +660,7 @@ export async function verifyProviderBehavior(
     }
     state.parentEvidence = parentEvidence;
 
+    state.successorCreationAttempted = true;
     const successorResult = await safeRun(
       deps,
       buildNativeInvocation(
@@ -1044,28 +1050,44 @@ async function inspectDefaultSourceResumeEvidence(
   );
 }
 
-async function cleanupDefaultProvider(
+export async function cleanupDefaultProvider(
   context: PartialBehaviorGateContext,
+  runCleanupCommand: (
+    executablePath: string,
+    argv: string[],
+  ) => Promise<void> = async (executablePath, argv) => {
+    await execFileAsync(executablePath, argv, {
+      timeout: 60_000,
+      maxBuffer: 65_536,
+      encoding: 'utf8',
+      shell: false,
+      windowsHide: true,
+    });
+  },
 ): Promise<ProviderCleanupResult> {
+  const hasExactParentId =
+    typeof context.parentNativeId === 'string' &&
+    context.parentNativeId.length > 0;
+  const hasExactChildId =
+    typeof context.childNativeId === 'string' &&
+    context.childNativeId.length > 0;
+  const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  );
   const commands =
     context.provider === 'codex'
-      ? [context.childNativeId, context.parentNativeId]
-          .filter((id): id is string => id !== undefined)
-          .map((id) => ['delete', '--force', id])
+      ? [...new Set(exactCodexIds)].map((id) => ['delete', '--force', id])
       : [
           ['project', 'purge', '-y', context.fixture.targetWorktree],
           ['project', 'purge', '-y', context.fixture.sourceWorktree],
         ];
-  let failed = false;
+  let failed =
+    context.provider === 'codex' &&
+    ((context.parentCreationAttempted && !hasExactParentId) ||
+      (context.successorCreationAttempted && !hasExactChildId));
   for (const argv of commands) {
     try {
-      await execFileAsync(context.executablePath, argv, {
-        timeout: 60_000,
-        maxBuffer: 65_536,
-        encoding: 'utf8',
-        shell: false,
-        windowsHide: true,
-      });
+      await runCleanupCommand(context.executablePath, argv);
     } catch {
       failed = true;
     }
