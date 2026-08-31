@@ -728,6 +728,40 @@ test('exact-all rejects the complete discovery when aggregate entry or byte budg
   });
 });
 
+test.each(['codex', 'claude-code'] as const)(
+  '%s exact-all counts non-JSONL and nested directory entries against maxEntries',
+  async (runtime) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', `${runtime}-entry-budget`);
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(join(scanDir, 'nested-directory'), { recursive: true });
+      await writeFile(join(scanDir, 'ignored-one.txt'), 'one', 'utf8');
+      await writeFile(join(scanDir, 'ignored-two.log'), 'two', 'utf8');
+      const diagnostics: unknown[] = [];
+
+      await expect(
+        discover(runtime, targetCwd, new ClassificationCache(), {
+          ...exactReadOnlyDiscovery,
+          budget: {
+            maxEntries: 1,
+            maxAggregateBytes: 1_000_000,
+            maxMetadataBytesPerEntry: 256 * 1024,
+            deadlineMs: 30_000,
+          },
+          diagnostic: (event) => diagnostics.push(event),
+        }),
+      ).rejects.toMatchObject({ code: 'DISCOVERY_ENTRY_BUDGET_EXCEEDED' });
+      expect(diagnostics).toContainEqual({
+        code: 'budget-exceeded',
+        runtime,
+      });
+    });
+  },
+);
+
 test('exact-all rejects an unclassifiable oversized metadata prefix with path-free diagnostics', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/per-entry-project';
@@ -2105,6 +2139,93 @@ test('classification cache: appending to a transcript invalidates the cache and 
       secondCandidate.genuineUserMessages,
       'the re-classified result must reflect the appended content',
     ).toBe(2);
+  });
+});
+
+test('classification cache: default results cannot bypass exact-all per-entry bounds', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cache-default-to-bounded');
+    const transcriptDir = join(home, '.codex', 'sessions', '2026', '08', '30');
+    const transcriptPath = join(transcriptDir, 'default-to-bounded.jsonl');
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ padding: 'x'.repeat(512) })}\n${makeCodexTypical(targetCwd)}`,
+      'utf8',
+    );
+    const cache = new ClassificationCache();
+
+    expect(await discover('codex', targetCwd, cache)).toEqual([
+      expect.objectContaining({ recordedCwd: targetCwd }),
+    ]);
+    await expect(
+      discover('codex', targetCwd, cache, {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 64,
+          deadlineMs: 30_000,
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+  });
+});
+
+test('classification cache: exact-all prefix results cannot change default classification', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cache-bounded-to-default');
+    const transcriptDir = join(home, '.codex', 'sessions', '2026', '08', '30');
+    const transcriptPath = join(transcriptDir, 'bounded-to-default.jsonl');
+    await mkdir(transcriptDir, { recursive: true });
+    const prefixRecords = [
+      JSON.stringify({
+        type: 'session_started',
+        sessionId: 'bounded-to-default',
+        cwd: targetCwd,
+      }),
+      ...Array.from({ length: 127 }, (_, index) =>
+        JSON.stringify({ type: 'summary', index }),
+      ),
+    ];
+    await writeFile(
+      transcriptPath,
+      [
+        ...prefixRecords,
+        JSON.stringify({
+          type: 'response_item',
+          sessionId: 'bounded-to-default',
+          payload: { type: 'message', role: 'user', content: 'Hello' },
+        }),
+        JSON.stringify({
+          type: 'response_item',
+          sessionId: 'bounded-to-default',
+          payload: { type: 'message', role: 'assistant', content: 'Hi' },
+        }),
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    const cache = new ClassificationCache();
+
+    const bounded = await discover(
+      'codex',
+      targetCwd,
+      cache,
+      exactReadOnlyDiscovery,
+    );
+    expect(bounded[0]).toMatchObject({
+      engagementStatus: 'unengaged',
+      realMessageCount: 0,
+    });
+
+    const legacy = await discover('codex', targetCwd, cache);
+    expect(legacy[0]).toMatchObject({
+      engagementStatus: 'engaged',
+      genuineUserMessages: 1,
+      assistantMessages: 1,
+      realMessageCount: 2,
+    });
   });
 });
 

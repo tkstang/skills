@@ -3,7 +3,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
-  readdir,
   opendir,
   stat,
   mkdir,
@@ -167,20 +166,22 @@ class ClassificationCache {
   constructor(maxEntries = DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES) {
     this.maxEntries = maxEntries;
   }
-  get(transcriptPath, mtimeMs, size) {
-    const entry = this.entries.get(transcriptPath);
+  get(transcriptPath, mtimeMs, size, derivation = "default") {
+    const key = JSON.stringify([derivation, transcriptPath]);
+    const entry = this.entries.get(key);
     if (!entry) return void 0;
     if (entry.mtimeMs !== mtimeMs || entry.size !== size) {
-      this.entries.delete(transcriptPath);
+      this.entries.delete(key);
       return void 0;
     }
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, entry);
+    this.entries.delete(key);
+    this.entries.set(key, entry);
     return entry.result;
   }
-  set(transcriptPath, mtimeMs, size, result) {
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, { mtimeMs, size, result });
+  set(transcriptPath, mtimeMs, size, result, derivation = "default") {
+    const key = JSON.stringify([derivation, transcriptPath]);
+    this.entries.delete(key);
+    this.entries.set(key, { mtimeMs, size, result });
     if (this.entries.size > this.maxEntries) {
       const oldestKey = this.entries.keys().next().value;
       if (oldestKey !== void 0) this.entries.delete(oldestKey);
@@ -224,7 +225,13 @@ async function candidateDerivedFields(runtime, transcriptPath, signature, cache)
   }
 }
 async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic) {
-  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
+  const cached = cache.get(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    derivation
+  );
   if (cached) return cached;
   let incomplete = false;
   let deadlineExceeded = false;
@@ -253,7 +260,13 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
   }
   const result = { meta, classification };
-  cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+  cache.set(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    result,
+    derivation
+  );
   return result;
 }
 async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
@@ -324,13 +337,13 @@ async function discoverClaudeCode(targetCwd, cache, options) {
     budget?.checkDeadline();
     const encodedDir = join(projectsRoot, encoded);
     try {
-      const entries = await readdir(encodedDir);
-      const jsonlFiles = entries.filter((e) => e.endsWith(".jsonl"));
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(encodedDir, file);
+      const entries = await opendir(encodedDir);
+      for await (const entry of entries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith(".jsonl")) continue;
+        const transcriptPath = join(encodedDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
-        budget?.consumeEntry();
         let fileStat;
         try {
           fileStat = await stat(transcriptPath);
@@ -380,34 +393,36 @@ async function discoverClaudeCode(targetCwd, cache, options) {
     }
   }
   if (!directHit) {
-    let projectDirs = [];
+    let projectDirs;
     try {
-      projectDirs = await readdir(projectsRoot);
+      projectDirs = await opendir(projectsRoot);
     } catch (error) {
       if (budget && !isMissingPathError(error)) {
         throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
       }
       return candidates;
     }
-    for (const dirName of projectDirs) {
-      budget?.checkDeadline();
+    for await (const projectEntry of projectDirs) {
+      budget?.consumeEntry();
+      if (!projectEntry.isDirectory()) continue;
+      const dirName = projectEntry.name;
       if (encodedVariants.includes(dirName)) continue;
       const projectDir = join(projectsRoot, dirName);
       let dirEntries;
       try {
-        dirEntries = await readdir(projectDir);
+        dirEntries = await opendir(projectDir);
       } catch {
         if (budget) {
           throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
         }
         continue;
       }
-      const jsonlFiles = dirEntries.filter((e) => e.endsWith(".jsonl"));
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(projectDir, file);
+      for await (const entry of dirEntries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith(".jsonl")) continue;
+        const transcriptPath = join(projectDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
-        budget?.consumeEntry();
         let fileStat;
         try {
           fileStat = await stat(transcriptPath);
@@ -472,22 +487,28 @@ async function collectJsonlFiles(dir, budget = null) {
   const results = [];
   let entries;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    entries = await opendir(dir);
   } catch (error) {
     if (budget && !isMissingPathError(error)) {
       throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
     }
     return results;
   }
-  for (const entry of entries) {
-    budget?.checkDeadline();
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const nested = await collectJsonlFiles(fullPath, budget);
-      results.push(...nested);
-    } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+  try {
+    for await (const entry of entries) {
       budget?.consumeEntry();
-      results.push(fullPath);
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const nested = await collectJsonlFiles(fullPath, budget);
+        results.push(...nested);
+      } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+        results.push(fullPath);
+      }
+    }
+  } catch (error) {
+    if (error instanceof SessionDiscoveryError) throw error;
+    if (budget) {
+      throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
     }
   }
   return results;

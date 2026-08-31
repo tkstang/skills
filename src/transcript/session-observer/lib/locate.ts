@@ -33,7 +33,6 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { Stats } from 'node:fs';
 import {
-  readdir,
   opendir,
   stat,
   mkdir,
@@ -326,7 +325,9 @@ interface ClassificationCacheEntry {
 
 /**
  * In-memory cache of transcript-derived fields (classification + meta),
- * keyed by transcript path and guarded by a (mtimeMs, size) signature.
+ * keyed by derivation policy plus transcript path and guarded by a
+ * (mtimeMs, size) signature. Bounded-prefix and default whole-file results
+ * intentionally occupy separate namespaces.
  * Bounded to `maxEntries`, evicting the least recently used entry
  * (insertion-ordered Map; a hit or write re-inserts at the end) once the
  * bound is exceeded.
@@ -343,17 +344,19 @@ export class ClassificationCache {
     transcriptPath: string,
     mtimeMs: number,
     size: number,
+    derivation = 'default',
   ): TranscriptDerivedFields | undefined {
-    const entry = this.entries.get(transcriptPath);
+    const key = JSON.stringify([derivation, transcriptPath]);
+    const entry = this.entries.get(key);
     if (!entry) return undefined;
     if (entry.mtimeMs !== mtimeMs || entry.size !== size) {
       // Stale signature (the file changed) — drop it lazily.
-      this.entries.delete(transcriptPath);
+      this.entries.delete(key);
       return undefined;
     }
     // Bump recency: re-insert at the end so eviction drops the true LRU.
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, entry);
+    this.entries.delete(key);
+    this.entries.set(key, entry);
     return entry.result;
   }
 
@@ -362,9 +365,11 @@ export class ClassificationCache {
     mtimeMs: number,
     size: number,
     result: TranscriptDerivedFields,
+    derivation = 'default',
   ): void {
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, { mtimeMs, size, result });
+    const key = JSON.stringify([derivation, transcriptPath]);
+    this.entries.delete(key);
+    this.entries.set(key, { mtimeMs, size, result });
     if (this.entries.size > this.maxEntries) {
       const oldestKey = this.entries.keys().next().value;
       if (oldestKey !== undefined) this.entries.delete(oldestKey);
@@ -452,7 +457,13 @@ async function candidateDerivedFieldsBounded(
   budget: ExactAllDiscoveryBudget,
   diagnostic?: DiscoveryOptions['diagnostic'],
 ): Promise<TranscriptDerivedFields> {
-  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
+  const cached = cache.get(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    derivation,
+  );
   if (cached) return cached;
 
   let incomplete = false;
@@ -483,7 +494,13 @@ async function candidateDerivedFieldsBounded(
     throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
   }
   const result = { meta, classification };
-  cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+  cache.set(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    result,
+    derivation,
+  );
   return result;
 }
 
@@ -639,14 +656,13 @@ async function discoverClaudeCode(
     budget?.checkDeadline();
     const encodedDir = join(projectsRoot, encoded);
     try {
-      const entries = await readdir(encodedDir);
-      const jsonlFiles = entries.filter((e) => e.endsWith('.jsonl'));
-
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(encodedDir, file);
+      const entries = await opendir(encodedDir);
+      for await (const entry of entries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith('.jsonl')) continue;
+        const transcriptPath = join(encodedDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
-        budget?.consumeEntry();
 
         let fileStat;
         try {
@@ -708,9 +724,9 @@ async function discoverClaudeCode(
 
   if (!directHit) {
     // Glob fallback: scan all project dirs
-    let projectDirs: string[] = [];
+    let projectDirs;
     try {
-      projectDirs = await readdir(projectsRoot);
+      projectDirs = await opendir(projectsRoot);
     } catch (error) {
       if (budget && !isMissingPathError(error)) {
         throw new SessionDiscoveryError('DISCOVERY_ENUMERATION_INCOMPLETE');
@@ -719,14 +735,16 @@ async function discoverClaudeCode(
       return candidates;
     }
 
-    for (const dirName of projectDirs) {
-      budget?.checkDeadline();
+    for await (const projectEntry of projectDirs) {
+      budget?.consumeEntry();
+      if (!projectEntry.isDirectory()) continue;
+      const dirName = projectEntry.name;
       if (encodedVariants.includes(dirName)) continue; // already tried
       const projectDir = join(projectsRoot, dirName);
 
       let dirEntries;
       try {
-        dirEntries = await readdir(projectDir);
+        dirEntries = await opendir(projectDir);
       } catch {
         if (budget) {
           throw new SessionDiscoveryError('DISCOVERY_ENUMERATION_INCOMPLETE');
@@ -734,12 +752,12 @@ async function discoverClaudeCode(
         continue;
       }
 
-      const jsonlFiles = dirEntries.filter((e) => e.endsWith('.jsonl'));
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(projectDir, file);
+      for await (const entry of dirEntries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith('.jsonl')) continue;
+        const transcriptPath = join(projectDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
-        budget?.consumeEntry();
 
         let fileStat;
         try {
@@ -837,7 +855,7 @@ async function collectJsonlFiles(
   const results: string[] = [];
   let entries;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    entries = await opendir(dir);
   } catch (error) {
     if (budget && !isMissingPathError(error)) {
       throw new SessionDiscoveryError('DISCOVERY_ENUMERATION_INCOMPLETE');
@@ -845,15 +863,21 @@ async function collectJsonlFiles(
     return results;
   }
 
-  for (const entry of entries) {
-    budget?.checkDeadline();
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const nested = await collectJsonlFiles(fullPath, budget);
-      results.push(...nested);
-    } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+  try {
+    for await (const entry of entries) {
       budget?.consumeEntry();
-      results.push(fullPath);
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const nested = await collectJsonlFiles(fullPath, budget);
+        results.push(...nested);
+      } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+        results.push(fullPath);
+      }
+    }
+  } catch (error) {
+    if (error instanceof SessionDiscoveryError) throw error;
+    if (budget) {
+      throw new SessionDiscoveryError('DISCOVERY_ENUMERATION_INCOMPLETE');
     }
   }
   return results;
