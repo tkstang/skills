@@ -1,9 +1,13 @@
+import { createHash } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
-import { relative, resolve, sep } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const MODES = new Set(['dedicated', 'completion-bookkeeping']);
 const ARTIFACT_COMMIT_TOKEN = '$ARTIFACT_COMMIT';
 const SHA_PATTERN = /^[a-f0-9]{40}$/;
+const PACKAGE_COVERAGE_VERSION = 'explainer-kit.package-coverage/v2';
+const TERMINAL_EVIDENCE_VERSION = 'explainer-kit.terminal-evidence/v1';
 
 export async function planTrackedRunFinalization(request, context = {}) {
   assertRequest(request);
@@ -21,10 +25,33 @@ export async function planTrackedRunFinalization(request, context = {}) {
       'Finalization requires an explainer-kit.manifest/v1 record.',
     );
   }
+  if (['built-needs-review', 'failed'].includes(manifest.outcome)) {
+    const terminalEvidenceContract = await loadTerminalEvidenceContract(
+      context.coreRoot,
+    );
+    const { evidence: terminalEvidence } =
+      await terminalEvidenceContract.readTerminalEvidenceFile(runRoot, {
+        manifest,
+      });
+    return {
+      schemaVersion: 'oat-explainer-kit.finalization-plan/v1',
+      status: 'complete',
+      outcome: manifest.outcome,
+      commands: [],
+      push: null,
+      publicationAllowed: false,
+      evidenceDisposition: terminalEvidence.evidenceDisposition,
+      terminalEvidencePath: 'terminal-evidence.json',
+      ...(terminalEvidence.supersededBy && {
+        supersededBy: terminalEvidence.supersededBy,
+      }),
+    };
+  }
+  const packageCoverage = await loadPackageCoverage(context.coreRoot);
 
-  const immutablePaths = immutablePackagePaths(manifest).map((path) =>
-    toRepoPath(repoRoot, resolveRunPath(runRoot, path)),
-  );
+  const immutablePaths = (
+    await immutablePackagePaths(manifest, runRoot, packageCoverage)
+  ).map((path) => toRepoPath(repoRoot, resolveRunPath(runRoot, path)));
   const mutablePaths = [
     toRepoPath(repoRoot, manifestPath),
     toRepoPath(repoRoot, resolveRunPath(runRoot, manifest.buildRecord?.path)),
@@ -129,11 +156,21 @@ export async function planTrackedRunFinalization(request, context = {}) {
 
 export function verifyTrackedRunFinalization(plan, observation) {
   if (plan?.status === 'complete') {
+    if (
+      !['built-durable', 'built-needs-review', 'failed'].includes(plan.outcome)
+    ) {
+      return failed([
+        error(
+          'invalid-plan',
+          'Complete finalization plan has an unsupported outcome.',
+        ),
+      ]);
+    }
     return {
       ok: true,
-      outcome: 'built-durable',
+      outcome: plan.outcome,
       pushAllowed: false,
-      errors: [],
+      reasons: [],
     };
   }
   const errors = [];
@@ -231,7 +268,7 @@ export function verifyTrackedRunFinalization(plan, observation) {
   }
 
   return errors.length === 0
-    ? { ok: true, outcome, pushAllowed: true, errors: [] }
+    ? { ok: true, outcome, pushAllowed: true, reasons: [] }
     : failed(errors);
 }
 
@@ -245,7 +282,7 @@ function commitCommands(paths, subject) {
   ];
 }
 
-function immutablePackagePaths(manifest) {
+async function immutablePackagePaths(manifest, runRoot, packageCoverage) {
   if (
     !manifest.immutableHashes ||
     typeof manifest.immutableHashes !== 'object' ||
@@ -257,7 +294,107 @@ function immutablePackagePaths(manifest) {
   if (paths.length === 0) {
     throw new Error('Manifest does not identify a complete immutable package.');
   }
+  const verifiedBytes = new Map();
+  for (const path of paths) {
+    const expected = manifest.immutableHashes[path];
+    if (!/^sha256:[a-f0-9]{64}$/.test(expected)) {
+      throw new Error(`Manifest has an invalid immutable hash for ${path}.`);
+    }
+    const bytes = await readFile(resolveRunPath(runRoot, path));
+    const actual = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+    if (actual !== expected) {
+      throw new Error(`Immutable package hash mismatch for ${path}.`);
+    }
+    verifiedBytes.set(path, bytes);
+  }
+  const runMode =
+    manifest.recipe?.id === 'project-recap'
+      ? verifiedRunMode(verifiedBytes.get('run-request.json'))
+      : undefined;
+  const required = packageCoverage.requiredImmutablePackagePaths(manifest, {
+    runMode,
+  });
+  const missing = required.filter(
+    (path) => !(path in manifest.immutableHashes),
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `Manifest immutable hashes do not cover the canonical package: ${missing.join(', ')}.`,
+    );
+  }
+  await packageCoverage.validateImmutablePackageEvidence(manifest, {
+    runMode,
+    read: (path) => verifiedBytes.get(path),
+  });
   return paths;
+}
+
+function verifiedRunMode(bytes) {
+  if (!Buffer.isBuffer(bytes)) {
+    throw new Error(
+      'Manifest must include hash-verified run-request.json before package coverage is evaluated.',
+    );
+  }
+  let request;
+  try {
+    request = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new Error(
+      'Hash-verified run-request.json must contain valid JSON before package coverage is evaluated.',
+    );
+  }
+  if (!['interactive', 'unattended'].includes(request?.mode)) {
+    throw new Error(
+      'Hash-verified run-request.json must declare interactive or unattended mode.',
+    );
+  }
+  return request.mode;
+}
+
+async function loadPackageCoverage(coreRoot) {
+  const root = await realpathRequired(coreRoot, 'coreRoot');
+  const modulePath = join(root, 'scripts', 'lib', 'package-coverage.mjs');
+  let loaded;
+  try {
+    loaded = await import(pathToFileURL(modulePath).href);
+  } catch {
+    throw new Error(
+      'Compatible explainer package coverage could not be loaded from coreRoot.',
+    );
+  }
+  if (
+    loaded.PACKAGE_COVERAGE_VERSION !== PACKAGE_COVERAGE_VERSION ||
+    typeof loaded.requiredImmutablePackagePaths !== 'function' ||
+    typeof loaded.validateImmutablePackageEvidence !== 'function'
+  ) {
+    throw new Error(
+      `coreRoot must provide ${PACKAGE_COVERAGE_VERSION} package coverage.`,
+    );
+  }
+  return loaded;
+}
+
+async function loadTerminalEvidenceContract(coreRoot) {
+  const root = await realpathRequired(coreRoot, 'coreRoot');
+  const modulePath = join(root, 'scripts', 'lib', 'terminal-evidence.mjs');
+  let loaded;
+  try {
+    loaded = await import(pathToFileURL(modulePath).href);
+  } catch {
+    throw new Error(
+      'Compatible terminal evidence could not be loaded from coreRoot.',
+    );
+  }
+  if (
+    loaded.TERMINAL_EVIDENCE_VERSION !== TERMINAL_EVIDENCE_VERSION ||
+    typeof loaded.assertTerminalEvidence !== 'function' ||
+    typeof loaded.readTerminalEvidenceFile !== 'function'
+  ) {
+    throw new Error(
+      `coreRoot must provide ${TERMINAL_EVIDENCE_VERSION} confined validation.`,
+    );
+  }
+  return loaded;
 }
 
 function resolveRunPath(runRoot, path) {
@@ -383,6 +520,12 @@ function failed(errors) {
     ok: false,
     outcome: 'built-not-durable',
     pushAllowed: false,
-    errors,
+    reasons: [
+      {
+        stage: 'finalization',
+        kind: 'pipeline-failure',
+        count: Math.min(Math.max(errors.length, 1), 50),
+      },
+    ],
   };
 }

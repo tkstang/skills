@@ -1,7 +1,7 @@
 {
   "schemaVersion": "explainer-kit.recipe/v2",
   "id": "project-recap",
-  "version": "1",
+  "version": "2",
   "sourceRoles": [
     {
       "role": "project",
@@ -15,7 +15,7 @@
     {
       "id": "project-recap",
       "type": "hub",
-      "authoring": "markdown",
+      "authoring": "html",
       "template": "house-style",
       "required": true,
       "briefRef": "briefs/project-recap.md",
@@ -37,14 +37,7 @@
         "authoring": "html",
         "briefRef": "briefs/supporting-diagram.md",
         "shell": "diagram-shell",
-        "maxCount": 4
-      },
-      {
-        "profileId": "deep-dive",
-        "type": "explainer",
-        "authoring": "markdown",
-        "briefRef": "briefs/deep-dive.md",
-        "maxCount": 3
+        "maxCount": 1
       },
       {
         "profileId": "walkthrough-deck",
@@ -53,11 +46,24 @@
         "briefRef": "briefs/walkthrough-deck.md",
         "shell": "deck-shell",
         "maxCount": 1
+      },
+      {
+        "profileId": "deep-dive",
+        "type": "explainer",
+        "authoring": "markdown",
+        "briefRef": "briefs/deep-dive.md",
+        "maxCount": 3
       }
     ],
     "limits": {
-      "maxArtifacts": 6
+      "maxArtifacts": 5
     }
+  },
+  "fallback": {
+    "mode": "deterministic-markdown",
+    "selection": "explicit",
+    "authoring": "markdown",
+    "scope": "portfolio"
   },
   "discoveryLimits": {
     "consecutiveNoNewFindingsRounds": 2,

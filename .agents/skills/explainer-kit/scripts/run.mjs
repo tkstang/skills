@@ -1,15 +1,33 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { lstat, readFile, realpath } from 'node:fs/promises';
+import { isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { resolveContentApproval } from './lib/content-approval.mjs';
+import { assertBrowserProbeSession } from './lib/browser-runtime.mjs';
+import {
+  catalogFromManifest,
+  initiativeCatalogPath,
+  serializeInitiativeCatalog,
+} from './lib/catalog.mjs';
+import {
+  readContentApproval,
+  resolveContentApproval,
+} from './lib/content-approval.mjs';
 import { canonicalHash, validateContract } from './lib/contracts.mjs';
+import {
+  assertAuthoredGraphSemantics,
+  graphSemanticsForArtisticAuthor,
+  parseDiagram,
+} from './lib/diagram.mjs';
 import { processFactBase } from './lib/fact-base.mjs';
 import { writeJsonAtomic, writeTextAtomic } from './lib/fs-safe.mjs';
 import { validateHtmlSafety } from './lib/html-safety.mjs';
+import { validateInternalReferences } from './lib/internal-references.mjs';
+import { parseMarkdown } from './lib/markdown.mjs';
+import { enforceRunPackageInventory } from './lib/package-coverage.mjs';
+import { assertManifestPublishable } from './lib/publication-policy.mjs';
 import {
   auditArtifactSet,
   checkGuidelines,
@@ -19,32 +37,71 @@ import {
   renderWarningIds,
 } from './lib/qa.mjs';
 import {
-  evaluateExpansionProposals,
   loadRecipe,
   recipeExpansion,
   recipeFloor,
   recipeRequiredNarrative,
+  resolveDiagramRenderingRoute,
+  selectRecipeAuthoring,
   shouldStopDiscovery,
   validateContentModel,
+  validatePlannedPortfolio,
   validateSourceBindings,
 } from './lib/recipes.mjs';
 import {
+  canonicalPersistedRunRequest,
+  createSetPlanResumeToken,
   initializeRun,
+  readSetPlanRecords,
   reopenBuildStages,
+  supersedeTerminalEvidence,
   updateBuildRecord,
+  verifySetPlanResumeToken,
   writeManifestAtomic,
+  writeSetPlanRecords,
+  writeTerminalEvidence,
+  writeVisualReviewAttempt,
+  writeVisualReviewFailure,
+  writeVisualRevision,
 } from './lib/records.mjs';
 import { artifactPath, renderArtifact } from './lib/render.mjs';
+import { resolveRootConfinedPath } from './lib/safe-paths.mjs';
+import { plannedArtifacts, planExplainerSet } from './lib/set-plan.mjs';
+import {
+  createVisualReviewEvidence,
+  evidenceReason,
+  projectThrownReason,
+} from './lib/terminal-evidence.mjs';
 import { resolveTheme } from './lib/theme.mjs';
+import { runVisualReview } from './lib/visual-review.mjs';
+
+export {
+  assertBrowserProbeSession,
+  createBrowserProbeSession,
+  createFixtureBrowserProbeSession,
+} from './lib/browser-runtime.mjs';
 
 // Stages a rejected draft reruns once its content is corrected.
 const REOPENED_ON_REJECTION = Object.freeze(['render', 'qa']);
+const LOCALLY_PROJECTED_ERRORS = new WeakSet();
 
 export async function runExplainer(request, options = {}) {
-  assertValidRequest(request);
-  const recipe = loadRecipe(request.recipe.id, request.recipe.version);
-  const resumed = await loadResumableRun(request);
-  const run = resumed ?? (await initializeRun(request));
+  const normalizedRequest = normalizeRunRequest(request);
+  assertValidRequest(normalizedRequest);
+  const recipe = selectRecipeAuthoring(
+    loadRecipe(normalizedRequest.recipe.id, normalizedRequest.recipe.version),
+    normalizedRequest.recapMode,
+  );
+  const browserProvider = resolveBrowserProvider(
+    normalizedRequest,
+    recipe,
+    options,
+  );
+  const resumed = await loadResumableRun(
+    normalizedRequest,
+    options.reviewedSource?.resumeToken,
+  );
+  const run = resumed ?? (await initializeRun(normalizedRequest));
   const now = options.now ?? (() => new Date().toISOString());
   const state = {
     run,
@@ -52,6 +109,8 @@ export async function runExplainer(request, options = {}) {
     factBase: null,
     factBaseHash: null,
     inputHashes: {},
+    setPlan: null,
+    setPlanPaths: [],
     contentModels: [],
     contentPaths: new Map(),
     authorResultPaths: [],
@@ -74,6 +133,16 @@ export async function runExplainer(request, options = {}) {
     reopenedWarnings: {},
     discovery: { rounds: 0, findings: [], reason: 'not-requested' },
     approval: null,
+    browserProvider,
+    browserEvidence: [],
+    visualReview: null,
+    visualReviewPaths: [],
+    visualReviewAttempt: 0,
+    reviewGateBlocked: false,
+    reviewGateReason: null,
+    correctionAttempted: false,
+    publishReceiptPath: null,
+    resumeToken: null,
     resumedApprovalStatus: null,
   };
 
@@ -92,7 +161,11 @@ export async function runExplainer(request, options = {}) {
           now,
         );
         state.factBase = processed.factBase;
-        state.warnings.push(...processed.checks.warnings);
+        const factBaseWarnings =
+          processed.checks.warnings.length > 0
+            ? ['fact-base-freshness-warning']
+            : [];
+        state.warnings.push(...factBaseWarnings);
         state.inputHashes = inputHashes(processed.factBase);
         state.factBaseHash = canonicalHash(processed.factBase);
         await writeJsonAtomic(
@@ -107,16 +180,35 @@ export async function runExplainer(request, options = {}) {
         );
         return {
           outputPaths: ['source/fact-base.json', 'source/fact-base.md'],
-          warnings: processed.checks.warnings,
-          status: processed.checks.warnings.length > 0 ? 'warned' : 'passed',
+          warnings: factBaseWarnings,
+          status: factBaseWarnings.length > 0 ? 'warned' : 'passed',
         };
       });
       await prepareTheme(state);
       await executeStage(run, 'content', options, async () => {
         state.discovery = await runDiscovery(recipe, state.factBase, options);
+        const planned = await planExplainerSet({
+          recipe,
+          factBase: state.factBase,
+          discovery: state.discovery,
+          planSet: options.planSet,
+        });
+        state.setPlan = planned.plan;
+        const portfolioValidation = validatePlannedPortfolio(
+          recipe,
+          state.setPlan.portfolio,
+        );
+        if (!portfolioValidation.valid) {
+          throw codedError(
+            'E_SET_PLAN',
+            `Invalid planned portfolio: ${portfolioValidation.errors.join('; ')}`,
+          );
+        }
+        state.setPlanPaths = await writeSetPlanRecords(run, planned);
         await createAuthoredContent(state, options, now);
         return {
           outputPaths: [
+            ...state.setPlanPaths,
             ...state.contentPaths.values(),
             ...state.authorResultPaths,
           ],
@@ -145,7 +237,7 @@ export async function runExplainer(request, options = {}) {
         );
       }
       await executeRenderStage(state, options);
-      await executeQaStage(state, options);
+      await executeQaStage(state, options, now);
     }
 
     state.approval = await resolveContentApproval(
@@ -156,18 +248,150 @@ export async function runExplainer(request, options = {}) {
       approvalArtifacts(state),
     );
     if (!state.approval.canResume) {
+      if (run.request.mode === 'interactive') {
+        state.resumeToken = await createSetPlanResumeToken(run);
+      }
+      const manifest = await inventoryManifestFor(state, now());
+      await enforceRetainedRunPackage(state, manifest, {
+        includeManifest: false,
+        failureStage: 'qa',
+      });
       return resultFor(state);
     }
 
-    await executeDurabilityAndPublish(state, options, now);
-    await persistManifest(state, now());
+    if (state.reviewGateBlocked) {
+      await updateBuildRecord(run, { id: 'durability', status: 'skipped' });
+      await updateBuildRecord(run, { id: 'publish', status: 'skipped' });
+      const manifest = await persistManifest(state, now());
+      await enforceRetainedRunPackage(state, manifest, {
+        acceptCleanedUnexpected: true,
+      });
+      await writeTerminalEvidence(run, {
+        outcome: 'built-needs-review',
+        manifest,
+        reasons: terminalReasonsForReview(state),
+        evidenceDisposition: state.visualReview ? 'retained' : 'partial',
+      });
+      return resultFor(state);
+    }
+
+    const manifestFinalized = await executeDurabilityAndPublish(
+      state,
+      options,
+      now,
+    );
+    if (!manifestFinalized) {
+      const manifest = await persistManifest(state, now());
+      await enforceRetainedRunPackage(state, manifest, {
+        failureStage: 'qa',
+      });
+    } else {
+      const manifest = JSON.parse(
+        await readFile(state.run.manifestPath, 'utf8'),
+      );
+      await enforceRetainedRunPackage(state, manifest, {
+        failureStage: 'qa',
+      });
+    }
     return resultFor(state);
   } catch (error) {
+    let manifest;
     if (state.theme && state.factBase) {
       await persistFailureManifest(state, error, now()).catch(() => {});
+      manifest = await readFile(state.run.manifestPath, 'utf8')
+        .then(JSON.parse)
+        .catch(() => undefined);
     }
-    return resultFor(state, error);
+    const reason =
+      localEvidenceReason(error) ??
+      projectThrownReason('finalization', 'pipeline-failure');
+    // The inventory verdict is reached *before* terminal evidence is written,
+    // so the single write below carries the complete reason set. Terminal
+    // evidence is immutable once retained (`records.mjs` refuses a second
+    // write unless the path is absent), so a re-record after the fact could
+    // never succeed; the previous shape swallowed that guaranteed failure in a
+    // `.catch(() => {})` under a comment claiming the durable evidence was
+    // updated. `includeTerminalEvidence` is correspondingly dropped here,
+    // because the file legitimately does not exist yet at this point.
+    let reasons = [reason];
+    if (manifest) {
+      try {
+        await enforceRetainedRunPackage(state, manifest);
+      } catch (inventoryError) {
+        // This used to be swallowed outright. It must not simply be reported
+        // either: a failed run routinely leaves partial outputs, and the first
+        // pass removes them and *then* throws, so the common case is a
+        // successful repair rather than a violated invariant. Re-running
+        // separates the two — if the tree is clean now, the repair worked and
+        // there is nothing to report; if it still fails, the violation is
+        // genuinely unremovable or a required file is missing, which is the
+        // case that previously went unreported at run time.
+        const repaired = await enforceRetainedRunPackage(state, manifest).then(
+          () => true,
+          () => false,
+        );
+        if (!repaired) {
+          reasons = mergeTerminalReasons(
+            reasons,
+            localEvidenceReason(inventoryError) ??
+              projectThrownReason('finalization', 'pipeline-failure'),
+          );
+        }
+      }
+    }
+    await writeTerminalEvidence(run, {
+      outcome: 'failed',
+      manifest,
+      reasons,
+      evidenceDisposition: manifest ? 'retained' : 'unavailable',
+    });
+    return resultFor(state, { failed: true, reasons });
   }
+}
+
+export async function supersedeExplainerRun({ runRoot, supersededBy } = {}) {
+  if (typeof runRoot !== 'string') {
+    throw new TypeError('Supersession requires a runRoot.');
+  }
+  const confinedRunRoot = await realpath(runRoot);
+  const manifest = JSON.parse(
+    await readFile(join(confinedRunRoot, 'manifest.json'), 'utf8'),
+  );
+  if (
+    manifest?.schemaVersion !== 'explainer-kit.manifest/v1' ||
+    typeof manifest.runId !== 'string' ||
+    typeof manifest.slug !== 'string' ||
+    !['built-needs-review', 'failed'].includes(manifest.outcome)
+  ) {
+    throw new Error(
+      'Only a flagged or failed manifest can produce supersession evidence.',
+    );
+  }
+  if (
+    !supersededBy ||
+    typeof supersededBy !== 'object' ||
+    typeof supersededBy.runId !== 'string' ||
+    supersededBy.runId === manifest.runId ||
+    !/^sha256:[a-f0-9]{64}$/.test(supersededBy.manifestHash ?? '')
+  ) {
+    throw new Error(
+      'Supersession requires a distinct replacement run ID and manifest hash.',
+    );
+  }
+  await supersedeTerminalEvidence(
+    {
+      runId: manifest.runId,
+      slug: manifest.slug,
+      runRoot: confinedRunRoot,
+    },
+    { manifest, supersededBy },
+  );
+  return {
+    runId: manifest.runId,
+    outcome: manifest.outcome,
+    terminalEvidencePath: join(confinedRunRoot, 'terminal-evidence.json'),
+    supersededBy: structuredClone(supersededBy),
+  };
 }
 
 async function executeThemeStage(state, options) {
@@ -189,8 +413,9 @@ async function prepareTheme(state) {
   const resolved = await resolveTheme(state.run.request.theme);
   state.theme = resolved.theme;
   state.renderStrategy = resolved.renderStrategy;
-  state.themeWarnings = resolved.warnings;
-  state.warnings.push(...resolved.warnings);
+  state.themeWarnings =
+    resolved.warnings.length > 0 ? ['theme-selection-normalized'] : [];
+  state.warnings.push(...state.themeWarnings);
 }
 
 async function executeRenderStage(state, options) {
@@ -205,6 +430,7 @@ async function executeRenderStage(state, options) {
               content: state.contentModels.find(
                 ({ artifactId }) => artifactId === artifact.id,
               ),
+              factBase: state.factBase,
               theme: state.theme,
               renderStrategy: state.renderStrategy,
               ...(state.run.request.publicBaseUrl && {
@@ -237,38 +463,109 @@ async function executeRenderStage(state, options) {
   });
 }
 
-async function executeQaStage(state, options) {
+async function executeQaStage(state, options, now) {
   await executeStage(state.run, 'qa', options, async () => {
     const htmlSafetyErrors = [];
     const qaWarnings = [];
-    return auditRenderedArtifacts(state, options, {
-      browserProbe: resolveBrowserProbe(options),
-      htmlSafetyErrors,
-      qaWarnings,
-    });
+    try {
+      return await auditRenderedArtifacts(state, options, now, {
+        browserProvider: state.browserProvider,
+        htmlSafetyErrors,
+        qaWarnings,
+      });
+    } catch (error) {
+      const reviewError = normalizeReviewGateError(state, error);
+      if (!reviewError) {
+        throw error;
+      }
+      const warning = reviewGateWarning(reviewError);
+      state.reviewGateBlocked = true;
+      state.reviewGateReason =
+        localEvidenceReason(reviewError) ??
+        evidenceReason('browser-review', 'pipeline-failure');
+      state.warnings.push(warning);
+      return {
+        outputPaths: [
+          ...state.rendered.map(({ renderedPath }) => renderedPath),
+          ...state.visualReviewPaths,
+        ],
+        warnings: [warning],
+        status: 'warned',
+      };
+    }
   });
 }
 
 /**
- * Render QA drives a caller-supplied probe only. The core never launches a
- * headless runtime itself; agents review rendered output in their own browser.
+ * Render QA drives a caller-supplied session only. The core never launches a
+ * headless runtime itself. Production recap evidence requires a session whose
+ * identity was derived and branded by createBrowserProbeSession().
  */
-function resolveBrowserProbe(options) {
+function resolveBrowserProvider(request, recipe, options) {
+  if (
+    options.browserSession !== undefined &&
+    options.browserProbe !== undefined
+  ) {
+    throw codedError(
+      'E_BROWSER_PROBE',
+      'Supply either options.browserSession or the legacy non-retaining options.browserProbe callback, not both.',
+    );
+  }
+  const productionRecap =
+    recipe.id === 'project-recap' && request.mode === 'unattended';
+  if (options.browserSession !== undefined) {
+    try {
+      return {
+        session: assertBrowserProbeSession(options.browserSession, {
+          allowFixture: true,
+        }),
+        probe: null,
+        productionRecap,
+      };
+    } catch (error) {
+      throw codedError(
+        'E_BROWSER_PROBE',
+        error?.message ?? 'Browser session validation failed.',
+      );
+    }
+  }
   if (options.browserProbe === undefined) return null;
+  if (productionRecap) {
+    throw codedError(
+      'E_BROWSER_PROBE',
+      'Unattended project recaps require a trusted launched-Chromium browserSession; bare callbacks and caller-asserted runtime metadata are not accepted.',
+    );
+  }
   if (typeof options.browserProbe !== 'function') {
     throw codedError(
       'E_BROWSER_PROBE',
       'options.browserProbe must be a function when supplied.',
     );
   }
-  return options.browserProbe;
+  return {
+    session: null,
+    probe: async (...args) => {
+      try {
+        return await options.browserProbe(...args);
+      } catch {
+        throw withEvidenceReason(
+          codedError('E_VISUAL_REVIEW', 'Browser evidence callback failed.'),
+          'browser-review',
+          'provider-failure',
+        );
+      }
+    },
+    productionRecap,
+  };
 }
 
 async function auditRenderedArtifacts(
   state,
   options,
-  { browserProbe, htmlSafetyErrors, qaWarnings },
+  now,
+  { browserProvider, htmlSafetyErrors, qaWarnings },
 ) {
+  await enforceInternalReferenceGate(state, options, now);
   for (const artifact of state.resolvedArtifacts.filter(
     ({ authoring }) => authoring === 'html',
   )) {
@@ -291,12 +588,34 @@ async function auditRenderedArtifacts(
     type: artifact.type,
     html: artifact.html,
   }));
-  const report = await auditArtifactSet({
-    artifacts: probeArtifacts,
-    ...(options.denylist && { denylist: options.denylist }),
-    ...(browserProbe && { browserProbe }),
-    ...(options.widths && { widths: options.widths }),
-  });
+  let report;
+  try {
+    report = await auditArtifactSet({
+      artifacts: probeArtifacts,
+      setPlan: state.setPlan,
+      ...(options.denylist && { denylist: options.denylist }),
+      ...(browserProvider?.session && {
+        browserSession: browserProvider.session,
+      }),
+      ...(browserProvider?.probe && { browserProbe: browserProvider.probe }),
+      ...(options.widths &&
+        !requiresRecapVisualReview(state) && { widths: options.widths }),
+      ...(browserProvider &&
+        requiresRecapVisualReview(state) && {
+          evidenceRoot: state.run.runRoot,
+          requireBrowserEvidence: true,
+        }),
+    });
+  } catch (error) {
+    if (requiresRecapVisualReview(state)) {
+      throw withEvidenceReason(
+        codedError('E_VISUAL_REVIEW', 'Browser review failed.'),
+        'browser-review',
+        'provider-failure',
+      );
+    }
+    throw error;
+  }
   const hardIssues = report.issues.filter((issue) => isHardQaIssue(issue.code));
   const warningIssues = report.issues.filter(
     (issue) => !isHardQaIssue(issue.code),
@@ -309,7 +628,7 @@ async function auditRenderedArtifacts(
       .filter(({ code }) => renderQaWarningIds([{ code }]).length === 0)
       .map(({ code }) => `qa-${code}`),
   );
-  if (!browserProbe) {
+  if (!browserProvider) {
     qaWarnings.push(RENDER_QA_WARNING_IDS.skippedNoProbe);
   }
   const guidelines = checkGuidelines({
@@ -326,16 +645,492 @@ async function auditRenderedArtifacts(
       errors.map(({ code, message }) => `${code}: ${message}`).join('; '),
     );
   }
+  state.browserEvidence = report.browser?.evidence ?? [];
+  const visualCritic = resolveVisualCritic(options);
+  const reviewRequired = requiresRecapVisualReview(state);
+  const fixtureBrowserSession =
+    browserProvider?.session?.runtime.kind === 'fixture';
+  if (reviewRequired && !browserProvider) {
+    qaWarnings.push('visual-review-required:browser-probe-missing');
+  } else if (reviewRequired && !visualCritic) {
+    qaWarnings.push('visual-review-required:visual-critic-missing');
+  } else if (visualCritic) {
+    await reviewAndRetain(state, visualCritic, 1);
+    if (state.visualReview.result.disposition === 'correct') {
+      if (state.correctionAttempted) {
+        throw codedError(
+          'E_VISUAL_CORRECTION',
+          'The one bounded artifact correction was already consumed by internal-reference validation.',
+        );
+      }
+      state.correctionAttempted = true;
+      await applyVisualCorrection(state, options, now);
+      const correctedReferences = validateRenderedInternalReferences(state);
+      if (!correctedReferences.valid) {
+        throw internalReferenceError(correctedReferences.errors);
+      }
+      const correctedArtifacts = state.rendered.map((artifact) => ({
+        id: artifact.artifactId,
+        type: artifact.type,
+        html: artifact.html,
+      }));
+      let finalReport;
+      try {
+        finalReport = await auditArtifactSet({
+          artifacts: correctedArtifacts,
+          setPlan: state.setPlan,
+          ...(options.denylist && { denylist: options.denylist }),
+          ...(browserProvider?.session && {
+            browserSession: browserProvider.session,
+          }),
+          ...(browserProvider?.probe && {
+            browserProbe: browserProvider.probe,
+          }),
+          ...(options.widths &&
+            !requiresRecapVisualReview(state) && { widths: options.widths }),
+          ...(browserProvider &&
+            requiresRecapVisualReview(state) && {
+              evidenceRoot: state.run.runRoot,
+              requireBrowserEvidence: true,
+            }),
+        });
+      } catch {
+        throw withEvidenceReason(
+          codedError('E_VISUAL_REVIEW', 'Corrected browser review failed.'),
+          'browser-review',
+          'provider-failure',
+        );
+      }
+      const finalHardIssues = finalReport.issues.filter((issue) =>
+        isHardQaIssue(issue.code),
+      );
+      if (finalHardIssues.length > 0) {
+        throw codedError(
+          'E_VISUAL_CORRECTION',
+          finalHardIssues
+            .map(({ code, message }) => `${code}: ${message}`)
+            .join('; '),
+        );
+      }
+      const finalWarnings = finalReport.issues.filter(
+        (issue) => !isHardQaIssue(issue.code),
+      );
+      qaWarnings.push(
+        ...renderQaWarningIds(finalWarnings),
+        ...finalWarnings
+          .filter(({ code }) => renderQaWarningIds([{ code }]).length === 0)
+          .map(({ code }) => `qa-${code}`),
+      );
+      state.browserEvidence = finalReport.browser?.evidence ?? [];
+      await reviewAndRetain(state, visualCritic, 2);
+    }
+  }
+  if (reviewRequired && fixtureBrowserSession) {
+    qaWarnings.push('visual-review-required:fixture-browser-session');
+  }
+  if (
+    reviewRequired &&
+    state.visualReview &&
+    state.visualReview.result.disposition !== 'pass'
+  ) {
+    qaWarnings.push(
+      state.visualReview.result.disposition === 'fail'
+        ? 'visual-review-required:critic-failed'
+        : 'visual-review-required:correction-unresolved',
+    );
+  }
+  state.reviewGateBlocked = qaWarnings.some((warning) =>
+    warning.startsWith('visual-review-required:'),
+  );
   state.warnings.push(...qaWarnings);
   const warnings = [
     ...(state.reopenedWarnings.qa ?? []),
     ...new Set(qaWarnings),
   ];
   return {
-    outputPaths: state.rendered.map(({ renderedPath }) => renderedPath),
+    outputPaths: [
+      ...state.rendered.map(({ renderedPath }) => renderedPath),
+      ...state.visualReviewPaths,
+    ],
     warnings,
     status: warnings.length > 0 ? 'warned' : 'passed',
   };
+}
+
+async function enforceInternalReferenceGate(state, options, now) {
+  const validate = () => validateRenderedInternalReferences(state);
+  const initial = validate();
+  if (initial.valid) return;
+
+  const correctionAuthor = options.correctArtifact ?? options.author;
+  if (typeof correctionAuthor !== 'function') {
+    throw internalReferenceError(initial.errors);
+  }
+  const trust = authorTrustContext(options, now);
+  const artifactIds = [
+    ...new Set(
+      initial.errors
+        .map(({ artifactId }) => artifactId)
+        .filter((artifactId) => typeof artifactId === 'string'),
+    ),
+  ];
+  if (artifactIds.length === 0) {
+    throw internalReferenceError(initial.errors);
+  }
+  state.correctionAttempted = true;
+  for (const artifactId of artifactIds) {
+    const artifactIndex = state.resolvedArtifacts.findIndex(
+      ({ id }) => id === artifactId,
+    );
+    if (artifactIndex < 0) {
+      throw internalReferenceError(initial.errors);
+    }
+    const artifact = state.resolvedArtifacts[artifactIndex];
+    let item;
+    try {
+      item = await authorArtifact(
+        state,
+        artifact,
+        correctionAuthor,
+        trust,
+        canonicalArtifactLinks(
+          state.resolvedArtifacts,
+          artifact.id,
+          state.run.slug,
+        ),
+        {
+          attempt: 1,
+          reason: 'internal-reference-validation',
+          findings: structuredClone(
+            initial.errors.filter(
+              ({ artifactId: findingArtifactId }) =>
+                findingArtifactId === artifactId,
+            ),
+          ),
+          previousContentPath: state.contentPaths.get(artifactId),
+        },
+      );
+    } catch (error) {
+      throw withEvidenceReason(
+        codedError(
+          'E_INTERNAL_REFERENCE',
+          `Internal-reference correction failed for ${artifactId}: ${safeMessage(error)}`,
+        ),
+        'link-validation',
+        'pipeline-failure',
+      );
+    }
+    await installCorrectedArtifact(state, artifactIndex, item);
+  }
+
+  const final = validate();
+  if (!final.valid) {
+    throw internalReferenceError(final.errors);
+  }
+}
+
+function validateRenderedInternalReferences(state) {
+  return validateInternalReferences({
+    artifacts: state.rendered.map((artifact) => ({
+      artifactId: artifact.artifactId,
+      renderedPath: artifact.renderedPath,
+      html: artifact.html,
+    })),
+    manifestPaths: state.artifacts.map(({ renderedPath }) => renderedPath),
+  });
+}
+
+async function installCorrectedArtifact(state, artifactIndex, item) {
+  const artifactId = item.artifact.id;
+  await writeJsonAtomic(state.run.runRoot, item.resultPath, item.result);
+  await writeTextAtomic(state.run.runRoot, item.contentPath, item.content);
+  state.resolvedArtifacts[artifactIndex] = item.artifact;
+  state.authoredContent.set(artifactId, item.content);
+  state.contentPaths.set(artifactId, item.contentPath);
+  if (item.artifact.authoring === 'markdown') {
+    const links = expansionLinks(state.resolvedArtifacts);
+    const model = assertValidContentModel(
+      state.recipe,
+      markdownContentModel(
+        item.artifact,
+        state.run.slug,
+        item.content,
+        item.artifact.origin === 'floor' ? links : [],
+      ),
+      item.artifact,
+    );
+    const modelIndex = state.contentModels.findIndex(
+      ({ artifactId: id }) => id === artifactId,
+    );
+    state.contentModels[modelIndex] = model;
+  }
+  const rendered =
+    item.artifact.authoring === 'markdown'
+      ? await renderArtifact({
+          recipeArtifact: renderDescriptor(item.artifact),
+          content: state.contentModels.find(
+            ({ artifactId: id }) => id === artifactId,
+          ),
+          factBase: state.factBase,
+          theme: state.theme,
+          renderStrategy: state.renderStrategy,
+          ...(state.run.request.publicBaseUrl && {
+            publicBaseUrl: state.run.request.publicBaseUrl,
+          }),
+        })
+      : artisticRender(state, item.artifact);
+  await writeTextAtomic(
+    state.run.runRoot,
+    rendered.renderedPath,
+    rendered.html,
+  );
+  const renderedIndex = state.rendered.findIndex(
+    ({ artifactId: id }) => id === artifactId,
+  );
+  state.rendered[renderedIndex] = rendered;
+  state.artifacts[renderedIndex] = artifactRecord(state, rendered);
+}
+
+function internalReferenceError(errors) {
+  // `link-validation` is one of the eight closed evidence stages and is
+  // accepted by both evidence schemas, but the gate runs inside the `qa` build
+  // stage, and `evidenceStageForBuildStage` maps `qa -> browser-review`. Without
+  // an explicit local reason a broken internal link is durably recorded as a
+  // browser-review failure, which is the one thing the closed stage enum exists
+  // to prevent. Fail-closed behavior is unchanged; only attribution improves.
+  return withEvidenceReason(
+    codedError(
+      'E_INTERNAL_REFERENCE',
+      errors
+        .map(
+          ({ code, renderedPath, reference, message }) =>
+            `${code}: ${renderedPath ?? 'site'}${reference ? ` references ${reference}` : ''}: ${message}`,
+        )
+        .join('; '),
+    ),
+    'link-validation',
+    'pipeline-failure',
+  );
+}
+
+function resolveVisualCritic(options) {
+  if (options.visualCritic === undefined) return null;
+  if (typeof options.visualCritic !== 'function') {
+    throw codedError(
+      'E_VISUAL_REVIEW',
+      'options.visualCritic must be a function when supplied.',
+    );
+  }
+  if (
+    options.visualCritic === options.author ||
+    options.visualCritic === options.critic
+  ) {
+    throw codedError(
+      'E_VISUAL_REVIEW',
+      'The visual critic must be distinct from the artifact author and fact critic.',
+    );
+  }
+  return options.visualCritic;
+}
+
+function requiresRecapVisualReview(state) {
+  return (
+    state.recipe.id === 'project-recap' &&
+    state.run.request.mode === 'unattended'
+  );
+}
+
+async function reviewAndRetain(state, visualCritic, attempt) {
+  state.visualReviewAttempt = attempt;
+  try {
+    const review = await runVisualReview({
+      plan: state.setPlan,
+      rendered: state.rendered,
+      evidence: state.browserEvidence,
+      visualCritic,
+      runRoot: state.run.runRoot,
+    });
+    state.visualReview = {
+      ...review,
+      evidence: createVisualReviewEvidence({
+        request: review.request,
+        attempt,
+        result: review.result,
+      }),
+    };
+    state.visualReviewPaths.push(
+      ...(await writeVisualReviewAttempt(state.run, {
+        attempt,
+        review: state.visualReview,
+      })),
+    );
+  } catch (error) {
+    if (error?.visualReviewRequest) {
+      const kind = ['provider-failure', 'pipeline-failure'].includes(
+        error.evidenceKind,
+      )
+        ? error.evidenceKind
+        : 'pipeline-failure';
+      const evidence = createVisualReviewEvidence({
+        request: error.visualReviewRequest,
+        attempt,
+        failureKind: kind,
+      });
+      state.visualReview = {
+        request: structuredClone(error.visualReviewRequest),
+        evidence,
+      };
+      state.visualReviewPaths.push(
+        ...(await writeVisualReviewFailure(state.run, {
+          attempt,
+          request: error.visualReviewRequest,
+          kind,
+        })),
+      );
+      throw withEvidenceReason(
+        codedError('E_VISUAL_REVIEW', 'Visual review failed.'),
+        'visual-review',
+        kind,
+      );
+    }
+    throw withEvidenceReason(
+      codedError('E_VISUAL_REVIEW', 'Visual review pipeline failed.'),
+      'visual-review',
+      'pipeline-failure',
+    );
+  }
+}
+
+async function applyVisualCorrection(state, options, now) {
+  const findings = state.visualReview.result.findings;
+  const artifactIds = [
+    ...new Set(findings.map(({ artifactId }) => artifactId)),
+  ];
+  const correctionAuthor = options.correctArtifact ?? options.author;
+  if (typeof correctionAuthor !== 'function') {
+    throw codedError(
+      'E_VISUAL_CORRECTION',
+      'A correct disposition requires an artifact correction callback.',
+    );
+  }
+  const trust = authorTrustContext(options, now);
+  const changes = [];
+  for (const artifactId of artifactIds) {
+    const artifactIndex = state.resolvedArtifacts.findIndex(
+      ({ id }) => id === artifactId,
+    );
+    if (artifactIndex < 0) {
+      throw codedError(
+        'E_VISUAL_CORRECTION',
+        `Visual correction references unknown artifact ${artifactId}.`,
+      );
+    }
+    const artifact = state.resolvedArtifacts[artifactIndex];
+    const previousContent = state.authoredContent.get(artifactId);
+    let item;
+    try {
+      item = await authorArtifact(
+        state,
+        artifact,
+        correctionAuthor,
+        trust,
+        canonicalArtifactLinks(
+          state.resolvedArtifacts,
+          artifact.id,
+          state.run.slug,
+        ),
+        {
+          attempt: 1,
+          findings: structuredClone(
+            findings.filter((finding) => finding.artifactId === artifactId),
+          ),
+          previousContentPath: state.contentPaths.get(artifactId),
+        },
+      );
+    } catch {
+      throw withEvidenceReason(
+        codedError('E_VISUAL_CORRECTION', 'Visual correction provider failed.'),
+        'visual-review',
+        'provider-failure',
+      );
+    }
+    if ((item.result.proposedArtifacts ?? []).length > 0) {
+      throw codedError(
+        'E_VISUAL_CORRECTION',
+        'Visual correction cannot change the validated artifact portfolio.',
+      );
+    }
+    if (item.artifact.authoring === 'html') {
+      const safety = validateHtmlSafety({
+        html: item.content,
+        shell: item.artifact.shellContent,
+        shellName: item.artifact.shell ?? item.artifact.template,
+      });
+      if (!safety.valid) {
+        throw codedError(
+          'E_QA',
+          `Corrected artifact ${artifactId} failed DOM safety validation.`,
+        );
+      }
+    }
+    await writeJsonAtomic(state.run.runRoot, item.resultPath, item.result);
+    await writeTextAtomic(state.run.runRoot, item.contentPath, item.content);
+    state.resolvedArtifacts[artifactIndex] = item.artifact;
+    state.authoredContent.set(artifactId, item.content);
+    state.contentPaths.set(artifactId, item.contentPath);
+    if (item.artifact.authoring === 'markdown') {
+      const links = expansionLinks(state.resolvedArtifacts);
+      const model = assertValidContentModel(
+        state.recipe,
+        markdownContentModel(
+          item.artifact,
+          state.run.slug,
+          item.content,
+          item.artifact.origin === 'floor' ? links : [],
+        ),
+        item.artifact,
+      );
+      const modelIndex = state.contentModels.findIndex(
+        ({ artifactId: id }) => id === artifactId,
+      );
+      state.contentModels[modelIndex] = model;
+    }
+    const rendered =
+      item.artifact.authoring === 'markdown'
+        ? await renderArtifact({
+            recipeArtifact: renderDescriptor(item.artifact),
+            content: state.contentModels.find(
+              ({ artifactId: id }) => id === artifactId,
+            ),
+            factBase: state.factBase,
+            theme: state.theme,
+            renderStrategy: state.renderStrategy,
+            ...(state.run.request.publicBaseUrl && {
+              publicBaseUrl: state.run.request.publicBaseUrl,
+            }),
+          })
+        : artisticRender(state, item.artifact);
+    await writeTextAtomic(
+      state.run.runRoot,
+      rendered.renderedPath,
+      rendered.html,
+    );
+    const renderedIndex = state.rendered.findIndex(
+      ({ artifactId: id }) => id === artifactId,
+    );
+    state.rendered[renderedIndex] = rendered;
+    state.artifacts[renderedIndex] = artifactRecord(state, rendered);
+    changes.push({
+      artifactId,
+      contentPath: item.contentPath,
+      authorResultPath: item.resultPath,
+      previousHash: hashBytes(previousContent),
+      revisedHash: hashBytes(item.content),
+    });
+  }
+  state.visualReviewPaths.push(
+    ...(await writeVisualRevision(state.run, { artifactIds, changes })),
+  );
 }
 
 function isHardQaIssue(code) {
@@ -348,6 +1143,29 @@ function isHardQaIssue(code) {
       'unresolved-token',
     ].includes(code) || code.startsWith('cohesion-')
   );
+}
+
+function isReviewGateError(error) {
+  return ['E_VISUAL_REVIEW', 'E_VISUAL_CORRECTION'].includes(error?.code);
+}
+
+function normalizeReviewGateError(state, error) {
+  if (!requiresRecapVisualReview(state)) return null;
+  if (isReviewGateError(error)) {
+    if (localEvidenceReason(error)) return error;
+    return withEvidenceReason(error, 'visual-review', 'pipeline-failure');
+  }
+  return null;
+}
+
+function reviewGateWarning(error) {
+  const reason =
+    error?.code === 'E_VISUAL_CORRECTION'
+      ? 'correction-failed'
+      : localEvidenceReason(error)?.stage === 'browser-review'
+        ? 'browser-review-failed'
+        : 'review-chain-failed';
+  return `visual-review-required:${reason}`;
 }
 
 function artisticRender(state, artifact) {
@@ -366,27 +1184,67 @@ function artisticRender(state, artifact) {
   };
 }
 
-async function loadResumableRun(request) {
+function normalizeRunRequest(request) {
   const normalized = structuredClone(request);
-  normalized.theme = {
-    ...(normalized.theme ?? {}),
-    renderStrategy: normalized.theme?.renderStrategy ?? 'default-only',
-  };
-  const runRoot = join(resolve(normalized.outputRoot), normalized.slug);
+  if (
+    normalized.recipe?.id === 'project-recap' &&
+    normalized.recapMode === undefined
+  ) {
+    normalized.recapMode = 'artistic';
+  }
+  return normalized;
+}
+
+async function loadResumableRun(request, resumeToken) {
+  const normalized = structuredClone(request);
+  let canonicalOutputRoot;
+  try {
+    canonicalOutputRoot = await realpath(resolve(normalized.outputRoot));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  const runRoot = join(canonicalOutputRoot, normalized.slug);
+  let runRootStats;
+  try {
+    runRootStats = await lstat(runRoot);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (runRootStats.isSymbolicLink() || !runRootStats.isDirectory()) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'The resumable run root must be a real directory, not a symbolic link.',
+    );
+  }
+  const canonicalRunRoot = await realpath(runRoot);
+  if (
+    canonicalRunRoot !== runRoot ||
+    !isStrictDescendant(canonicalOutputRoot, canonicalRunRoot)
+  ) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'The resumable run root escapes the configured output root.',
+    );
+  }
   let approval;
   let record;
-  let persistedRequest;
   try {
-    [approval, record, persistedRequest] = await Promise.all([
+    [approval, record] = await Promise.all([
       readJson(join(runRoot, 'source/content-approval.json')),
       readJson(join(runRoot, 'build-record.json')),
-      readJson(join(runRoot, 'run-request.json')),
     ]);
   } catch (error) {
     if (error?.code === 'ENOENT') return null;
     throw error;
   }
-
+  if (typeof record.runId !== 'string') {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'The resumable run has no valid retained run identity.',
+    );
+  }
   const approvalUnresolved = ['pending', 'rejected'].includes(approval.status);
   const completedBeforeApproval = ['content', 'theme', 'render', 'qa'].every(
     (id) =>
@@ -401,41 +1259,112 @@ async function loadResumableRun(request) {
   ) {
     return null;
   }
-  if (
-    persistedRequest.slug !== normalized.slug ||
-    persistedRequest.recipe?.id !== normalized.recipe.id ||
-    persistedRequest.recipe?.version !== normalized.recipe.version ||
-    persistedRequest.mode !== normalized.mode ||
-    canonicalHash(persistedRequest.factBase) !==
-      canonicalHash(normalized.factBase)
-  ) {
-    throw codedError(
-      'E_APPROVAL_RESUME',
-      'The resumable run does not match the current request identity.',
-    );
-  }
-
-  const canonicalRunRoot = join(persistedRequest.outputRoot, normalized.slug);
-  return {
+  const resumableRun = {
     runId: record.runId,
     slug: normalized.slug,
-    outputRoot: persistedRequest.outputRoot,
+    outputRoot: canonicalOutputRoot,
     runRoot: canonicalRunRoot,
     requestPath: join(canonicalRunRoot, 'run-request.json'),
     buildRecordPath: join(canonicalRunRoot, 'build-record.json'),
     manifestPath: join(canonicalRunRoot, 'manifest.json'),
-    request: normalized,
   };
+  await verifySetPlanResumeToken(resumableRun, resumeToken);
+
+  let persistedRequest;
+  try {
+    persistedRequest = await readJson(resumableRun.requestPath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (
+    typeof persistedRequest.outputRoot !== 'string' ||
+    (isAbsolute(persistedRequest.outputRoot) &&
+      persistedRequest.outputRoot !== canonicalOutputRoot)
+  ) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'The resumable run does not match the original canonical output root.',
+    );
+  }
+
+  const currentPersistedRequest = canonicalPersistedRunRequest(normalized, {
+    outputRoot: canonicalOutputRoot,
+  });
+  if (
+    canonicalHash(persistedRequest) !== canonicalHash(currentPersistedRequest)
+  ) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'The resumable run does not match the complete canonical request.',
+    );
+  }
+
+  const resumedRequest = structuredClone(currentPersistedRequest);
+  if (
+    normalized.theme?.artDirection !== undefined &&
+    resumedRequest.theme.artDirection === undefined
+  ) {
+    resumedRequest.theme.artDirection = normalized.theme.artDirection;
+  }
+  return {
+    ...resumableRun,
+    request: resumedRequest,
+  };
+}
+
+function isStrictDescendant(root, candidate) {
+  const pathFromRoot = relative(root, candidate);
+  return (
+    pathFromRoot.length > 0 &&
+    pathFromRoot !== '..' &&
+    !pathFromRoot.startsWith(`..${sep}`) &&
+    !isAbsolute(pathFromRoot)
+  );
 }
 
 async function hydrateResumableState(state) {
   const [factBase, approval, theme, record] = await Promise.all([
     readJson(join(state.run.runRoot, 'source/fact-base.json')),
-    readJson(join(state.run.runRoot, 'source/content-approval.json')),
+    readContentApproval(state.run).catch((error) => {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Retained content approval is invalid: ${error.message}`,
+      );
+    }),
     readJson(join(state.run.runRoot, 'theme.resolved.json')),
     readJson(state.run.buildRecordPath),
   ]);
+  for (const [kind, value] of [
+    ['fact-base', factBase],
+    ['theme', theme],
+    ['build-record', record],
+  ]) {
+    const validation = validateContract(kind, value);
+    if (!validation.valid) {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Retained ${kind} record is invalid during approval resume.`,
+      );
+    }
+  }
+  const retainedPlan = await readSetPlanRecords(state.run, {
+    factBase,
+    recipe: state.recipe,
+  });
+  const portfolioValidation = validatePlannedPortfolio(
+    state.recipe,
+    retainedPlan.plan.portfolio,
+  );
+  if (!portfolioValidation.valid) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      `Retained set-plan portfolio is invalid: ${portfolioValidation.errors.join('; ')}`,
+    );
+  }
   state.factBase = factBase;
+  state.setPlan = retainedPlan.plan;
+  state.setPlanPaths = retainedPlan.paths;
   state.theme = theme;
   state.themeWarnings = [];
   state.resumedApprovalStatus = approval.status;
@@ -452,14 +1381,41 @@ async function hydrateResumableState(state) {
   state.inputHashes = inputHashes(state.factBase);
   state.factBaseHash = canonicalHash(state.factBase);
   state.contentModels = [];
-  const persistedArtifacts = Array.isArray(approval.artifacts)
-    ? approval.artifacts
-    : recipeFloor(state.recipe).map((artifact) => ({
-        artifactId: artifact.id,
-        origin: 'floor',
-        authoring: artifact.authoring ?? 'markdown',
-        contentPath: `source/content/${artifact.id}.md`,
-      }));
+  const persistedArtifacts = validateResumedArtifactBindings(state, approval);
+  for (const persisted of persistedArtifacts) {
+    const authorPath = await resolveRootConfinedPath(
+      state.run.runRoot,
+      persisted.authorResultPath,
+    );
+    if (!authorPath.valid) {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Retained author path for ${persisted.artifactId} is not confined to the run.`,
+      );
+    }
+    const authorResult = await readJson(authorPath.absolutePath);
+    const validation = validateContract('author-result/v2', authorResult);
+    if (!validation.valid || authorResult.artifactId !== persisted.artifactId) {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Retained author result identity for ${persisted.artifactId} is invalid.`,
+      );
+    }
+  }
+  const confinedContent = new Map();
+  for (const persisted of persistedArtifacts) {
+    const contentPath = await resolveRootConfinedPath(
+      state.run.runRoot,
+      persisted.contentPath,
+    );
+    if (!contentPath.valid) {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Retained content path for ${persisted.artifactId} is not confined to the run.`,
+      );
+    }
+    confinedContent.set(persisted.artifactId, contentPath.absolutePath);
+  }
   for (const persisted of persistedArtifacts) {
     const artifact = resolvedArtifactFromApproval(state.recipe, persisted);
     if (artifact.authoring === 'html') {
@@ -468,15 +1424,13 @@ async function hydrateResumableState(state) {
       );
     }
     const content = await readFile(
-      join(state.run.runRoot, persisted.contentPath),
+      confinedContent.get(persisted.artifactId),
       'utf8',
     );
     state.resolvedArtifacts.push(artifact);
     state.authoredContent.set(artifact.id, content);
     state.contentPaths.set(artifact.id, persisted.contentPath);
-    if (persisted.authorResultPath) {
-      state.authorResultPaths.push(persisted.authorResultPath);
-    }
+    state.authorResultPaths.push(persisted.authorResultPath);
   }
   const links = expansionLinks(state.resolvedArtifacts);
   for (const artifact of state.resolvedArtifacts) {
@@ -513,6 +1467,7 @@ async function hydrateRenderedState(state) {
             content: state.contentModels.find(
               ({ artifactId }) => artifactId === artifact.id,
             ),
+            factBase: state.factBase,
             theme: state.theme,
             renderStrategy: state.renderStrategy,
             ...(state.run.request.publicBaseUrl && {
@@ -550,23 +1505,22 @@ async function readJson(path) {
 export async function runExplainerCli(
   argv = process.argv.slice(2),
   io = console,
+  run = runExplainer,
 ) {
   try {
     const parsed = await parseCli(argv);
     const request = JSON.parse(await readFile(parsed.requestPath, 'utf8'));
-    const result = await runExplainer(request, parsed.options);
-    io.log(JSON.stringify(result, null, 2));
+    const result = await run(request, parsed.options);
+    io.log(JSON.stringify(projectCliRunResult(result), null, 2));
     return result.outcome === 'failed' ? 1 : 0;
   } catch (error) {
-    io.log(
+    io.error(
       JSON.stringify(
         {
           outcome: 'failed',
-          errors: [
-            {
-              code: error.code ?? 'E_INPUT_SCHEMA',
-              message: safeMessage(error),
-            },
+          reasons: [
+            localEvidenceReason(error) ??
+              evidenceReason('planning', 'pipeline-failure'),
           ],
         },
         null,
@@ -575,6 +1529,191 @@ export async function runExplainerCli(
     );
     return 1;
   }
+}
+
+function projectCliRunResult(result) {
+  if (!isObject(result)) {
+    return {
+      outcome: 'failed',
+      reasons: [evidenceReason('finalization', 'pipeline-failure')],
+    };
+  }
+  const projected = {};
+  for (const key of [
+    'runId',
+    'runRoot',
+    'manifestPath',
+    'buildRecordPath',
+    'outcome',
+    'marking',
+  ]) {
+    if (typeof result[key] === 'string') projected[key] = result[key];
+  }
+  if (Array.isArray(result.warnings)) {
+    projected.warnings = retainedWarnings(result.warnings);
+  }
+  if (isObject(result.discovery)) {
+    projected.discovery = {
+      ...(Number.isInteger(result.discovery.rounds) && {
+        rounds: result.discovery.rounds,
+      }),
+      ...(Number.isInteger(result.discovery.findingCount) && {
+        findingCount: result.discovery.findingCount,
+      }),
+      ...(['not-requested', 'two-empty-rounds', 'hard-maximum'].includes(
+        result.discovery.reason,
+      ) && { reason: result.discovery.reason }),
+    };
+  }
+  if (isObject(result.approval)) {
+    projected.approval = pickStringFields(result.approval, [
+      'status',
+      'path',
+      'marking',
+      'resumeToken',
+    ]);
+  }
+  const reasons = projectEvidenceReasons(result.reasons);
+  if (reasons.length > 0) projected.reasons = reasons;
+  const visualReview = projectVisualReviewEvidence(result.visualReview);
+  if (visualReview) projected.visualReview = visualReview;
+  const publication = projectPublicationSummaryForCli(result.publication);
+  if (publication) projected.publication = publication;
+  return projected;
+}
+
+function projectVisualReviewEvidence(value) {
+  if (!isObject(value)) return null;
+  const reasons = projectEvidenceReasons(value.reasons);
+  if (
+    value.schemaVersion !== 'explainer-kit.visual-review-evidence/v1' ||
+    typeof value.requestHash !== 'string' ||
+    ![1, 2].includes(value.attempt) ||
+    !['pass', 'correct', 'failed'].includes(value.disposition) ||
+    !Array.isArray(value.reasons) ||
+    reasons.length !== value.reasons.length
+  ) {
+    return null;
+  }
+  return {
+    schemaVersion: value.schemaVersion,
+    requestHash: value.requestHash,
+    attempt: value.attempt,
+    disposition: value.disposition,
+    reasons,
+  };
+}
+
+function projectPublicationSummaryForCli(value) {
+  if (!isObject(value)) return null;
+  if (
+    value.schemaVersion !== 'explainer-kit.publish-summary/v1' &&
+    value.schemaVersion !== 'explainer-kit.publish-summary/v2'
+  ) {
+    return null;
+  }
+  return {
+    schemaVersion: value.schemaVersion,
+    ...(typeof value.receiptSchemaVersion === 'string' && {
+      receiptSchemaVersion: value.receiptSchemaVersion,
+    }),
+    ...(typeof value.publicAccess === 'string' && {
+      publicAccess: value.publicAccess,
+    }),
+    ...(Array.isArray(value.artifacts) && {
+      artifacts: value.artifacts.map((artifact) =>
+        isObject(artifact)
+          ? {
+              ...pickStringFields(artifact, [
+                'relativePath',
+                'publicUrl',
+                's3Uri',
+                'hash',
+                'contentType',
+              ]),
+              ...(isObject(artifact.source) && {
+                source: pickStringFields(artifact.source, [
+                  'kind',
+                  'artifactId',
+                  'name',
+                ]),
+              }),
+              ...(isObject(artifact.objectVerification) && {
+                objectVerification: pickClosedVerification(
+                  artifact.objectVerification,
+                ),
+              }),
+              ...(isObject(artifact.publicVerification) && {
+                publicVerification: pickClosedVerification(
+                  artifact.publicVerification,
+                ),
+              }),
+            }
+          : {},
+      ),
+    }),
+  };
+}
+
+function pickClosedVerification(value) {
+  return {
+    ...pickStringFields(value, ['status', 'method', 'hash']),
+    ...(Number.isInteger(value.httpStatus) && {
+      httpStatus: value.httpStatus,
+    }),
+  };
+}
+
+function projectEvidenceReasons(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((reason) => {
+    if (
+      !isObject(reason) ||
+      ![
+        'planning',
+        'authoring',
+        'rendering',
+        'link-validation',
+        'browser-review',
+        'visual-review',
+        'durability',
+        'finalization',
+      ].includes(reason.stage) ||
+      ![
+        'finding',
+        'provider-failure',
+        'pipeline-failure',
+        'superseded',
+      ].includes(reason.kind) ||
+      !Number.isInteger(reason.count) ||
+      reason.count < 1 ||
+      reason.count > 50
+    ) {
+      return [];
+    }
+    return [
+      {
+        stage: reason.stage,
+        kind: reason.kind,
+        ...(typeof reason.artifactId === 'string' && {
+          artifactId: reason.artifactId,
+        }),
+        count: reason.count,
+      },
+    ];
+  });
+}
+
+function pickStringFields(value, keys) {
+  return Object.fromEntries(
+    keys.flatMap((key) =>
+      typeof value[key] === 'string' ? [[key, value[key]]] : [],
+    ),
+  );
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 async function executeStage(run, id, options, operation) {
@@ -590,18 +1729,19 @@ async function executeStage(run, id, options, operation) {
       ...(result.warnings !== undefined && { warnings: result.warnings }),
     });
   } catch (error) {
+    const projected =
+      localEvidenceReason(error) ??
+      evidenceReason(evidenceStageForBuildStage(id), 'pipeline-failure');
     await updateBuildRecord(run, {
       id,
       status: 'failed',
-      error: {
-        code: error.code ?? stageErrorCode(id),
-        message: safeMessage(error),
-        recovery: [
-          `Correct the ${id} inputs or implementation and start a new run.`,
-        ],
-      },
+      error: true,
     });
-    throw error;
+    throw withEvidenceReason(
+      codedError(stageErrorCode(id), `The ${id} stage failed.`),
+      projected.stage,
+      projected.kind,
+    );
   }
 }
 
@@ -641,7 +1781,8 @@ async function buildFactBase(binding, options, now) {
       return {
         source: {
           ...source,
-          hash: hashBytes(serialized),
+          ...(options.sourceProvenance?.[source.id] ?? {}),
+          hash: raw.sourceHash ?? hashBytes(serialized),
           observedAt: raw.observedAt ?? now(),
         },
         claims: raw.claims,
@@ -694,7 +1835,7 @@ async function executeDurabilityAndPublish(state, options, now) {
   if (strategy === 'none') {
     await updateBuildRecord(state.run, { id: 'durability', status: 'skipped' });
     await updateBuildRecord(state.run, { id: 'publish', status: 'skipped' });
-    return;
+    return false;
   }
 
   if (strategy === 'commit') {
@@ -706,58 +1847,212 @@ async function executeDurabilityAndPublish(state, options, now) {
         'Commit durability was requested without a durability callback.',
       );
     }
-    await options.durability({
-      runRoot: state.run.runRoot,
-      manifestPath: state.run.manifestPath,
-      buildRecordPath: state.run.buildRecordPath,
-    });
+    let providerFailed = false;
+    try {
+      await options.durability({
+        runRoot: state.run.runRoot,
+        manifestPath: state.run.manifestPath,
+        buildRecordPath: state.run.buildRecordPath,
+      });
+    } catch {
+      providerFailed = true;
+    }
+    let inventoryFailed = false;
+    try {
+      const manifest = JSON.parse(
+        await readFile(state.run.manifestPath, 'utf8'),
+      );
+      await enforceRetainedRunPackage(state, manifest);
+    } catch {
+      inventoryFailed = true;
+    }
+    if (providerFailed || inventoryFailed) {
+      await updateBuildRecord(state.run, {
+        id: 'durability',
+        status: 'failed',
+        error: true,
+      });
+      throw withEvidenceReason(
+        codedError('E_DURABILITY', 'Durability provider failed.'),
+        'durability',
+        providerFailed ? 'provider-failure' : 'pipeline-failure',
+      );
+    }
     await updateBuildRecord(state.run, {
       id: 'durability',
       status: 'warned',
-      warnings: [
-        'Commit durability requires caller-created evidence through record-durability.mjs.',
-      ],
+      warnings: ['durability-evidence-required'],
     });
     await updateBuildRecord(state.run, { id: 'publish', status: 'skipped' });
-    return;
+    return false;
   }
 
   await updateBuildRecord(state.run, { id: 'durability', status: 'skipped' });
   await updateBuildRecord(state.run, { id: 'publish', status: 'running' });
-  await persistManifest(state, now());
   if (typeof options.publish !== 'function') {
     throw codedError(
       'E_PUBLISH',
       'Publish durability was requested without an explicit publisher callback.',
     );
   }
-  await options.publish({
-    request: structuredClone(state.run.request.durability.publish),
-    runRoot: state.run.runRoot,
-    manifestPath: state.run.manifestPath,
-  });
-  await updateBuildRecord(state.run, {
-    id: 'publish',
-    status: 'warned',
-    warnings: [
-      'Publishing completed; verified receipt evidence must be recorded separately.',
-    ],
-  });
+  const finalizedAt = now();
+  const finalizedManifest = await persistManifest(state, finalizedAt);
+  let providerFailed = false;
+  let publishedReceipt;
+  try {
+    const buildRecord = JSON.parse(
+      await readFile(state.run.buildRecordPath, 'utf8'),
+    );
+    assertManifestPublishable(finalizedManifest, { buildRecord });
+    const receipt = await options.publish({
+      request: structuredClone(state.run.request.durability.publish),
+      runRoot: state.run.runRoot,
+      manifestPath: state.run.manifestPath,
+    });
+    const schemaValidation = validateContract('publish-receipt', receipt);
+    if (!schemaValidation.valid) {
+      throw codedError(
+        'E_PUBLISH',
+        `Publisher returned an invalid receipt: ${schemaValidation.errors[0].message}`,
+      );
+    }
+    const crossRecordValidation = validateContract(
+      'publish-receipt',
+      receipt,
+      publicationValidationContext(receipt, finalizedManifest),
+    );
+    if (!crossRecordValidation.valid) {
+      throw codedError(
+        'E_PUBLISH',
+        `Publisher returned an invalid receipt: ${crossRecordValidation.errors[0].message}`,
+      );
+    }
+    publishedReceipt = receipt;
+  } catch {
+    providerFailed = true;
+  }
+  // Everything below the provider boundary is local work. Folding it into the
+  // try above classified a failed local write, build-record update or manifest
+  // rewrite as `provider-failure`, blaming the destination for a defect on this
+  // machine.
+  let pipelineFailed = false;
+  if (!providerFailed) {
+    try {
+      state.publishReceiptPath = 'publish-receipt.json';
+      await writeJsonAtomic(
+        state.run.runRoot,
+        state.publishReceiptPath,
+        publishedReceipt,
+      );
+      state.publication = publicationSummary(publishedReceipt);
+      await updateBuildRecord(state.run, {
+        id: 'publish',
+        status: 'warned',
+        warnings: ['publish-receipt-evidence-required'],
+      });
+      await persistManifest(state, finalizedAt);
+    } catch {
+      pipelineFailed = true;
+    }
+  }
+  let inventoryFailed = false;
+  try {
+    const manifest = JSON.parse(await readFile(state.run.manifestPath, 'utf8'));
+    await enforceRetainedRunPackage(state, manifest);
+  } catch {
+    inventoryFailed = true;
+  }
+  if (providerFailed || pipelineFailed || inventoryFailed) {
+    await updateBuildRecord(state.run, {
+      id: 'publish',
+      status: 'failed',
+      error: true,
+    });
+    throw withEvidenceReason(
+      codedError(
+        'E_PUBLISH',
+        providerFailed
+          ? 'Publication provider failed.'
+          : 'Publication failed after upload while finalizing local records.',
+      ),
+      'durability',
+      providerFailed ? 'provider-failure' : 'pipeline-failure',
+    );
+  }
+  return true;
 }
 
 async function persistManifest(state, createdAt) {
   const record = JSON.parse(await readFile(state.run.buildRecordPath, 'utf8'));
-  const manifest = manifestFor(
-    state,
-    record,
-    createdAt,
-    await immutableHashesFor(state),
-  );
+  const immutableHashes = await immutableHashesFor(state);
+  let manifest = manifestFor(state, record, createdAt, immutableHashes);
+  const publicBaseUrl =
+    state.run.request.publicBaseUrl ??
+    state.run.request.durability?.publish?.publicBaseUrl;
+  if (publicBaseUrl) {
+    // Must match the catalog the connector builds and uploads byte for byte,
+    // so the verification policy is resolved from the same request fields.
+    const publicAccess =
+      state.run.request.publicAccess ??
+      state.run.request.durability?.publish?.publicAccess;
+    const catalogPath = initiativeCatalogPath(manifest.slug);
+    await writeJsonAtomic(
+      state.run.runRoot,
+      catalogPath,
+      catalogFromManifest(manifest, publicBaseUrl, { publicAccess }),
+    );
+    manifest = manifestFor(state, record, createdAt, {
+      ...immutableHashes,
+      [catalogPath]: hashBytes(
+        await readFile(join(state.run.runRoot, catalogPath)),
+      ),
+    });
+  }
   await writeManifestAtomic(state.run, manifest);
   return manifest;
 }
 
-async function persistFailureManifest(state, error, createdAt) {
+async function inventoryManifestFor(state, createdAt) {
+  const record = JSON.parse(await readFile(state.run.buildRecordPath, 'utf8'));
+  return manifestFor(state, record, createdAt, await immutableHashesFor(state));
+}
+
+async function enforceRetainedRunPackage(
+  state,
+  manifest,
+  {
+    acceptCleanedUnexpected = false,
+    failureStage,
+    includeManifest = true,
+    includeTerminalEvidence = false,
+  } = {},
+) {
+  try {
+    return await enforceRunPackageInventory(state.run.runRoot, manifest, {
+      includeManifest,
+      includeTerminalEvidence,
+      removeUnexpected: true,
+    });
+  } catch (error) {
+    if (acceptCleanedUnexpected) {
+      await enforceRunPackageInventory(state.run.runRoot, manifest, {
+        includeManifest,
+        includeTerminalEvidence,
+      });
+      return;
+    }
+    if (failureStage) {
+      await updateBuildRecord(state.run, {
+        id: failureStage,
+        status: 'failed',
+        error: true,
+      });
+    }
+    throw error;
+  }
+}
+
+async function persistFailureManifest(state, _error, createdAt) {
   const record = JSON.parse(await readFile(state.run.buildRecordPath, 'utf8'));
   const recordedIds = new Set(state.artifacts.map(({ id }) => id));
   state.artifacts.push(
@@ -770,8 +2065,8 @@ async function persistFailureManifest(state, error, createdAt) {
         status: 'failed',
         rebuildable: false,
         failure: {
-          code: error.code ?? 'E_RENDER',
-          message: safeMessage(error),
+          code: 'E_ARTIFACT_BUILD',
+          message: 'Artifact construction failed.',
           recovery: ['Correct the failed stage and start a new run.'],
         },
       })),
@@ -796,6 +2091,7 @@ function manifestFor(state, buildRecord, createdAt, immutableHashes) {
       factBasePath: 'source/fact-base.json',
       factBaseHash: state.factBaseHash,
       inputHashes: state.inputHashes,
+      backlinks: manifestSourceBacklinks(state.factBase),
       ...(state.authorResultPaths.length > 0 && {
         authorResultPaths: state.authorResultPaths,
       }),
@@ -812,8 +2108,35 @@ function manifestFor(state, buildRecord, createdAt, immutableHashes) {
       path: 'build-record.json',
       hash: canonicalHash(buildRecord),
     },
-    warnings: [...new Set(state.warnings)],
+    warnings: retainedWarnings(state.warnings),
   };
+}
+
+function manifestSourceBacklinks(factBase) {
+  const backlinks = [
+    ...(factBase?.sources ?? [])
+      .filter(({ url }) => typeof url === 'string')
+      .map(({ id, url }) => ({ sourceId: id, url })),
+    ...(factBase?.claims ?? [])
+      .flatMap(({ citations }) => citations ?? [])
+      .filter(({ url }) => typeof url === 'string')
+      .map(({ sourceId, url }) => ({ sourceId, url })),
+    ...(factBase?.unresolvedClaims ?? [])
+      .flatMap(({ citations }) => citations ?? [])
+      .filter(({ url }) => typeof url === 'string')
+      .map(({ sourceId, url }) => ({ sourceId, url })),
+  ];
+  return [
+    ...new Map(
+      backlinks
+        .sort(
+          (left, right) =>
+            left.sourceId.localeCompare(right.sourceId) ||
+            left.url.localeCompare(right.url),
+        )
+        .map((backlink) => [`${backlink.sourceId}\0${backlink.url}`, backlink]),
+    ).values(),
+  ];
 }
 
 async function createAuthoredContent(state, options, now) {
@@ -825,64 +2148,45 @@ async function createAuthoredContent(state, options, now) {
     );
   }
   const trust = authorTrustContext(options, now);
-
-  const floor = await Promise.all(
-    recipeFloor(state.recipe).map((artifact) =>
-      authorArtifact(
-        state,
-        {
-          ...artifact,
-          origin: 'floor',
-          shell: artifact.authoring === 'html' ? artifact.template : undefined,
-        },
-        author,
-        trust,
-      ),
-    ),
+  const artifacts = plannedArtifacts(state.recipe, state.setPlan);
+  state.expansion = {
+    valid: true,
+    accepted: artifacts
+      .filter(({ origin }) => origin === 'expansion')
+      .map((artifact) => ({
+        id: artifact.id,
+        profileId: artifact.profileId,
+        rationale: artifact.plannedArtifact.justification.rationale,
+        status: 'accepted',
+        profile: expansionProfile(state.recipe, artifact.profileId),
+      })),
+    rejected: [],
+    warnings: [],
+    errors: [],
+  };
+  const authored = [];
+  const artifactLinkTables = new Map(
+    artifacts.map((artifact) => [
+      artifact.id,
+      canonicalArtifactLinks(artifacts, artifact.id, state.run.slug),
+    ]),
   );
-  const proposals = floor.flatMap(
-    ({ result }) => result.proposedArtifacts ?? [],
-  );
-  state.expansion = evaluateExpansionProposals(state.recipe, proposals);
-  if (!state.expansion.valid) {
-    throw codedError(
-      'E_AUTHOR_RESULT',
-      `Invalid expansion proposals: ${state.expansion.errors.join('; ')}`,
-    );
-  }
-
-  const expansions = [];
-  for (const accepted of state.expansion.accepted) {
-    const profile = accepted.profile;
+  for (const artifact of artifacts) {
     const item = await authorArtifact(
       state,
-      {
-        id: accepted.id,
-        type: profile.type,
-        authoring: profile.authoring,
-        briefRef: profile.briefRef,
-        shell: profile.shell,
-        template:
-          profile.authoring === 'markdown'
-            ? templateForType(profile.type)
-            : profile.shell,
-        required: false,
-        origin: 'expansion',
-        profileId: profile.profileId,
-      },
+      artifact,
       author,
       trust,
+      artifactLinkTables.get(artifact.id),
     );
     if ((item.result.proposedArtifacts ?? []).length > 0) {
       throw codedError(
         'E_AUTHOR_RESULT',
-        `Expansion artifact ${accepted.id} cannot propose nested artifacts.`,
+        `Artifact ${artifact.id} cannot change the validated set plan.`,
       );
     }
-    expansions.push(item);
+    authored.push(item);
   }
-
-  const authored = [...floor, ...expansions];
   state.resolvedArtifacts = authored.map(({ artifact }) => artifact);
   const links = expansionLinks(state.resolvedArtifacts);
   for (const item of authored) {
@@ -982,12 +2286,21 @@ function resolveAuthorProvenance(claimed, trust, artifactId) {
   };
 }
 
-async function authorArtifact(state, artifact, author, trust) {
-  const brief = await readSkillFile(artifact.briefRef);
-  const shellContent =
+async function authorArtifact(
+  state,
+  artifact,
+  author,
+  trust,
+  artifactLinks,
+  correctionContext,
+) {
+  const [brief, visualAuthoringGuidance, shellContent] = await Promise.all([
+    readSkillFile(artifact.briefRef),
+    readSkillFile('references/visual-authoring.md'),
     artifact.authoring === 'html'
-      ? await readSkillFile(`templates/${artifact.shell}.html`)
-      : undefined;
+      ? readSkillFile(`templates/${artifact.shell}.html`)
+      : undefined,
+  ]);
   const resolvedArtifact = {
     ...artifact,
     ...(shellContent && { shellContent }),
@@ -996,22 +2309,41 @@ async function authorArtifact(state, artifact, author, trust) {
     artifact.origin === 'floor'
       ? recipeRequiredNarrative(state.recipe, artifact.id)
       : [];
+  const plannedDiagrams = diagramAnalyses(artifact.plannedArtifact.draft);
+  const graphSemantics = graphSemanticsForArtisticAuthor(plannedDiagrams);
+  if (
+    graphSemantics.length > 0 &&
+    resolveDiagramRenderingRoute(state.recipe, artifact, plannedDiagrams) !==
+      'artistic'
+  ) {
+    throw codedError(
+      'E_DIAGRAM_TOPOLOGY',
+      `Artifact ${artifact.id} cannot preserve its planner-owned non-linear graph through inline rendering.`,
+    );
+  }
   const authorRequest = {
-    schemaVersion: 'explainer-kit.author-request/v2',
+    schemaVersion: 'explainer-kit.author-request/v3',
     artifactId: artifact.id,
     artifactType: artifact.type,
     authoring: artifact.authoring,
     brief,
+    visualAuthoringGuidance,
     factBase: structuredClone(state.factBase),
     ...(shellContent && { shell: shellContent }),
     theme: structuredClone(state.theme),
+    setContext: structuredClone(state.setPlan),
+    plannedArtifact: structuredClone(artifact.plannedArtifact),
+    artifactLinks: structuredClone(artifactLinks),
+    ...(graphSemantics.length > 0 && {
+      graphSemantics: structuredClone(graphSemantics),
+    }),
     ...(artifact.origin === 'floor' &&
       requiredNarrative.length > 0 && {
         floor: { requiredNarrative },
       }),
   };
   const requestValidation = validateContract(
-    'author-request/v2',
+    'author-request/v3',
     authorRequest,
   );
   if (!requestValidation.valid) {
@@ -1021,7 +2353,22 @@ async function authorArtifact(state, artifact, author, trust) {
     );
   }
 
-  const result = await author(structuredClone(authorRequest));
+  let result;
+  try {
+    result =
+      correctionContext === undefined
+        ? await author(structuredClone(authorRequest))
+        : await author(
+            structuredClone(authorRequest),
+            structuredClone(correctionContext),
+          );
+  } catch {
+    throw withEvidenceReason(
+      codedError('E_AUTHOR', 'Artifact author provider failed.'),
+      'authoring',
+      'provider-failure',
+    );
+  }
   const resultValidation = validateContract('author-result/v2', result);
   if (!resultValidation.valid) {
     throw codedError(
@@ -1035,6 +2382,26 @@ async function authorArtifact(state, artifact, author, trust) {
       'E_AUTHOR_RESULT',
       `Author result for ${artifact.id} must match its identity and ${artifact.authoring} path.`,
     );
+  }
+  if (artifact.authoring === 'markdown') {
+    const diagrams = diagramAnalyses(content);
+    if (
+      diagrams.length > 0 &&
+      resolveDiagramRenderingRoute(state.recipe, artifact, diagrams) ===
+        'reject'
+    ) {
+      const features = [
+        ...new Set(
+          diagrams.flatMap(({ topology }) => topology?.features ?? []),
+        ),
+      ].join(', ');
+      throw codedError(
+        'E_DIAGRAM_TOPOLOGY',
+        `Artifact ${artifact.id} contains ${features || 'non-linear'} diagram topology that requires artistic composition; inline rendering is rejected.`,
+      );
+    }
+  } else if (graphSemantics.length > 0) {
+    assertAuthoredGraphSemantics(content, graphSemantics);
   }
   const retained = {
     ...structuredClone(result),
@@ -1068,6 +2435,51 @@ async function authorArtifact(state, artifact, author, trust) {
     content,
     contentPath: `source/content/${artifact.id}.${artifact.authoring === 'markdown' ? 'md' : 'html'}`,
   };
+}
+
+function canonicalArtifactLinks(artifacts, currentArtifactId, slug) {
+  const paths = new Map(
+    artifacts.map((artifact) => [
+      artifact.id,
+      artifactPath(renderDescriptor(artifact), slug),
+    ]),
+  );
+  const currentPath = paths.get(currentArtifactId);
+  if (!currentPath) {
+    throw codedError(
+      'E_AUTHOR_REQUEST',
+      `Cannot construct canonical links for unknown artifact ${currentArtifactId}.`,
+    );
+  }
+  return artifacts.map((artifact) => {
+    const sitePath = paths.get(artifact.id);
+    const href =
+      posix.relative(posix.dirname(currentPath), sitePath) ||
+      posix.basename(sitePath);
+    return {
+      artifactId: artifact.id,
+      artifactType: artifact.type,
+      sitePath,
+      href,
+    };
+  });
+}
+
+function diagramAnalyses(markdown) {
+  const ast = parseMarkdown(markdown);
+  const diagrams = [];
+  const visit = (nodes) => {
+    for (const node of nodes) {
+      if (node.type === 'diagram') {
+        diagrams.push(parseDiagram(node.source));
+      }
+      if (Array.isArray(node.children)) {
+        visit(node.children);
+      }
+    }
+  };
+  visit(ast.children);
+  return diagrams;
 }
 
 async function readSkillFile(relativePath) {
@@ -1193,6 +2605,54 @@ function approvalArtifacts(state) {
   }));
 }
 
+function validateResumedArtifactBindings(state, approval) {
+  const expected = plannedArtifacts(state.recipe, state.setPlan).map(
+    (artifact) => ({
+      artifactId: artifact.id,
+      origin: artifact.origin,
+      ...(artifact.profileId && { profileId: artifact.profileId }),
+      authoring: artifact.authoring,
+      contentPath: `source/content/${artifact.id}.${artifact.authoring === 'markdown' ? 'md' : 'html'}`,
+      authorResultPath: `source/author/${artifact.id}.json`,
+    }),
+  );
+  if (
+    !Array.isArray(approval.artifacts) ||
+    !Array.isArray(approval.authorResultPaths)
+  ) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'Approval resume requires retained artifact and author-result bindings.',
+    );
+  }
+  const persistedById = new Map(
+    approval.artifacts.map((artifact) => [artifact.artifactId, artifact]),
+  );
+  if (
+    persistedById.size !== expected.length ||
+    canonicalHash(approval.authorResultPaths) !==
+      canonicalHash(expected.map(({ authorResultPath }) => authorResultPath))
+  ) {
+    throw codedError(
+      'E_APPROVAL_RESUME',
+      'Approval artifact set does not match the retained set-plan portfolio.',
+    );
+  }
+  for (const artifact of expected) {
+    const persisted = persistedById.get(artifact.artifactId);
+    if (
+      persisted === undefined ||
+      canonicalHash(persisted) !== canonicalHash(artifact)
+    ) {
+      throw codedError(
+        'E_APPROVAL_RESUME',
+        `Approval artifact binding for ${artifact.artifactId} has drifted from the retained set plan.`,
+      );
+    }
+  }
+  return expected;
+}
+
 function expansionLinks(artifacts) {
   return artifacts
     .filter(({ origin }) => origin === 'expansion')
@@ -1283,8 +2743,15 @@ async function immutableHashesFor(state) {
     'source/fact-base.json',
     'source/fact-base.md',
     'source/content-approval.json',
+    ...state.setPlanPaths,
     ...state.authorResultPaths,
     ...state.contentPaths.values(),
+    ...state.browserEvidence.flatMap(({ screenshotPath, metricsPath }) => [
+      screenshotPath,
+      metricsPath,
+    ]),
+    ...state.visualReviewPaths,
+    ...(state.publishReceiptPath ? [state.publishReceiptPath] : []),
     ...(state.theme ? ['theme.resolved.json'] : []),
     ...state.artifacts
       .filter(
@@ -1331,22 +2798,38 @@ function assertValidRequest(request) {
   }
 }
 
-function resultFor(state, error) {
+function terminalReasonsForReview(state) {
+  const visualReasons = state.visualReview?.evidence?.reasons ?? [];
+  if (visualReasons.length > 0) return structuredClone(visualReasons);
+  return [
+    state.reviewGateReason ??
+      evidenceReason('visual-review', 'pipeline-failure'),
+  ];
+}
+
+function resultFor(state, failure = { failed: false }) {
   return {
     runId: state.run.runId,
     runRoot: state.run.runRoot,
     manifestPath: state.run.manifestPath,
     buildRecordPath: state.run.buildRecordPath,
-    outcome: error
+    outcome: failure.failed
       ? 'failed'
       : state.approval?.canResume === false
         ? 'incomplete'
-        : 'built-not-durable',
+        : state.reviewGateBlocked
+          ? 'built-needs-review'
+          : 'built-not-durable',
     ...(state.approval?.record?.marking && {
       marking: state.approval.record.marking,
     }),
-    warnings: [...new Set(state.warnings)],
-    discovery: state.discovery,
+    warnings: retainedWarnings(state.warnings),
+    discovery: {
+      rounds: state.discovery.rounds,
+      findingCount: state.discovery.findings.length,
+      reason: state.discovery.reason,
+    },
+    ...(state.publication && { publication: state.publication }),
     ...(state.approval && {
       approval: {
         status: state.approval.status,
@@ -1354,11 +2837,61 @@ function resultFor(state, error) {
         ...(state.approval.record.marking && {
           marking: state.approval.record.marking,
         }),
+        ...(state.resumeToken && { resumeToken: state.resumeToken }),
       },
     }),
-    ...(error && {
-      errors: [{ code: error.code ?? 'E_RUN', message: safeMessage(error) }],
+    ...(state.visualReview && {
+      visualReview: structuredClone(state.visualReview.evidence),
     }),
+    ...(failure.failed && {
+      reasons: structuredClone(failure.reasons),
+    }),
+  };
+}
+
+function publicationSummary(receipt) {
+  if (receipt.schemaVersion === 'explainer-kit.publish-receipt/v2') {
+    return {
+      schemaVersion: 'explainer-kit.publish-summary/v2',
+      receiptSchemaVersion: receipt.schemaVersion,
+      publicAccess: receipt.publicAccess,
+      artifacts: receipt.artifacts.map((artifact) => structuredClone(artifact)),
+    };
+  }
+  return {
+    schemaVersion: 'explainer-kit.publish-summary/v1',
+    receiptSchemaVersion: receipt.schemaVersion,
+    publicAccess: 'public',
+    artifacts: receipt.artifacts.map(({ relativePath, publicUrl }) => ({
+      relativePath,
+      publicUrl,
+    })),
+  };
+}
+
+function publicationValidationContext(receipt, manifest) {
+  if (receipt.schemaVersion !== 'explainer-kit.publish-receipt/v2') {
+    return { manifest };
+  }
+  let catalog;
+  try {
+    // `publicAccess` is a receipt/v2 field; a v1 receipt returns above, and the
+    // connector resolves v1 publish requests to 'public' for the same reason.
+    catalog = catalogFromManifest(manifest, receipt.roots.publicBaseUrl, {
+      publicAccess: receipt.publicAccess,
+    });
+  } catch (error) {
+    throw codedError(
+      'E_PUBLISH',
+      `Publisher returned invalid publication roots: ${safeMessage(error)}`,
+    );
+  }
+  return {
+    manifest,
+    catalogArtifact: {
+      relativePath: initiativeCatalogPath(manifest.slug),
+      hash: hashBytes(Buffer.from(serializeInitiativeCatalog(catalog))),
+    },
   };
 }
 
@@ -1430,17 +2963,71 @@ function codedError(code, message) {
   return error;
 }
 
+/**
+ * Terminal evidence reasons are unique by (stage, kind), so a second reason for
+ * a pair that is already present folds into its count rather than appending a
+ * duplicate the closed contract would reject.
+ */
+function mergeTerminalReasons(reasons, addition) {
+  const existing = reasons.find(
+    ({ stage, kind }) => stage === addition.stage && kind === addition.kind,
+  );
+  if (!existing) return [...reasons, addition];
+  return reasons.map((entry) =>
+    entry === existing
+      ? { ...entry, count: (entry.count ?? 1) + (addition.count ?? 1) }
+      : entry,
+  );
+}
+
+function withEvidenceReason(error, stage, kind) {
+  error.evidenceReason = evidenceReason(stage, kind);
+  LOCALLY_PROJECTED_ERRORS.add(error);
+  return error;
+}
+
+function localEvidenceReason(error) {
+  return error !== null &&
+    (typeof error === 'object' || typeof error === 'function') &&
+    LOCALLY_PROJECTED_ERRORS.has(error)
+    ? error.evidenceReason
+    : null;
+}
+
+function evidenceStageForBuildStage(stage) {
+  return (
+    {
+      validate: 'planning',
+      'fact-base': 'planning',
+      content: 'authoring',
+      theme: 'authoring',
+      render: 'rendering',
+      qa: 'browser-review',
+      durability: 'durability',
+      publish: 'durability',
+    }[stage] ?? 'finalization'
+  );
+}
+
 function stageErrorCode(stage) {
   return `E_${stage.toUpperCase().replaceAll('-', '_')}`;
 }
 
-function safeMessage(error) {
-  return (error instanceof Error ? error.message : String(error))
-    .replaceAll(
-      /(?:aws_secret_access_key|aws_session_token|password|private_key)\s*[:=]\s*\S+/gi,
-      '[redacted]',
+function safeMessage(_error) {
+  return 'Operation failed.';
+}
+
+function retainedWarnings(warnings) {
+  return [...new Set(warnings.filter(isLocalWarningCode))];
+}
+
+function isLocalWarningCode(value) {
+  return (
+    typeof value === 'string' &&
+    /^(?:fact-base-freshness-warning|theme-selection-normalized|durability-evidence-required|publish-receipt-evidence-required|(?:expansion|guideline|render|qa)-[a-z0-9-]+|visual-review-required:[a-z0-9-]+|stage-reopened:[a-z0-9-]+:[0-9TZ:.-]+|missing-(?:theme-token|required-anchor):[a-z0-9-]+)$/.test(
+      value,
     )
-    .slice(0, 2000);
+  );
 }
 
 if (

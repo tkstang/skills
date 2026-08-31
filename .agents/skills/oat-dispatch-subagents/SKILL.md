@@ -1,6 +1,6 @@
 ---
 name: oat-dispatch-subagents
-version: 1.2.1
+version: 1.2.3
 description: Use when an OAT skill or workflow needs provider-neutral selection, launch, recovery, or evidence for bounded subagent work without project lifecycle policy.
 disable-model-invocation: true
 user-invocable: false
@@ -53,10 +53,22 @@ contract.
 
 Model-selection policy lives in the `subagent-orchestration` skill (same
 pack); this skill owns launch mechanics. Read this file before every
-OAT-managed subagent dispatch, then read
-`.agents/skills/subagent-orchestration/references/model-selection-principles.md`.
+OAT-managed subagent dispatch.
+
+Independently probe each required `<name>/SKILL.md` in order: `${SKILL_DIR}/..`
+from this loaded skill, `${HOME}/.agents/skills`, then
+`<repo-root>/.agents/skills`. Bind the first match for `subagent-orchestration`
+to its own `${ORCHESTRATION_SKILLS_ROOT}`; never ambient discovery. On a miss,
+name the skill, stop class-constrained dispatch, and give its intended-scope
+recovery command: `oat tools install utility --scope <user|project>` or
+`oat tools update --pack utility --scope <user|project>`.
+
+Then read
+`${ORCHESTRATION_SKILLS_ROOT}/subagent-orchestration/references/model-selection-principles.md`.
 Resolve the active provider and read exactly one selection reference from
-that skill plus the matching mechanics reference from this one:
+`${ORCHESTRATION_SKILLS_ROOT}/subagent-orchestration/references/` plus the
+matching mechanics reference from this skill's own `references/`. The
+short-form paths below are relative to those two already-bound roots:
 
 - Claude: `subagent-orchestration/references/provider-claude.md`, then
   `references/provider-claude.md`
@@ -71,8 +83,9 @@ mappings; the mechanics reference contains surface-specific launch controls.
 For an unsupported provider, apply the provider-neutral contract and fail
 closed when exact launch controls cannot be established.
 
-If the `subagent-orchestration` skill is not installed, treat model guidance
-as unresolved: fail closed for class-constrained dispatch, and for
+If no candidate root resolves `subagent-orchestration/SKILL.md`, treat model
+guidance as unresolved: fail closed for class-constrained dispatch, name the
+missing skill with its `utility` recovery commands above, and for
 unconstrained dispatch select only through active user and repository
 instructions intersected with the live catalog.
 
@@ -387,18 +400,31 @@ a declared class floor.
 - An accepted launch is terminal for automatic replacement eligibility.
 - Completion, failure, timeout, interruption, `BLOCKED`, and contract refusal
   are post-acceptance outcomes; none makes another route eligible.
+- Automatic route, model, provider, or worker replacement after acceptance is
+  forbidden fallback. No post-acceptance outcome makes another route eligible.
 - A wrapper failure or payload rejection before child start is a pre-start
   rejection. A new recorded selection is allowed only within caller retry
   policy.
 - Continuing the same accepted child through its valid handle is allowed.
   Record continuation separately and preserve selectors and route.
+- Same-target bounded recovery is a continuation rather than fallback only when
+  a caller-specific lifecycle contract explicitly authorizes it. That contract
+  must supply the bounded scope, exact target, numeric budget, canonical
+  recording, and stop conditions before launch. It may allow either
+  continuation through the accepted handle or an explicitly linked fresh
+  same-target launch when the original handle cannot be resumed.
+- Standing recovery authority is default-deny. `oat-project-implement` may
+  establish it through its complete caller-specific lifecycle contract; wave
+  execution, autonomous projects, cloud-project orchestration, reviewers, and
+  every other consumer remain outside that grant unless their own future
+  contract independently defines the complete boundary.
+- Scope-expanding or consequential recovery requires new operator direction.
+  The same applies to ambiguous, destructive, or retry-exhausted work.
 - A caller may cancel accepted handles only after it proves that the enclosing
   run itself is invalid under caller-owned containment or integrity policy.
   Record `invalid-run-abort` and the invalidating evidence. Cancellation never
   makes another route eligible and never authorizes replacement, fallback, or
   a successful child outcome.
-- Operator-authorized recovery is a new explicit action, never automatic
-  fallback.
 - Runtime identity is optional corroboration. Missing runtime identity does not
   invalidate launcher-owned configured invocation evidence.
 

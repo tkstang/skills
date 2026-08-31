@@ -1,6 +1,6 @@
 ---
 name: oat-project-import-plan
-version: 1.4.8
+version: 1.4.10
 description: Use when you have an external markdown plan to execute with OAT. Preserves the source plan and normalizes it into canonical plan.md format.
 argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <name>]'
 oat_gateable: true
@@ -259,8 +259,12 @@ oat config adopt dispatch-matrix --user
 
 Adoption preserves explicit cells. Re-run the resolver and completeness check.
 An incomplete or missing ladder after adoption blocks readiness; do not
-overwrite explicit cells or infer provider defaults. Non-interactive import
-also blocks on a missing or incomplete ladder.
+overwrite explicit cells or infer provider defaults. Ordinary non-interactive
+import blocks on a missing or incomplete ladder. When `OAT_AUTONOMOUS=1`,
+follow the shared contract's deterministic user-first existing-scope
+resolution, run exactly one adoption against the selected config scope, and
+block only if no authorized compatible scope exists or the post-adoption ladder
+remains incomplete.
 
 The selected scope owns only reusable ladders. A project-specific active policy
 or ceiling must not be written to user `~/.oat/config.json`. Resolve or ask
@@ -424,14 +428,20 @@ Initialize pointer to first plan task ID.
 After the import-aware plan artifact review, project state sync, dashboard refresh, and implementation tracker setup, stage and commit the changed import artifacts before handing off to implementation or stopping.
 
 ```bash
-git add "$PROJECT_PATH/references/"
-for path in \
-  "$PROJECT_PATH/plan.md" \
-  "$PROJECT_PATH/implementation.md" \
-  "$PROJECT_PATH/state.md"; do
-  [ -e "$path" ] && git add "$path"
-done
-git diff --cached --quiet || git commit -m "chore(oat): update imported plan artifacts for {project-name}"
+PROJECT_SCOPE=$(oat project scope "$PROJECT_PATH" --format value) || { echo "oat: cannot resolve project scope for $PROJECT_PATH; refusing to commit artifacts" >&2; exit 1; }
+# fail closed: never fall back to branch bookkeeping when scope resolution fails
+if [ "$PROJECT_SCOPE" = "synced" ]; then
+  oat project push "$PROJECT_PATH" --message "chore(oat): update imported plan artifacts for {project-name}" || { echo "oat: project push failed; run oat project pull, resolve the reported state, and retry" >&2; exit 1; }
+else
+  git add "$PROJECT_PATH/references/"
+  for path in \
+    "$PROJECT_PATH/plan.md" \
+    "$PROJECT_PATH/implementation.md" \
+    "$PROJECT_PATH/state.md"; do
+    [ -e "$path" ] && git add "$path"
+  done
+  git diff --cached --quiet || git commit -m "chore(oat): update imported plan artifacts for {project-name}"
+fi
 ```
 
 ### Gate Execution

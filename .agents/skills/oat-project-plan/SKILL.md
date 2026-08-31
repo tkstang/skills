@@ -1,6 +1,6 @@
 ---
 name: oat-project-plan
-version: 1.4.3
+version: 1.4.5
 description: Use when design.md is complete and executable implementation tasks are needed. Breaks design into bite-sized TDD tasks in canonical plan.md format.
 oat_gateable: true
 disable-model-invocation: true
@@ -373,8 +373,11 @@ oat config adopt dispatch-matrix --user
 Adoption fills missing cells but preserves explicit values. Re-run the resolver
 and the completeness check. An incomplete or missing ladder after adoption
 blocks readiness; do not overwrite explicit cells, infer a fallback, or mark
-the plan ready. Non-interactive setup also blocks on a missing or incomplete
-ladder.
+the plan ready. Ordinary non-interactive setup blocks on a missing or
+incomplete ladder. When `OAT_AUTONOMOUS=1`, follow the shared contract's
+deterministic user-first existing-scope resolution, run exactly one adoption
+against the selected config scope, and block only if no authorized compatible
+scope exists or the post-adoption ladder remains incomplete.
 
 The owning scope stores only the reusable ladders. A project-specific active
 policy or ceiling must not be written to user `~/.oat/config.json`.
@@ -640,8 +643,22 @@ Planning - Ready for implementation
 ### Step 15: Commit Plan
 
 ```bash
-git add "$PROJECT_PATH/"
-git commit -m "docs: complete implementation plan for {project-name}
+PROJECT_SCOPE=$(oat project scope "$PROJECT_PATH" --format value) || { echo "oat: cannot resolve project scope for $PROJECT_PATH; refusing to commit artifacts" >&2; exit 1; }
+# fail closed: never fall back to branch bookkeeping when scope resolution fails
+if [ "$PROJECT_SCOPE" = "synced" ]; then
+  oat project push "$PROJECT_PATH" --message "docs: complete implementation plan for {project-name}
+
+Phases:
+- Phase 1: {description} ({N} tasks)
+- Phase 2: {description} ({N} tasks)
+
+Total: {N} tasks
+
+Ready for implementation" || { echo "oat: project push failed; run oat project pull, resolve the reported state, and retry" >&2; exit 1; }
+else
+  PROJECT_OUTPUT_PATHS=("$PROJECT_PATH/plan.md" "$PROJECT_PATH/state.md")
+  git add -- "${PROJECT_OUTPUT_PATHS[@]}"
+  git commit -m "docs: complete implementation plan for {project-name}
 
 Phases:
 - Phase 1: {description} ({N} tasks)
@@ -650,6 +667,7 @@ Phases:
 Total: {N} tasks
 
 Ready for implementation"
+fi
 ```
 
 ### Step 15.5: Generate the Project Explainer When Selected

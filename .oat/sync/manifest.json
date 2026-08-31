@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.2.26",
+  "oatVersion": "0.2.48",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",
@@ -751,7 +751,27 @@
       "contentHash": null,
       "isFile": false,
       "lastSynced": "2026-07-24T23:20:13.658Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-retro",
+      "providerPath": ".claude/skills/oat-project-retro",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-08-31T02:53:48.113Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-retro-file",
+      "providerPath": ".claude/skills/oat-project-retro-file",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-08-31T02:53:48.114Z"
     }
   ],
-  "lastUpdated": "2026-07-24T23:20:13.658Z"
+  "lastUpdated": "2026-08-31T02:53:48.114Z"
 }

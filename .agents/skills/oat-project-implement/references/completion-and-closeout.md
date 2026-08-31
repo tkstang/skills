@@ -47,6 +47,10 @@ When all plan tasks are complete (i.e., there is no next incomplete `pNN-tNN` ta
   - Verification performed (tests/lint/typecheck/build/manual)
   - Design deltas (if any)
 - This should reflect **what was actually implemented**, including any deviations from design and any review-fix work.
+- Reconcile `"$PROJECT_PATH/state.md"`, `"$PROJECT_PATH/implementation.md"`,
+  and `"$PROJECT_PATH/plan.md"` so task totals, phase statuses, current-task
+  pointers, the final summary, and test results describe the same terminal
+  evidence. Stale interim markers block closeout until corrected.
 
 Keep implementation in progress while clearing the completed task pointer:
 
@@ -105,9 +109,15 @@ files:
 
 ```bash
 oat state refresh
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
-[ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
-git diff --cached --quiet || git commit -m "chore(oat): prepare final implementation closeout"
+PROJECT_SCOPE=$(oat project scope "$PROJECT_PATH" --format value) || { echo "oat: cannot resolve project scope for $PROJECT_PATH; refusing to commit artifacts" >&2; exit 1; }
+# fail closed: never fall back to branch bookkeeping when scope resolution fails
+if [ "$PROJECT_SCOPE" = "synced" ]; then
+  oat project push "$PROJECT_PATH" --message "chore(oat): prepare final implementation closeout" || { echo "oat: project push failed; run oat project pull, resolve the reported state, and retry" >&2; exit 1; }
+else
+  git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+  [ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
+  git diff --cached --quiet || git commit -m "chore(oat): prepare final implementation closeout"
+fi
 ```
 
 Do not use `git add -A` or glob patterns. Only commit the three project artifacts listed above, plus `$PROJECT_PATH/project-log.md` when it exists; `.oat/state.md` is a generated, gitignored dashboard.
@@ -678,6 +688,8 @@ legacy or structured preference, normalize legacy values before snapshotting:
 `{ preApproval: ["summary"], postApproval: [] }`, `pr` → `{ preApproval:
 ["summary", "pr"], postApproval: [] }`, and `docs-pr` → `{ preApproval:
 ["summary", "document", "pr"], postApproval: [] }`.
+These legacy mappings remain unchanged. Structured preferences additionally
+accept `retro` in `postApproval`; `retro` is invalid in `preApproval`.
 
 If `OAT_AUTONOMOUS=1` and the preference is unset, use the inventory's
 autonomous lifecycle-tail default:
@@ -692,6 +704,8 @@ sequence snapshot as a configured structured value. Add
 `source: autonomous-default` to that snapshot. A configured legacy or
 structured preference remains authoritative and uses `source: configured`;
 preserve its normalized arrays and stored order exactly.
+The autonomous lifecycle-tail default remains unchanged and does not include
+`retro`; retro runs autonomously only when explicitly configured.
 
 Persist this immutable state before dispatching a child:
 
@@ -700,11 +714,11 @@ oat_post_implement_sequence:
   status: pre_approval # pre_approval | awaiting_approval | post_approval | failed | complete
   source: configured # configured | autonomous-default
   final_phase: pNN
-  pre_approval: [summary, document, pr]
+  pre_approval: [] # replace with the exact normalized resolved array
   pre_approval_completed: []
   approval: pending # pending | approved | not_required
   approval_source: null # null | user | oat-autonomous
-  post_approval: []
+  post_approval: [] # exact resolved array; add retro only when explicitly configured
   post_approval_completed: []
   failure: null
 ```
@@ -712,6 +726,10 @@ oat_post_implement_sequence:
 `source` and `approval_source` are additive provenance fields. A resumable
 snapshot created by an older skill version remains valid when either field is
 absent; do not rewrite its stored pre/post arrays merely to backfill provenance.
+The empty arrays above are consent-safe schema placeholders, not permission to
+discard a nonempty preference. Replace both with the exact normalized arrays
+resolved above. Never add `retro` unless the configured `postApproval` array
+explicitly contains it; the autonomous default remains `postApproval: []`.
 
 The snapshot is immutable for this closeout: never re-resolve
 `workflow.postImplementSequence` while it is incomplete. Iterate
@@ -719,10 +737,12 @@ The snapshot is immutable for this closeout: never re-resolve
 substitute a vocabulary order. Resume from the first incomplete stored step,
 including a partially completed noncanonical order.
 
-For every pending `summary`, `document`, or `pr`, dispatch respectively
-`oat-project-summary`, `oat-project-document`, or `oat-project-pr-final`.
-Every `summary`, `document`, and `pr` child receives the authoritative snapshot
-and must merge state updates without replacing `oat_post_implement_sequence`.
+For every pending `summary`, `document`, `pr`, or `retro`, dispatch respectively
+`oat-project-summary`, `oat-project-document`, `oat-project-pr-final`, or
+`oat-project-retro`. Dispatch `retro` in generate mode; apply and filing
+behavior remains config-gated inside that skill. Every `summary`, `document`,
+`pr`, and `retro` child receives the authoritative snapshot and must merge state
+updates without replacing `oat_post_implement_sequence`.
 Re-read and verify the snapshot after every child returns before recording step
 success. If a child removed or altered it, restore the authoritative snapshot,
 record that step as failed, and stop with the boundary, failed step, and exact
@@ -764,6 +784,14 @@ implementation completion report. If `summary.md` exists, append or refresh its
 single concise `Explainer Outcome` section using the manifest and build record;
 never append a second outcome section. If no recap was attempted or reused,
 leave the summary unchanged.
+
+Before recording final approval, invoke the shared
+`oat-explainer-kit/scripts/check-terminal-outcome.mjs` guard with the resolved
+intent and, for `generate`, the selected or attempted manifest. The only
+terminal generated outcomes are `built-durable`, `built-not-durable`,
+`built-needs-review`, and `failed`. Missing records and `incomplete` block
+approval; do not substitute a warning or infer an outcome from filesystem
+presence. A `skip` intent requires no manifest.
 
 1. Dispatch incomplete `pre_approval` steps in stored order.
 2. When they succeed and a final checkpoint exists, commit `status:
@@ -847,9 +875,15 @@ commit:
 
 ```bash
 oat state refresh
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
-[ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
-git diff --cached --quiet || git commit -m "chore(oat): mark implementation complete"
+PROJECT_SCOPE=$(oat project scope "$PROJECT_PATH" --format value) || { echo "oat: cannot resolve project scope for $PROJECT_PATH; refusing to commit artifacts" >&2; exit 1; }
+# fail closed: never fall back to branch bookkeeping when scope resolution fails
+if [ "$PROJECT_SCOPE" = "synced" ]; then
+  oat project push "$PROJECT_PATH" --message "chore(oat): mark implementation complete" || { echo "oat: project push failed; run oat project pull, resolve the reported state, and retry" >&2; exit 1; }
+else
+  git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+  [ -f "$PROJECT_PATH/project-log.md" ] && git add "$PROJECT_PATH/project-log.md"
+  git diff --cached --quiet || git commit -m "chore(oat): mark implementation complete"
+fi
 ```
 
 Do not use `git add -A` or glob patterns. Only commit the three project

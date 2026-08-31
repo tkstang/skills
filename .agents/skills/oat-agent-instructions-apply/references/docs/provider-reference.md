@@ -2,7 +2,7 @@
 
 Quick reference for skills, subagents, hooks, and agent instructions across all major AI coding tools.
 
-_Last updated: February 2026_
+_Last updated: July 2026_
 
 ---
 
@@ -144,10 +144,16 @@ The package manager for the agent skills ecosystem. Installs skills across 27+ a
 
 **Skill locations:**
 
-- Project: `.cursor/skills/<skill-name>/SKILL.md`
-- Personal: `~/.cursor/skills/<skill-name>/SKILL.md`
+- **Portable project skills:** `.agents/skills/<skill-name>/SKILL.md`
+- **Portable personal skills:** `~/.agents/skills/<skill-name>/SKILL.md`
+- **Cursor-only project skills:** `.cursor/skills/<skill-name>/SKILL.md`
+- **Cursor-only personal skills:** `~/.cursor/skills/<skill-name>/SKILL.md`
 - **Claude compatibility:** `.claude/skills/` (project) and `~/.claude/skills/` (personal)
 - **Codex compatibility:** `.codex/skills/` (project) and `~/.codex/skills/` (personal)
+
+OAT keeps portable skills canonical under `.agents/skills`; it does not
+generate `.cursor/skills` mirrors. Cursor-specific skill directories remain
+supported as intentional local extensions and migration sources.
 
 ### Subagents
 
@@ -220,6 +226,8 @@ The package manager for the agent skills ecosystem. Installs skills across 27+ a
 - Enable feature flag in config:
   - `[features]`
   - `multi_agent = true`
+- OAT's default topology is root → phase implementer and needs depth `1`.
+  Configure `[agents] max_depth = 2` or higher for optional nested work.
 - Define role(s) in config:
   - `[agents.oat-reviewer]` (or role names your workflow dispatches)
 - Dispatch by role name using `agent_type` (not `subagent_type`).
@@ -228,8 +236,13 @@ The package manager for the agent skills ecosystem. Installs skills across 27+ a
 **Note on OAT provider sync:**
 
 - Codex runtime dispatch is config-role based (`[agents.<name>]`) and TOML-backed.
-- OAT currently does not sync canonical markdown agents into `.codex/agents`.
-- Canonical markdown agent definitions require a markdown→TOML adapter to become Codex-executable role configs.
+- OAT sync exports canonical Markdown agents as `.codex/agents/*.toml` role
+  configs and registers them in `.codex/config.toml`.
+- Project-scoped output is repository-owned and version controlled. Explicit
+  user-scope materialization writes under `~/.codex` instead.
+- Sync and direct materialization merge an `agents.max_depth` floor of `2` as
+  optional nested-work capacity without lowering a higher project or inherited
+  user value. Default managed preflight accepts missing depth or depth `1`.
 
 ### Other Codex Resources
 
@@ -295,10 +308,22 @@ The package manager for the agent skills ecosystem. Installs skills across 27+ a
 
 **Skill locations:**
 
-- Project: `.github/skills/<skill-name>/SKILL.md`
+- Project: `.agents/skills/<skill-name>/SKILL.md` (native-read canonical path)
+- Project legacy/adoption path: `.github/skills/<skill-name>/SKILL.md`
 - Project (cross-compat): `.claude/skills/<skill-name>/SKILL.md`
-- Personal: `~/.copilot/skills/<skill-name>/SKILL.md` (Copilot coding agent and GitHub Copilot CLI only)
+- Personal: `~/.agents/skills/<skill-name>/SKILL.md` (native-read canonical path)
+- Personal legacy/adoption path: `~/.copilot/skills/<skill-name>/SKILL.md`
 - Personal (cross-compat): `~/.claude/skills/<skill-name>/SKILL.md` (Copilot coding agent and GitHub Copilot CLI only)
+
+OAT does not generate Copilot skill views under `.github/skills` or
+`~/.copilot/skills`. Those directories remain migration inputs. Copilot custom
+agents still materialize under `.github/agents` and `~/.copilot/agents`, and
+project rules still render under `.github/instructions`.
+
+Interactive migration adopts each legacy skill into canonical storage or keeps
+it Copilot-only by recording the exact path in sync config. Upgrade cleanup
+removes only verified clean managed views; changed or unverifiable paths are
+preserved and detached from obsolete manifest ownership.
 
 ### Subagents (Custom Agents)
 

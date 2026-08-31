@@ -12,7 +12,28 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
+import {
+  catalogFromManifest,
+  initiativeCatalogPath,
+  resolvePublicVerificationPolicy,
+  serializeInitiativeCatalog,
+  validateInitiativeCatalog,
+} from './catalog.mjs';
 import { validateContract } from './contracts.mjs';
+import { assertManifestPublishable } from './publication-policy.mjs';
+import {
+  composePublicationTarget,
+  describeRootDivergence,
+  isPrivatePublicHost,
+  normalizePublishRoots,
+  privatePublicRootAllowed,
+  rootDivergenceWarningSuppressed,
+} from './s3-roots.mjs';
+
+export {
+  composePublicationTarget,
+  normalizePublishRoots,
+} from './s3-roots.mjs';
 
 const execFile = promisify(execFileCallback);
 const SENTINEL_BODY = 'explainer-kit sentinel\n';
@@ -21,54 +42,6 @@ const TRANSIENT_PATTERN =
 const AUTH_PATTERN =
   /(?:credential|expired|sso session|access key|invalidclienttokenid|unrecognizedclient|token)/i;
 const NOT_FOUND_PATTERN = /(?:\b404\b|not found|nosuchkey)/i;
-
-export function normalizePublishRoots(s3Uri, publicBaseUrl) {
-  if (typeof s3Uri !== 'string' || !s3Uri.startsWith('s3://')) {
-    throw publishError('E_PUBLISH_ROOTS', 'S3 root must use s3://.');
-  }
-  const withoutScheme = s3Uri.slice('s3://'.length).replace(/\/+$/, '');
-  const slash = withoutScheme.indexOf('/');
-  const bucket = slash === -1 ? withoutScheme : withoutScheme.slice(0, slash);
-  const keyPrefix =
-    slash === -1
-      ? ''
-      : withoutScheme
-          .slice(slash + 1)
-          .split('/')
-          .filter(Boolean)
-          .join('/');
-  if (!bucket || /\s/.test(bucket)) {
-    throw publishError('E_PUBLISH_ROOTS', 'S3 root has an invalid bucket.');
-  }
-
-  let publicUrl;
-  try {
-    publicUrl = new URL(publicBaseUrl);
-  } catch {
-    throw publishError('E_PUBLISH_ROOTS', 'Public root must be a valid URL.');
-  }
-  if (
-    publicUrl.protocol !== 'https:' ||
-    publicUrl.username ||
-    publicUrl.password ||
-    publicUrl.search ||
-    publicUrl.hash
-  ) {
-    throw publishError(
-      'E_PUBLISH_ROOTS',
-      'Public root must be credential-free HTTPS without query or fragment.',
-    );
-  }
-  publicUrl.pathname = publicUrl.pathname.replace(/\/+$/, '');
-  const normalizedPublic = publicUrl.toString().replace(/\/$/, '');
-  const normalizedS3 = `s3://${bucket}${keyPrefix ? `/${keyPrefix}` : ''}`;
-  return {
-    bucket,
-    keyPrefix,
-    s3Uri: normalizedS3,
-    publicBaseUrl: normalizedPublic,
-  };
-}
 
 export function createSentinelRelativePath(
   runId,
@@ -109,6 +82,14 @@ export async function publishS3Static(request, dependencies = {}) {
   const siteRoot = resolve(cwd, request.siteRoot);
   const manifestPath = resolve(cwd, request.manifestPath);
   const manifest = await readJson(manifestPath, 'manifest');
+  const buildRecord =
+    manifest.outcome === 'incomplete'
+      ? await readJson(
+          resolve(dirname(manifestPath), manifest.buildRecord?.path ?? ''),
+          'build record',
+        )
+      : undefined;
+  assertManifestPublishable(manifest, { buildRecord });
   const manifestValidation = validateContract('manifest', manifest);
   if (!manifestValidation.valid) {
     throw publishError(
@@ -130,16 +111,70 @@ export async function publishS3Static(request, dependencies = {}) {
     manifest.runId,
     randomBytes,
   );
-  const sentinelTargetPath = targetPath(sentinelRelativePath, roots);
+  const sentinelTargetPath = composePublicationTarget(
+    sentinelRelativePath,
+    roots,
+  );
+  // Resolved before the catalog is built: the catalog is hashed and uploaded
+  // before any public verification runs, so it must carry the policy up front.
+  const publicAccess =
+    request.schemaVersion === 'explainer-kit.publish-request/v1'
+      ? 'public'
+      : request.publicAccess;
+  const verificationPolicy = resolvePublicVerificationPolicy(publicAccess);
+
+  const divergence = describeRootDivergence(roots);
+  if (divergence && !rootDivergenceWarningSuppressed()) {
+    (dependencies.warn ?? ((message) => console.warn(message)))(
+      `explainer-kit: ${divergence}`,
+    );
+  }
+
+  const catalog = catalogFromManifest(manifest, roots.publicBaseUrl, {
+    publicAccess,
+  });
+  const catalogValidation = validateInitiativeCatalog(
+    catalog,
+    manifest,
+    roots.publicBaseUrl,
+    { publicAccess },
+  );
+  if (!catalogValidation.valid) {
+    throw publishError(
+      'E_PUBLISH_INPUT',
+      `Invalid initiative catalog: ${catalogValidation.errors[0].message}`,
+    );
+  }
+  const catalogBody = Buffer.from(serializeInitiativeCatalog(catalog));
+  const catalogManifestPath = initiativeCatalogPath(manifest.slug);
+  const catalogPublishPath = catalogManifestPath.slice('site/'.length);
+  if (artifacts.some(({ publishPath }) => publishPath === catalogPublishPath)) {
+    throw publishError(
+      'E_PUBLISH_INPUT',
+      `Generated catalog path collides with a manifest artifact: ${catalogManifestPath}`,
+    );
+  }
   const sentinelDirectory = await mkdtemp(
     join(tmpdir(), 'explainer-sentinel-'),
   );
   const sentinelBodyPath = join(sentinelDirectory, 'sentinel.txt');
+  const catalogBodyPath = join(sentinelDirectory, 'catalog.json');
+  const catalogArtifact = {
+    source: { kind: 'auxiliary', name: 'catalog' },
+    manifestPath: catalogManifestPath,
+    publishPath: catalogPublishPath,
+    filePath: catalogBodyPath,
+    hash: fileHash(catalogBody),
+    contentType: 'application/json',
+    cacheControl: 'public, max-age=300',
+  };
+  const publicationArtifacts = [...artifacts, catalogArtifact];
   let sentinelUploaded = false;
   let sentinelDeleted = false;
 
   try {
     await writeFile(sentinelBodyPath, SENTINEL_BODY, 'utf8');
+    await writeFile(catalogBodyPath, catalogBody);
     await runAws(
       command,
       putObjectArgs({
@@ -154,21 +189,41 @@ export async function publishS3Static(request, dependencies = {}) {
       { sleep },
     );
     sentinelUploaded = true;
-    await runAws(
+    const sentinelMetadata = await readObjectMetadata(
       command,
       headObjectArgs(roots, sentinelRelativePath, awsOptions),
       { sleep },
     );
-    const sentinelResponse = await httpGet(sentinelTargetPath.publicUrl);
-    if (
-      sentinelResponse.status < 200 ||
-      sentinelResponse.status > 299 ||
-      !responseBytes(sentinelResponse.body).equals(Buffer.from(SENTINEL_BODY))
-    ) {
-      throw publishError(
-        'E_PUBLISH_ROOTS',
-        'Public root did not serve the uploaded sentinel.',
-      );
+    const sentinelObjectVerification = await verifyObjectBytes({
+      command,
+      metadata: sentinelMetadata,
+      roots,
+      relativePath: sentinelRelativePath,
+      expectedHash: fileHash(Buffer.from(SENTINEL_BODY)),
+      downloadPath: join(sentinelDirectory, 'sentinel-download.txt'),
+      awsOptions,
+      sleep,
+    });
+    let sentinelPublicVerification = {
+      status: verificationPolicy.receiptSkipStatus,
+    };
+    if (verificationPolicy.verifyPublicly) {
+      const sentinelResponse = await httpGet(sentinelTargetPath.publicUrl);
+      if (
+        sentinelResponse.status < 200 ||
+        sentinelResponse.status > 299 ||
+        !responseBytes(sentinelResponse.body).equals(Buffer.from(SENTINEL_BODY))
+      ) {
+        throw publishError(
+          'E_PUBLISH_ROOTS',
+          'Public root did not serve the uploaded sentinel.',
+        );
+      }
+      sentinelPublicVerification = {
+        status: 'verified',
+        httpStatus: sentinelResponse.status,
+        hash: fileHash(responseBytes(sentinelResponse.body)),
+      };
     }
     await runAws(
       command,
@@ -178,8 +233,8 @@ export async function publishS3Static(request, dependencies = {}) {
     sentinelDeleted = true;
 
     const receiptArtifacts = [];
-    for (const artifact of artifacts) {
-      const target = targetPath(artifact.publishPath, roots);
+    for (const artifact of publicationArtifacts) {
+      const target = composePublicationTarget(artifact.publishPath, roots);
       const metadata = await readExistingMetadata(
         command,
         headObjectArgs(roots, artifact.publishPath, awsOptions),
@@ -200,57 +255,98 @@ export async function publishS3Static(request, dependencies = {}) {
           { sleep },
         );
       }
-      const uploadedMetadata = await runAws(
+      const uploadedMetadata = await readObjectMetadata(
         command,
         headObjectArgs(roots, artifact.publishPath, awsOptions),
         { sleep },
       );
-      assertMetadata(uploadedMetadata.stdout, artifact);
-      const response = await httpGet(target.publicUrl);
-      if (response.status < 200 || response.status > 299) {
-        throw publishError(
-          'E_PUBLISH_VERIFY',
-          `Public verification failed for ${artifact.manifestPath}.`,
-        );
-      }
-      const servedType = headerValue(response.headers, 'content-type');
-      if (!contentTypesMatch(servedType, artifact.contentType)) {
-        throw publishError(
-          'E_PUBLISH_VERIFY',
-          `Public content type mismatch for ${artifact.manifestPath}.`,
-        );
-      }
-      if (fileHash(responseBytes(response.body)) !== artifact.hash) {
-        throw publishError(
-          'E_PUBLISH_VERIFY',
-          `Public bytes do not match the manifest for ${artifact.manifestPath}.`,
-        );
+      assertMetadata(uploadedMetadata, artifact);
+      const objectVerification = await verifyObjectBytes({
+        command,
+        metadata: uploadedMetadata,
+        roots,
+        relativePath: artifact.publishPath,
+        expectedHash: artifact.hash,
+        downloadPath: join(
+          sentinelDirectory,
+          `object-${receiptArtifacts.length}.download`,
+        ),
+        awsOptions,
+        sleep,
+      });
+      let publicVerification = {
+        status: verificationPolicy.receiptSkipStatus,
+      };
+      if (verificationPolicy.verifyPublicly) {
+        const response = await httpGet(target.publicUrl);
+        if (response.status < 200 || response.status > 299) {
+          throw publishError(
+            'E_PUBLISH_VERIFY',
+            `Public verification failed for ${artifact.manifestPath}.`,
+          );
+        }
+        const servedType = headerValue(response.headers, 'content-type');
+        if (!contentTypesMatch(servedType, artifact.contentType)) {
+          throw publishError(
+            'E_PUBLISH_VERIFY',
+            `Public content type mismatch for ${artifact.manifestPath}.`,
+          );
+        }
+        const publicHash = fileHash(responseBytes(response.body));
+        if (publicHash !== artifact.hash) {
+          throw publishError(
+            'E_PUBLISH_VERIFY',
+            `Public bytes do not match the manifest for ${artifact.manifestPath}.`,
+          );
+        }
+        publicVerification = {
+          status: 'verified',
+          httpStatus: response.status,
+          hash: publicHash,
+        };
       }
       receiptArtifacts.push({
+        source: artifact.source,
         relativePath: artifact.manifestPath,
         hash: artifact.hash,
         s3Uri: target.s3Uri,
         publicUrl: target.publicUrl,
-        httpStatus: response.status,
         contentType: artifact.contentType,
+        objectVerification,
+        publicVerification,
       });
     }
 
     const receipt = {
-      schemaVersion: 'explainer-kit.publish-receipt/v1',
+      schemaVersion: 'explainer-kit.publish-receipt/v2',
       provider: 's3-static',
       publishedAt: now(),
+      publicAccess,
+      // Durable trace for the anti-SSRF opt-in. Without it, a run that
+      // published to an internal address with the control disabled is
+      // indistinguishable in retained evidence from one that did not, because
+      // the variable is read straight from the environment and enters no other
+      // record. Emitted only in that exceptional case, so ordinary receipts are
+      // byte-identical to before.
+      ...(privatePublicRootAllowed() &&
+        isPrivatePublicHost(new URL(roots.publicBaseUrl).hostname) && {
+          publicRootPolicy: 'private-allowed',
+        }),
       roots: { s3Uri: roots.s3Uri, publicBaseUrl: roots.publicBaseUrl },
       sentinel: {
         relativePath: sentinelRelativePath,
-        uploadVerified: true,
-        publicVerified: true,
+        objectVerification: sentinelObjectVerification,
+        publicVerification: sentinelPublicVerification,
         deleted: sentinelDeleted,
       },
       artifacts: receiptArtifacts,
     };
     const receiptValidation = validateContract('publish-receipt', receipt, {
       manifest,
+      catalogArtifact: {
+        relativePath: catalogArtifact.manifestPath,
+        hash: catalogArtifact.hash,
+      },
     });
     if (!receiptValidation.valid) {
       throw publishError(
@@ -333,6 +429,7 @@ async function collectArtifacts(manifest, siteRoot) {
     }
     const contentType = contentTypeFor(publishPath, entry.mediaType);
     artifacts.push({
+      source: { kind: 'manifest', artifactId: entry.id },
       manifestPath: entry.renderedPath,
       publishPath,
       filePath,
@@ -369,6 +466,8 @@ function putObjectArgs({
       cacheControl,
       '--metadata',
       `explainer-sha256=${hash.slice('sha256:'.length)}`,
+      '--checksum-sha256',
+      Buffer.from(hash.slice('sha256:'.length), 'hex').toString('base64'),
       '--no-cli-pager',
     ],
     awsOptions,
@@ -384,8 +483,28 @@ function headObjectArgs(roots, relativePath, awsOptions) {
       roots.bucket,
       '--key',
       objectKey(roots, relativePath),
+      '--checksum-mode',
+      'ENABLED',
       '--output',
       'json',
+      '--no-cli-pager',
+    ],
+    awsOptions,
+  );
+}
+
+function getObjectArgs(roots, relativePath, downloadPath, awsOptions) {
+  return withAwsOptions(
+    [
+      's3api',
+      'get-object',
+      '--bucket',
+      roots.bucket,
+      '--key',
+      objectKey(roots, relativePath),
+      '--checksum-mode',
+      'ENABLED',
+      downloadPath,
       '--no-cli-pager',
     ],
     awsOptions,
@@ -458,6 +577,11 @@ async function readExistingMetadata(command, args, { sleep }) {
   }
 }
 
+async function readObjectMetadata(command, args, { sleep }) {
+  const result = await runAws(command, args, { sleep });
+  return parseAwsJson(result.stdout);
+}
+
 function matchesPublishedArtifact(metadata, artifact) {
   return (
     metadata?.Metadata?.['explainer-sha256'] ===
@@ -467,20 +591,75 @@ function matchesPublishedArtifact(metadata, artifact) {
   );
 }
 
-function assertMetadata(stdout, artifact) {
-  let metadata;
-  try {
-    metadata = JSON.parse(stdout || '{}');
-  } catch {
-    throw publishError(
-      'E_PUBLISH_VERIFY',
-      'AWS returned invalid object metadata.',
-    );
-  }
+function assertMetadata(metadata, artifact) {
   if (!matchesPublishedArtifact(metadata, artifact)) {
     throw publishError(
       'E_PUBLISH_VERIFY',
       `Uploaded metadata mismatch for ${artifact.manifestPath}.`,
+    );
+  }
+}
+
+async function verifyObjectBytes({
+  command,
+  metadata,
+  roots,
+  relativePath,
+  expectedHash,
+  downloadPath,
+  awsOptions,
+  sleep,
+}) {
+  const expectedBase64 = Buffer.from(
+    expectedHash.slice('sha256:'.length),
+    'hex',
+  ).toString('base64');
+  if (typeof metadata.ChecksumSHA256 === 'string') {
+    if (metadata.ChecksumSHA256 !== expectedBase64) {
+      throw publishError(
+        'E_PUBLISH_VERIFY',
+        `Authenticated object checksum mismatch for ${relativePath}.`,
+      );
+    }
+    return {
+      status: 'verified',
+      method: 'service-checksum',
+      hash: expectedHash,
+    };
+  }
+
+  try {
+    await runAws(
+      command,
+      getObjectArgs(roots, relativePath, downloadPath, awsOptions),
+      { sleep },
+    );
+  } catch {
+    throw publishError(
+      'E_PUBLISH_VERIFY',
+      `Authenticated object-byte verification is unavailable for ${relativePath}.`,
+    );
+  }
+  if (fileHash(await readFile(downloadPath)) !== expectedHash) {
+    throw publishError(
+      'E_PUBLISH_VERIFY',
+      `Authenticated object bytes do not match ${relativePath}.`,
+    );
+  }
+  return {
+    status: 'verified',
+    method: 'authenticated-download',
+    hash: expectedHash,
+  };
+}
+
+function parseAwsJson(stdout) {
+  try {
+    return JSON.parse(stdout || '{}');
+  } catch {
+    throw publishError(
+      'E_PUBLISH_VERIFY',
+      'AWS returned invalid object metadata.',
     );
   }
 }
@@ -510,17 +689,6 @@ function contentTypesMatch(served, expected) {
 
 function objectKey(roots, relativePath) {
   return roots.keyPrefix ? `${roots.keyPrefix}/${relativePath}` : relativePath;
-}
-
-function targetPath(relativePath, roots) {
-  const suffix = relativePath
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-  return {
-    s3Uri: `${roots.s3Uri}/${relativePath}`,
-    publicUrl: `${roots.publicBaseUrl}/${suffix}`,
-  };
 }
 
 function fileHash(bytes) {
@@ -554,9 +722,13 @@ async function defaultCommand(file, args) {
   return execFile(file, args, { maxBuffer: 1024 * 1024 });
 }
 
-async function defaultHttpGet(url) {
-  const response = await fetch(url, {
-    redirect: 'follow',
+export async function defaultHttpGet(url, { fetchImpl = fetch } = {}) {
+  // A canonical public artifact URL is uploaded to a known key and should never
+  // legitimately redirect. Following redirects turned public verification into
+  // an outbound GET primitive that a third party could bounce inward, so a
+  // redirect is a verification failure rather than something to chase.
+  const response = await fetchImpl(url, {
+    redirect: 'error',
     signal: AbortSignal.timeout(15_000),
   });
   return {

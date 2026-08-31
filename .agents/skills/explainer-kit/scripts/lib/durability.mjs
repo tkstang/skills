@@ -4,7 +4,17 @@ import { readFile, realpath } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
-import { canonicalHash, validateContract } from './contracts.mjs';
+import {
+  catalogFromManifest,
+  initiativeCatalogPath,
+  serializeInitiativeCatalog,
+  validateInitiativeCatalog,
+} from './catalog.mjs';
+import {
+  canonicalHash,
+  isVerifiablePublishReceipt,
+  validateContract,
+} from './contracts.mjs';
 import { writeFileAtomic, writeJsonAtomic } from './fs-safe.mjs';
 import { validateSafeRelativePath } from './safe-paths.mjs';
 
@@ -27,6 +37,11 @@ export async function recordDurability(request, options = {}) {
   const buildRecord = await readJson(buildRecordPath);
   assertValid('build-record', buildRecord);
   assertValid('manifest', manifest, { buildRecord });
+  if (manifest.outcome === 'built-needs-review') {
+    throw new Error(
+      'built-needs-review requires a passing visual review before durability attestation.',
+    );
+  }
   if (
     manifest.outcome !== 'built-not-durable' &&
     manifest.outcome !== 'built-durable'
@@ -175,6 +190,13 @@ export async function verifyRebuildability(artifact, runRoot) {
 }
 
 async function verifyEvidence(evidence, context) {
+  const immutableErrors = await verifyImmutablePackage(
+    context.runRoot,
+    context.manifest,
+  );
+  if (immutableErrors.length > 0) {
+    return { verified: false, errors: immutableErrors };
+  }
   const replayErrors = [];
   for (const artifact of context.manifest.artifacts) {
     if (artifact.status === 'built' && artifact.rebuildable === true) {
@@ -191,6 +213,29 @@ async function verifyEvidence(evidence, context) {
   return evidence.kind === 'commit'
     ? verifyCommitEvidence(evidence, context)
     : verifyPublishEvidence(evidence, context);
+}
+
+async function verifyImmutablePackage(runRoot, manifest) {
+  const errors = [];
+  for (const [path, expectedHash] of Object.entries(manifest.immutableHashes)) {
+    try {
+      const bytes = await readFile(joinWithin(runRoot, path));
+      const actualHash = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+      if (actualHash !== expectedHash) {
+        errors.push(
+          error('hash-mismatch', `Immutable package hash changed for ${path}.`),
+        );
+      }
+    } catch (caught) {
+      errors.push(
+        error(
+          'missing-path',
+          `Immutable package evidence ${path} is unavailable: ${errorMessage(caught)}`,
+        ),
+      );
+    }
+  }
+  return errors;
 }
 
 async function verifyCommitEvidence(evidence, { runRoot, manifest }) {
@@ -312,7 +357,14 @@ async function verifyCommitEvidence(evidence, { runRoot, manifest }) {
       };
 }
 
-async function verifyPublishEvidence(evidence, { runRoot, manifest }) {
+async function verifyPublishEvidence(
+  evidence,
+  { runRoot, manifest, options = {} },
+) {
+  // Injectable for the rejection-branch test below, exactly as `fetchImpl` is
+  // on `defaultHttpGet`: the branch fires only when the builder and validator
+  // disagree, which correct production code never does on purpose.
+  const buildCatalog = options.buildCatalog ?? catalogFromManifest;
   const expectedPath = joinWithin(runRoot, 'publish-receipt.json');
   if (resolve(evidence.receiptPath) !== expectedPath) {
     return {
@@ -335,15 +387,61 @@ async function verifyPublishEvidence(evidence, { runRoot, manifest }) {
       errors: [error('publish-receipt', errorMessage(caught))],
     };
   }
-  const validation = validateContract('publish-receipt', receipt, { manifest });
+  let catalogArtifact;
+  if (isVerifiablePublishReceipt(receipt)) {
+    try {
+      // Must rebuild the catalog under the policy the receipt declares. The
+      // connector embedded that policy in the catalog it hashed, so verifying a
+      // `protected` receipt against a `public`-shaped rebuild yields a
+      // different hash and rejects every protected publication as
+      // `cross-record-mismatch`.
+      const catalog = buildCatalog(manifest, receipt.roots?.publicBaseUrl, {
+        publicAccess: receipt.publicAccess,
+      });
+      // This is a builder/validator cross-check on a catalog rebuilt three
+      // lines above from the same inputs — durability never consumes catalog
+      // bytes from outside, only a recorded hash, so no externally-sourced
+      // catalog object exists here to validate. The value of the check is that
+      // `catalogFromManifest` and `validateInitiativeCatalog` are independent
+      // implementations of the same contract: if they ever diverge, this
+      // reports the specific contract violation instead of letting the
+      // divergence surface as an opaque `cross-record-mismatch`.
+      const catalogValidation = validateInitiativeCatalog(
+        catalog,
+        manifest,
+        receipt.roots?.publicBaseUrl,
+        { publicAccess: receipt.publicAccess },
+      );
+      if (!catalogValidation.valid) {
+        return {
+          verified: false,
+          errors: [
+            error(
+              'publish-receipt',
+              `Rebuilt initiative catalog is invalid: ${catalogValidation.errors[0].message}`,
+            ),
+          ],
+        };
+      }
+      catalogArtifact = {
+        relativePath: initiativeCatalogPath(manifest.slug),
+        hash: bufferHash(Buffer.from(serializeInitiativeCatalog(catalog))),
+      };
+    } catch (caught) {
+      return {
+        verified: false,
+        errors: [error('publish-receipt', errorMessage(caught))],
+      };
+    }
+  }
+  const validation = validateContract('publish-receipt', receipt, {
+    manifest,
+    ...(catalogArtifact && { catalogArtifact }),
+  });
   const errors = validation.errors.map(({ code, message }) =>
     error(code, message),
   );
-  if (
-    receipt.sentinel?.uploadVerified !== true ||
-    receipt.sentinel?.publicVerified !== true ||
-    receipt.sentinel?.deleted !== true
-  ) {
+  if (!sentinelVerificationComplete(receipt)) {
     errors.push(
       error(
         'sentinel-verification',
@@ -384,6 +482,25 @@ async function verifyPublishEvidence(evidence, { runRoot, manifest }) {
           paths: required.map(({ renderedPath }) => renderedPath),
         },
       };
+}
+
+function sentinelVerificationComplete(receipt) {
+  if (receipt.sentinel?.deleted !== true) return false;
+  if (receipt.schemaVersion === 'explainer-kit.publish-receipt/v1') {
+    return (
+      receipt.sentinel.uploadVerified === true &&
+      receipt.sentinel.publicVerified === true
+    );
+  }
+  if (receipt.schemaVersion !== 'explainer-kit.publish-receipt/v2') {
+    return false;
+  }
+  return (
+    receipt.sentinel.objectVerification?.status === 'verified' &&
+    (receipt.publicAccess === 'public'
+      ? receipt.sentinel.publicVerification?.status === 'verified'
+      : receipt.sentinel.publicVerification?.status === 'skipped-protected')
+  );
 }
 
 function appendEvidence(artifact, evidence) {

@@ -1,6 +1,6 @@
 ---
 name: oat-agent-instructions-analyze
-version: 1.11.2
+version: 1.12.0
 description: Run when you need to evaluate agent instruction file coverage, quality, and drift. Produces a severity-rated analysis artifact. Run before oat-agent-instructions-apply to identify what needs improvement.
 disable-model-invocation: true
 user-invocable: true
@@ -80,8 +80,10 @@ or fill in missing evidence gaps on its own.
 **Resolve providers:**
 
 ```bash
-SCRIPT_DIR=".agents/skills/oat-agent-instructions-analyze/scripts"
-TRACKING_SCRIPT=".oat/scripts/resolve-tracking.sh"
+# Set SKILL_DIR to the absolute directory containing this loaded SKILL.md.
+SCRIPT_DIR="$SKILL_DIR/scripts"
+SCOPE_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
+TRACKING_SCRIPT="$SCOPE_ROOT/.oat/scripts/resolve-tracking.sh"
 PROVIDERS=$(bash "$SCRIPT_DIR/resolve-providers.sh" --non-interactive)
 # Or with explicit override:
 # PROVIDERS=$(bash "$SCRIPT_DIR/resolve-providers.sh" --providers claude,cursor)
@@ -470,7 +472,9 @@ If the loop is disabled, note `Auto artifact review: skipped (workflow.autoArtif
 **Update tracking:**
 
 ```bash
-TRACKING_SCRIPT=".oat/scripts/resolve-tracking.sh"
+# Set SKILL_DIR to the absolute directory containing this loaded SKILL.md.
+SCOPE_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
+TRACKING_SCRIPT="$SCOPE_ROOT/.oat/scripts/resolve-tracking.sh"
 ROOT_TARGET=$(bash "$TRACKING_SCRIPT" root)
 ROOT_HASH=$(echo "$ROOT_TARGET" | jq -r '.commitHash')
 ROOT_BRANCH=$(echo "$ROOT_TARGET" | jq -r '.baseBranch')
@@ -528,6 +532,7 @@ Next step: Run oat-agent-instructions-apply to act on these findings.
 - Bundle summary template: `references/bundle-summary-template.md`
 - Bundle manifest template: `references/recommendations-manifest-template.yaml`
 - Recommendation pack template: `references/recommendation-pack-template.md`
-- Tracking script: `.oat/scripts/resolve-tracking.sh`
+- Tracking script: `$SCOPE_ROOT/.oat/scripts/resolve-tracking.sh`, where
+  `SCOPE_ROOT` is derived from this loaded skill's directory.
 - Provider resolution: `scripts/resolve-providers.sh`
 - File discovery: `scripts/resolve-instruction-files.sh`
