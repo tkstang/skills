@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-08-31
-oat_current_task_id: p02-t05
+oat_current_task_id: p02-t13
 oat_generated: false
 ---
 
@@ -27,12 +27,12 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | in_progress | 12    | 4/12      |
+| p02   | in_progress | 13    | 12/13     |
 | p03   | pending     | 6     | 0/6       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 7/25 tasks completed
+**Total:** 15/26 tasks completed
 
 ---
 
@@ -84,15 +84,18 @@ repository validation, skill-version validation, lint/format, and diff hygiene p
 
 - Froze the handoff schema and cross-discriminated outcome contracts.
 - Added exact provider-qualified discovery, sanitized bounded preview, and Git worktree evidence.
-- Completed three append-only review repair commits through `e488dfb`.
-- Received the final bounded review with eight validated repairs now queued as p02-t05 through p02-t12.
+- Completed three initial review repair commits through `e488dfb`.
+- Completed the eight-finding repair cycle through `ab975ff`; all eight findings were independently confirmed resolved.
+- Received one new Critical Codex cwd-conflict finding; p02-t13 is the only authorized repair.
 
-**Verification:** 267 focused tests plus type-check, build parity, repository validation,
-skill-version validation, focused lint/format, and diff hygiene passed at `e488dfb`.
+**Verification:** 838 focused/shared tests plus type-check, build parity, repository
+validation, skill-version validation, focused lint/format, and diff hygiene passed at
+`ab975ff`.
 
-**Review:** Four review rounds are archived. The authorized final repair cycle addresses
-2 Critical, 1 Important, 4 Medium, and 1 Minor finding before one fresh independent
-full-p02 review.
+**Review:** The full-p02 review at `ab975ff` confirmed all eight preceding findings
+resolved, then found 1 new Critical and 2 Medium issues. The user authorized only the
+Critical Codex cwd-conflict fix and one targeted independent review; both Mediums are
+explicitly deferred.
 
 ### Task p02-t01: Define handoff schemas and limits
 
@@ -116,40 +119,45 @@ full-p02 review.
 
 ### Task p02-t05: (review) Enumerate every exact Claude store entry
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `38ada9fd03cde42aed6b32745c972c12b46b3137`
 
 ### Task p02-t06: (review) Fail closed on metadata-prefix truncation
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `f632d34ff336f1c38eb4f2c437a2dd7db64e01ed`
 
 ### Task p02-t07: (review) Enforce preview input-work budgets during reads
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `154f4211aa0933f20e14e5bcec632662a5754b0c`
 
 ### Task p02-t08: (review) Make qualified-ID ordering locale independent
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `a0efd3d641ceeb36b965a3ebbc42040395ee5f4e`
 
 ### Task p02-t09: (review) Round-trip multiline preview text
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `465110f6102a7633735650708770cb6db070525f`
 
 ### Task p02-t10: (review) Ignore unrelated stale worktree registrations
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `1ad045429488dfe74deed6de620efbc6cc73d9f5`
 
 ### Task p02-t11: (review) Preserve NUL-delimited worktree paths
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `bb1b26137a969bb550497d3e43f57e6bd88bb740`
 
 ### Task p02-t12: (review) Align candidate timestamps to milliseconds
+
+**Status:** completed
+**Commit:** `ab975ff7ec18a21c5059aa8800091475cf4f4442`
+
+### Task p02-t13: (review) Reject conflicting Codex cwd evidence
 
 **Status:** pending
 **Commit:** -
@@ -256,7 +264,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Schedule: p01 → p02 → p03 → root entry gates → p05 → p06
 - HiLL: final phase p06; automatic lifecycle review enabled
 - Autonomous gates: `IMPLEMENT-03` (p06 checkpoint), `IMPLEMENT-08` (bounded phase implementer and reviewer delegation)
-- Status: p01 passed; p02 review repairs queued
+- Status: p01 passed; p02 Critical-only targeted repair queued
 
 #### p01 Outcome
 
@@ -283,12 +291,14 @@ Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unkn
 
 #### p02 Outcome (in progress)
 
-- Phase base/current head: `3b60b06623e8ca533f7ae4298f751fddb8d95ebf` → `e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6`
+- Phase base/current head: `3b60b06623e8ca533f7ae4298f751fddb8d95ebf` → `ab975ff7ec18a21c5059aa8800091475cf4f4442`
 - Task commits: `b9a0403` (p02-t01), `1e92355` (p02-t02), `6ba1c47` (p02-t03), `1c9da58` (p02-t04)
 - Prior repair commits: `9e3401a`, `e20ea1f`, `e488dfb`
-- Final review: `reviews/archived/p02-review-2026-08-31T063722Z.md` — 2 Critical, 1 Important, 4 Medium, 1 Minor
-- Authorized action: exactly one additional bounded repair-and-review cycle addressing all eight findings
-- Next task: p02-t05
+- Eight-finding repair commits: `38ada9f`, `f632d34`, `154f421`, `a0efd3d`, `465110f`, `1ad0454`, `bb1b261`, `ab975ff`
+- Full-p02 review: `reviews/archived/p02-review-2026-08-31T074327Z.md` — 1 Critical, 0 Important, 2 Medium, 0 Minor; all eight preceding findings resolved
+- Authorized action: fix only the Critical Codex cwd conflict and run one targeted independent review
+- Deferred by explicit user scope: exact-128 newline boundary and newline-bearing path schema round-trip
+- Next task: p02-t13
 
 <!-- orchestration-runs-end -->
 
@@ -352,6 +362,29 @@ p02-t11, p02-t12
 **Next:** Execute the eight review tasks, then run exactly one fresh independent review
 over the full p02 range. Any remaining Critical or Important finding stops the lifecycle.
 
+### Review Received: p02 Critical-only follow-up
+
+**Date:** 2026-08-31
+**Review artifact:** `reviews/archived/p02-review-2026-08-31T074327Z.md`
+
+**Findings:**
+
+- Critical: 1
+- Important: 0
+- Medium: 2
+- Minor: 0
+
+**New tasks added:** p02-t13
+
+**Finding disposition map:**
+
+- C1 → p02-t13 (`code_fix_required`) — validate every top-level and payload Codex cwd in bounded exact-all discovery and reject malformed or conflicting evidence.
+- M1 → `explicit_deferral` — exactly 128 newline-terminated records are falsely incomplete; fail-closed availability issue deferred by the user's Critical-only scope.
+- M2 → `explicit_deferral` — newline-bearing Git evidence cannot round-trip through the generic path schema; nonblocking producer/consumer compatibility issue deferred by the user's Critical-only scope.
+
+**Next:** Execute p02-t13, then run one targeted independent review of the Codex cwd
+fix. Any Critical or Important finding in that review stops the lifecycle.
+
 ---
 
 ### 2026-08-31
@@ -372,7 +405,15 @@ over the full p02 range. Any remaining Critical or Important finding stops the l
 - [x] p02-t03 — `6ba1c47`
 - [x] p02-t04 — `1c9da58`
 - [x] p02 prior review fixes — `9e3401a`, `e20ea1f`, `e488dfb`
-- [ ] p02-t05 — next
+- [x] p02-t05 — `38ada9f`
+- [x] p02-t06 — `f632d34`
+- [x] p02-t07 — `154f421`
+- [x] p02-t08 — `a0efd3d`
+- [x] p02-t09 — `465110f`
+- [x] p02-t10 — `1ad0454`
+- [x] p02-t11 — `bb1b261`
+- [x] p02-t12 — `ab975ff`
+- [ ] p02-t13 — next
 
 ---
 
@@ -391,7 +432,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
-| p02   | 267 focused tests; type-check; build-check; validate; skill versions; lint/format | all at `e488dfb` | 0 | Original tasks plus three prior fix rounds; final repair tasks pending |
+| p02   | 838 focused/shared tests; type-check; build-check; validate; skill versions; lint/format | all at `ab975ff` | 0 | Original tasks plus eight-finding repair cycle; Critical-only follow-up pending |
 | p03   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |

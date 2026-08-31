@@ -486,6 +486,37 @@ boundary without changing session-observer's established seconds contract.
 
 ---
 
+### Task p02-t13: (review) Reject conflicting Codex cwd evidence
+
+**Dependencies:** p02-t06 and p02-t12.
+
+**Files:**
+
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Modify: `tests/coding-session-handoff/discovery.test.ts`
+- Regenerate: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Regenerate: `skills/export-session-transcript/scripts/lib/runtimes.mjs`
+- Regenerate: `skills/session-observer/scripts/lib/locate.mjs`
+
+**RED:** Add bounded exact-all fixtures whose later top-level or `payload.cwd`
+contradicts the first Codex cwd. Cover agreeing repeated values plus empty, relative,
+and malformed cwd evidence. Conflicts and malformed evidence must fail with the stable
+path-free incomplete reason and expose no candidate.
+
+**GREEN:** Add a strict Codex cwd extractor that inspects every recognized top-level and
+payload cwd in the bounded metadata prefix. Require non-empty absolute strings and
+agreement across every observed value, then make bounded exact-all discovery reject
+missing, malformed, or conflicting evidence. Preserve legacy/default observer behavior.
+
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/locate.test.ts tests/coding-session-handoff/discovery.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions --base-ref origin/main`
+
+**Commit:** `fix(p02-t13): reject conflicting Codex cwd evidence`
+
+---
+
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
 **Goal:** Build the initially unverified provider matrix, immutable plan/execution state
@@ -1060,7 +1091,8 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | p01 | code | passed | 2026-08-31 | reviews/archived/p01-review-2026-08-31T044051Z.md | 3b60b06623e8ca533f7ae4298f751fddb8d95ebf | manual | - |
-| p02 | code | fixes_added | 2026-08-31 | reviews/archived/p02-review-2026-08-31T063722Z.md | e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6 | manual | - |
+| p02 | code | fixes_completed | 2026-08-31 | reviews/archived/p02-review-2026-08-31T063722Z.md | e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6 | manual | - |
+| p02 | code | fixes_added | 2026-08-31 | reviews/archived/p02-review-2026-08-31T074327Z.md | ab975ff7ec18a21c5059aa8800091475cf4f4442 | manual | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
@@ -1086,14 +1118,14 @@ root-repository task commit.
 **Summary:**
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
-- p02: 12 tasks — exact candidate/preview/Git evidence plus eight review repairs
+- p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
 - p03: 6 tasks — provider contracts, orchestration, gate harness, CLI, development runtime
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 25 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 26 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 25 tasks have exactly one verified commit,
+Implementation is complete only when all 26 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

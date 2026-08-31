@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t05
-oat_last_commit: e488dfbd2ee9769fd7cff95b1dd9cb10c4390cb6
+oat_current_task: p02-t13
+oat_last_commit: ab975ff7ec18a21c5059aa8800091475cf4f4442
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T06:48:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T14:29:32Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - Phase p02 final repair cycle authorized at p02-t05
+Implementation - Phase p02 Critical-only follow-up authorized at p02-t13
 
 ## Artifacts
 
@@ -108,7 +108,7 @@ Implementation - Phase p02 final repair cycle authorized at p02-t05
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 passed, p02 repair cycle active)
+- **Implementation:** `implementation.md` (in progress; p01 passed, p02 Critical-only follow-up active)
 
 ## Progress
 
@@ -136,12 +136,17 @@ Implementation - Phase p02 final repair cycle authorized at p02-t05
 - ✓ Three append-only p02 review repair commits completed through `e488dfb`
 - ✓ Final p02 review received with 2 Critical, 1 Important, 4 Medium, and 1 Minor finding
 - ✓ Exactly one additional bounded p02 repair-and-review cycle explicitly authorized
-- ⧗ Phase p02 repair cycle queued at task p02-t05
+- ✓ Phase p02 tasks p02-t05 through p02-t12 implemented through `ab975ff`
+- ✓ All eight preceding review findings independently confirmed resolved
+- ✓ Targeted full-p02 review found 1 new Critical, 0 Important, 2 Medium, and 0 Minor findings
+- ✓ User authorized only the Critical Codex cwd-conflict fix and one targeted independent review
+- ✓ Two Medium findings explicitly deferred by user scope
+- ⧗ Phase p02 Critical-only follow-up queued at task p02-t13
 
 ## Blockers
 
-The lifecycle must stop if the one authorized fresh p02 review still reports any Critical or Important finding.
+The lifecycle must stop if the targeted p02-t13 review still reports any Critical or Important finding in the authorized fix scope.
 
 ## Next Milestone
 
-Complete p02-t05 through p02-t12 and run the one authorized independent full-p02 review
+Complete p02-t13 and run one targeted independent review of the Codex cwd fix
