@@ -100,6 +100,24 @@ describe('Git worktree target evidence', () => {
     });
   });
 
+  test('preserves a newline-bearing registered worktree path from NUL-delimited porcelain', async () => {
+    const { root, source } = await fixture();
+    const newlineTarget = join(root, 'target\nwith-newline');
+    await git(source, [
+      'worktree',
+      'add',
+      '-b',
+      'newline-target',
+      newlineTarget,
+    ]);
+
+    const evidence = await inspectWorktree(newlineTarget);
+
+    expect(evidence.requestedPath).toBe(newlineTarget);
+    expect(evidence.canonicalPath).toBe(await realpath(newlineTarget));
+    expect(evidence.worktreeRoot).toBe(await realpath(newlineTarget));
+  });
+
   test('accepts a symlink alias only when it resolves to the registered worktree root', async () => {
     const { root, source, target } = await fixture();
     const alias = join(root, 'target-alias');

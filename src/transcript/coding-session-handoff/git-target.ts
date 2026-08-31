@@ -153,10 +153,18 @@ function oneLine(output: string): string {
   return value;
 }
 
+function pathOutputValue(output: string): string {
+  if (!output.endsWith('\n') || output.includes('\0')) {
+    throw new GitTargetError('not-worktree');
+  }
+  const value = output.slice(0, -1);
+  if (value.length === 0) throw new GitTargetError('not-worktree');
+  return value;
+}
+
 function registeredWorktreePaths(output: string): string[] {
   return output
     .split('\0')
-    .flatMap((field) => field.split('\n'))
     .filter((field) => field.startsWith('worktree '))
     .map((field) => field.slice('worktree '.length));
 }
@@ -172,7 +180,7 @@ export async function inspectWorktree(
     options.deps,
     'path-missing',
   );
-  const rawWorktreeRoot = oneLine(
+  const rawWorktreeRoot = pathOutputValue(
     await git(canonicalPath, ['rev-parse', '--show-toplevel'], options),
   );
   const worktreeRoot = await canonicalize(
@@ -184,7 +192,7 @@ export async function inspectWorktree(
     throw new GitTargetError('not-registered-worktree');
   }
 
-  const rawCommonGitDir = oneLine(
+  const rawCommonGitDir = pathOutputValue(
     await git(
       canonicalPath,
       ['rev-parse', '--path-format=absolute', '--git-common-dir'],
