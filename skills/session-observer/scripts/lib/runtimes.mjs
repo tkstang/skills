@@ -352,12 +352,18 @@ async function readBoundedWindow(transcriptPath, options, direction, deadline) {
 function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment, dropTrailingFragment) {
   let start = 0;
   let incomplete = false;
+  let recordsInspected = 0;
   const records = [];
   if (dropLeadingFragment) {
     const newline = buffer.indexOf(10);
     if (newline === -1 || newline === buffer.length - 1) {
       safeDiagnostic(options, "oversized-record");
-      return { records: [], incomplete: true, deadlineExceeded: false };
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: false,
+        recordsInspected
+      };
     }
     start = newline + 1;
     incomplete = true;
@@ -365,7 +371,12 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
   while (start < buffer.length) {
     if (deadlineExpired(deadline)) {
       safeDiagnostic(options, "deadline-exceeded");
-      return { records: [], incomplete: true, deadlineExceeded: true };
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: true,
+        recordsInspected
+      };
     }
     const newline = buffer.indexOf(10, start);
     const isFinalFragment = newline === -1;
@@ -379,6 +390,7 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
     if (line.at(-1) === 13) line = line.subarray(0, -1);
     const text = line.toString("utf8").trim();
     if (text) {
+      recordsInspected += 1;
       const parsed = safeParseLine(text);
       if (parsed.ok) {
         if (mode === "prefix") {
@@ -402,7 +414,7 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
     if (isFinalFragment) break;
     start = newline + 1;
   }
-  return { records, incomplete, deadlineExceeded: false };
+  return { records, incomplete, deadlineExceeded: false, recordsInspected };
 }
 async function readMetadataRecordsBounded(transcriptPath, options) {
   validateBoundedReadOptions(options);
@@ -433,7 +445,14 @@ async function readTailRecordsBounded(transcriptPath, options) {
     "tail",
     deadline
   );
-  if (window === null) return { records: [], truncated: false };
+  if (window === null) {
+    return {
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0
+    };
+  }
   const parsed = parseBoundedLines(
     window.buffer,
     options,
@@ -444,7 +463,9 @@ async function readTailRecordsBounded(transcriptPath, options) {
   );
   return {
     records: parsed.records,
-    truncated: window.offset > 0 || parsed.incomplete
+    truncated: window.offset > 0 || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected
   };
 }
 async function readRecords(transcriptPath) {

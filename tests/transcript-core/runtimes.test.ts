@@ -245,6 +245,10 @@ describe('bounded transcript readers', () => {
     ).resolves.toEqual({
       records: [{ index: 2 }, { index: 3 }],
       truncated: true,
+      bytesRead: Buffer.byteLength(
+        ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+      ),
+      recordsInspected: 3,
     });
   });
 
@@ -260,6 +264,10 @@ describe('bounded transcript readers', () => {
     });
 
     expect(result.records).toEqual([{ ok: true }]);
+    expect(result.bytesRead).toBe(
+      Buffer.byteLength('{"ok":true}\nnot-json\n{"partial":'),
+    );
+    expect(result.recordsInspected).toBe(3);
     expect(diagnostics).toEqual([
       { code: 'malformed-record' },
       { code: 'malformed-record' },
@@ -300,7 +308,12 @@ describe('bounded transcript readers', () => {
       diagnostic: (event) => diagnostics.push(event),
     });
 
-    expect(result).toEqual({ records: [], truncated: true });
+    expect(result).toEqual({
+      records: [],
+      truncated: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
     expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
   });
 
@@ -331,7 +344,12 @@ describe('bounded transcript readers', () => {
       diagnostic: (event) => diagnostics.push(event),
     });
 
-    expect(result).toEqual({ records: [], truncated: false });
+    expect(result).toEqual({
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
     expect(diagnostics).toEqual([{ code: 'read-failed' }]);
     expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
   });

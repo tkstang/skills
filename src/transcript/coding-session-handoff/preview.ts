@@ -235,14 +235,6 @@ export async function previewHandoffCandidates(
       startedAt,
       batchLimits,
     );
-    aggregateInputBytes += Math.min(
-      source.candidate.size,
-      PER_TRANSCRIPT_MAX_BYTES,
-    );
-    if (aggregateInputBytes > batchLimits.maxAggregateInputBytes) {
-      throw new HandoffPreviewError('aggregate-input-bytes');
-    }
-
     const diagnostics: SafeTranscriptDiagnosticCode[] = [];
     const read = await deps.readTailRecordsBounded(source.transcriptPath, {
       maxBytes: PER_TRANSCRIPT_MAX_BYTES,
@@ -253,7 +245,23 @@ export async function previewHandoffCandidates(
     ensureDeadline(deps.now, startedAt, batchLimits);
     diagnosticFailure(diagnostics, source.candidate.key);
 
-    aggregateInputRecords += read.records.length;
+    if (
+      !Number.isSafeInteger(read.bytesRead) ||
+      read.bytesRead < 0 ||
+      read.bytesRead > PER_TRANSCRIPT_MAX_BYTES ||
+      !Number.isSafeInteger(read.recordsInspected) ||
+      read.recordsInspected < read.records.length
+    ) {
+      throw new HandoffPreviewError(
+        'transcript-read-failed',
+        source.candidate.key,
+      );
+    }
+    aggregateInputBytes += read.bytesRead;
+    if (aggregateInputBytes > batchLimits.maxAggregateInputBytes) {
+      throw new HandoffPreviewError('aggregate-input-bytes');
+    }
+    aggregateInputRecords += read.recordsInspected;
     if (aggregateInputRecords > batchLimits.maxAggregateInputRecords) {
       throw new HandoffPreviewError('aggregate-input-records');
     }
@@ -273,6 +281,7 @@ export async function previewHandoffCandidates(
     ) {
       throw new HandoffPreviewError('aggregate-rendered-characters');
     }
+    ensureDeadline(deps.now, startedAt, batchLimits);
 
     previews.push({
       key: source.candidate.key,
@@ -283,5 +292,6 @@ export async function previewHandoffCandidates(
     });
   }
 
+  ensureDeadline(deps.now, startedAt, batchLimits);
   return previews;
 }

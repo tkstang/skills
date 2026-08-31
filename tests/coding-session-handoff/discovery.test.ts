@@ -202,4 +202,46 @@ describe('exact handoff candidate discovery', () => {
       new HandoffDiscoveryError('discovery-incomplete', 'claude'),
     );
   });
+
+  test.each(['null', 'throw'] as const)(
+    'refuses the complete set when discovered cwd canonicalization returns %s',
+    async (failureMode) => {
+      const deps = dependencies({
+        codex: [
+          transcriptCandidate('codex', 'valid', '/repo/source'),
+          transcriptCandidate('codex', 'unclassifiable', '/repo/vanished'),
+        ],
+      });
+      deps.canonicalize = vi.fn(async (path) => {
+        if (path === '/repo/source') return '/repo/source';
+        if (failureMode === 'throw') {
+          throw new Error('/private/provider/secret.jsonl');
+        }
+        return null;
+      });
+
+      await expect(
+        discoverHandoffCandidates('/repo/source', { deps }),
+      ).rejects.toMatchObject({
+        code: 'discovery-incomplete',
+        provider: 'codex',
+      });
+    },
+  );
+
+  test('refuses invalid projected candidate fields instead of returning a partial set', async () => {
+    const deps = dependencies({
+      codex: [
+        transcriptCandidate('codex', 'valid', '/repo/source'),
+        transcriptCandidate('codex', '', '/repo/source'),
+      ],
+    });
+
+    await expect(
+      discoverHandoffCandidates('/repo/source', { deps }),
+    ).rejects.toMatchObject({
+      code: 'discovery-incomplete',
+      provider: 'codex',
+    });
+  });
 });

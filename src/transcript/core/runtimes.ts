@@ -48,6 +48,8 @@ export interface BoundedTranscriptReadOptions {
 export interface BoundedTailReadResult {
   records: JsonObject[];
   truncated: boolean;
+  bytesRead: number;
+  recordsInspected: number;
 }
 
 export interface CursorIdentityEvidence {
@@ -742,16 +744,27 @@ function parseBoundedLines(
   mode: 'prefix' | 'tail',
   dropLeadingFragment: boolean,
   dropTrailingFragment: boolean,
-): { records: JsonObject[]; incomplete: boolean; deadlineExceeded: boolean } {
+): {
+  records: JsonObject[];
+  incomplete: boolean;
+  deadlineExceeded: boolean;
+  recordsInspected: number;
+} {
   let start = 0;
   let incomplete = false;
+  let recordsInspected = 0;
   const records: JsonObject[] = [];
 
   if (dropLeadingFragment) {
     const newline = buffer.indexOf(0x0a);
     if (newline === -1 || newline === buffer.length - 1) {
       safeDiagnostic(options, 'oversized-record');
-      return { records: [], incomplete: true, deadlineExceeded: false };
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: false,
+        recordsInspected,
+      };
     }
     start = newline + 1;
     incomplete = true;
@@ -760,7 +773,12 @@ function parseBoundedLines(
   while (start < buffer.length) {
     if (deadlineExpired(deadline)) {
       safeDiagnostic(options, 'deadline-exceeded');
-      return { records: [], incomplete: true, deadlineExceeded: true };
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: true,
+        recordsInspected,
+      };
     }
 
     const newline = buffer.indexOf(0x0a, start);
@@ -776,6 +794,7 @@ function parseBoundedLines(
     if (line.at(-1) === 0x0d) line = line.subarray(0, -1);
     const text = line.toString('utf8').trim();
     if (text) {
+      recordsInspected += 1;
       const parsed = safeParseLine(text);
       if (parsed.ok) {
         if (mode === 'prefix') {
@@ -801,7 +820,7 @@ function parseBoundedLines(
     start = newline + 1;
   }
 
-  return { records, incomplete, deadlineExceeded: false };
+  return { records, incomplete, deadlineExceeded: false, recordsInspected };
 }
 
 /**
@@ -849,7 +868,14 @@ export async function readTailRecordsBounded(
     'tail',
     deadline,
   );
-  if (window === null) return { records: [], truncated: false };
+  if (window === null) {
+    return {
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0,
+    };
+  }
   const parsed = parseBoundedLines(
     window.buffer,
     options,
@@ -861,6 +887,8 @@ export async function readTailRecordsBounded(
   return {
     records: parsed.records,
     truncated: window.offset > 0 || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected,
   };
 }
 

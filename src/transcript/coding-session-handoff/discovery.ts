@@ -10,6 +10,7 @@ import type {
 } from '../session-observer/lib/types.js';
 import {
   HANDOFF_PROVIDERS,
+  parseSessionCandidate,
   type HandoffProvider,
   type SessionCandidate,
 } from './types.js';
@@ -122,25 +123,35 @@ async function projectCandidate(
   current: ReadonlyMap<string, HandoffCurrentIdentity['evidence']>,
   canonicalize: HandoffDiscoveryDependencies['canonicalize'],
 ): Promise<SessionCandidate | null> {
-  if (
-    candidate.runtime !== PROVIDER_RUNTIME[provider] ||
-    candidate.recordedCwd === null
-  ) {
-    return null;
+  if (candidate.runtime !== PROVIDER_RUNTIME[provider]) {
+    throw new HandoffDiscoveryError('discovery-incomplete', provider);
   }
-  const recordedCwd = await canonicalize(candidate.recordedCwd);
+  if (candidate.recordedCwd === null) return null;
+  let recordedCwd: string | null;
+  try {
+    recordedCwd = await canonicalize(candidate.recordedCwd);
+  } catch {
+    throw new HandoffDiscoveryError('discovery-incomplete', provider);
+  }
+  if (recordedCwd === null) {
+    throw new HandoffDiscoveryError('discovery-incomplete', provider);
+  }
   if (recordedCwd !== sourceCanonicalPath) return null;
   const key = `${provider}:${candidate.sessionId}` as const;
-  return {
-    key,
-    provider,
-    nativeId: candidate.sessionId,
-    recordedCwd,
-    modifiedAtMs: candidate.mtime,
-    size: candidate.size,
-    engagement: candidate.engagementStatus,
-    currentEvidence: current.get(key) ?? 'none',
-  };
+  try {
+    return parseSessionCandidate({
+      key,
+      provider,
+      nativeId: candidate.sessionId,
+      recordedCwd,
+      modifiedAtMs: candidate.mtime,
+      size: candidate.size,
+      engagement: candidate.engagementStatus,
+      currentEvidence: current.get(key) ?? 'none',
+    });
+  } catch {
+    throw new HandoffDiscoveryError('discovery-incomplete', provider);
+  }
 }
 
 /**
@@ -152,7 +163,12 @@ export async function discoverHandoffCandidates(
   options: DiscoverHandoffCandidatesOptions = {},
 ): Promise<SessionCandidate[]> {
   const deps = options.deps ?? DEFAULT_DEPENDENCIES;
-  const sourceCanonicalPath = await deps.canonicalize(sourcePath);
+  let sourceCanonicalPath: string | null;
+  try {
+    sourceCanonicalPath = await deps.canonicalize(sourcePath);
+  } catch {
+    throw new HandoffDiscoveryError('source-unavailable');
+  }
   if (sourceCanonicalPath === null) {
     throw new HandoffDiscoveryError('source-unavailable');
   }

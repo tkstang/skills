@@ -273,13 +273,37 @@ export interface ItemOutcomeBase {
   parentNativeId: string;
   expectedChildNativeId?: string;
   targetBaselineIds: QualifiedSessionId[];
-  reporting: ReportingOutcome;
 }
 
-export type ItemOutcome = ItemOutcomeBase & {
-  native: NativeOutcome;
-  observedChildNativeId?: string;
-};
+export type ItemOutcome =
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'succeeded' }>;
+      observedChildNativeId: string;
+      reporting: MappedReporting | UnmappedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'indeterminate' }>;
+      observedChildNativeId: string;
+      reporting: MappedReporting | UnmappedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'indeterminate' }>;
+      observedChildNativeId?: never;
+      reporting: UnmappedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<NativeOutcome, { status: 'failed' }>;
+      observedChildNativeId?: never;
+      reporting: NotAttemptedReporting;
+    })
+  | (ItemOutcomeBase & {
+      native: Extract<
+        NativeOutcome,
+        { status: 'not-run' | 'deferred' | 'refused' }
+      >;
+      observedChildNativeId?: never;
+      reporting: NotAttemptedReporting;
+    });
 
 export interface BatchOutcome {
   schemaVersion: 1;
@@ -387,6 +411,17 @@ function unique<T>(values: readonly T[], code: string): void {
 function digest(value: unknown, code: string): string {
   const parsed = string(value, code);
   if (!/^[0-9a-f]{64}$/u.test(parsed)) fail(code);
+  return parsed;
+}
+
+function isoTimestamp(value: unknown, code: string): string {
+  const parsed = string(value, code);
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(parsed) ||
+    !Number.isFinite(Date.parse(parsed))
+  ) {
+    fail(code);
+  }
   return parsed;
 }
 
@@ -650,6 +685,312 @@ export function parseCapabilityProbe(value: unknown): CapabilityProbe {
     fail('syntax-verified-evidence');
   }
   return parsed;
+}
+
+export function parseProviderBehaviorContract(
+  value: unknown,
+): ProviderBehaviorContract {
+  const contract = record(value, 'provider-behavior-contract');
+  exactKeys(contract, [
+    'provider',
+    'exactVersion',
+    'syntaxFingerprint',
+    'executionContextFingerprint',
+    'successor',
+    'resume',
+  ]);
+  const provider = enumValue(
+    contract.provider,
+    HANDOFF_PROVIDERS,
+    'handoff-provider',
+  );
+  const successorValue = record(
+    contract.successor,
+    'provider-behavior-successor',
+  );
+  const successorStatus = enumValue(
+    successorValue.status,
+    ['verified', 'unverified'] as const,
+    'provider-behavior-status',
+  );
+  let successor: ProviderBehaviorContract['successor'];
+  if (successorStatus === 'verified') {
+    exactKeys(successorValue, ['status', 'receiptDigest', 'verifiedAt']);
+    successor = {
+      status: 'verified',
+      receiptDigest: digest(
+        successorValue.receiptDigest,
+        'behavior-receipt-digest',
+      ),
+      verifiedAt: isoTimestamp(
+        successorValue.verifiedAt,
+        'behavior-verified-at',
+      ),
+    };
+  } else {
+    exactKeys(successorValue, ['status']);
+    successor = { status: 'unverified' };
+  }
+  const resumeValue = record(contract.resume, 'provider-behavior-resume');
+  exactKeys(resumeValue, ['status']);
+  if (resumeValue.status !== 'unverified') fail('provider-resume-status');
+  return {
+    provider,
+    exactVersion: string(contract.exactVersion, 'behavior-exact-version'),
+    syntaxFingerprint: digest(
+      contract.syntaxFingerprint,
+      'behavior-syntax-fingerprint',
+    ),
+    executionContextFingerprint: digest(
+      contract.executionContextFingerprint,
+      'behavior-execution-context-fingerprint',
+    ),
+    successor,
+    resume: { status: 'unverified' },
+  };
+}
+
+export function parseBehavioralGateReceipt(
+  value: unknown,
+): BehavioralGateReceipt {
+  const receipt = record(value, 'behavioral-gate-receipt');
+  exactKeys(receipt, [
+    'schemaVersion',
+    'provider',
+    'executablePath',
+    'exactVersion',
+    'syntaxFingerprint',
+    'executionContextFingerprint',
+    'operation',
+    'fixture',
+    'observations',
+    'bounds',
+    'cleanup',
+    'status',
+    'reasonCodes',
+    'createdAt',
+  ]);
+  if (receipt.schemaVersion !== HANDOFF_SCHEMA_VERSION) fail('schema-version');
+  const provider = enumValue(
+    receipt.provider,
+    HANDOFF_PROVIDERS,
+    'handoff-provider',
+  );
+  if (receipt.operation !== 'successor') fail('behavior-operation');
+
+  const fixtureValue = record(receipt.fixture, 'behavior-fixture');
+  exactKeys(fixtureValue, [
+    'repositoryRoot',
+    'sourceWorktree',
+    'targetWorktree',
+  ]);
+  const fixture = {
+    repositoryRoot: string(
+      fixtureValue.repositoryRoot,
+      'behavior-repository-root',
+    ),
+    sourceWorktree: string(
+      fixtureValue.sourceWorktree,
+      'behavior-source-worktree',
+    ),
+    targetWorktree: string(
+      fixtureValue.targetWorktree,
+      'behavior-target-worktree',
+    ),
+  };
+  if (
+    fixture.sourceWorktree === fixture.targetWorktree ||
+    fixture.repositoryRoot === fixture.sourceWorktree ||
+    fixture.repositoryRoot === fixture.targetWorktree
+  ) {
+    fail('behavior-fixture-paths');
+  }
+
+  const observationsValue = record(
+    receipt.observations,
+    'behavior-observations',
+  );
+  exactKeys(
+    observationsValue,
+    [
+      'parentNativeId',
+      'observedChildNativeId',
+      'recordedChildCwd',
+      'exactParentLineage',
+      'sourceParentResumable',
+      'metadataEffects',
+    ],
+    ['requestedChildNativeId'],
+  );
+  const metadataEffects = array(
+    observationsValue.metadataEffects,
+    (item) => string(item, 'behavior-metadata-effect'),
+    'behavior-metadata-effects',
+  );
+  unique(metadataEffects, 'duplicate-behavior-metadata-effect');
+  const requestedChildNativeId =
+    observationsValue.requestedChildNativeId === undefined
+      ? undefined
+      : nativeId(observationsValue.requestedChildNativeId);
+  if (
+    (provider === 'claude' && requestedChildNativeId === undefined) ||
+    (provider === 'codex' && requestedChildNativeId !== undefined)
+  ) {
+    fail('behavior-requested-child-selector');
+  }
+  const observations: BehavioralGateReceipt['observations'] = {
+    parentNativeId: nativeId(observationsValue.parentNativeId),
+    observedChildNativeId: nativeId(observationsValue.observedChildNativeId),
+    recordedChildCwd: string(
+      observationsValue.recordedChildCwd,
+      'behavior-recorded-child-cwd',
+    ),
+    exactParentLineage: boolean(
+      observationsValue.exactParentLineage,
+      'behavior-exact-parent-lineage',
+    ),
+    sourceParentResumable: boolean(
+      observationsValue.sourceParentResumable,
+      'behavior-source-parent-resumable',
+    ),
+    metadataEffects,
+  };
+  if (requestedChildNativeId !== undefined) {
+    observations.requestedChildNativeId = requestedChildNativeId;
+  }
+
+  const boundsValue = record(receipt.bounds, 'behavior-bounds');
+  exactKeys(
+    boundsValue,
+    ['calls', 'timeoutMsPerCall', 'outputBytesPerCall'],
+    ['maxBudgetUsd'],
+  );
+  const calls = integer(boundsValue.calls, 'behavior-calls-bound', 1);
+  const timeoutMsPerCall = integer(
+    boundsValue.timeoutMsPerCall,
+    'behavior-timeout-bound',
+    1,
+  );
+  const outputBytesPerCall = integer(
+    boundsValue.outputBytesPerCall,
+    'behavior-output-bound',
+    1,
+  );
+  if (calls > 16) fail('behavior-calls-bound');
+  if (timeoutMsPerCall > 60_000) fail('behavior-timeout-bound');
+  if (outputBytesPerCall > 65_536) fail('behavior-output-bound');
+  let maxBudgetUsd: number | undefined;
+  if (boundsValue.maxBudgetUsd !== undefined) {
+    maxBudgetUsd = finite(
+      boundsValue.maxBudgetUsd,
+      'behavior-budget-bound',
+      Number.EPSILON,
+    );
+    if (maxBudgetUsd > 0.15) fail('behavior-budget-bound');
+  }
+  if (
+    (provider === 'claude' && maxBudgetUsd === undefined) ||
+    (provider === 'codex' && maxBudgetUsd !== undefined)
+  ) {
+    fail('behavior-budget-provider');
+  }
+  const bounds: BehavioralGateReceipt['bounds'] = {
+    calls,
+    timeoutMsPerCall,
+    outputBytesPerCall,
+  };
+  if (maxBudgetUsd !== undefined) bounds.maxBudgetUsd = maxBudgetUsd;
+
+  const cleanupValue = record(receipt.cleanup, 'behavior-cleanup');
+  exactKeys(cleanupValue, [
+    'gitFixture',
+    'providerState',
+    'method',
+    'reasonCodes',
+  ]);
+  const cleanup = {
+    gitFixture: enumValue(
+      cleanupValue.gitFixture,
+      ['removed', 'failed'] as const,
+      'behavior-git-cleanup',
+    ),
+    providerState: enumValue(
+      cleanupValue.providerState,
+      ['removed', 'failed'] as const,
+      'behavior-provider-cleanup',
+    ),
+    method: enumValue(
+      cleanupValue.method,
+      [
+        'codex-delete-exact-session-ids',
+        'claude-purge-exact-disposable-project-paths',
+      ] as const,
+      'behavior-cleanup-method',
+    ),
+    reasonCodes: parseReasonCodes(cleanupValue.reasonCodes),
+  };
+  const expectedCleanupMethod =
+    provider === 'codex'
+      ? 'codex-delete-exact-session-ids'
+      : 'claude-purge-exact-disposable-project-paths';
+  if (cleanup.method !== expectedCleanupMethod) {
+    fail('behavior-cleanup-provider-mismatch');
+  }
+  const cleanupFailed =
+    cleanup.gitFixture === 'failed' || cleanup.providerState === 'failed';
+  if (cleanupFailed !== cleanup.reasonCodes.length > 0) {
+    fail('behavior-cleanup-reasons');
+  }
+
+  const status = enumValue(
+    receipt.status,
+    ['passed', 'failed', 'inconclusive'] as const,
+    'behavior-receipt-status',
+  );
+  const reasonCodes = parseReasonCodes(receipt.reasonCodes);
+  if (cleanupFailed && status !== 'inconclusive') {
+    fail('behavior-cleanup-inconclusive');
+  }
+  if (status === 'passed') {
+    if (
+      cleanupFailed ||
+      reasonCodes.length > 0 ||
+      !observations.exactParentLineage ||
+      !observations.sourceParentResumable ||
+      observations.recordedChildCwd !== fixture.targetWorktree ||
+      observations.metadataEffects.length === 0 ||
+      (provider === 'claude' &&
+        observations.requestedChildNativeId !==
+          observations.observedChildNativeId)
+    ) {
+      fail('behavior-passed-evidence');
+    }
+  } else if (reasonCodes.length === 0) {
+    fail('behavior-failure-reason');
+  }
+
+  return {
+    schemaVersion: HANDOFF_SCHEMA_VERSION,
+    provider,
+    executablePath: string(receipt.executablePath, 'behavior-executable-path'),
+    exactVersion: string(receipt.exactVersion, 'behavior-exact-version'),
+    syntaxFingerprint: digest(
+      receipt.syntaxFingerprint,
+      'behavior-syntax-fingerprint',
+    ),
+    executionContextFingerprint: digest(
+      receipt.executionContextFingerprint,
+      'behavior-execution-context-fingerprint',
+    ),
+    operation: 'successor',
+    fixture,
+    observations,
+    bounds,
+    cleanup,
+    status,
+    reasonCodes,
+    createdAt: isoTimestamp(receipt.createdAt, 'behavior-created-at'),
+  };
 }
 
 export function parseNativeInvocation(value: unknown): NativeInvocation {
@@ -988,26 +1329,18 @@ function parseItemOutcome(value: unknown): ItemOutcome {
     ) {
       fail('mapped-selector-mismatch');
     }
-  } else if (
-    expectedChildNativeId !== undefined &&
-    observedChildNativeId !== undefined &&
-    expectedChildNativeId !== observedChildNativeId
-  ) {
-    fail('observed-selector-mismatch');
   }
 
-  const parsed: ItemOutcome = {
+  const parsed = {
     key,
     parentNativeId,
     targetBaselineIds,
     native,
     reporting,
+    ...(expectedChildNativeId === undefined ? {} : { expectedChildNativeId }),
+    ...(observedChildNativeId === undefined ? {} : { observedChildNativeId }),
   };
-  if (expectedChildNativeId !== undefined)
-    parsed.expectedChildNativeId = expectedChildNativeId;
-  if (observedChildNativeId !== undefined)
-    parsed.observedChildNativeId = observedChildNativeId;
-  return parsed;
+  return parsed as ItemOutcome;
 }
 
 export function parseBatchOutcome(value: unknown): BatchOutcome {

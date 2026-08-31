@@ -52,7 +52,13 @@ function source(
 }
 
 function dependencies(
-  options: { now?: () => number; diagnosticCode?: string } = {},
+  options: {
+    now?: () => number;
+    diagnosticCode?: string;
+    bytesRead?: number;
+    recordsInspected?: number;
+    onNormalize?: () => void;
+  } = {},
 ) {
   const byPath = new Map<string, JsonObject[]>();
   const deps: HandoffPreviewDependencies = {
@@ -63,10 +69,18 @@ function dependencies(
           code: options.diagnosticCode as 'malformed-record',
         });
       }
-      return { records: byPath.get(path) ?? [], truncated: false };
+      const records = byPath.get(path) ?? [];
+      return {
+        records,
+        truncated: false,
+        bytesRead: options.bytesRead ?? 1,
+        recordsInspected: options.recordsInspected ?? records.length,
+      };
     }),
-    normalizeEntries: (_runtime, records) =>
-      records as unknown as DigestEntry[],
+    normalizeEntries: (_runtime, records) => {
+      options.onNormalize?.();
+      return records as unknown as DigestEntry[];
+    },
   };
   return {
     deps,
@@ -211,10 +225,89 @@ describe('bounded sanitized session preview', () => {
     },
   );
 
+  test('debits current read bytes rather than stale discovery size', async () => {
+    const sources = [source('codex:a', [entry('user', 'one')], 0)];
+    const fixture = dependencies({ bytesRead: 2 });
+    fixture.register(sources);
+
+    await expect(
+      previewHandoffCandidates(sources, {
+        deps: fixture.deps,
+        batchLimits: {
+          maxCandidates: 20,
+          maxAggregateInputBytes: 1,
+          maxAggregateInputRecords: 100_000,
+          deadlineMs: 10_000,
+          maxAggregateRenderedCharacters: 131_072,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'preview-incomplete',
+      reason: 'aggregate-input-bytes',
+    });
+  });
+
+  test('debits every inspected record including records not retained by the reader', async () => {
+    const sources = [source('codex:a', [entry('user', 'retained')])];
+    const fixture = dependencies({ recordsInspected: 2 });
+    fixture.register(sources);
+
+    await expect(
+      previewHandoffCandidates(sources, {
+        deps: fixture.deps,
+        batchLimits: {
+          maxCandidates: 20,
+          maxAggregateInputBytes: 33_554_432,
+          maxAggregateInputRecords: 1,
+          deadlineMs: 10_000,
+          maxAggregateRenderedCharacters: 131_072,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'preview-incomplete',
+      reason: 'aggregate-input-records',
+    });
+  });
+
   test('fails the complete batch when the aggregate deadline crosses', async () => {
     const clock = [0, 0, 10_000];
     const sources = [source('codex:a', [entry('user', 'one')])];
     const fixture = dependencies({ now: () => clock.shift() ?? 10_000 });
+    fixture.register(sources);
+
+    await expect(
+      previewHandoffCandidates(sources, { deps: fixture.deps }),
+    ).rejects.toMatchObject({
+      code: 'preview-incomplete',
+      reason: 'deadline',
+    });
+  });
+
+  test('fails when normalization or rendering crosses the deadline', async () => {
+    let time = 0;
+    const sources = [source('codex:a', [entry('user', 'one')])];
+    const fixture = dependencies({
+      now: () => time,
+      onNormalize: () => {
+        time = 10_000;
+      },
+    });
+    fixture.register(sources);
+
+    await expect(
+      previewHandoffCandidates(sources, { deps: fixture.deps }),
+    ).rejects.toMatchObject({
+      code: 'preview-incomplete',
+      reason: 'deadline',
+    });
+  });
+
+  test('checks the aggregate deadline once more before returning', async () => {
+    const clock = [0, 0, 0, 0, 10_000];
+    const sources = [source('codex:a', [entry('user', 'one')])];
+    const fixture = dependencies({
+      now: () => clock.shift() ?? 10_000,
+    });
     fixture.register(sources);
 
     await expect(
