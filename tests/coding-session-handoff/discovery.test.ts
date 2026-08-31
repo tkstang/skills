@@ -363,7 +363,23 @@ describe('exact handoff candidate discovery', () => {
     const result = await discoverHandoffCandidates('/repo/source', { deps });
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ key: 'codex:same', modifiedAtMs: 7 });
+    expect(result[0]).toMatchObject({ key: 'codex:same', modifiedAtMs: 7_000 });
+  });
+
+  test('projects shared epoch-second mtimes to the millisecond schema contract', async () => {
+    const deps = dependencies({
+      codex: [
+        transcriptCandidate('codex', 'timestamp', '/repo/source', {
+          mtime: 1_700_000_123,
+        }),
+      ],
+    });
+
+    const [candidate] = await discoverHandoffCandidates('/repo/source', {
+      deps,
+    });
+
+    expect(candidate.modifiedAtMs).toBe(1_700_000_123_000);
   });
 
   test('refuses conflicting duplicates and incomplete provider discovery', async () => {

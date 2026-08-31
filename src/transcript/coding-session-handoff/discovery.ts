@@ -156,7 +156,7 @@ async function projectCandidate(
       provider,
       nativeId: candidate.sessionId,
       recordedCwd,
-      modifiedAtMs: candidate.mtime,
+      modifiedAtMs: candidate.mtime * 1_000,
       size: candidate.size,
       engagement: candidate.engagementStatus,
       currentEvidence: current.get(key) ?? 'none',
