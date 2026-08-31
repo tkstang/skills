@@ -81,6 +81,78 @@ describe('read-only exact reconciliation', () => {
     });
   });
 
+  test.each([
+    {
+      status: 'mapped' as const,
+      expectedReporting: {
+        status: 'mapped',
+        childNativeId: 'expected-child',
+        evidence: 'machine-output-and-transcript',
+      },
+      promotesObserved: true,
+    },
+    {
+      status: 'unresolved' as const,
+      reasonCode: 'child-unresolved' as const,
+      expectedReporting: {
+        status: 'unresolved',
+        reasonCode: 'child-unresolved',
+      },
+      promotesObserved: false,
+    },
+    {
+      status: 'ambiguous' as const,
+      reasonCode: 'child-ambiguous' as const,
+      candidateChildIds: ['candidate-a', 'candidate-b'],
+      expectedReporting: {
+        status: 'ambiguous',
+        reasonCode: 'child-ambiguous',
+        candidateChildIds: ['candidate-a', 'candidate-b'],
+      },
+      promotesObserved: false,
+    },
+  ])(
+    'reconciles expected-only indeterminate Claude outcomes as $status',
+    async ({ expectedReporting, promotesObserved, ...evidence }) => {
+      const pending = outcome();
+      pending.items[0] = {
+        key: 'claude:parent',
+        parentNativeId: 'parent',
+        expectedChildNativeId: 'expected-child',
+        targetBaselineIds: ['claude:existing'],
+        native: {
+          status: 'indeterminate',
+          retryable: false,
+          exitCode: null,
+          reasonCode: 'native-indeterminate',
+        },
+        reporting: {
+          status: 'unresolved',
+          reasonCode: 'child-unresolved',
+        },
+      };
+      const inspect = vi.fn(async () => evidence);
+
+      const reconciled = await reconcileBatchOutcome(pending, { inspect });
+
+      expect(inspect).toHaveBeenCalledWith({
+        provider: 'claude',
+        parentNativeId: 'parent',
+        expectedChildNativeId: 'expected-child',
+        targetBaselineIds: ['claude:existing'],
+      });
+      expect(reconciled.items[0].reporting).toEqual(expectedReporting);
+      expect(reconciled.items[0].native).toMatchObject({
+        status: 'indeterminate',
+        retryable: false,
+      });
+      expect(reconciled.items[0].observedChildNativeId).toBe(
+        promotesObserved ? 'expected-child' : undefined,
+      );
+      expect(reconciled.retryableKeys).toEqual(['codex:deferred']);
+    },
+  );
+
   test('rejects malformed outcome selectors before inspecting provider state', async () => {
     const malformed = outcome() as unknown as Record<string, unknown>;
     const first = (malformed.items as Record<string, unknown>[])[0];

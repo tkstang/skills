@@ -47,7 +47,7 @@ function codexRun(
   if (argv[0] === 'exec') {
     return Promise.resolve({
       stdout:
-        'Usage: codex exec fork [OPTIONS] ID PROMPT\n--json\n--disable <FEATURE> hooks\n-C, --cd <DIR>\n',
+        'Usage: codex exec fork [OPTIONS] ID PROMPT\n--json\n--disable <FEATURE> hooks\n--ignore-user-config\n--ignore-rules\n-C, --cd <DIR>\n',
       stderr: '',
     });
   }
@@ -81,8 +81,12 @@ describe('provider capability probes', () => {
 
   test('accepts the exact Codex contract and hashes only redacted context', async () => {
     const run = vi.fn(codexRun);
+    const readConfigInputs = vi.fn(async () => [
+      { name: 'config.toml', contents: 'model = "safe"\ntoken = "secret"' },
+    ]);
     const result = await probeProvider('codex', {
-      deps: dependencies(run),
+      targetCwd: '/repo/target',
+      deps: dependencies(run, { readConfigInputs }),
     });
 
     expect(result.capability.status).toBe('syntax-verified');
@@ -98,6 +102,32 @@ describe('provider capability probes', () => {
     });
     expect(JSON.stringify(result)).not.toContain('secret');
     expect(run).toHaveBeenCalledTimes(3);
+    expect(readConfigInputs).toHaveBeenCalledWith('codex', '/repo/target');
+  });
+
+  test('detects target-local Codex context drift before invocation planning', async () => {
+    let targetInstructions = 'policy = "first"';
+    const readConfigInputs = vi.fn(async (_provider, targetCwd) => [
+      {
+        name: `target:${targetCwd}:AGENTS.md`,
+        contents: targetInstructions,
+      },
+    ]);
+    const first = await probeProvider('codex', {
+      targetCwd: '/repo/target',
+      deps: dependencies(codexRun, { readConfigInputs }),
+    });
+    targetInstructions = 'policy = "changed"';
+    const drifted = await probeProvider('codex', {
+      targetCwd: '/repo/target',
+      expectedExecutionContextFingerprint:
+        first.capability.executionContextFingerprint,
+      deps: dependencies(codexRun, { readConfigInputs }),
+    });
+
+    expect(first.capability.status).toBe('syntax-verified');
+    expect(drifted.capability.status).toBe('execution-context-drift');
+    expect(readConfigInputs).toHaveBeenLastCalledWith('codex', '/repo/target');
   });
 
   test.each([
@@ -168,6 +198,8 @@ describe('provider invocation and fingerprint policy', () => {
         '--json',
         '--disable',
         'hooks',
+        '--ignore-user-config',
+        '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
         malicious,
@@ -209,8 +241,26 @@ describe('provider invocation and fingerprint policy', () => {
       containsForbiddenBypassFlag(['--dangerously-skip-permissions']),
     ).toBe(true);
     expect(containsForbiddenBypassFlag(['--allow-unverified'])).toBe(true);
+    expect(
+      containsForbiddenBypassFlag([
+        '--dangerously-bypass-approvals-and-sandbox',
+      ]),
+    ).toBe(true);
+    expect(
+      containsForbiddenBypassFlag(['--dangerously-bypass-hook-trust']),
+    ).toBe(true);
     expect(containsForbiddenBypassFlag(['safe; --force'])).toBe(false);
     expect(containsForbiddenBypassFlag(['--safe-mode'])).toBe(false);
+    for (const optionShapedId of [
+      '--dangerously-bypass-approvals-and-sandbox',
+      '--dangerously-bypass-hook-trust',
+      '--unknown-provider-option',
+      '-c',
+    ]) {
+      expect(() =>
+        buildNativeInvocation('codex', optionShapedId, '/target'),
+      ).toThrow('parent-native-id-invalid');
+    }
   });
 
   test('fingerprints normalized context and detects any safe-context drift', () => {

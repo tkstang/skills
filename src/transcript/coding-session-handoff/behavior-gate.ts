@@ -105,6 +105,13 @@ export interface ParentEvidence {
 export interface ChildEvidence {
   recordedChildCwd: string;
   exactParentLineage: boolean;
+  recordUuids: string[];
+  metadataEffects: string[];
+}
+
+export interface SourceResumeEvidence {
+  sourceParentResumable: boolean;
+  childUnchanged: boolean;
   metadataEffects: string[];
 }
 
@@ -116,6 +123,16 @@ export interface BehaviorGateContext {
   childNativeId: string;
   requestedChildNativeId?: string;
   parentEvidence: ParentEvidence;
+}
+
+export interface PartialBehaviorGateContext {
+  provider: HandoffProvider;
+  executablePath: string;
+  fixture: BehaviorGateFixture;
+  parentNativeId?: string;
+  childNativeId?: string;
+  requestedChildNativeId?: string;
+  parentEvidence?: ParentEvidence;
 }
 
 export interface ProviderCleanupResult {
@@ -144,9 +161,15 @@ export interface BehaviorGateDependencies {
       'childNativeId' | 'requestedChildNativeId' | 'parentEvidence'
     >,
   ) => Promise<ParentEvidence>;
-  inspectEvidence: (context: BehaviorGateContext) => Promise<ChildEvidence>;
-  cleanupProvider: (
+  captureChildEvidence: (
     context: BehaviorGateContext,
+  ) => Promise<ChildEvidence>;
+  inspectSourceResumeEvidence: (
+    context: BehaviorGateContext,
+    childBeforeResume: ChildEvidence,
+  ) => Promise<SourceResumeEvidence>;
+  cleanupProvider: (
+    context: PartialBehaviorGateContext,
   ) => Promise<ProviderCleanupResult>;
   cleanupFixture: (
     fixture: BehaviorGateFixture,
@@ -255,6 +278,8 @@ function parentInvocation(
           '--json',
           '--disable',
           'hooks',
+          '--ignore-user-config',
+          '--ignore-rules',
           '-c',
           'sandbox_mode="read-only"',
           PARENT_PROMPT,
@@ -296,6 +321,8 @@ function sourceResumeInvocation(
           '--json',
           '--disable',
           'hooks',
+          '--ignore-user-config',
+          '--ignore-rules',
           '-c',
           'sandbox_mode="read-only"',
           parentNativeId,
@@ -390,6 +417,148 @@ function exactCapabilitiesAvailable(
   );
 }
 
+function cleanupMethod(
+  provider: HandoffProvider,
+): ProviderCleanupResult['method'] {
+  return provider === 'codex'
+    ? 'codex-delete-exact-session-ids'
+    : 'claude-purge-exact-disposable-project-paths';
+}
+
+function uniqueReasonCodes(
+  ...groups: readonly HandoffReasonCode[][]
+): HandoffReasonCode[] {
+  return [...new Set(groups.flat())];
+}
+
+function validClaudeLineage(recordUuids: readonly string[]): boolean {
+  return (
+    recordUuids.length > 0 &&
+    recordUuids.every((uuid) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        uuid,
+      ),
+    )
+  );
+}
+
+async function cleanupProviderState(
+  deps: BehaviorGateDependencies,
+  state: PartialBehaviorGateContext,
+): Promise<ProviderCleanupResult> {
+  try {
+    return await deps.cleanupProvider(state);
+  } catch {
+    return {
+      status: 'failed',
+      method: cleanupMethod(state.provider),
+      reasonCodes: ['reporting-failed'],
+    };
+  }
+}
+
+async function cleanupGitFixture(
+  deps: BehaviorGateDependencies,
+  fixture: BehaviorGateFixture,
+): Promise<FixtureCleanupResult> {
+  try {
+    return await deps.cleanupFixture(fixture);
+  } catch {
+    return { status: 'failed', reasonCodes: ['reporting-failed'] };
+  }
+}
+
+async function finalizeReceipt(
+  input: VerifyProviderBehaviorInput,
+  deps: BehaviorGateDependencies,
+  plan: BehaviorPlan,
+  state: PartialBehaviorGateContext,
+  providerCleanup: ProviderCleanupResult,
+  fixtureCleanup: FixtureCleanupResult,
+  childEvidence: ChildEvidence | undefined,
+  resumeEvidence: SourceResumeEvidence | undefined,
+  incomplete: boolean,
+): Promise<SafeBehaviorGateResult> {
+  const cleanupReasonCodes = uniqueReasonCodes(
+    providerCleanup.reasonCodes,
+    fixtureCleanup.reasonCodes,
+  );
+  const evidencePassed =
+    !incomplete &&
+    childEvidence !== undefined &&
+    resumeEvidence !== undefined &&
+    childEvidence.recordedChildCwd === state.fixture.targetWorktree &&
+    childEvidence.exactParentLineage &&
+    resumeEvidence.sourceParentResumable &&
+    resumeEvidence.childUnchanged;
+  const cleanupPassed =
+    providerCleanup.status === 'removed' && fixtureCleanup.status === 'removed';
+  const status: BehavioralGateReceipt['status'] =
+    incomplete || !cleanupPassed
+      ? 'inconclusive'
+      : evidencePassed
+        ? 'passed'
+        : 'failed';
+  const reasonCodes = uniqueReasonCodes(
+    evidencePassed && !incomplete ? [] : ['reporting-failed'],
+    cleanupReasonCodes,
+  );
+  const sourceParentResumable =
+    resumeEvidence?.sourceParentResumable === true &&
+    resumeEvidence.childUnchanged;
+  const receipt = parseBehavioralGateReceipt({
+    schemaVersion: 1,
+    provider: input.provider,
+    executablePath: state.executablePath,
+    exactVersion: plan.exactVersion,
+    syntaxFingerprint: plan.syntaxFingerprint!,
+    executionContextFingerprint: plan.executionContextFingerprint!,
+    operation: 'successor',
+    fixture: state.fixture,
+    observations: {
+      parentNativeId: state.parentNativeId ?? 'unobserved-parent',
+      ...(state.requestedChildNativeId === undefined
+        ? {}
+        : { requestedChildNativeId: state.requestedChildNativeId }),
+      observedChildNativeId: state.childNativeId ?? 'unobserved-child',
+      recordedChildCwd: childEvidence?.recordedChildCwd ?? 'unobserved-cwd',
+      exactParentLineage: childEvidence?.exactParentLineage ?? false,
+      sourceParentResumable,
+      metadataEffects: [
+        ...(childEvidence?.metadataEffects ?? []),
+        ...(resumeEvidence?.metadataEffects ?? []),
+      ],
+    },
+    bounds: {
+      calls: PROVIDER_CALLS,
+      timeoutMsPerCall: 60_000,
+      outputBytesPerCall: 65_536,
+      ...(input.provider === 'claude' ? { maxBudgetUsd: 0.15 } : {}),
+    },
+    cleanup: {
+      gitFixture: fixtureCleanup.status,
+      providerState: providerCleanup.status,
+      method: providerCleanup.method,
+      reasonCodes: cleanupReasonCodes,
+    },
+    status,
+    reasonCodes,
+    createdAt: deps.now().toISOString(),
+  });
+  try {
+    await deps.writeReceiptAtomically(input.receiptPath, receipt, 0o600);
+  } catch {
+    throw new ProviderGateError('receipt-write-failed');
+  }
+  const receiptContents = `${JSON.stringify(receipt, null, 2)}\n`;
+  return {
+    provider: input.provider,
+    status,
+    receiptDigest: createHash('sha256').update(receiptContents).digest('hex'),
+    reasonCodes,
+  };
+}
+
 /** Execute the confirmed disposable gate, finalize cleanup, then atomically write. */
 export async function verifyProviderBehavior(
   input: VerifyProviderBehaviorInput,
@@ -411,9 +580,7 @@ export async function verifyProviderBehavior(
   } catch {
     throw new ProviderGateError('receipt-path-unavailable');
   }
-  if (receiptExists) {
-    throw new ProviderGateError('receipt-path-exists');
-  }
+  if (receiptExists) throw new ProviderGateError('receipt-path-exists');
 
   let fixture: BehaviorGateFixture;
   try {
@@ -421,14 +588,22 @@ export async function verifyProviderBehavior(
   } catch {
     throw new ProviderGateError('fixture-creation-failed');
   }
-  const executablePath = input.providerProbe.capability.executable;
   const requestedParentId =
     input.provider === 'claude' ? deps.uuid() : undefined;
   const requestedChildId =
     input.provider === 'claude' ? deps.uuid() : undefined;
+  const state: PartialBehaviorGateContext = {
+    provider: input.provider,
+    executablePath: input.providerProbe.capability.executable,
+    fixture,
+    ...(requestedChildId === undefined
+      ? {}
+      : { requestedChildNativeId: requestedChildId }),
+  };
+  let childEvidence: ChildEvidence | undefined;
+  let resumeEvidence: SourceResumeEvidence | undefined;
+  let incomplete = false;
 
-  let context: BehaviorGateContext | undefined;
-  let cleanupFinalized = false;
   try {
     const parentResult = await safeRun(
       deps,
@@ -437,7 +612,7 @@ export async function verifyProviderBehavior(
         fixture.sourceWorktree,
         requestedParentId,
       ),
-      executablePath,
+      state.executablePath,
     );
     const parentNativeId = observedId(input.provider, parentResult);
     if (
@@ -446,19 +621,31 @@ export async function verifyProviderBehavior(
     ) {
       throw new ProviderGateError('provider-evidence-failed');
     }
+    state.parentNativeId = parentNativeId;
     const parentEvidence = await deps.captureParentEvidence({
       provider: input.provider,
-      executablePath,
+      executablePath: state.executablePath,
       fixture,
       parentNativeId,
     });
-    const successor = buildNativeInvocation(
-      input.provider,
-      parentNativeId,
-      fixture.targetWorktree,
-      requestedChildId,
+    if (
+      input.provider === 'claude' &&
+      !validClaudeLineage(parentEvidence.recordUuids)
+    ) {
+      throw new ProviderGateError('provider-evidence-failed');
+    }
+    state.parentEvidence = parentEvidence;
+
+    const successorResult = await safeRun(
+      deps,
+      buildNativeInvocation(
+        input.provider,
+        parentNativeId,
+        fixture.targetWorktree,
+        requestedChildId,
+      ),
+      state.executablePath,
     );
-    const successorResult = await safeRun(deps, successor, executablePath);
     const childNativeId = observedId(input.provider, successorResult);
     if (
       childNativeId === null ||
@@ -466,21 +653,10 @@ export async function verifyProviderBehavior(
     ) {
       throw new ProviderGateError('provider-evidence-failed');
     }
-    const sourceResult = await safeRun(
-      deps,
-      sourceResumeInvocation(
-        input.provider,
-        fixture.sourceWorktree,
-        parentNativeId,
-      ),
-      executablePath,
-    );
-    if (observedId(input.provider, sourceResult) !== parentNativeId) {
-      throw new ProviderGateError('provider-evidence-failed');
-    }
-    context = {
+    state.childNativeId = childNativeId;
+    const context: BehaviorGateContext = {
       provider: input.provider,
-      executablePath,
+      executablePath: state.executablePath,
       fixture,
       parentNativeId,
       childNativeId,
@@ -489,109 +665,48 @@ export async function verifyProviderBehavior(
         : { requestedChildNativeId: requestedChildId }),
       parentEvidence,
     };
-    const evidence = await deps.inspectEvidence(context);
-
-    let providerCleanup: ProviderCleanupResult;
-    try {
-      providerCleanup = await deps.cleanupProvider(context);
-    } catch {
-      providerCleanup = {
-        status: 'failed',
-        method:
-          input.provider === 'codex'
-            ? 'codex-delete-exact-session-ids'
-            : 'claude-purge-exact-disposable-project-paths',
-        reasonCodes: ['reporting-failed'],
-      };
+    childEvidence = await deps.captureChildEvidence(context);
+    if (
+      !childEvidence.exactParentLineage ||
+      (input.provider === 'claude' &&
+        !validClaudeLineage(childEvidence.recordUuids))
+    ) {
+      throw new ProviderGateError('provider-evidence-failed');
     }
-    let fixtureCleanup: FixtureCleanupResult;
-    try {
-      fixtureCleanup = await deps.cleanupFixture(fixture);
-    } catch {
-      fixtureCleanup = { status: 'failed', reasonCodes: ['reporting-failed'] };
-    }
-    cleanupFinalized = true;
 
-    const evidencePassed =
-      evidence.recordedChildCwd === fixture.targetWorktree &&
-      evidence.exactParentLineage;
-    const cleanupPassed =
-      providerCleanup.status === 'removed' &&
-      fixtureCleanup.status === 'removed';
-    const status: BehavioralGateReceipt['status'] = !cleanupPassed
-      ? 'inconclusive'
-      : evidencePassed
-        ? 'passed'
-        : 'failed';
-    const reasonCodes = [
-      ...(evidencePassed ? [] : (['reporting-failed'] as const)),
-      ...providerCleanup.reasonCodes,
-      ...fixtureCleanup.reasonCodes,
-    ].filter(
-      (reason, index, values) => values.indexOf(reason) === index,
-    ) as HandoffReasonCode[];
-    const cleanupReasonCodes = [
-      ...providerCleanup.reasonCodes,
-      ...fixtureCleanup.reasonCodes,
-    ].filter((reason, index, values) => values.indexOf(reason) === index);
-    const receipt = parseBehavioralGateReceipt({
-      schemaVersion: 1,
-      provider: input.provider,
-      executablePath,
-      exactVersion: plan.exactVersion,
-      syntaxFingerprint: plan.syntaxFingerprint!,
-      executionContextFingerprint: plan.executionContextFingerprint!,
-      operation: 'successor',
-      fixture,
-      observations: {
+    const sourceResult = await safeRun(
+      deps,
+      sourceResumeInvocation(
+        input.provider,
+        fixture.sourceWorktree,
         parentNativeId,
-        ...(requestedChildId === undefined
-          ? {}
-          : { requestedChildNativeId: requestedChildId }),
-        observedChildNativeId: childNativeId,
-        recordedChildCwd: evidence.recordedChildCwd,
-        exactParentLineage: evidence.exactParentLineage,
-        sourceParentResumable: true,
-        metadataEffects: evidence.metadataEffects,
-      },
-      bounds: {
-        calls: PROVIDER_CALLS,
-        timeoutMsPerCall: 60_000,
-        outputBytesPerCall: 65_536,
-        ...(input.provider === 'claude' ? { maxBudgetUsd: 0.15 } : {}),
-      },
-      cleanup: {
-        gitFixture: fixtureCleanup.status,
-        providerState: providerCleanup.status,
-        method: providerCleanup.method,
-        reasonCodes: cleanupReasonCodes,
-      },
-      status,
-      reasonCodes,
-      createdAt: deps.now().toISOString(),
-    });
-    try {
-      await deps.writeReceiptAtomically(input.receiptPath, receipt, 0o600);
-    } catch {
-      throw new ProviderGateError('receipt-write-failed');
+      ),
+      state.executablePath,
+    );
+    if (observedId(input.provider, sourceResult) !== parentNativeId) {
+      throw new ProviderGateError('provider-evidence-failed');
     }
-    const receiptContents = `${JSON.stringify(receipt, null, 2)}\n`;
-    return {
-      provider: input.provider,
-      status,
-      receiptDigest: createHash('sha256').update(receiptContents).digest('hex'),
-      reasonCodes,
-    };
-  } catch (error) {
-    if (!cleanupFinalized && context !== undefined) {
-      await deps.cleanupProvider(context).catch(() => undefined);
-    }
-    if (!cleanupFinalized) {
-      await deps.cleanupFixture(fixture).catch(() => undefined);
-    }
-    if (error instanceof ProviderGateError) throw error;
-    throw new ProviderGateError('provider-evidence-failed');
+    resumeEvidence = await deps.inspectSourceResumeEvidence(
+      context,
+      childEvidence,
+    );
+  } catch {
+    incomplete = true;
   }
+
+  const providerCleanup = await cleanupProviderState(deps, state);
+  const fixtureCleanup = await cleanupGitFixture(deps, fixture);
+  return finalizeReceipt(
+    input,
+    deps,
+    plan,
+    state,
+    providerCleanup,
+    fixtureCleanup,
+    childEvidence,
+    resumeEvidence,
+    incomplete,
+  );
 }
 
 async function git(cwd: string, argv: string[]): Promise<void> {
@@ -705,12 +820,16 @@ async function captureDefaultParentEvidence(
     context.parentNativeId,
   );
   if (meta === null) throw new Error('parent-evidence-unavailable');
+  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  if (context.provider === 'claude' && !validClaudeLineage(recordUuids)) {
+    throw new Error('parent-lineage-invalid');
+  }
   return {
-    recordUuids: meta.recordLineage?.map((entry) => entry.uuid) ?? [],
+    recordUuids,
   };
 }
 
-async function inspectDefaultEvidence(
+async function captureDefaultChildEvidence(
   context: BehaviorGateContext,
 ): Promise<ChildEvidence> {
   const meta = await exactTranscriptMeta(
@@ -719,17 +838,20 @@ async function inspectDefaultEvidence(
     context.childNativeId,
   );
   if (meta === null) throw new Error('child-evidence-unavailable');
+  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
   const exactParentLineage =
     context.provider === 'codex'
       ? meta.nativeSessionId === context.childNativeId &&
         meta.forkedFromSessionId === context.parentNativeId
       : meta.nativeSessionId === context.childNativeId &&
+        validClaudeLineage(recordUuids) &&
         context.parentEvidence.recordUuids.every(
-          (uuid, index) => meta.recordLineage?.[index]?.uuid === uuid,
+          (uuid, index) => recordUuids[index] === uuid,
         );
   return {
     recordedChildCwd: meta.recordedCwd ?? '',
     exactParentLineage,
+    recordUuids,
     metadataEffects: [
       'created-child-record',
       'recorded-target-cwd',
@@ -738,15 +860,80 @@ async function inspectDefaultEvidence(
   };
 }
 
-async function cleanupDefaultProvider(
+function sameStrings(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+async function inspectDefaultSourceResumeEvidence(
   context: BehaviorGateContext,
+  childBeforeResume: ChildEvidence,
+): Promise<SourceResumeEvidence> {
+  const [sourceMeta, childMeta] = await Promise.all([
+    exactTranscriptMeta(
+      context.provider,
+      context.fixture.sourceWorktree,
+      context.parentNativeId,
+    ),
+    exactTranscriptMeta(
+      context.provider,
+      context.fixture.targetWorktree,
+      context.childNativeId,
+    ),
+  ]);
+  if (sourceMeta === null || childMeta === null) {
+    throw new Error('resume-evidence-unavailable');
+  }
+  const sourceUuids =
+    sourceMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const childUuids = childMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const sourceIdentityExact =
+    sourceMeta.nativeSessionId === context.parentNativeId &&
+    sourceMeta.recordedCwd === context.fixture.sourceWorktree;
+  const childIdentityExact =
+    childMeta.nativeSessionId === context.childNativeId &&
+    childMeta.recordedCwd === context.fixture.targetWorktree;
+  const sourceParentResumable =
+    context.provider === 'claude'
+      ? sourceIdentityExact &&
+        validClaudeLineage(sourceUuids) &&
+        sourceUuids.length > context.parentEvidence.recordUuids.length &&
+        context.parentEvidence.recordUuids.every(
+          (uuid, index) => sourceUuids[index] === uuid,
+        )
+      : sourceIdentityExact;
+  const childUnchanged =
+    childIdentityExact &&
+    (context.provider === 'claude'
+      ? sameStrings(childUuids, childBeforeResume.recordUuids)
+      : childMeta.forkedFromSessionId === context.parentNativeId &&
+        (childBeforeResume.recordUuids.length === 0 ||
+          sameStrings(childUuids, childBeforeResume.recordUuids)));
+  return {
+    sourceParentResumable,
+    childUnchanged,
+    metadataEffects: [
+      sourceParentResumable
+        ? 'resumed-source-parent'
+        : 'source-parent-resume-unproven',
+      childUnchanged ? 'preserved-child-record' : 'cross-written-child-record',
+    ],
+  };
+}
+
+async function cleanupDefaultProvider(
+  context: PartialBehaviorGateContext,
 ): Promise<ProviderCleanupResult> {
   const commands =
     context.provider === 'codex'
-      ? [
-          ['delete', '--force', context.childNativeId],
-          ['delete', '--force', context.parentNativeId],
-        ]
+      ? [context.childNativeId, context.parentNativeId]
+          .filter((id): id is string => id !== undefined)
+          .map((id) => ['delete', '--force', id])
       : [
           ['project', 'purge', '-y', context.fixture.targetWorktree],
           ['project', 'purge', '-y', context.fixture.sourceWorktree],
@@ -818,7 +1005,8 @@ const DEFAULT_DEPENDENCIES: BehaviorGateDependencies = {
   createFixture: createDefaultFixture,
   runProvider: runDefaultProvider,
   captureParentEvidence: captureDefaultParentEvidence,
-  inspectEvidence: inspectDefaultEvidence,
+  captureChildEvidence: captureDefaultChildEvidence,
+  inspectSourceResumeEvidence: inspectDefaultSourceResumeEvidence,
   cleanupProvider: cleanupDefaultProvider,
   cleanupFixture: async (fixture) => {
     try {

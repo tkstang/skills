@@ -30,6 +30,7 @@ export interface ProviderProbeDependencies {
   readFile: (path: string) => Promise<Uint8Array>;
   readConfigInputs: (
     provider: HandoffProvider,
+    targetCwd?: string,
   ) => Promise<readonly { name: string; contents: string }[]>;
   run: (
     executable: string,
@@ -56,6 +57,7 @@ export interface ProviderProbeResult {
 export interface ProbeProviderOptions {
   deps?: ProviderProbeDependencies;
   expectedExecutionContextFingerprint?: string;
+  targetCwd?: string;
 }
 
 const PROVIDER_PROBE_COMMANDS = Object.freeze({
@@ -91,32 +93,55 @@ async function resolveFromPath(
 
 async function defaultConfigInputs(
   provider: HandoffProvider,
+  targetCwd?: string,
 ): Promise<readonly { name: string; contents: string }[]> {
   if (provider === 'claude') return [];
+  const inputs: { name: string; contents: string }[] = [];
   const codexRoot = process.env.CODEX_HOME;
   const userRoot = process.env.HOME;
-  const configPath = codexRoot
-    ? join(codexRoot, 'config.toml')
+  const codexHome = codexRoot
+    ? codexRoot
     : userRoot
-      ? join(userRoot, '.codex', 'config.toml')
+      ? join(userRoot, '.codex')
       : null;
-  if (configPath === null) return [];
-  try {
-    const contents = await readFile(configPath, { encoding: 'utf8' });
+  const paths = [
+    ...(codexHome === null
+      ? []
+      : [{ name: 'user/AGENTS.md', path: join(codexHome, 'AGENTS.md') }]),
+    ...(targetCwd === undefined
+      ? []
+      : [
+          {
+            name: 'target/.codex/config.toml',
+            path: join(targetCwd, '.codex', 'config.toml'),
+          },
+          {
+            name: 'target/AGENTS.override.md',
+            path: join(targetCwd, 'AGENTS.override.md'),
+          },
+          { name: 'target/AGENTS.md', path: join(targetCwd, 'AGENTS.md') },
+        ]),
+  ];
+  for (const entry of paths) {
+    let contents: string;
+    try {
+      contents = await readFile(entry.path, { encoding: 'utf8' });
+    } catch (error) {
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        (error as { code?: unknown }).code === 'ENOENT'
+      ) {
+        continue;
+      }
+      throw error;
+    }
     if (Buffer.byteLength(contents) > PROVIDER_PROBE_MAX_OUTPUT_BYTES) {
       throw new Error('config-input-oversized');
     }
-    return [{ name: 'config.toml', contents }];
-  } catch (error) {
-    if (
-      error !== null &&
-      typeof error === 'object' &&
-      (error as { code?: unknown }).code === 'ENOENT'
-    ) {
-      return [];
-    }
-    throw error;
+    inputs.push({ name: entry.name, contents });
   }
+  return inputs;
 }
 
 const DEFAULT_DEPENDENCIES: ProviderProbeDependencies = {
@@ -304,7 +329,10 @@ export async function probeProvider(
     if (executableBytes.byteLength > 128 * 1024 * 1024) {
       throw new Error('executable-oversized');
     }
-    const rawConfigInputs = await deps.readConfigInputs(provider);
+    const rawConfigInputs = await deps.readConfigInputs(
+      provider,
+      options.targetCwd,
+    );
     const configInputs = rawConfigInputs.map((entry) => ({
       name: entry.name,
       redactedContents:

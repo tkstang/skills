@@ -274,6 +274,39 @@ describe('strict parsing and safe output', () => {
     expect(run.services.execute).not.toHaveBeenCalled();
   });
 
+  test('reports explicit --all over zero candidates as invalid selection', async () => {
+    const plan = vi.fn(async () => {
+      throw Object.assign(new Error('invalid-selection'), {
+        code: 'invalid-selection',
+      });
+    });
+    const run = harness({ plan });
+
+    const exitCode = await runHandoffCli(
+      [
+        'plan',
+        '--source',
+        '/s',
+        '--target',
+        '/t',
+        '--all',
+        '--mode',
+        'successor',
+        '--json',
+      ],
+      run.services,
+      run.io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(parsedSingleObject(run.stdout())).toMatchObject({
+      ok: false,
+      command: 'plan',
+      error: { code: 'invalid-selection' },
+    });
+    expect(plan).toHaveBeenCalledTimes(1);
+  });
+
   test('caps reconcile input at 1 MiB before JSON parsing', async () => {
     const run = harness({
       readInputFile: vi.fn(async () => 'x'.repeat(1024 * 1024 + 1)),

@@ -21,6 +21,8 @@ export const PROVIDER_REQUIRED_HELP_SHAPES = Object.freeze({
     '--json',
     '--disable',
     'hooks',
+    '--ignore-user-config',
+    '--ignore-rules',
   ]),
   claude: Object.freeze([
     '--safe-mode',
@@ -40,6 +42,8 @@ export const PROVIDER_SAFETY_ARGV = Object.freeze({
     '--json',
     '--disable',
     'hooks',
+    '--ignore-user-config',
+    '--ignore-rules',
     '-c',
     'sandbox_mode="read-only"',
   ]),
@@ -60,6 +64,8 @@ export const PROVIDER_SAFETY_ARGV = Object.freeze({
 const FORBIDDEN_BYPASS_FLAGS = new Set([
   '--allow-unverified',
   '--bypass',
+  '--dangerously-bypass-approvals-and-sandbox',
+  '--dangerously-bypass-hook-trust',
   '--dangerously-skip-permissions',
   '--disable-sandbox',
   '--force',
@@ -176,7 +182,18 @@ export function containsForbiddenBypassFlag(argv: readonly string[]): boolean {
 }
 
 function assertInvocationInput(value: string, code: string): void {
-  if (value.length === 0 || value.includes('\0')) throw new TypeError(code);
+  if (value.length === 0) throw new TypeError(code);
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === undefined || codePoint < 0x20 || codePoint === 0x7f) {
+      throw new TypeError(code);
+    }
+  }
+}
+
+function assertNativeSessionId(value: string, code: string): void {
+  assertInvocationInput(value, code);
+  if (value.startsWith('-')) throw new TypeError(code);
 }
 
 export function buildNativeInvocation(
@@ -185,7 +202,7 @@ export function buildNativeInvocation(
   targetCwd: string,
   expectedChildNativeId?: string,
 ): NativeInvocation {
-  assertInvocationInput(parentNativeId, 'parent-native-id-invalid');
+  assertNativeSessionId(parentNativeId, 'parent-native-id-invalid');
   assertInvocationInput(targetCwd, 'target-cwd-invalid');
   if (!isAbsolute(targetCwd)) throw new TypeError('target-cwd-not-absolute');
 
@@ -197,6 +214,8 @@ export function buildNativeInvocation(
       '--json',
       '--disable',
       'hooks',
+      '--ignore-user-config',
+      '--ignore-rules',
       '-c',
       'sandbox_mode="read-only"',
       parentNativeId,
@@ -206,7 +225,7 @@ export function buildNativeInvocation(
     if (expectedChildNativeId === undefined) {
       throw new TypeError('claude-child-id-required');
     }
-    assertInvocationInput(expectedChildNativeId, 'claude-child-id-invalid');
+    assertNativeSessionId(expectedChildNativeId, 'claude-child-id-invalid');
     argv = [
       '--safe-mode',
       '--print',

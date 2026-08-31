@@ -2039,7 +2039,9 @@ var PROVIDER_REQUIRED_HELP_SHAPES = Object.freeze({
     "usage: codex exec fork",
     "--json",
     "--disable",
-    "hooks"
+    "hooks",
+    "--ignore-user-config",
+    "--ignore-rules"
   ]),
   claude: Object.freeze([
     "--safe-mode",
@@ -2058,6 +2060,8 @@ var PROVIDER_SAFETY_ARGV = Object.freeze({
     "--json",
     "--disable",
     "hooks",
+    "--ignore-user-config",
+    "--ignore-rules",
     "-c",
     'sandbox_mode="read-only"'
   ]),
@@ -2077,6 +2081,8 @@ var PROVIDER_SAFETY_ARGV = Object.freeze({
 var FORBIDDEN_BYPASS_FLAGS = /* @__PURE__ */ new Set([
   "--allow-unverified",
   "--bypass",
+  "--dangerously-bypass-approvals-and-sandbox",
+  "--dangerously-bypass-hook-trust",
   "--dangerously-skip-permissions",
   "--disable-sandbox",
   "--force",
@@ -2150,10 +2156,20 @@ function containsForbiddenBypassFlag(argv) {
   return argv.some((argument) => FORBIDDEN_BYPASS_FLAGS.has(argument));
 }
 function assertInvocationInput(value2, code) {
-  if (value2.length === 0 || value2.includes("\0")) throw new TypeError(code);
+  if (value2.length === 0) throw new TypeError(code);
+  for (const character of value2) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === void 0 || codePoint < 32 || codePoint === 127) {
+      throw new TypeError(code);
+    }
+  }
+}
+function assertNativeSessionId(value2, code) {
+  assertInvocationInput(value2, code);
+  if (value2.startsWith("-")) throw new TypeError(code);
 }
 function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChildNativeId) {
-  assertInvocationInput(parentNativeId, "parent-native-id-invalid");
+  assertNativeSessionId(parentNativeId, "parent-native-id-invalid");
   assertInvocationInput(targetCwd, "target-cwd-invalid");
   if (!isAbsolute3(targetCwd)) throw new TypeError("target-cwd-not-absolute");
   let argv;
@@ -2164,6 +2180,8 @@ function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChi
       "--json",
       "--disable",
       "hooks",
+      "--ignore-user-config",
+      "--ignore-rules",
       "-c",
       'sandbox_mode="read-only"',
       parentNativeId,
@@ -2173,7 +2191,7 @@ function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChi
     if (expectedChildNativeId === void 0) {
       throw new TypeError("claude-child-id-required");
     }
-    assertInvocationInput(expectedChildNativeId, "claude-child-id-invalid");
+    assertNativeSessionId(expectedChildNativeId, "claude-child-id-invalid");
     argv = [
       "--safe-mode",
       "--print",
@@ -3103,6 +3121,8 @@ function parentInvocation(provider2, cwd, parentNativeId) {
       "--json",
       "--disable",
       "hooks",
+      "--ignore-user-config",
+      "--ignore-rules",
       "-c",
       'sandbox_mode="read-only"',
       PARENT_PROMPT
@@ -3137,6 +3157,8 @@ function sourceResumeInvocation(provider2, cwd, parentNativeId) {
       "--json",
       "--disable",
       "hooks",
+      "--ignore-user-config",
+      "--ignore-rules",
       "-c",
       'sandbox_mode="read-only"',
       parentNativeId,
@@ -3195,6 +3217,101 @@ async function safeRun(deps, invocationValue, executablePath) {
 function exactCapabilitiesAvailable(provider2, probe) {
   return probe.capability.provider === provider2 && probe.capability.status === "syntax-verified" && probe.capability.detectedVersion === probe.capability.verifiedSyntaxVersion && probe.capability.contractFingerprint !== void 0 && probe.capability.executionContextFingerprint !== void 0;
 }
+function cleanupMethod(provider2) {
+  return provider2 === "codex" ? "codex-delete-exact-session-ids" : "claude-purge-exact-disposable-project-paths";
+}
+function uniqueReasonCodes(...groups) {
+  return [...new Set(groups.flat())];
+}
+function validClaudeLineage(recordUuids) {
+  return recordUuids.length > 0 && recordUuids.every(
+    (uuid) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      uuid
+    )
+  );
+}
+async function cleanupProviderState(deps, state) {
+  try {
+    return await deps.cleanupProvider(state);
+  } catch {
+    return {
+      status: "failed",
+      method: cleanupMethod(state.provider),
+      reasonCodes: ["reporting-failed"]
+    };
+  }
+}
+async function cleanupGitFixture(deps, fixture) {
+  try {
+    return await deps.cleanupFixture(fixture);
+  } catch {
+    return { status: "failed", reasonCodes: ["reporting-failed"] };
+  }
+}
+async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtureCleanup, childEvidence, resumeEvidence, incomplete) {
+  const cleanupReasonCodes = uniqueReasonCodes(
+    providerCleanup.reasonCodes,
+    fixtureCleanup.reasonCodes
+  );
+  const evidencePassed = !incomplete && childEvidence !== void 0 && resumeEvidence !== void 0 && childEvidence.recordedChildCwd === state.fixture.targetWorktree && childEvidence.exactParentLineage && resumeEvidence.sourceParentResumable && resumeEvidence.childUnchanged;
+  const cleanupPassed = providerCleanup.status === "removed" && fixtureCleanup.status === "removed";
+  const status = incomplete || !cleanupPassed ? "inconclusive" : evidencePassed ? "passed" : "failed";
+  const reasonCodes = uniqueReasonCodes(
+    evidencePassed && !incomplete ? [] : ["reporting-failed"],
+    cleanupReasonCodes
+  );
+  const sourceParentResumable = resumeEvidence?.sourceParentResumable === true && resumeEvidence.childUnchanged;
+  const receipt = parseBehavioralGateReceipt({
+    schemaVersion: 1,
+    provider: input.provider,
+    executablePath: state.executablePath,
+    exactVersion: plan.exactVersion,
+    syntaxFingerprint: plan.syntaxFingerprint,
+    executionContextFingerprint: plan.executionContextFingerprint,
+    operation: "successor",
+    fixture: state.fixture,
+    observations: {
+      parentNativeId: state.parentNativeId ?? "unobserved-parent",
+      ...state.requestedChildNativeId === void 0 ? {} : { requestedChildNativeId: state.requestedChildNativeId },
+      observedChildNativeId: state.childNativeId ?? "unobserved-child",
+      recordedChildCwd: childEvidence?.recordedChildCwd ?? "unobserved-cwd",
+      exactParentLineage: childEvidence?.exactParentLineage ?? false,
+      sourceParentResumable,
+      metadataEffects: [
+        ...childEvidence?.metadataEffects ?? [],
+        ...resumeEvidence?.metadataEffects ?? []
+      ]
+    },
+    bounds: {
+      calls: PROVIDER_CALLS,
+      timeoutMsPerCall: 6e4,
+      outputBytesPerCall: 65536,
+      ...input.provider === "claude" ? { maxBudgetUsd: 0.15 } : {}
+    },
+    cleanup: {
+      gitFixture: fixtureCleanup.status,
+      providerState: providerCleanup.status,
+      method: providerCleanup.method,
+      reasonCodes: cleanupReasonCodes
+    },
+    status,
+    reasonCodes,
+    createdAt: deps.now().toISOString()
+  });
+  try {
+    await deps.writeReceiptAtomically(input.receiptPath, receipt, 384);
+  } catch {
+    throw new ProviderGateError("receipt-write-failed");
+  }
+  const receiptContents = `${JSON.stringify(receipt, null, 2)}
+`;
+  return {
+    provider: input.provider,
+    status,
+    receiptDigest: createHash2("sha256").update(receiptContents).digest("hex"),
+    reasonCodes
+  };
+}
 async function verifyProviderBehavior(input) {
   const deps = input.deps ?? DEFAULT_DEPENDENCIES2;
   const plan = createBehaviorPlan(input.provider, input.providerProbe);
@@ -3213,20 +3330,24 @@ async function verifyProviderBehavior(input) {
   } catch {
     throw new ProviderGateError("receipt-path-unavailable");
   }
-  if (receiptExists) {
-    throw new ProviderGateError("receipt-path-exists");
-  }
+  if (receiptExists) throw new ProviderGateError("receipt-path-exists");
   let fixture;
   try {
     fixture = await deps.createFixture();
   } catch {
     throw new ProviderGateError("fixture-creation-failed");
   }
-  const executablePath = input.providerProbe.capability.executable;
   const requestedParentId = input.provider === "claude" ? deps.uuid() : void 0;
   const requestedChildId = input.provider === "claude" ? deps.uuid() : void 0;
-  let context;
-  let cleanupFinalized = false;
+  const state = {
+    provider: input.provider,
+    executablePath: input.providerProbe.capability.executable,
+    fixture,
+    ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId }
+  };
+  let childEvidence;
+  let resumeEvidence;
+  let incomplete = false;
   try {
     const parentResult = await safeRun(
       deps,
@@ -3235,27 +3356,49 @@ async function verifyProviderBehavior(input) {
         fixture.sourceWorktree,
         requestedParentId
       ),
-      executablePath
+      state.executablePath
     );
     const parentNativeId = observedId(input.provider, parentResult);
     if (parentNativeId === null || requestedParentId !== void 0 && parentNativeId !== requestedParentId) {
       throw new ProviderGateError("provider-evidence-failed");
     }
+    state.parentNativeId = parentNativeId;
     const parentEvidence = await deps.captureParentEvidence({
       provider: input.provider,
-      executablePath,
+      executablePath: state.executablePath,
       fixture,
       parentNativeId
     });
-    const successor = buildNativeInvocation(
-      input.provider,
-      parentNativeId,
-      fixture.targetWorktree,
-      requestedChildId
+    if (input.provider === "claude" && !validClaudeLineage(parentEvidence.recordUuids)) {
+      throw new ProviderGateError("provider-evidence-failed");
+    }
+    state.parentEvidence = parentEvidence;
+    const successorResult = await safeRun(
+      deps,
+      buildNativeInvocation(
+        input.provider,
+        parentNativeId,
+        fixture.targetWorktree,
+        requestedChildId
+      ),
+      state.executablePath
     );
-    const successorResult = await safeRun(deps, successor, executablePath);
     const childNativeId = observedId(input.provider, successorResult);
     if (childNativeId === null || requestedChildId !== void 0 && childNativeId !== requestedChildId) {
+      throw new ProviderGateError("provider-evidence-failed");
+    }
+    state.childNativeId = childNativeId;
+    const context = {
+      provider: input.provider,
+      executablePath: state.executablePath,
+      fixture,
+      parentNativeId,
+      childNativeId,
+      ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId },
+      parentEvidence
+    };
+    childEvidence = await deps.captureChildEvidence(context);
+    if (!childEvidence.exactParentLineage || input.provider === "claude" && !validClaudeLineage(childEvidence.recordUuids)) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     const sourceResult = await safeRun(
@@ -3265,109 +3408,31 @@ async function verifyProviderBehavior(input) {
         fixture.sourceWorktree,
         parentNativeId
       ),
-      executablePath
+      state.executablePath
     );
     if (observedId(input.provider, sourceResult) !== parentNativeId) {
       throw new ProviderGateError("provider-evidence-failed");
     }
-    context = {
-      provider: input.provider,
-      executablePath,
-      fixture,
-      parentNativeId,
-      childNativeId,
-      ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId },
-      parentEvidence
-    };
-    const evidence = await deps.inspectEvidence(context);
-    let providerCleanup;
-    try {
-      providerCleanup = await deps.cleanupProvider(context);
-    } catch {
-      providerCleanup = {
-        status: "failed",
-        method: input.provider === "codex" ? "codex-delete-exact-session-ids" : "claude-purge-exact-disposable-project-paths",
-        reasonCodes: ["reporting-failed"]
-      };
-    }
-    let fixtureCleanup;
-    try {
-      fixtureCleanup = await deps.cleanupFixture(fixture);
-    } catch {
-      fixtureCleanup = { status: "failed", reasonCodes: ["reporting-failed"] };
-    }
-    cleanupFinalized = true;
-    const evidencePassed = evidence.recordedChildCwd === fixture.targetWorktree && evidence.exactParentLineage;
-    const cleanupPassed = providerCleanup.status === "removed" && fixtureCleanup.status === "removed";
-    const status = !cleanupPassed ? "inconclusive" : evidencePassed ? "passed" : "failed";
-    const reasonCodes = [
-      ...evidencePassed ? [] : ["reporting-failed"],
-      ...providerCleanup.reasonCodes,
-      ...fixtureCleanup.reasonCodes
-    ].filter(
-      (reason, index, values) => values.indexOf(reason) === index
+    resumeEvidence = await deps.inspectSourceResumeEvidence(
+      context,
+      childEvidence
     );
-    const cleanupReasonCodes = [
-      ...providerCleanup.reasonCodes,
-      ...fixtureCleanup.reasonCodes
-    ].filter((reason, index, values) => values.indexOf(reason) === index);
-    const receipt = parseBehavioralGateReceipt({
-      schemaVersion: 1,
-      provider: input.provider,
-      executablePath,
-      exactVersion: plan.exactVersion,
-      syntaxFingerprint: plan.syntaxFingerprint,
-      executionContextFingerprint: plan.executionContextFingerprint,
-      operation: "successor",
-      fixture,
-      observations: {
-        parentNativeId,
-        ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId },
-        observedChildNativeId: childNativeId,
-        recordedChildCwd: evidence.recordedChildCwd,
-        exactParentLineage: evidence.exactParentLineage,
-        sourceParentResumable: true,
-        metadataEffects: evidence.metadataEffects
-      },
-      bounds: {
-        calls: PROVIDER_CALLS,
-        timeoutMsPerCall: 6e4,
-        outputBytesPerCall: 65536,
-        ...input.provider === "claude" ? { maxBudgetUsd: 0.15 } : {}
-      },
-      cleanup: {
-        gitFixture: fixtureCleanup.status,
-        providerState: providerCleanup.status,
-        method: providerCleanup.method,
-        reasonCodes: cleanupReasonCodes
-      },
-      status,
-      reasonCodes,
-      createdAt: deps.now().toISOString()
-    });
-    try {
-      await deps.writeReceiptAtomically(input.receiptPath, receipt, 384);
-    } catch {
-      throw new ProviderGateError("receipt-write-failed");
-    }
-    const receiptContents = `${JSON.stringify(receipt, null, 2)}
-`;
-    return {
-      provider: input.provider,
-      status,
-      receiptDigest: createHash2("sha256").update(receiptContents).digest("hex"),
-      reasonCodes
-    };
-  } catch (error) {
-    if (!cleanupFinalized && context !== void 0) {
-      await deps.cleanupProvider(context).catch(() => void 0);
-    }
-    if (!cleanupFinalized) {
-      await deps.cleanupFixture(fixture).catch(() => void 0);
-    }
-    if (error instanceof ProviderGateError) throw error;
-    throw new ProviderGateError("provider-evidence-failed");
+  } catch {
+    incomplete = true;
   }
+  const providerCleanup = await cleanupProviderState(deps, state);
+  const fixtureCleanup = await cleanupGitFixture(deps, fixture);
+  return finalizeReceipt(
+    input,
+    deps,
+    plan,
+    state,
+    providerCleanup,
+    fixtureCleanup,
+    childEvidence,
+    resumeEvidence,
+    incomplete
+  );
 }
 async function git(cwd, argv) {
   await execFileAsync2("git", ["-C", cwd, ...argv], {
@@ -3460,23 +3525,29 @@ async function captureDefaultParentEvidence(context) {
     context.parentNativeId
   );
   if (meta === null) throw new Error("parent-evidence-unavailable");
+  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  if (context.provider === "claude" && !validClaudeLineage(recordUuids)) {
+    throw new Error("parent-lineage-invalid");
+  }
   return {
-    recordUuids: meta.recordLineage?.map((entry) => entry.uuid) ?? []
+    recordUuids
   };
 }
-async function inspectDefaultEvidence(context) {
+async function captureDefaultChildEvidence(context) {
   const meta = await exactTranscriptMeta(
     context.provider,
     context.fixture.targetWorktree,
     context.childNativeId
   );
   if (meta === null) throw new Error("child-evidence-unavailable");
-  const exactParentLineage = context.provider === "codex" ? meta.nativeSessionId === context.childNativeId && meta.forkedFromSessionId === context.parentNativeId : meta.nativeSessionId === context.childNativeId && context.parentEvidence.recordUuids.every(
-    (uuid, index) => meta.recordLineage?.[index]?.uuid === uuid
+  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const exactParentLineage = context.provider === "codex" ? meta.nativeSessionId === context.childNativeId && meta.forkedFromSessionId === context.parentNativeId : meta.nativeSessionId === context.childNativeId && validClaudeLineage(recordUuids) && context.parentEvidence.recordUuids.every(
+    (uuid, index) => recordUuids[index] === uuid
   );
   return {
     recordedChildCwd: meta.recordedCwd ?? "",
     exactParentLineage,
+    recordUuids,
     metadataEffects: [
       "created-child-record",
       "recorded-target-cwd",
@@ -3484,11 +3555,44 @@ async function inspectDefaultEvidence(context) {
     ]
   };
 }
+function sameStrings(left, right) {
+  return left.length === right.length && left.every((value2, index) => value2 === right[index]);
+}
+async function inspectDefaultSourceResumeEvidence(context, childBeforeResume) {
+  const [sourceMeta, childMeta] = await Promise.all([
+    exactTranscriptMeta(
+      context.provider,
+      context.fixture.sourceWorktree,
+      context.parentNativeId
+    ),
+    exactTranscriptMeta(
+      context.provider,
+      context.fixture.targetWorktree,
+      context.childNativeId
+    )
+  ]);
+  if (sourceMeta === null || childMeta === null) {
+    throw new Error("resume-evidence-unavailable");
+  }
+  const sourceUuids = sourceMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const childUuids = childMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const sourceIdentityExact = sourceMeta.nativeSessionId === context.parentNativeId && sourceMeta.recordedCwd === context.fixture.sourceWorktree;
+  const childIdentityExact = childMeta.nativeSessionId === context.childNativeId && childMeta.recordedCwd === context.fixture.targetWorktree;
+  const sourceParentResumable = context.provider === "claude" ? sourceIdentityExact && validClaudeLineage(sourceUuids) && sourceUuids.length > context.parentEvidence.recordUuids.length && context.parentEvidence.recordUuids.every(
+    (uuid, index) => sourceUuids[index] === uuid
+  ) : sourceIdentityExact;
+  const childUnchanged = childIdentityExact && (context.provider === "claude" ? sameStrings(childUuids, childBeforeResume.recordUuids) : childMeta.forkedFromSessionId === context.parentNativeId && (childBeforeResume.recordUuids.length === 0 || sameStrings(childUuids, childBeforeResume.recordUuids)));
+  return {
+    sourceParentResumable,
+    childUnchanged,
+    metadataEffects: [
+      sourceParentResumable ? "resumed-source-parent" : "source-parent-resume-unproven",
+      childUnchanged ? "preserved-child-record" : "cross-written-child-record"
+    ]
+  };
+}
 async function cleanupDefaultProvider(context) {
-  const commands = context.provider === "codex" ? [
-    ["delete", "--force", context.childNativeId],
-    ["delete", "--force", context.parentNativeId]
-  ] : [
+  const commands = context.provider === "codex" ? [context.childNativeId, context.parentNativeId].filter((id) => id !== void 0).map((id) => ["delete", "--force", id]) : [
     ["project", "purge", "-y", context.fixture.targetWorktree],
     ["project", "purge", "-y", context.fixture.sourceWorktree]
   ];
@@ -3548,7 +3652,8 @@ var DEFAULT_DEPENDENCIES2 = {
   createFixture: createDefaultFixture,
   runProvider: runDefaultProvider,
   captureParentEvidence: captureDefaultParentEvidence,
-  inspectEvidence: inspectDefaultEvidence,
+  captureChildEvidence: captureDefaultChildEvidence,
+  inspectSourceResumeEvidence: inspectDefaultSourceResumeEvidence,
   cleanupProvider: cleanupDefaultProvider,
   cleanupFixture: async (fixture) => {
     try {
@@ -3780,6 +3885,9 @@ function selectHandoffCandidates(candidates, selection2) {
     candidates.map((candidate) => [candidate.key, candidate])
   );
   const selectedKeys = selection2.all === true ? [...byKey.keys()] : [...sessions2];
+  if (selectedKeys.length === 0) {
+    throw new HandoffPolicyError("invalid-selection");
+  }
   const parsed = [];
   for (const key of selectedKeys) {
     try {
@@ -4083,7 +4191,8 @@ async function reconcileBatchOutcome(value2, dependencies) {
   const batch = parseBatchOutcome(value2);
   const items = [];
   for (const item of batch.items) {
-    if (item.native.status !== "succeeded" && item.native.status !== "indeterminate" || item.observedChildNativeId === void 0) {
+    const retainedSelector = item.observedChildNativeId ?? item.expectedChildNativeId;
+    if (item.native.status !== "succeeded" && item.native.status !== "indeterminate" || retainedSelector === void 0) {
       items.push(item);
       continue;
     }
@@ -4091,17 +4200,18 @@ async function reconcileBatchOutcome(value2, dependencies) {
       0,
       item.key.indexOf(":")
     );
-    const selectorMismatch = item.expectedChildNativeId !== void 0 && item.expectedChildNativeId !== item.observedChildNativeId;
+    const selectorMismatch = item.expectedChildNativeId !== void 0 && item.observedChildNativeId !== void 0 && item.expectedChildNativeId !== item.observedChildNativeId;
     const evidence = selectorMismatch ? { status: "unresolved", reasonCode: "child-unresolved" } : await dependencies.inspect({
       provider: provider2,
       parentNativeId: item.parentNativeId,
       ...item.expectedChildNativeId === void 0 ? {} : { expectedChildNativeId: item.expectedChildNativeId },
-      observedChildNativeId: item.observedChildNativeId,
+      ...item.observedChildNativeId === void 0 ? {} : { observedChildNativeId: item.observedChildNativeId },
       targetBaselineIds: [...item.targetBaselineIds]
     });
     items.push({
       ...item,
-      reporting: reportingFromEvidence(evidence, item.observedChildNativeId)
+      ...evidence.status === "mapped" && item.observedChildNativeId === void 0 ? { observedChildNativeId: retainedSelector } : {},
+      reporting: reportingFromEvidence(evidence, retainedSelector)
     });
   }
   return parseBatchOutcome({ ...batch, items });
@@ -4443,24 +4553,42 @@ async function resolveFromPath(provider2) {
   }
   return null;
 }
-async function defaultConfigInputs(provider2) {
+async function defaultConfigInputs(provider2, targetCwd) {
   if (provider2 === "claude") return [];
+  const inputs = [];
   const codexRoot = process.env.CODEX_HOME;
   const userRoot = process.env.HOME;
-  const configPath = codexRoot ? join4(codexRoot, "config.toml") : userRoot ? join4(userRoot, ".codex", "config.toml") : null;
-  if (configPath === null) return [];
-  try {
-    const contents = await readFile3(configPath, { encoding: "utf8" });
+  const codexHome = codexRoot ? codexRoot : userRoot ? join4(userRoot, ".codex") : null;
+  const paths = [
+    ...codexHome === null ? [] : [{ name: "user/AGENTS.md", path: join4(codexHome, "AGENTS.md") }],
+    ...targetCwd === void 0 ? [] : [
+      {
+        name: "target/.codex/config.toml",
+        path: join4(targetCwd, ".codex", "config.toml")
+      },
+      {
+        name: "target/AGENTS.override.md",
+        path: join4(targetCwd, "AGENTS.override.md")
+      },
+      { name: "target/AGENTS.md", path: join4(targetCwd, "AGENTS.md") }
+    ]
+  ];
+  for (const entry of paths) {
+    let contents;
+    try {
+      contents = await readFile3(entry.path, { encoding: "utf8" });
+    } catch (error) {
+      if (error !== null && typeof error === "object" && error.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
     if (Buffer.byteLength(contents) > PROVIDER_PROBE_MAX_OUTPUT_BYTES) {
       throw new Error("config-input-oversized");
     }
-    return [{ name: "config.toml", contents }];
-  } catch (error) {
-    if (error !== null && typeof error === "object" && error.code === "ENOENT") {
-      return [];
-    }
-    throw error;
+    inputs.push({ name: entry.name, contents });
   }
+  return inputs;
 }
 var DEFAULT_DEPENDENCIES5 = {
   resolveExecutable: resolveFromPath,
@@ -4616,7 +4744,10 @@ ${auth.stderr}`.trim()
     if (executableBytes.byteLength > 128 * 1024 * 1024) {
       throw new Error("executable-oversized");
     }
-    const rawConfigInputs = await deps.readConfigInputs(provider2);
+    const rawConfigInputs = await deps.readConfigInputs(
+      provider2,
+      options.targetCwd
+    );
     const configInputs = rawConfigInputs.map((entry) => ({
       name: entry.name,
       redactedContents: provider2 === "codex" ? redactProviderConfig(entry.contents) : ""
@@ -4992,10 +5123,11 @@ async function buildDefaultPlan(source, target, handoffSelection, continuityMode
   const candidates = await discoverHandoffCandidates(source, {
     currentIdentities: currentIdentities()
   });
+  selectHandoffCandidates(candidates, handoffSelection);
   const baseline = await discoverHandoffCandidates(target);
   const capabilities = await Promise.all([
-    probeProvider("codex"),
-    probeProvider("claude")
+    probeProvider("codex", { targetCwd: evidence.target.worktreeRoot }),
+    probeProvider("claude", { targetCwd: evidence.target.worktreeRoot })
   ]);
   return createHandoffPlan({
     source: evidence.source,

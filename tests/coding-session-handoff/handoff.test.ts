@@ -124,6 +124,9 @@ describe('selection and immutable planning', () => {
     expect(() => selectHandoffCandidates(candidates, {})).toThrow(
       'invalid-selection',
     );
+    expect(() => selectHandoffCandidates([], { all: true })).toThrow(
+      'invalid-selection',
+    );
     expect(() =>
       selectHandoffCandidates(candidates, {
         all: true,

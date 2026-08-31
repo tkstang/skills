@@ -75,14 +75,28 @@ function dependencies(
     },
     captureParentEvidence: async () => {
       events.push('evidence:parent');
-      return { recordUuids: ['record-1'] };
+      return {
+        recordUuids: ['10000000-0000-4000-a000-000000000001'],
+      };
     },
-    inspectEvidence: async ({ fixture }) => {
-      events.push('evidence:child');
+    captureChildEvidence: async ({ fixture }) => {
+      events.push('evidence:child-before');
       return {
         recordedChildCwd: fixture.targetWorktree,
         exactParentLineage: true,
+        recordUuids: [
+          '10000000-0000-4000-a000-000000000001',
+          '10000000-0000-4000-a000-000000000002',
+        ],
         metadataEffects: ['created-child-record'],
+      };
+    },
+    inspectSourceResumeEvidence: async () => {
+      events.push('evidence:source-resume');
+      return {
+        sourceParentResumable: true,
+        childUnchanged: true,
+        metadataEffects: ['resumed-source-parent', 'preserved-child-record'],
       };
     },
     cleanupProvider: async ({ provider }) => {
@@ -217,6 +231,8 @@ describe('behavior-verify', () => {
         '--json',
         '--disable',
         'hooks',
+        '--ignore-user-config',
+        '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
         'Reply exactly HANDOFF_PARENT_READY. Do not use tools.',
@@ -227,6 +243,8 @@ describe('behavior-verify', () => {
         '--json',
         '--disable',
         'hooks',
+        '--ignore-user-config',
+        '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
         'parent-id',
@@ -238,6 +256,8 @@ describe('behavior-verify', () => {
         '--json',
         '--disable',
         'hooks',
+        '--ignore-user-config',
+        '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
         'parent-id',
@@ -249,8 +269,9 @@ describe('behavior-verify', () => {
       'provider:1:codex',
       'evidence:parent',
       'provider:2:codex',
+      'evidence:child-before',
       'provider:3:codex',
-      'evidence:child',
+      'evidence:source-resume',
       'cleanup:provider',
       'cleanup:git',
       'receipt:write',
@@ -343,27 +364,189 @@ describe('behavior-verify', () => {
     );
   });
 
-  test('uses path-free errors when a bounded provider call cannot prove identity', async () => {
+  test('fails closed on empty Claude lineage and finalizes cleanup before receipt', async () => {
+    const events: string[] = [];
+    const receipts: BehavioralGateReceipt[] = [];
+    const plan = createBehaviorPlan('claude', probe('claude'));
+    const result = await verifyProviderBehavior({
+      provider: 'claude',
+      providerProbe: probe('claude'),
+      confirmedDigest: plan.confirmationDigest,
+      receiptPath: '/tmp/receipt.json',
+      deps: dependencies(events, receipts, {
+        captureParentEvidence: async () => {
+          events.push('evidence:parent');
+          return { recordUuids: [] };
+        },
+      }),
+    });
+
+    expect(result.status).toBe('inconclusive');
+    expect(receipts[0]).toMatchObject({
+      status: 'inconclusive',
+      observations: {
+        exactParentLineage: false,
+        sourceParentResumable: false,
+      },
+    });
+    expect(events.indexOf('cleanup:provider')).toBeLessThan(
+      events.indexOf('cleanup:git'),
+    );
+    expect(events.indexOf('cleanup:git')).toBeLessThan(
+      events.indexOf('receipt:write'),
+    );
+  });
+
+  test('derives source resumability from source growth and unchanged child evidence', async () => {
+    const events: string[] = [];
+    const receipts: BehavioralGateReceipt[] = [];
+    const plan = createBehaviorPlan('claude', probe('claude'));
+    const result = await verifyProviderBehavior({
+      provider: 'claude',
+      providerProbe: probe('claude'),
+      confirmedDigest: plan.confirmationDigest,
+      receiptPath: '/tmp/receipt.json',
+      deps: dependencies(events, receipts, {
+        inspectSourceResumeEvidence: async () => {
+          events.push('evidence:source-resume');
+          return {
+            sourceParentResumable: true,
+            childUnchanged: false,
+            metadataEffects: ['cross-written-child-record'],
+          };
+        },
+      }),
+    });
+
+    expect(result.status).toBe('failed');
+    expect(receipts[0]).toMatchObject({
+      status: 'failed',
+      observations: {
+        exactParentLineage: true,
+        sourceParentResumable: false,
+      },
+    });
+    expect(receipts[0].observations.metadataEffects).toContain(
+      'cross-written-child-record',
+    );
+  });
+
+  test.each([
+    'provider-1',
+    'parent-evidence',
+    'provider-2',
+    'child-evidence',
+    'provider-3',
+    'resume-evidence',
+  ] as const)(
+    'cleans partial state and writes an inconclusive receipt after %s failure',
+    async (failureStage) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const cleanupStates: Array<{
+        parentNativeId?: string;
+        childNativeId?: string;
+      }> = [];
+      const base = dependencies(events, receipts);
+      let providerCall = 0;
+      const plan = createBehaviorPlan('codex', probe('codex'));
+      const result = await verifyProviderBehavior({
+        provider: 'codex',
+        providerProbe: probe('codex'),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: {
+          ...base,
+          runProvider: async (invocation, executablePath) => {
+            providerCall += 1;
+            if (failureStage === `provider-${providerCall}`) {
+              events.push(`provider:${providerCall}:codex`);
+              throw new Error('raw provider failure');
+            }
+            return base.runProvider(invocation, executablePath);
+          },
+          captureParentEvidence: async (...args) => {
+            if (failureStage === 'parent-evidence') {
+              events.push('evidence:parent');
+              throw new Error('raw parent evidence failure');
+            }
+            return base.captureParentEvidence(...args);
+          },
+          captureChildEvidence: async (...args) => {
+            if (failureStage === 'child-evidence') {
+              events.push('evidence:child-before');
+              throw new Error('raw child evidence failure');
+            }
+            return base.captureChildEvidence(...args);
+          },
+          inspectSourceResumeEvidence: async (...args) => {
+            if (failureStage === 'resume-evidence') {
+              events.push('evidence:source-resume');
+              throw new Error('raw resume evidence failure');
+            }
+            return base.inspectSourceResumeEvidence(...args);
+          },
+          cleanupProvider: async (state) => {
+            events.push('cleanup:provider');
+            cleanupStates.push({
+              parentNativeId: state.parentNativeId,
+              childNativeId: state.childNativeId,
+            });
+            return {
+              status: 'removed',
+              method: 'codex-delete-exact-session-ids',
+              reasonCodes: [],
+            };
+          },
+        },
+      });
+
+      expect(result.status).toBe('inconclusive');
+      expect(result.reasonCodes).toContain('reporting-failed');
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        status: 'inconclusive',
+        observations: {
+          exactParentLineage: ['provider-3', 'resume-evidence'].includes(
+            failureStage,
+          ),
+          sourceParentResumable: false,
+        },
+      });
+      expect(cleanupStates).toHaveLength(1);
+      expect(events.indexOf('cleanup:provider')).toBeLessThan(
+        events.indexOf('cleanup:git'),
+      );
+      expect(events.indexOf('cleanup:git')).toBeLessThan(
+        events.indexOf('receipt:write'),
+      );
+    },
+  );
+
+  test('uses path-free results when a bounded provider call cannot prove identity', async () => {
     const events: string[] = [];
     const receipts: BehavioralGateReceipt[] = [];
     const base = dependencies(events, receipts);
     const plan = createBehaviorPlan('codex', probe('codex'));
-    await expect(
-      verifyProviderBehavior({
-        provider: 'codex',
-        providerProbe: probe('codex'),
-        confirmedDigest: plan.confirmationDigest,
-        receiptPath: '/tmp/sensitive-receipt.json',
-        deps: {
-          ...base,
-          runProvider: async () => {
-            throw new Error('/private/provider-output SECRET');
-          },
+    const result = await verifyProviderBehavior({
+      provider: 'codex',
+      providerProbe: probe('codex'),
+      confirmedDigest: plan.confirmationDigest,
+      receiptPath: '/tmp/sensitive-receipt.json',
+      deps: {
+        ...base,
+        runProvider: async () => {
+          throw new Error('/private/provider-output SECRET');
         },
-      }),
-    ).rejects.toEqual(
-      expect.objectContaining({ code: 'provider-call-failed' }),
-    );
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain('/private');
+    expect(JSON.stringify(result)).not.toContain('SECRET');
+    expect(result).toMatchObject({
+      provider: 'codex',
+      status: 'inconclusive',
+      reasonCodes: ['reporting-failed'],
+    });
   });
 });
 

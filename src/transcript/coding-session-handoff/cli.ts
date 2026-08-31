@@ -27,6 +27,7 @@ import {
   createHandoffPlan,
   executeHandoffPlan,
   reconcileBatchOutcome,
+  selectHandoffCandidates,
   type HandoffSelection,
   type NativeExecutionResult,
   type ReconcileEvidenceRequest,
@@ -529,10 +530,11 @@ async function buildDefaultPlan(
   const candidates = await discoverHandoffCandidates(source, {
     currentIdentities: currentIdentities(),
   });
+  selectHandoffCandidates(candidates, handoffSelection);
   const baseline = await discoverHandoffCandidates(target);
   const capabilities = await Promise.all([
-    probeProvider('codex'),
-    probeProvider('claude'),
+    probeProvider('codex', { targetCwd: evidence.target.worktreeRoot }),
+    probeProvider('claude', { targetCwd: evidence.target.worktreeRoot }),
   ]);
   return createHandoffPlan({
     source: evidence.source,

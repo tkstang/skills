@@ -78,6 +78,9 @@ export function selectHandoffCandidates(
   );
   const selectedKeys =
     selection.all === true ? [...byKey.keys()] : [...sessions];
+  if (selectedKeys.length === 0) {
+    throw new HandoffPolicyError('invalid-selection');
+  }
   const parsed: QualifiedSessionId[] = [];
   for (const key of selectedKeys) {
     try {
@@ -527,10 +530,12 @@ export async function reconcileBatchOutcome(
   const batch = parseBatchOutcome(value);
   const items: ItemOutcome[] = [];
   for (const item of batch.items) {
+    const retainedSelector =
+      item.observedChildNativeId ?? item.expectedChildNativeId;
     if (
       (item.native.status !== 'succeeded' &&
         item.native.status !== 'indeterminate') ||
-      item.observedChildNativeId === undefined
+      retainedSelector === undefined
     ) {
       items.push(item);
       continue;
@@ -541,6 +546,7 @@ export async function reconcileBatchOutcome(
     ) as HandoffProvider;
     const selectorMismatch =
       item.expectedChildNativeId !== undefined &&
+      item.observedChildNativeId !== undefined &&
       item.expectedChildNativeId !== item.observedChildNativeId;
     const evidence = selectorMismatch
       ? ({ status: 'unresolved', reasonCode: 'child-unresolved' } as const)
@@ -550,12 +556,18 @@ export async function reconcileBatchOutcome(
           ...(item.expectedChildNativeId === undefined
             ? {}
             : { expectedChildNativeId: item.expectedChildNativeId }),
-          observedChildNativeId: item.observedChildNativeId,
+          ...(item.observedChildNativeId === undefined
+            ? {}
+            : { observedChildNativeId: item.observedChildNativeId }),
           targetBaselineIds: [...item.targetBaselineIds],
         });
     items.push({
       ...item,
-      reporting: reportingFromEvidence(evidence, item.observedChildNativeId),
+      ...(evidence.status === 'mapped' &&
+      item.observedChildNativeId === undefined
+        ? { observedChildNativeId: retainedSelector }
+        : {}),
+      reporting: reportingFromEvidence(evidence, retainedSelector),
     } as ItemOutcome);
   }
   return parseBatchOutcome({ ...batch, items });
