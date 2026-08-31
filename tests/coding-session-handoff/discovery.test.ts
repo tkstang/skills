@@ -229,6 +229,24 @@ describe('exact handoff candidate discovery', () => {
     },
   );
 
+  test('refuses the complete set when a discovered candidate has no recorded cwd', async () => {
+    const deps = dependencies({
+      codex: [
+        transcriptCandidate('codex', 'valid', '/repo/source'),
+        transcriptCandidate('codex', 'unclassifiable', '/repo/source', {
+          recordedCwd: null,
+        }),
+      ],
+    });
+
+    await expect(
+      discoverHandoffCandidates('/repo/source', { deps }),
+    ).rejects.toMatchObject({
+      code: 'discovery-incomplete',
+      provider: 'codex',
+    });
+  });
+
   test('refuses invalid projected candidate fields instead of returning a partial set', async () => {
     const deps = dependencies({
       codex: [

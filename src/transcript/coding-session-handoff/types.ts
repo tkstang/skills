@@ -955,6 +955,7 @@ export function parseBehavioralGateReceipt(
     if (
       cleanupFailed ||
       reasonCodes.length > 0 ||
+      observations.parentNativeId === observations.observedChildNativeId ||
       !observations.exactParentLineage ||
       !observations.sourceParentResumable ||
       observations.recordedChildCwd !== fixture.targetWorktree ||

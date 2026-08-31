@@ -353,6 +353,28 @@ describe('behavioral receipt and provider contract schemas', () => {
     ).toThrow('behavior-passed-evidence');
   });
 
+  test('rejects passed Codex and Claude receipts whose child equals the parent', () => {
+    expect(() =>
+      parseBehavioralGateReceipt({
+        ...codexReceipt,
+        observations: {
+          ...codexReceipt.observations,
+          observedChildNativeId: codexReceipt.observations.parentNativeId,
+        },
+      }),
+    ).toThrow('behavior-passed-evidence');
+    expect(() =>
+      parseBehavioralGateReceipt({
+        ...claudeReceipt,
+        observations: {
+          ...claudeReceipt.observations,
+          requestedChildNativeId: claudeReceipt.observations.parentNativeId,
+          observedChildNativeId: claudeReceipt.observations.parentNativeId,
+        },
+      }),
+    ).toThrow('behavior-passed-evidence');
+  });
+
   test('rejects malformed digests, provider cleanup mismatch, and unbounded calls', () => {
     expect(() =>
       parseBehavioralGateReceipt({

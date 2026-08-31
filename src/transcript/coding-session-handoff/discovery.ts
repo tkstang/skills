@@ -126,7 +126,9 @@ async function projectCandidate(
   if (candidate.runtime !== PROVIDER_RUNTIME[provider]) {
     throw new HandoffDiscoveryError('discovery-incomplete', provider);
   }
-  if (candidate.recordedCwd === null) return null;
+  if (candidate.recordedCwd === null) {
+    throw new HandoffDiscoveryError('discovery-incomplete', provider);
+  }
   let recordedCwd: string | null;
   try {
     recordedCwd = await canonicalize(candidate.recordedCwd);
