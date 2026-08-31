@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import {
   createBehaviorPlan,
+  evaluateSourceResumeSnapshots,
   ProviderGateError,
   verifyProviderBehavior,
   type BehaviorGateDependencies,
@@ -88,11 +89,25 @@ function dependencies(
           '10000000-0000-4000-a000-000000000001',
           '10000000-0000-4000-a000-000000000002',
         ],
+        contentSha256: 'c'.repeat(64),
         metadataEffects: ['created-child-record'],
       };
     },
-    inspectSourceResumeEvidence: async () => {
+    captureSourceEvidence: async ({ fixture, parentNativeId }) => {
+      events.push('evidence:source-before');
+      return {
+        nativeSessionId: parentNativeId,
+        recordedCwd: fixture.sourceWorktree,
+        recordUuids: [
+          '10000000-0000-4000-a000-000000000001',
+          '10000000-0000-4000-a000-000000000003',
+        ],
+        contentSha256: 'a'.repeat(64),
+      };
+    },
+    inspectSourceResumeEvidence: async (_context, sourceBeforeResume) => {
       events.push('evidence:source-resume');
+      expect(sourceBeforeResume.recordUuids).toHaveLength(2);
       return {
         sourceParentResumable: true,
         childUnchanged: true,
@@ -270,6 +285,7 @@ describe('behavior-verify', () => {
       'evidence:parent',
       'provider:2:codex',
       'evidence:child-before',
+      'evidence:source-before',
       'provider:3:codex',
       'evidence:source-resume',
       'cleanup:provider',
@@ -431,11 +447,82 @@ describe('behavior-verify', () => {
     );
   });
 
+  test('does not mistake a successor source write for the later Claude resume', () => {
+    const sourceBeforeResume = {
+      nativeSessionId: 'parent-id',
+      recordedCwd: '/source',
+      recordUuids: [
+        '10000000-0000-4000-a000-000000000001',
+        '10000000-0000-4000-a000-000000000002',
+      ],
+      contentSha256: 'a'.repeat(64),
+    };
+    const childBeforeResume = {
+      recordedChildCwd: '/target',
+      exactParentLineage: true,
+      recordUuids: [
+        '10000000-0000-4000-a000-000000000001',
+        '10000000-0000-4000-a000-000000000003',
+      ],
+      contentSha256: 'b'.repeat(64),
+      metadataEffects: [],
+    };
+    const unchangedChild = {
+      nativeSessionId: 'child-id',
+      recordedCwd: '/target',
+      forkedFromSessionId: undefined,
+      recordUuids: [...childBeforeResume.recordUuids],
+      contentSha256: childBeforeResume.contentSha256,
+    };
+    const identity = {
+      parentNativeId: 'parent-id',
+      childNativeId: 'child-id',
+      sourceWorktree: '/source',
+      targetWorktree: '/target',
+    };
+
+    expect(
+      evaluateSourceResumeSnapshots(
+        'claude',
+        identity,
+        sourceBeforeResume,
+        { ...sourceBeforeResume },
+        childBeforeResume,
+        unchangedChild,
+      ),
+    ).toMatchObject({
+      sourceParentResumable: false,
+      childUnchanged: true,
+    });
+
+    expect(
+      evaluateSourceResumeSnapshots(
+        'claude',
+        identity,
+        sourceBeforeResume,
+        {
+          ...sourceBeforeResume,
+          recordUuids: [
+            ...sourceBeforeResume.recordUuids,
+            '10000000-0000-4000-a000-000000000004',
+          ],
+          contentSha256: 'd'.repeat(64),
+        },
+        childBeforeResume,
+        unchangedChild,
+      ),
+    ).toMatchObject({
+      sourceParentResumable: true,
+      childUnchanged: true,
+    });
+  });
+
   test.each([
     'provider-1',
     'parent-evidence',
     'provider-2',
     'child-evidence',
+    'source-evidence',
     'provider-3',
     'resume-evidence',
   ] as const)(
@@ -479,6 +566,13 @@ describe('behavior-verify', () => {
             }
             return base.captureChildEvidence(...args);
           },
+          captureSourceEvidence: async (...args) => {
+            if (failureStage === 'source-evidence') {
+              events.push('evidence:source-before');
+              throw new Error('raw source evidence failure');
+            }
+            return base.captureSourceEvidence(...args);
+          },
           inspectSourceResumeEvidence: async (...args) => {
             if (failureStage === 'resume-evidence') {
               events.push('evidence:source-resume');
@@ -507,9 +601,11 @@ describe('behavior-verify', () => {
       expect(receipts[0]).toMatchObject({
         status: 'inconclusive',
         observations: {
-          exactParentLineage: ['provider-3', 'resume-evidence'].includes(
-            failureStage,
-          ),
+          exactParentLineage: [
+            'source-evidence',
+            'provider-3',
+            'resume-evidence',
+          ].includes(failureStage),
           sourceParentResumable: false,
         },
       });

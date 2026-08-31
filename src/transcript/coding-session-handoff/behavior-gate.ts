@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   open,
+  readFile,
   rm,
   stat,
   unlink,
@@ -106,7 +107,16 @@ export interface ChildEvidence {
   recordedChildCwd: string;
   exactParentLineage: boolean;
   recordUuids: string[];
+  contentSha256: string;
   metadataEffects: string[];
+}
+
+export interface TranscriptEvidenceSnapshot {
+  nativeSessionId: string;
+  recordedCwd: string;
+  forkedFromSessionId?: string;
+  recordUuids: string[];
+  contentSha256: string;
 }
 
 export interface SourceResumeEvidence {
@@ -164,8 +174,12 @@ export interface BehaviorGateDependencies {
   captureChildEvidence: (
     context: BehaviorGateContext,
   ) => Promise<ChildEvidence>;
+  captureSourceEvidence: (
+    context: BehaviorGateContext,
+  ) => Promise<TranscriptEvidenceSnapshot>;
   inspectSourceResumeEvidence: (
     context: BehaviorGateContext,
+    sourceBeforeResume: TranscriptEvidenceSnapshot,
     childBeforeResume: ChildEvidence,
   ) => Promise<SourceResumeEvidence>;
   cleanupProvider: (
@@ -442,6 +456,10 @@ function validClaudeLineage(recordUuids: readonly string[]): boolean {
   );
 }
 
+function validSha256(value: string): boolean {
+  return /^[0-9a-f]{64}$/u.test(value);
+}
+
 async function cleanupProviderState(
   deps: BehaviorGateDependencies,
   state: PartialBehaviorGateContext,
@@ -668,8 +686,19 @@ export async function verifyProviderBehavior(
     childEvidence = await deps.captureChildEvidence(context);
     if (
       !childEvidence.exactParentLineage ||
+      !validSha256(childEvidence.contentSha256) ||
       (input.provider === 'claude' &&
         !validClaudeLineage(childEvidence.recordUuids))
+    ) {
+      throw new ProviderGateError('provider-evidence-failed');
+    }
+    const sourceBeforeResume = await deps.captureSourceEvidence(context);
+    if (
+      sourceBeforeResume.nativeSessionId !== context.parentNativeId ||
+      sourceBeforeResume.recordedCwd !== context.fixture.sourceWorktree ||
+      !validSha256(sourceBeforeResume.contentSha256) ||
+      (input.provider === 'claude' &&
+        !validClaudeLineage(sourceBeforeResume.recordUuids))
     ) {
       throw new ProviderGateError('provider-evidence-failed');
     }
@@ -688,6 +717,7 @@ export async function verifyProviderBehavior(
     }
     resumeEvidence = await deps.inspectSourceResumeEvidence(
       context,
+      sourceBeforeResume,
       childEvidence,
     );
   } catch {
@@ -779,11 +809,11 @@ function runtime(provider: HandoffProvider): Runtime {
   return provider === 'codex' ? 'codex' : 'claude-code';
 }
 
-async function exactTranscriptMeta(
+async function exactTranscriptSnapshot(
   provider: HandoffProvider,
   cwd: string,
   nativeId: string,
-) {
+): Promise<TranscriptEvidenceSnapshot> {
   const candidates = await discover(
     runtime(provider),
     cwd,
@@ -795,17 +825,42 @@ async function exactTranscriptMeta(
       candidate.sessionId === nativeId && candidate.recordedCwd === cwd,
   );
   if (matches.length !== 1) throw new Error('exact-transcript-unavailable');
+  const beforeStat = await stat(matches[0].transcriptPath);
+  if (beforeStat.size > 256 * 1024) {
+    throw new Error('exact-transcript-oversized');
+  }
   const bounded = await readMetadataRecordsBounded(matches[0].transcriptPath, {
     maxBytes: 256 * 1024,
     maxRecords: 128,
     diagnostic: () => {},
   });
   if (bounded.incomplete) throw new Error('exact-transcript-incomplete');
-  return extractMetaFromRecords(
+  const meta = extractMetaFromRecords(
     runtime(provider),
     bounded.records,
     matches[0].transcriptPath,
   );
+  if (meta === null) throw new Error('exact-transcript-metadata-unavailable');
+  const contents = await readFile(matches[0].transcriptPath);
+  const afterStat = await stat(matches[0].transcriptPath);
+  if (contents.byteLength > 256 * 1024) {
+    throw new Error('exact-transcript-oversized');
+  }
+  if (
+    beforeStat.size !== afterStat.size ||
+    beforeStat.mtimeMs !== afterStat.mtimeMs
+  ) {
+    throw new Error('exact-transcript-unstable');
+  }
+  return {
+    nativeSessionId: meta.nativeSessionId ?? '',
+    recordedCwd: meta.recordedCwd ?? '',
+    ...(meta.forkedFromSessionId === undefined
+      ? {}
+      : { forkedFromSessionId: meta.forkedFromSessionId }),
+    recordUuids: meta.recordLineage?.map((entry) => entry.uuid) ?? [],
+    contentSha256: createHash('sha256').update(contents).digest('hex'),
+  };
 }
 
 async function captureDefaultParentEvidence(
@@ -814,13 +869,12 @@ async function captureDefaultParentEvidence(
     'childNativeId' | 'requestedChildNativeId' | 'parentEvidence'
   >,
 ): Promise<ParentEvidence> {
-  const meta = await exactTranscriptMeta(
+  const snapshot = await exactTranscriptSnapshot(
     context.provider,
     context.fixture.sourceWorktree,
     context.parentNativeId,
   );
-  if (meta === null) throw new Error('parent-evidence-unavailable');
-  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const recordUuids = snapshot.recordUuids;
   if (context.provider === 'claude' && !validClaudeLineage(recordUuids)) {
     throw new Error('parent-lineage-invalid');
   }
@@ -832,32 +886,50 @@ async function captureDefaultParentEvidence(
 async function captureDefaultChildEvidence(
   context: BehaviorGateContext,
 ): Promise<ChildEvidence> {
-  const meta = await exactTranscriptMeta(
+  const snapshot = await exactTranscriptSnapshot(
     context.provider,
     context.fixture.targetWorktree,
     context.childNativeId,
   );
-  if (meta === null) throw new Error('child-evidence-unavailable');
-  const recordUuids = meta.recordLineage?.map((entry) => entry.uuid) ?? [];
+  const recordUuids = snapshot.recordUuids;
   const exactParentLineage =
     context.provider === 'codex'
-      ? meta.nativeSessionId === context.childNativeId &&
-        meta.forkedFromSessionId === context.parentNativeId
-      : meta.nativeSessionId === context.childNativeId &&
+      ? snapshot.nativeSessionId === context.childNativeId &&
+        snapshot.forkedFromSessionId === context.parentNativeId
+      : snapshot.nativeSessionId === context.childNativeId &&
         validClaudeLineage(recordUuids) &&
         context.parentEvidence.recordUuids.every(
           (uuid, index) => recordUuids[index] === uuid,
         );
   return {
-    recordedChildCwd: meta.recordedCwd ?? '',
+    recordedChildCwd: snapshot.recordedCwd,
     exactParentLineage,
     recordUuids,
+    contentSha256: snapshot.contentSha256,
     metadataEffects: [
       'created-child-record',
       'recorded-target-cwd',
       'linked-parent-lineage',
     ],
   };
+}
+
+async function captureDefaultSourceEvidence(
+  context: BehaviorGateContext,
+): Promise<TranscriptEvidenceSnapshot> {
+  const snapshot = await exactTranscriptSnapshot(
+    context.provider,
+    context.fixture.sourceWorktree,
+    context.parentNativeId,
+  );
+  if (
+    snapshot.nativeSessionId !== context.parentNativeId ||
+    snapshot.recordedCwd !== context.fixture.sourceWorktree ||
+    (context.provider === 'claude' && !validClaudeLineage(snapshot.recordUuids))
+  ) {
+    throw new Error('source-snapshot-invalid');
+  }
+  return snapshot;
 }
 
 function sameStrings(
@@ -870,50 +942,52 @@ function sameStrings(
   );
 }
 
-async function inspectDefaultSourceResumeEvidence(
-  context: BehaviorGateContext,
+export function evaluateSourceResumeSnapshots(
+  provider: HandoffProvider,
+  identity: {
+    parentNativeId: string;
+    childNativeId: string;
+    sourceWorktree: string;
+    targetWorktree: string;
+  },
+  sourceBeforeResume: TranscriptEvidenceSnapshot,
+  sourceAfterResume: TranscriptEvidenceSnapshot,
   childBeforeResume: ChildEvidence,
-): Promise<SourceResumeEvidence> {
-  const [sourceMeta, childMeta] = await Promise.all([
-    exactTranscriptMeta(
-      context.provider,
-      context.fixture.sourceWorktree,
-      context.parentNativeId,
-    ),
-    exactTranscriptMeta(
-      context.provider,
-      context.fixture.targetWorktree,
-      context.childNativeId,
-    ),
-  ]);
-  if (sourceMeta === null || childMeta === null) {
-    throw new Error('resume-evidence-unavailable');
-  }
-  const sourceUuids =
-    sourceMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
-  const childUuids = childMeta.recordLineage?.map((entry) => entry.uuid) ?? [];
-  const sourceIdentityExact =
-    sourceMeta.nativeSessionId === context.parentNativeId &&
-    sourceMeta.recordedCwd === context.fixture.sourceWorktree;
-  const childIdentityExact =
-    childMeta.nativeSessionId === context.childNativeId &&
-    childMeta.recordedCwd === context.fixture.targetWorktree;
+  childAfterResume: TranscriptEvidenceSnapshot,
+): SourceResumeEvidence {
+  const sourceBeforeIdentityExact =
+    sourceBeforeResume.nativeSessionId === identity.parentNativeId &&
+    sourceBeforeResume.recordedCwd === identity.sourceWorktree;
+  const sourceAfterIdentityExact =
+    sourceAfterResume.nativeSessionId === sourceBeforeResume.nativeSessionId &&
+    sourceAfterResume.recordedCwd === sourceBeforeResume.recordedCwd;
+  const sourcePrefixPreserved =
+    sourceAfterResume.recordUuids.length >
+      sourceBeforeResume.recordUuids.length &&
+    sourceBeforeResume.recordUuids.every(
+      (uuid, index) => sourceAfterResume.recordUuids[index] === uuid,
+    );
   const sourceParentResumable =
-    context.provider === 'claude'
-      ? sourceIdentityExact &&
-        validClaudeLineage(sourceUuids) &&
-        sourceUuids.length > context.parentEvidence.recordUuids.length &&
-        context.parentEvidence.recordUuids.every(
-          (uuid, index) => sourceUuids[index] === uuid,
-        )
-      : sourceIdentityExact;
+    sourceBeforeIdentityExact &&
+    sourceAfterIdentityExact &&
+    validSha256(sourceBeforeResume.contentSha256) &&
+    validSha256(sourceAfterResume.contentSha256) &&
+    (provider === 'claude'
+      ? validClaudeLineage(sourceBeforeResume.recordUuids) &&
+        validClaudeLineage(sourceAfterResume.recordUuids) &&
+        sourcePrefixPreserved
+      : sourceBeforeResume.contentSha256 !== sourceAfterResume.contentSha256);
+  const childIdentityExact =
+    childAfterResume.nativeSessionId === identity.childNativeId &&
+    childAfterResume.recordedCwd === identity.targetWorktree;
   const childUnchanged =
     childIdentityExact &&
-    (context.provider === 'claude'
-      ? sameStrings(childUuids, childBeforeResume.recordUuids)
-      : childMeta.forkedFromSessionId === context.parentNativeId &&
-        (childBeforeResume.recordUuids.length === 0 ||
-          sameStrings(childUuids, childBeforeResume.recordUuids)));
+    validSha256(childBeforeResume.contentSha256) &&
+    validSha256(childAfterResume.contentSha256) &&
+    childAfterResume.contentSha256 === childBeforeResume.contentSha256 &&
+    sameStrings(childAfterResume.recordUuids, childBeforeResume.recordUuids) &&
+    (provider === 'claude' ||
+      childAfterResume.forkedFromSessionId === identity.parentNativeId);
   return {
     sourceParentResumable,
     childUnchanged,
@@ -924,6 +998,38 @@ async function inspectDefaultSourceResumeEvidence(
       childUnchanged ? 'preserved-child-record' : 'cross-written-child-record',
     ],
   };
+}
+
+async function inspectDefaultSourceResumeEvidence(
+  context: BehaviorGateContext,
+  sourceBeforeResume: TranscriptEvidenceSnapshot,
+  childBeforeResume: ChildEvidence,
+): Promise<SourceResumeEvidence> {
+  const [sourceAfterResume, childAfterResume] = await Promise.all([
+    exactTranscriptSnapshot(
+      context.provider,
+      context.fixture.sourceWorktree,
+      context.parentNativeId,
+    ),
+    exactTranscriptSnapshot(
+      context.provider,
+      context.fixture.targetWorktree,
+      context.childNativeId,
+    ),
+  ]);
+  return evaluateSourceResumeSnapshots(
+    context.provider,
+    {
+      parentNativeId: context.parentNativeId,
+      childNativeId: context.childNativeId,
+      sourceWorktree: context.fixture.sourceWorktree,
+      targetWorktree: context.fixture.targetWorktree,
+    },
+    sourceBeforeResume,
+    sourceAfterResume,
+    childBeforeResume,
+    childAfterResume,
+  );
 }
 
 async function cleanupDefaultProvider(
@@ -1006,6 +1112,7 @@ const DEFAULT_DEPENDENCIES: BehaviorGateDependencies = {
   runProvider: runDefaultProvider,
   captureParentEvidence: captureDefaultParentEvidence,
   captureChildEvidence: captureDefaultChildEvidence,
+  captureSourceEvidence: captureDefaultSourceEvidence,
   inspectSourceResumeEvidence: inspectDefaultSourceResumeEvidence,
   cleanupProvider: cleanupDefaultProvider,
   cleanupFixture: async (fixture) => {
