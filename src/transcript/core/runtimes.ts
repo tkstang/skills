@@ -45,6 +45,13 @@ export interface BoundedTranscriptReadOptions {
   diagnostic: (event: SafeTranscriptDiagnostic) => void;
 }
 
+export interface BoundedMetadataReadResult {
+  records: JsonObject[];
+  incomplete: boolean;
+  bytesRead: number;
+  recordsInspected: number;
+}
+
 export interface BoundedTailReadResult {
   records: JsonObject[];
   truncated: boolean;
@@ -830,7 +837,7 @@ function parseBoundedLines(
 export async function readMetadataRecordsBounded(
   transcriptPath: string,
   options: BoundedTranscriptReadOptions,
-): Promise<JsonObject[]> {
+): Promise<BoundedMetadataReadResult> {
   validateBoundedReadOptions(options);
   const deadline = deadlineAt(options);
   const window = await readBoundedWindow(
@@ -839,7 +846,14 @@ export async function readMetadataRecordsBounded(
     'prefix',
     deadline,
   );
-  if (window === null) return [];
+  if (window === null) {
+    return {
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0,
+    };
+  }
   const parsed = parseBoundedLines(
     window.buffer,
     options,
@@ -848,7 +862,12 @@ export async function readMetadataRecordsBounded(
     false,
     window.fileSize > window.buffer.length && window.buffer.at(-1) !== 0x0a,
   );
-  return parsed.records;
+  return {
+    records: parsed.records,
+    incomplete: window.fileSize > window.buffer.length || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected,
+  };
 }
 
 /**

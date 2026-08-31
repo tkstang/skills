@@ -907,6 +907,94 @@ test('exact-all rejects an unclassifiable oversized metadata prefix with path-fr
   });
 });
 
+test.each([
+  [
+    'clean 129th metadata record',
+    'codex' as const,
+    (targetCwd: string) =>
+      [
+        {
+          type: 'session_started',
+          sessionId: 'record-cap',
+          cwd: targetCwd,
+        },
+        ...Array.from({ length: 128 }, (_, index) => ({ index })),
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    256 * 1024,
+  ],
+  [
+    'late contradictory cwd',
+    'claude-code' as const,
+    (targetCwd: string) =>
+      [
+        ...Array.from({ length: 128 }, (_, index) => ({
+          type: index === 0 ? 'summary' : 'progress',
+          sessionId: 'late-conflict',
+          cwd: targetCwd,
+          index,
+        })),
+        {
+          type: 'user',
+          sessionId: 'late-conflict',
+          cwd: '/private/contradictory-cwd',
+          message: { role: 'user', content: 'late conflict' },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    256 * 1024,
+  ],
+  [
+    'newline-aligned byte boundary',
+    'codex' as const,
+    (targetCwd: string) =>
+      `${JSON.stringify({ type: 'session_started', sessionId: 'byte-cap', cwd: targetCwd })}\n${JSON.stringify({ later: true })}\n`,
+    0,
+  ],
+] as const)(
+  'exact-all rejects %s metadata-prefix truncation path-free',
+  async (_name, runtime, makeTranscript, configuredMaxBytes) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'metadata-prefix-project');
+      const transcript = makeTranscript(targetCwd);
+      const firstLineBytes = Buffer.byteLength(
+        transcript.slice(0, transcript.indexOf('\n') + 1),
+      );
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions', '2026', '08', '31')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(scanDir, { recursive: true });
+      const transcriptPath = join(scanDir, 'secret-metadata-prefix.jsonl');
+      await writeFile(transcriptPath, transcript, 'utf8');
+
+      let thrown: unknown;
+      try {
+        await discover(runtime, targetCwd, new ClassificationCache(), {
+          ...exactReadOnlyDiscovery,
+          budget: {
+            maxEntries: 10,
+            maxAggregateBytes: 1_000_000,
+            maxMetadataBytesPerEntry:
+              configuredMaxBytes === 0 ? firstLineBytes : configuredMaxBytes,
+            deadlineMs: 30_000,
+          },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toMatchObject({
+        code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE',
+      });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
 test('exact-all rejects an expired aggregate deadline without returning partial candidates', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/deadline-project';
@@ -2285,7 +2373,7 @@ test('classification cache: default results cannot bypass exact-all per-entry bo
   });
 });
 
-test('classification cache: exact-all prefix results cannot change default classification', async () => {
+test('classification cache: rejected exact-all prefixes cannot change default classification', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'cache-bounded-to-default');
     const transcriptDir = join(home, '.codex', 'sessions', '2026', '08', '30');
@@ -2321,16 +2409,9 @@ test('classification cache: exact-all prefix results cannot change default class
     );
     const cache = new ClassificationCache();
 
-    const bounded = await discover(
-      'codex',
-      targetCwd,
-      cache,
-      exactReadOnlyDiscovery,
-    );
-    expect(bounded[0]).toMatchObject({
-      engagementStatus: 'unengaged',
-      realMessageCount: 0,
-    });
+    await expect(
+      discover('codex', targetCwd, cache, exactReadOnlyDiscovery),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
 
     const legacy = await discover('codex', targetCwd, cache);
     expect(legacy[0]).toMatchObject({

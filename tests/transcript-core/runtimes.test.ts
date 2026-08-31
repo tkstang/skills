@@ -227,7 +227,53 @@ describe('bounded transcript readers', () => {
         maxRecords: 1,
         diagnostic: () => {},
       }),
-    ).resolves.toEqual([{ index: 1 }]);
+    ).resolves.toEqual({
+      records: [{ index: 1 }],
+      incomplete: true,
+      bytesRead: 24,
+      recordsInspected: 1,
+    });
+  });
+
+  it('surfaces clean record-cap and newline-aligned byte truncation', async () => {
+    const recordCappedPath = join(tmpDir, 'metadata-record-capped.jsonl');
+    await writeFile(
+      recordCappedPath,
+      Array.from({ length: 129 }, (_, index) => JSON.stringify({ index })).join(
+        '\n',
+      ) + '\n',
+    );
+
+    await expect(
+      readMetadataRecordsBounded(recordCappedPath, {
+        maxBytes: 16 * 1024,
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toMatchObject({
+      incomplete: true,
+      recordsInspected: 128,
+    });
+
+    const firstLine = `${JSON.stringify({ cwd: '/repo/source' })}\n`;
+    const byteCappedPath = join(tmpDir, 'metadata-byte-capped.jsonl');
+    await writeFile(
+      byteCappedPath,
+      `${firstLine}${JSON.stringify({ later: true })}\n`,
+    );
+
+    await expect(
+      readMetadataRecordsBounded(byteCappedPath, {
+        maxBytes: Buffer.byteLength(firstLine),
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ cwd: '/repo/source' }],
+      incomplete: true,
+      bytesRead: Buffer.byteLength(firstLine),
+      recordsInspected: 1,
+    });
   });
 
   it('returns the newest complete tail records within byte and record caps', async () => {
@@ -285,13 +331,18 @@ describe('bounded transcript readers', () => {
     );
     const diagnostics: unknown[] = [];
 
-    const records = await readMetadataRecordsBounded(transcriptPath, {
+    const result = await readMetadataRecordsBounded(transcriptPath, {
       maxBytes: 64,
       maxRecords: 10,
       diagnostic: (event) => diagnostics.push(event),
     });
 
-    expect(records).toEqual([]);
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
     expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
   });
 
@@ -323,14 +374,19 @@ describe('bounded transcript readers', () => {
     await writeFile(transcriptPath, '{"ok":true}\n');
     const diagnostics: unknown[] = [];
 
-    const records = await readMetadataRecordsBounded(transcriptPath, {
+    const result = await readMetadataRecordsBounded(transcriptPath, {
       maxBytes: 128,
       maxRecords: 10,
       deadlineMs: 0,
       diagnostic: (event) => diagnostics.push(event),
     });
 
-    expect(records).toEqual([]);
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
     expect(diagnostics).toEqual([{ code: 'deadline-exceeded' }]);
     expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
   });

@@ -234,14 +234,12 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
     derivation
   );
   if (cached) return cached;
-  let incomplete = false;
   let deadlineExceeded = false;
-  const records = await readMetadataRecordsBounded(transcriptPath, {
+  const read = await readMetadataRecordsBounded(transcriptPath, {
     maxBytes: budget.limits.maxMetadataBytesPerEntry,
     maxRecords: EXACT_ALL_METADATA_MAX_RECORDS,
     deadlineMs: budget.remainingMs(),
     diagnostic: ({ code }) => {
-      incomplete = true;
       deadlineExceeded = code === "deadline-exceeded";
       diagnostic?.({ code, runtime });
     }
@@ -250,9 +248,10 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   if (deadlineExceeded) {
     throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
   }
-  if (incomplete) {
+  if (read.incomplete) {
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
   }
+  const records = read.records;
   const classification = compactClassificationForCache(
     classifyTranscriptRecords(runtime, records)
   );

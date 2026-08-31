@@ -425,7 +425,14 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     "prefix",
     deadline
   );
-  if (window === null) return [];
+  if (window === null) {
+    return {
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0
+    };
+  }
   const parsed = parseBoundedLines(
     window.buffer,
     options,
@@ -434,7 +441,12 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     false,
     window.fileSize > window.buffer.length && window.buffer.at(-1) !== 10
   );
-  return parsed.records;
+  return {
+    records: parsed.records,
+    incomplete: window.fileSize > window.buffer.length || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected
+  };
 }
 async function readTailRecordsBounded(transcriptPath, options) {
   validateBoundedReadOptions(options);
