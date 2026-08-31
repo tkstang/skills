@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: null
+oat_last_commit: c3f4c2b431355df31d7d3d3fcd9d36000ba324d5
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -9,10 +9,10 @@ oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
-oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
+oat_hill_completed: ['discovery'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -76,7 +76,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T01:24:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -86,17 +86,17 @@ oat_project_recap:
 
 # Project State: coding-session-handoff
 
-**Status:** Discovery
+**Status:** Discovery complete
 **Started:** 2026-08-31
 **Last Updated:** 2026-08-31
 
 ## Current Phase
 
-Discovery - Gathering requirements and understanding the problem space
+Discovery - Reviewed and ready for specification and design
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` (in_progress)
+- **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (scaffolded template — authored inline by `oat-project-design`)
 - **Design:** `design.md` (scaffolded template — not started)
 - **Plan:** `plan.md` (scaffolded template — not started)
@@ -104,9 +104,11 @@ Discovery - Gathering requirements and understanding the problem space
 
 ## Progress
 
-- ✓ Discovery started
+- ✓ Discovery complete
+- ✓ Discovery artifact independently reviewed
+- ✓ Discovery HiLL checkpoint completed under the autonomous review contract
 - ✓ Downstream lifecycle files scaffolded
-- ⧗ Awaiting user input
+- ⧗ Awaiting specification and design
 
 ## Blockers
 
@@ -114,4 +116,4 @@ None
 
 ## Next Milestone
 
-Complete discovery and move to design phase
+Create the confirmed specification and detailed technical design
