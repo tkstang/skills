@@ -518,7 +518,8 @@ runtime, and is never committed to the root branch or synced project ref.
 **Root-inline authority:** Provider-session creation/deletion and irreversible quota use
 are executed by the root orchestrator. The p03 implementer may verify harness code but
 must not run a gate, authenticate, or clean provider state on the root's behalf. Root
-must not dispatch p05 until all four entry-gate dispositions pass.
+must not dispatch the p05 implementation tasks beginning with p05-t03 until all four
+entry-gate dispositions pass.
 
 ### Entry gate p04-t01: Run the Codex 0.151.0 successor gate
 
@@ -878,7 +879,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
-| plan | artifact | received | 2026-08-31 | reviews/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
+| plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

@@ -128,6 +128,27 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
+### Review Received: plan
+
+**Date:** 2026-08-31
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-08-31T034519Z.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 2 Minor
+
+**Disposition:**
+
+- m1 `rejected_with_rationale` — The design's single public runtime describes the
+  shipped topology. The plan's temporary non-public `tools/` bundle is sequencing
+  scaffolding required to execute both live gates before public activation, not an
+  architecture change; the plan remains the implementation-sequencing source of truth.
+- m2 `resolve_in_artifact` — Clarified that only the p05 implementation tasks beginning
+  with p05-t03 are blocked until all four root-owned entry gates pass.
+
+**New tasks added:** None.
+**Next:** Complete planning and begin `oat-project-implement`.
+
+---
+
 ### 2026-08-31
 
 **Session Start:** {time}
