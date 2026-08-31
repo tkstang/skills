@@ -8,135 +8,196 @@ oat_generated: false
 
 # Discovery: coding-session-handoff
 
-## Phase Guardrails (Discovery)
-
-Discovery is for requirements and decisions, not implementation details.
-
-- Prefer outcomes and constraints over concrete deliverables (no specific scripts, file paths, or function names).
-- If an implementation detail comes up, capture it as an **Open Question** for design (or a constraint), not as a deliverable list.
-
 ## Initial Request
 
-{Copy of user's initial request}
+Create one public standalone Agent Skill named `coding-session-handoff` that helps a user hand off explicitly selected Codex and Claude Code sessions from a source Git worktree into an existing target worktree. The source worktree is the default discovery boundary. Reuse the repository's read-only transcript discovery and sanitization substrate, delegate any session mutation to provider-native operations, and remain truthful when an active turn requires a post-turn handoff instead of immediate execution.
+
+The kickoff requirements are authoritative. Cursor is experimental and outside the v1 support floor. Local commits are authorized; push, PR creation, publishing, release, and GitHub mutation are not.
 
 ## Clarifying Questions
 
-### Question 1: {Topic}
+### Question 1: Default continuity model
 
-**Q:** {Question}
-**A:** {User's answer}
-**Decision:** {What this means for the project}
+**Q:** Should v1 move one native identity or create a successor?
+**A:** Create a provider-native successor by default. Same-ID resume is advanced and requires conservative proof that the source writer is closed.
+**Decision:** Preserve the source session, expose lineage, and fail closed for ambiguous same-ID writers.
+
+### Question 2: Target ownership
+
+**Q:** May v1 create, move, or synchronize the target worktree?
+**A:** No. The target must already exist and match the intended source repository.
+**Decision:** Report safe Git evidence, but do not create worktrees or transfer branches, commits, or uncommitted changes.
+
+### Question 3: Mutation timing
+
+**Q:** Should native operations always run immediately after approval?
+**A:** Only when the provider and host can do so honestly and safely. Otherwise return a precise post-turn plan.
+**Decision:** A confirmed deferred operation is not a successful native operation; native and reporting outcomes remain separate.
+
+### Question 4: Persistence
+
+**Q:** Should v1 keep a durable lineage or retry registry?
+**A:** No. Default persistence is none.
+**Decision:** Return compact provider-qualified mappings and recoverable itemized outcomes without storing transcript bodies, credentials, or a new state machine.
+
+### Question 5: Provider floor
+
+**Q:** Which providers are supported in v1?
+**A:** Codex and Claude Code. Cursor remains experimental until its fork and cross-workspace behavior are proven safe.
+**Decision:** Do not claim Cursor support merely because transcript discovery exists.
 
 ## Solution Space
 
-_Include this section only when the request is exploratory or multiple viable approaches exist. For well-understood requests with an obvious approach, omit or replace with a single sentence stating the chosen direction._
+### Approach 1: Ephemeral native-command handoff skill _(Recommended)_
 
-{Divergent exploration of the problem space before converging on an approach. Capture genuinely distinct strategies, not minor variations. Include 2-3 approaches as needed.}
+**Description:** Discover exact-worktree candidates through the existing read-only transcript substrate, require explicit selection and confirmation, validate the target repository, then plan or invoke provider-native continuity operations with itemized outcomes.
+**When this is the right choice:** Same-machine handoff where provider stores remain authoritative and users need a safe cross-provider UX now.
+**Tradeoffs:** Successor identifiers and target-cwd semantics sometimes require post-operation observation; there is no automatic cross-host history.
 
-### Approach 1: {Strategy Name} _(Recommended)_
+### Approach 2: Durable cross-provider registry
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+**Description:** Persist logical efforts, worktree aliases, session lineage, location events, retries, and reconciliation.
+**When this is the right choice:** Multiple ADEs or non-agent clients need automatic continuity, crash recovery, or cross-host reconciliation.
+**Tradeoffs:** Introduces a new identity model, concurrency rules, privacy surface, and long-lived ownership beyond the v1 need.
 
-### Approach 2: {Strategy Name}
+### Approach 3: Provider-store rebinding
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+**Description:** Rewrite provider session databases, transcript paths, or recorded cwd metadata so existing sessions appear native to the target.
+**When this is the right choice:** Only when a provider publishes a supported, versioned migration API.
+**Tradeoffs:** Current stores are private implementation details; direct rewriting risks corruption and breaks the immutable-store boundary.
 
 ### Chosen Direction
 
-**Approach:** {Which approach was selected}
-**Rationale:** {Why this approach over the alternatives}
-**User validated:** {Yes/No — explicit buy-in before proceeding}
+**Approach:** Ephemeral native-command handoff skill.
+**Rationale:** It satisfies same-machine continuity while preserving provider ownership, transcript privacy, and reversible source sessions. It matches the repository's skill-first, read-only transcript architecture.
+**User validated:** Yes — the kickoff explicitly makes these requirements authoritative and requests implementation rather than more brainstorming.
 
 ## Options Considered
 
-{Specific implementation options within the chosen approach. More granular than Solution Space — captures decisions about libraries, patterns, data formats, etc.}
+### Option A: Exact selection versus recency selection
 
-### Option A: {Option Name}
-
-**Description:** {What this option involves}
+**Description:** Require one, several, or all provider-qualified candidates from the exact source-worktree set. Never infer a mutating selection from recency.
 
 **Pros:**
 
-- {Benefit 1}
-- {Benefit 2}
+- Keeps every selected mutation attributable to an explicit user choice.
+- Supports several Codex and Claude sessions without hiding non-current work.
 
 **Cons:**
 
-- {Drawback 1}
-- {Drawback 2}
+- Adds a deliberate disambiguation step when metadata is sparse.
 
-**Chosen:** {A/B/Neither}
+**Chosen:** A
 
-**Summary:** {1-2 sentence summary of the chosen option and why}
+**Summary:** Explicit selection is mandatory. Related-worktree and global candidates remain diagnostic until the user deliberately widens scope.
+
+### Option B: Immediate execution versus truthful deferral
+
+**Description:** Perform only native operations that the current host can launch and observe safely; otherwise emit exact post-turn operations.
+
+**Pros:**
+
+- Avoids pretending an active TUI moved in place.
+- Keeps partial outcomes and retries honest.
+
+**Cons:**
+
+- Some confirmed handoffs require a second operator step.
+
+**Chosen:** B
+
+**Summary:** Safety and observability take precedence over a false one-click experience.
 
 ## Key Decisions
 
-1. **{Decision Category}:** {Decision made and why}
-2. **{Decision Category}:** {Decision made and why}
+1. **Public concept:** Ship one cross-provider skill named `coding-session-handoff`; keep provider differences behind the common UX.
+2. **Discovery boundary:** Enumerate all and only exact-source-worktree Codex and Claude candidates by default, deduplicated by provider-qualified native identity.
+3. **Current identity:** Mark a session `current` only from direct identity evidence; never hide other candidates or promote recency into identity.
+4. **Preview privacy:** Offer bounded, sanitized user/assistant previews without advancing observer offsets or persisting transcript content.
+5. **Git safety:** Require an existing target for the same intended repository, report branch/commit/dirty evidence, and fail closed on a distinct dirty source in v1.
+6. **Continuity semantics:** Default to `successor`; make `resume` advanced and refuse unknown or concurrent source writers; keep `plan` read-only.
+7. **Mutation boundary:** Show the complete batch and obtain explicit confirmation before any provider operation. Never add approval, sandbox, or hook-trust bypass flags.
+8. **Outcome model:** Keep native-operation and reporting outcomes separate; mixed batches are itemized and only failed or deferred items may be retried.
+9. **Persistence:** Retain no transcript bodies, credentials, or durable lineage registry by default.
 
 ## Constraints
 
-- {Constraint 1}
-- {Constraint 2}
+- Shipped runtime code is dependency-free and requires Node.js 22+.
+- Canonical TypeScript and skill sources generate committed runtime outputs; provider mirrors are generated, not hand-edited.
+- Provider session stores and transcript databases are immutable inputs.
+- V1 does not create/move worktrees, transfer Git state, push/pull, or synchronize uncommitted changes.
+- No Orc repository or adapter changes belong in this project.
+- Installed evidence on 2026-08-31 is Codex CLI 0.151.0 and Claude Code 2.1.251; capability drift must fail closed.
+- Neither installed CLI exposes a trustworthy active-writer preflight.
 
 ## Success Criteria
 
-- {Criterion 1}
-- {Criterion 2}
+- Exact-worktree discovery lists several Codex and Claude candidates without recency auto-selection, related/global leakage, or provider-ID collisions.
+- Users can preview or compare selected candidates through bounded sanitized conversation rounds without state mutation.
+- Single, multi, and all selection produce a complete target-validated batch preview and explicit confirmation boundary.
+- Successor, resume, and plan semantics remain distinct; current/active-turn and one-writer limitations produce truthful deferral or refusal.
+- Provider capability drift, dirty-source risk, and ambiguous target identity fail closed with actionable diagnostics.
+- Mixed native outcomes produce a recoverable parent-to-child ledger without repeating successful operations.
+- Plans and results contain no transcript bodies, hidden instructions, secrets, provider-store mutations, or dangerous bypass flags.
+- Repository tests, generated-output checks, validation, smoke, docs, and cross-provider installation compatibility pass.
 
 ## Out of Scope
 
-- {Thing we explicitly decided not to do}
-- {Thing we explicitly decided not to include in this phase}
+- Cursor mutation support in v1.
+- Cross-host or cross-machine session payload synchronization.
+- Worktree creation, movement, branch synchronization, dirty-diff transfer, or Git push/pull.
+- Persistent lineage databases, daemons, hooks, journals, or automatic operation registries.
+- Generic provider write abstractions or changes in `~/code/orc`.
+- Rewriting provider session databases, JSONL transcripts, or recorded cwd metadata.
 
 ## Deferred Ideas
 
-{Ideas that came up during discovery but are intentionally out of scope for now}
-
-- {Idea 1} - {Why deferred}
-- {Idea 2} - {Why deferred}
+- **Cursor capability experiment:** Verify current explicit-ID fork and cross-workspace behavior before promoting support.
+- **Durable lineage:** Add operation IDs or a local event ledger only when a non-agent consumer or crash-recovery requirement appears.
+- **Cross-host continuity:** Design authenticated/encrypted export separately from same-machine discovery.
 
 ## Open Questions
 
-{Questions that need resolution before or during specification (and later design)}
-
-- **{Question Category}:** {Question that needs answering}
-- **{Question Category}:** {Question that needs answering}
+- **Writer evidence:** Which provider- or host-native lifecycle evidence can ever prove a source writer closed, rather than merely looking idle?
+- **Successor reconciliation:** Which native outputs can safely reveal the child identity immediately, and when must target-worktree rediscovery finish the mapping?
+- **Safe labels:** Which provider metadata fields are safe and stable enough to display without reading conversation content?
 
 ## Assumptions
 
-{Assumptions we're making that need validation}
-
-- {Assumption 1}
-- {Assumption 2}
+- Same-machine transcript stores and provider CLIs are locally available to the invoking user.
+- The target path is accessible before handoff begins.
+- Provider-qualified native IDs are the only durable session identities in v1.
+- Transcript modification time is activity evidence, not proof of a live writer or permission to resume the same ID.
 
 ## Risks
 
-{Potential risks identified during discovery}
+- **Provider capability drift:** Help shape or semantics may change after upgrade.
+  - **Likelihood:** Medium
+  - **Impact:** High
+  - **Mitigation Ideas:** Probe exact capabilities and fail closed with the detected version and missing contract.
+- **False writer inference:** Recent or quiet transcripts can be mistaken for open or closed sessions.
+  - **Likelihood:** High
+  - **Impact:** High
+  - **Mitigation Ideas:** Separate activity hints from one-writer proof and refuse same-ID resume on unknown evidence.
+- **Privacy leakage:** Candidate previews or reports could expose injected instructions, tools, secrets, or transcript paths.
+  - **Likelihood:** Medium
+  - **Impact:** High
+  - **Mitigation Ideas:** Reuse structural filtering plus the shared hidden-payload sanitizer and retain only bounded conversation and safe metadata.
+- **Partial batch ambiguity:** A native fork can succeed before child mapping or reporting completes.
+  - **Likelihood:** Medium
+  - **Impact:** Medium
+  - **Mitigation Ideas:** Preserve per-item native/reporting states and never retry successful parents automatically.
+- **Dirty Git divergence:** A target session can start without source-only uncommitted changes.
+  - **Likelihood:** Medium
+  - **Impact:** High
+  - **Mitigation Ideas:** Fail closed on a distinct dirty source and state that Git transfer is outside scope.
 
-- **{Risk Name}:** {Description}
-  - **Likelihood:** Low / Medium / High
-  - **Impact:** Low / Medium / High
-  - **Mitigation Ideas:** {How to address}
+## References
+
+- Supporting evidence packet: `/Users/thomas.stang/Documents/Codex/2026-08-30/new-realtime-voice-chat-2/ade-session-portability-handoff.md`
+- Installed provider help verified locally on 2026-08-31.
+- Current transcript discovery, sanitization, generated-runtime, test, and documentation contracts verified directly in this checkout.
 
 ## Next Steps
 
-Use this discovery artifact to drive the next workflow step:
-
-- **Spec-driven mode:** continue to `oat-project-design` (which confirms
-  requirements and produces both `spec.md` and `design.md`).
-- **Spec-driven mode → formalize-only:** use `oat-project-spec` standalone
-  if you want a formalized requirements artifact but aren't ready to
-  design yet.
-- **Quick mode → straight to plan:** proceed directly to `plan.md` when
-  scope is clear and no architecture decisions remain.
-- **Quick mode → optional lightweight design:** produce a focused
-  `design.md` (architecture, components, data flow, testing) before
-  planning. Choose this when discovery surfaced architecture choices
-  or component boundaries.
-- **Quick mode → promote:** escalate to spec-driven if discovery revealed
-  the scope is larger or more complex than expected.
+Run independent artifact review, complete the discovery HiLL gate under the autonomy contract, then continue to specification and design.
