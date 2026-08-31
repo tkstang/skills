@@ -16,7 +16,7 @@
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
  */
 
-import { readFile } from 'node:fs/promises';
+import { open, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -26,6 +26,28 @@ export type JsonObject = Record<string, unknown>;
 export interface TranscriptMeta {
   sessionId: string;
   recordedCwd: string | null;
+}
+
+export type SafeTranscriptDiagnosticCode =
+  | 'malformed-record'
+  | 'oversized-record'
+  | 'read-failed'
+  | 'deadline-exceeded';
+
+export interface SafeTranscriptDiagnostic {
+  code: SafeTranscriptDiagnosticCode;
+}
+
+export interface BoundedTranscriptReadOptions {
+  maxBytes: number;
+  maxRecords: number;
+  deadlineMs?: number;
+  diagnostic: (event: SafeTranscriptDiagnostic) => void;
+}
+
+export interface BoundedTailReadResult {
+  records: JsonObject[];
+  truncated: boolean;
 }
 
 export interface CursorIdentityEvidence {
@@ -621,6 +643,226 @@ export function encodeCwdVariants(runtime: Runtime, cwd: string): string[] {
 // ---------------------------------------------------------------------------
 // readRecords
 // ---------------------------------------------------------------------------
+
+interface BoundedFileWindow {
+  buffer: Buffer;
+  offset: number;
+  fileSize: number;
+}
+
+function validateBoundedReadOptions(
+  options: BoundedTranscriptReadOptions,
+): void {
+  if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0) {
+    throw new TypeError('maxBytes must be a positive safe integer');
+  }
+  if (!Number.isSafeInteger(options.maxRecords) || options.maxRecords <= 0) {
+    throw new TypeError('maxRecords must be a positive safe integer');
+  }
+  if (
+    options.deadlineMs !== undefined &&
+    (!Number.isFinite(options.deadlineMs) || options.deadlineMs < 0)
+  ) {
+    throw new TypeError('deadlineMs must be a non-negative finite number');
+  }
+}
+
+function safeDiagnostic(
+  options: BoundedTranscriptReadOptions,
+  code: SafeTranscriptDiagnosticCode,
+): void {
+  options.diagnostic({ code });
+}
+
+function deadlineAt(options: BoundedTranscriptReadOptions): number | null {
+  return options.deadlineMs === undefined
+    ? null
+    : Date.now() + options.deadlineMs;
+}
+
+function deadlineExpired(deadline: number | null): boolean {
+  return deadline !== null && Date.now() >= deadline;
+}
+
+async function readBoundedWindow(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+  direction: 'prefix' | 'tail',
+  deadline: number | null,
+): Promise<BoundedFileWindow | null> {
+  if (deadlineExpired(deadline)) {
+    safeDiagnostic(options, 'deadline-exceeded');
+    return null;
+  }
+
+  let handle;
+  try {
+    handle = await open(transcriptPath, 'r');
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return null;
+    }
+
+    const { size } = await handle.stat();
+    const length = Math.min(size, options.maxBytes);
+    const offset = direction === 'tail' ? Math.max(0, size - length) : 0;
+    const buffer = Buffer.allocUnsafe(length);
+    let bytesRead = 0;
+    while (bytesRead < length) {
+      if (deadlineExpired(deadline)) {
+        safeDiagnostic(options, 'deadline-exceeded');
+        return null;
+      }
+      const result = await handle.read(
+        buffer,
+        bytesRead,
+        length - bytesRead,
+        offset + bytesRead,
+      );
+      if (result.bytesRead === 0) break;
+      bytesRead += result.bytesRead;
+    }
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return null;
+    }
+    return { buffer: buffer.subarray(0, bytesRead), offset, fileSize: size };
+  } catch {
+    safeDiagnostic(options, 'read-failed');
+    return null;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+function parseBoundedLines(
+  buffer: Buffer,
+  options: BoundedTranscriptReadOptions,
+  deadline: number | null,
+  mode: 'prefix' | 'tail',
+  dropLeadingFragment: boolean,
+  dropTrailingFragment: boolean,
+): { records: JsonObject[]; incomplete: boolean; deadlineExceeded: boolean } {
+  let start = 0;
+  let incomplete = false;
+  const records: JsonObject[] = [];
+
+  if (dropLeadingFragment) {
+    const newline = buffer.indexOf(0x0a);
+    if (newline === -1 || newline === buffer.length - 1) {
+      safeDiagnostic(options, 'oversized-record');
+      return { records: [], incomplete: true, deadlineExceeded: false };
+    }
+    start = newline + 1;
+    incomplete = true;
+  }
+
+  while (start < buffer.length) {
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return { records: [], incomplete: true, deadlineExceeded: true };
+    }
+
+    const newline = buffer.indexOf(0x0a, start);
+    const isFinalFragment = newline === -1;
+    const end = isFinalFragment ? buffer.length : newline;
+    if (isFinalFragment && dropTrailingFragment) {
+      safeDiagnostic(options, 'oversized-record');
+      incomplete = true;
+      break;
+    }
+
+    let line = buffer.subarray(start, end);
+    if (line.at(-1) === 0x0d) line = line.subarray(0, -1);
+    const text = line.toString('utf8').trim();
+    if (text) {
+      const parsed = safeParseLine(text);
+      if (parsed.ok) {
+        if (mode === 'prefix') {
+          if (records.length < options.maxRecords) records.push(parsed.value);
+        } else {
+          records.push(parsed.value);
+          if (records.length > options.maxRecords) {
+            records.shift();
+            incomplete = true;
+          }
+        }
+      } else {
+        safeDiagnostic(options, 'malformed-record');
+        incomplete = true;
+      }
+    }
+
+    if (mode === 'prefix' && records.length >= options.maxRecords) {
+      if (!isFinalFragment || end < buffer.length) incomplete = true;
+      break;
+    }
+    if (isFinalFragment) break;
+    start = newline + 1;
+  }
+
+  return { records, incomplete, deadlineExceeded: false };
+}
+
+/**
+ * Read complete JSONL records from a bounded metadata prefix. Diagnostics are
+ * deliberately code-only: transcript paths and parse details never escape.
+ */
+export async function readMetadataRecordsBounded(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+): Promise<JsonObject[]> {
+  validateBoundedReadOptions(options);
+  const deadline = deadlineAt(options);
+  const window = await readBoundedWindow(
+    transcriptPath,
+    options,
+    'prefix',
+    deadline,
+  );
+  if (window === null) return [];
+  const parsed = parseBoundedLines(
+    window.buffer,
+    options,
+    deadline,
+    'prefix',
+    false,
+    window.fileSize > window.buffer.length && window.buffer.at(-1) !== 0x0a,
+  );
+  return parsed.records;
+}
+
+/**
+ * Read the newest complete JSONL records from a bounded tail window. The
+ * result is marked truncated whenever bytes, records, malformed input, or a
+ * deadline prevent the complete window from being represented.
+ */
+export async function readTailRecordsBounded(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+): Promise<BoundedTailReadResult> {
+  validateBoundedReadOptions(options);
+  const deadline = deadlineAt(options);
+  const window = await readBoundedWindow(
+    transcriptPath,
+    options,
+    'tail',
+    deadline,
+  );
+  if (window === null) return { records: [], truncated: false };
+  const parsed = parseBoundedLines(
+    window.buffer,
+    options,
+    deadline,
+    'tail',
+    window.offset > 0,
+    false,
+  );
+  return {
+    records: parsed.records,
+    truncated: window.offset > 0 || parsed.incomplete,
+  };
+}
 
 /**
  * Read a JSONL transcript file tolerantly:

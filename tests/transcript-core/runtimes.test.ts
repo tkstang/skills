@@ -29,7 +29,9 @@ import {
   isNoOpText,
   normalizeEntries,
   parseAutomaticControlEnvelope,
+  readMetadataRecordsBounded,
   readRecords,
+  readTailRecordsBounded,
 } from '../../src/transcript/core/runtimes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -197,6 +199,141 @@ describe('readRecords', () => {
       fixturePath('claude-code', 'empty.jsonl'),
     );
     expectDeepEqual(records, []);
+  });
+});
+
+describe('bounded transcript readers', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'bounded-runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('reads only complete metadata-prefix records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'metadata-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 24,
+        maxRecords: 1,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual([{ index: 1 }]);
+  });
+
+  it('returns the newest complete tail records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'records-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readTailRecordsBounded(transcriptPath, {
+        maxBytes: 128,
+        maxRecords: 2,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ index: 2 }, { index: 3 }],
+      truncated: true,
+    });
+  });
+
+  it('drops malformed and partial final records with path-free diagnostics', async () => {
+    const transcriptPath = join(tmpDir, 'sensitive-session-name.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\nnot-json\n{"partial":');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result.records).toEqual([{ ok: true }]);
+    expect(diagnostics).toEqual([
+      { code: 'malformed-record' },
+      { code: 'malformed-record' },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+    expect(JSON.stringify(diagnostics)).not.toContain('sensitive-session-name');
+  });
+
+  it('reports an oversized prefix record without whole-file fallback', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n{"later":true}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const records = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(records).toEqual([]);
+    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+  });
+
+  it('reports an oversized tail record when no complete record fits the byte window', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({ records: [], truncated: true });
+    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+  });
+
+  it('fails closed at an expired deadline without disclosing the path', async () => {
+    const transcriptPath = join(tmpDir, 'deadline-secret.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\n');
+    const diagnostics: unknown[] = [];
+
+    const records = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      deadlineMs: 0,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(records).toEqual([]);
+    expect(diagnostics).toEqual([{ code: 'deadline-exceeded' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+  });
+
+  it('reports read failures without transcript paths', async () => {
+    const transcriptPath = join(tmpDir, 'missing-secret.jsonl');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({ records: [], truncated: false });
+    expect(diagnostics).toEqual([{ code: 'read-failed' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
   });
 });
 
