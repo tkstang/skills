@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 5a2abd43e20562805960b7d82bba84ca83014667
+oat_last_commit: ed8be6f7f3c23fa299ca14e4ba3f28735eefbb65
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 oat_dispatch_policy:
   mode: managed
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T02:35:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-08-31T03:50:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -90,20 +90,20 @@ oat_project_recap:
 
 # Project State: coding-session-handoff
 
-**Status:** Planning in progress
+**Status:** Planning complete
 **Started:** 2026-08-31
 **Last Updated:** 2026-08-31
 
 ## Current Phase
 
-Planning - Six-phase implementation plan drafted for independent review
+Planning - Ready for implementation
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
-- **Plan:** `plan.md` (drafted; awaiting independent review)
+- **Plan:** `plan.md` (complete; independently reviewed)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -120,7 +120,9 @@ Planning - Six-phase implementation plan drafted for independent review
 - ✓ Managed Frontier dispatch ceiling selected for consequential implementation/review
 - ✓ Plan artifact review received with four bounded Important findings
 - ✓ Plan corrections applied for generated/version ownership, atomic public layout, restart-safe receipt review, and project-only sync
-- ⧗ Clean plan re-review pending
+- ✓ Clean structured re-review passed with no findings
+- ✓ Cross-family plan gate passed and its review artifact was received
+- ✓ Plan complete; awaiting implementation
 
 ## Blockers
 
@@ -128,4 +130,4 @@ None
 
 ## Next Milestone
 
-Pass independent plan review and complete planning
+Begin implementation at p01-t01
