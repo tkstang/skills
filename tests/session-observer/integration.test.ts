@@ -7,6 +7,7 @@
  */
 
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdtemp,
   rm,
@@ -16,6 +17,7 @@ import {
   writeFile,
   readFile,
   realpath,
+  access,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -23,6 +25,8 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, describe, test } from 'vitest';
 
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as generatedLocate from '../../skills/session-observer/scripts/lib/locate.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import { observeCatchUp as observeGeneratedCatchUp } from '../../skills/session-observer/scripts/lib/observe.mjs';
 
@@ -139,6 +143,38 @@ async function writeCursorTranscript(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fileDigest(path: string): Promise<string> {
+  return createHash('sha256')
+    .update(await readFile(path))
+    .digest('hex');
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function codexTranscript(cwd: string, sessionId: string): string {
+  return [
+    JSON.stringify({ type: 'session_started', sessionId, cwd }),
+    JSON.stringify({
+      type: 'response_item',
+      sessionId,
+      payload: { type: 'message', role: 'user', content: 'Hello' },
+    }),
+    JSON.stringify({
+      type: 'response_item',
+      sessionId,
+      payload: { type: 'message', role: 'assistant', content: 'Hi' },
+    }),
+    '',
+  ].join('\n');
 }
 
 async function copyCursorTranscript(
@@ -317,6 +353,134 @@ describe('integration: review', () => {
       ).toBeGreaterThan(0);
     } finally {
       await cleanup();
+    }
+  });
+});
+
+describe('integration: exact read-only discovery', () => {
+  test('keeps an absent state directory absent and leaves the transcript byte-identical', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'integration-read-only-empty-'));
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    try {
+      const cwd = join(home, 'Code', 'read-only-project');
+      const stateDir = join(home, '.local', 'state', 'session-observer');
+      const transcriptDir = join(
+        home,
+        '.codex',
+        'sessions',
+        '2026',
+        '08',
+        '30',
+      );
+      const transcriptPath = join(transcriptDir, 'read-only-session.jsonl');
+      await mkdir(transcriptDir, { recursive: true });
+      await writeFile(
+        transcriptPath,
+        codexTranscript(cwd, 'read-only-session'),
+        'utf8',
+      );
+      const transcriptBefore = await fileDigest(transcriptPath);
+      process.env.HOME = home;
+      process.env.STATE_DIR = stateDir;
+
+      const candidates = await generatedLocate.discover(
+        'codex',
+        cwd,
+        new generatedLocate.ClassificationCache(),
+        { persistence: 'forbid', recency: 'exact-all' },
+      );
+
+      expect(candidates).toEqual([
+        expect.objectContaining({
+          sessionId: 'read-only-session',
+          recordedCwd: cwd,
+        }),
+      ]);
+      expect(await pathExists(stateDir)).toBe(false);
+      expect(await fileDigest(transcriptPath)).toBe(transcriptBefore);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('leaves seeded cache, observer offsets, and transcript bytes unchanged', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'integration-read-only-seeded-'));
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    try {
+      const cwd = join(home, 'Code', 'seeded-project');
+      const stateDir = join(home, '.local', 'state', 'session-observer');
+      const transcriptDir = join(
+        home,
+        '.codex',
+        'sessions',
+        '2026',
+        '08',
+        '30',
+      );
+      const transcriptPath = join(transcriptDir, 'seeded-session.jsonl');
+      const cachePath = join(stateDir, 'codex-cwd-cache.json');
+      const offsetsPath = join(stateDir, 'state.json');
+      await mkdir(transcriptDir, { recursive: true });
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        transcriptPath,
+        codexTranscript(cwd, 'seeded-session'),
+        'utf8',
+      );
+      await writeFile(
+        cachePath,
+        JSON.stringify({
+          stale: { recordedCwd: '/wrong', sessionId: 'wrong' },
+        }),
+        'utf8',
+      );
+      await writeFile(
+        offsetsPath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'codex:seeded-session': {
+              runtime: 'codex',
+              sessionId: 'seeded-session',
+              lastRecordIndex: 2,
+              lastTotalRecords: 3,
+            },
+          },
+        }),
+        'utf8',
+      );
+      const before = {
+        transcript: await fileDigest(transcriptPath),
+        cache: await fileDigest(cachePath),
+        offsets: await fileDigest(offsetsPath),
+      };
+      process.env.HOME = home;
+      process.env.STATE_DIR = stateDir;
+
+      await generatedLocate.discover(
+        'codex',
+        cwd,
+        new generatedLocate.ClassificationCache(),
+        { persistence: 'forbid', recency: 'exact-all' },
+      );
+
+      expect({
+        transcript: await fileDigest(transcriptPath),
+        cache: await fileDigest(cachePath),
+        offsets: await fileDigest(offsetsPath),
+      }).toEqual(before);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(home, { recursive: true, force: true });
     }
   });
 });
