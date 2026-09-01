@@ -72,6 +72,10 @@ Phase p03 remains BLOCKED at review cycle 3 of 3; reviews/archived/p03-review-20
 
 Stopped before p04 because the review-cycle cap is exhausted with one residual Important invalid Codex cleanup-ID boundary; no additional fix, review, or live-provider gate was launched.
 
+### 2026-09-01 · structural · oat-project-review-receive · p03-override
+
+User explicitly authorized one bounded review-cycle override: p03-t09 validates exact Codex cleanup IDs, preserves deferred Medium findings, and permits exactly one additional targeted independent review before p04.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

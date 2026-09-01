@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-08-31
+oat_last_updated: 2026-09-01
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
@@ -791,6 +791,44 @@ guess an ID or directly unlink provider state.
 
 ---
 
+### Task p03-t09: (review) Validate exact Codex cleanup IDs
+
+**Dependencies:** p03-t08 and the third p03 review at `a20c138`.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add direct cleanup and end-to-end gate cases for machine-observed Codex
+parent/child IDs that are option-shaped, non-UUID, or control-bearing. Include a
+cleanup runner that returns success and prove no invalid value reaches
+`codex delete --force` or produces a `removed` receipt.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts`
+
+Expected: invalid non-empty IDs still count as exact cleanup IDs and can falsely report
+successful removal.
+
+**GREEN:** Validate every machine-observed Codex parent/child ID against the exact
+Codex 0.151.0 UUID grammar before retaining, corroborating, or deleting it. Treat every
+invalid value as missing; delete only retained valid exact IDs and keep cleanup
+`failed` whenever an attempted creation boundary lacks one. Regenerate the development
+bundle through `pnpm run build`.
+
+**Refactor:** Keep the untrusted-ID boundary centralized and provider-specific. Do not
+weaken Claude identity handling, guess IDs, invoke a shell, or directly unlink provider
+state.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts tests/coding-session-handoff/behavior-gate.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p03-t09): validate exact Codex cleanup IDs`
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1167,7 +1205,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p02-t13 | code | passed | 2026-08-31 | reviews/archived/p02-t13-review-2026-08-31T145043Z.md | 63d27033ae049f925e475246a4da2724a03756ab | manual | - |
 | p03 | code | fixes_completed | 2026-08-31 | reviews/archived/p03-review-2026-08-31T163214Z.md | ed28bec732892a5c12f99300dcd558cb09a26124 | manual | - |
 | p03 | code | fixes_completed | 2026-08-31 | reviews/archived/p03-review-2026-08-31T223047Z.md | 304ec8618b8dd9377c06f226d19ffbf8473c85c4 | manual | - |
-| p03 | code | received | 2026-08-31 | reviews/archived/p03-review-2026-08-31T235826Z.md | a20c138b349e2afbfb4251b51edf1c338cca2783 | manual | - |
+| p03 | code | fixes_added | 2026-09-01 | reviews/archived/p03-review-2026-08-31T235826Z.md | a20c138b349e2afbfb4251b51edf1c338cca2783 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1193,13 +1231,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 8 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, and two final-review repairs
+- p03: 9 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, and three final-review repairs
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 28 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 29 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 28 tasks have exactly one verified commit,
+Implementation is complete only when all 29 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

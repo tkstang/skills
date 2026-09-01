@@ -1,19 +1,16 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p03-review
-    reason: 'Third and final p03 review found one Important invalid Codex cleanup-ID boundary; review-cycle cap reached.'
-    since: 2026-08-31
-oat_last_updated: 2026-08-31
-oat_current_task_id: p05-t03
+oat_blockers: []
+oat_last_updated: 2026-09-01
+oat_current_task_id: p03-t09
 oat_generated: false
 ---
 
 # Implementation: coding-session-handoff
 
 **Started:** 2026-08-31
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -31,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | blocked     | 8     | 8/8       |
+| p03   | in_progress | 9     | 8/9       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 24/28 tasks completed
+**Total:** 24/29 tasks completed
 
 ---
 
@@ -169,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** blocked
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -186,7 +183,8 @@ review passed with zero findings; both Mediums remain explicitly deferred.
   truthfulness in `6380426` and `a20c138`.
 - The authorized third review confirmed exact native-identity propagation but found
   one residual Important cleanup-ID validation gap. The three-cycle review cap is
-  reached, so p03 is blocked before any live provider gate.
+  reached. The user explicitly authorized one bounded p03-t09 fix and one additional
+  targeted independent review; p04 remains blocked until that review passes.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
@@ -199,8 +197,9 @@ authorized fix continuations resolved the six original blockers and the residual
 proof defect. A failed intermediate review transport produced no artifact. The final
 authorized review found 1 Critical, 1 Important, and 3 Medium findings; its Critical
 and Important findings were fixed. The third review confirmed the Critical fix and
-found 0 Critical, 1 residual Important, and 3 deferred Medium findings. Review cycle 3
-of 3 is exhausted; p03 remains blocked.
+found 0 Critical, 1 residual Important, and 3 deferred Medium findings. After review
+cycle 3 of 3, the user authorized exactly one override fix/review pair for that
+Important finding; the Medium findings remain outside scope.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -241,6 +240,11 @@ of 3 is exhausted; p03 remains blocked.
 
 **Status:** completed
 **Commit:** `a20c138b349e2afbfb4251b51edf1c338cca2783`
+
+### Task p03-t09: (review) Validate exact Codex cleanup IDs
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -589,8 +593,16 @@ construction, so an option-shaped or otherwise invalid value can still produce a
 `removed` receipt if the provider command exits successfully. M1-M3 remain explicitly
 deferred and nonblocking by themselves.
 
-**Review-cycle outcome:** Cycle 3 of 3 is exhausted. No additional task or fix dispatch
-was created, p03 is blocked, and p04/p05 remain unstarted pending user direction.
+**Review-cycle outcome:** Cycle 3 of 3 exhausted the automatic budget. On 2026-09-01,
+the user explicitly authorized one bounded override: convert I1 to p03-t09, continue
+the original p03 implementer at its exact target, and run one additional targeted
+independent review. p04/p05 remain unstarted unless that review passes.
+
+**New task added:** p03-t09
+
+**Override scope:** Validate machine-observed Codex cleanup IDs and preserve the three
+Medium deferrals. No live provider gate, activation, p05 work, or second override
+review is authorized.
 
 ---
 
@@ -651,7 +663,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, and root/final-review 235 reviewer-facing tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Eight tasks plus review-fix commits through `a20c138`; final review BLOCKED on one Important cleanup-ID validation gap; live provider gates not run |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, and root/final-review 235 reviewer-facing tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Eight of nine tasks complete through `a20c138`; p03-t09 queued for the Important cleanup-ID validation gap; live provider gates not run |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
