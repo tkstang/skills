@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t10
-oat_last_commit: 459abf31c1c160895d2498d545095f1d5276e77d
+oat_current_task: p05-t03
+oat_last_commit: 7693c044db7aaf5357d3cd6e7a6000dd02bfb464
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T22:08:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T22:15:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t10 auth-probe correction authorized
+Implementation - p03-t10 targeted review pending
 
 ## Artifacts
 
@@ -168,15 +168,17 @@ Implementation - p03-t10 auth-probe correction authorized
 - ✗ p04-t01 exact-version plan check found an incompatible Codex authentication probe
 - ⏸ No provider session was created or deleted; p04-t02 and p05 remain unstarted
 - ✓ User authorized one bounded p03-t10 correction and one targeted independent review
-- ⧗ p03-t10 is next; p04-t01 remains paused until that review passes
+- ✓ p03-t10 completed at `7693c044`; exact Codex 0.151.0 auth output is recognized fail-closed
+- ✓ Root verified the exact three-file boundary, 70 focused tests, type-check, and build parity
+- ⧗ One targeted independent p03-t10 review is next; p04-t01 remains paused until it passes
 
 ## Blockers
 
-None in implementation. The prior p04-t01 blocker has been converted into authorized
-task p03-t10; the live gate remains paused and unmutated.
+None in implementation. p03-t10 is complete, but the live gate remains paused and
+unmutated until its one authorized targeted review passes.
 
 ## Next Milestone
 
-Complete p03-t10 through the original p03 implementer, run exactly one targeted
-independent review, and—only if it passes—resume p04-t01 from a fresh mutation-free
-plan check. Do not invoke `behavior-verify` before that review passes.
+Run exactly one targeted independent p03-t10 review and—only if it passes—resume
+p04-t01 from a fresh mutation-free plan check. Do not invoke `behavior-verify` before
+that review passes.

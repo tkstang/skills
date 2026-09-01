@@ -88,6 +88,10 @@ Stopped p04-t01 before provider mutation: an isolated exact Codex 0.151.0 CLI is
 
 User authorized one bounded p03-t10 fail-closed Codex 0.151.0 authentication-probe correction and one targeted independent review before retrying p04-t01; the implementer must not invoke login, provider sessions, cleanup, or quota-bearing operations.
 
+### 2026-09-01 · structural · oat-project-implement · p03-t10
+
+Task p03-t10 completed at 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 with the exact three-file boundary; root verification passed 70 focused tests, type-check, generated parity, and diff hygiene, and the one authorized targeted review is pending before p04-t01.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
