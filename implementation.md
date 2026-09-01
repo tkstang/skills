@@ -1,12 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p04-t01
-    reason: 'Codex 0.151.0 emits the exact authenticated status on stderr, while the reviewed p03-t10 contract intentionally rejects stderr-only authentication.'
-    since: 2026-09-01
+oat_blockers: []
 oat_last_updated: 2026-09-01
-oat_current_task_id: p05-t03
+oat_current_task_id: p03-t11
 oat_generated: false
 ---
 
@@ -31,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | completed   | 10    | 10/10     |
+| p03   | in_progress | 11    | 10/11     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 26/30 tasks completed
+**Total:** 26/31 tasks completed
 
 ---
 
@@ -169,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** completed
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -193,6 +190,10 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 - The authorized p04-t01 mutation-free plan check then found that Codex 0.151.0 does
   not support the probe's `login status --json` argv. The user authorized one bounded
   p03-t10 correction and one targeted independent review before retrying the gate.
+- The reviewed p03-t10 stdout-only hypothesis proved incorrect at the next mutation-free
+  gate check: Codex 0.151.0 emits the exact authenticated status only on stderr, even
+  outside the sandbox. The user authorized p03-t11 to supersede only that channel
+  assumption, plus one fresh targeted review.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
@@ -210,7 +211,7 @@ found 0 Critical, 1 residual Important, and 3 deferred Medium findings. After re
 cycle 3 of 3, the user authorized exactly one override fix/review pair for that
 Important finding. That targeted review passed with 0 Critical, 0 Important, 0 Medium,
 and 0 Minor findings. The three earlier Medium findings remain outside scope and
-explicitly deferred. p03 is temporarily reopened only for p03-t10 and its targeted
+explicitly deferred. p03 is temporarily reopened only for p03-t11 and its targeted
 review.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
@@ -263,11 +264,16 @@ review.
 **Status:** completed
 **Commit:** `7693c044db7aaf5357d3cd6e7a6000dd02bfb464`
 
+### Task p03-t11: (gate) Recognize exact Codex stderr authentication
+
+**Status:** pending
+**Commit:** -
+
 ---
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED before mutation: exact authenticated status is stderr-only
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t11 and its targeted review
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -536,6 +542,22 @@ independently verified before p04-t01 can safely execute.
 - Independent channel capture, including one out-of-sandbox read-only confirmation, showed exit 0, empty stdout, and exact authenticated status on stderr
 - No provider session, receipt, locator, cleanup, or quota-spending operation occurred
 - The reviewed p03-t10 contract explicitly rejects stderr-only success; changing that contract requires a new bounded task and review authorization
+
+### Run 7 — 2026-09-01T22:40:37Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1 — original p03 implementer continuation
+- Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
+- Scope: p03-t11 only, followed by one fresh targeted independent review
+- Status: authorized and planned; implementation dispatch pending
+
+#### p03-t11 Authorization
+
+- Supersede only the disproven p03-t10 stdout-channel assumption
+- Accept only the exact exit-0, empty-stdout, exact-stderr Codex 0.151.0 authenticated shape
+- Reject warnings, extra text, mixed channels, failures, and version/help drift
+- Do not invoke login, provider sessions, cleanup, or quota-bearing operations from the implementer
+- Retry p04-t01 only after the fresh targeted review passes with zero Critical/Important findings
 
 <!-- orchestration-runs-end -->
 

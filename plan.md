@@ -869,6 +869,48 @@ behavior gate from the implementer.
 
 ---
 
+### Task p03-t11: (gate) Recognize exact Codex stderr authentication
+
+**Dependencies:** p03-t10, its targeted independent review, and the p04-t01 post-fix
+mutation-free channel capture recorded on 2026-09-01.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/providers.ts`
+- Modify: `tests/coding-session-handoff/providers.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Pin the observed Codex 0.151.0 result shape: exit code 0, empty stdout, and
+stderr exactly `Logged in using ChatGPT` after bounded line-ending normalization.
+Cover rejection of the PATH-alias warning plus authenticated text, any extra stderr,
+nonempty stdout, contradictory or logged-out text, a nonzero exit, and version/help
+drift. Preserve the existing 10-second/64-KiB/shell-disabled bounds and Claude's JSON
+authentication behavior unchanged.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts`
+
+Expected: the exact stderr-only authenticated result remains rejected by the p03-t10
+stdout-only parser.
+
+**GREEN:** Recognize Codex authentication only when all four conditions hold: the
+exact supported `login status` argv completed with exit 0, normalized stdout is empty,
+normalized stderr equals the single known authenticated line, and the exact
+version/help/context gates already passed. Reject substrings, warnings, mixed-channel
+output, unknown text, and execution failure. Keep Claude's JSON path unchanged and
+regenerate the development bundle through `pnpm run build`.
+
+**Refactor:** Keep the provider-specific channel contract explicit and fail closed.
+Do not request credentials, invoke login, relax version/help/context gates, accept
+general stderr success, or run a live behavior gate from the implementer.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/providers.ts tests/coding-session-handoff/providers.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p03-t11): recognize exact Codex stderr auth`
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1248,6 +1290,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03 | code | fixes_completed | 2026-09-01 | reviews/archived/p03-review-2026-08-31T235826Z.md | a20c138b349e2afbfb4251b51edf1c338cca2783 | manual | - |
 | p03-t09 | code | passed | 2026-09-01 | reviews/archived/p03-t09-review-2026-09-01T211658Z.md | 459abf31c1c160895d2498d545095f1d5276e77d | manual | - |
 | p03-t10 | code | passed | 2026-09-01 | reviews/archived/p03-t10-review-2026-09-01T221652Z.md | 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 | manual | - |
+| p03-t11 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1273,13 +1316,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 10 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, and the gate-discovered auth correction
+- p03: 11 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, and two gate-discovered auth corrections
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 30 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 31 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 30 tasks have exactly one verified commit,
+Implementation is complete only when all 31 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

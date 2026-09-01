@@ -100,6 +100,10 @@ The one authorized targeted independent p03-t10 review passed at 7693c044db7aaf5
 
 Stopped p04-t01 before provider mutation after the post-fix plan still reported authentication required: Codex 0.151.0 exits 0 with empty stdout and the exact authenticated status only on stderr, while p03-t10 intentionally rejects stderr-only success; behavior-verify was not invoked and no provider session, receipt, locator, cleanup, or quota-spending call occurred.
 
+### 2026-09-01 · structural · oat-project-implement · p03-stderr-override
+
+User authorized one bounded p03-t11 correction for the observed exit-0, empty-stdout, exact-stderr Codex 0.151.0 authentication shape and one fresh targeted independent review before retrying p04-t01; no provider mutation is allowed from the implementer.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
