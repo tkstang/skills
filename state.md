@@ -1,10 +1,7 @@
 ---
-oat_current_task: p05-t03
+oat_current_task: p03-t12
 oat_last_commit: 4162366f70760d65b9aef9dfa162eedb37391b54
-oat_blockers:
-  - task_id: p03-t11-review
-    reason: 'The one authorized fresh review found an Important exact-output defect: broad capability normalization accepts non-exact Codex authentication shapes.'
-    since: 2026-09-01
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -83,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T22:57:30Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T23:20:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -103,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t11 blocked by targeted review
+Implementation - p03-t12 exact-output review repair authorized
 
 ## Artifacts
 
@@ -182,16 +179,17 @@ Implementation - p03-t11 blocked by targeted review
 - ✓ p03-t11 completed at `4162366f`; exact stderr-only Codex auth is recognized fail-closed
 - ✓ Root verified the exact three-file boundary, 72 focused tests, type-check, and build parity
 - ✗ Fresh targeted p03-t11 review found 1 Important exact-output-normalization defect
-- ⏹ The authorized fix/review pair is exhausted; no additional fix, review, or live gate was launched
+- ✓ User authorized receive, one bounded exact-comparator repair, and one fresh targeted review
+- ✓ Important finding I1 converted to p03-t12
+- ⧗ p03-t12 is next; p04-t01 remains paused until its targeted review passes
 
 ## Blockers
 
-p03-t11 is blocked by one Important review finding. Broad capability normalization
-accepts case, whitespace, ANSI, and blank-line variations that the exact Codex
-authentication contract must reject.
+None in implementation. The p03-t11 Important finding has been converted into
+authorized task p03-t12; the live gate remains paused and unmutated.
 
 ## Next Milestone
 
-Obtain explicit authorization to receive the p03-t11 finding, apply one bounded exact
-comparator repair through the original implementer, and run one fresh targeted review.
-Do not invoke `behavior-verify` before that review passes.
+Complete p03-t12 through the original p03 implementer, run one fresh targeted
+independent review, and—only if it passes—resume p04-t01 from a fresh mutation-free
+plan check. Do not invoke `behavior-verify` before that review passes.

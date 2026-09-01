@@ -112,6 +112,10 @@ Task p03-t11 completed at 4162366f70760d65b9aef9dfa162eedb37391b54 with the exac
 
 Stopped before p04-t01 after the one authorized fresh p03-t11 review reported critical:0,important:1,medium:0,minor:0 at 4162366f70760d65b9aef9dfa162eedb37391b54; broad capability normalization accepts non-exact Codex auth shapes, and no additional fix, review, or provider mutation was launched.
 
+### 2026-09-01 · structural · oat-project-review-receive · p03-t11
+
+Authorized receive advanced reviews/archived/p03-t11-review-2026-09-01T224710Z.md from received to fixes_added; Important finding I1 became p03-t12, a bounded exact-output comparator repair, with one fresh targeted review authorized before p04-t01.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

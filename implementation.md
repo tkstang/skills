@@ -1,12 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p03-t11-review
-    reason: 'The one authorized fresh review found an Important exact-output defect: broad capability normalization accepts non-exact Codex authentication shapes.'
-    since: 2026-09-01
+oat_blockers: []
 oat_last_updated: 2026-09-01
-oat_current_task_id: p05-t03
+oat_current_task_id: p03-t12
 oat_generated: false
 ---
 
@@ -31,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | blocked     | 11    | 11/11     |
+| p03   | in_progress | 12    | 11/12     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 27/31 tasks completed
+**Total:** 27/32 tasks completed
 
 ---
 
@@ -169,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** blocked
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -272,11 +269,16 @@ review.
 **Status:** completed
 **Commit:** `4162366f70760d65b9aef9dfa162eedb37391b54`
 
+### Task p03-t12: (review) Enforce exact Codex authentication output
+
+**Status:** pending
+**Commit:** -
+
 ---
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED: p03-t11 review found one Important exact-output defect
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t12 and its targeted review
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -584,10 +586,16 @@ Chronological log of implementation progress.
 **Date:** 2026-09-01
 **Review artifact:** `reviews/archived/p03-t11-review-2026-09-01T224710Z.md`
 
-The one authorized fresh targeted review found 0 Critical, 1 Important, 0 Medium,
-and 0 Minor findings at `4162366f`. The exact-channel implementation is too permissive
-because it reuses a lossy capability normalizer. p04-t01 remains stopped before
-provider mutation; no additional fix or review is authorized.
+The fresh targeted review found 0 Critical, 1 Important, 0 Medium, and 0 Minor
+findings at `4162366f`. I1 is accepted and converted to p03-t12: replace the lossy
+shared normalizer with a Codex-auth-specific exact comparator and add the missing
+near-match rejection matrix. The user authorized immediate execution and one fresh
+targeted re-review; p04-t01 remains stopped before provider mutation.
+
+**New task added:** p03-t12
+
+**Next:** Execute p03-t12 through the original p03 implementer, then run one fresh
+targeted independent review before retrying p04-t01.
 
 ### Review Received: p03-t10
 
