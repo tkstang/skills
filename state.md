@@ -1,7 +1,10 @@
 ---
 oat_current_task: p05-t03
 oat_last_commit: 459abf31c1c160895d2498d545095f1d5276e77d
-oat_blockers: []
+oat_blockers:
+  - task_id: p04-t01
+    reason: 'Codex 0.151.0 rejects the required login status --json probe, so authenticated state cannot be established safely.'
+    since: 2026-09-01
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +83,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T21:06:19Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T21:52:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +103,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03 complete; root-owned live provider gates pending authorization
+Implementation - p04-t01 blocked before provider mutation
 
 ## Artifacts
 
@@ -164,15 +167,18 @@ Implementation - p03 complete; root-owned live provider gates pending authorizat
 - ✓ Root verified the exact three-file commit boundary, 52 focused tests, type-check, and build parity
 - ✓ Targeted independent p03-t09 review passed with zero findings at `459abf31`
 - ✓ Phase p03 completed; prior I1 is resolved and M1-M3 remain explicitly deferred
-- ⏸ p04 and p05 remain unstarted; p04-t01 requires separate live-provider authorization
+- ✓ p04 live-provider execution authorized
+- ✗ p04-t01 exact-version plan check found an incompatible Codex authentication probe
+- ⏸ No provider session was created or deleted; p04-t02 and p05 remain unstarted
 
 ## Blockers
 
-None in implementation. The explicit one-fix/one-review override completed and p03
-passed. The next boundary is authorization for the root-owned p04 live provider gates.
+p04-t01 is blocked before mutation. The exact Codex 0.151.0 CLI is authenticated via
+ChatGPT, but it rejects `codex login status --json`; the harness therefore cannot
+establish authenticated state and correctly refuses `behavior-verify`.
 
 ## Next Milestone
 
-With separate authorization, run p04-t01: the Codex 0.151.0 disposable live behavior
-gate. Do not create/delete provider state or spend provider quota before that approval.
-After the root entry gates and independent receipt reviews pass, resume p05-t03.
+Correct the exact-version Codex authentication probe contract, independently verify
+the bounded fix, and then resume p04-t01 from a fresh mutation-free plan check. Do not
+invoke `behavior-verify` until authenticated state is established safely.

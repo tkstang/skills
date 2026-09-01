@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p04-t01
+    reason: 'Codex 0.151.0 rejects the required login status --json probe, so authenticated state cannot be established safely.'
+    since: 2026-09-01
 oat_last_updated: 2026-09-01
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -255,7 +258,7 @@ explicitly deferred.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED before mutation: exact-version auth probe is incompatible
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -480,6 +483,27 @@ target `oat-reviewer-gpt-5-6-sol-max`; accepted; outcome PASS.
 Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oat-reviewer-gpt-5-6-sol-max)
 
 Dispatch: scope=p03-t09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+
+### Run 5 — 2026-09-01T21:52:49Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1; p04 gate execution is root-owned by plan
+- Scope: p04-t01 plan check only
+- Status: BLOCKED before provider mutation
+
+#### p04-t01 Plan-Check Outcome
+
+- System Codex `0.152.0` did not satisfy the exact `0.151.0` contract
+- Installed `@openai/codex@0.151.0` into an isolated temporary directory without changing the system installation
+- Exact-version plan produced syntax fingerprint `8f8ad2711e00aa61cbc1463ec570f19c8a3cc8a13859f431b9797e579ec19891`
+- Exact-version plan produced execution-context fingerprint `b7bf5afdafa86fbfd5ea0f6f847754f74e5e9d9f9ee9a31dc21d9edb961bbbbd`
+- Confirmation digest: `8cb1a480719f1328a76773dd20480bde6f1ee390ca0765474a36f62dc56c9d2f`
+- Direct `codex login status` reports ChatGPT authentication
+- Harness probe invokes `codex login status --json`; Codex 0.151.0 rejects that flag and therefore reports authentication `required`
+- `behavior-verify` was not invoked; no provider session creation, deletion, quota spend, receipt, or locator exists
+
+**Blocker:** The exact-version authentication probe contract must be corrected and
+independently verified before p04-t01 can safely execute.
 
 <!-- orchestration-runs-end -->
 

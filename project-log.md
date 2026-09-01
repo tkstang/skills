@@ -80,6 +80,10 @@ User explicitly authorized one bounded review-cycle override: p03-t09 validates 
 
 Phase p03 passed after one explicit review-cycle override: reviews/archived/p03-t09-review-2026-09-01T211658Z.md reports critical:0,important:0,medium:0,minor:0 at 459abf31c1c160895d2498d545095f1d5276e77d; M1-M3 remain deferred and p04-t01 is the next separately authorized live-provider boundary.
 
+### 2026-09-01 · structural · oat-project-implement · p04-t01-stop
+
+Stopped p04-t01 before provider mutation: an isolated exact Codex 0.151.0 CLI is logged in, but the harness-required login status --json command is unsupported, so authentication remains unverified; behavior-verify was not invoked and no provider session, receipt, locator, cleanup, or quota-spending call occurred.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
