@@ -16,6 +16,9 @@ import {
 import type { ProviderProbeResult } from '../../src/transcript/coding-session-handoff/providers.js';
 import type { BehavioralGateReceipt } from '../../src/transcript/coding-session-handoff/types.js';
 
+const CODEX_PARENT_ID = '10000000-0000-4000-a000-000000000001';
+const CODEX_CHILD_ID = '10000000-0000-4000-a000-000000000002';
+
 function probe(provider: 'codex' | 'claude'): ProviderProbeResult {
   const exactVersion = provider === 'codex' ? '0.151.0' : '2.1.251';
   return {
@@ -63,7 +66,10 @@ function dependencies(
         return {
           exitCode: 0,
           signal: null,
-          stdout: `{"type":"thread.started","thread_id":"${providerCalls === 1 ? 'parent-id' : providerCalls === 2 ? 'child-id' : 'parent-id'}"}\n`,
+          stdout: `${JSON.stringify({
+            type: 'thread.started',
+            thread_id: providerCalls === 2 ? CODEX_CHILD_ID : CODEX_PARENT_ID,
+          })}\n`,
           stderr: '',
         };
       }
@@ -195,9 +201,9 @@ describe('behavior-verify', () => {
       state: {
         parentCreationAttempted: true,
         successorCreationAttempted: true,
-        parentNativeId: 'parent-id',
+        parentNativeId: CODEX_PARENT_ID,
       },
-      expectedIds: ['parent-id'],
+      expectedIds: [CODEX_PARENT_ID],
       expectedStatus: 'failed',
     },
     {
@@ -205,10 +211,10 @@ describe('behavior-verify', () => {
       state: {
         parentCreationAttempted: true,
         successorCreationAttempted: true,
-        parentNativeId: 'parent-id',
-        childNativeId: 'child-id',
+        parentNativeId: CODEX_PARENT_ID,
+        childNativeId: CODEX_CHILD_ID,
       },
-      expectedIds: ['child-id', 'parent-id'],
+      expectedIds: [CODEX_CHILD_ID, CODEX_PARENT_ID],
       expectedStatus: 'removed',
     },
   ] as const)(
@@ -237,6 +243,108 @@ describe('behavior-verify', () => {
       expect(result.reasonCodes).toEqual(
         fixture.expectedStatus === 'failed' ? ['reporting-failed'] : [],
       );
+    },
+  );
+
+  test.each([
+    ['parent', 'option-shaped', '--help'],
+    ['parent', 'non-UUID', 'not-a-uuid'],
+    ['parent', 'control-bearing', 'bad\nid'],
+    ['child', 'option-shaped', '--help'],
+    ['child', 'non-UUID', 'not-a-uuid'],
+    ['child', 'control-bearing', 'bad\nid'],
+  ] as const)(
+    'rejects a directly supplied %s %s Codex cleanup ID even when deletion succeeds',
+    async (boundary, _kind, invalidId) => {
+      const deletedIds: string[] = [];
+      const result = await cleanupDefaultProvider(
+        {
+          provider: 'codex',
+          executablePath: '/usr/local/bin/codex',
+          fixture: {
+            repositoryRoot: '/tmp/private-gate',
+            sourceWorktree: '/tmp/private-gate/source',
+            targetWorktree: '/tmp/private-gate/target',
+          },
+          parentCreationAttempted: true,
+          successorCreationAttempted: boundary === 'child',
+          parentNativeId: boundary === 'parent' ? invalidId : CODEX_PARENT_ID,
+          ...(boundary === 'child' ? { childNativeId: invalidId } : {}),
+        },
+        async (_executablePath, argv) => {
+          deletedIds.push(argv[2]);
+        },
+      );
+
+      expect(deletedIds).toEqual(boundary === 'child' ? [CODEX_PARENT_ID] : []);
+      expect(deletedIds).not.toContain(invalidId);
+      expect(result).toMatchObject({
+        status: 'failed',
+        reasonCodes: ['reporting-failed'],
+      });
+    },
+  );
+
+  test.each([
+    ['parent', 'option-shaped', '--help'],
+    ['parent', 'non-UUID', 'not-a-uuid'],
+    ['parent', 'control-bearing', 'bad\nid'],
+    ['child', 'option-shaped', '--help'],
+    ['child', 'non-UUID', 'not-a-uuid'],
+    ['child', 'control-bearing', 'bad\nid'],
+  ] as const)(
+    'fails the end-to-end gate for a %s %s machine ID',
+    async (boundary, _kind, invalidId) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const deletedIds: string[] = [];
+      const base = dependencies(events, receipts);
+      let providerCall = 0;
+      const plan = createBehaviorPlan('codex', probe('codex'));
+      const result = await verifyProviderBehavior({
+        provider: 'codex',
+        providerProbe: probe('codex'),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: {
+          ...base,
+          runProvider: async () => {
+            providerCall += 1;
+            const id =
+              (boundary === 'parent' && providerCall === 1) ||
+              (boundary === 'child' && providerCall === 2)
+                ? invalidId
+                : providerCall === 2
+                  ? CODEX_CHILD_ID
+                  : CODEX_PARENT_ID;
+            return {
+              exitCode: 0,
+              signal: null,
+              stdout: `${JSON.stringify({
+                type: 'thread.started',
+                thread_id: id,
+              })}\n`,
+              stderr: '',
+            };
+          },
+          cleanupProvider: (state) =>
+            cleanupDefaultProvider(state, async (_executablePath, argv) => {
+              deletedIds.push(argv[2]);
+            }),
+        },
+      });
+
+      expect(deletedIds).toEqual(boundary === 'child' ? [CODEX_PARENT_ID] : []);
+      expect(deletedIds).not.toContain(invalidId);
+      expect(result).toMatchObject({
+        status: 'inconclusive',
+        reasonCodes: ['reporting-failed'],
+      });
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        status: 'inconclusive',
+        cleanup: { providerState: 'failed' },
+      });
     },
   );
 
@@ -373,7 +481,7 @@ describe('behavior-verify', () => {
         '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
-        'parent-id',
+        CODEX_PARENT_ID,
         'Reply exactly HANDOFF_READY. Do not use tools.',
       ],
       [
@@ -386,7 +494,7 @@ describe('behavior-verify', () => {
         '--ignore-rules',
         '-c',
         'sandbox_mode="read-only"',
-        'parent-id',
+        CODEX_PARENT_ID,
         'Reply exactly HANDOFF_SOURCE_READY. Do not use tools.',
       ],
     ]);

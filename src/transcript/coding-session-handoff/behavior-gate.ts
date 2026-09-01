@@ -46,6 +46,8 @@ const execFileAsync = promisify(nodeExecFile);
 const PARENT_PROMPT = 'Reply exactly HANDOFF_PARENT_READY. Do not use tools.';
 const SOURCE_PROMPT = 'Reply exactly HANDOFF_SOURCE_READY. Do not use tools.';
 const PROVIDER_CALLS = 3;
+const EXACT_PROVIDER_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export type ProviderGateFailure =
   | 'plan-stale'
@@ -368,6 +370,19 @@ function sourceResumeInvocation(
       );
 }
 
+function isExactProviderUuid(value: unknown): value is string {
+  return typeof value === 'string' && EXACT_PROVIDER_UUID.test(value);
+}
+
+function isValidMachineObservedId(
+  provider: HandoffProvider,
+  value: unknown,
+): value is string {
+  return provider === 'codex'
+    ? isExactProviderUuid(value)
+    : typeof value === 'string' && value.length > 0;
+}
+
 function observedId(
   provider: HandoffProvider,
   result: NativeExecutionResult,
@@ -403,7 +418,10 @@ function observedId(
         : provider === 'claude'
           ? record.session_id
           : undefined;
-    if (typeof value === 'string' && value.length > 0) values.push(value);
+    if (value !== undefined) {
+      if (!isValidMachineObservedId(provider, value)) return null;
+      values.push(value);
+    }
   }
   return new Set(values).size === 1 ? values[0] : null;
 }
@@ -451,11 +469,7 @@ function uniqueReasonCodes(
 function validClaudeLineage(recordUuids: readonly string[]): boolean {
   return (
     recordUuids.length > 0 &&
-    recordUuids.every((uuid) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-        uuid,
-      ),
-    )
+    recordUuids.every((uuid) => isExactProviderUuid(uuid))
   );
 }
 
@@ -1066,13 +1080,11 @@ export async function cleanupDefaultProvider(
   },
 ): Promise<ProviderCleanupResult> {
   const hasExactParentId =
-    typeof context.parentNativeId === 'string' &&
-    context.parentNativeId.length > 0;
+    context.provider !== 'codex' || isExactProviderUuid(context.parentNativeId);
   const hasExactChildId =
-    typeof context.childNativeId === 'string' &&
-    context.childNativeId.length > 0;
+    context.provider !== 'codex' || isExactProviderUuid(context.childNativeId);
   const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
-    (id): id is string => typeof id === 'string' && id.length > 0,
+    (id): id is string => isExactProviderUuid(id),
   );
   const commands =
     context.provider === 'codex'

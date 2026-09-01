@@ -3089,6 +3089,7 @@ var execFileAsync2 = promisify2(nodeExecFile);
 var PARENT_PROMPT = "Reply exactly HANDOFF_PARENT_READY. Do not use tools.";
 var SOURCE_PROMPT = "Reply exactly HANDOFF_SOURCE_READY. Do not use tools.";
 var PROVIDER_CALLS = 3;
+var EXACT_PROVIDER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 var ProviderGateError = class extends Error {
   code;
   constructor(code) {
@@ -3217,6 +3218,12 @@ function sourceResumeInvocation(provider2, cwd, parentNativeId) {
     cwd
   );
 }
+function isExactProviderUuid(value2) {
+  return typeof value2 === "string" && EXACT_PROVIDER_UUID.test(value2);
+}
+function isValidMachineObservedId(provider2, value2) {
+  return provider2 === "codex" ? isExactProviderUuid(value2) : typeof value2 === "string" && value2.length > 0;
+}
 function observedId(provider2, result) {
   if (result.exitCode !== 0 || result.signal !== null || Buffer.byteLength(result.stdout) > 65536 || Buffer.byteLength(result.stderr) > 65536) {
     return null;
@@ -3235,7 +3242,10 @@ function observedId(provider2, result) {
     }
     const record2 = parsed;
     const value2 = provider2 === "codex" && record2.type === "thread.started" ? record2.thread_id : provider2 === "claude" ? record2.session_id : void 0;
-    if (typeof value2 === "string" && value2.length > 0) values.push(value2);
+    if (value2 !== void 0) {
+      if (!isValidMachineObservedId(provider2, value2)) return null;
+      values.push(value2);
+    }
   }
   return new Set(values).size === 1 ? values[0] : null;
 }
@@ -3256,11 +3266,7 @@ function uniqueReasonCodes(...groups) {
   return [...new Set(groups.flat())];
 }
 function validClaudeLineage(recordUuids) {
-  return recordUuids.length > 0 && recordUuids.every(
-    (uuid) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-      uuid
-    )
-  );
+  return recordUuids.length > 0 && recordUuids.every((uuid) => isExactProviderUuid(uuid));
 }
 function validSha256(value2) {
   return /^[0-9a-f]{64}$/u.test(value2);
@@ -3692,10 +3698,10 @@ async function cleanupDefaultProvider(context, runCleanupCommand = async (execut
     windowsHide: true
   });
 }) {
-  const hasExactParentId = typeof context.parentNativeId === "string" && context.parentNativeId.length > 0;
-  const hasExactChildId = typeof context.childNativeId === "string" && context.childNativeId.length > 0;
+  const hasExactParentId = context.provider !== "codex" || isExactProviderUuid(context.parentNativeId);
+  const hasExactChildId = context.provider !== "codex" || isExactProviderUuid(context.childNativeId);
   const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
-    (id) => typeof id === "string" && id.length > 0
+    (id) => isExactProviderUuid(id)
   );
   const commands = context.provider === "codex" ? [...new Set(exactCodexIds)].map((id) => ["delete", "--force", id]) : [
     ["project", "purge", "-y", context.fixture.targetWorktree],
