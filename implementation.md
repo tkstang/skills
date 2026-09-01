@@ -28,7 +28,7 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 9     | 9/9       |
+| p03   | completed   | 9     | 9/9       |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
@@ -166,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -184,14 +184,16 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 - The authorized third review confirmed exact native-identity propagation but found
   one residual Important cleanup-ID validation gap. The three-cycle review cap is
   reached. The user explicitly authorized one bounded p03-t09 fix and one additional
-  targeted independent review. p03-t09 fixed that boundary in `459abf3`; p04 remains
-  blocked until the targeted review passes.
+  targeted independent review. p03-t09 fixed that boundary in `459abf3`, and the
+  targeted review passed with zero findings. p04 is the next root-owned boundary and
+  remains unstarted pending separate live-provider authorization.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
 syntax, and diff hygiene passed at `304ec86`. The final independent reviewer reran 235
 focused tests plus type-check, build parity, and diff hygiene successfully at
-`a20c138`.
+`a20c138`. The targeted p03-t09 reviewer reran 52 focused tests plus type-check, build
+parity, and exact-range diff hygiene at `459abf3`.
 
 **Review:** Initial review found 3 Critical, 3 Important, and 3 Medium findings. Two
 authorized fix continuations resolved the six original blockers and the residual Claude
@@ -200,7 +202,9 @@ authorized review found 1 Critical, 1 Important, and 3 Medium findings; its Crit
 and Important findings were fixed. The third review confirmed the Critical fix and
 found 0 Critical, 1 residual Important, and 3 deferred Medium findings. After review
 cycle 3 of 3, the user authorized exactly one override fix/review pair for that
-Important finding; the Medium findings remain outside scope.
+Important finding. That targeted review passed with 0 Critical, 0 Important, 0 Medium,
+and 0 Minor findings. The three earlier Medium findings remain outside scope and
+explicitly deferred.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -438,7 +442,7 @@ Dispatch: scope=p03 action=fix role=fix producer=unknown provenance=unknown mode
 - Tier: 1 — original p03 implementer continuation
 - Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
 - Scope: p03-t09 only
-- Status: fix complete; awaiting the one authorized targeted review
+- Status: fix and one authorized targeted review complete; p03 passed
 
 #### p03-t09 Outcome
 
@@ -459,6 +463,23 @@ continuation `continuation-p03-t09-a93d1e91`; target
 Dispatch policy: frontier; selected=high; cap=max (codex, enforced — variant oat-phase-implementer-gpt-5-6-sol-high)
 
 Dispatch: scope=p03-t09 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-high
+
+#### Targeted p03-t09 Review Outcome
+
+- Review request: `dispatch-605581ea-2d3a-4dbb-8912-d4a7c5f8a804`
+- Target: `oat-reviewer-gpt-5-6-sol-max`
+- Reviewed head: `459abf31c1c160895d2498d545095f1d5276e77d`
+- Artifact: `reviews/archived/p03-t09-review-2026-09-01T211658Z.md`
+- Verdict: PASS; 0 Critical, 0 Important, 0 Medium, 0 Minor
+- Prior I1 resolved; valid Codex cleanup and Claude behavior remain intact
+- M1-M3 remain explicitly deferred and were not re-reviewed
+
+**Review dispatch:** request `dispatch-605581ea-2d3a-4dbb-8912-d4a7c5f8a804`;
+target `oat-reviewer-gpt-5-6-sol-max`; accepted; outcome PASS.
+
+Dispatch policy: frontier; selected=max; cap=max (codex, enforced — variant oat-reviewer-gpt-5-6-sol-max)
+
+Dispatch: scope=p03-t09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
 <!-- orchestration-runs-end -->
 
@@ -636,8 +657,13 @@ review is authorized.
 **Fix completion:** p03-t09 committed as `459abf31`. Root verified the exact
 three-file boundary, 52 focused tests, type-check, generated parity, and diff hygiene.
 
-**Next:** Run exactly one targeted independent review of p03-t09. Do not run p04 or
-p05 before that review passes its Critical/Important threshold.
+**Targeted review completion:** `reviews/archived/p03-t09-review-2026-09-01T211658Z.md`
+passed at `459abf31` with zero findings. Prior I1 is resolved; M1-M3 remain explicitly
+deferred and nonblocking for this targeted pass.
+
+**Next:** Phase p03 is complete. Stop before p04-t01 because its disposable live Codex
+gate creates/deletes provider state and spends provider quota; it requires separate
+authorization.
 
 ---
 
@@ -680,6 +706,7 @@ p05 before that review passes its Critical/Important threshold.
 - [x] p03-t07 — `6380426d`
 - [x] p03-t08 — `a20c138b`
 - [x] p03-t09 — `459abf31`
+- [x] p03-t09 targeted independent review — passed with zero findings
 
 ---
 
@@ -699,7 +726,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, and p03-t09 52 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Nine tasks complete through `459abf3`; one targeted p03-t09 review pending; live provider gates not run |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, and p03-t09 52 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Nine tasks and the targeted p03-t09 review passed through `459abf3`; M1-M3 deferred; live provider gates not run |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 

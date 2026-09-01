@@ -96,11 +96,11 @@ oat_project_explainer:
 
 **Status:** Implementation in progress
 **Started:** 2026-08-31
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 
 ## Current Phase
 
-Implementation - p03-t09 complete; awaiting one targeted review
+Implementation - p03 complete; root-owned live provider gates pending authorization
 
 ## Artifacts
 
@@ -108,7 +108,7 @@ Implementation - p03-t09 complete; awaiting one targeted review
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03-t09 awaiting targeted review)
+- **Implementation:** `implementation.md` (in progress; p01, p02, and p03 passed)
 
 ## Progress
 
@@ -162,13 +162,17 @@ Implementation - p03-t09 complete; awaiting one targeted review
 - ✓ User explicitly authorized one bounded p03-t09 fix and one additional targeted independent review
 - ✓ p03-t09 completed at `459abf31`; invalid Codex cleanup IDs now fail closed
 - ✓ Root verified the exact three-file commit boundary, 52 focused tests, type-check, and build parity
-- ⧗ One targeted independent p03-t09 review is next; p04 and p05 remain unstarted
+- ✓ Targeted independent p03-t09 review passed with zero findings at `459abf31`
+- ✓ Phase p03 completed; prior I1 is resolved and M1-M3 remain explicitly deferred
+- ⏸ p04 and p05 remain unstarted; p04-t01 requires separate live-provider authorization
 
 ## Blockers
 
-None in implementation. p03-t09 is complete under the explicit one-fix/one-review
-budget override. p04 and p05 remain gated on the targeted review passing.
+None in implementation. The explicit one-fix/one-review override completed and p03
+passed. The next boundary is authorization for the root-owned p04 live provider gates.
 
 ## Next Milestone
 
-Run exactly one targeted independent review of p03-t09. Do not run p04 yet.
+With separate authorization, run p04-t01: the Codex 0.151.0 disposable live behavior
+gate. Do not create/delete provider state or spend provider quota before that approval.
+After the root entry gates and independent receipt reviews pass, resume p05-t03.
