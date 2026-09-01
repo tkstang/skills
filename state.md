@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t12
-oat_last_commit: 4162366f70760d65b9aef9dfa162eedb37391b54
+oat_current_task: p05-t03
+oat_last_commit: 07d0165157ffd468c5603cab1b3c5674e3500aeb
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T23:20:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T23:32:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t12 exact-output review repair authorized
+Implementation - p03-t12 complete; targeted review pending
 
 ## Artifacts
 
@@ -181,15 +181,17 @@ Implementation - p03-t12 exact-output review repair authorized
 - ✗ Fresh targeted p03-t11 review found 1 Important exact-output-normalization defect
 - ✓ User authorized receive, one bounded exact-comparator repair, and one fresh targeted review
 - ✓ Important finding I1 converted to p03-t12
-- ⧗ p03-t12 is next; p04-t01 remains paused until its targeted review passes
+- ✓ p03-t12 completed at `07d01651`; exact Codex authentication output is enforced
+- ✓ Root verified the exact three-file boundary, 82 focused tests, type-check, generated parity, and `origin/main` ancestry
+- ⧗ One fresh targeted p03-t12 review is next; p04-t01 remains paused until it passes
 
 ## Blockers
 
-None in implementation. The p03-t11 Important finding has been converted into
-authorized task p03-t12; the live gate remains paused and unmutated.
+None in implementation. The p03-t12 repair is complete and awaiting its one
+authorized targeted review; the live gate remains paused and unmutated.
 
 ## Next Milestone
 
-Complete p03-t12 through the original p03 implementer, run one fresh targeted
-independent review, and—only if it passes—resume p04-t01 from a fresh mutation-free
-plan check. Do not invoke `behavior-verify` before that review passes.
+Run one fresh targeted independent review of p03-t12 and—only if it passes—resume
+p04-t01 from a fresh mutation-free plan check. Do not invoke `behavior-verify` before
+that review passes.

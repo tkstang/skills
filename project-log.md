@@ -116,6 +116,10 @@ Stopped before p04-t01 after the one authorized fresh p03-t11 review reported cr
 
 Authorized receive advanced reviews/archived/p03-t11-review-2026-09-01T224710Z.md from received to fixes_added; Important finding I1 became p03-t12, a bounded exact-output comparator repair, with one fresh targeted review authorized before p04-t01.
 
+### 2026-09-01 · structural · oat-project-implement · p03-t12
+
+Task p03-t12 completed at 07d0165157ffd468c5603cab1b3c5674e3500aeb with the exact three-file boundary; root verification passed 82 focused tests, type-check, generated parity, and origin/main ancestry. The p03-t11 review advanced to fixes_completed, and one authorized targeted p03-t12 review remains before p04-t01.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

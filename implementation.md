@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-01
-oat_current_task_id: p03-t12
+oat_current_task_id: p05-t03
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 12    | 11/12     |
+| p03   | in_progress | 12    | 12/12     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 27/32 tasks completed
+**Total:** 28/32 tasks completed
 
 ---
 
@@ -271,8 +271,8 @@ review.
 
 ### Task p03-t12: (review) Enforce exact Codex authentication output
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `07d0165157ffd468c5603cab1b3c5674e3500aeb`
 
 ---
 
@@ -573,6 +573,23 @@ independently verified before p04-t01 can safely execute.
 - That normalization accepts non-exact authentication shapes forbidden by p03-t11
 - No fix, second review, or live-provider gate was launched beyond the authorized pair
 
+### Run 8 — 2026-09-01T23:32:22Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1 — original p03 implementer continuation
+- Dispatch request: `dispatch-2e8901c9-94a4-4218-8334-4944a287c79f`
+- Dispatch policy: managed `frontier`; resolved target `gpt-5.6-sol/high`
+- Scope: p03-t12 only, followed by one fresh targeted independent review
+- Status: implementation complete at `07d01651`; targeted review pending
+
+#### p03-t12 Implementation Outcome
+
+- Added a private Codex-auth comparator without changing shared capability normalization
+- Requires byte-for-byte empty stdout and case/whitespace-sensitive exact stderr after only line-ending normalization and removal of at most one terminal newline
+- Added seven negative near-match cases plus exact LF/CRLF success coverage
+- Root verification passed 82 focused tests, type-check, generated parity, exact one-commit/three-file boundary, and `origin/main` ancestry
+- No login, provider session, receipt, cleanup, quota, or live-gate operation occurred
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -580,6 +597,17 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Task Completed: p03-t12
+
+**Date:** 2026-09-01
+**Commit:** `07d0165157ffd468c5603cab1b3c5674e3500aeb`
+
+The exact Codex authentication comparator now rejects case, spacing, ANSI, blank-line,
+and nonempty-stdout near matches while preserving the exact observed line-ending
+forms. Root verification passed all 82 targeted tests, type-check, build parity, and
+the exact three-file commit boundary. One fresh targeted independent review is next;
+p04-t01 remains paused before provider mutation.
 
 ### Review Received: p03-t11
 
