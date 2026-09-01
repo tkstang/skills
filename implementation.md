@@ -28,7 +28,7 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 12    | 12/12     |
+| p03   | completed   | 12    | 12/12     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
@@ -278,7 +278,7 @@ review.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t12 and its targeted review
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — authorized; fresh mutation-free plan check next
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -580,7 +580,7 @@ independently verified before p04-t01 can safely execute.
 - Dispatch request: `dispatch-2e8901c9-94a4-4218-8334-4944a287c79f`
 - Dispatch policy: managed `frontier`; resolved target `gpt-5.6-sol/high`
 - Scope: p03-t12 only, followed by one fresh targeted independent review
-- Status: implementation complete at `07d01651`; targeted review pending
+- Status: implementation and targeted review passed at `07d01651`; p04-t01 plan check next
 
 #### p03-t12 Implementation Outcome
 
@@ -590,6 +590,13 @@ independently verified before p04-t01 can safely execute.
 - Root verification passed 82 focused tests, type-check, generated parity, exact one-commit/three-file boundary, and `origin/main` ancestry
 - No login, provider session, receipt, cleanup, quota, or live-gate operation occurred
 
+#### p03-t12 Targeted Review Outcome
+
+- Artifact: `reviews/archived/p03-t12-review-2026-09-01T234310Z.md`
+- Reviewed head: `07d0165157ffd468c5603cab1b3c5674e3500aeb`
+- Findings: 0 Critical, 0 Important, 0 Medium, 0 Minor
+- Disposition: passed; p03 is complete at 12/12 and p04-t01 may resume from a fresh mutation-free plan check
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -597,6 +604,16 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Received: p03-t12
+
+**Date:** 2026-09-01
+**Review artifact:** `reviews/archived/p03-t12-review-2026-09-01T234310Z.md`
+
+The one authorized fresh targeted review passed at `07d01651` with zero Critical,
+Important, Medium, or Minor findings. Phase p03 is complete at 12/12 tasks. The
+authorized p04-t01 mutation-free plan check is next; no live provider mutation has
+occurred yet.
 
 ### Task Completed: p03-t12
 
@@ -852,6 +869,11 @@ paused in the meantime.
 - [x] p03-t08 — `a20c138b`
 - [x] p03-t09 — `459abf31`
 - [x] p03-t09 targeted independent review — passed with zero findings
+- [x] p03-t10 — `7693c044`
+- [x] p03-t10 targeted independent review — passed with zero findings
+- [x] p03-t11 — `4162366f`
+- [x] p03-t12 — `07d01651`
+- [x] p03-t12 targeted independent review — passed with zero findings
 
 ---
 
@@ -871,7 +893,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, and p03-t09 52 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Nine tasks and the targeted p03-t09 review passed through `459abf3`; M1-M3 deferred; live provider gates not run |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, and p03-t12 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Twelve tasks and the final targeted p03-t12 review passed through `07d0165`; M1-M3 deferred; live provider gates not run |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 

@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T23:32:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T23:43:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t12 complete; targeted review pending
+Implementation - p03 complete; p04-t01 mutation-free plan check next
 
 ## Artifacts
 
@@ -183,15 +183,17 @@ Implementation - p03-t12 complete; targeted review pending
 - ✓ Important finding I1 converted to p03-t12
 - ✓ p03-t12 completed at `07d01651`; exact Codex authentication output is enforced
 - ✓ Root verified the exact three-file boundary, 82 focused tests, type-check, generated parity, and `origin/main` ancestry
-- ⧗ One fresh targeted p03-t12 review is next; p04-t01 remains paused until it passes
+- ✓ Fresh targeted p03-t12 review passed with zero findings at `07d01651`
+- ✓ Phase p03 completed at 12/12 tasks; M1-M3 remain explicitly deferred
+- ⧗ p04-t01 may resume from a fresh mutation-free plan check
 
 ## Blockers
 
-None in implementation. The p03-t12 repair is complete and awaiting its one
-authorized targeted review; the live gate remains paused and unmutated.
+None in implementation. The p03-t12 repair and its one authorized targeted review
+passed; the live gate remains unmutated pending a fresh p04-t01 plan check.
 
 ## Next Milestone
 
-Run one fresh targeted independent review of p03-t12 and—only if it passes—resume
-p04-t01 from a fresh mutation-free plan check. Do not invoke `behavior-verify` before
-that review passes.
+Resume p04-t01 from a fresh mutation-free plan check. Invoke `behavior-verify` only
+if the exact-version plan, authentication, fingerprints, call count, cleanup method,
+and confirmation digest all match the authorized gate contract.

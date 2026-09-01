@@ -120,6 +120,10 @@ Authorized receive advanced reviews/archived/p03-t11-review-2026-09-01T224710Z.m
 
 Task p03-t12 completed at 07d0165157ffd468c5603cab1b3c5674e3500aeb with the exact three-file boundary; root verification passed 82 focused tests, type-check, generated parity, and origin/main ancestry. The p03-t11 review advanced to fixes_completed, and one authorized targeted p03-t12 review remains before p04-t01.
 
+### 2026-09-01 · structural · oat-project-review-receive · p03-t12
+
+The fresh targeted review at reviews/archived/p03-t12-review-2026-09-01T234310Z.md passed with zero Critical, Important, Medium, or Minor findings at 07d0165157ffd468c5603cab1b3c5674e3500aeb. Phase p03 is complete at 12/12; p04-t01 may resume from a fresh mutation-free plan check.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
