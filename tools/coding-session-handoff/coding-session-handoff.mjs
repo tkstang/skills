@@ -4726,7 +4726,7 @@ function parseVersion(provider2, output) {
 function parseAuthentication(provider2, stdout, stderr) {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider2].loginCommand;
   if (provider2 === "codex") {
-    return normalizeCapabilityOutput(stdout) === "logged in using chatgpt" ? { status: "authenticated", method: "chatgpt", loginCommand } : { status: "required", loginCommand };
+    return normalizeCapabilityOutput(stdout) === "" && normalizeCapabilityOutput(stderr) === "logged in using chatgpt" ? { status: "authenticated", method: "chatgpt", loginCommand } : { status: "required", loginCommand };
   }
   let value2;
   try {

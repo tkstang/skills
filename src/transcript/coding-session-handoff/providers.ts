@@ -187,7 +187,8 @@ function parseAuthentication(
 ): ProviderAuthenticationMetadata {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider].loginCommand;
   if (provider === 'codex') {
-    return normalizeCapabilityOutput(stdout) === 'logged in using chatgpt'
+    return normalizeCapabilityOutput(stdout) === '' &&
+      normalizeCapabilityOutput(stderr) === 'logged in using chatgpt'
       ? { status: 'authenticated', method: 'chatgpt', loginCommand }
       : { status: 'required', loginCommand };
   }

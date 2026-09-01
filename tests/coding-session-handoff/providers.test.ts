@@ -52,8 +52,8 @@ function codexRun(
     });
   }
   return Promise.resolve({
-    stdout: 'Logged in using ChatGPT\n',
-    stderr: '',
+    stdout: '',
+    stderr: 'Logged in using ChatGPT\r\n',
   });
 }
 
@@ -107,12 +107,18 @@ describe('provider capability probes', () => {
   });
 
   test.each([
-    ['logged out', 'Not logged in\n', ''],
-    ['unknown', 'Authentication status unavailable\n', ''],
+    [
+      'PATH warning plus authenticated text',
+      '',
+      'WARNING: proceeding, even though we could not update PATH\nLogged in using ChatGPT\n',
+    ],
+    ['extra stderr', '', 'Logged in using ChatGPT\nextra\n'],
+    ['nonempty stdout', 'unexpected\n', 'Logged in using ChatGPT\n'],
+    ['wrong stdout channel', 'Logged in using ChatGPT\n', ''],
+    ['logged out', '', 'Not logged in\n'],
+    ['contradictory text', '', 'Logged in using ChatGPT\nNot logged in\n'],
+    ['unknown', '', 'Authentication status unavailable\n'],
     ['legacy JSON', '{"loggedIn":true,"authMethod":"chatgpt"}\n', ''],
-    ['extra text', 'Logged in using ChatGPT\nextra\n', ''],
-    ['contradictory text', 'Logged in using ChatGPT\nNot logged in\n', ''],
-    ['stderr only', '', 'Logged in using ChatGPT\n'],
   ] as const)(
     'fails Codex authentication closed for %s output',
     async (_case, authStdout, authStderr) => {
@@ -225,7 +231,7 @@ describe('provider capability probes', () => {
       if (argv[0] === 'exec') {
         return { stdout: help ?? '', stderr: '' };
       }
-      return { stdout: 'Logged in using ChatGPT\n', stderr: '' };
+      return { stdout: '', stderr: 'Logged in using ChatGPT\n' };
     });
     const result = await probeProvider('codex', {
       deps: dependencies(run),
