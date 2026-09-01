@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p03-t11-review
+    reason: 'The one authorized fresh review found an Important exact-output defect: broad capability normalization accepts non-exact Codex authentication shapes.'
+    since: 2026-09-01
 oat_last_updated: 2026-09-01
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -28,7 +31,7 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 11    | 11/11     |
+| p03   | blocked     | 11    | 11/11     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
@@ -166,7 +169,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** in_progress
+**Status:** blocked
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -273,7 +276,7 @@ review.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t11 and its targeted review
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED: p03-t11 review found one Important exact-output defect
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -549,7 +552,7 @@ independently verified before p04-t01 can safely execute.
 - Tier: 1 — original p03 implementer continuation
 - Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
 - Scope: p03-t11 only, followed by one fresh targeted independent review
-- Status: implementation complete at `4162366f`; fresh targeted review pending
+- Status: blocked by one Important targeted-review finding at `4162366f`
 
 #### p03-t11 Authorization
 
@@ -559,6 +562,15 @@ independently verified before p04-t01 can safely execute.
 - Do not invoke login, provider sessions, cleanup, or quota-bearing operations from the implementer
 - Retry p04-t01 only after the fresh targeted review passes with zero Critical/Important findings
 
+#### p03-t11 Targeted Review Outcome
+
+- Artifact: `reviews/archived/p03-t11-review-2026-09-01T224710Z.md`
+- Findings: 0 Critical, 1 Important, 0 Medium, 0 Minor
+- The implementation uses `normalizeCapabilityOutput`, which lowercases, trims,
+  collapses whitespace, strips ANSI, drops blank lines, and sorts lines
+- That normalization accepts non-exact authentication shapes forbidden by p03-t11
+- No fix, second review, or live-provider gate was launched beyond the authorized pair
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -566,6 +578,16 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Received: p03-t11
+
+**Date:** 2026-09-01
+**Review artifact:** `reviews/archived/p03-t11-review-2026-09-01T224710Z.md`
+
+The one authorized fresh targeted review found 0 Critical, 1 Important, 0 Medium,
+and 0 Minor findings at `4162366f`. The exact-channel implementation is too permissive
+because it reuses a lossy capability normalizer. p04-t01 remains stopped before
+provider mutation; no additional fix or review is authorized.
 
 ### Review Received: p03-t10
 

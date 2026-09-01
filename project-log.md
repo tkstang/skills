@@ -108,6 +108,10 @@ User authorized one bounded p03-t11 correction for the observed exit-0, empty-st
 
 Task p03-t11 completed at 4162366f70760d65b9aef9dfa162eedb37391b54 with the exact three-file boundary; root verification passed 72 focused tests, type-check, generated parity, and diff hygiene, and the one authorized fresh targeted review is pending before p04-t01.
 
+### 2026-09-01 · structural · oat-project-implement · p03-t11-stop
+
+Stopped before p04-t01 after the one authorized fresh p03-t11 review reported critical:0,important:1,medium:0,minor:0 at 4162366f70760d65b9aef9dfa162eedb37391b54; broad capability normalization accepts non-exact Codex auth shapes, and no additional fix, review, or provider mutation was launched.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
