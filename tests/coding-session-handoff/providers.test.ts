@@ -119,6 +119,13 @@ describe('provider capability probes', () => {
     ['contradictory text', '', 'Logged in using ChatGPT\nNot logged in\n'],
     ['unknown', '', 'Authentication status unavailable\n'],
     ['legacy JSON', '{"loggedIn":true,"authMethod":"chatgpt"}\n', ''],
+    ['case change', '', 'logged in using ChatGPT\n'],
+    ['doubled spaces', '', 'Logged  in using ChatGPT\n'],
+    ['leading space', '', ' Logged in using ChatGPT\n'],
+    ['trailing space', '', 'Logged in using ChatGPT \n'],
+    ['ANSI wrapping', '', '\u001b[32mLogged in using ChatGPT\u001b[0m\n'],
+    ['extra blank lines', '', 'Logged in using ChatGPT\n\n'],
+    ['whitespace stdout', ' ', 'Logged in using ChatGPT\n'],
   ] as const)(
     'fails Codex authentication closed for %s output',
     async (_case, authStdout, authStderr) => {
@@ -138,6 +145,27 @@ describe('provider capability probes', () => {
       expect(result.capability.status).toBe('syntax-verified');
       expect(result.authentication).toEqual({
         status: 'required',
+        loginCommand: 'codex login',
+      });
+    },
+  );
+
+  test.each(['\n', '\r\n', '\r'] as const)(
+    'accepts exact Codex stderr authentication with %j line ending',
+    async (lineEnding) => {
+      const result = await probeProvider('codex', {
+        deps: dependencies(async (executable, argv, options) => {
+          if (argv[0] !== 'login') return codexRun(executable, argv, options);
+          return {
+            stdout: '',
+            stderr: `Logged in using ChatGPT${lineEnding}`,
+          };
+        }),
+      });
+
+      expect(result.authentication).toEqual({
+        status: 'authenticated',
+        method: 'chatgpt',
         loginCommand: 'codex login',
       });
     },

@@ -4723,10 +4723,16 @@ function parseVersion(provider2, output) {
   const match = provider2 === "codex" ? normalized.match(/(?:codex(?:-cli)?\s+)?(\d+\.\d+\.\d+)/u) : normalized.match(/(?:claude(?: code)?\s+)?(\d+\.\d+\.\d+)/u);
   return match?.[1] ?? null;
 }
+function isExactCodexAuthentication(stdout, stderr) {
+  if (stdout !== "") return false;
+  const normalizedStderr = stderr.replace(/\r\n?/gu, "\n");
+  const message = normalizedStderr.endsWith("\n") ? normalizedStderr.slice(0, -1) : normalizedStderr;
+  return message === "Logged in using ChatGPT";
+}
 function parseAuthentication(provider2, stdout, stderr) {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider2].loginCommand;
   if (provider2 === "codex") {
-    return normalizeCapabilityOutput(stdout) === "" && normalizeCapabilityOutput(stderr) === "logged in using chatgpt" ? { status: "authenticated", method: "chatgpt", loginCommand } : { status: "required", loginCommand };
+    return isExactCodexAuthentication(stdout, stderr) ? { status: "authenticated", method: "chatgpt", loginCommand } : { status: "required", loginCommand };
   }
   let value2;
   try {

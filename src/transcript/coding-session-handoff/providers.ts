@@ -180,6 +180,15 @@ function parseVersion(
   return match?.[1] ?? null;
 }
 
+function isExactCodexAuthentication(stdout: string, stderr: string): boolean {
+  if (stdout !== '') return false;
+  const normalizedStderr = stderr.replace(/\r\n?/gu, '\n');
+  const message = normalizedStderr.endsWith('\n')
+    ? normalizedStderr.slice(0, -1)
+    : normalizedStderr;
+  return message === 'Logged in using ChatGPT';
+}
+
 function parseAuthentication(
   provider: HandoffProvider,
   stdout: string,
@@ -187,8 +196,7 @@ function parseAuthentication(
 ): ProviderAuthenticationMetadata {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider].loginCommand;
   if (provider === 'codex') {
-    return normalizeCapabilityOutput(stdout) === '' &&
-      normalizeCapabilityOutput(stderr) === 'logged in using chatgpt'
+    return isExactCodexAuthentication(stdout, stderr)
       ? { status: 'authenticated', method: 'chatgpt', loginCommand }
       : { status: 'required', loginCommand };
   }
