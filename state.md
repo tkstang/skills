@@ -1,7 +1,8 @@
 ---
 oat_current_task: p05-t03
 oat_last_commit: 07d0165157ffd468c5603cab1b3c5674e3500aeb
-oat_blockers: []
+oat_blockers:
+  - "p04-t01 Codex live gate inconclusive: reporting-failed; provider cleanup failed"
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +81,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T23:43:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T23:56:52Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +101,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03 complete; p04-t01 mutation-free plan check next
+Implementation - blocked at p04-t01 inconclusive live gate
 
 ## Artifacts
 
@@ -185,15 +186,20 @@ Implementation - p03 complete; p04-t01 mutation-free plan check next
 - ✓ Root verified the exact three-file boundary, 82 focused tests, type-check, generated parity, and `origin/main` ancestry
 - ✓ Fresh targeted p03-t12 review passed with zero findings at `07d01651`
 - ✓ Phase p03 completed at 12/12 tasks; M1-M3 remain explicitly deferred
-- ⧗ p04-t01 may resume from a fresh mutation-free plan check
+- ✓ p04-t01 fresh out-of-sandbox plan authenticated the exact Codex 0.151.0 context
+- ✗ The single authorized p04-t01 live gate returned `inconclusive` / `reporting-failed`
+- ✓ Local receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
+- ✗ Provider-state cleanup failed and no parent/child/cwd evidence was observed
+- ⏹ No automatic native retry or manual provider cleanup was attempted; p04-t02 and p05 remain unstarted
 
 ## Blockers
 
-None in implementation. The p03-t12 repair and its one authorized targeted review
-passed; the live gate remains unmutated pending a fresh p04-t01 plan check.
+p04-t01 is blocked by an inconclusive exact-version Codex gate. The receipt reports
+`reporting-failed`, provider-state cleanup failed, and the required successor evidence
+was not observed. The gate contract forbids an automatic native retry.
 
 ## Next Milestone
 
-Resume p04-t01 from a fresh mutation-free plan check. Invoke `behavior-verify` only
-if the exact-version plan, authentication, fingerprints, call count, cleanup method,
-and confirmation digest all match the authorized gate contract.
+Decide whether to authorize a bounded diagnosis/remediation of the p04-t01 reporting
+and cleanup failure. Do not retry `behavior-verify`, run p04-t02, dispatch p05, or
+manually delete provider state without explicit authorization.

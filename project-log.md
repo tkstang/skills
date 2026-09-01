@@ -124,6 +124,10 @@ Task p03-t12 completed at 07d0165157ffd468c5603cab1b3c5674e3500aeb with the exac
 
 The fresh targeted review at reviews/archived/p03-t12-review-2026-09-01T234310Z.md passed with zero Critical, Important, Medium, or Minor findings at 07d0165157ffd468c5603cab1b3c5674e3500aeb. Phase p03 is complete at 12/12; p04-t01 may resume from a fresh mutation-free plan check.
 
+### 2026-09-01 · structural · oat-project-implement · p04-t01-stop
+
+The single authorized exact Codex 0.151.0 live gate returned inconclusive with reporting-failed; redacted receipt digest 951a74c1c9d63d27c7bb0f018a4611e1b14a67ab2e2a2bd120e8f56eaf73a21b. Git fixture cleanup succeeded, provider-state cleanup failed, no required successor evidence was observed, and no automatic retry or manual cleanup was attempted.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

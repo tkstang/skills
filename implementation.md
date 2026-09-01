@@ -1,7 +1,8 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p04-t01 Codex live gate inconclusive: reporting-failed; provider cleanup failed"
 oat_last_updated: 2026-09-01
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -278,7 +279,7 @@ review.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — authorized; fresh mutation-free plan check next
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — blocked after one inconclusive execution; no automatic retry
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -597,6 +598,23 @@ independently verified before p04-t01 can safely execute.
 - Findings: 0 Critical, 0 Important, 0 Medium, 0 Minor
 - Disposition: passed; p03 is complete at 12/12 and p04-t01 may resume from a fresh mutation-free plan check
 
+### Run 9 — 2026-09-01T23:56:52Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t01 live-provider gate
+- Scope: one fresh plan check and exactly one Codex 0.151.0 `behavior-verify` invocation
+- Status: BLOCKED; receipt disposition `inconclusive`
+
+#### p04-t01 Live Gate Outcome
+
+- The sandboxed plan check preserved the previously recorded fingerprint but correctly rejected authentication because the sandbox injected a PATH-alias warning on stderr
+- The required out-of-sandbox mutation-free plan check authenticated exactly as ChatGPT and produced syntax fingerprint `8f8ad2711e00aa61cbc1463ec570f19c8a3cc8a13859f431b9797e579ec19891`
+- The authenticated method is deliberately bound into execution-context fingerprint `4777353607b319dc07a3a4b9ff26a1b1827f8d18e3619b389aa36cb6d6c44a3a` and confirmation digest `b341625701492c0d7da1bae45526db03f9a6c4cdf502ddba67147476fdffcca6`
+- `behavior-verify` was invoked exactly once and returned `inconclusive` with reason `reporting-failed`
+- Receipt digest: `951a74c1c9d63d27c7bb0f018a4611e1b14a67ab2e2a2bd120e8f56eaf73a21b`; local receipt and locator modes are 0600 under a mode-0700 ignored directory
+- Receipt validation confirmed schema/version/fingerprints/bounds and no credential/raw-output fields; Git fixture cleanup succeeded, provider-state cleanup failed, and no parent/child/cwd evidence was observed
+- No automatic native retry or manual provider cleanup was attempted; p04-t02 and p05 remain unstarted
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -604,6 +622,18 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Blocked: p04-t01
+
+**Date:** 2026-09-01
+**Status:** inconclusive
+**Receipt digest:** `951a74c1c9d63d27c7bb0f018a4611e1b14a67ab2e2a2bd120e8f56eaf73a21b`
+
+The single authorized Codex 0.151.0 live gate returned `reporting-failed`. The receipt
+is valid, private, and mode 0600; Git fixture cleanup succeeded, but provider-state
+cleanup failed and no required successor evidence was observed. Per the gate contract,
+the native operation was not retried. p04-t01 blocks p04-t02 and p05 pending an explicit
+remediation decision.
 
 ### Review Received: p03-t12
 
