@@ -84,6 +84,10 @@ Phase p03 passed after one explicit review-cycle override: reviews/archived/p03-
 
 Stopped p04-t01 before provider mutation: an isolated exact Codex 0.151.0 CLI is logged in, but the harness-required login status --json command is unsupported, so authentication remains unverified; behavior-verify was not invoked and no provider session, receipt, locator, cleanup, or quota-spending call occurred.
 
+### 2026-09-01 · structural · oat-project-implement · p03-auth-override
+
+User authorized one bounded p03-t10 fail-closed Codex 0.151.0 authentication-probe correction and one targeted independent review before retrying p04-t01; the implementer must not invoke login, provider sessions, cleanup, or quota-bearing operations.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

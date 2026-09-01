@@ -829,6 +829,46 @@ state.
 
 ---
 
+### Task p03-t10: (gate) Recognize Codex 0.151.0 authentication safely
+
+**Dependencies:** p03-t09 and the p04-t01 mutation-free plan-check blocker recorded on
+2026-09-01.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/providers.ts`
+- Modify: `tests/coding-session-handoff/providers.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Pin Codex 0.151.0 authentication probing to the supported
+`codex login status` argv. Cover its exact authenticated stdout, logged-out and unknown
+stdout, extra/contradictory text, stderr-only success-looking text, nonzero execution,
+and the existing 10-second/64-KiB/shell-disabled bounds. Preserve Claude's JSON auth
+probe and parser unchanged.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts`
+
+Expected: the exact Codex 0.151.0 authenticated text is rejected because the current
+probe invokes the unsupported `--json` flag and parses JSON only.
+
+**GREEN:** Use the exact Codex 0.151.0 `login status` command and recognize only its
+known authenticated stdout after bounded normalization. Do not authenticate from
+stderr, substring matches, unknown output, command failure, or provider-version drift.
+Keep Claude's JSON path unchanged and regenerate the development bundle through
+`pnpm run build`.
+
+**Refactor:** Keep provider-specific auth parsing explicit and fail closed. Do not
+request credentials, invoke login, relax version/help/context gates, or run a live
+behavior gate from the implementer.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/providers.ts tests/coding-session-handoff/providers.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check`
+
+**Commit:** `fix(p03-t10): recognize Codex authentication status`
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1207,6 +1247,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03 | code | fixes_completed | 2026-08-31 | reviews/archived/p03-review-2026-08-31T223047Z.md | 304ec8618b8dd9377c06f226d19ffbf8473c85c4 | manual | - |
 | p03 | code | fixes_completed | 2026-09-01 | reviews/archived/p03-review-2026-08-31T235826Z.md | a20c138b349e2afbfb4251b51edf1c338cca2783 | manual | - |
 | p03-t09 | code | passed | 2026-09-01 | reviews/archived/p03-t09-review-2026-09-01T211658Z.md | 459abf31c1c160895d2498d545095f1d5276e77d | manual | - |
+| p03-t10 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1232,13 +1273,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 9 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, and three final-review repairs
+- p03: 10 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, and the gate-discovered auth correction
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 29 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 30 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 29 tasks have exactly one verified commit,
+Implementation is complete only when all 30 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

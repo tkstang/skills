@@ -1,12 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p04-t01
-    reason: 'Codex 0.151.0 rejects the required login status --json probe, so authenticated state cannot be established safely.'
-    since: 2026-09-01
+oat_blockers: []
 oat_last_updated: 2026-09-01
-oat_current_task_id: p05-t03
+oat_current_task_id: p03-t10
 oat_generated: false
 ---
 
@@ -31,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | completed   | 9     | 9/9       |
+| p03   | in_progress | 10    | 9/10      |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 25/29 tasks completed
+**Total:** 25/30 tasks completed
 
 ---
 
@@ -169,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** completed
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -190,6 +187,9 @@ review passed with zero findings; both Mediums remain explicitly deferred.
   targeted independent review. p03-t09 fixed that boundary in `459abf3`, and the
   targeted review passed with zero findings. p04 is the next root-owned boundary and
   remains unstarted pending separate live-provider authorization.
+- The authorized p04-t01 mutation-free plan check then found that Codex 0.151.0 does
+  not support the probe's `login status --json` argv. The user authorized one bounded
+  p03-t10 correction and one targeted independent review before retrying the gate.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
@@ -207,7 +207,8 @@ found 0 Critical, 1 residual Important, and 3 deferred Medium findings. After re
 cycle 3 of 3, the user authorized exactly one override fix/review pair for that
 Important finding. That targeted review passed with 0 Critical, 0 Important, 0 Medium,
 and 0 Minor findings. The three earlier Medium findings remain outside scope and
-explicitly deferred.
+explicitly deferred. p03 is temporarily reopened only for p03-t10 and its targeted
+review.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -254,11 +255,16 @@ explicitly deferred.
 **Status:** completed
 **Commit:** `459abf31c1c160895d2498d545095f1d5276e77d`
 
+### Task p03-t10: (gate) Recognize Codex 0.151.0 authentication safely
+
+**Status:** pending
+**Commit:** -
+
 ---
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED before mutation: exact-version auth probe is incompatible
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t10 and its targeted review
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -505,6 +511,21 @@ Dispatch: scope=p03-t09 action=review role=reviewer producer=unknown provenance=
 **Blocker:** The exact-version authentication probe contract must be corrected and
 independently verified before p04-t01 can safely execute.
 
+### Run 6 — 2026-09-01T22:08:06Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: 1 — original p03 implementer continuation
+- Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
+- Scope: p03-t10 only, followed by one targeted independent review
+- Status: authorized and planned; implementation dispatch pending
+
+#### p03-t10 Authorization
+
+- Convert the p04-t01 exact-version auth-probe blocker into one bounded p03 task
+- Parse only the supported Codex 0.151.0 authentication status, fail closed, and preserve Claude behavior
+- Do not invoke login, request credentials, run provider sessions, or spend quota from the implementer
+- Retry p04-t01 only after the targeted review passes with zero Critical/Important findings
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -685,9 +706,9 @@ three-file boundary, 52 focused tests, type-check, generated parity, and diff hy
 passed at `459abf31` with zero findings. Prior I1 is resolved; M1-M3 remain explicitly
 deferred and nonblocking for this targeted pass.
 
-**Next:** Phase p03 is complete. Stop before p04-t01 because its disposable live Codex
-gate creates/deletes provider state and spends provider quota; it requires separate
-authorization.
+**Next:** Complete the newly authorized p03-t10 correction and its one targeted
+independent review. Retry p04-t01 only if that review passes; its live gate remains
+paused in the meantime.
 
 ---
 

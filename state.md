@@ -1,10 +1,7 @@
 ---
-oat_current_task: p05-t03
+oat_current_task: p03-t10
 oat_last_commit: 459abf31c1c160895d2498d545095f1d5276e77d
-oat_blockers:
-  - task_id: p04-t01
-    reason: 'Codex 0.151.0 rejects the required login status --json probe, so authenticated state cannot be established safely.'
-    since: 2026-09-01
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -83,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T21:52:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T22:08:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -103,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p04-t01 blocked before provider mutation
+Implementation - p03-t10 auth-probe correction authorized
 
 ## Artifacts
 
@@ -170,15 +167,16 @@ Implementation - p04-t01 blocked before provider mutation
 - ✓ p04 live-provider execution authorized
 - ✗ p04-t01 exact-version plan check found an incompatible Codex authentication probe
 - ⏸ No provider session was created or deleted; p04-t02 and p05 remain unstarted
+- ✓ User authorized one bounded p03-t10 correction and one targeted independent review
+- ⧗ p03-t10 is next; p04-t01 remains paused until that review passes
 
 ## Blockers
 
-p04-t01 is blocked before mutation. The exact Codex 0.151.0 CLI is authenticated via
-ChatGPT, but it rejects `codex login status --json`; the harness therefore cannot
-establish authenticated state and correctly refuses `behavior-verify`.
+None in implementation. The prior p04-t01 blocker has been converted into authorized
+task p03-t10; the live gate remains paused and unmutated.
 
 ## Next Milestone
 
-Correct the exact-version Codex authentication probe contract, independently verify
-the bounded fix, and then resume p04-t01 from a fresh mutation-free plan check. Do not
-invoke `behavior-verify` until authenticated state is established safely.
+Complete p03-t10 through the original p03 implementer, run exactly one targeted
+independent review, and—only if it passes—resume p04-t01 from a fresh mutation-free
+plan check. Do not invoke `behavior-verify` before that review passes.
