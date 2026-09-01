@@ -104,6 +104,10 @@ Stopped p04-t01 before provider mutation after the post-fix plan still reported 
 
 User authorized one bounded p03-t11 correction for the observed exit-0, empty-stdout, exact-stderr Codex 0.151.0 authentication shape and one fresh targeted independent review before retrying p04-t01; no provider mutation is allowed from the implementer.
 
+### 2026-09-01 · structural · oat-project-implement · p03-t11
+
+Task p03-t11 completed at 4162366f70760d65b9aef9dfa162eedb37391b54 with the exact three-file boundary; root verification passed 72 focused tests, type-check, generated parity, and diff hygiene, and the one authorized fresh targeted review is pending before p04-t01.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

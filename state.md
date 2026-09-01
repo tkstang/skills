@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t11
-oat_last_commit: 7693c044db7aaf5357d3cd6e7a6000dd02bfb464
+oat_current_task: p05-t03
+oat_last_commit: 4162366f70760d65b9aef9dfa162eedb37391b54
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T22:40:37Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T22:45:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t11 exact stderr-auth correction authorized
+Implementation - p03-t11 targeted review pending
 
 ## Artifacts
 
@@ -176,15 +176,17 @@ Implementation - p03-t11 exact stderr-auth correction authorized
 - ✓ Read-only channel capture proved Codex 0.151.0 emits the exact authenticated status on stderr with exit 0 and empty stdout
 - ⏸ `behavior-verify` was not invoked; no provider session, receipt, locator, cleanup, or quota spend occurred
 - ✓ User authorized one bounded p03-t11 correction and one fresh targeted independent review
-- ⧗ p03-t11 is next; p04-t01 remains paused until that review passes
+- ✓ p03-t11 completed at `4162366f`; exact stderr-only Codex auth is recognized fail-closed
+- ✓ Root verified the exact three-file boundary, 72 focused tests, type-check, and build parity
+- ⧗ One fresh targeted independent p03-t11 review is next; p04-t01 remains paused until it passes
 
 ## Blockers
 
-None in implementation. The prior p04-t01 blocker has been converted into authorized
-task p03-t11; the live gate remains paused and unmutated.
+None in implementation. p03-t11 is complete, but the live gate remains paused and
+unmutated until its one authorized fresh targeted review passes.
 
 ## Next Milestone
 
-Complete p03-t11 through the original p03 implementer, run exactly one fresh targeted
-independent review, and—only if it passes—resume p04-t01 from a fresh mutation-free
-plan check. Do not invoke `behavior-verify` before that review passes.
+Run exactly one fresh targeted independent p03-t11 review and—only if it passes—resume
+p04-t01 from a fresh mutation-free plan check. Do not invoke `behavior-verify` before
+that review passes.
