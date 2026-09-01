@@ -64,7 +64,7 @@ const PROVIDER_PROBE_COMMANDS = Object.freeze({
   codex: Object.freeze({
     version: Object.freeze(['--version']),
     help: Object.freeze(['exec', 'fork', '--help']),
-    auth: Object.freeze(['login', 'status', '--json']),
+    auth: Object.freeze(['login', 'status']),
     loginCommand: 'codex login',
   }),
   claude: Object.freeze({
@@ -182,12 +182,18 @@ function parseVersion(
 
 function parseAuthentication(
   provider: HandoffProvider,
-  output: string,
+  stdout: string,
+  stderr: string,
 ): ProviderAuthenticationMetadata {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider].loginCommand;
+  if (provider === 'codex') {
+    return normalizeCapabilityOutput(stdout) === 'logged in using chatgpt'
+      ? { status: 'authenticated', method: 'chatgpt', loginCommand }
+      : { status: 'required', loginCommand };
+  }
   let value: unknown;
   try {
-    value = JSON.parse(output);
+    value = JSON.parse(`${stdout}\n${stderr}`.trim());
   } catch {
     return { status: 'required', loginCommand };
   }
@@ -307,10 +313,7 @@ export async function probeProvider(
   let authentication: ProviderAuthenticationMetadata;
   try {
     const auth = await deps.run(executable, commands.auth, probeOptions());
-    authentication = parseAuthentication(
-      provider,
-      `${auth.stdout}\n${auth.stderr}`.trim(),
-    );
+    authentication = parseAuthentication(provider, auth.stdout, auth.stderr);
   } catch {
     authentication = {
       status: 'required',

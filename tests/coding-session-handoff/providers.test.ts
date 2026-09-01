@@ -52,7 +52,7 @@ function codexRun(
     });
   }
   return Promise.resolve({
-    stdout: '{"loggedIn":true,"authMethod":"chatgpt"}\n',
+    stdout: 'Logged in using ChatGPT\n',
     stderr: '',
   });
 }
@@ -102,7 +102,89 @@ describe('provider capability probes', () => {
     });
     expect(JSON.stringify(result)).not.toContain('secret');
     expect(run).toHaveBeenCalledTimes(3);
+    expect(run.mock.calls[2]?.[1]).toEqual(['login', 'status']);
     expect(readConfigInputs).toHaveBeenCalledWith('codex', '/repo/target');
+  });
+
+  test.each([
+    ['logged out', 'Not logged in\n', ''],
+    ['unknown', 'Authentication status unavailable\n', ''],
+    ['legacy JSON', '{"loggedIn":true,"authMethod":"chatgpt"}\n', ''],
+    ['extra text', 'Logged in using ChatGPT\nextra\n', ''],
+    ['contradictory text', 'Logged in using ChatGPT\nNot logged in\n', ''],
+    ['stderr only', '', 'Logged in using ChatGPT\n'],
+  ] as const)(
+    'fails Codex authentication closed for %s output',
+    async (_case, authStdout, authStderr) => {
+      const result = await probeProvider('codex', {
+        deps: dependencies(async (executable, argv, options) => {
+          if (argv[0] !== 'login') return codexRun(executable, argv, options);
+          expect(argv).toEqual(['login', 'status']);
+          expect(options).toEqual({
+            timeoutMs: 10_000,
+            maxOutputBytes: 65_536,
+            shell: false,
+          });
+          return { stdout: authStdout, stderr: authStderr };
+        }),
+      });
+
+      expect(result.capability.status).toBe('syntax-verified');
+      expect(result.authentication).toEqual({
+        status: 'required',
+        loginCommand: 'codex login',
+      });
+    },
+  );
+
+  test('fails Codex authentication closed when login status exits nonzero', async () => {
+    const result = await probeProvider('codex', {
+      deps: dependencies(async (executable, argv, options) => {
+        if (argv[0] !== 'login') return codexRun(executable, argv, options);
+        throw Object.assign(new Error('status failed'), { code: 1 });
+      }),
+    });
+
+    expect(result.capability.status).toBe('syntax-verified');
+    expect(result.authentication).toEqual({
+      status: 'required',
+      loginCommand: 'codex login',
+    });
+  });
+
+  test('preserves Claude JSON authentication probing', async () => {
+    const run = vi.fn(async (_executable, argv, options) => {
+      expect(options).toEqual({
+        timeoutMs: 10_000,
+        maxOutputBytes: 65_536,
+        shell: false,
+      });
+      if (argv[0] === '--version') {
+        return { stdout: '2.1.251 (Claude Code)\n', stderr: '' };
+      }
+      if (argv[0] === '--help') {
+        return {
+          stdout:
+            '--safe-mode --print --output-format json --resume --fork-session --session-id --permission-mode plan --tools --max-budget-usd\n',
+          stderr: '',
+        };
+      }
+      expect(argv).toEqual(['auth', 'status', '--json']);
+      return {
+        stdout: '{"authenticated":true,"method":"oauth"}\n',
+        stderr: '',
+      };
+    });
+    const result = await probeProvider('claude', {
+      deps: dependencies(run),
+    });
+
+    expect(result.capability.status).toBe('syntax-verified');
+    expect(result.authentication).toEqual({
+      status: 'authenticated',
+      method: 'oauth',
+      loginCommand: 'claude auth login',
+    });
   });
 
   test('detects target-local Codex context drift before invocation planning', async () => {
@@ -138,17 +220,19 @@ describe('provider capability probes', () => {
       'Usage: codex exec fork ID\n--json\n',
     ],
   ] as const)('fails closed on %s', async (status, version, help) => {
+    const run = vi.fn(async (_file, argv) => {
+      if (argv[0] === '--version') return { stdout: version, stderr: '' };
+      if (argv[0] === 'exec') {
+        return { stdout: help ?? '', stderr: '' };
+      }
+      return { stdout: 'Logged in using ChatGPT\n', stderr: '' };
+    });
     const result = await probeProvider('codex', {
-      deps: dependencies(async (_file, argv) => {
-        if (argv[0] === '--version') return { stdout: version, stderr: '' };
-        if (argv[0] === 'exec') {
-          return { stdout: help ?? '', stderr: '' };
-        }
-        return { stdout: '{"loggedIn":true}', stderr: '' };
-      }),
+      deps: dependencies(run),
     });
     expect(result.capability.status).toBe(status);
     expect(result.capability.executionContextFingerprint).toBeUndefined();
+    expect(run.mock.calls.some(([, argv]) => argv[0] === 'login')).toBe(false);
   });
 
   test('maps bounded process and unreadable-context failures to safe states', async () => {

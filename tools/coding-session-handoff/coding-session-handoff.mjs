@@ -4637,7 +4637,7 @@ var PROVIDER_PROBE_COMMANDS = Object.freeze({
   codex: Object.freeze({
     version: Object.freeze(["--version"]),
     help: Object.freeze(["exec", "fork", "--help"]),
-    auth: Object.freeze(["login", "status", "--json"]),
+    auth: Object.freeze(["login", "status"]),
     loginCommand: "codex login"
   }),
   claude: Object.freeze({
@@ -4723,11 +4723,15 @@ function parseVersion(provider2, output) {
   const match = provider2 === "codex" ? normalized.match(/(?:codex(?:-cli)?\s+)?(\d+\.\d+\.\d+)/u) : normalized.match(/(?:claude(?: code)?\s+)?(\d+\.\d+\.\d+)/u);
   return match?.[1] ?? null;
 }
-function parseAuthentication(provider2, output) {
+function parseAuthentication(provider2, stdout, stderr) {
   const loginCommand = PROVIDER_PROBE_COMMANDS[provider2].loginCommand;
+  if (provider2 === "codex") {
+    return normalizeCapabilityOutput(stdout) === "logged in using chatgpt" ? { status: "authenticated", method: "chatgpt", loginCommand } : { status: "required", loginCommand };
+  }
   let value2;
   try {
-    value2 = JSON.parse(output);
+    value2 = JSON.parse(`${stdout}
+${stderr}`.trim());
   } catch {
     return { status: "required", loginCommand };
   }
@@ -4828,11 +4832,7 @@ ${helpResult.stderr}`;
   let authentication;
   try {
     const auth = await deps.run(executable, commands.auth, probeOptions());
-    authentication = parseAuthentication(
-      provider2,
-      `${auth.stdout}
-${auth.stderr}`.trim()
-    );
+    authentication = parseAuthentication(provider2, auth.stdout, auth.stderr);
   } catch {
     authentication = {
       status: "required",
