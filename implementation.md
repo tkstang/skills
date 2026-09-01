@@ -28,7 +28,7 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 10    | 10/10     |
+| p03   | completed   | 10    | 10/10     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
@@ -166,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -264,7 +264,7 @@ review.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — paused pending p03-t10 and its targeted review
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — authorized; fresh mutation-free plan check next
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -517,7 +517,7 @@ independently verified before p04-t01 can safely execute.
 - Tier: 1 — original p03 implementer continuation
 - Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
 - Scope: p03-t10 only, followed by one targeted independent review
-- Status: implementation complete at `7693c044`; targeted review pending
+- Status: complete; targeted review passed with zero findings at `7693c044`
 
 #### p03-t10 Authorization
 
@@ -533,6 +533,15 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Received: p03-t10
+
+**Date:** 2026-09-01
+**Review artifact:** `reviews/archived/p03-t10-review-2026-09-01T221652Z.md`
+
+The one authorized targeted review passed at `7693c044` with zero Critical,
+Important, Medium, or Minor findings. Phase p03 is complete at 10/10 tasks; the fresh
+p04-t01 mutation-free plan check is next under the existing live-gate authorization.
 
 ### Review Received: plan
 

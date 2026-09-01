@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T22:15:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T22:27:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t10 targeted review pending
+Implementation - p04-t01 authorized mutation-free plan check
 
 ## Artifacts
 
@@ -170,15 +170,17 @@ Implementation - p03-t10 targeted review pending
 - ✓ User authorized one bounded p03-t10 correction and one targeted independent review
 - ✓ p03-t10 completed at `7693c044`; exact Codex 0.151.0 auth output is recognized fail-closed
 - ✓ Root verified the exact three-file boundary, 70 focused tests, type-check, and build parity
-- ⧗ One targeted independent p03-t10 review is next; p04-t01 remains paused until it passes
+- ✓ Targeted independent p03-t10 review passed with zero findings at `7693c044`
+- ✓ Phase p03 completed at 10/10 tasks; M1-M3 remain explicitly deferred
+- ⧗ p04-t01 resumes from a fresh mutation-free plan check under the existing authorization
 
 ## Blockers
 
-None in implementation. p03-t10 is complete, but the live gate remains paused and
-unmutated until its one authorized targeted review passes.
+None. p03-t10 and its one authorized targeted review are complete; p04-t01 may now
+resume from a fresh mutation-free plan check.
 
 ## Next Milestone
 
-Run exactly one targeted independent p03-t10 review and—only if it passes—resume
-p04-t01 from a fresh mutation-free plan check. Do not invoke `behavior-verify` before
-that review passes.
+Run a fresh p04-t01 mutation-free plan check with the isolated exact Codex 0.151.0 CLI,
+then invoke `behavior-verify` exactly once only if every plan/authentication/fingerprint
+precondition passes.
