@@ -1,7 +1,10 @@
 ---
 oat_current_task: p05-t03
 oat_last_commit: a20c138b349e2afbfb4251b51edf1c338cca2783
-oat_blockers: []
+oat_blockers:
+  - task_id: p03-review
+    reason: 'Third and final p03 review found one Important invalid Codex cleanup-ID boundary; review-cycle cap reached.'
+    since: 2026-08-31
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +83,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-08-31T23:41:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T00:05:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +103,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03 repair tasks complete; awaiting authorized third p03 review
+Implementation - p03 blocked after third and final review cycle
 
 ## Artifacts
 
@@ -108,7 +111,7 @@ Implementation - p03 repair tasks complete; awaiting authorized third p03 review
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 repairs awaiting re-review)
+- **Implementation:** `implementation.md` (in progress; p01 and p02 passed, p03 blocked at review-cycle cap)
 
 ## Progress
 
@@ -153,15 +156,21 @@ Implementation - p03 repair tasks complete; awaiting authorized third p03 review
 - ✓ User authorized receive, repair of the Critical/Important findings, and one fresh independent p03 review
 - ✓ Review findings converted to p03-t07 and p03-t08; three Mediums remain explicitly deferred
 - ✓ p03-t07 completed at `6380426d`; exact Codex native identity is propagated
-- ✓ p03-t08 completed at `a20c138b`; partial Codex cleanup is truthful
+- ✓ p03-t08 completed at `a20c138b`; missing-ID cleanup cases are truthful
 - ✓ Root independently verified the exact two-commit repair range and 235 reviewer-facing tests
-- ⧗ Authorized third p03 review is next
+- ✓ Authorized third p03 review completed at reviewed head `a20c138`
+- ✓ Prior Critical exact-native-identity defect confirmed resolved
+- ✗ Phase p03 remains blocked by 1 Important invalid cleanup-ID validation gap
+- ⏹ Review cycle 3 of 3 exhausted; no further automatic fix or review launched
 
 ## Blockers
 
-None in implementation. The final review's blocking findings are fixed and awaiting
-independent re-review.
+The third and final p03 review found that machine-observed Codex IDs are not validated
+before cleanup argv construction. An option-shaped or otherwise invalid value can still
+produce a false `removed` receipt if the provider command exits successfully. Review
+cycle 3 of 3 is exhausted; p04 and p05 must not start without user direction.
 
 ## Next Milestone
 
-Run the authorized fresh independent p03 review before any p04 live-provider gate.
+Choose whether to authorize a bounded residual p03 cleanup-ID fix and a new review
+budget, defer the finding explicitly, or revise the plan. Do not run p04 yet.
