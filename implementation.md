@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p04-t01
+    reason: 'Codex 0.151.0 emits the exact authenticated status on stderr, while the reviewed p03-t10 contract intentionally rejects stderr-only authentication.'
+    since: 2026-09-01
 oat_last_updated: 2026-09-01
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -264,7 +267,7 @@ review.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — authorized; fresh mutation-free plan check next
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — BLOCKED before mutation: exact authenticated status is stderr-only
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -517,7 +520,7 @@ independently verified before p04-t01 can safely execute.
 - Tier: 1 — original p03 implementer continuation
 - Dispatch policy: managed `frontier`; exact target continuity at `gpt-5.6-sol/high`
 - Scope: p03-t10 only, followed by one targeted independent review
-- Status: complete; targeted review passed with zero findings at `7693c044`
+- Status: targeted review passed; p04-t01 retry blocked before mutation
 
 #### p03-t10 Authorization
 
@@ -525,6 +528,14 @@ independently verified before p04-t01 can safely execute.
 - Parse only the supported Codex 0.151.0 authentication status, fail closed, and preserve Claude behavior
 - Do not invoke login, request credentials, run provider sessions, or spend quota from the implementer
 - Retry p04-t01 only after the targeted review passes with zero Critical/Important findings
+
+#### p04-t01 Post-Fix Plan-Check Outcome
+
+- The exact 0.151.0 plan retained the expected version, syntax fingerprint, execution-context fingerprint, three bounded calls, cleanup method, and confirmation digest
+- Authentication still reported `required`, so `behavior-verify` was not invoked
+- Independent channel capture, including one out-of-sandbox read-only confirmation, showed exit 0, empty stdout, and exact authenticated status on stderr
+- No provider session, receipt, locator, cleanup, or quota-spending operation occurred
+- The reviewed p03-t10 contract explicitly rejects stderr-only success; changing that contract requires a new bounded task and review authorization
 
 <!-- orchestration-runs-end -->
 

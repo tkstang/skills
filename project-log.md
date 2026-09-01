@@ -96,6 +96,10 @@ Task p03-t10 completed at 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 with the exac
 
 The one authorized targeted independent p03-t10 review passed at 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 with critical:0,important:0,medium:0,minor:0; artifact reviews/archived/p03-t10-review-2026-09-01T221652Z.md permits the authorized p04-t01 retry.
 
+### 2026-09-01 · structural · oat-project-implement · p04-t01-stop
+
+Stopped p04-t01 before provider mutation after the post-fix plan still reported authentication required: Codex 0.151.0 exits 0 with empty stdout and the exact authenticated status only on stderr, while p03-t10 intentionally rejects stderr-only success; behavior-verify was not invoked and no provider session, receipt, locator, cleanup, or quota-spending call occurred.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

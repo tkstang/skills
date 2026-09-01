@@ -1,7 +1,10 @@
 ---
 oat_current_task: p05-t03
 oat_last_commit: 7693c044db7aaf5357d3cd6e7a6000dd02bfb464
-oat_blockers: []
+oat_blockers:
+  - task_id: p04-t01
+    reason: 'Codex 0.151.0 emits the exact authenticated status on stderr, while the reviewed p03-t10 contract intentionally rejects stderr-only authentication.'
+    since: 2026-09-01
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +83,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T22:27:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-01T22:30:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +103,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p04-t01 authorized mutation-free plan check
+Implementation - p04-t01 blocked before provider mutation
 
 ## Artifacts
 
@@ -172,15 +175,18 @@ Implementation - p04-t01 authorized mutation-free plan check
 - ✓ Root verified the exact three-file boundary, 70 focused tests, type-check, and build parity
 - ✓ Targeted independent p03-t10 review passed with zero findings at `7693c044`
 - ✓ Phase p03 completed at 10/10 tasks; M1-M3 remain explicitly deferred
-- ⧗ p04-t01 resumes from a fresh mutation-free plan check under the existing authorization
+- ✗ p04-t01 post-fix plan check still reports authentication `required`
+- ✓ Read-only channel capture proved Codex 0.151.0 emits the exact authenticated status on stderr with exit 0 and empty stdout
+- ⏸ `behavior-verify` was not invoked; no provider session, receipt, locator, cleanup, or quota spend occurred
 
 ## Blockers
 
-None. p03-t10 and its one authorized targeted review are complete; p04-t01 may now
-resume from a fresh mutation-free plan check.
+p04-t01 is blocked before mutation. The reviewed p03-t10 contract deliberately rejects
+stderr-only success, but Codex 0.151.0 emits its exact authenticated status only on
+stderr even outside the sandbox.
 
 ## Next Milestone
 
-Run a fresh p04-t01 mutation-free plan check with the isolated exact Codex 0.151.0 CLI,
-then invoke `behavior-verify` exactly once only if every plan/authentication/fingerprint
-precondition passes.
+Obtain explicit authorization for one new bounded correction that accepts only the
+exact exit-0, empty-stdout, exact-stderr Codex 0.151.0 status shape, plus one fresh
+targeted independent review. Do not invoke `behavior-verify` before that review passes.
