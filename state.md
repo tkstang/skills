@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t13
-oat_last_commit: 07d0165157ffd468c5603cab1b3c5674e3500aeb
+oat_current_task: p05-t03
+oat_last_commit: 0e5bc879a7f68c50d69b5207ce07efd631462fb5
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t13 gate observability repair
+Implementation - p03-t13 targeted review pending
 
 ## Artifacts
 
@@ -198,17 +198,18 @@ Implementation - p03-t13 gate observability repair
 - ✓ No matching transcript or state-database thread exists after the retry; no deletion target can be inferred
 - ⏹ No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 - ✓ User authorized one bounded p03-t13 redacted failure-stage repair and one fresh targeted independent review
-- ⏳ p03-t13 implementation is pending; no additional live gate attempt is authorized
+- ✓ p03-t13 completed at `0e5bc879`; root verified the exact five-file boundary, 82 focused tests, type-check, generated parity, diff hygiene, and current `origin/main` ancestry
+- ⏳ The one authorized targeted independent p03-t13 review is pending; no additional live gate attempt is authorized
 
 ## Blockers
 
-The p04-t01 blocker has been converted into bounded task p03-t13. The two preserved
-receipts remain inconclusive evidence: both persistent parent calls failed before an
-exact native ID, while the parent-only ephemeral path succeeds and no leaked local
-thread is visible.
+The p04-t01 blocker has been converted into completed task p03-t13, but its one
+authorized targeted independent review is still pending. The two prior receipts remain
+inconclusive evidence and no additional live-gate authorization is implied by this
+repair.
 
 ## Next Milestone
 
-Implement p03-t13 through the original p03 implementer, verify the exact bounded diff,
-and run one fresh targeted independent review. Do not retry the gate, run p04-t02,
-dispatch p05, or delete provider state during this repair/review pass.
+Run one fresh targeted independent review of p03-t13 at `0e5bc879`. Record the
+disposition, but do not retry the gate, run p04-t02, dispatch p05, or delete provider
+state during this repair/review pass.
