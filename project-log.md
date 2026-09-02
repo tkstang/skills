@@ -128,6 +128,10 @@ The fresh targeted review at reviews/archived/p03-t12-review-2026-09-01T234310Z.
 
 The single authorized exact Codex 0.151.0 live gate returned inconclusive with reporting-failed; redacted receipt digest 951a74c1c9d63d27c7bb0f018a4611e1b14a67ab2e2a2bd120e8f56eaf73a21b. Git fixture cleanup succeeded, provider-state cleanup failed, no required successor evidence was observed, and no automatic retry or manual cleanup was attempted.
 
+### 2026-09-02 · structural · oat-project-implement · p04-t01-diagnosis
+
+User-authorized diagnosis found no transcript or state-database thread for the failed fixture and therefore no exact cleanup UUID; a parent-only ephemeral Codex 0.151.0 probe passed with one exact thread.started event and no persistence. One fresh manual full-gate retry is authorized; the original inconclusive receipt remains preserved.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

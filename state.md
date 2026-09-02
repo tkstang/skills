@@ -81,7 +81,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-01T23:56:52Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-02T01:42:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -191,15 +191,19 @@ Implementation - blocked at p04-t01 inconclusive live gate
 - ✓ Local receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
 - ✗ Provider-state cleanup failed and no parent/child/cwd evidence was observed
 - ⏹ No automatic native retry or manual provider cleanup was attempted; p04-t02 and p05 remain unstarted
+- ✓ User authorized bounded diagnosis and remediation of the p04-t01 blocker
+- ✓ No transcript or state-database thread matches the failed fixture; no exact cleanup UUID exists
+- ✓ Parent-only ephemeral probe passed the exact Codex 0.151.0 protocol without persistence
+- ⧗ One manual full-gate retry is authorized after a fresh mutation-free plan check
 
 ## Blockers
 
-p04-t01 is blocked by an inconclusive exact-version Codex gate. The receipt reports
-`reporting-failed`, provider-state cleanup failed, and the required successor evidence
-was not observed. The gate contract forbids an automatic native retry.
+p04-t01 remains blocked by the original inconclusive exact-version Codex gate. Bounded
+diagnosis found no leaked local session or exact cleanup target and proved the parent
+protocol ephemerally; one user-authorized manual retry remains available.
 
 ## Next Milestone
 
-Decide whether to authorize a bounded diagnosis/remediation of the p04-t01 reporting
-and cleanup failure. Do not retry `behavior-verify`, run p04-t02, dispatch p05, or
-manually delete provider state without explicit authorization.
+Run a fresh mutation-free p04-t01 plan check, then at most one user-authorized manual
+`behavior-verify` retry with a new receipt path. Do not run p04-t02, dispatch p05, or
+delete provider state without an exact machine-observed UUID.

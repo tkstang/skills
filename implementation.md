@@ -615,6 +615,23 @@ independently verified before p04-t01 can safely execute.
 - Receipt validation confirmed schema/version/fingerprints/bounds and no credential/raw-output fields; Git fixture cleanup succeeded, provider-state cleanup failed, and no parent/child/cwd evidence was observed
 - No automatic native retry or manual provider cleanup was attempted; p04-t02 and p05 remain unstarted
 
+### Run 10 — 2026-09-02T01:42:25Z
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t01 diagnosis and explicitly authorized manual retry
+- Authorization: user resumed the recorded blocker and authorized the bounded diagnosis/remediation path
+- Scope: read-only local-state diagnosis, one ephemeral parent probe, then at most one fresh full gate retry if no disposable session leak is proven
+- Status: diagnosis complete; one manual retry authorized
+
+#### p04-t01 Diagnosis Outcome
+
+- Exact source/target cwd searches found no matching Codex transcript, archived transcript, or state-database thread for the failed fixture
+- No exact native UUID exists to pass safely to `codex delete`; manual cleanup is therefore neither safe nor necessary
+- The prior cleanup failure is the fail-closed result of `parentCreationAttempted: true` with no machine-observed exact parent ID, not evidence that deletion of a known session failed
+- The exact parent argv grammar is valid in Codex 0.151.0
+- One authorized parent-only `--ephemeral` probe completed with exit 0, one exact `thread.started` UUID, one completed turn, and exact `HANDOFF_PARENT_READY`; it persisted no session
+- Diagnosis supports a transient first-call failure; proceed with one fresh plan check and at most one manual full-gate retry using a new receipt path
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -622,6 +639,17 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Diagnosis: p04-t01
+
+**Date:** 2026-09-02
+**Status:** manual retry authorized
+
+No transcript or state-database thread matches the failed disposable fixture, so there
+is no exact cleanup ID and no safe manual deletion target. A parent-only ephemeral
+probe then passed the exact protocol boundary without persisting a session. The user
+authorized one fresh manual gate retry; the original inconclusive receipt remains
+preserved for audit.
 
 ### Entry Gate Blocked: p04-t01
 
