@@ -1,17 +1,16 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p04-t01 persistent Codex parent reporting failed before an exact native ID on both authorized full-gate attempts"
-oat_last_updated: 2026-09-01
-oat_current_task_id: p05-t03
+oat_blockers: []
+oat_last_updated: 2026-09-02
+oat_current_task_id: p03-t13
 oat_generated: false
 ---
 
 # Implementation: coding-session-handoff
 
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -29,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | completed   | 12    | 12/12     |
+| p03   | in_progress | 13    | 12/13     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 28/32 tasks completed
+**Total:** 28/33 tasks completed
 
 ---
 
@@ -274,6 +273,11 @@ review.
 
 **Status:** completed
 **Commit:** `07d0165157ffd468c5603cab1b3c5674e3500aeb`
+
+### Task p03-t13: (gate) Preserve a redacted live-gate failure stage
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -642,6 +646,15 @@ independently verified before p04-t01 can safely execute.
 - The ephemeral parent succeeds while both persistent full-gate attempts fail before an exact ID; the blocker is reproducible in the persistent execution/reporting boundary
 - No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 
+### Run 11 — 2026-09-02
+
+- Branch: `feat/coding-session-handoff`
+- Tier: Tier 1 targeted p03 implementation plus one fresh independent review
+- Authorization: user authorized the bounded observability repair and one targeted independent review
+- Scope: p03-t13 only; preserve a stable redacted failure stage without changing cleanup, retry, provider invocation, authentication, or gate bounds
+- Status: in progress; implementation pending
+- Explicit exclusion: no live `behavior-verify`, provider-session creation/deletion, p04-t02, or p05 work in this run
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -953,6 +966,8 @@ paused in the meantime.
 - [x] p03-t11 — `4162366f`
 - [x] p03-t12 — `07d01651`
 - [x] p03-t12 targeted independent review — passed with zero findings
+- [ ] p03-t13 — pending
+- [ ] p03-t13 targeted independent review — pending
 
 ---
 
@@ -972,7 +987,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, and p03-t12 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all | 0 | Twelve tasks and the final targeted p03-t12 review passed through `07d0165`; M1-M3 deferred; live provider gates not run |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, and p03-t12 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t12 | 0 | Twelve tasks and the final targeted p03-t12 review passed through `07d0165`; p03-t13 is pending; M1-M3 deferred; no further live provider gate authorized |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 

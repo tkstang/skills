@@ -1,8 +1,7 @@
 ---
-oat_current_task: p05-t03
+oat_current_task: p03-t13
 oat_last_commit: 07d0165157ffd468c5603cab1b3c5674e3500aeb
-oat_blockers:
-  - "p04-t01 persistent Codex parent reporting failed before an exact native ID on both authorized full-gate attempts"
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -97,11 +96,11 @@ oat_project_explainer:
 
 **Status:** Implementation in progress
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 
 ## Current Phase
 
-Implementation - blocked at p04-t01 inconclusive live gate
+Implementation - p03-t13 gate observability repair
 
 ## Artifacts
 
@@ -198,17 +197,18 @@ Implementation - blocked at p04-t01 inconclusive live gate
 - ✓ Second receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
 - ✓ No matching transcript or state-database thread exists after the retry; no deletion target can be inferred
 - ⏹ No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
+- ✓ User authorized one bounded p03-t13 redacted failure-stage repair and one fresh targeted independent review
+- ⏳ p03-t13 implementation is pending; no additional live gate attempt is authorized
 
 ## Blockers
 
-p04-t01 is blocked after two full-gate attempts failed at the persistent parent
-execution/reporting boundary before an exact native ID was observed. The parent-only
-ephemeral path succeeds, no leaked local thread is visible, and the authorized manual
-retry has been consumed.
+The p04-t01 blocker has been converted into bounded task p03-t13. The two preserved
+receipts remain inconclusive evidence: both persistent parent calls failed before an
+exact native ID, while the parent-only ephemeral path succeeds and no leaked local
+thread is visible.
 
 ## Next Milestone
 
-Plan and independently review one bounded remediation before another live attempt:
-either preserve redacted stage-specific provider-call failure evidence or prove an
-isolated writable Codex state home with the same authenticated/config fingerprint.
-Do not retry the gate, run p04-t02, dispatch p05, or delete provider state meanwhile.
+Implement p03-t13 through the original p03 implementer, verify the exact bounded diff,
+and run one fresh targeted independent review. Do not retry the gate, run p04-t02,
+dispatch p05, or delete provider state during this repair/review pass.

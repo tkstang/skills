@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-09-01
+oat_last_updated: 2026-09-02
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
@@ -950,6 +950,49 @@ live behavior gate from the implementer.
 
 ---
 
+### Task p03-t13: (gate) Preserve a redacted live-gate failure stage
+
+**Dependencies:** p03-t12 and its passing targeted review, plus the two authorized
+p04-t01 receipts that both collapsed the persistent parent failure to
+`reporting-failed` before an exact native ID was observed.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `src/transcript/coding-session-handoff/types.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify: `tests/coding-session-handoff/types.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add receipt/parser and gate tests proving that a failed bounded provider call
+retains one stable, low-cardinality failure stage for call exception, nonzero exit,
+timeout/signal, output bound, unresolved native identity, or evidence validation. Prove
+that the receipt and returned result never include raw stdout/stderr, thrown messages,
+fixture paths beyond the existing receipt contract, credentials, or unvalidated IDs.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts`
+
+Expected: the new cases fail because the current catch path discards the provider or
+evidence stage and emits only `reporting-failed`.
+
+**GREEN:** Add the smallest typed failure-stage contract needed to classify the bounded
+execution result and evidence boundary before the existing fail-closed cleanup and
+receipt finalization. Preserve `reporting-failed`, existing status semantics, cleanup
+ordering, exact-ID deletion safeguards, provider argv, authentication, retry policy,
+and all live-gate bounds. Regenerate the development bundle through `pnpm run build`.
+
+**Refactor:** Keep classification deterministic and redacted. Do not retain raw
+provider output or exception text, alter provider cleanup, add a retry, create or delete
+a provider session, or run the live gate from the implementer.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts src/transcript/coding-session-handoff/types.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check && git diff --check`
+
+**Commit:** `fix(p03-t13): preserve gate failure stage`
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1331,6 +1374,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t10 | code | passed | 2026-09-01 | reviews/archived/p03-t10-review-2026-09-01T221652Z.md | 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 | manual | - |
 | p03-t11 | code | fixes_completed | 2026-09-01 | reviews/archived/p03-t11-review-2026-09-01T224710Z.md | 4162366f70760d65b9aef9dfa162eedb37391b54 | manual | - |
 | p03-t12 | code | passed | 2026-09-01 | reviews/archived/p03-t12-review-2026-09-01T234310Z.md | 07d0165157ffd468c5603cab1b3c5674e3500aeb | manual | - |
+| p03-t13 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1356,13 +1400,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 12 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, and one exact-output review repair
+- p03: 13 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and one gate-observability repair
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 32 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 33 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 32 tasks have exactly one verified commit,
+Implementation is complete only when all 33 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a
