@@ -442,13 +442,17 @@ function observedId(
           : undefined;
     if (value !== undefined) {
       if (!isValidMachineObservedId(provider, value)) {
-        throw new BehaviorGateStageError('native-identity-unresolved');
+        throw new BehaviorGateStageError('native-identity-invalid');
       }
       values.push(value);
     }
   }
-  if (new Set(values).size !== 1) {
-    throw new BehaviorGateStageError('native-identity-unresolved');
+  const distinctValues = new Set(values);
+  if (distinctValues.size === 0) {
+    throw new BehaviorGateStageError('native-identity-missing');
+  }
+  if (distinctValues.size > 1) {
+    throw new BehaviorGateStageError('native-identity-multiple');
   }
   return values[0];
 }

@@ -305,17 +305,25 @@ describe('behavioral receipt and provider contract schemas', () => {
   });
 
   test('accepts an optional stable gate failure stage without weakening legacy receipts', () => {
-    expect(
-      parseBehavioralGateReceipt({
-        ...codexReceipt,
-        failureStage: 'provider-call-exception',
+    for (const failureStage of [
+      'provider-call-exception',
+      'native-identity-missing',
+      'native-identity-invalid',
+      'native-identity-multiple',
+      'native-identity-unresolved',
+    ]) {
+      expect(
+        parseBehavioralGateReceipt({
+          ...codexReceipt,
+          failureStage,
+          status: 'inconclusive',
+          reasonCodes: ['reporting-failed'],
+        }),
+      ).toMatchObject({
         status: 'inconclusive',
-        reasonCodes: ['reporting-failed'],
-      }),
-    ).toMatchObject({
-      status: 'inconclusive',
-      failureStage: 'provider-call-exception',
-    });
+        failureStage,
+      });
+    }
     expect(parseBehavioralGateReceipt(codexReceipt)).not.toHaveProperty(
       'failureStage',
     );

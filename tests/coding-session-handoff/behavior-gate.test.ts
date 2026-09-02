@@ -409,8 +409,47 @@ describe('behavior-verify', () => {
       }),
     },
     {
-      name: 'unresolved native identity',
-      expectedStage: 'native-identity-unresolved',
+      name: 'missing native identity',
+      expectedStage: 'native-identity-missing',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: '',
+          stderr: '',
+        }),
+      }),
+    },
+    {
+      name: 'malformed-only stdout native identity',
+      expectedStage: 'native-identity-missing',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: 'not-json\n{"type":\n',
+          stderr: '',
+        }),
+      }),
+    },
+    {
+      name: 'stderr-only native identity',
+      expectedStage: 'native-identity-missing',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: '',
+          stderr: `${JSON.stringify({
+            type: 'thread.started',
+            thread_id: CODEX_PARENT_ID,
+          })}\n`,
+        }),
+      }),
+    },
+    {
+      name: 'invalid native identity',
+      expectedStage: 'native-identity-invalid',
       overrides: (_base: BehaviorGateDependencies) => ({
         runProvider: async () => ({
           exitCode: 0,
@@ -419,6 +458,27 @@ describe('behavior-verify', () => {
             type: 'thread.started',
             thread_id: '--not-a-uuid-sk-secret',
           })}\n`,
+          stderr: '',
+        }),
+      }),
+    },
+    {
+      name: 'multiple native identities',
+      expectedStage: 'native-identity-multiple',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: [
+            JSON.stringify({
+              type: 'thread.started',
+              thread_id: CODEX_PARENT_ID,
+            }),
+            JSON.stringify({
+              type: 'thread.started',
+              thread_id: CODEX_CHILD_ID,
+            }),
+          ].join('\n'),
           stderr: '',
         }),
       }),
@@ -456,6 +516,7 @@ describe('behavior-verify', () => {
         'raw stderr',
         'raw-output-secret',
         'timed out raw',
+        'not-json',
         '--not-a-uuid',
         'sk-secret',
         '--credential',
@@ -465,6 +526,10 @@ describe('behavior-verify', () => {
       }
       expect(serialized).not.toContain('stdout');
       expect(serialized).not.toContain('stderr');
+      if (expectedStage.startsWith('native-identity-')) {
+        expect(serialized).not.toContain(CODEX_PARENT_ID);
+        expect(serialized).not.toContain(CODEX_CHILD_ID);
+      }
       expect(result).toMatchObject({
         status: 'inconclusive',
         reasonCodes: ['reporting-failed'],
@@ -505,6 +570,43 @@ describe('behavior-verify', () => {
       );
     },
   );
+
+  test('accepts duplicate occurrences of one exact native identity', async () => {
+    const events: string[] = [];
+    const receipts: BehavioralGateReceipt[] = [];
+    const base = dependencies(events, receipts);
+    const plan = createBehaviorPlan('codex', probe('codex'));
+    let providerCall = 0;
+    const result = await verifyProviderBehavior({
+      provider: 'codex',
+      providerProbe: probe('codex'),
+      confirmedDigest: plan.confirmationDigest,
+      receiptPath: '/tmp/receipt.json',
+      deps: {
+        ...base,
+        runProvider: async () => {
+          providerCall += 1;
+          const threadId =
+            providerCall === 2 ? CODEX_CHILD_ID : CODEX_PARENT_ID;
+          const event = JSON.stringify({
+            type: 'thread.started',
+            thread_id: threadId,
+          });
+          return {
+            exitCode: 0,
+            signal: null,
+            stdout: `${event}\n${event}\n`,
+            stderr: '',
+          };
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ status: 'passed', reasonCodes: [] });
+    expect(result).not.toHaveProperty('failureStage');
+    expect(receipts[0]).toMatchObject({ status: 'passed', reasonCodes: [] });
+    expect(receipts[0]).not.toHaveProperty('failureStage');
+  });
 
   test.sequential('locates exact Codex evidence by payload.id, not legacy or root ID', async () => {
     const createdHome = await mkdtemp(join(tmpdir(), 'gate-codex-native-'));

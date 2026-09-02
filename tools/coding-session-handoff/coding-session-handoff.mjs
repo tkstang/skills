@@ -2291,6 +2291,9 @@ var BEHAVIOR_GATE_FAILURE_STAGES = [
   "provider-nonzero-exit",
   "provider-timeout-or-signal",
   "provider-output-bound",
+  "native-identity-missing",
+  "native-identity-invalid",
+  "native-identity-multiple",
   "native-identity-unresolved",
   "evidence-validation"
 ];
@@ -3281,13 +3284,17 @@ function observedId(provider2, result) {
     const value2 = provider2 === "codex" && record2.type === "thread.started" ? record2.thread_id : provider2 === "claude" ? record2.session_id : void 0;
     if (value2 !== void 0) {
       if (!isValidMachineObservedId(provider2, value2)) {
-        throw new BehaviorGateStageError("native-identity-unresolved");
+        throw new BehaviorGateStageError("native-identity-invalid");
       }
       values.push(value2);
     }
   }
-  if (new Set(values).size !== 1) {
-    throw new BehaviorGateStageError("native-identity-unresolved");
+  const distinctValues = new Set(values);
+  if (distinctValues.size === 0) {
+    throw new BehaviorGateStageError("native-identity-missing");
+  }
+  if (distinctValues.size > 1) {
+    throw new BehaviorGateStageError("native-identity-multiple");
   }
   return values[0];
 }

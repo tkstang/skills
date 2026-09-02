@@ -41,6 +41,9 @@ export const BEHAVIOR_GATE_FAILURE_STAGES = [
   'provider-nonzero-exit',
   'provider-timeout-or-signal',
   'provider-output-bound',
+  'native-identity-missing',
+  'native-identity-invalid',
+  'native-identity-multiple',
   'native-identity-unresolved',
   'evidence-validation',
 ] as const;
