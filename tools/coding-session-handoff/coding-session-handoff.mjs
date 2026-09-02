@@ -3259,6 +3259,9 @@ function observedId(provider2, result) {
   if (Buffer.byteLength(result.stdout) > 65536 || Buffer.byteLength(result.stderr) > 65536) {
     throw new BehaviorGateStageError("provider-output-bound");
   }
+  if (result.exitCode === null) {
+    throw new BehaviorGateStageError("provider-call-exception");
+  }
   if (result.exitCode !== 0) {
     throw new BehaviorGateStageError("provider-nonzero-exit");
   }

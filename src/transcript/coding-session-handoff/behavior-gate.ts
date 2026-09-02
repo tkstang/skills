@@ -411,6 +411,9 @@ function observedId(
   ) {
     throw new BehaviorGateStageError('provider-output-bound');
   }
+  if (result.exitCode === null) {
+    throw new BehaviorGateStageError('provider-call-exception');
+  }
   if (result.exitCode !== 0) {
     throw new BehaviorGateStageError('provider-nonzero-exit');
   }

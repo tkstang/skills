@@ -359,6 +359,19 @@ describe('behavior-verify', () => {
       }),
     },
     {
+      name: 'null-exit provider launch exception',
+      expectedStage: 'provider-call-exception',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: null,
+          signal: null,
+          timedOut: false,
+          stdout: 'raw stdout sk-secret',
+          stderr: 'raw stderr --credential',
+        }),
+      }),
+    },
+    {
       name: 'nonzero exit',
       expectedStage: 'provider-nonzero-exit',
       overrides: (_base: BehaviorGateDependencies) => ({
@@ -435,12 +448,28 @@ describe('behavior-verify', () => {
         deps: { ...base, ...overrides(base) },
       });
 
+      expect(receipts).toHaveLength(1);
+      const serialized = JSON.stringify({ result, receipt: receipts[0] });
+      for (const sensitive of [
+        'raw thrown text',
+        'raw stdout',
+        'raw stderr',
+        'raw-output-secret',
+        'timed out raw',
+        '--not-a-uuid',
+        'sk-secret',
+        '--credential',
+        '/private/secret',
+      ]) {
+        expect(serialized).not.toContain(sensitive);
+      }
+      expect(serialized).not.toContain('stdout');
+      expect(serialized).not.toContain('stderr');
       expect(result).toMatchObject({
         status: 'inconclusive',
         reasonCodes: ['reporting-failed'],
         failureStage: expectedStage,
       });
-      expect(receipts).toHaveLength(1);
       expect(receipts[0]).toMatchObject({
         status: 'inconclusive',
         reasonCodes: ['reporting-failed'],
@@ -474,22 +503,6 @@ describe('behavior-verify', () => {
           'syntaxFingerprint',
         ].toSorted(),
       );
-      const serialized = JSON.stringify({ result, receipt: receipts[0] });
-      for (const sensitive of [
-        'raw thrown text',
-        'raw stdout',
-        'raw stderr',
-        'raw-output-secret',
-        'timed out raw',
-        '--not-a-uuid',
-        'sk-secret',
-        '--credential',
-        '/private/secret',
-      ]) {
-        expect(serialized).not.toContain(sensitive);
-      }
-      expect(serialized).not.toContain('stdout');
-      expect(serialized).not.toContain('stderr');
     },
   );
 
