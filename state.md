@@ -1,7 +1,8 @@
 ---
 oat_current_task: p05-t03
 oat_last_commit: 0e5bc879a7f68c50d69b5207ce07efd631462fb5
-oat_blockers: []
+oat_blockers:
+  - "p03-t13 review M1: default subprocess launch exceptions are mislabeled as provider-nonzero-exit"
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -100,7 +101,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t13 targeted review pending
+Implementation - p03-t13 review received; M1 pending disposition
 
 ## Artifacts
 
@@ -199,17 +200,20 @@ Implementation - p03-t13 targeted review pending
 - ⏹ No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 - ✓ User authorized one bounded p03-t13 redacted failure-stage repair and one fresh targeted independent review
 - ✓ p03-t13 completed at `0e5bc879`; root verified the exact five-file boundary, 82 focused tests, type-check, generated parity, diff hygiene, and current `origin/main` ancestry
-- ⏳ The one authorized targeted independent p03-t13 review is pending; no additional live gate attempt is authorized
+- ✓ The one authorized targeted independent p03-t13 review completed with 0 Critical, 0 Important, 1 Medium, and 0 Minor findings
+- ✗ M1 confirms the default adapter mislabels OS-level launch exceptions such as `ENOENT` as `provider-nonzero-exit`; fail-closed and redaction behavior remain intact
+- ⏹ No fix task, second review, or additional live gate was launched beyond the authorized scope
 
 ## Blockers
 
-The p04-t01 blocker has been converted into completed task p03-t13, but its one
-authorized targeted independent review is still pending. The two prior receipts remain
-inconclusive evidence and no additional live-gate authorization is implied by this
-repair.
+The p03-t13 review found one Medium diagnostic-accuracy gap in the default subprocess
+adapter. OS-level launch exceptions still fail closed and remain redacted, but may be
+reported as `provider-nonzero-exit` instead of `provider-call-exception`. The two prior
+receipts remain inconclusive evidence and no additional live-gate authorization is
+implied by this repair.
 
 ## Next Milestone
 
-Run one fresh targeted independent review of p03-t13 at `0e5bc879`. Record the
-disposition, but do not retry the gate, run p04-t02, dispatch p05, or delete provider
-state during this repair/review pass.
+Choose whether to add one bounded p03 follow-up task for review finding M1 or explicitly
+defer the diagnostic distinction. Do not retry the gate, run p04-t02, dispatch p05,
+delete provider state, or launch a second review without new authorization.

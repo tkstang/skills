@@ -1374,7 +1374,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t10 | code | passed | 2026-09-01 | reviews/archived/p03-t10-review-2026-09-01T221652Z.md | 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 | manual | - |
 | p03-t11 | code | fixes_completed | 2026-09-01 | reviews/archived/p03-t11-review-2026-09-01T224710Z.md | 4162366f70760d65b9aef9dfa162eedb37391b54 | manual | - |
 | p03-t12 | code | passed | 2026-09-01 | reviews/archived/p03-t12-review-2026-09-01T234310Z.md | 07d0165157ffd468c5603cab1b3c5674e3500aeb | manual | - |
-| p03-t13 | code | pending | - | - | - | - | - |
+| p03-t13 | code | received | 2026-09-02 | reviews/archived/p03-t13-review-2026-09-02T133557Z.md | 0e5bc879a7f68c50d69b5207ce07efd631462fb5 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |

@@ -1,7 +1,8 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p03-t13 review M1: default subprocess launch exceptions are mislabeled as provider-nonzero-exit"
 oat_last_updated: 2026-09-02
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -655,7 +656,7 @@ independently verified before p04-t01 can safely execute.
 - Dispatch policy: managed `frontier`; task class `consequential`; selection mode `candidate`
 - Authorization: user authorized the bounded observability repair and one targeted independent review
 - Scope: p03-t13 only; preserve a stable redacted failure stage without changing cleanup, retry, provider invocation, authentication, or gate bounds
-- Status: implementation passed at `0e5bc879`; targeted independent review pending
+- Status: implementation passed at `0e5bc879`; the single targeted review returned 1 Medium finding pending disposition
 - Explicit exclusion: no live `behavior-verify`, provider-session creation/deletion, p04-t02, or p05 work in this run
 
 #### p03-t13 Implementation Outcome
@@ -666,6 +667,14 @@ independently verified before p04-t01 can safely execute.
 - Commit: `0e5bc879a7f68c50d69b5207ce07efd631462fb5`
 - No provider, live-gate, login, session, receipt, cleanup, quota, p04, or p05 operation occurred
 
+#### p03-t13 Targeted Review Outcome
+
+- Artifact: `reviews/archived/p03-t13-review-2026-09-02T133557Z.md`
+- Reviewed head: `0e5bc879a7f68c50d69b5207ce07efd631462fb5`
+- Findings: 0 Critical, 0 Important, 1 Medium, 0 Minor
+- M1: the default adapter turns OS-level launch exceptions such as `ENOENT` into a null exit code that `observedId` labels `provider-nonzero-exit`; the gate remains fail-closed and redacted, but its diagnostic is inaccurate
+- Disposition: received and paused for explicit direction; no fix task, second review, or live-provider operation was launched
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -673,6 +682,29 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Received: p03-t13
+
+**Date:** 2026-09-02
+**Review artifact:** `reviews/archived/p03-t13-review-2026-09-02T133557Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 0
+
+**Finding M1:** Agree. The shipped default subprocess adapter converts a string-coded
+launch exception such as `ENOENT` into a null-exit result; the classifier then reports
+`provider-nonzero-exit`. This does not bypass cleanup, retry, redaction, or failure
+semantics, but it can obscure the exact persistent-call failure that p03-t13 was added
+to diagnose.
+
+**New tasks added:** none; the authorized repair/review budget is exhausted.
+
+**Next:** Explicitly choose whether to add one bounded follow-up task for M1 or defer
+the diagnostic distinction. No further live gate is authorized by this review.
 
 ### Entry Gate Retry Blocked: p04-t01
 
@@ -978,7 +1010,7 @@ paused in the meantime.
 - [x] p03-t12 — `07d01651`
 - [x] p03-t12 targeted independent review — passed with zero findings
 - [x] p03-t13 — `0e5bc879`
-- [ ] p03-t13 targeted independent review — pending
+- [x] p03-t13 targeted independent review — completed; M1 pending disposition
 
 ---
 
@@ -998,7 +1030,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, and p03-t13 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t13 implementation | 0 | Thirteen task commits pass through `0e5bc879`; the p03-t13 targeted review is pending; M1-M3 deferred; no further live provider gate authorized |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, and p03-t13 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t13 implementation | 0 | Thirteen task commits pass through `0e5bc879`; the p03-t13 review found one Medium diagnostic-accuracy gap; prior M1-M3 remain deferred; no further live provider gate authorized |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 

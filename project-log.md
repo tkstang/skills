@@ -144,6 +144,10 @@ User authorized one bounded p03-t13 repair to preserve a stable redacted live-ga
 
 Task p03-t13 completed at 0e5bc879a7f68c50d69b5207ce07efd631462fb5 with the exact five-file boundary. Root verification passed 82 focused tests, type-check, generated parity, diff hygiene, and current origin/main ancestry; one authorized targeted independent review remains, and no live provider operation was run.
 
+### 2026-09-02 · structural · oat-project-implement · p03-t13-review-stop
+
+The one authorized targeted p03-t13 review completed at 0e5bc879a7f68c50d69b5207ce07efd631462fb5 with critical:0,important:0,medium:1,minor:0. M1 found that OS-level launch exceptions such as ENOENT are mislabeled provider-nonzero-exit; the gate remains fail-closed and redacted. No fix task, second review, or live provider operation was launched pending explicit direction.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
