@@ -36,6 +36,17 @@ export const HANDOFF_REASON_CODES = [
 ] as const;
 export type HandoffReasonCode = (typeof HANDOFF_REASON_CODES)[number];
 
+export const BEHAVIOR_GATE_FAILURE_STAGES = [
+  'provider-call-exception',
+  'provider-nonzero-exit',
+  'provider-timeout-or-signal',
+  'provider-output-bound',
+  'native-identity-unresolved',
+  'evidence-validation',
+] as const;
+export type BehaviorGateFailureStage =
+  (typeof BEHAVIOR_GATE_FAILURE_STAGES)[number];
+
 export const CAPABILITY_STATUSES = [
   'syntax-verified',
   'missing',
@@ -197,6 +208,7 @@ export interface BehavioralGateReceipt {
     reasonCodes: HandoffReasonCode[];
   };
   status: 'passed' | 'failed' | 'inconclusive';
+  failureStage?: BehaviorGateFailureStage;
   reasonCodes: HandoffReasonCode[];
   createdAt: string;
 }
@@ -773,22 +785,26 @@ export function parseBehavioralGateReceipt(
   value: unknown,
 ): BehavioralGateReceipt {
   const receipt = record(value, 'behavioral-gate-receipt');
-  exactKeys(receipt, [
-    'schemaVersion',
-    'provider',
-    'executablePath',
-    'exactVersion',
-    'syntaxFingerprint',
-    'executionContextFingerprint',
-    'operation',
-    'fixture',
-    'observations',
-    'bounds',
-    'cleanup',
-    'status',
-    'reasonCodes',
-    'createdAt',
-  ]);
+  exactKeys(
+    receipt,
+    [
+      'schemaVersion',
+      'provider',
+      'executablePath',
+      'exactVersion',
+      'syntaxFingerprint',
+      'executionContextFingerprint',
+      'operation',
+      'fixture',
+      'observations',
+      'bounds',
+      'cleanup',
+      'status',
+      'createdAt',
+      'reasonCodes',
+    ],
+    ['failureStage'],
+  );
   if (receipt.schemaVersion !== HANDOFF_SCHEMA_VERSION) fail('schema-version');
   const provider = enumValue(
     receipt.provider,
@@ -967,12 +983,21 @@ export function parseBehavioralGateReceipt(
     'behavior-receipt-status',
   );
   const reasonCodes = parseReasonCodes(receipt.reasonCodes);
+  const failureStage =
+    receipt.failureStage === undefined
+      ? undefined
+      : enumValue(
+          receipt.failureStage,
+          BEHAVIOR_GATE_FAILURE_STAGES,
+          'behavior-failure-stage',
+        );
   if (cleanupFailed && status !== 'inconclusive') {
     fail('behavior-cleanup-inconclusive');
   }
   if (status === 'passed') {
     if (
       cleanupFailed ||
+      failureStage !== undefined ||
       reasonCodes.length > 0 ||
       observations.parentNativeId === observations.observedChildNativeId ||
       !observations.exactParentLineage ||
@@ -987,6 +1012,11 @@ export function parseBehavioralGateReceipt(
     }
   } else if (reasonCodes.length === 0) {
     fail('behavior-failure-reason');
+  } else if (
+    failureStage !== undefined &&
+    !reasonCodes.includes('reporting-failed')
+  ) {
+    fail('behavior-failure-stage-reason');
   }
 
   return {
@@ -1008,6 +1038,7 @@ export function parseBehavioralGateReceipt(
     bounds,
     cleanup,
     status,
+    ...(failureStage === undefined ? {} : { failureStage }),
     reasonCodes,
     createdAt: isoTimestamp(receipt.createdAt, 'behavior-created-at'),
   };

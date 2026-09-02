@@ -304,6 +304,40 @@ describe('behavioral receipt and provider contract schemas', () => {
     });
   });
 
+  test('accepts an optional stable gate failure stage without weakening legacy receipts', () => {
+    expect(
+      parseBehavioralGateReceipt({
+        ...codexReceipt,
+        failureStage: 'provider-call-exception',
+        status: 'inconclusive',
+        reasonCodes: ['reporting-failed'],
+      }),
+    ).toMatchObject({
+      status: 'inconclusive',
+      failureStage: 'provider-call-exception',
+    });
+    expect(parseBehavioralGateReceipt(codexReceipt)).not.toHaveProperty(
+      'failureStage',
+    );
+  });
+
+  test('rejects unknown gate failure stages and stages on passed receipts', () => {
+    expect(() =>
+      parseBehavioralGateReceipt({
+        ...codexReceipt,
+        failureStage: 'raw-provider-message',
+        status: 'inconclusive',
+        reasonCodes: ['reporting-failed'],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseBehavioralGateReceipt({
+        ...codexReceipt,
+        failureStage: 'evidence-validation',
+      }),
+    ).toThrow();
+  });
+
   test('accepts verified and unverified provider behavior contracts with exact provenance', () => {
     expect(
       parseProviderBehaviorContract({

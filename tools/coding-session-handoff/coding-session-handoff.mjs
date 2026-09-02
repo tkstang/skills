@@ -2286,6 +2286,14 @@ var HANDOFF_REASON_CODES = [
   "target-not-worktree",
   "unknown-session"
 ];
+var BEHAVIOR_GATE_FAILURE_STAGES = [
+  "provider-call-exception",
+  "provider-nonzero-exit",
+  "provider-timeout-or-signal",
+  "provider-output-bound",
+  "native-identity-unresolved",
+  "evidence-validation"
+];
 var HANDOFF_COMMANDS = [
   "discover",
   "preview",
@@ -2499,22 +2507,26 @@ function parseSessionPreviewLimits(value2) {
 }
 function parseBehavioralGateReceipt(value2) {
   const receipt = record(value2, "behavioral-gate-receipt");
-  exactKeys(receipt, [
-    "schemaVersion",
-    "provider",
-    "executablePath",
-    "exactVersion",
-    "syntaxFingerprint",
-    "executionContextFingerprint",
-    "operation",
-    "fixture",
-    "observations",
-    "bounds",
-    "cleanup",
-    "status",
-    "reasonCodes",
-    "createdAt"
-  ]);
+  exactKeys(
+    receipt,
+    [
+      "schemaVersion",
+      "provider",
+      "executablePath",
+      "exactVersion",
+      "syntaxFingerprint",
+      "executionContextFingerprint",
+      "operation",
+      "fixture",
+      "observations",
+      "bounds",
+      "cleanup",
+      "status",
+      "createdAt",
+      "reasonCodes"
+    ],
+    ["failureStage"]
+  );
   if (receipt.schemaVersion !== HANDOFF_SCHEMA_VERSION) fail("schema-version");
   const provider2 = enumValue(
     receipt.provider,
@@ -2671,15 +2683,22 @@ function parseBehavioralGateReceipt(value2) {
     "behavior-receipt-status"
   );
   const reasonCodes = parseReasonCodes(receipt.reasonCodes);
+  const failureStage = receipt.failureStage === void 0 ? void 0 : enumValue(
+    receipt.failureStage,
+    BEHAVIOR_GATE_FAILURE_STAGES,
+    "behavior-failure-stage"
+  );
   if (cleanupFailed && status !== "inconclusive") {
     fail("behavior-cleanup-inconclusive");
   }
   if (status === "passed") {
-    if (cleanupFailed || reasonCodes.length > 0 || observations.parentNativeId === observations.observedChildNativeId || !observations.exactParentLineage || !observations.sourceParentResumable || observations.recordedChildCwd !== fixture.targetWorktree || observations.metadataEffects.length === 0 || provider2 === "claude" && observations.requestedChildNativeId !== observations.observedChildNativeId) {
+    if (cleanupFailed || failureStage !== void 0 || reasonCodes.length > 0 || observations.parentNativeId === observations.observedChildNativeId || !observations.exactParentLineage || !observations.sourceParentResumable || observations.recordedChildCwd !== fixture.targetWorktree || observations.metadataEffects.length === 0 || provider2 === "claude" && observations.requestedChildNativeId !== observations.observedChildNativeId) {
       fail("behavior-passed-evidence");
     }
   } else if (reasonCodes.length === 0) {
     fail("behavior-failure-reason");
+  } else if (failureStage !== void 0 && !reasonCodes.includes("reporting-failed")) {
+    fail("behavior-failure-stage-reason");
   }
   return {
     schemaVersion: HANDOFF_SCHEMA_VERSION,
@@ -2700,6 +2719,7 @@ function parseBehavioralGateReceipt(value2) {
     bounds,
     cleanup,
     status,
+    ...failureStage === void 0 ? {} : { failureStage },
     reasonCodes,
     createdAt: isoTimestamp(receipt.createdAt, "behavior-created-at")
   };
@@ -3098,6 +3118,14 @@ var ProviderGateError = class extends Error {
     this.code = code;
   }
 };
+var BehaviorGateStageError = class extends Error {
+  failureStage;
+  constructor(failureStage) {
+    super(failureStage);
+    this.name = "BehaviorGateStageError";
+    this.failureStage = failureStage;
+  }
+};
 function behaviorPlanProjection(provider2, providerProbe) {
   const capability2 = providerProbe.capability;
   return {
@@ -3225,8 +3253,14 @@ function isValidMachineObservedId(provider2, value2) {
   return provider2 === "codex" ? isExactProviderUuid(value2) : typeof value2 === "string" && value2.length > 0;
 }
 function observedId(provider2, result) {
-  if (result.exitCode !== 0 || result.signal !== null || Buffer.byteLength(result.stdout) > 65536 || Buffer.byteLength(result.stderr) > 65536) {
-    return null;
+  if (result.timedOut === true || typeof result.signal === "string" && result.signal.length > 0) {
+    throw new BehaviorGateStageError("provider-timeout-or-signal");
+  }
+  if (Buffer.byteLength(result.stdout) > 65536 || Buffer.byteLength(result.stderr) > 65536) {
+    throw new BehaviorGateStageError("provider-output-bound");
+  }
+  if (result.exitCode !== 0) {
+    throw new BehaviorGateStageError("provider-nonzero-exit");
   }
   const values = [];
   for (const line of result.stdout.split("\n")) {
@@ -3243,17 +3277,23 @@ function observedId(provider2, result) {
     const record2 = parsed;
     const value2 = provider2 === "codex" && record2.type === "thread.started" ? record2.thread_id : provider2 === "claude" ? record2.session_id : void 0;
     if (value2 !== void 0) {
-      if (!isValidMachineObservedId(provider2, value2)) return null;
+      if (!isValidMachineObservedId(provider2, value2)) {
+        throw new BehaviorGateStageError("native-identity-unresolved");
+      }
       values.push(value2);
     }
   }
-  return new Set(values).size === 1 ? values[0] : null;
+  if (new Set(values).size !== 1) {
+    throw new BehaviorGateStageError("native-identity-unresolved");
+  }
+  return values[0];
 }
 async function safeRun(deps, invocationValue, executablePath) {
   try {
     return await deps.runProvider(invocationValue, executablePath);
-  } catch {
-    throw new ProviderGateError("provider-call-failed");
+  } catch (error) {
+    if (error instanceof BehaviorGateStageError) throw error;
+    throw new BehaviorGateStageError("provider-call-exception");
   }
 }
 function exactCapabilitiesAvailable(provider2, probe) {
@@ -3289,7 +3329,7 @@ async function cleanupGitFixture(deps, fixture) {
     return { status: "failed", reasonCodes: ["reporting-failed"] };
   }
 }
-async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtureCleanup, childEvidence, resumeEvidence, incomplete) {
+async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtureCleanup, childEvidence, resumeEvidence, incomplete, failureStage) {
   const cleanupReasonCodes = uniqueReasonCodes(
     providerCleanup.reasonCodes,
     fixtureCleanup.reasonCodes
@@ -3302,6 +3342,7 @@ async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtur
     cleanupReasonCodes
   );
   const sourceParentResumable = resumeEvidence?.sourceParentResumable === true && resumeEvidence.childUnchanged;
+  const resolvedFailureStage = failureStage ?? (evidencePassed ? void 0 : "evidence-validation");
   const receipt = parseBehavioralGateReceipt({
     schemaVersion: 1,
     provider: input.provider,
@@ -3336,6 +3377,7 @@ async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtur
       reasonCodes: cleanupReasonCodes
     },
     status,
+    ...resolvedFailureStage === void 0 ? {} : { failureStage: resolvedFailureStage },
     reasonCodes,
     createdAt: deps.now().toISOString()
   });
@@ -3350,6 +3392,7 @@ async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtur
     provider: input.provider,
     status,
     receiptDigest: createHash2("sha256").update(receiptContents).digest("hex"),
+    ...resolvedFailureStage === void 0 ? {} : { failureStage: resolvedFailureStage },
     reasonCodes
   };
 }
@@ -3391,6 +3434,7 @@ async function verifyProviderBehavior(input) {
   let childEvidence;
   let resumeEvidence;
   let incomplete = false;
+  let failureStage;
   try {
     state.parentCreationAttempted = true;
     const parentResult = await safeRun(
@@ -3403,7 +3447,7 @@ async function verifyProviderBehavior(input) {
       state.executablePath
     );
     const parentNativeId = observedId(input.provider, parentResult);
-    if (parentNativeId === null || requestedParentId !== void 0 && parentNativeId !== requestedParentId) {
+    if (requestedParentId !== void 0 && parentNativeId !== requestedParentId) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     state.parentNativeId = parentNativeId;
@@ -3429,7 +3473,7 @@ async function verifyProviderBehavior(input) {
       state.executablePath
     );
     const childNativeId = observedId(input.provider, successorResult);
-    if (childNativeId === null || requestedChildId !== void 0 && childNativeId !== requestedChildId) {
+    if (requestedChildId !== void 0 && childNativeId !== requestedChildId) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     state.childNativeId = childNativeId;
@@ -3467,8 +3511,9 @@ async function verifyProviderBehavior(input) {
       sourceBeforeResume,
       childEvidence
     );
-  } catch {
+  } catch (error) {
     incomplete = true;
+    failureStage = error instanceof BehaviorGateStageError ? error.failureStage : "evidence-validation";
   }
   const providerCleanup = await cleanupProviderState(deps, state);
   const fixtureCleanup = await cleanupGitFixture(deps, fixture);
@@ -3481,7 +3526,8 @@ async function verifyProviderBehavior(input) {
     fixtureCleanup,
     childEvidence,
     resumeEvidence,
-    incomplete
+    incomplete,
+    failureStage
   );
 }
 async function git(cwd, argv) {
@@ -3532,6 +3578,9 @@ async function runDefaultProvider(invocationValue, executablePath) {
   } catch (error) {
     if (error === null || typeof error !== "object") throw error;
     const details = error;
+    if (details.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
+      throw new BehaviorGateStageError("provider-output-bound");
+    }
     return {
       exitCode: typeof details.code === "number" ? details.code : null,
       signal: typeof details.signal === "string" ? details.signal : null,

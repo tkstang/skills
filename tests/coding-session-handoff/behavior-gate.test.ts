@@ -348,6 +348,151 @@ describe('behavior-verify', () => {
     },
   );
 
+  test.each([
+    {
+      name: 'provider call exception',
+      expectedStage: 'provider-call-exception',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => {
+          throw new Error('raw thrown text sk-secret');
+        },
+      }),
+    },
+    {
+      name: 'nonzero exit',
+      expectedStage: 'provider-nonzero-exit',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 7,
+          signal: null,
+          stdout: 'raw stdout sk-secret',
+          stderr: 'raw stderr --credential',
+        }),
+      }),
+    },
+    {
+      name: 'timeout or signal',
+      expectedStage: 'provider-timeout-or-signal',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: null,
+          signal: 'SIGTERM',
+          timedOut: true,
+          stdout: 'timed out raw stdout',
+          stderr: 'timed out raw stderr',
+        }),
+      }),
+    },
+    {
+      name: 'output bound',
+      expectedStage: 'provider-output-bound',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: 'raw-output-secret'.repeat(4_097),
+          stderr: '',
+        }),
+      }),
+    },
+    {
+      name: 'unresolved native identity',
+      expectedStage: 'native-identity-unresolved',
+      overrides: (_base: BehaviorGateDependencies) => ({
+        runProvider: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: `${JSON.stringify({
+            type: 'thread.started',
+            thread_id: '--not-a-uuid-sk-secret',
+          })}\n`,
+          stderr: '',
+        }),
+      }),
+    },
+    {
+      name: 'evidence validation',
+      expectedStage: 'evidence-validation',
+      overrides: (base: BehaviorGateDependencies) => ({
+        runProvider: base.runProvider,
+        captureParentEvidence: async () => {
+          throw new Error('raw evidence path /private/secret');
+        },
+      }),
+    },
+  ] as const)(
+    'records a redacted stable stage for $name',
+    async ({ expectedStage, overrides }) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const base = dependencies(events, receipts);
+      const plan = createBehaviorPlan('codex', probe('codex'));
+      const result = await verifyProviderBehavior({
+        provider: 'codex',
+        providerProbe: probe('codex'),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: { ...base, ...overrides(base) },
+      });
+
+      expect(result).toMatchObject({
+        status: 'inconclusive',
+        reasonCodes: ['reporting-failed'],
+        failureStage: expectedStage,
+      });
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        status: 'inconclusive',
+        reasonCodes: ['reporting-failed'],
+        failureStage: expectedStage,
+      });
+      expect(Object.keys(result).toSorted()).toEqual(
+        [
+          'failureStage',
+          'provider',
+          'reasonCodes',
+          'receiptDigest',
+          'status',
+        ].toSorted(),
+      );
+      expect(Object.keys(receipts[0]).toSorted()).toEqual(
+        [
+          'bounds',
+          'cleanup',
+          'createdAt',
+          'exactVersion',
+          'executablePath',
+          'failureStage',
+          'executionContextFingerprint',
+          'fixture',
+          'observations',
+          'operation',
+          'provider',
+          'reasonCodes',
+          'schemaVersion',
+          'status',
+          'syntaxFingerprint',
+        ].toSorted(),
+      );
+      const serialized = JSON.stringify({ result, receipt: receipts[0] });
+      for (const sensitive of [
+        'raw thrown text',
+        'raw stdout',
+        'raw stderr',
+        'raw-output-secret',
+        'timed out raw',
+        '--not-a-uuid',
+        'sk-secret',
+        '--credential',
+        '/private/secret',
+      ]) {
+        expect(serialized).not.toContain(sensitive);
+      }
+      expect(serialized).not.toContain('stdout');
+      expect(serialized).not.toContain('stderr');
+    },
+  );
+
   test.sequential('locates exact Codex evidence by payload.id, not legacy or root ID', async () => {
     const createdHome = await mkdtemp(join(tmpdir(), 'gate-codex-native-'));
     const home = await realpath(createdHome);

@@ -34,6 +34,7 @@ import { HANDOFF_DISCOVERY_OPTIONS } from './discovery.js';
 import type { NativeExecutionResult } from './handoff.js';
 import type { ProviderProbeResult } from './providers.js';
 import type {
+  BehaviorGateFailureStage,
   BehavioralGateReceipt,
   HandoffProvider,
   HandoffReasonCode,
@@ -67,6 +68,16 @@ export class ProviderGateError extends Error {
     super(code);
     this.name = 'ProviderGateError';
     this.code = code;
+  }
+}
+
+class BehaviorGateStageError extends Error {
+  readonly failureStage: BehaviorGateFailureStage;
+
+  constructor(failureStage: BehaviorGateFailureStage) {
+    super(failureStage);
+    this.name = 'BehaviorGateStageError';
+    this.failureStage = failureStage;
   }
 }
 
@@ -214,6 +225,7 @@ export interface SafeBehaviorGateResult {
   provider: HandoffProvider;
   status: BehavioralGateReceipt['status'];
   receiptDigest: string;
+  failureStage?: BehaviorGateFailureStage;
   reasonCodes: HandoffReasonCode[];
 }
 
@@ -386,14 +398,21 @@ function isValidMachineObservedId(
 function observedId(
   provider: HandoffProvider,
   result: NativeExecutionResult,
-): string | null {
+): string {
   if (
-    result.exitCode !== 0 ||
-    result.signal !== null ||
+    result.timedOut === true ||
+    (typeof result.signal === 'string' && result.signal.length > 0)
+  ) {
+    throw new BehaviorGateStageError('provider-timeout-or-signal');
+  }
+  if (
     Buffer.byteLength(result.stdout) > 65_536 ||
     Buffer.byteLength(result.stderr) > 65_536
   ) {
-    return null;
+    throw new BehaviorGateStageError('provider-output-bound');
+  }
+  if (result.exitCode !== 0) {
+    throw new BehaviorGateStageError('provider-nonzero-exit');
   }
   const values: string[] = [];
   for (const line of result.stdout.split('\n')) {
@@ -419,11 +438,16 @@ function observedId(
           ? record.session_id
           : undefined;
     if (value !== undefined) {
-      if (!isValidMachineObservedId(provider, value)) return null;
+      if (!isValidMachineObservedId(provider, value)) {
+        throw new BehaviorGateStageError('native-identity-unresolved');
+      }
       values.push(value);
     }
   }
-  return new Set(values).size === 1 ? values[0] : null;
+  if (new Set(values).size !== 1) {
+    throw new BehaviorGateStageError('native-identity-unresolved');
+  }
+  return values[0];
 }
 
 async function safeRun(
@@ -433,8 +457,9 @@ async function safeRun(
 ): Promise<NativeExecutionResult> {
   try {
     return await deps.runProvider(invocationValue, executablePath);
-  } catch {
-    throw new ProviderGateError('provider-call-failed');
+  } catch (error) {
+    if (error instanceof BehaviorGateStageError) throw error;
+    throw new BehaviorGateStageError('provider-call-exception');
   }
 }
 
@@ -513,6 +538,7 @@ async function finalizeReceipt(
   childEvidence: ChildEvidence | undefined,
   resumeEvidence: SourceResumeEvidence | undefined,
   incomplete: boolean,
+  failureStage: BehaviorGateFailureStage | undefined,
 ): Promise<SafeBehaviorGateResult> {
   const cleanupReasonCodes = uniqueReasonCodes(
     providerCleanup.reasonCodes,
@@ -541,6 +567,8 @@ async function finalizeReceipt(
   const sourceParentResumable =
     resumeEvidence?.sourceParentResumable === true &&
     resumeEvidence.childUnchanged;
+  const resolvedFailureStage =
+    failureStage ?? (evidencePassed ? undefined : 'evidence-validation');
   const receipt = parseBehavioralGateReceipt({
     schemaVersion: 1,
     provider: input.provider,
@@ -577,6 +605,9 @@ async function finalizeReceipt(
       reasonCodes: cleanupReasonCodes,
     },
     status,
+    ...(resolvedFailureStage === undefined
+      ? {}
+      : { failureStage: resolvedFailureStage }),
     reasonCodes,
     createdAt: deps.now().toISOString(),
   });
@@ -590,6 +621,9 @@ async function finalizeReceipt(
     provider: input.provider,
     status,
     receiptDigest: createHash('sha256').update(receiptContents).digest('hex'),
+    ...(resolvedFailureStage === undefined
+      ? {}
+      : { failureStage: resolvedFailureStage }),
     reasonCodes,
   };
 }
@@ -640,6 +674,7 @@ export async function verifyProviderBehavior(
   let childEvidence: ChildEvidence | undefined;
   let resumeEvidence: SourceResumeEvidence | undefined;
   let incomplete = false;
+  let failureStage: BehaviorGateFailureStage | undefined;
 
   try {
     state.parentCreationAttempted = true;
@@ -654,8 +689,8 @@ export async function verifyProviderBehavior(
     );
     const parentNativeId = observedId(input.provider, parentResult);
     if (
-      parentNativeId === null ||
-      (requestedParentId !== undefined && parentNativeId !== requestedParentId)
+      requestedParentId !== undefined &&
+      parentNativeId !== requestedParentId
     ) {
       throw new ProviderGateError('provider-evidence-failed');
     }
@@ -686,10 +721,7 @@ export async function verifyProviderBehavior(
       state.executablePath,
     );
     const childNativeId = observedId(input.provider, successorResult);
-    if (
-      childNativeId === null ||
-      (requestedChildId !== undefined && childNativeId !== requestedChildId)
-    ) {
+    if (requestedChildId !== undefined && childNativeId !== requestedChildId) {
       throw new ProviderGateError('provider-evidence-failed');
     }
     state.childNativeId = childNativeId;
@@ -741,8 +773,12 @@ export async function verifyProviderBehavior(
       sourceBeforeResume,
       childEvidence,
     );
-  } catch {
+  } catch (error) {
     incomplete = true;
+    failureStage =
+      error instanceof BehaviorGateStageError
+        ? error.failureStage
+        : 'evidence-validation';
   }
 
   const providerCleanup = await cleanupProviderState(deps, state);
@@ -757,6 +793,7 @@ export async function verifyProviderBehavior(
     childEvidence,
     resumeEvidence,
     incomplete,
+    failureStage,
   );
 }
 
@@ -813,6 +850,9 @@ async function runDefaultProvider(
   } catch (error) {
     if (error === null || typeof error !== 'object') throw error;
     const details = error as Record<string, unknown>;
+    if (details.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+      throw new BehaviorGateStageError('provider-output-bound');
+    }
     return {
       exitCode: typeof details.code === 'number' ? details.code : null,
       signal: typeof details.signal === 'string' ? details.signal : null,
