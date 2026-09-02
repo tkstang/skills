@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t01
 oat_last_commit: eae373b80bf8175cfe29de7ccfd7e682779c9d57
-oat_blockers: ["p04-t01 remains inconclusive after two authorized attempts; no further live retry is authorized"]
+oat_blockers: ["p04-t01 third authorized attempt remained inconclusive at native-identity-unresolved; no further retry is authorized"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-02T14:39:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-02T15:23:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -207,14 +207,22 @@ Implementation - p04-t01 live-gate blocker after p03 completion
 - ✓ The p03-t13 review advanced only to `fixes_completed`; re-review was explicitly waived and no passing artifact is claimed
 - ✓ Phase p03 is complete at 14/14 tasks
 - ⏹ No re-review, live provider operation, p04-t02 work, or p05 dispatch occurred
+- ✓ User authorized exactly one additional p04-t01 attempt and explicitly waived the stale knowledge-index refresh
+- ✓ Exact Codex 0.151.0 mutation-free preflight authenticated with the reviewed fingerprints and confirmation digest
+- ✗ The single authorized live attempt returned `inconclusive` / `reporting-failed` at `native-identity-unresolved`
+- ✓ Third receipt and locator are ignored, mode 0600, digest-verified, and contain no raw output, credentials, or provider IDs; Git fixture cleanup succeeded
+- ✗ Provider-state cleanup failed because no exact parent native ID was observed; no cleanup target was inferred
+- ⏹ No automatic retry, manual deletion, p04-t02 work, or p05 dispatch was launched
 
 ## Blockers
 
-p04-t01 remains inconclusive after two authorized live-gate attempts. Both receipts
-remain preserved as redacted evidence, neither yielded an exact parent ID or safe
-cleanup target, and no additional live-gate authorization is implied by p03-t14.
+p04-t01 remains inconclusive after three authorized live-gate attempts. The latest
+receipt narrows the failure to `native-identity-unresolved`: the persistent parent call
+did not yield one valid exact native ID. All receipts remain preserved as redacted
+evidence, and no safe cleanup target can be inferred.
 
 ## Next Milestone
 
-Pause at p04-t01 for explicit direction on the existing live-gate blocker. Do not retry
-the gate, run p04-t02, dispatch p05, delete provider state, or launch another review.
+Pause at p04-t01 for explicit direction on the persistent native-ID reporting blocker.
+Do not retry the gate, run p04-t02, dispatch p05, delete provider state, or launch
+another review.

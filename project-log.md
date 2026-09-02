@@ -156,6 +156,10 @@ User authorized review finding M1 as bounded task p03-t14: classify null-exit/no
 
 Task p03-t14 completed at eae373b80bf8175cfe29de7ccfd7e682779c9d57 with the exact three-file boundary. Root verification passed 83 focused tests, type-check, generated parity, diff hygiene, and fresh origin/main ancestry; the p03-t13 review advanced only to fixes_completed under the explicit re-review waiver, and no live provider operation or new review was launched.
 
+### 2026-09-02 · structural · oat-project-implement · p04-t01-diagnostic-stop
+
+The single authorized Codex 0.151.0 live-gate attempt returned inconclusive reporting-failed with the new stable failure stage native-identity-unresolved; redacted receipt digest 9a42096799993af38b07374dbc765d214aff9768175d067b645f71cc99987166. Receipt validation and Git fixture cleanup passed, provider-state cleanup failed because no exact parent native ID was observed, no cleanup target was inferred, and no automatic retry or manual deletion was launched.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

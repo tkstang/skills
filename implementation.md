@@ -1,7 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 remains inconclusive after two authorized attempts; no further live retry is authorized"]
+oat_blockers: ["p04-t01 third authorized attempt remained inconclusive at native-identity-unresolved; no further retry is authorized"]
 oat_last_updated: 2026-09-02
 oat_current_task_id: p04-t01
 oat_generated: false
@@ -294,7 +294,7 @@ than `passed`. Phase p03 is complete at 14/14 tasks.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — blocked after one inconclusive execution; no automatic retry
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — blocked after three inconclusive executions; latest stage `native-identity-unresolved`; no automatic retry
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -701,6 +701,26 @@ independently verified before p04-t01 can safely execute.
 - Verification: root confirmed the exact one-commit/three-file boundary, 83/83 targeted tests, type-check, generated parity, diff hygiene, clean worktree, and fresh `origin/main` ancestry (`0` behind, `39` ahead)
 - Review disposition: re-review explicitly waived; p03-t13 advances only to `fixes_completed`
 - Explicit exclusion: no review, live `behavior-verify`, provider-session creation/deletion, p04-t02, or p05 work in this run
+
+### Run 13 — 2026-09-02
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t01 live-provider gate
+- Authorization: exactly one p04-t01 attempt; no automatic retry; stale knowledge index explicitly ignored
+- Scope: fresh mutation-free plan check and exactly one Codex 0.151.0 `behavior-verify` invocation
+- Status: BLOCKED; receipt disposition `inconclusive`
+
+#### p04-t01 Diagnostic Retry Outcome
+
+- The system Codex `0.152.1` failed the exact-version preflight without provider mutation
+- Recreated an isolated temporary `@openai/codex@0.151.0` installation without modifying the system installation
+- The out-of-sandbox mutation-free plan authenticated exactly and reproduced syntax fingerprint `8f8ad2711e00aa61cbc1463ec570f19c8a3cc8a13859f431b9797e579ec19891`, execution-context fingerprint `4777353607b319dc07a3a4b9ff26a1b1827f8d18e3619b389aa36cb6d6c44a3a`, and confirmation digest `b341625701492c0d7da1bae45526db03f9a6c4cdf502ddba67147476fdffcca6`
+- `behavior-verify` was invoked exactly once and returned `inconclusive` / `reporting-failed` with failure stage `native-identity-unresolved`
+- Receipt digest: `9a42096799993af38b07374dbc765d214aff9768175d067b645f71cc99987166`; receipt and locator are ignored, mode 0600, and digest-verified
+- Receipt validation confirmed exact version/fingerprints/bounds and no raw stdout/stderr, credential fields, or provider IDs
+- Git fixture cleanup succeeded; provider-state cleanup failed because no exact parent native ID was observed
+- No exact cleanup target was inferred, no manual deletion was attempted, and no automatic or additional retry was launched
+- p04-t02 and p05 remain unstarted
 
 <!-- orchestration-runs-end -->
 
