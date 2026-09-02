@@ -1,10 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p03-t13 review M1: default subprocess launch exceptions are mislabeled as provider-nonzero-exit"
+oat_blockers: []
 oat_last_updated: 2026-09-02
-oat_current_task_id: p05-t03
+oat_current_task_id: p03-t14
 oat_generated: false
 ---
 
@@ -29,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 13    | 13/13     |
+| p03   | in_progress | 14    | 13/14     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 29/33 tasks completed
+**Total:** 29/34 tasks completed
 
 ---
 
@@ -279,6 +278,11 @@ review.
 
 **Status:** completed
 **Commit:** `0e5bc879a7f68c50d69b5207ce07efd631462fb5`
+
+### Task p03-t14: (review) Classify null-exit provider launch exceptions
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -675,6 +679,15 @@ independently verified before p04-t01 can safely execute.
 - M1: the default adapter turns OS-level launch exceptions such as `ENOENT` into a null exit code that `observedId` labels `provider-nonzero-exit`; the gate remains fail-closed and redacted, but its diagnostic is inaccurate
 - Disposition: received and paused for explicit direction; no fix task, second review, or live-provider operation was launched
 
+### Run 12 — 2026-09-02
+
+- Branch: `feat/coding-session-handoff`
+- Tier: Tier 1 original p03 implementer continuation
+- Authorization: user authorized the bounded M1 fix and explicitly waived re-review
+- Scope: p03-t14 only; classify null-exit/no-signal/no-timeout results as `provider-call-exception`
+- Status: in progress; implementation pending
+- Explicit exclusion: no review, live `behavior-verify`, provider-session creation/deletion, p04-t02, or p05 work in this run
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -701,10 +714,14 @@ launch exception such as `ENOENT` into a null-exit result; the classifier then r
 semantics, but it can obscure the exact persistent-call failure that p03-t13 was added
 to diagnose.
 
-**New tasks added:** none; the authorized repair/review budget is exhausted.
+**Finding disposition:** M1 converted to p03-t14 by explicit user authorization. The
+user waived re-review for this narrow fix; the original review event may advance to
+`fixes_completed` after root verification but not to `passed` without a new artifact.
 
-**Next:** Explicitly choose whether to add one bounded follow-up task for M1 or defer
-the diagnostic distinction. No further live gate is authorized by this review.
+**New tasks added:** p03-t14.
+
+**Next:** Execute p03-t14 through the original p03 implementer. No further live gate
+is authorized by this review.
 
 ### Entry Gate Retry Blocked: p04-t01
 
@@ -1011,6 +1028,7 @@ paused in the meantime.
 - [x] p03-t12 targeted independent review — passed with zero findings
 - [x] p03-t13 — `0e5bc879`
 - [x] p03-t13 targeted independent review — completed; M1 pending disposition
+- [ ] p03-t14 — pending; re-review explicitly waived
 
 ---
 

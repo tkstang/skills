@@ -993,6 +993,48 @@ a provider session, or run the live gate from the implementer.
 
 ---
 
+### Task p03-t14: (review) Classify null-exit provider launch exceptions
+
+**Dependencies:** p03-t13 and Medium finding M1 in
+`reviews/archived/p03-t13-review-2026-09-02T133557Z.md`.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add a bounded provider-result fixture with `exitCode: null`, no signal, and no
+timeout. Prove the current default-adapter-compatible shape is mislabeled
+`provider-nonzero-exit` instead of `provider-call-exception`, while raw error/output
+data remains absent from the receipt and safe result.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts`
+
+Expected: the null-exit case reports the wrong stable failure stage before the repair.
+
+**GREEN:** Classify only numeric nonzero exits as `provider-nonzero-exit`. After the
+existing timeout/signal and output-bound checks, map a null exit with no stronger
+signal to `provider-call-exception`. Preserve every other p03-t13 stage, receipt
+status/reason, cleanup, retry, provider invocation, authentication, and bound.
+Regenerate the development bundle through `pnpm run build`.
+
+**Refactor:** Keep the change at the existing bounded result-classification seam. Do
+not export the default adapter, retain subprocess error objects or text, add a retry,
+or run a live provider operation.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts tests/coding-session-handoff/behavior-gate.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check && git diff --check`
+
+**Commit:** `fix(p03-t14): classify provider launch exceptions`
+
+**Review disposition:** The user explicitly waived a p03-t14 re-review. After the fix
+and root verification pass, advance the p03-t13 review event only to
+`fixes_completed`; do not mark it `passed` without a new review artifact.
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1374,7 +1416,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t10 | code | passed | 2026-09-01 | reviews/archived/p03-t10-review-2026-09-01T221652Z.md | 7693c044db7aaf5357d3cd6e7a6000dd02bfb464 | manual | - |
 | p03-t11 | code | fixes_completed | 2026-09-01 | reviews/archived/p03-t11-review-2026-09-01T224710Z.md | 4162366f70760d65b9aef9dfa162eedb37391b54 | manual | - |
 | p03-t12 | code | passed | 2026-09-01 | reviews/archived/p03-t12-review-2026-09-01T234310Z.md | 07d0165157ffd468c5603cab1b3c5674e3500aeb | manual | - |
-| p03-t13 | code | received | 2026-09-02 | reviews/archived/p03-t13-review-2026-09-02T133557Z.md | 0e5bc879a7f68c50d69b5207ce07efd631462fb5 | manual | - |
+| p03-t13 | code | fixes_added | 2026-09-02 | reviews/archived/p03-t13-review-2026-09-02T133557Z.md | 0e5bc879a7f68c50d69b5207ce07efd631462fb5 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1400,13 +1442,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 13 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and one gate-observability repair
+- p03: 14 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and two gate-observability repairs
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 33 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 34 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 33 tasks have exactly one verified commit,
+Implementation is complete only when all 34 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

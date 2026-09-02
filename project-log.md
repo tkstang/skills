@@ -148,6 +148,10 @@ Task p03-t13 completed at 0e5bc879a7f68c50d69b5207ce07efd631462fb5 with the exac
 
 The one authorized targeted p03-t13 review completed at 0e5bc879a7f68c50d69b5207ce07efd631462fb5 with critical:0,important:0,medium:1,minor:0. M1 found that OS-level launch exceptions such as ENOENT are mislabeled provider-nonzero-exit; the gate remains fail-closed and redacted. No fix task, second review, or live provider operation was launched pending explicit direction.
 
+### 2026-09-02 · structural · oat-project-review-receive · p03-t14
+
+User authorized review finding M1 as bounded task p03-t14: classify null-exit/no-signal/no-timeout provider results as provider-call-exception while preserving fail-closed redaction and all other stages. The user explicitly waived re-review; after verified implementation the existing p03-t13 event may advance only to fixes_completed, not passed.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
