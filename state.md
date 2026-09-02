@@ -2,7 +2,7 @@
 oat_current_task: p05-t03
 oat_last_commit: 07d0165157ffd468c5603cab1b3c5674e3500aeb
 oat_blockers:
-  - "p04-t01 Codex live gate inconclusive: reporting-failed; provider cleanup failed"
+  - "p04-t01 persistent Codex parent reporting failed before an exact native ID on both authorized full-gate attempts"
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -81,7 +81,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-02T01:42:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-02T03:29:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -194,16 +194,21 @@ Implementation - blocked at p04-t01 inconclusive live gate
 - ✓ User authorized bounded diagnosis and remediation of the p04-t01 blocker
 - ✓ No transcript or state-database thread matches the failed fixture; no exact cleanup UUID exists
 - ✓ Parent-only ephemeral probe passed the exact Codex 0.151.0 protocol without persistence
-- ⧗ One manual full-gate retry is authorized after a fresh mutation-free plan check
+- ✗ The one manual full-gate retry reproduced `inconclusive` / `reporting-failed` before an exact parent ID
+- ✓ Second receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
+- ✓ No matching transcript or state-database thread exists after the retry; no deletion target can be inferred
+- ⏹ No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 
 ## Blockers
 
-p04-t01 remains blocked by the original inconclusive exact-version Codex gate. Bounded
-diagnosis found no leaked local session or exact cleanup target and proved the parent
-protocol ephemerally; one user-authorized manual retry remains available.
+p04-t01 is blocked after two full-gate attempts failed at the persistent parent
+execution/reporting boundary before an exact native ID was observed. The parent-only
+ephemeral path succeeds, no leaked local thread is visible, and the authorized manual
+retry has been consumed.
 
 ## Next Milestone
 
-Run a fresh mutation-free p04-t01 plan check, then at most one user-authorized manual
-`behavior-verify` retry with a new receipt path. Do not run p04-t02, dispatch p05, or
-delete provider state without an exact machine-observed UUID.
+Plan and independently review one bounded remediation before another live attempt:
+either preserve redacted stage-specific provider-call failure evidence or prove an
+isolated writable Codex state home with the same authenticated/config fingerprint.
+Do not retry the gate, run p04-t02, dispatch p05, or delete provider state meanwhile.

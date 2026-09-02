@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers:
-  - "p04-t01 Codex live gate inconclusive: reporting-failed; provider cleanup failed"
+  - "p04-t01 persistent Codex parent reporting failed before an exact native ID on both authorized full-gate attempts"
 oat_last_updated: 2026-09-01
 oat_current_task_id: p05-t03
 oat_generated: false
@@ -621,7 +621,7 @@ independently verified before p04-t01 can safely execute.
 - Tier: root-owned p04-t01 diagnosis and explicitly authorized manual retry
 - Authorization: user resumed the recorded blocker and authorized the bounded diagnosis/remediation path
 - Scope: read-only local-state diagnosis, one ephemeral parent probe, then at most one fresh full gate retry if no disposable session leak is proven
-- Status: diagnosis complete; one manual retry authorized
+- Status: BLOCKED; the one manual retry reproduced the pre-ID failure
 
 #### p04-t01 Diagnosis Outcome
 
@@ -630,7 +630,17 @@ independently verified before p04-t01 can safely execute.
 - The prior cleanup failure is the fail-closed result of `parentCreationAttempted: true` with no machine-observed exact parent ID, not evidence that deletion of a known session failed
 - The exact parent argv grammar is valid in Codex 0.151.0
 - One authorized parent-only `--ephemeral` probe completed with exit 0, one exact `thread.started` UUID, one completed turn, and exact `HANDOFF_PARENT_READY`; it persisted no session
-- Diagnosis supports a transient first-call failure; proceed with one fresh plan check and at most one manual full-gate retry using a new receipt path
+- Diagnosis initially supported one manual retry; that retry has now been consumed
+
+#### p04-t01 Manual Retry Outcome
+
+- Fresh plan revalidated exact Codex 0.151.0, authenticated context fingerprint `4777353607b319dc07a3a4b9ff26a1b1827f8d18e3619b389aa36cb6d6c44a3a`, three calls, exact cleanup, and confirmation digest `b341625701492c0d7da1bae45526db03f9a6c4cdf502ddba67147476fdffcca6`
+- The one user-authorized manual `behavior-verify` retry returned `inconclusive` with reason `reporting-failed`
+- Second receipt digest: `f69f4949d1da2393f289f9f3dc397206c34d108a367300cd9b5adfea2c22db0e`; receipt and updated locator are mode 0600
+- Git fixture cleanup succeeded; provider-state cleanup failed because no exact parent ID was observed
+- Exact source/target cwd searches again found no transcript, archived transcript, or state-database thread, so no manual deletion target exists
+- The ephemeral parent succeeds while both persistent full-gate attempts fail before an exact ID; the blocker is reproducible in the persistent execution/reporting boundary
+- No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 
 <!-- orchestration-runs-end -->
 
@@ -639,6 +649,17 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Retry Blocked: p04-t01
+
+**Date:** 2026-09-02
+**Status:** inconclusive
+**Receipt digest:** `f69f4949d1da2393f289f9f3dc397206c34d108a367300cd9b5adfea2c22db0e`
+
+The single user-authorized manual retry reproduced `reporting-failed` before an exact
+parent ID was observed. No matching local thread exists and therefore no cleanup ID
+can be inferred. The blocker now requires a reviewed observability or isolated-state
+remediation before any further live gate attempt.
 
 ### Entry Gate Diagnosis: p04-t01
 

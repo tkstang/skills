@@ -132,6 +132,10 @@ The single authorized exact Codex 0.151.0 live gate returned inconclusive with r
 
 User-authorized diagnosis found no transcript or state-database thread for the failed fixture and therefore no exact cleanup UUID; a parent-only ephemeral Codex 0.151.0 probe passed with one exact thread.started event and no persistence. One fresh manual full-gate retry is authorized; the original inconclusive receipt remains preserved.
 
+### 2026-09-02 · structural · oat-project-implement · p04-t01-retry-stop
+
+The user-authorized manual Codex 0.151.0 retry reproduced inconclusive reporting-failed before any exact parent ID was observed. The second receipt digest is f69f4949d1da2393f289f9f3dc397206c34d108a367300cd9b5adfea2c22db0e; no matching transcript or state-database thread exists, no manual deletion target was inferred, and no third gate attempt was launched.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
