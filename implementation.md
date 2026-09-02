@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers: ["p04-t01 remains inconclusive after two authorized attempts; no further live retry is authorized"]
 oat_last_updated: 2026-09-02
-oat_current_task_id: p03-t14
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 14    | 13/14     |
+| p03   | completed   | 14    | 14/14     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 29/34 tasks completed
+**Total:** 30/34 tasks completed
 
 ---
 
@@ -166,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -194,13 +194,18 @@ review passed with zero findings; both Mediums remain explicitly deferred.
   gate check: Codex 0.151.0 emits the exact authenticated status only on stderr, even
   outside the sandbox. The user authorized p03-t11 to supersede only that channel
   assumption, plus one fresh targeted review.
+- p03-t11 and p03-t12 established exact stderr-only authentication handling. After two
+  inconclusive p04-t01 attempts, p03-t13 preserved the redacted failure stage and
+  p03-t14 corrected the review-identified null-exit diagnostic at `eae373b`.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
 syntax, and diff hygiene passed at `304ec86`. The final independent reviewer reran 235
 focused tests plus type-check, build parity, and diff hygiene successfully at
 `a20c138`. The targeted p03-t09 reviewer reran 52 focused tests plus type-check, build
-parity, and exact-range diff hygiene at `459abf3`.
+parity, and exact-range diff hygiene at `459abf3`. Root verification of p03-t14 passed
+83 focused tests, type-check, generated parity, exact-range diff hygiene, and current
+`origin/main` ancestry at `eae373b`.
 
 **Review:** Initial review found 3 Critical, 3 Important, and 3 Medium findings. Two
 authorized fix continuations resolved the six original blockers and the residual Claude
@@ -211,8 +216,9 @@ found 0 Critical, 1 residual Important, and 3 deferred Medium findings. After re
 cycle 3 of 3, the user authorized exactly one override fix/review pair for that
 Important finding. That targeted review passed with 0 Critical, 0 Important, 0 Medium,
 and 0 Minor findings. The three earlier Medium findings remain outside scope and
-explicitly deferred. p03 is temporarily reopened only for p03-t11 and its targeted
-review.
+explicitly deferred. The p03-t13 targeted review's single Medium diagnostic finding was
+fixed by p03-t14; the user waived re-review, so the event is `fixes_completed` rather
+than `passed`. Phase p03 is complete at 14/14 tasks.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -281,8 +287,8 @@ review.
 
 ### Task p03-t14: (review) Classify null-exit provider launch exceptions
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `eae373b80bf8175cfe29de7ccfd7e682779c9d57`
 
 ---
 
@@ -685,7 +691,15 @@ independently verified before p04-t01 can safely execute.
 - Tier: Tier 1 original p03 implementer continuation
 - Authorization: user authorized the bounded M1 fix and explicitly waived re-review
 - Scope: p03-t14 only; classify null-exit/no-signal/no-timeout results as `provider-call-exception`
-- Status: in progress; implementation pending
+- Dispatch request: `FB2553DA-BD7D-4E4D-B44D-085A16315284`, continuing original p03 request `dispatch-b42512c7-cd8f-498a-a0a2-00f2b4e7fee1`
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`; model `gpt-5.6-sol`; effort `high`; policy `frontier`; cap `max`; route level 0
+- Selection reason: `native-catalog`; exact original target preserved; candidates considered: `gpt-5.6-sol/high`
+- Dispatch policy: frontier; selected=high; cap=max (codex, enforced — variant `oat-phase-implementer-gpt-5-6-sol-high`)
+- Dispatch stamp: `Dispatch: scope=p03-t14 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-high`
+- Status: completed at `eae373b80bf8175cfe29de7ccfd7e682779c9d57`
+- RED: 39/40 behavior-gate tests passed; the null-exit fixture remained redacted but reported `provider-nonzero-exit`
+- Verification: root confirmed the exact one-commit/three-file boundary, 83/83 targeted tests, type-check, generated parity, diff hygiene, clean worktree, and fresh `origin/main` ancestry (`0` behind, `39` ahead)
+- Review disposition: re-review explicitly waived; p03-t13 advances only to `fixes_completed`
 - Explicit exclusion: no review, live `behavior-verify`, provider-session creation/deletion, p04-t02, or p05 work in this run
 
 <!-- orchestration-runs-end -->
@@ -714,14 +728,15 @@ launch exception such as `ENOENT` into a null-exit result; the classifier then r
 semantics, but it can obscure the exact persistent-call failure that p03-t13 was added
 to diagnose.
 
-**Finding disposition:** M1 converted to p03-t14 by explicit user authorization. The
-user waived re-review for this narrow fix; the original review event may advance to
-`fixes_completed` after root verification but not to `passed` without a new artifact.
+**Finding disposition:** M1 converted to p03-t14 by explicit user authorization and
+fixed at `eae373b80bf8175cfe29de7ccfd7e682779c9d57`. Root verification passed. The
+user waived re-review for this narrow fix, so the original review event advanced only
+to `fixes_completed`, not `passed`.
 
 **New tasks added:** p03-t14.
 
-**Next:** Execute p03-t14 through the original p03 implementer. No further live gate
-is authorized by this review.
+**Next:** p03 is complete at 14/14 tasks. The existing p04-t01 inconclusive live-gate
+blocker remains; no further live gate is authorized by this review.
 
 ### Entry Gate Retry Blocked: p04-t01
 
@@ -1027,8 +1042,8 @@ paused in the meantime.
 - [x] p03-t12 — `07d01651`
 - [x] p03-t12 targeted independent review — passed with zero findings
 - [x] p03-t13 — `0e5bc879`
-- [x] p03-t13 targeted independent review — completed; M1 pending disposition
-- [ ] p03-t14 — pending; re-review explicitly waived
+- [x] p03-t13 targeted independent review — fixes completed; re-review explicitly waived
+- [x] p03-t14 — `eae373b8`
 
 ---
 
@@ -1048,7 +1063,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, and p03-t13 82 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t13 implementation | 0 | Thirteen task commits pass through `0e5bc879`; the p03-t13 review found one Medium diagnostic-accuracy gap; prior M1-M3 remain deferred; no further live provider gate authorized |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, and p03-t14 83 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t14 implementation | 0 | Fourteen task commits pass through `eae373b8`; p03-t13 is recorded `fixes_completed` with explicit re-review waiver; prior M1-M3 remain deferred; no further live provider gate authorized |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 

@@ -152,6 +152,10 @@ The one authorized targeted p03-t13 review completed at 0e5bc879a7f68c50d69b5207
 
 User authorized review finding M1 as bounded task p03-t14: classify null-exit/no-signal/no-timeout provider results as provider-call-exception while preserving fail-closed redaction and all other stages. The user explicitly waived re-review; after verified implementation the existing p03-t13 event may advance only to fixes_completed, not passed.
 
+### 2026-09-02 · structural · oat-project-implement · p03-t14
+
+Task p03-t14 completed at eae373b80bf8175cfe29de7ccfd7e682779c9d57 with the exact three-file boundary. Root verification passed 83 focused tests, type-check, generated parity, diff hygiene, and fresh origin/main ancestry; the p03-t13 review advanced only to fixes_completed under the explicit re-review waiver, and no live provider operation or new review was launched.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
