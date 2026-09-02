@@ -1,7 +1,7 @@
 ---
-oat_current_task: p03-t15
-oat_last_commit: eae373b80bf8175cfe29de7ccfd7e682779c9d57
-oat_blockers: []
+oat_current_task: p04-t01
+oat_last_commit: 9db197fe765e18c4c925a9792097c473437f2e84
+oat_blockers: ["p03-t15 implementation passed; independent review and any new p04-t01 live retry require explicit authorization"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-02T19:41:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-02T19:52:56Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t15 redacted native-identity diagnostic refinement
+Implementation - p03-t15 complete; independent review authorization pending
 
 ## Artifacts
 
@@ -216,16 +216,19 @@ Implementation - p03-t15 redacted native-identity diagnostic refinement
 - ⏹ No automatic retry, manual deletion, p04-t02 work, or p05 dispatch was launched
 - ✓ Bounded Luna xhigh diagnosis confirmed `native-identity-unresolved` merges missing, invalid, and multiple native-ID shapes
 - ✓ User authorized one bounded p03-t15 redacted diagnostic refinement with focused unit coverage
+- ✓ p03-t15 completed at `9db197f`; root verified 88 focused tests, type-check, generated parity, exact five-file scope, and clean history
+- ✓ New executions distinguish missing, invalid, and multiple identity shapes while legacy receipts remain parseable and redacted
 - ⏸ No independent review or live p04-t01 retry is authorized by p03-t15
 
 ## Blockers
 
-No blocker prevents p03-t15 implementation. p04-t01 remains blocked after three
-authorized live-gate attempts, and no new live retry or safe cleanup target is
-authorized.
+p03-t15 implementation is complete, but its standard independent review requires
+explicit authorization. p04-t01 also remains blocked after three authorized live-gate
+attempts; no new live retry or safe cleanup target is authorized.
 
 ## Next Milestone
 
-Implement and verify p03-t15, then pause for explicit direction on review and any new
-p04-t01 live retry. Do not run the gate, p04-t02, p05, provider cleanup, or an
-independent review under the current authorization.
+Pause for explicit direction on the p03-t15 independent review. Only after that review
+is dispositioned should the user separately decide whether to authorize one new
+p04-t01 live retry. Do not run the gate, p04-t02, p05, or provider cleanup under the
+current authorization.
