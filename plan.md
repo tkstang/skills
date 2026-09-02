@@ -1035,6 +1035,51 @@ and root verification pass, advance the p03-t13 review event only to
 
 ---
 
+### Task p03-t15: (gate) Disambiguate native identity failures
+
+**Dependencies:** p03-t14 and the bounded Luna xhigh diagnosis of the third p04-t01
+`native-identity-unresolved` receipt.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `src/transcript/coding-session-handoff/types.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify: `tests/coding-session-handoff/types.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add synthetic bounded-result fixtures proving the current
+`native-identity-unresolved` stage cannot distinguish zero recognized Codex IDs,
+an invalid ID, or multiple distinct valid IDs. Cover malformed-only stdout and a
+stderr-only `thread.started` event as the zero-recognized case, and preserve acceptance
+of duplicate occurrences of one valid UUID.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts`
+
+Expected: the new cases collapse to the same generic stage before the repair.
+
+**GREEN:** Emit three stable redacted stages for missing, invalid, and multiple native
+identities without persisting IDs, raw output, parser text, or counts. Continue to
+accept the legacy `native-identity-unresolved` stage when parsing preserved receipts,
+but do not emit it for new executions. Preserve all provider invocation, cleanup,
+retry, authentication, receipt, and bound behavior. Regenerate the development bundle
+through `pnpm run build`.
+
+**Refactor:** Keep the split at the existing identity parser boundary. Do not inspect
+provider state, add a provider call or retry, infer a cleanup target, or run a live
+behavior gate from the implementer.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/behavior-gate.ts src/transcript/coding-session-handoff/types.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/types.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check && git diff --check`
+
+**Commit:** `fix(p03-t15): disambiguate native identity failures`
+
+**Review disposition:** This task authorizes implementation and verification only.
+No independent review or live p04-t01 retry is authorized by this task.
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1442,13 +1487,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 14 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and two gate-observability repairs
+- p03: 15 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and three gate-observability repairs
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 34 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 35 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 34 tasks have exactly one verified commit,
+Implementation is complete only when all 35 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

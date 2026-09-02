@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 third authorized attempt remained inconclusive at native-identity-unresolved; no further retry is authorized"]
+oat_blockers: []
 oat_last_updated: 2026-09-02
-oat_current_task_id: p04-t01
+oat_current_task_id: p03-t15
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | completed   | 14    | 14/14     |
+| p03   | in_progress | 15    | 14/15     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 30/34 tasks completed
+**Total:** 30/35 tasks completed
 
 ---
 
@@ -166,7 +166,7 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 
 ## Phase p03: Provider contracts, planning, execution, and CLI
 
-**Status:** completed
+**Status:** in_progress
 **Started:** 2026-08-31
 
 ### Phase Summary
@@ -197,6 +197,9 @@ review passed with zero findings; both Mediums remain explicitly deferred.
 - p03-t11 and p03-t12 established exact stderr-only authentication handling. After two
   inconclusive p04-t01 attempts, p03-t13 preserved the redacted failure stage and
   p03-t14 corrected the review-identified null-exit diagnostic at `eae373b`.
+- The third p04-t01 attempt then exposed that `native-identity-unresolved` merges
+  missing, invalid, and multiple observed-ID shapes. The user authorized p03-t15 to
+  split only those redacted diagnostics; no new live gate or review is authorized.
 
 **Verification:** 270 focused phase tests, type-check, generated build parity,
 repository validation, skill-version validation, smoke, authored lint/format, bundle
@@ -218,7 +221,8 @@ Important finding. That targeted review passed with 0 Critical, 0 Important, 0 M
 and 0 Minor findings. The three earlier Medium findings remain outside scope and
 explicitly deferred. The p03-t13 targeted review's single Medium diagnostic finding was
 fixed by p03-t14; the user waived re-review, so the event is `fixes_completed` rather
-than `passed`. Phase p03 is complete at 14/14 tasks.
+than `passed`. Phase p03 is reopened at 14/15 tasks for the bounded p03-t15 diagnostic
+refinement.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -289,6 +293,11 @@ than `passed`. Phase p03 is complete at 14/14 tasks.
 
 **Status:** completed
 **Commit:** `eae373b80bf8175cfe29de7ccfd7e682779c9d57`
+
+### Task p03-t15: (gate) Disambiguate native identity failures
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -730,6 +739,15 @@ independently verified before p04-t01 can safely execute.
 
 Chronological log of implementation progress.
 
+### Diagnostic Remediation Authorized: p03-t15
+
+**Date:** 2026-09-02
+
+The bounded Luna xhigh diagnosis confirmed that `native-identity-unresolved` merges
+zero recognized IDs, invalid IDs, and multiple distinct valid IDs. The user authorized
+the smallest redacted diagnostic refinement and focused unit coverage. This does not
+authorize another provider call, provider-state inspection, cleanup attempt, or review.
+
 ### Review Received: p03-t13
 
 **Date:** 2026-09-02
@@ -1064,6 +1082,7 @@ paused in the meantime.
 - [x] p03-t13 — `0e5bc879`
 - [x] p03-t13 targeted independent review — fixes completed; re-review explicitly waived
 - [x] p03-t14 — `eae373b8`
+- [ ] p03-t15 — pending
 
 ---
 
@@ -1083,7 +1102,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, and p03-t14 83 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t14 implementation | 0 | Fourteen task commits pass through `eae373b8`; p03-t13 is recorded `fixes_completed` with explicit re-review waiver; prior M1-M3 remain deferred; no further live provider gate authorized |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, and p03-t14 83 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t14 implementation; p03-t15 pending | 0 | Fourteen task commits pass through `eae373b8`; p03-t15 is authorized for implementation only; prior M1-M3 remain deferred; no further live provider gate authorized |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
