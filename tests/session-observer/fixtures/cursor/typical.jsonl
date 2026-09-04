@@ -1,4 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"Can you inspect the failing test?"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"I will check the runtime parsing tests."}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"I will focus on Cursor support only."}]}}
-{"type":"turn_ended","status":"success"}

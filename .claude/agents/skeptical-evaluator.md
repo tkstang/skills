@@ -1,1 +1,0 @@
-../../.agents/agents/skeptical-evaluator.md
