@@ -54,13 +54,14 @@ it's just `/refine`.
 
 ## Standalone skills
 
-Two jobs: watching _another_ agent, and exporting _your own_ session.
+Three jobs: watching _another_ agent, exporting _your own_ session, and checking whether an artifact's complexity is earning its keep.
 
-| Skill                       | What it does                                                                                                                             |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `session-observer`          | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new         |
-| `session-observer-collab`   | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules |
-| `export-session-transcript` | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                    |
+| Skill                       | What it does                                                                                                                                              |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session-observer`          | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new                          |
+| `session-observer-collab`   | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules                  |
+| `export-session-transcript` | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                                     |
+| `complexity-review`         | Review a plan, design, or implementation against its contract — a ledger of what to keep, simplify, defer, or delete, plus the minimum sufficient version |
 
 [Skills guide →](https://tkstang.github.io/skills/user-guide/skills/)
 
