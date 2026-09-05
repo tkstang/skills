@@ -168,6 +168,10 @@ p03-t15 completed at 9db197fe765e18c4c925a9792097c473437f2e84 with 88 focused te
 
 Phase p03 passed after 1 bounded fix iteration; attempted review orchestration is recorded in reviews/p03-review-2026-09-05T202836Z.md and the fresh narrowed review passed at reviews/p03-review-2026-09-05T204213Z.md.
 
+### 2026-09-05 · structural · oat-project-implement · p04-t01
+
+STOP before provider mutation: the exact Codex 0.151.0 behavior-plan passed version/syntax/bounds but requires ChatGPT authentication; behavior-verify was not invoked and no receipt or provider cleanup target exists.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

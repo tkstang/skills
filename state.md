@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t01
 oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: []
+oat_blockers: ["p04-t01 mutation-free Codex 0.151.0 plan check requires ChatGPT authentication; current provider login resolves as API key"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-05T20:36:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-05T20:46:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03 passed; p04-t01 fresh mutation-free plan check next
+Implementation - p04-t01 blocked before mutation on ChatGPT authentication
 
 ## Artifacts
 
@@ -223,14 +223,18 @@ Implementation - p03 passed; p04-t01 fresh mutation-free plan check next
 - ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
 - ✓ Fresh independent p03 re-review passed with zero findings at `238f0513`
 - ✓ Phase p03 passed after one bounded review-fix iteration; M1-M3 remain inherited and explicitly deferred
+- ✓ Exact Codex 0.151.0 temporary binary installed without changing the system installation
+- ✗ Fresh mutation-free p04-t01 plan check reports authentication `required`; current login method resolves as API key, not ChatGPT
+- ⏹ `behavior-verify` was not invoked; no provider session, receipt, locator, cleanup, or quota-spending operation occurred
 
 ## Blockers
 
-None at the p03 boundary. Prior p04-t01 receipts remain inconclusive and do not supply
-any safe provider cleanup target.
+p04-t01 is blocked before provider mutation because the exact Codex 0.151.0 login
+method resolves as API key, while the reviewed gate contract requires ChatGPT
+authentication. Prior receipts remain inconclusive and supply no cleanup target.
 
 ## Next Milestone
 
-Resume p04-t01 from a fresh mutation-free plan check under the active implementation
-authorization. Never automatically retry an inconclusive native execution or infer a
-provider cleanup target.
+Authenticate Codex with ChatGPT, then resume p04-t01 from a new mutation-free plan
+check. Never automatically retry an inconclusive native execution or infer a provider
+cleanup target.

@@ -800,6 +800,19 @@ independently verified before p04-t01 can safely execute.
 - Verification: reviewer independently passed 289 focused tests, type-check, generated parity, generated CLI syntax, and exact-range diff hygiene
 - Outcome: I1 resolved; p03 passed after one bounded fix iteration; inherited M1-M3 remain explicitly deferred
 
+### Run 17 — 2026-09-05
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t01 live-provider gate
+- Authorization: active `oat-project-implement` continuation; fresh mutation-free plan check first, with no execution permitted unless every bound matches
+- Scope: exact Codex 0.151.0 `behavior-plan` preflight only
+- Exact-version runtime: isolated temporary `@openai/codex@0.151.0`; system Codex installation unchanged
+- Plan result: `ok: true`; exact version `0.151.0`; syntax fingerprint `8f8ad2711e00aa61cbc1463ec570f19c8a3cc8a13859f431b9797e579ec19891`; three bounded calls; exact cleanup method preserved
+- Blocker: authentication `required`; the current exact-version login status resolves as API key, while the reviewed execution contract accepts only ChatGPT authentication
+- Fresh unconfirmed context fingerprint: `b7bf5afdafa86fbfd5ea0f6f847754f74e5e9d9f9ee9a31dc21d9edb961bbbbd`; confirmation digest `8cb1a480719f1328a76773dd20480bde6f1ee390ca0765474a36f62dc56c9d2f`
+- Status: BLOCKED before mutation; `behavior-verify` not invoked
+- No provider session, receipt, locator, cleanup, quota-spending call, or inferred provider ID exists for this run
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -807,6 +820,15 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Blocked: p04-t01 ChatGPT authentication
+
+**Date:** 2026-09-05
+
+The exact Codex 0.151.0 mutation-free plan check passed version, syntax, call-bound,
+and cleanup-shape checks but reported authentication `required` because the active
+login method is API key rather than ChatGPT. Execution stopped before
+`behavior-verify`; no provider state or receipt was created.
 
 ### Review Passed: p03 fresh re-review
 
