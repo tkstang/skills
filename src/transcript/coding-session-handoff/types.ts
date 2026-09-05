@@ -4,6 +4,25 @@ export const HANDOFF_PROVIDERS = ['codex', 'claude'] as const;
 export type HandoffProvider = (typeof HANDOFF_PROVIDERS)[number];
 export type QualifiedSessionId = `${HandoffProvider}:${string}`;
 
+const EXACT_PROVIDER_NATIVE_ID_PATTERNS: Readonly<
+  Record<HandoffProvider, RegExp>
+> = Object.freeze({
+  codex:
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+  claude:
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+});
+
+export function isValidProviderNativeId(
+  provider: HandoffProvider,
+  value: unknown,
+): value is string {
+  return (
+    typeof value === 'string' &&
+    EXACT_PROVIDER_NATIVE_ID_PATTERNS[provider].test(value)
+  );
+}
+
 export const HANDOFF_REASON_CODES = [
   'behavior-unverified',
   'child-ambiguous',

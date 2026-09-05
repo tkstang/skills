@@ -2256,6 +2256,13 @@ import { realpath as realpath2 } from "node:fs/promises";
 // src/transcript/coding-session-handoff/types.ts
 var HANDOFF_SCHEMA_VERSION = 1;
 var HANDOFF_PROVIDERS = ["codex", "claude"];
+var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
+  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+});
+function isValidProviderNativeId(provider2, value2) {
+  return typeof value2 === "string" && EXACT_PROVIDER_NATIVE_ID_PATTERNS[provider2].test(value2);
+}
 var HANDOFF_REASON_CODES = [
   "behavior-unverified",
   "child-ambiguous",
@@ -3112,7 +3119,6 @@ var execFileAsync2 = promisify2(nodeExecFile);
 var PARENT_PROMPT = "Reply exactly HANDOFF_PARENT_READY. Do not use tools.";
 var SOURCE_PROMPT = "Reply exactly HANDOFF_SOURCE_READY. Do not use tools.";
 var PROVIDER_CALLS = 3;
-var EXACT_PROVIDER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 var ProviderGateError = class extends Error {
   code;
   constructor(code) {
@@ -3249,12 +3255,6 @@ function sourceResumeInvocation(provider2, cwd, parentNativeId) {
     cwd
   );
 }
-function isExactProviderUuid(value2) {
-  return typeof value2 === "string" && EXACT_PROVIDER_UUID.test(value2);
-}
-function isValidMachineObservedId(provider2, value2) {
-  return provider2 === "codex" ? isExactProviderUuid(value2) : typeof value2 === "string" && value2.length > 0;
-}
 function observedId(provider2, result) {
   if (result.timedOut === true || typeof result.signal === "string" && result.signal.length > 0) {
     throw new BehaviorGateStageError("provider-timeout-or-signal");
@@ -3283,7 +3283,7 @@ function observedId(provider2, result) {
     const record2 = parsed;
     const value2 = provider2 === "codex" && record2.type === "thread.started" ? record2.thread_id : provider2 === "claude" ? record2.session_id : void 0;
     if (value2 !== void 0) {
-      if (!isValidMachineObservedId(provider2, value2)) {
+      if (!isValidProviderNativeId(provider2, value2)) {
         throw new BehaviorGateStageError("native-identity-invalid");
       }
       values.push(value2);
@@ -3316,7 +3316,7 @@ function uniqueReasonCodes(...groups) {
   return [...new Set(groups.flat())];
 }
 function validClaudeLineage(recordUuids) {
-  return recordUuids.length > 0 && recordUuids.every((uuid) => isExactProviderUuid(uuid));
+  return recordUuids.length > 0 && recordUuids.every((uuid) => isValidProviderNativeId("claude", uuid));
 }
 function validSha256(value2) {
   return /^[0-9a-f]{64}$/u.test(value2);
@@ -3757,10 +3757,10 @@ async function cleanupDefaultProvider(context, runCleanupCommand = async (execut
     windowsHide: true
   });
 }) {
-  const hasExactParentId = context.provider !== "codex" || isExactProviderUuid(context.parentNativeId);
-  const hasExactChildId = context.provider !== "codex" || isExactProviderUuid(context.childNativeId);
+  const hasExactParentId = context.provider !== "codex" || isValidProviderNativeId("codex", context.parentNativeId);
+  const hasExactChildId = context.provider !== "codex" || isValidProviderNativeId("codex", context.childNativeId);
   const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
-    (id) => isExactProviderUuid(id)
+    (id) => isValidProviderNativeId("codex", id)
   );
   const commands = context.provider === "codex" ? [...new Set(exactCodexIds)].map((id) => ["delete", "--force", id]) : [
     ["project", "purge", "-y", context.fixture.targetWorktree],
@@ -4241,8 +4241,10 @@ function parseObservedChildId(provider2, output) {
     }
     const record2 = value2;
     const observed = provider2 === "codex" && record2.type === "thread.started" ? record2.thread_id : provider2 === "claude" ? record2.session_id : void 0;
-    if (typeof observed === "string" && observed.length > 0)
+    if (observed !== void 0) {
+      if (!isValidProviderNativeId(provider2, observed)) return void 0;
       values.push(observed);
+    }
   }
   return new Set(values).size === 1 ? values[0] : void 0;
 }

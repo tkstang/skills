@@ -7,6 +7,7 @@ import {
 } from './behavior-contracts.js';
 import { compareQualifiedSessionIds } from './discovery.js';
 import {
+  isValidProviderNativeId,
   parseBatchOutcome,
   parseQualifiedSessionId,
   type BatchOutcome,
@@ -363,8 +364,10 @@ function parseObservedChildId(
         : provider === 'claude'
           ? record.session_id
           : undefined;
-    if (typeof observed === 'string' && observed.length > 0)
+    if (observed !== undefined) {
+      if (!isValidProviderNativeId(provider, observed)) return undefined;
       values.push(observed);
+    }
   }
   return new Set(values).size === 1 ? values[0] : undefined;
 }

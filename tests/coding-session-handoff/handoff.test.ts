@@ -14,6 +14,10 @@ import type {
   SessionCandidate,
 } from '../../src/transcript/coding-session-handoff/types.js';
 
+const CLAUDE_CHILD_ID = '20000000-0000-4000-a000-000000000002';
+const CODEX_CHILD_ID = '10000000-0000-4000-a000-000000000002';
+const OTHER_CHILD_ID = '30000000-0000-4000-a000-000000000003';
+
 const source: GitWorktreeEvidence = {
   requestedPath: '/repo/source',
   canonicalPath: '/repo/source',
@@ -104,7 +108,7 @@ function input(
       codex: contract('codex'),
       claude: contract('claude'),
     },
-    uuidFactory: () => 'expected-claude-child',
+    uuidFactory: () => CLAUDE_CHILD_ID,
     ...overrides,
   };
 }
@@ -155,7 +159,7 @@ describe('selection and immutable planning', () => {
     expect(plan.items[0]).toMatchObject({
       key: 'claude:parent-b',
       disposition: 'ready',
-      expectedChildNativeId: 'expected-claude-child',
+      expectedChildNativeId: CLAUDE_CHILD_ID,
       invocation: { executable: 'claude', cwd: '/repo/target', shell: false },
     });
     expect(plan.items[1]).toMatchObject({
@@ -273,14 +277,16 @@ describe('bounded sequential execution', () => {
         ? {
             exitCode: 0,
             signal: null,
-            stdout: '{"session_id":"expected-claude-child"}',
+            stdout: JSON.stringify({ session_id: CLAUDE_CHILD_ID }),
             stderr: '',
           }
         : {
             exitCode: 0,
             signal: null,
-            stdout:
-              '{"type":"thread.started","thread_id":"observed-codex-child"}\n',
+            stdout: `${JSON.stringify({
+              type: 'thread.started',
+              thread_id: CODEX_CHILD_ID,
+            })}\n`,
             stderr: '',
           };
     });
@@ -302,20 +308,129 @@ describe('bounded sequential execution', () => {
     expect(order).toEqual(['claude', 'codex']);
     expect(outcome.items[0]).toMatchObject({
       native: { status: 'succeeded' },
-      expectedChildNativeId: 'expected-claude-child',
-      observedChildNativeId: 'expected-claude-child',
+      expectedChildNativeId: CLAUDE_CHILD_ID,
+      observedChildNativeId: CLAUDE_CHILD_ID,
       reporting: {
         status: 'mapped',
-        childNativeId: 'expected-claude-child',
+        childNativeId: CLAUDE_CHILD_ID,
       },
     });
     expect(outcome.items[1]).toMatchObject({
       native: { status: 'succeeded' },
-      observedChildNativeId: 'observed-codex-child',
+      observedChildNativeId: CODEX_CHILD_ID,
       reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
     });
     expect(outcome.retryableKeys).toEqual([]);
   });
+
+  test.each([
+    ['codex', 'option-shaped', '--help'],
+    ['codex', 'non-UUID', 'not-a-uuid'],
+    ['codex', 'control-bearing', 'bad\nid'],
+    ['claude', 'option-shaped', '--help'],
+    ['claude', 'non-UUID', 'not-a-uuid'],
+    ['claude', 'control-bearing', 'bad\nid'],
+  ] as const)(
+    'does not trust a %s %s machine identity',
+    async (provider, _kind, invalidId) => {
+      const providerOnly = createHandoffPlan(
+        input({
+          selection: {
+            sessions: [
+              `${provider}:parent-${provider === 'codex' ? 'a' : 'b'}`,
+            ],
+          },
+        }),
+      );
+      const corroborate = vi.fn();
+      const outcome = await executeHandoffPlan({
+        confirmedDigest: providerOnly.confirmationDigest,
+        rebuildPlan: async () => providerOnly,
+        run: async () => ({
+          exitCode: 0,
+          signal: null,
+          stdout: JSON.stringify(
+            provider === 'codex'
+              ? { type: 'thread.started', thread_id: invalidId }
+              : { session_id: invalidId },
+          ),
+          stderr: '',
+        }),
+        corroborate,
+      });
+
+      expect(outcome.items[0]).toMatchObject({
+        native: { status: 'indeterminate', retryable: false },
+        reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
+      });
+      expect(outcome.items[0]).not.toHaveProperty('observedChildNativeId');
+      expect(JSON.stringify(outcome)).not.toContain(invalidId);
+      expect(corroborate).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each(['codex', 'claude'] as const)(
+    'fails closed on missing and multiple-distinct %s machine identities while accepting duplicates',
+    async (provider) => {
+      const providerOnly = createHandoffPlan(
+        input({
+          selection: {
+            sessions: [
+              `${provider}:parent-${provider === 'codex' ? 'a' : 'b'}`,
+            ],
+          },
+        }),
+      );
+      const event = (id?: string) =>
+        JSON.stringify(
+          provider === 'codex'
+            ? {
+                type: 'thread.started',
+                ...(id === undefined ? {} : { thread_id: id }),
+              }
+            : id === undefined
+              ? {}
+              : { session_id: id },
+        );
+      const execute = (stdout: string, corroborate = vi.fn()) =>
+        executeHandoffPlan({
+          confirmedDigest: providerOnly.confirmationDigest,
+          rebuildPlan: async () => providerOnly,
+          run: async () => ({ exitCode: 0, signal: null, stdout, stderr: '' }),
+          corroborate,
+        });
+
+      for (const stdout of [
+        event(),
+        `${event(provider === 'codex' ? CODEX_CHILD_ID : CLAUDE_CHILD_ID)}\n${event(OTHER_CHILD_ID)}`,
+      ]) {
+        const corroborate = vi.fn();
+        const outcome = await execute(stdout, corroborate);
+        expect(outcome.items[0]).toMatchObject({
+          native: { status: 'indeterminate', retryable: false },
+          reporting: {
+            status: 'unresolved',
+            reasonCode: 'child-unresolved',
+          },
+        });
+        expect(outcome.items[0]).not.toHaveProperty('observedChildNativeId');
+        expect(corroborate).not.toHaveBeenCalled();
+      }
+
+      const exactId = provider === 'codex' ? CODEX_CHILD_ID : CLAUDE_CHILD_ID;
+      const corroborate = vi.fn(async () => ({ status: 'mapped' as const }));
+      const duplicate = await execute(
+        `${event(exactId)}\n${event(exactId)}`,
+        corroborate,
+      );
+      expect(duplicate.items[0]).toMatchObject({
+        observedChildNativeId: exactId,
+        native: { status: 'succeeded', retryable: false },
+        reporting: { status: 'mapped', childNativeId: exactId },
+      });
+      expect(corroborate).toHaveBeenCalledOnce();
+    },
+  );
 
   test('allows retry only for deferral or explicit failed-before-child proof', async () => {
     const codexOnly = createHandoffPlan(
@@ -348,7 +463,10 @@ describe('bounded sequential execution', () => {
       run: async () => ({
         exitCode: null,
         signal: 'SIGTERM',
-        stdout: '{"type":"thread.started","thread_id":"possible-child"}\n',
+        stdout: `${JSON.stringify({
+          type: 'thread.started',
+          thread_id: CODEX_CHILD_ID,
+        })}\n`,
         stderr: '',
         timedOut: true,
         beforeChildCreationProven: true,
@@ -360,7 +478,7 @@ describe('bounded sequential execution', () => {
     });
     expect(indeterminate.items[0]).toMatchObject({
       native: { status: 'indeterminate', retryable: false },
-      observedChildNativeId: 'possible-child',
+      observedChildNativeId: CODEX_CHILD_ID,
     });
     expect(indeterminate.retryableKeys).toEqual([]);
   });

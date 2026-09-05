@@ -40,15 +40,16 @@ import type {
   HandoffReasonCode,
   NativeInvocation,
 } from './types.js';
-import { parseBehavioralGateReceipt } from './types.js';
+import {
+  isValidProviderNativeId,
+  parseBehavioralGateReceipt,
+} from './types.js';
 
 const execFileAsync = promisify(nodeExecFile);
 
 const PARENT_PROMPT = 'Reply exactly HANDOFF_PARENT_READY. Do not use tools.';
 const SOURCE_PROMPT = 'Reply exactly HANDOFF_SOURCE_READY. Do not use tools.';
 const PROVIDER_CALLS = 3;
-const EXACT_PROVIDER_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export type ProviderGateFailure =
   | 'plan-stale'
@@ -382,19 +383,6 @@ function sourceResumeInvocation(
       );
 }
 
-function isExactProviderUuid(value: unknown): value is string {
-  return typeof value === 'string' && EXACT_PROVIDER_UUID.test(value);
-}
-
-function isValidMachineObservedId(
-  provider: HandoffProvider,
-  value: unknown,
-): value is string {
-  return provider === 'codex'
-    ? isExactProviderUuid(value)
-    : typeof value === 'string' && value.length > 0;
-}
-
 function observedId(
   provider: HandoffProvider,
   result: NativeExecutionResult,
@@ -441,7 +429,7 @@ function observedId(
           ? record.session_id
           : undefined;
     if (value !== undefined) {
-      if (!isValidMachineObservedId(provider, value)) {
+      if (!isValidProviderNativeId(provider, value)) {
         throw new BehaviorGateStageError('native-identity-invalid');
       }
       values.push(value);
@@ -501,7 +489,7 @@ function uniqueReasonCodes(
 function validClaudeLineage(recordUuids: readonly string[]): boolean {
   return (
     recordUuids.length > 0 &&
-    recordUuids.every((uuid) => isExactProviderUuid(uuid))
+    recordUuids.every((uuid) => isValidProviderNativeId('claude', uuid))
   );
 }
 
@@ -1127,11 +1115,13 @@ export async function cleanupDefaultProvider(
   },
 ): Promise<ProviderCleanupResult> {
   const hasExactParentId =
-    context.provider !== 'codex' || isExactProviderUuid(context.parentNativeId);
+    context.provider !== 'codex' ||
+    isValidProviderNativeId('codex', context.parentNativeId);
   const hasExactChildId =
-    context.provider !== 'codex' || isExactProviderUuid(context.childNativeId);
+    context.provider !== 'codex' ||
+    isValidProviderNativeId('codex', context.childNativeId);
   const exactCodexIds = [context.childNativeId, context.parentNativeId].filter(
-    (id): id is string => isExactProviderUuid(id),
+    (id): id is string => isValidProviderNativeId('codex', id),
   );
   const commands =
     context.provider === 'codex'
