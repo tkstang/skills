@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t01
-oat_last_commit: 9db197fe765e18c4c925a9792097c473437f2e84
-oat_blockers: ["p03-t15 implementation passed; independent review and any new p04-t01 live retry require explicit authorization"]
+oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
+oat_blockers: ["p03 review I1 fixed at 238f0513; fresh independent p03 re-review pending before p04-t01"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-03T23:42:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-05T20:36:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -96,11 +96,11 @@ oat_project_explainer:
 
 **Status:** Implementation in progress
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-05
 
 ## Current Phase
 
-Implementation - p03-t15 complete; independent review authorization pending
+Implementation - p03 review I1 fixed; fresh independent p03 re-review pending
 
 ## Artifacts
 
@@ -218,17 +218,20 @@ Implementation - p03-t15 complete; independent review authorization pending
 - ✓ User authorized one bounded p03-t15 redacted diagnostic refinement with focused unit coverage
 - ✓ p03-t15 completed at `9db197f`; root verified 88 focused tests, type-check, generated parity, exact five-file scope, and clean history
 - ✓ New executions distinguish missing, invalid, and multiple identity shapes while legacy receipts remain parseable and redacted
-- ⏸ No independent review or live p04-t01 retry is authorized by p03-t15
+- ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
+- ✗ Independent p03 review found 1 Important unvalidated production child-ID gap; p03-t15 itself passed its cwd/native-identity safety disposition
+- ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
+- ⏳ Fresh independent p03 re-review pending; M1-M3 remain explicitly deferred
 
 ## Blockers
 
-p03-t15 implementation is complete, but its standard independent review requires
-explicit authorization. p04-t01 also remains blocked after three authorized live-gate
-attempts; no new live retry or safe cleanup target is authorized.
+The p03 I1 review fix is complete, but the required fresh independent p03 re-review has
+not yet passed. p04-t01 remains gated behind that review; no provider cleanup target
+may be inferred from any prior inconclusive receipt.
 
 ## Next Milestone
 
-Pause for explicit direction on the p03-t15 independent review. Only after that review
-is dispositioned should the user separately decide whether to authorize one new
-p04-t01 live retry. Do not run the gate, p04-t02, p05, or provider cleanup under the
-current authorization.
+Run the fresh independent p03 review over the updated range. If it passes with zero
+Critical/Important findings, resume p04-t01 from a fresh mutation-free plan check under
+the active implementation authorization; never automatically retry an inconclusive
+native execution or infer a provider cleanup target.
