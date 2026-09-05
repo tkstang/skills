@@ -795,7 +795,10 @@ independently verified before p04-t01 can safely execute.
 - Policy: managed `frontier` from project state; cap `max`; matrix-pinned review target; not capped
 - Authority: read-only one-commit fix review and one timestamped p03 artifact; no delegation, source edit, live provider operation, network, cleanup, or project-log write
 - Expected output: independently verify the I1 fix; carry M1-M3 as inherited/deferred; exactly one `not-attempted` reconnaissance signal
-- Launch status: accepted; child outcome: pending
+- Launch status: accepted; child outcome: completed
+- Review artifact: `reviews/p03-review-2026-09-05T204213Z.md`; findings 0 Critical, 0 Important, 0 Medium, 0 Minor; reconnaissance not attempted
+- Verification: reviewer independently passed 289 focused tests, type-check, generated parity, generated CLI syntax, and exact-range diff hygiene
+- Outcome: I1 resolved; p03 passed after one bounded fix iteration; inherited M1-M3 remain explicitly deferred
 
 <!-- orchestration-runs-end -->
 
@@ -804,6 +807,17 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Passed: p03 fresh re-review
+
+**Date:** 2026-09-05
+**Review artifact:** `reviews/p03-review-2026-09-05T204213Z.md`
+**Reviewed head:** `238f0513e41b35ecc4293268f7bcbeb5c1308d2b`
+
+The narrowed independent re-review confirmed I1 resolved with zero findings. Phase p03
+passes after one bounded fix iteration. The prior M1-M3 remain inherited, explicitly
+deferred, and outside this review surface. p04-t01 may resume from a fresh mutation-free
+plan check; no prior receipt authorizes inferred cleanup or automatic retry.
 
 ### Review Fix Completed: p03 I1
 

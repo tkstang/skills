@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t01
 oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: ["p03 review I1 fixed at 238f0513; fresh independent p03 re-review pending before p04-t01"]
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03 review I1 fixed; fresh independent p03 re-review pending
+Implementation - p03 passed; p04-t01 fresh mutation-free plan check next
 
 ## Artifacts
 
@@ -221,17 +221,16 @@ Implementation - p03 review I1 fixed; fresh independent p03 re-review pending
 - ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
 - ✗ Independent p03 review found 1 Important unvalidated production child-ID gap; p03-t15 itself passed its cwd/native-identity safety disposition
 - ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
-- ⏳ Fresh independent p03 re-review pending; M1-M3 remain explicitly deferred
+- ✓ Fresh independent p03 re-review passed with zero findings at `238f0513`
+- ✓ Phase p03 passed after one bounded review-fix iteration; M1-M3 remain inherited and explicitly deferred
 
 ## Blockers
 
-The p03 I1 review fix is complete, but the required fresh independent p03 re-review has
-not yet passed. p04-t01 remains gated behind that review; no provider cleanup target
-may be inferred from any prior inconclusive receipt.
+None at the p03 boundary. Prior p04-t01 receipts remain inconclusive and do not supply
+any safe provider cleanup target.
 
 ## Next Milestone
 
-Run the fresh independent p03 review over the updated range. If it passes with zero
-Critical/Important findings, resume p04-t01 from a fresh mutation-free plan check under
-the active implementation authorization; never automatically retry an inconclusive
-native execution or infer a provider cleanup target.
+Resume p04-t01 from a fresh mutation-free plan check under the active implementation
+authorization. Never automatically retry an inconclusive native execution or infer a
+provider cleanup target.
