@@ -783,6 +783,20 @@ independently verified before p04-t01 can safely execute.
 - Root verification: 289 focused tests, type-check, generated parity, generated CLI syntax, diff hygiene, exact commit/file boundary, and clean source worktree passed
 - Finding disposition: I1 fixed; M1-M3 remain deferred and untouched; fresh independent p03 re-review required before p04-t01
 
+### Run 16 — 2026-09-05
+
+- Branch: `feat/coding-session-handoff`
+- Tier: Tier 1 fresh independent p03 reviewer
+- Authorization: standard bounded re-review required by the active review-fix loop
+- Scope: narrowed p03 re-review over `9db197fe765e18c4c925a9792097c473437f2e84..238f0513e41b35ecc4293268f7bcbeb5c1308d2b`; finding I1 only
+- Request: `FDE1ACFA-FA8B-436B-8B39-73549685C423`; reviewer launch accepted as `/root/p03_fix_rereview`
+- Prior artifact/head: `reviews/p03-review-2026-09-05T202836Z.md` at `9db197fe765e18c4c925a9792097c473437f2e84`
+- Target: `oat-reviewer-gpt-5-6-sol-max`; model axis `selected:gpt-5.6-sol`; effort axis `selected:max`
+- Policy: managed `frontier` from project state; cap `max`; matrix-pinned review target; not capped
+- Authority: read-only one-commit fix review and one timestamped p03 artifact; no delegation, source edit, live provider operation, network, cleanup, or project-log write
+- Expected output: independently verify the I1 fix; carry M1-M3 as inherited/deferred; exactly one `not-attempted` reconnaissance signal
+- Launch status: accepted; child outcome: pending
+
 <!-- orchestration-runs-end -->
 
 ---
