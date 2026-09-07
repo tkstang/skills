@@ -172,6 +172,10 @@ Phase p03 passed after 1 bounded fix iteration; attempted review orchestration i
 
 STOP before provider mutation: the exact Codex 0.151.0 behavior-plan passed version/syntax/bounds but requires ChatGPT authentication; behavior-verify was not invoked and no receipt or provider cleanup target exists.
 
+### 2026-09-07 · structural · oat-project-implement · p04-auth-wait
+
+Authorized live-gate continuation reached provider authentication boundaries: exact Codex 0.151.0 device auth is awaiting user completion, while exact Claude Code 2.1.251 is installed temporarily but logged out; no successor session or cleanup operation ran.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
