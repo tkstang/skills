@@ -305,7 +305,7 @@ standard independent review is pending explicit authorization.
 
 ## Root Entry Gates
 
-- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — blocked after three inconclusive executions; latest stage `native-identity-unresolved`; no automatic retry
+- [ ] p04-t01 — Codex 0.151.0 disposable live behavior gate — blocked after four inconclusive executions; latest stage `native-identity-missing`; no automatic retry
 - [ ] p04-t02 — Claude Code 2.1.251 disposable live behavior gate
 - [ ] p05-t01 — Independent Codex receipt review
 - [ ] p05-t02 — Independent Claude Code receipt review
@@ -813,6 +813,18 @@ independently verified before p04-t01 can safely execute.
 - Status: BLOCKED before mutation; `behavior-verify` not invoked
 - No provider session, receipt, locator, cleanup, quota-spending call, or inferred provider ID exists for this run
 
+### Run 18 — 2026-09-07
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t01 live-provider gate
+- Authorization: user-authorized live-gate continuation; exactly one native attempt after a fresh mutation-free plan check; no automatic retry
+- Scope: exact Codex 0.151.0 `behavior-plan` followed by one digest-confirmed `behavior-verify`
+- Plan result: authenticated; exact version `0.151.0`; syntax fingerprint `8f8ad2711e00aa61cbc1463ec570f19c8a3cc8a13859f431b9797e579ec19891`; execution-context fingerprint `4777353607b319dc07a3a4b9ff26a1b1827f8d18e3619b389aa36cb6d6c44a3a`; three calls bounded at 60000 ms and 65536 output bytes; cleanup method `codex-delete-exact-session-ids`; confirmation digest `b341625701492c0d7da1bae45526db03f9a6c4cdf502ddba67147476fdffcca6`
+- Live result: `inconclusive` / `reporting-failed` at `native-identity-missing`; redacted receipt digest `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`
+- Evidence validation: local receipt and locator are ignored and mode 0600; receipt hash matches; no raw stdout/stderr, credentials, provider IDs, or cwd values are present
+- Cleanup: disposable Git fixture `removed`; provider-state cleanup `failed` because no exact parent native ID was observed
+- Status: BLOCKED; no automatic retry, inferred cleanup ID, manual deletion, p04-t02 mutation, or p05 receipt review launched from this result
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -820,6 +832,20 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Inconclusive: p04-t01 exact native identity missing
+
+**Date:** 2026-09-07
+**Status:** inconclusive
+**Receipt digest:** `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`
+
+The exact Codex 0.151.0 runtime authenticated through ChatGPT, and the fresh
+mutation-free plan matched the reviewed version, fingerprints, call bounds, cleanup
+method, and confirmation digest. The one authorized live attempt then failed closed at
+`native-identity-missing`: Git fixture cleanup succeeded, but no exact parent native ID
+was observed and provider-state cleanup could not safely run. The ignored mode-0600
+receipt is redacted and digest-verified. No automatic retry, inferred cleanup target,
+manual deletion, or receipt review was launched.
 
 ### Entry Gate Blocked: p04-t01 ChatGPT authentication
 

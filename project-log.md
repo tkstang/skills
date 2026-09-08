@@ -176,6 +176,10 @@ STOP before provider mutation: the exact Codex 0.151.0 behavior-plan passed vers
 
 Authorized live-gate continuation reached provider authentication boundaries: exact Codex 0.151.0 device auth is awaiting user completion, while exact Claude Code 2.1.251 is installed temporarily but logged out; no successor session or cleanup operation ran.
 
+### 2026-09-08 · structural · oat-project-implement · p04-t01-native-identity-stop
+
+The user-authorized exact Codex 0.151.0 live gate authenticated and matched all reviewed plan bounds, then returned inconclusive at native-identity-missing; redacted receipt digest e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff. Git fixture cleanup succeeded, provider cleanup could not run without an exact parent ID, and no automatic retry or inferred deletion target was used.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
