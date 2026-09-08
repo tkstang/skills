@@ -825,6 +825,17 @@ independently verified before p04-t01 can safely execute.
 - Cleanup: disposable Git fixture `removed`; provider-state cleanup `failed` because no exact parent native ID was observed
 - Status: BLOCKED; no automatic retry, inferred cleanup ID, manual deletion, p04-t02 mutation, or p05 receipt review launched from this result
 
+### Run 19 — 2026-09-07
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t02 authentication preflight
+- Authorization: user-authorized live-gate continuation; no provider mutation unless exact authentication and the later plan check pass
+- Scope: install isolated exact Claude Code 2.1.251 runtime and run `claude auth status --json` only
+- Exact-version runtime: temporary `@anthropic-ai/claude-code@2.1.251`; system Claude installation unchanged
+- Preflight result: `loggedIn: false`; `authMethod: none`; supported local authentication is absent
+- Status: BLOCKED before mutation; `behavior-plan` and `behavior-verify` were not invoked
+- No Claude session, receipt, locator update, cleanup, quota-spending call, credential capture, or inferred provider ID exists for this run
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -832,6 +843,15 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Blocked: p04-t02 Claude authentication
+
+**Date:** 2026-09-07
+
+The exact Claude Code 2.1.251 preflight reports `loggedIn: false` with no authentication
+method. Execution stopped before `behavior-plan` or `behavior-verify`; no Claude session,
+receipt, locator update, cleanup, credential capture, or quota-spending operation
+occurred. The previously recorded Codex receipt and local evidence remain intact.
 
 ### Entry Gate Inconclusive: p04-t01 exact native identity missing
 

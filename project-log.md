@@ -180,6 +180,10 @@ Authorized live-gate continuation reached provider authentication boundaries: ex
 
 The user-authorized exact Codex 0.151.0 live gate authenticated and matched all reviewed plan bounds, then returned inconclusive at native-identity-missing; redacted receipt digest e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff. Git fixture cleanup succeeded, provider cleanup could not run without an exact parent ID, and no automatic retry or inferred deletion target was used.
 
+### 2026-09-08 · structural · oat-project-implement · p04-t02-auth-stop
+
+Stopped p04-t02 before provider mutation: the isolated exact Claude Code 2.1.251 preflight reports loggedIn false with no authentication method; behavior-plan and behavior-verify were not invoked, and no Claude session, receipt, locator update, cleanup, credential capture, or quota-spending call occurred.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -1,7 +1,7 @@
 ---
-oat_current_task: p04-t01
+oat_current_task: p04-t02
 oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 preflight reports loggedIn false; supported local Claude authentication is required before mutation"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p04-t01 blocked after an inconclusive exact-version live gate
+Implementation - p04-t02 paused at Claude authentication; p04-t01 remains inconclusive
 
 ## Artifacts
 
@@ -231,6 +231,9 @@ Implementation - p04-t01 blocked after an inconclusive exact-version live gate
 - ✓ Fourth receipt and locator are ignored, mode 0600, digest-verified, and contain no raw output, credentials, provider IDs, or cwd values; Git fixture cleanup succeeded
 - ✗ Provider-state cleanup could not run because no exact parent native ID was observed; no cleanup target was inferred
 - ⏹ No automatic retry, manual deletion, p04-t02 mutation, or p05 receipt review was launched from this result
+- ✓ Exact Claude Code 2.1.251 temporary runtime installed without changing the system installation
+- ✗ p04-t02 preflight reports `loggedIn: false`, `authMethod: none`
+- ⏹ Claude `behavior-plan` and `behavior-verify` were not invoked; no Claude session, receipt, locator update, cleanup, or quota-spending operation occurred
 
 ## Blockers
 
@@ -239,9 +242,11 @@ p04-t01 remains blocked after the exact Codex 0.151.0 live gate returned
 bounds passed, but the provider emitted no exact parent native ID; provider cleanup
 therefore could not run safely. The redacted receipt digest is
 `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`.
+p04-t02 is independently paused before mutation because the exact Claude Code 2.1.251
+runtime reports no supported local authentication.
 
 ## Next Milestone
 
-Do not retry p04-t01 automatically or infer a cleanup target. p04-t02 may independently
-reach its Claude authentication preflight because its only dependency is the completed
-and reviewed p03 phase; p05 remains blocked until its corresponding live receipt passes.
+Complete `claude auth login`, then resume p04-t02 from a fresh exact-version auth
+preflight. Do not retry p04-t01 automatically or infer a cleanup target. p05 remains
+blocked until its corresponding live receipt passes.
