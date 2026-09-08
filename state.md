@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t02
 oat_last_commit: d15fd662d1baf5ff26cc6ccd09925212a8f9ff46
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate is inconclusive at evidence-validation; child identity and target cwd were unobserved"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate is inconclusive at evidence-validation; successor session ID did not match the pre-generated child ID"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -223,7 +223,7 @@ Implementation blocked at root entry gates p04-t01 and p04-t02
 - ✓ Targeted independent p03-t16 review passed with zero findings at `d15fd66`
 - ✓ p04-t02 exact-version preflight passed authentication, syntax, executable-context, call, spend, and cleanup bounds
 - ✗ The single authorized p04-t02 live attempt returned `inconclusive` / `reporting-failed` at `evidence-validation`
-- ✗ Claude parent identity was observed, but child identity and target cwd were unobserved; lineage and source resumability could not be proven
+- ✗ Claude parent identity was observed, but the successor session ID did not match the pre-generated child ID; target-cwd, lineage, and source-resume capture did not run
 - ✓ Receipt and locator are ignored, mode 0600, and digest-verified; Git fixture and exact disposable Claude project state cleanup succeeded
 - ⏹ No automatic retry, p05-t02 receipt review, activation, or additional provider mutation was launched
 - ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
@@ -258,12 +258,15 @@ therefore could not run safely. The redacted receipt digest is
 `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`.
 p04-t02 is blocked after the exact Claude Code 2.1.251 live gate returned
 `inconclusive` at `evidence-validation`. The reviewed preflight and cleanup passed, but
-the child identity and target cwd were unobserved, so lineage and source resumability
-could not be proven. The redacted receipt digest is
+the successor reported a valid session ID that did not match the pre-generated child
+ID. The harness correctly stopped before target-cwd, lineage, and source-resume
+capture. The redacted receipt digest is
 `7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`.
 
 ## Next Milestone
 
-Diagnose the p04-t02 child-observation gap without another live provider mutation.
+Decide whether to revise the Claude 2.1.251 fork/session-ID contract or preserve this
+exact-version incompatibility as a release blocker; do not diagnose with another live
+provider mutation.
 Do not retry either live gate automatically or infer cleanup targets. p05 remains
 blocked until its corresponding live receipt passes.

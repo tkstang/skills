@@ -200,6 +200,10 @@ Phase outcome: p03-t16 passed targeted independent review with zero findings at 
 
 Stopped after the single authorized Claude 2.1.251 live attempt: inconclusive at evidence-validation because child identity and target cwd were unobserved; exact Git-fixture and provider-state cleanup passed; receipt digest 7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b; no retry or p05-t02 review launched.
 
+### 2026-09-08 · project · friction · Claude successor identity mismatch
+
+Observation: the exact Claude 2.1.251 successor call returned a valid session ID that differed from the pre-generated child ID, so the gate discarded it and stopped before cwd, lineage, or source-resume evidence capture. Impact: p04-t02 remains inconclusive even though authentication, resource bounds, and cleanup passed. Recommendation: revalidate the native --resume/--fork-session/--session-id contract without another live retry before changing the harness. (observed on Claude Code 2.1.251)
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
