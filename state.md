@@ -1,7 +1,7 @@
 ---
-oat_current_task: p04-t02
+oat_current_task: p03-t16
 oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 authenticated Claude Code 2.1.251 executable is 197171680 bytes, exceeding the 134217728-byte fingerprint limit; execution context remains unreadable"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p03-t16 bounded native-executable hashing repair and independent review must pass before p04-t02 resumes"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p04-t02 blocked by executable fingerprint size limit; authentication verified
+Implementation - p03-t16 bounded executable hashing repair authorized
 
 ## Artifacts
 
@@ -255,7 +255,6 @@ eligible. Source: `src/transcript/coding-session-handoff/providers.ts`.
 
 ## Next Milestone
 
-Repair bounded executable fingerprinting to support the pinned native Claude binary,
-verify the repair, then repeat the mutation-free p04-t02 plan check with normal
-credential access. Do not retry p04-t01 automatically or infer a cleanup target.
-p05 remains blocked until its corresponding live receipt passes.
+Implement and independently review p03-t16, then repeat the mutation-free p04-t02 plan
+check with normal credential access. Do not retry p04-t01 automatically or infer a
+cleanup target. p05 remains blocked until its corresponding live receipt passes.

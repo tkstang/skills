@@ -1080,6 +1080,51 @@ No independent review or live p04-t01 retry is authorized by this task.
 
 ---
 
+### Task p03-t16: (gate) Hash pinned native executables within bounded resources
+
+**Dependencies:** p03-t15, its passing independent review, and the p04-t02
+`execution-context-unreadable` blocker recorded on 2026-09-08.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/providers.ts`
+- Modify: `tests/coding-session-handoff/providers.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**RED:** Add provider-probe coverage for a native executable larger than 128 MiB but
+within the supported bound, plus an oversized executable beyond the new bound, read or
+stream failure, and deterministic digest behavior. Prove the current whole-file
+128-MiB guard rejects the pinned 197171680-byte Claude Code 2.1.251 executable as
+`execution-context-unreadable`.
+
+Run: `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts`
+
+Expected: the within-bound native executable cannot produce an execution-context
+fingerprint before the repair.
+
+**GREEN:** Replace whole-file executable loading with incremental SHA-256 hashing under
+an explicit byte bound that admits the pinned Claude binary. Keep memory use bounded,
+reject files beyond the limit before or during hashing, preserve the exact
+execution-context fingerprint projection, and fail closed on metadata, stream, or
+digest errors. Regenerate the development bundle through `pnpm run build`.
+
+**Refactor:** Keep the streaming/hash boundary injectable and provider-neutral. Do not
+alter version, help, authentication, safety argv, confirmation, provider invocation,
+cleanup, retry, or receipt behavior, and do not run a live provider operation from the
+implementer.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/providers.ts tests/coding-session-handoff/providers.test.ts`; regenerate the generated runtime with `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/providers.test.ts tests/coding-session-handoff/behavior-gate.test.ts tests/coding-session-handoff/cli.test.ts && pnpm run type-check && pnpm run build:check && git diff --check`
+
+**Commit:** `fix(p03-t16): hash native executables within bounds`
+
+**Review disposition:** Run one fresh independent targeted p03-t16 review before
+resuming p04-t02. The review must confirm bounded resource use and unchanged provider
+mutation, cleanup, and privacy contracts.
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1489,13 +1534,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 15 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, and three gate-observability repairs
+- p03: 16 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, three gate-observability repairs, and one bounded native-executable hashing repair
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 35 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 36 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 35 tasks have exactly one verified commit,
+Implementation is complete only when all 36 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

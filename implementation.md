@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p04-t02 authenticated but executable exceeds the fingerprint size limit"]
+oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p03-t16 must repair bounded executable hashing before p04-t02 can resume"]
 oat_last_updated: 2026-09-08
-oat_current_task_id: p04-t02
+oat_current_task_id: p03-t16
 oat_generated: false
 ---
 
@@ -300,6 +300,11 @@ standard independent review is pending explicit authorization.
 
 **Status:** completed
 **Commit:** `9db197fe765e18c4c925a9792097c473437f2e84`
+
+### Task p03-t16: (gate) Hash pinned native executables within bounded resources
+
+**Status:** pending
+**Commit:** -
 
 ---
 
@@ -854,6 +859,15 @@ independently verified before p04-t01 can safely execute.
 - Blocker: execution-context fingerprint is absent. The resolved native executable is 197171680 bytes, while `providers.ts` rejects executable bytes above 134217728; this deterministically produces `execution-context-unreadable`
 - Disposition: stopped before `behavior-verify`; no Claude session, receipt, cleanup, or quota-spending invocation occurred. Existing Codex evidence remains intact
 - Required remediation: bounded executable hashing that supports the pinned native binary, with focused verification before a fresh plan check
+
+### Run 22 — 2026-09-08
+
+- Scope: p03-t16 bounded executable hashing repair and one fresh targeted independent review
+- Authorization: user instructed the OAT implementation to proceed after the p04-t02 size-limit diagnosis
+- Base: branch rebased onto current `origin/main` before task dispatch; branch was already up to date
+- Task class: `default-implementation`; preferred route GPT-5.6 Sol at medium effort under managed Frontier policy
+- Authority: implementer may modify only p03-t16 source, focused test, and generated runtime files; it must not run authentication, provider sessions, cleanup, receipts, or live gates
+- Next: dispatch one exact target-pinned implementer, verify its single task commit, then run one independent targeted review before returning to p04-t02
 
 <!-- orchestration-runs-end -->
 
