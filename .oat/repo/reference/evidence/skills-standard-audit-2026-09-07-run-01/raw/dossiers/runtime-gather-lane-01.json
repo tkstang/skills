@@ -1,0 +1,182 @@
+{
+  "kind": "recon.raw-dossier",
+  "schemaVersion": 1,
+  "id": "runtime-gather-lane-01-dossier",
+  "runId": "skills-standard-audit-2026-09-07-run-01",
+  "waveId": "runtime-gather-wave-01",
+  "laneId": "runtime-gather-lane-01",
+  "mode": "gather",
+  "outcome": "partial",
+  "allowedInputs": [
+    "repository runtime sources and directly relevant tests at revision f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "existing external-plan and backlog Markdown only for overlap checks after findings were established"
+  ],
+  "excludedInputs": [
+    ".agents/, .claude/, .codex/, and .cursor/ at every depth",
+    "credentials, runtime stores, local-only OAT state, dependency/vendor directories, generated output as a finding surface, prior worker output, and live providers"
+  ],
+  "findings": [
+    {
+      "id": "RUNTIME-001",
+      "outcome": "The shared provider CLI reports schema-valid success after enforcing only a shallow subset of the supplied JSON Schema; shipped schemas rely on constraints the validator skips.",
+      "severityImpact": "high correctness and contract-integrity impact: an enum-violating, extra-property, malformed nested object, or wrong array item can be delivered as a successful verdict to consumers that trust the generic CLI envelope.",
+      "confidence": "high: source-confirmed on both final-message and submit-sidecar success paths, with shipped schemas using omitted keywords.",
+      "effort": "medium",
+      "fixRisk": "medium: validation must remain dependency-free or introduce a deliberately supported validator without changing accepted output contracts unexpectedly.",
+      "evidence": [
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/schema-validate.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 5,
+          "lineEnd": 45,
+          "excerpt": "The validator checks object type, top-level required fields, and direct property type only, then returns ok."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/structured-output.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 291,
+          "lineEnd": 324,
+          "excerpt": "validateSchemaSubset gates the final-message path immediately before successEnvelope."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/structured-output.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 415,
+          "lineEnd": 438,
+          "excerpt": "The submit-sidecar path uses the same validator before returning the submitted verdict."
+        },
+        {
+          "kind": "repository",
+          "path": "plugins/consensus/skills/decide/schemas/verdict-parallel.schema.json",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 4,
+          "lineEnd": 43,
+          "excerpt": "A shipped schema requires additionalProperties false, const, enum, nested required/properties, and array item constraints."
+        }
+      ],
+      "whyCurrentBehaviorIsProblematic": "The public prompt says the result must match the active JSON Schema, but the terminal validator does not enforce multiple constraints present in the product's own schemas. A response such as a string-valued enum field with an unsupported value and extra properties passes this gate if its top-level types happen to match.",
+      "boundedFixSketch": "Define the supported JSON-Schema profile and validate every keyword used by shipped schemas recursively (including const, enum, additionalProperties, nested required/properties, and items), or adopt a dependency-free generated validator for that profile. Add negative cases to both final-message and submit-sidecar paths.",
+      "verificationCommands": [
+        "pnpm exec vitest run tests/consensus/provider-cli/schema-validate.test.ts tests/consensus/provider-cli/structured-output.test.ts",
+        "pnpm run build:check",
+        "pnpm run validate"
+      ],
+      "overlap": "none found in current external plans or backlog items"
+    },
+    {
+      "id": "RUNTIME-002",
+      "outcome": "The shipped panel wrapper captures child stdout and stderr without a byte cap, unlike the hardened core wrapper it is documented as a twin of.",
+      "severityImpact": "high reliability impact: a noisy or compromised provider-CLI child can grow in-memory strings without bound, potentially exhausting the host process before the panel can record a controlled failure.",
+      "confidence": "high: source-confirmed divergence between panel and core implementations, plus the panel suite lacks the core's output-cap regression case.",
+      "effort": "low",
+      "fixRisk": "low to medium: port the existing bounded Buffer capture and forced-settlement behavior, preserving panel result/error types.",
+      "evidence": [
+        {
+          "kind": "repository",
+          "path": "src/consensus/panel/consensus-panel.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 1140,
+          "lineEnd": 1233,
+          "excerpt": "stdout and stderr are concatenated on every data event; no byte accounting or cap-kill branch exists."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/panel/consensus-panel.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 1339,
+          "lineEnd": 1347,
+          "excerpt": "Each panelist invokes the provider CLI through this unbounded wrapper."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/core/loop-provider.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 227,
+          "lineEnd": 267,
+          "excerpt": "The core twin counts stream bytes, kills on cap breach, and schedules bounded settlement."
+        },
+        {
+          "kind": "repository",
+          "path": "tests/consensus/core/provider-cli-timeout.test.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 59,
+          "lineEnd": 79,
+          "excerpt": "Core has a cap-plus-descendant regression test; the panel timeout suite has no equivalent cap test."
+        }
+      ],
+      "whyCurrentBehaviorIsProblematic": "The panel's sequential provider calls pass through a separate implementation that did not receive the core wrapper's output-cap hardening. Timeout support alone does not bound a fast, continuously writing child before its timeout, and normal panel invocation supplies no outer timeout value.",
+      "boundedFixSketch": "Extract or faithfully reuse the core bounded subprocess runner in the panel path; retain the 10 MiB per-stream policy, SIGKILL/final-resolution behavior, and structured cap error. Add the core's large-output and held-pipe cases to the panel suite.",
+      "verificationCommands": [
+        "pnpm exec vitest run tests/consensus/panel/provider-cli-timeout.test.ts tests/consensus/core/provider-cli-timeout.test.ts",
+        "pnpm run build:check",
+        "pnpm run test -- --runInBand"
+      ],
+      "overlap": "overlaps 2026-07-17-consensus-subprocess-hardening.md, whose declared scope included both wrapper copies; 2026-07-22-execution-program.md marks that plan done, so this is a residual/incomplete application rather than new duplicate scope. No specific open backlog item was found."
+    },
+    {
+      "id": "RUNTIME-003",
+      "outcome": "The accepted request field redaction.include_stderr/include_args is validated but never applied when building provider result envelopes.",
+      "severityImpact": "medium security and API-contract impact: callers that explicitly request omitted stderr still receive provider stderr; provider diagnostics can contain sensitive or untrusted text.",
+      "confidence": "high that explicit redaction flags are currently inert; the intended default behavior when flags are omitted is not documented in the inspected sources.",
+      "effort": "low",
+      "fixRisk": "medium: suppressing fields by default could be a compatibility change, so preserve the current default unless the API contract explicitly changes and always honor explicit false.",
+      "evidence": [
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/types.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 103,
+          "lineEnd": 120,
+          "excerpt": "ConsensusCliRunRequest exposes redaction.include_args and redaction.include_stderr."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/args.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 752,
+          "lineEnd": 756,
+          "excerpt": "Request JSON parses and retains the validated redaction object."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/args.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 814,
+          "lineEnd": 829,
+          "excerpt": "Both redaction fields are type-validated."
+        },
+        {
+          "kind": "repository",
+          "path": "src/consensus/provider-cli/envelope.ts",
+          "revision": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+          "lineStart": 33,
+          "lineEnd": 76,
+          "excerpt": "Success and failure envelopes unconditionally copy supplied args, stdout, and stderr; they receive no redaction policy."
+        }
+      ],
+      "whyCurrentBehaviorIsProblematic": "An accepted API control creates an expectation that a caller can prevent stderr disclosure, yet the flag has no data-flow beyond validation. This is especially risky on failure paths, where raw provider stderr is included in the JSON envelope.",
+      "boundedFixSketch": "Thread the request redaction policy through success/failure envelope construction. Document a compatibility-preserving default and add tests proving explicit include_stderr:false removes stderr on both success and failure; similarly decide and test the args policy.",
+      "verificationCommands": [
+        "pnpm exec vitest run tests/consensus/provider-cli/args.test.ts tests/consensus/provider-cli/structured-output.test.ts tests/consensus/provider-cli/cli-process.test.ts",
+        "pnpm run build:check",
+        "pnpm run validate"
+      ],
+      "overlap": "none found in current external plans or backlog items"
+    }
+  ],
+  "uncertainty": [
+    "RUNTIME-003: the code proves explicit redaction flags are inert, but the desired default disclosure behavior is not specified in the inspected public runtime sources.",
+    "RUNTIME-001: some higher-level consumers add domain validation after the generic CLI returns, but the generic final-message and submit success gates themselves do not enforce the supplied full schema."
+  ],
+  "contradictions": [
+    "The external subprocess-hardening plan says both core and panel wrapper copies were in scope and the execution program marks it done, but the current panel source lacks the core output-cap branch and its regression test."
+  ],
+  "gaps": [
+    "Investigated without findings: provider host-recursion guard and child-environment filtering; core loop provider subprocess runner; consensus configuration parsing; session-observer collaboration lease path/permission checks; transcript export sanitizer and Cursor streaming parser.",
+    "This was a targeted high-leverage source audit, not an exhaustive line-by-line review of every shipped skill, plugin, source module, or documentation file.",
+    "No live-provider, credential, runtime-store, generated-output, or excluded agent-configuration inputs were read."
+  ]
+}
