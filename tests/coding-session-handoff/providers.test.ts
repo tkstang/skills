@@ -9,6 +9,7 @@ import {
   PROVIDER_BEHAVIOR_CONTRACTS,
 } from '../../src/transcript/coding-session-handoff/behavior-contracts.js';
 import {
+  PROVIDER_EXECUTABLE_MAX_BYTES,
   probeProvider,
   type ProviderProbeDependencies,
 } from '../../src/transcript/coding-session-handoff/providers.js';
@@ -21,7 +22,14 @@ function dependencies(
 ): ProviderProbeDependencies {
   return {
     resolveExecutable: async (name) => `/usr/local/bin/${name}`,
-    readFile: async () => executableBytes,
+    readExecutableMetadata: async () => ({
+      size: executableBytes.byteLength,
+      isFile: true,
+    }),
+    streamExecutable: async function* () {
+      yield executableBytes;
+    },
+    createExecutableHash: () => createHash('sha256'),
     readConfigInputs: async () => [
       { name: 'config.toml', contents: 'model = "safe"\ntoken = "secret"' },
     ],
@@ -289,6 +297,165 @@ describe('provider capability probes', () => {
       }),
     });
     expect(unreadable.capability.status).toBe('execution-context-unreadable');
+  });
+
+  test('incrementally hashes the pinned Claude executable within the supported bound', async () => {
+    const pinnedClaudeBytes = 197_171_680;
+    const chunk = Buffer.alloc(1024 * 1024, 0x61);
+    const streamedChunks = Math.ceil(pinnedClaudeBytes / chunk.byteLength);
+    const createExecutableHash = vi.fn(() => ({
+      update: vi.fn(),
+      digest: vi.fn(() => 'b'.repeat(64)),
+    }));
+    const result = await probeProvider('claude', {
+      deps: dependencies(
+        async (_executable, argv) => {
+          if (argv[0] === '--version') {
+            return { stdout: '2.1.251 (Claude Code)\n', stderr: '' };
+          }
+          if (argv[0] === '--help') {
+            return {
+              stdout:
+                '--safe-mode --print --output-format json --resume --fork-session --session-id --permission-mode plan --tools --max-budget-usd\n',
+              stderr: '',
+            };
+          }
+          return {
+            stdout: '{"loggedIn":true,"authMethod":"claude.ai"}\n',
+            stderr: '',
+          };
+        },
+        {
+          readExecutableMetadata: async () => ({
+            size: pinnedClaudeBytes,
+            isFile: true,
+          }),
+          streamExecutable: async function* () {
+            for (let index = 0; index < streamedChunks; index += 1) {
+              const remaining = pinnedClaudeBytes - index * chunk.byteLength;
+              yield remaining < chunk.byteLength
+                ? chunk.subarray(0, remaining)
+                : chunk;
+            }
+          },
+          createExecutableHash,
+        },
+      ),
+    });
+
+    expect(PROVIDER_EXECUTABLE_MAX_BYTES).toBeGreaterThanOrEqual(
+      pinnedClaudeBytes,
+    );
+    expect(result.capability.status).toBe('syntax-verified');
+    expect(result.capability.executionContextFingerprint).toMatch(
+      /^[0-9a-f]{64}$/u,
+    );
+    expect(createExecutableHash).toHaveBeenCalledOnce();
+  });
+
+  test('rejects executable metadata beyond the supported bound before streaming', async () => {
+    const streamExecutable = vi.fn(async function* () {
+      yield executableBytes;
+    });
+    const result = await probeProvider('codex', {
+      deps: dependencies(codexRun, {
+        readExecutableMetadata: async () => ({
+          size: PROVIDER_EXECUTABLE_MAX_BYTES + 1,
+          isFile: true,
+        }),
+        streamExecutable,
+      }),
+    });
+
+    expect(result.capability.status).toBe('execution-context-unreadable');
+    expect(streamExecutable).not.toHaveBeenCalled();
+  });
+
+  test('rejects executable growth beyond the supported bound while streaming', async () => {
+    const result = await probeProvider('codex', {
+      deps: dependencies(codexRun, {
+        readExecutableMetadata: async () => ({
+          size: PROVIDER_EXECUTABLE_MAX_BYTES,
+          isFile: true,
+        }),
+        streamExecutable: async function* () {
+          const chunk = new Uint8Array(1024 * 1024);
+          for (
+            let streamed = 0;
+            streamed < PROVIDER_EXECUTABLE_MAX_BYTES;
+            streamed += chunk.byteLength
+          ) {
+            yield chunk;
+          }
+          yield new Uint8Array(1);
+        },
+      }),
+    });
+
+    expect(result.capability.status).toBe('execution-context-unreadable');
+  });
+
+  test.each([
+    [
+      'metadata failure',
+      {
+        readExecutableMetadata: async () => {
+          throw new Error('metadata failed');
+        },
+      },
+    ],
+    [
+      'stream failure',
+      {
+        streamExecutable: async function* () {
+          yield await Promise.reject<Uint8Array>(new Error('stream failed'));
+        },
+      },
+    ],
+    [
+      'digest failure',
+      {
+        createExecutableHash: () => ({
+          update: () => undefined,
+          digest: () => {
+            throw new Error('digest failed');
+          },
+        }),
+      },
+    ],
+  ] as const)('fails closed on executable %s', async (_case, overrides) => {
+    const result = await probeProvider('codex', {
+      deps: dependencies(codexRun, overrides),
+    });
+
+    expect(result.capability.status).toBe('execution-context-unreadable');
+    expect(result.capability.executionContextFingerprint).toBeUndefined();
+  });
+
+  test('produces the same execution-context fingerprint across chunk boundaries', async () => {
+    const probeWithChunks = (chunks: readonly Uint8Array[]) =>
+      probeProvider('codex', {
+        deps: dependencies(codexRun, {
+          readExecutableMetadata: async () => ({
+            size: executableBytes.byteLength,
+            isFile: true,
+          }),
+          streamExecutable: async function* () {
+            yield* chunks;
+          },
+        }),
+      });
+
+    const whole = await probeWithChunks([executableBytes]);
+    const split = await probeWithChunks([
+      executableBytes.subarray(0, 5),
+      executableBytes.subarray(5, 13),
+      executableBytes.subarray(13),
+    ]);
+
+    expect(split.capability.executionContextFingerprint).toBe(
+      whole.capability.executionContextFingerprint,
+    );
   });
 });
 

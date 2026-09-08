@@ -4,7 +4,7 @@
 
 // src/transcript/coding-session-handoff/cli.ts
 import { execFile as nodeExecFile4 } from "node:child_process";
-import { readFile as readFile5, stat as stat3 } from "node:fs/promises";
+import { readFile as readFile5, stat as stat4 } from "node:fs/promises";
 import { resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify as promisify5 } from "node:util";
@@ -4688,12 +4688,15 @@ async function previewHandoffCandidates(sources, options = {}) {
 // src/transcript/coding-session-handoff/providers.ts
 import { execFile as nodeExecFile3 } from "node:child_process";
 import { createHash as createHash5 } from "node:crypto";
-import { access, readFile as readFile4, realpath as realpath3 } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { access, readFile as readFile4, realpath as realpath3, stat as stat3 } from "node:fs/promises";
 import { delimiter, join as join4 } from "node:path";
 import { promisify as promisify4 } from "node:util";
 var execFileAsync4 = promisify4(nodeExecFile3);
 var PROVIDER_PROBE_TIMEOUT_MS = 1e4;
 var PROVIDER_PROBE_MAX_OUTPUT_BYTES = 65536;
+var PROVIDER_EXECUTABLE_MAX_BYTES = 256 * 1024 * 1024;
+var PROVIDER_EXECUTABLE_HASH_CHUNK_BYTES = 1024 * 1024;
 var PROVIDER_PROBE_COMMANDS = Object.freeze({
   codex: Object.freeze({
     version: Object.freeze(["--version"]),
@@ -4759,7 +4762,14 @@ async function defaultConfigInputs(provider2, targetCwd) {
 }
 var DEFAULT_DEPENDENCIES5 = {
   resolveExecutable: resolveFromPath,
-  readFile: readFile4,
+  readExecutableMetadata: async (path) => {
+    const metadata = await stat3(path);
+    return { size: metadata.size, isFile: metadata.isFile() };
+  },
+  streamExecutable: (path) => createReadStream(path, {
+    highWaterMark: PROVIDER_EXECUTABLE_HASH_CHUNK_BYTES
+  }),
+  createExecutableHash: () => createHash5("sha256"),
   readConfigInputs: defaultConfigInputs,
   run: async (executable, argv, options) => {
     const result = await execFileAsync4(executable, [...argv], {
@@ -4772,6 +4782,32 @@ var DEFAULT_DEPENDENCIES5 = {
     return { stdout: result.stdout, stderr: result.stderr };
   }
 };
+async function hashExecutable(executable, deps) {
+  const metadata = await deps.readExecutableMetadata(executable);
+  if (!metadata.isFile || !Number.isSafeInteger(metadata.size) || metadata.size < 0 || metadata.size > PROVIDER_EXECUTABLE_MAX_BYTES) {
+    throw new Error("executable-metadata-invalid");
+  }
+  const hash = deps.createExecutableHash();
+  let bytesRead = 0;
+  for await (const chunk of deps.streamExecutable(executable)) {
+    if (!(chunk instanceof Uint8Array) || chunk.byteLength === 0) {
+      throw new Error("executable-stream-invalid");
+    }
+    bytesRead += chunk.byteLength;
+    if (!Number.isSafeInteger(bytesRead) || bytesRead > metadata.size || bytesRead > PROVIDER_EXECUTABLE_MAX_BYTES) {
+      throw new Error("executable-stream-oversized");
+    }
+    hash.update(chunk);
+  }
+  if (bytesRead !== metadata.size) {
+    throw new Error("executable-stream-size-mismatch");
+  }
+  const digest2 = hash.digest("hex");
+  if (!/^[0-9a-f]{64}$/u.test(digest2)) {
+    throw new Error("executable-digest-invalid");
+  }
+  return digest2;
+}
 function probeOptions() {
   return {
     timeoutMs: PROVIDER_PROBE_TIMEOUT_MS,
@@ -4913,10 +4949,7 @@ ${helpResult.stderr}`;
   );
   let executionContextFingerprint;
   try {
-    const executableBytes = await deps.readFile(executable);
-    if (executableBytes.byteLength > 128 * 1024 * 1024) {
-      throw new Error("executable-oversized");
-    }
+    const executableSha256 = await hashExecutable(executable, deps);
     const rawConfigInputs = await deps.readConfigInputs(
       provider2,
       options.targetCwd
@@ -4927,7 +4960,7 @@ ${helpResult.stderr}`;
     }));
     executionContextFingerprint = computeExecutionContextFingerprint({
       provider: provider2,
-      executableSha256: createHash5("sha256").update(executableBytes).digest("hex"),
+      executableSha256,
       exactVersion: detectedVersion,
       syntaxFingerprint,
       safetyArgv: PROVIDER_SAFETY_ARGV[provider2],
@@ -5444,7 +5477,7 @@ async function defaultExecute(source, target, handoffSelection, continuityMode, 
   });
 }
 async function readInputFileBounded(path) {
-  const metadata = await stat3(path);
+  const metadata = await stat4(path);
   if (metadata.size > MAX_RECONCILE_INPUT_BYTES) {
     throw Object.assign(new Error("input-too-large"), {
       code: "input-too-large"

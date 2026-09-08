@@ -1,6 +1,7 @@
 import { execFile as nodeExecFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { access, readFile, realpath } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { access, readFile, realpath, stat } from 'node:fs/promises';
 import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -19,15 +20,29 @@ const execFileAsync = promisify(nodeExecFile);
 
 export const PROVIDER_PROBE_TIMEOUT_MS = 10_000;
 export const PROVIDER_PROBE_MAX_OUTPUT_BYTES = 65_536;
+export const PROVIDER_EXECUTABLE_MAX_BYTES = 256 * 1024 * 1024;
+export const PROVIDER_EXECUTABLE_HASH_CHUNK_BYTES = 1024 * 1024;
 
 interface ProviderProcessResult {
   stdout: string;
   stderr: string;
 }
 
+interface ProviderExecutableMetadata {
+  size: number;
+  isFile: boolean;
+}
+
+interface ProviderExecutableHash {
+  update(bytes: Uint8Array): unknown;
+  digest(encoding: 'hex'): string;
+}
+
 export interface ProviderProbeDependencies {
   resolveExecutable: (name: HandoffProvider) => Promise<string | null>;
-  readFile: (path: string) => Promise<Uint8Array>;
+  readExecutableMetadata: (path: string) => Promise<ProviderExecutableMetadata>;
+  streamExecutable: (path: string) => AsyncIterable<Uint8Array>;
+  createExecutableHash: () => ProviderExecutableHash;
   readConfigInputs: (
     provider: HandoffProvider,
     targetCwd?: string,
@@ -146,7 +161,15 @@ async function defaultConfigInputs(
 
 const DEFAULT_DEPENDENCIES: ProviderProbeDependencies = {
   resolveExecutable: resolveFromPath,
-  readFile,
+  readExecutableMetadata: async (path) => {
+    const metadata = await stat(path);
+    return { size: metadata.size, isFile: metadata.isFile() };
+  },
+  streamExecutable: (path) =>
+    createReadStream(path, {
+      highWaterMark: PROVIDER_EXECUTABLE_HASH_CHUNK_BYTES,
+    }),
+  createExecutableHash: () => createHash('sha256'),
   readConfigInputs: defaultConfigInputs,
   run: async (executable, argv, options) => {
     const result = await execFileAsync(executable, [...argv], {
@@ -159,6 +182,46 @@ const DEFAULT_DEPENDENCIES: ProviderProbeDependencies = {
     return { stdout: result.stdout, stderr: result.stderr };
   },
 };
+
+async function hashExecutable(
+  executable: string,
+  deps: ProviderProbeDependencies,
+): Promise<string> {
+  const metadata = await deps.readExecutableMetadata(executable);
+  if (
+    !metadata.isFile ||
+    !Number.isSafeInteger(metadata.size) ||
+    metadata.size < 0 ||
+    metadata.size > PROVIDER_EXECUTABLE_MAX_BYTES
+  ) {
+    throw new Error('executable-metadata-invalid');
+  }
+
+  const hash = deps.createExecutableHash();
+  let bytesRead = 0;
+  for await (const chunk of deps.streamExecutable(executable)) {
+    if (!(chunk instanceof Uint8Array) || chunk.byteLength === 0) {
+      throw new Error('executable-stream-invalid');
+    }
+    bytesRead += chunk.byteLength;
+    if (
+      !Number.isSafeInteger(bytesRead) ||
+      bytesRead > metadata.size ||
+      bytesRead > PROVIDER_EXECUTABLE_MAX_BYTES
+    ) {
+      throw new Error('executable-stream-oversized');
+    }
+    hash.update(chunk);
+  }
+  if (bytesRead !== metadata.size) {
+    throw new Error('executable-stream-size-mismatch');
+  }
+  const digest = hash.digest('hex');
+  if (!/^[0-9a-f]{64}$/u.test(digest)) {
+    throw new Error('executable-digest-invalid');
+  }
+  return digest;
+}
 
 function probeOptions() {
   return {
@@ -337,10 +400,7 @@ export async function probeProvider(
   );
   let executionContextFingerprint: string;
   try {
-    const executableBytes = await deps.readFile(executable);
-    if (executableBytes.byteLength > 128 * 1024 * 1024) {
-      throw new Error('executable-oversized');
-    }
+    const executableSha256 = await hashExecutable(executable, deps);
     const rawConfigInputs = await deps.readConfigInputs(
       provider,
       options.targetCwd,
@@ -352,9 +412,7 @@ export async function probeProvider(
     }));
     executionContextFingerprint = computeExecutionContextFingerprint({
       provider,
-      executableSha256: createHash('sha256')
-        .update(executableBytes)
-        .digest('hex'),
+      executableSha256,
       exactVersion: detectedVersion,
       syntaxFingerprint,
       safetyArgv: PROVIDER_SAFETY_ARGV[provider],
