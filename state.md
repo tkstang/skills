@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t02
 oat_last_commit: d15fd662d1baf5ff26cc6ccd09925212a8f9ff46
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate is inconclusive at evidence-validation; child identity and target cwd were unobserved"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-08T21:52:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-08T22:11:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - root entry gate p04-t02 mutation-free preflight
+Implementation blocked at root entry gates p04-t01 and p04-t02
 
 ## Artifacts
 
@@ -221,6 +221,11 @@ Implementation - root entry gate p04-t02 mutation-free preflight
 - ✓ p03-t16 completed at `d15fd66`; executable hashing now streams under a 256 MiB bound that admits the pinned Claude binary
 - ✓ Root verified 101 targeted tests, type-check, generated parity, lint, formatting, exact three-file scope, and diff hygiene
 - ✓ Targeted independent p03-t16 review passed with zero findings at `d15fd66`
+- ✓ p04-t02 exact-version preflight passed authentication, syntax, executable-context, call, spend, and cleanup bounds
+- ✗ The single authorized p04-t02 live attempt returned `inconclusive` / `reporting-failed` at `evidence-validation`
+- ✗ Claude parent identity was observed, but child identity and target cwd were unobserved; lineage and source resumability could not be proven
+- ✓ Receipt and locator are ignored, mode 0600, and digest-verified; Git fixture and exact disposable Claude project state cleanup succeeded
+- ⏹ No automatic retry, p05-t02 receipt review, activation, or additional provider mutation was launched
 - ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
 - ✗ Independent p03 review found 1 Important unvalidated production child-ID gap; p03-t15 itself passed its cwd/native-identity safety disposition
 - ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
@@ -251,13 +256,14 @@ p04-t01 remains blocked after the exact Codex 0.151.0 live gate returned
 bounds passed, but the provider emitted no exact parent native ID; provider cleanup
 therefore could not run safely. The redacted receipt digest is
 `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`.
-p04-t02 is paused before mutation because the pinned executable is 197171680 bytes,
-exceeding the fingerprint reader's 134217728-byte limit. The fresh behavior plan
-reports authenticated but omits its execution-context fingerprint; execution is not
-eligible. Source: `src/transcript/coding-session-handoff/providers.ts`.
+p04-t02 is blocked after the exact Claude Code 2.1.251 live gate returned
+`inconclusive` at `evidence-validation`. The reviewed preflight and cleanup passed, but
+the child identity and target cwd were unobserved, so lineage and source resumability
+could not be proven. The redacted receipt digest is
+`7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`.
 
 ## Next Milestone
 
-Repeat the mutation-free p04-t02 plan with normal credential access; run the single authorized live Claude gate only if every safety precondition passes
-check with normal credential access. Do not retry p04-t01 automatically or infer a
-cleanup target. p05 remains blocked until its corresponding live receipt passes.
+Diagnose the p04-t02 child-observation gap without another live provider mutation.
+Do not retry either live gate automatically or infer cleanup targets. p05 remains
+blocked until its corresponding live receipt passes.

@@ -1,7 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 inconclusive at native-identity-missing"]
+oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p04-t02 inconclusive at evidence-validation: child identity and cwd were unobserved"]
 oat_last_updated: 2026-09-08
 oat_current_task_id: null
 oat_generated: false
@@ -876,6 +876,16 @@ independently verified before p04-t01 can safely execute.
 - Independent review: `reviews/archived/p03-t16-review-2026-09-08T220043Z.md` passed at `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46` with zero findings
 - Next: return to the root-owned p04-t02 mutation-free plan check
 
+### Run 23 — 2026-09-08
+
+- Scope: root-owned p04-t02 exact Claude Code 2.1.251 live behavior gate
+- Preflight: authenticated via `claude.ai`; syntax fingerprint `b6bd00fbe83ccf6eed66777601a35dcbad1cefad2cbd69d7d5942a33813131a6`; execution-context fingerprint `66df0cecdff913c56f8c476499f85901b6ed780c6859c6d537ffe6100bfc7438`; three calls bounded to 60000 ms, 65536 bytes, and $0.15 per call
+- Authorization: one live attempt only; no automatic retry
+- Result: `inconclusive` at `evidence-validation` with `reporting-failed`; receipt digest `7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`
+- Evidence gap: parent identity was observed, but child identity and target cwd were unobserved; exact lineage and source resumability therefore could not be proven
+- Cleanup and privacy: Git fixture and exact disposable Claude project state were removed; receipt and locator are ignored and mode 0600; receipt digest matches; no raw provider output or credentials are stored
+- Disposition: product blocker recorded; no retry, p05-t02 receipt review, activation, or additional provider mutation launched
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -883,6 +893,18 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Entry Gate Inconclusive: p04-t02 child evidence unobserved
+
+**Date:** 2026-09-08
+**Status:** inconclusive
+**Receipt digest:** `7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`
+
+The exact Claude Code 2.1.251 plan passed authentication, syntax, executable-context,
+call, spend, and cleanup bounds. The single authorized live attempt observed the
+parent but not the child identity or target cwd, so exact lineage and source
+resumability could not be proven. Both the Git fixture and exact disposable Claude
+project state were removed. No automatic retry or receipt review was launched.
 
 ### Review Received: p03-t16 targeted executable-hashing repair
 
