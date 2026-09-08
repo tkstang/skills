@@ -184,6 +184,10 @@ The user-authorized exact Codex 0.151.0 live gate authenticated and matched all 
 
 Stopped p04-t02 before provider mutation: the isolated exact Claude Code 2.1.251 preflight reports loggedIn false with no authentication method; behavior-plan and behavior-verify were not invoked, and no Claude session, receipt, locator update, cleanup, credential capture, or quota-spending call occurred.
 
+### 2026-09-08 · structural · oat-project-implement · p04-t02-auth-recovery-stop
+
+A fresh exact Claude Code 2.1.251 subscription login opened but remained at its one-time-code prompt without persisting authentication and was cancelled cleanly; exact and system Claude still report loggedIn false. p04-t02 remains stopped before behavior-plan or provider mutation, and no token or code was captured.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

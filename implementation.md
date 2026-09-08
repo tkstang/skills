@@ -836,6 +836,15 @@ independently verified before p04-t01 can safely execute.
 - Status: BLOCKED before mutation; `behavior-plan` and `behavior-verify` were not invoked
 - No Claude session, receipt, locator update, cleanup, quota-spending call, credential capture, or inferred provider ID exists for this run
 
+### Run 20 — 2026-09-07
+
+- Branch: `feat/coding-session-handoff`
+- Tier: root-owned p04-t02 authentication recovery
+- Scope: re-check exact and system Claude authentication, inspect credential metadata without reading token values, and start one exact-version subscription login flow
+- Diagnosis: both Claude Code 2.1.251 and system 2.1.263 report `loggedIn: false`; the credential record contains no access or refresh token and has an expired zero timestamp
+- Login result: the exact-version flow remained at its one-time-code prompt without persisting authentication and was cancelled cleanly after several minutes
+- Status: BLOCKED before mutation; no token or one-time code was requested in chat or recorded, and no behavior plan, provider session, receipt, cleanup, or quota-spending operation ran
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -852,6 +861,11 @@ The exact Claude Code 2.1.251 preflight reports `loggedIn: false` with no authen
 method. Execution stopped before `behavior-plan` or `behavior-verify`; no Claude session,
 receipt, locator update, cleanup, credential capture, or quota-spending operation
 occurred. The previously recorded Codex receipt and local evidence remain intact.
+
+A subsequent exact-version login recovery attempt opened the subscription browser flow
+but remained at the CLI's one-time-code prompt without writing authentication state. It
+was cancelled cleanly; the user must complete `claude auth login` in a terminal they can
+interact with before this gate resumes.
 
 ### Entry Gate Inconclusive: p04-t01 exact native identity missing
 

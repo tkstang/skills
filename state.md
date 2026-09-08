@@ -234,6 +234,7 @@ Implementation - p04-t02 paused at Claude authentication; p04-t01 remains inconc
 - ✓ Exact Claude Code 2.1.251 temporary runtime installed without changing the system installation
 - ✗ p04-t02 preflight reports `loggedIn: false`, `authMethod: none`
 - ⏹ Claude `behavior-plan` and `behavior-verify` were not invoked; no Claude session, receipt, locator update, cleanup, or quota-spending operation occurred
+- ✗ A fresh exact-version `claude auth login --claudeai` flow remained at its one-time-code prompt and was cancelled without writing authentication state
 
 ## Blockers
 
