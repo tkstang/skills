@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p03-t15 implementation passed; independent review and any new p04-t01 live retry require explicit authorization"]
-oat_last_updated: 2026-09-02
-oat_current_task_id: p04-t01
+oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p04-t02 authenticated but executable exceeds the fingerprint size limit"]
+oat_last_updated: 2026-09-08
+oat_current_task_id: p04-t02
 oat_generated: false
 ---
 
 # Implementation: coding-session-handoff
 
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-08
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -844,6 +844,16 @@ independently verified before p04-t01 can safely execute.
 - Diagnosis: both Claude Code 2.1.251 and system 2.1.263 report `loggedIn: false`; the credential record contains no access or refresh token and has an expired zero timestamp
 - Login result: the exact-version flow remained at its one-time-code prompt without persisting authentication and was cancelled cleanly after several minutes
 - Status: BLOCKED before mutation; no token or one-time code was requested in chat or recorded, and no behavior plan, provider session, receipt, cleanup, or quota-spending operation ran
+
+### Run 21 — 2026-09-08
+
+- Scope: exact Claude authentication and mutation-free behavior-plan with normal host credential access
+- Authentication: Claude Code 2.1.251 reports `loggedIn: true`, `authMethod: claude.ai` outside the sandbox; no new login operation was performed
+- Correction to Runs 19–20: sandboxed status and empty file-based credentials did not prove failure to persist login. Host credential access is an environmental difference; the earlier persistence diagnosis is withdrawn
+- Plan: exact version and authentication pass; syntax fingerprint `b6bd00fbe83ccf6eed66777601a35dcbad1cefad2cbd69d7d5942a33813131a6`; three calls, 60000 ms / 65536 bytes per call, $0.15 per call, exact disposable-project purge cleanup
+- Blocker: execution-context fingerprint is absent. The resolved native executable is 197171680 bytes, while `providers.ts` rejects executable bytes above 134217728; this deterministically produces `execution-context-unreadable`
+- Disposition: stopped before `behavior-verify`; no Claude session, receipt, cleanup, or quota-spending invocation occurred. Existing Codex evidence remains intact
+- Required remediation: bounded executable hashing that supports the pinned native binary, with focused verification before a fresh plan check
 
 <!-- orchestration-runs-end -->
 

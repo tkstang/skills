@@ -188,6 +188,10 @@ Stopped p04-t02 before provider mutation: the isolated exact Claude Code 2.1.251
 
 A fresh exact Claude Code 2.1.251 subscription login opened but remained at its one-time-code prompt without persisting authentication and was cancelled cleanly; exact and system Claude still report loggedIn false. p04-t02 remains stopped before behavior-plan or provider mutation, and no token or code was captured.
 
+### 2026-09-08 · structural · oat-project-implement · p04-t02-context-stop
+
+Correction to p04-t02-auth-stop and p04-t02-auth-recovery-stop: exact Claude 2.1.251 authenticates outside the sandbox; prior file-based credential checks did not prove login persistence failure. The mutation-free plan instead lacks its execution-context fingerprint because the 197171680-byte native executable exceeds the 134217728-byte limit in providers.ts. Stopped before behavior-verify; see implementation.md Run 21.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

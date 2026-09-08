@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t02
 oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 preflight reports loggedIn false; supported local Claude authentication is required before mutation"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 authenticated Claude Code 2.1.251 executable is 197171680 bytes, exceeding the 134217728-byte fingerprint limit; execution context remains unreadable"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -96,11 +96,11 @@ oat_project_explainer:
 
 **Status:** Implementation in progress
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-07
+**Last Updated:** 2026-09-08
 
 ## Current Phase
 
-Implementation - p04-t02 paused at Claude authentication; p04-t01 remains inconclusive
+Implementation - p04-t02 blocked by executable fingerprint size limit; authentication verified
 
 ## Artifacts
 
@@ -238,16 +238,24 @@ Implementation - p04-t02 paused at Claude authentication; p04-t01 remains inconc
 
 ## Blockers
 
+Authentication correction (2026-09-08): exact Claude Code 2.1.251 reports
+`loggedIn: true`, `authMethod: claude.ai` outside the sandbox. Earlier sandboxed
+status checks and empty file-based credential fields did not establish that the
+user's login failed to persist. No additional login is needed.
+
 p04-t01 remains blocked after the exact Codex 0.151.0 live gate returned
 `inconclusive` at `native-identity-missing`. Authentication and the reviewed plan
 bounds passed, but the provider emitted no exact parent native ID; provider cleanup
 therefore could not run safely. The redacted receipt digest is
 `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`.
-p04-t02 is independently paused before mutation because the exact Claude Code 2.1.251
-runtime reports no supported local authentication.
+p04-t02 is paused before mutation because the pinned executable is 197171680 bytes,
+exceeding the fingerprint reader's 134217728-byte limit. The fresh behavior plan
+reports authenticated but omits its execution-context fingerprint; execution is not
+eligible. Source: `src/transcript/coding-session-handoff/providers.ts`.
 
 ## Next Milestone
 
-Complete `claude auth login`, then resume p04-t02 from a fresh exact-version auth
-preflight. Do not retry p04-t01 automatically or infer a cleanup target. p05 remains
-blocked until its corresponding live receipt passes.
+Repair bounded executable fingerprinting to support the pinned native Claude binary,
+verify the repair, then repeat the mutation-free p04-t02 plan check with normal
+credential access. Do not retry p04-t01 automatically or infer a cleanup target.
+p05 remains blocked until its corresponding live receipt passes.
