@@ -11,9 +11,10 @@ labels:
   - wave-3-follow-up
 assignee: null
 created: 2026-07-23T09:30:00Z
-updated: 2026-07-23T09:30:00Z
+updated: 2026-09-08T00:16:29Z
 associated_issues: []
-external_plans: []
+external_plans:
+  - .oat/repo/reference/external-plans/2026-09-07-extract-loop-free-cli-helper-core.md
 ---
 
 ## Description
