@@ -1,7 +1,7 @@
 ---
-oat_current_task: p03-t16
-oat_last_commit: 238f0513e41b35ecc4293268f7bcbeb5c1308d2b
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p03-t16 bounded native-executable hashing repair and independent review must pass before p04-t02 resumes"]
+oat_current_task: p04-t02
+oat_last_commit: d15fd662d1baf5ff26cc6ccd09925212a8f9ff46
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-05T20:46:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-08T21:52:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation - p03-t16 bounded executable hashing repair authorized
+Implementation - root entry gate p04-t02 mutation-free preflight
 
 ## Artifacts
 
@@ -218,6 +218,9 @@ Implementation - p03-t16 bounded executable hashing repair authorized
 - ✓ User authorized one bounded p03-t15 redacted diagnostic refinement with focused unit coverage
 - ✓ p03-t15 completed at `9db197f`; root verified 88 focused tests, type-check, generated parity, exact five-file scope, and clean history
 - ✓ New executions distinguish missing, invalid, and multiple identity shapes while legacy receipts remain parseable and redacted
+- ✓ p03-t16 completed at `d15fd66`; executable hashing now streams under a 256 MiB bound that admits the pinned Claude binary
+- ✓ Root verified 101 targeted tests, type-check, generated parity, lint, formatting, exact three-file scope, and diff hygiene
+- ✓ Targeted independent p03-t16 review passed with zero findings at `d15fd66`
 - ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
 - ✗ Independent p03 review found 1 Important unvalidated production child-ID gap; p03-t15 itself passed its cwd/native-identity safety disposition
 - ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
@@ -255,6 +258,6 @@ eligible. Source: `src/transcript/coding-session-handoff/providers.ts`.
 
 ## Next Milestone
 
-Implement and independently review p03-t16, then repeat the mutation-free p04-t02 plan
+Repeat the mutation-free p04-t02 plan with normal credential access; run the single authorized live Claude gate only if every safety precondition passes
 check with normal credential access. Do not retry p04-t01 automatically or infer a
 cleanup target. p05 remains blocked until its corresponding live receipt passes.

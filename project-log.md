@@ -192,6 +192,10 @@ A fresh exact Claude Code 2.1.251 subscription login opened but remained at its 
 
 Correction to p04-t02-auth-stop and p04-t02-auth-recovery-stop: exact Claude 2.1.251 authenticates outside the sandbox; prior file-based credential checks did not prove login persistence failure. The mutation-free plan instead lacks its execution-context fingerprint because the 197171680-byte native executable exceeds the 134217728-byte limit in providers.ts. Stopped before behavior-verify; see implementation.md Run 21.
 
+### 2026-09-08 · structural · oat-project-implement · p03-t16
+
+Phase outcome: p03-t16 passed targeted independent review with zero findings at d15fd662d1baf5ff26cc6ccd09925212a8f9ff46; review artifact reviews/archived/p03-t16-review-2026-09-08T220043Z.md; fix-loop count 0.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

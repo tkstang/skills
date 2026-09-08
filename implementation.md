@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p03-t16 must repair bounded executable hashing before p04-t02 can resume"]
+oat_blockers: ["p04-t01 inconclusive at native-identity-missing"]
 oat_last_updated: 2026-09-08
-oat_current_task_id: p03-t16
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | in_progress | 15    | 15/15     |
+| p03   | completed   | 16    | 16/16     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 31/35 tasks completed
+**Total:** 32/36 tasks completed
 
 ---
 
@@ -303,8 +303,8 @@ standard independent review is pending explicit authorization.
 
 ### Task p03-t16: (gate) Hash pinned native executables within bounded resources
 
-**Status:** pending
-**Commit:** -
+**Status:** completed; awaiting independent review
+**Commit:** `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46`
 
 ---
 
@@ -867,7 +867,14 @@ independently verified before p04-t01 can safely execute.
 - Base: branch rebased onto current `origin/main` before task dispatch; branch was already up to date
 - Task class: `default-implementation`; preferred route GPT-5.6 Sol at medium effort under managed Frontier policy
 - Authority: implementer may modify only p03-t16 source, focused test, and generated runtime files; it must not run authentication, provider sessions, cleanup, receipts, or live gates
-- Next: dispatch one exact target-pinned implementer, verify its single task commit, then run one independent targeted review before returning to p04-t02
+- Dispatch request: `p03-t16-20260908-001`; accepted handle `/root/p03_t16`
+- Route: `oat-phase-implementer-gpt-5-6-sol-medium`; model axis `selected:gpt-5.6-sol`; effort axis `selected:medium`; selection reason `native-catalog`; candidate `gpt-5.6-sol/medium`
+- Dispatch stamp: `Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium`
+- Dispatch policy: frontier; selected=medium; cap=max (codex, enforced — variant oat-phase-implementer-gpt-5-6-sol-medium)
+- Implementation result: one scoped commit `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46` changed only the canonical provider probe, its focused test, and the generated handoff runtime
+- Root verification: 101 targeted tests, type-check, generated-output sync, lint, formatting, and diff hygiene all passed; worktree remained clean
+- Independent review: `reviews/archived/p03-t16-review-2026-09-08T220043Z.md` passed at `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46` with zero findings
+- Next: return to the root-owned p04-t02 mutation-free plan check
 
 <!-- orchestration-runs-end -->
 
@@ -876,6 +883,21 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Review Received: p03-t16 targeted executable-hashing repair
+
+**Date:** 2026-09-08
+**Review artifact:** `reviews/archived/p03-t16-review-2026-09-08T220043Z.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor
+
+**Disposition:** Passed at reviewed head `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46`.
+The reviewer confirmed bounded incremental hashing, size/race/error rejection,
+stable fingerprint projection, generated parity, and no change to provider mutation,
+cleanup, receipt, redaction, or privacy behavior. No fix tasks were added.
+
+**Next:** Resume the root-owned p04-t02 mutation-free plan check, then make at most
+the single authorized live Claude attempt if every safety precondition passes.
 
 ### Entry Gate Blocked: p04-t02 Claude authentication
 
@@ -1292,6 +1314,7 @@ paused in the meantime.
 - [x] p03-t13 targeted independent review — fixes completed; re-review explicitly waived
 - [x] p03-t14 — `eae373b8`
 - [x] p03-t15 — `9db197f`
+- [x] p03-t16 — `d15fd66`; targeted independent review passed with zero findings
 
 ---
 
@@ -1311,7 +1334,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, p03-t14 83 focused tests, and p03-t15 88 focused tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t15 implementation | 0 | Fifteen task commits pass through `9db197f`; p03-t15 standard independent review and any live retry remain unauthorized; prior M1-M3 remain deferred |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, p03-t14 83 focused tests, p03-t15 88 focused tests, and p03-t16 101 targeted tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t16 implementation and review | 0 | Sixteen task commits pass through `d15fd66`; p03-t16 targeted review passed with zero findings; prior M1-M3 remain deferred |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
