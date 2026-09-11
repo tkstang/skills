@@ -889,10 +889,7 @@ export function parseBehavioralGateReceipt(
     observationsValue.requestedChildNativeId === undefined
       ? undefined
       : nativeId(observationsValue.requestedChildNativeId);
-  if (
-    (provider === 'claude' && requestedChildNativeId === undefined) ||
-    (provider === 'codex' && requestedChildNativeId !== undefined)
-  ) {
+  if (provider === 'codex' && requestedChildNativeId !== undefined) {
     fail('behavior-requested-child-selector');
   }
   const observations: BehavioralGateReceipt['observations'] = {
@@ -1027,6 +1024,7 @@ export function parseBehavioralGateReceipt(
       observations.recordedChildCwd !== fixture.targetWorktree ||
       observations.metadataEffects.length === 0 ||
       (provider === 'claude' &&
+        observations.requestedChildNativeId !== undefined &&
         observations.requestedChildNativeId !==
           observations.observedChildNativeId)
     ) {
@@ -1370,6 +1368,10 @@ function parseItemOutcome(value: unknown): ItemOutcome {
     item.observedChildNativeId === undefined
       ? undefined
       : nativeId(item.observedChildNativeId);
+
+  if (observedChildNativeId === parentNativeId) {
+    fail('outcome-child-equals-parent');
+  }
 
   if (native.status === 'succeeded' && observedChildNativeId === undefined) {
     fail('succeeded-observed-child-required');

@@ -200,7 +200,6 @@ export function buildNativeInvocation(
   provider: HandoffProvider,
   parentNativeId: string,
   targetCwd: string,
-  expectedChildNativeId?: string,
 ): NativeInvocation {
   assertNativeSessionId(parentNativeId, 'parent-native-id-invalid');
   assertInvocationInput(targetCwd, 'target-cwd-invalid');
@@ -222,10 +221,6 @@ export function buildNativeInvocation(
       HANDOFF_MARKER_PROMPT,
     ];
   } else {
-    if (expectedChildNativeId === undefined) {
-      throw new TypeError('claude-child-id-required');
-    }
-    assertNativeSessionId(expectedChildNativeId, 'claude-child-id-invalid');
     argv = [
       '--safe-mode',
       '--print',
@@ -234,8 +229,6 @@ export function buildNativeInvocation(
       '--resume',
       parentNativeId,
       '--fork-session',
-      '--session-id',
-      expectedChildNativeId,
       '--permission-mode',
       'plan',
       '--tools',

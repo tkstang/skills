@@ -108,7 +108,6 @@ function input(
       codex: contract('codex'),
       claude: contract('claude'),
     },
-    uuidFactory: () => CLAUDE_CHILD_ID,
     ...overrides,
   };
 }
@@ -152,14 +151,13 @@ describe('selection and immutable planning', () => {
     ).toThrow('unknown-session');
   });
 
-  test('builds ready exact invocations and pre-generates only Claude IDs', () => {
+  test('builds ready exact invocations without pre-generating Claude IDs', () => {
     const plan = createHandoffPlan(input());
     expect(plan.selected).toEqual(['claude:parent-b', 'codex:parent-a']);
     expect(plan.baselineTargetIds).toEqual(['codex:existing']);
     expect(plan.items[0]).toMatchObject({
       key: 'claude:parent-b',
       disposition: 'ready',
-      expectedChildNativeId: CLAUDE_CHILD_ID,
       invocation: { executable: 'claude', cwd: '/repo/target', shell: false },
     });
     expect(plan.items[1]).toMatchObject({
@@ -167,6 +165,8 @@ describe('selection and immutable planning', () => {
       disposition: 'ready',
       invocation: { executable: 'codex', cwd: '/repo/target', shell: false },
     });
+    expect(plan.items[0]).not.toHaveProperty('expectedChildNativeId');
+    expect(plan.items[0].invocation?.argv).not.toContain('--session-id');
     expect(plan.confirmationDigest).toMatch(/^[0-9a-f]{64}$/u);
   });
 
@@ -308,7 +308,6 @@ describe('bounded sequential execution', () => {
     expect(order).toEqual(['claude', 'codex']);
     expect(outcome.items[0]).toMatchObject({
       native: { status: 'succeeded' },
-      expectedChildNativeId: CLAUDE_CHILD_ID,
       observedChildNativeId: CLAUDE_CHILD_ID,
       reporting: {
         status: 'mapped',
@@ -370,7 +369,7 @@ describe('bounded sequential execution', () => {
   );
 
   test.each(['codex', 'claude'] as const)(
-    'fails closed on missing and multiple-distinct %s machine identities while accepting duplicates',
+    'fails closed on missing and ambiguous %s machine identities',
     async (provider) => {
       const providerOnly = createHandoffPlan(
         input({
@@ -423,14 +422,48 @@ describe('bounded sequential execution', () => {
         `${event(exactId)}\n${event(exactId)}`,
         corroborate,
       );
-      expect(duplicate.items[0]).toMatchObject({
-        observedChildNativeId: exactId,
-        native: { status: 'succeeded', retryable: false },
-        reporting: { status: 'mapped', childNativeId: exactId },
-      });
-      expect(corroborate).toHaveBeenCalledOnce();
+      if (provider === 'codex') {
+        expect(duplicate.items[0]).toMatchObject({
+          observedChildNativeId: exactId,
+          native: { status: 'succeeded', retryable: false },
+          reporting: { status: 'mapped', childNativeId: exactId },
+        });
+        expect(corroborate).toHaveBeenCalledOnce();
+      } else {
+        expect(duplicate.items[0]).toMatchObject({
+          native: { status: 'indeterminate', retryable: false },
+          reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
+        });
+        expect(duplicate.items[0]).not.toHaveProperty('observedChildNativeId');
+        expect(corroborate).not.toHaveBeenCalled();
+      }
     },
   );
+
+  test('does not corroborate a Claude successor that equals its parent', async () => {
+    const claudeOnly = createHandoffPlan(
+      input({ selection: { sessions: ['claude:parent-b'] } }),
+    );
+    const corroborate = vi.fn();
+    const outcome = await executeHandoffPlan({
+      confirmedDigest: claudeOnly.confirmationDigest,
+      rebuildPlan: async () => claudeOnly,
+      run: async () => ({
+        exitCode: 0,
+        signal: null,
+        stdout: JSON.stringify({ session_id: 'parent-b' }),
+        stderr: '',
+      }),
+      corroborate,
+    });
+
+    expect(outcome.items[0]).toMatchObject({
+      native: { status: 'indeterminate', retryable: false },
+      reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
+    });
+    expect(outcome.items[0]).not.toHaveProperty('observedChildNativeId');
+    expect(corroborate).not.toHaveBeenCalled();
+  });
 
   test('allows retry only for deferral or explicit failed-before-child proof', async () => {
     const codexOnly = createHandoffPlan(

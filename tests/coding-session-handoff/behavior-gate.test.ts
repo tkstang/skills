@@ -782,11 +782,12 @@ describe('behavior-verify', () => {
     expect(JSON.stringify(result)).not.toContain('/tmp/private-gate');
   });
 
-  test('uses exact Claude safe-mode/budget argv and requested child identity', async () => {
+  test('uses exact Claude safe-mode/budget argv and corroborates its observed child identity', async () => {
     const events: string[] = [];
     const receipts: BehavioralGateReceipt[] = [];
     const invocations: string[][] = [];
     const base = dependencies(events, receipts);
+    const uuid = vi.fn(() => '00000000-0000-4000-a000-000000000001');
     const plan = createBehaviorPlan('claude', probe('claude'));
     const result = await verifyProviderBehavior({
       provider: 'claude',
@@ -795,6 +796,7 @@ describe('behavior-verify', () => {
       receiptPath: '/tmp/receipt.json',
       deps: {
         ...base,
+        uuid,
         runProvider: async (invocation) => {
           invocations.push(invocation.argv);
           return base.runProvider(invocation, '/usr/local/bin/claude');
@@ -809,8 +811,6 @@ describe('behavior-verify', () => {
       '--resume',
       '00000000-0000-4000-a000-000000000001',
       '--fork-session',
-      '--session-id',
-      '00000000-0000-4000-a000-000000000002',
       '--permission-mode',
       'plan',
       '--tools',
@@ -819,12 +819,150 @@ describe('behavior-verify', () => {
       '0.15',
       'Reply exactly HANDOFF_READY. Do not use tools.',
     ]);
-    expect(receipts[0].observations.requestedChildNativeId).toBe(
+    expect(receipts[0].observations).not.toHaveProperty(
+      'requestedChildNativeId',
+    );
+    expect(receipts[0].observations.observedChildNativeId).toBe(
       '00000000-0000-4000-a000-000000000002',
     );
     expect(receipts[0].bounds.maxBudgetUsd).toBe(0.15);
+    expect(uuid).toHaveBeenCalledOnce();
     expect(result.status).toBe('passed');
   });
+
+  test('fails closed before transcript corroboration when Claude returns its parent as the child', async () => {
+    const events: string[] = [];
+    const receipts: BehavioralGateReceipt[] = [];
+    const base = dependencies(events, receipts);
+    const plan = createBehaviorPlan('claude', probe('claude'));
+    let providerCall = 0;
+    const result = await verifyProviderBehavior({
+      provider: 'claude',
+      providerProbe: probe('claude'),
+      confirmedDigest: plan.confirmationDigest,
+      receiptPath: '/tmp/receipt.json',
+      deps: {
+        ...base,
+        runProvider: async (invocation, executablePath) => {
+          providerCall += 1;
+          if (providerCall === 2) {
+            events.push('provider:2:claude');
+            return {
+              exitCode: 0,
+              signal: null,
+              stdout: JSON.stringify({
+                session_id: '00000000-0000-4000-a000-000000000001',
+              }),
+              stderr: '',
+            };
+          }
+          return base.runProvider(invocation, executablePath);
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      status: 'inconclusive',
+      failureStage: 'evidence-validation',
+    });
+    expect(events).not.toContain('evidence:child-before');
+    expect(receipts[0].observations.exactParentLineage).toBe(false);
+  });
+
+  test.each([
+    ['missing', '', 'native-identity-missing'],
+    [
+      'invalid',
+      JSON.stringify({ session_id: '--invalid-child' }),
+      'native-identity-invalid',
+    ],
+    [
+      'ambiguous',
+      `${JSON.stringify({
+        session_id: '00000000-0000-4000-a000-000000000002',
+      })}\n${JSON.stringify({
+        session_id: '00000000-0000-4000-a000-000000000003',
+      })}`,
+      'native-identity-multiple',
+    ],
+    [
+      'duplicate',
+      `${JSON.stringify({
+        session_id: '00000000-0000-4000-a000-000000000002',
+      })}\n${JSON.stringify({
+        session_id: '00000000-0000-4000-a000-000000000002',
+      })}`,
+      'native-identity-multiple',
+    ],
+  ] as const)(
+    'fails closed on %s Claude successor identity output',
+    async (_name, stdout, expectedStage) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const base = dependencies(events, receipts);
+      const plan = createBehaviorPlan('claude', probe('claude'));
+      let providerCall = 0;
+      const result = await verifyProviderBehavior({
+        provider: 'claude',
+        providerProbe: probe('claude'),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: {
+          ...base,
+          runProvider: async (invocation, executablePath) => {
+            providerCall += 1;
+            if (providerCall === 2) {
+              events.push('provider:2:claude');
+              return { exitCode: 0, signal: null, stdout, stderr: '' };
+            }
+            return base.runProvider(invocation, executablePath);
+          },
+        },
+      });
+
+      expect(result).toMatchObject({
+        status: 'inconclusive',
+        failureStage: expectedStage,
+      });
+      expect(events).not.toContain('evidence:child-before');
+      expect(receipts[0].observations.observedChildNativeId).toBe(
+        'unobserved-child',
+      );
+    },
+  );
+
+  test.each([
+    ['target cwd', { recordedChildCwd: '/wrong-target' }],
+    ['parent lineage', { exactParentLineage: false }],
+  ] as const)(
+    'rejects contradictory Claude child transcript %s evidence',
+    async (_name, contradiction) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const base = dependencies(events, receipts);
+      const plan = createBehaviorPlan('claude', probe('claude'));
+      const result = await verifyProviderBehavior({
+        provider: 'claude',
+        providerProbe: probe('claude'),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: {
+          ...base,
+          captureChildEvidence: async (...args) => ({
+            ...(await base.captureChildEvidence(...args)),
+            ...contradiction,
+          }),
+        },
+      });
+
+      expect(result).toMatchObject({
+        status: 'inconclusive',
+        failureStage: 'evidence-validation',
+      });
+      expect(events).not.toContain('evidence:source-before');
+      expect(receipts[0].observations.sourceParentResumable).toBe(false);
+    },
+  );
 
   test('finalizes cleanup failures as inconclusive before hashing/writing', async () => {
     const events: string[] = [];

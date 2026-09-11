@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import {
   buildNativeInvocation,
   PROVIDER_BEHAVIOR_CONTRACTS,
@@ -59,7 +57,6 @@ export interface CreateHandoffPlanInput {
   capabilities: readonly CapabilityProbe[];
   contracts?: Readonly<Record<HandoffProvider, ProviderBehaviorContract>>;
   writerClosedKeys?: ReadonlySet<QualifiedSessionId>;
-  uuidFactory?: () => string;
 }
 
 export function selectHandoffCandidates(
@@ -153,24 +150,6 @@ function contractReasons(
   return reasons;
 }
 
-function deterministicClaudeChildId(
-  candidate: SessionCandidate,
-  source: GitWorktreeEvidence,
-  target: GitWorktreeEvidence,
-): string {
-  const hex = createHash('sha256')
-    .update(
-      sha256Canonical({
-        provider: 'claude',
-        parentNativeId: candidate.nativeId,
-        source: [source.worktreeRoot, source.head, source.statusFingerprint],
-        target: [target.worktreeRoot, target.head, target.statusFingerprint],
-      }),
-    )
-    .digest('hex');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
-
 function gitDigestProjection(evidence: GitWorktreeEvidence) {
   return {
     canonicalPath: evidence.canonicalPath,
@@ -261,18 +240,12 @@ export function createHandoffPlan(input: CreateHandoffPlanInput): HandoffPlan {
     );
     const disposition =
       uniqueReasons.length === 0 ? 'ready' : refused ? 'refused' : 'deferred';
-    const expectedChildNativeId =
-      candidate.provider === 'claude' && input.mode === 'successor'
-        ? (input.uuidFactory?.() ??
-          deterministicClaudeChildId(candidate, input.source, input.target))
-        : undefined;
     const invocation =
       disposition === 'ready'
         ? buildNativeInvocation(
             candidate.provider,
             candidate.nativeId,
             input.target.worktreeRoot,
-            expectedChildNativeId,
           )
         : undefined;
     return {
@@ -282,7 +255,6 @@ export function createHandoffPlan(input: CreateHandoffPlanInput): HandoffPlan {
       mode: input.mode,
       disposition,
       reasonCodes: uniqueReasons,
-      ...(expectedChildNativeId === undefined ? {} : { expectedChildNativeId }),
       ...(invocation === undefined ? {} : { invocation }),
     };
   });
@@ -343,6 +315,7 @@ export interface ExecuteHandoffPlanInput {
 function parseObservedChildId(
   provider: HandoffProvider,
   output: string,
+  parentNativeId: string,
 ): string | undefined {
   if (Buffer.byteLength(output) > 65_536) return undefined;
   const values: string[] = [];
@@ -369,7 +342,9 @@ function parseObservedChildId(
       values.push(observed);
     }
   }
-  return new Set(values).size === 1 ? values[0] : undefined;
+  if (new Set(values).size !== 1) return undefined;
+  if (provider === 'claude' && values.length !== 1) return undefined;
+  return values[0] === parentNativeId ? undefined : values[0];
 }
 
 function reportingFromEvidence(
@@ -401,6 +376,7 @@ async function executeReadyItem(
   const observedChildNativeId = parseObservedChildId(
     item.provider,
     result.stdout,
+    item.parentNativeId,
   );
   const selectorMismatch =
     observedChildNativeId !== undefined &&

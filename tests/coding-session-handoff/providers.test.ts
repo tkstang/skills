@@ -496,9 +496,7 @@ describe('provider invocation and fingerprint policy', () => {
       timeoutMs: 60_000,
       maxOutputBytes: 65_536,
     });
-    expect(
-      buildNativeInvocation('claude', malicious, '/target', 'child-id').argv,
-    ).toEqual([
+    expect(buildNativeInvocation('claude', malicious, '/target').argv).toEqual([
       '--safe-mode',
       '--print',
       '--output-format',
@@ -506,8 +504,6 @@ describe('provider invocation and fingerprint policy', () => {
       '--resume',
       malicious,
       '--fork-session',
-      '--session-id',
-      'child-id',
       '--permission-mode',
       'plan',
       '--tools',
@@ -518,10 +514,10 @@ describe('provider invocation and fingerprint policy', () => {
     ]);
   });
 
-  test('requires Claude child IDs and rejects bypass flags defensively', () => {
-    expect(() => buildNativeInvocation('claude', 'parent', '/target')).toThrow(
-      'claude-child-id-required',
-    );
+  test('lets Claude assign successor IDs and rejects bypass flags defensively', () => {
+    expect(
+      buildNativeInvocation('claude', 'parent', '/target').argv,
+    ).not.toContain('--session-id');
     expect(
       containsForbiddenBypassFlag(['--dangerously-skip-permissions']),
     ).toBe(true);

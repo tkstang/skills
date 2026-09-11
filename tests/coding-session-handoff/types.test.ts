@@ -293,14 +293,25 @@ describe('Git, capability, invocation, plan, and envelope schemas', () => {
 });
 
 describe('behavioral receipt and provider contract schemas', () => {
-  test('accepts canonical passed Codex and Claude receipts', () => {
+  test('accepts new observed-only and legacy requested-child Claude receipts', () => {
     expect(parseBehavioralGateReceipt(codexReceipt)).toMatchObject({
       provider: 'codex',
       status: 'passed',
     });
+    const { requestedChildNativeId, ...observedOnly } =
+      claudeReceipt.observations;
+    expect(
+      parseBehavioralGateReceipt({
+        ...claudeReceipt,
+        observations: observedOnly,
+      }),
+    ).toMatchObject({
+      provider: 'claude',
+      status: 'passed',
+    });
     expect(parseBehavioralGateReceipt(claudeReceipt)).toMatchObject({
       provider: 'claude',
-      observations: { requestedChildNativeId: 'child' },
+      observations: { requestedChildNativeId },
     });
   });
 
@@ -404,15 +415,7 @@ describe('behavioral receipt and provider contract schemas', () => {
     ).toMatchObject({ status: 'inconclusive' });
   });
 
-  test('rejects missing Claude selector and missing passed lineage evidence', () => {
-    const { requestedChildNativeId: _selector, ...withoutSelector } =
-      claudeReceipt.observations;
-    expect(() =>
-      parseBehavioralGateReceipt({
-        ...claudeReceipt,
-        observations: withoutSelector,
-      }),
-    ).toThrow('behavior-requested-child-selector');
+  test('rejects missing passed lineage evidence', () => {
     expect(() =>
       parseBehavioralGateReceipt({
         ...codexReceipt,
@@ -444,6 +447,30 @@ describe('behavioral receipt and provider contract schemas', () => {
         },
       }),
     ).toThrow('behavior-passed-evidence');
+  });
+
+  test('rejects batch outcomes whose observed child equals the parent', () => {
+    expect(() =>
+      parseBatchOutcome({
+        schemaVersion: 1,
+        planDigest: 'e'.repeat(64),
+        items: [
+          {
+            key: 'claude:parent',
+            parentNativeId: 'parent',
+            observedChildNativeId: 'parent',
+            targetBaselineIds: [],
+            native: { status: 'succeeded', retryable: false, exitCode: 0 },
+            reporting: {
+              status: 'mapped',
+              childNativeId: 'parent',
+              evidence: 'machine-output-and-transcript',
+            },
+          },
+        ],
+        retryableKeys: [],
+      }),
+    ).toThrow('outcome-child-equals-parent');
   });
 
   test('rejects malformed digests, provider cleanup mismatch, and unbounded calls', () => {

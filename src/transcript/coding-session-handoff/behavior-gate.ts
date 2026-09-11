@@ -386,6 +386,7 @@ function sourceResumeInvocation(
 function observedId(
   provider: HandoffProvider,
   result: NativeExecutionResult,
+  requireSingleOccurrence = false,
 ): string {
   if (
     result.timedOut === true ||
@@ -439,7 +440,10 @@ function observedId(
   if (distinctValues.size === 0) {
     throw new BehaviorGateStageError('native-identity-missing');
   }
-  if (distinctValues.size > 1) {
+  if (
+    distinctValues.size > 1 ||
+    (provider === 'claude' && requireSingleOccurrence && values.length > 1)
+  ) {
     throw new BehaviorGateStageError('native-identity-multiple');
   }
   return values[0];
@@ -543,6 +547,7 @@ async function finalizeReceipt(
     !incomplete &&
     childEvidence !== undefined &&
     resumeEvidence !== undefined &&
+    state.childNativeId !== state.parentNativeId &&
     childEvidence.recordedChildCwd === state.fixture.targetWorktree &&
     childEvidence.exactParentLineage &&
     resumeEvidence.sourceParentResumable &&
@@ -654,17 +659,12 @@ export async function verifyProviderBehavior(
   }
   const requestedParentId =
     input.provider === 'claude' ? deps.uuid() : undefined;
-  const requestedChildId =
-    input.provider === 'claude' ? deps.uuid() : undefined;
   const state: PartialBehaviorGateContext = {
     provider: input.provider,
     executablePath: input.providerProbe.capability.executable,
     fixture,
     parentCreationAttempted: false,
     successorCreationAttempted: false,
-    ...(requestedChildId === undefined
-      ? {}
-      : { requestedChildNativeId: requestedChildId }),
   };
   let childEvidence: ChildEvidence | undefined;
   let resumeEvidence: SourceResumeEvidence | undefined;
@@ -711,12 +711,11 @@ export async function verifyProviderBehavior(
         input.provider,
         parentNativeId,
         fixture.targetWorktree,
-        requestedChildId,
       ),
       state.executablePath,
     );
-    const childNativeId = observedId(input.provider, successorResult);
-    if (requestedChildId !== undefined && childNativeId !== requestedChildId) {
+    const childNativeId = observedId(input.provider, successorResult, true);
+    if (childNativeId === parentNativeId) {
       throw new ProviderGateError('provider-evidence-failed');
     }
     state.childNativeId = childNativeId;
@@ -726,14 +725,12 @@ export async function verifyProviderBehavior(
       fixture,
       parentNativeId,
       childNativeId,
-      ...(requestedChildId === undefined
-        ? {}
-        : { requestedChildNativeId: requestedChildId }),
       parentEvidence,
     };
     childEvidence = await deps.captureChildEvidence(context);
     if (
       !childEvidence.exactParentLineage ||
+      childEvidence.recordedChildCwd !== fixture.targetWorktree ||
       !validSha256(childEvidence.contentSha256) ||
       (input.provider === 'claude' &&
         !validClaudeLineage(childEvidence.recordUuids))

@@ -2169,7 +2169,7 @@ function assertNativeSessionId(value2, code) {
   assertInvocationInput(value2, code);
   if (value2.startsWith("-")) throw new TypeError(code);
 }
-function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChildNativeId) {
+function buildNativeInvocation(provider2, parentNativeId, targetCwd) {
   assertNativeSessionId(parentNativeId, "parent-native-id-invalid");
   assertInvocationInput(targetCwd, "target-cwd-invalid");
   if (!isAbsolute3(targetCwd)) throw new TypeError("target-cwd-not-absolute");
@@ -2189,10 +2189,6 @@ function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChi
       HANDOFF_MARKER_PROMPT
     ];
   } else {
-    if (expectedChildNativeId === void 0) {
-      throw new TypeError("claude-child-id-required");
-    }
-    assertNativeSessionId(expectedChildNativeId, "claude-child-id-invalid");
     argv = [
       "--safe-mode",
       "--print",
@@ -2201,8 +2197,6 @@ function buildNativeInvocation(provider2, parentNativeId, targetCwd, expectedChi
       "--resume",
       parentNativeId,
       "--fork-session",
-      "--session-id",
-      expectedChildNativeId,
       "--permission-mode",
       "plan",
       "--tools",
@@ -2590,7 +2584,7 @@ function parseBehavioralGateReceipt(value2) {
   );
   unique(metadataEffects, "duplicate-behavior-metadata-effect");
   const requestedChildNativeId = observationsValue.requestedChildNativeId === void 0 ? void 0 : nativeId(observationsValue.requestedChildNativeId);
-  if (provider2 === "claude" && requestedChildNativeId === void 0 || provider2 === "codex" && requestedChildNativeId !== void 0) {
+  if (provider2 === "codex" && requestedChildNativeId !== void 0) {
     fail("behavior-requested-child-selector");
   }
   const observations = {
@@ -2702,7 +2696,7 @@ function parseBehavioralGateReceipt(value2) {
     fail("behavior-cleanup-inconclusive");
   }
   if (status === "passed") {
-    if (cleanupFailed || failureStage !== void 0 || reasonCodes.length > 0 || observations.parentNativeId === observations.observedChildNativeId || !observations.exactParentLineage || !observations.sourceParentResumable || observations.recordedChildCwd !== fixture.targetWorktree || observations.metadataEffects.length === 0 || provider2 === "claude" && observations.requestedChildNativeId !== observations.observedChildNativeId) {
+    if (cleanupFailed || failureStage !== void 0 || reasonCodes.length > 0 || observations.parentNativeId === observations.observedChildNativeId || !observations.exactParentLineage || !observations.sourceParentResumable || observations.recordedChildCwd !== fixture.targetWorktree || observations.metadataEffects.length === 0 || provider2 === "claude" && observations.requestedChildNativeId !== void 0 && observations.requestedChildNativeId !== observations.observedChildNativeId) {
       fail("behavior-passed-evidence");
     }
   } else if (reasonCodes.length === 0) {
@@ -2878,6 +2872,9 @@ function parseItemOutcome(value2) {
   unique(targetBaselineIds, "duplicate-baseline-target-id");
   const expectedChildNativeId = item.expectedChildNativeId === void 0 ? void 0 : nativeId(item.expectedChildNativeId);
   const observedChildNativeId = item.observedChildNativeId === void 0 ? void 0 : nativeId(item.observedChildNativeId);
+  if (observedChildNativeId === parentNativeId) {
+    fail("outcome-child-equals-parent");
+  }
   if (native.status === "succeeded" && observedChildNativeId === void 0) {
     fail("succeeded-observed-child-required");
   }
@@ -3255,7 +3252,7 @@ function sourceResumeInvocation(provider2, cwd, parentNativeId) {
     cwd
   );
 }
-function observedId(provider2, result) {
+function observedId(provider2, result, requireSingleOccurrence = false) {
   if (result.timedOut === true || typeof result.signal === "string" && result.signal.length > 0) {
     throw new BehaviorGateStageError("provider-timeout-or-signal");
   }
@@ -3293,7 +3290,7 @@ function observedId(provider2, result) {
   if (distinctValues.size === 0) {
     throw new BehaviorGateStageError("native-identity-missing");
   }
-  if (distinctValues.size > 1) {
+  if (distinctValues.size > 1 || provider2 === "claude" && requireSingleOccurrence && values.length > 1) {
     throw new BehaviorGateStageError("native-identity-multiple");
   }
   return values[0];
@@ -3344,7 +3341,7 @@ async function finalizeReceipt(input, deps, plan, state, providerCleanup, fixtur
     providerCleanup.reasonCodes,
     fixtureCleanup.reasonCodes
   );
-  const evidencePassed = !incomplete && childEvidence !== void 0 && resumeEvidence !== void 0 && childEvidence.recordedChildCwd === state.fixture.targetWorktree && childEvidence.exactParentLineage && resumeEvidence.sourceParentResumable && resumeEvidence.childUnchanged;
+  const evidencePassed = !incomplete && childEvidence !== void 0 && resumeEvidence !== void 0 && state.childNativeId !== state.parentNativeId && childEvidence.recordedChildCwd === state.fixture.targetWorktree && childEvidence.exactParentLineage && resumeEvidence.sourceParentResumable && resumeEvidence.childUnchanged;
   const cleanupPassed = providerCleanup.status === "removed" && fixtureCleanup.status === "removed";
   const status = incomplete || !cleanupPassed ? "inconclusive" : evidencePassed ? "passed" : "failed";
   const reasonCodes = uniqueReasonCodes(
@@ -3432,14 +3429,12 @@ async function verifyProviderBehavior(input) {
     throw new ProviderGateError("fixture-creation-failed");
   }
   const requestedParentId = input.provider === "claude" ? deps.uuid() : void 0;
-  const requestedChildId = input.provider === "claude" ? deps.uuid() : void 0;
   const state = {
     provider: input.provider,
     executablePath: input.providerProbe.capability.executable,
     fixture,
     parentCreationAttempted: false,
-    successorCreationAttempted: false,
-    ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId }
+    successorCreationAttempted: false
   };
   let childEvidence;
   let resumeEvidence;
@@ -3477,13 +3472,12 @@ async function verifyProviderBehavior(input) {
       buildNativeInvocation(
         input.provider,
         parentNativeId,
-        fixture.targetWorktree,
-        requestedChildId
+        fixture.targetWorktree
       ),
       state.executablePath
     );
-    const childNativeId = observedId(input.provider, successorResult);
-    if (requestedChildId !== void 0 && childNativeId !== requestedChildId) {
+    const childNativeId = observedId(input.provider, successorResult, true);
+    if (childNativeId === parentNativeId) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     state.childNativeId = childNativeId;
@@ -3493,11 +3487,10 @@ async function verifyProviderBehavior(input) {
       fixture,
       parentNativeId,
       childNativeId,
-      ...requestedChildId === void 0 ? {} : { requestedChildNativeId: requestedChildId },
       parentEvidence
     };
     childEvidence = await deps.captureChildEvidence(context);
-    if (!childEvidence.exactParentLineage || !validSha256(childEvidence.contentSha256) || input.provider === "claude" && !validClaudeLineage(childEvidence.recordUuids)) {
+    if (!childEvidence.exactParentLineage || childEvidence.recordedChildCwd !== fixture.targetWorktree || !validSha256(childEvidence.contentSha256) || input.provider === "claude" && !validClaudeLineage(childEvidence.recordUuids)) {
       throw new ProviderGateError("provider-evidence-failed");
     }
     const sourceBeforeResume = await deps.captureSourceEvidence(context);
@@ -4032,7 +4025,6 @@ async function validateHandoffTarget(sourcePath, targetPath, options = {}) {
 }
 
 // src/transcript/coding-session-handoff/handoff.ts
-import { createHash as createHash4 } from "node:crypto";
 var HandoffPolicyError = class extends Error {
   code;
   constructor(code) {
@@ -4109,17 +4101,6 @@ function contractReasons(capability2, contract, mode2) {
   }
   return reasons;
 }
-function deterministicClaudeChildId(candidate, source, target) {
-  const hex = createHash4("sha256").update(
-    sha256Canonical({
-      provider: "claude",
-      parentNativeId: candidate.nativeId,
-      source: [source.worktreeRoot, source.head, source.statusFingerprint],
-      target: [target.worktreeRoot, target.head, target.statusFingerprint]
-    })
-  ).digest("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
 function gitDigestProjection(evidence) {
   return {
     canonicalPath: evidence.canonicalPath,
@@ -4193,12 +4174,10 @@ function createHandoffPlan(input) {
       (reason) => ["source-dirty", "resume-writer-state-unknown"].includes(reason)
     );
     const disposition = uniqueReasons.length === 0 ? "ready" : refused ? "refused" : "deferred";
-    const expectedChildNativeId = candidate.provider === "claude" && input.mode === "successor" ? input.uuidFactory?.() ?? deterministicClaudeChildId(candidate, input.source, input.target) : void 0;
     const invocation2 = disposition === "ready" ? buildNativeInvocation(
       candidate.provider,
       candidate.nativeId,
-      input.target.worktreeRoot,
-      expectedChildNativeId
+      input.target.worktreeRoot
     ) : void 0;
     return {
       key: candidate.key,
@@ -4207,7 +4186,6 @@ function createHandoffPlan(input) {
       mode: input.mode,
       disposition,
       reasonCodes: uniqueReasons,
-      ...expectedChildNativeId === void 0 ? {} : { expectedChildNativeId },
       ...invocation2 === void 0 ? {} : { invocation: invocation2 }
     };
   });
@@ -4225,7 +4203,7 @@ function createHandoffPlan(input) {
     confirmationDigest
   };
 }
-function parseObservedChildId(provider2, output) {
+function parseObservedChildId(provider2, output, parentNativeId) {
   if (Buffer.byteLength(output) > 65536) return void 0;
   const values = [];
   for (const line of output.split("\n")) {
@@ -4246,7 +4224,9 @@ function parseObservedChildId(provider2, output) {
       values.push(observed);
     }
   }
-  return new Set(values).size === 1 ? values[0] : void 0;
+  if (new Set(values).size !== 1) return void 0;
+  if (provider2 === "claude" && values.length !== 1) return void 0;
+  return values[0] === parentNativeId ? void 0 : values[0];
 }
 function reportingFromEvidence(evidence, childNativeId) {
   if (evidence.status === "mapped") {
@@ -4266,7 +4246,8 @@ async function executeReadyItem(plan, item, input) {
   const result = await input.run(item.invocation);
   const observedChildNativeId = parseObservedChildId(
     item.provider,
-    result.stdout
+    result.stdout,
+    item.parentNativeId
   );
   const selectorMismatch = observedChildNativeId !== void 0 && item.expectedChildNativeId !== void 0 && observedChildNativeId !== item.expectedChildNativeId;
   const request = {
@@ -4687,7 +4668,7 @@ async function previewHandoffCandidates(sources, options = {}) {
 
 // src/transcript/coding-session-handoff/providers.ts
 import { execFile as nodeExecFile3 } from "node:child_process";
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { access, readFile as readFile4, realpath as realpath3, stat as stat3 } from "node:fs/promises";
 import { delimiter, join as join4 } from "node:path";
@@ -4769,7 +4750,7 @@ var DEFAULT_DEPENDENCIES5 = {
   streamExecutable: (path) => createReadStream(path, {
     highWaterMark: PROVIDER_EXECUTABLE_HASH_CHUNK_BYTES
   }),
-  createExecutableHash: () => createHash5("sha256"),
+  createExecutableHash: () => createHash4("sha256"),
   readConfigInputs: defaultConfigInputs,
   run: async (executable, argv, options) => {
     const result = await execFileAsync4(executable, [...argv], {
