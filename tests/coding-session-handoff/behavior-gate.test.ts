@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   cleanupDefaultProvider,
   createBehaviorPlan,
+  createDefaultFixture,
   evaluateSourceResumeSnapshots,
   exactTranscriptSnapshot,
   ProviderGateError,
@@ -1275,4 +1277,43 @@ describe('behavior-verify', () => {
 
 test('gate errors expose stable codes only', () => {
   expect(new ProviderGateError('plan-stale').message).toBe('plan-stale');
+});
+
+describe('disposable fixture paths', () => {
+  test('fixture paths are canonical and match the provider child cwd', async () => {
+    const fixture = await createDefaultFixture();
+    try {
+      for (const path of [
+        fixture.repositoryRoot,
+        fixture.sourceWorktree,
+        fixture.targetWorktree,
+      ]) {
+        expect(path).toBe(await realpath(path));
+      }
+      expect(fixture.sourceWorktree.startsWith(fixture.repositoryRoot)).toBe(
+        true,
+      );
+      expect(fixture.targetWorktree.startsWith(fixture.repositoryRoot)).toBe(
+        true,
+      );
+
+      // A child process resolves its cwd. Evidence capture compares the
+      // provider-recorded cwd to the fixture path as an exact string, so the two
+      // must agree even when the platform temp root is a symlink.
+      for (const cwd of [fixture.sourceWorktree, fixture.targetWorktree]) {
+        const childCwd = await new Promise<string>((resolve, reject) => {
+          execFile(
+            process.execPath,
+            ['-e', 'process.stdout.write(process.cwd())'],
+            { cwd },
+            (error, stdout) =>
+              error ? reject(error) : resolve(stdout.trim()),
+          );
+        });
+        expect(childCwd).toBe(cwd);
+      }
+    } finally {
+      await rm(fixture.repositoryRoot, { recursive: true, force: true });
+    }
+  });
 });

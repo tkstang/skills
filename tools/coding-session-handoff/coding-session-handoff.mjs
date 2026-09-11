@@ -2019,6 +2019,7 @@ import {
   mkdtemp,
   open as open3,
   readFile as readFile3,
+  realpath as realpath3,
   rm,
   stat as stat2,
   unlink as unlink2
@@ -3543,8 +3544,8 @@ async function git(cwd, argv) {
   });
 }
 async function createDefaultFixture() {
-  const repositoryRoot = await mkdtemp(
-    join3(tmpdir(), "coding-session-handoff-gate-")
+  const repositoryRoot = await realpath3(
+    await mkdtemp(join3(tmpdir(), "coding-session-handoff-gate-"))
   );
   const sourceWorktree = join3(repositoryRoot, "source-worktree");
   await mkdir2(sourceWorktree);
@@ -4670,7 +4671,7 @@ async function previewHandoffCandidates(sources, options = {}) {
 import { execFile as nodeExecFile3 } from "node:child_process";
 import { createHash as createHash4 } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { access, readFile as readFile4, realpath as realpath3, stat as stat3 } from "node:fs/promises";
+import { access, readFile as readFile4, realpath as realpath4, stat as stat3 } from "node:fs/promises";
 import { delimiter, join as join4 } from "node:path";
 import { promisify as promisify4 } from "node:util";
 var execFileAsync4 = promisify4(nodeExecFile3);
@@ -4698,7 +4699,7 @@ async function resolveFromPath(provider2) {
     const candidate = join4(entry, provider2);
     try {
       await access(candidate);
-      return await realpath3(candidate);
+      return await realpath4(candidate);
     } catch {
     }
   }

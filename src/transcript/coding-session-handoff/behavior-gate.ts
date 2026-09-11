@@ -7,6 +7,7 @@ import {
   mkdtemp,
   open,
   readFile,
+  realpath,
   rm,
   stat,
   unlink,
@@ -799,9 +800,18 @@ async function git(cwd: string, argv: string[]): Promise<void> {
   });
 }
 
-async function createDefaultFixture(): Promise<BehaviorGateFixture> {
-  const repositoryRoot = await mkdtemp(
-    join(tmpdir(), 'coding-session-handoff-gate-'),
+/**
+ * Build the disposable two-worktree gate fixture with canonical absolute paths.
+ * Exported so the canonical-path invariant can be asserted without a provider call.
+ */
+export async function createDefaultFixture(): Promise<BehaviorGateFixture> {
+  // The provider child process resolves its cwd, so a symlinked temp root (macOS
+  // `/var` -> `/private/var`) would make every recorded-cwd comparison in
+  // `exactTranscriptSnapshot` and the child-cwd check fail against paths that are
+  // in fact the same directory. Canonicalize once at creation so the fixture,
+  // the invocation cwd, and the provider-recorded cwd are the same string.
+  const repositoryRoot = await realpath(
+    await mkdtemp(join(tmpdir(), 'coding-session-handoff-gate-')),
   );
   const sourceWorktree = join(repositoryRoot, 'source-worktree');
   await mkdir(sourceWorktree);
