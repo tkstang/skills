@@ -1,7 +1,8 @@
 {
   "version": 1,
   "projects": {
-    "root": ".oat/projects/shared"
+    "root": ".oat/projects/shared",
+    "defaultScope": "shared"
   },
   "archive": {
     "s3Uri": "s3://tkstang-open-agent-toolkit/repositories",
@@ -40,10 +41,25 @@
     ".oat/projects/archived",
     ".oat/projects/local"
   ],
-  "autoReviewAtCheckpoints": true,
   "workflow": {
     "hillCheckpointDefault": "final",
     "archiveOnComplete": true,
-    "postImplementSequence": "docs-pr"
+    "postImplementSequence": {
+      "preApproval": [
+        "summary",
+        "document",
+        "pr"
+      ],
+      "postApproval": []
+    },
+    "autoReviewAtHillCheckpoints": true,
+    "retro": {
+      "filing": {
+        "repo": "none",
+        "upstream": "issues"
+      },
+      "apply": "ask",
+      "upstreamRepo": "voxmedia/open-agent-toolkit"
+    }
   }
 }
