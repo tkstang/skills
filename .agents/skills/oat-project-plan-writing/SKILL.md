@@ -1,12 +1,12 @@
 ---
 name: oat-project-plan-writing
-version: 1.2.20
 description: Use when authoring or mutating plan.md in any OAT workflow. Defines canonical format invariants — stable task IDs, required sections, review table rules, and resume guardrails.
 disable-model-invocation: true
 user-invocable: false
 allowed-tools: Read, Write, Glob, Grep
 metadata:
   internal: true
+  version: 1.2.25
 ---
 
 # Plan Writing Contract
@@ -88,7 +88,8 @@ then continue without formatting.
 ## Managed Dispatch Readiness and Review Contract
 
 All plan-producing workflows and their artifact reviews use this contract:
-spec-driven planning, quick-start, imported plans, and provider-plan-via-import.
+spec-driven planning, quick-start, lite planning, imported plans, and
+provider-plan-via-import.
 The contract runs before a plan becomes implementation-ready and immediately
 before each artifact review dispatch.
 
@@ -261,6 +262,18 @@ unavailable in the current session. Base Codex roles are allowed only for
 explicit inherit/default behavior and the documented managed-uncapped reviewer
 fallback.
 
+Artifact-review launches write no launch record. The only launch evidence is
+the `Dispatch:` stamp the reviewer already copies into its dispatch audit
+metadata; nothing is written to `implementation.md` (which may not exist yet
+during planning) and no request-id, launch-status, or outcome field is added to
+any artifact or ledger column. Construct and redact the complete generic record
+plus OAT role event before the native call. Writing a per-dispatch file with `oat project dispatch record` is optional and off by default: no lifecycle skill or command consumes those files, so do not write them unless the host has explicitly opted in. Only a rejection attesting
+`provesNoChildStarted: true` permits one exact-target approximation with a
+fresh request ID. Preserve exact model, effort, route, authority, and provider
+controls. Timeout, `BLOCKED`, refusal after acceptance, runtime mismatch,
+missing telemetry, interruption, and malformed output never authorize fallback
+or replacement.
+
 Inline review of a concrete managed exception target is permitted only with
 verified equivalent current-host model and effort controls. The default
 inheritance route may review inline because the planning parent is the selected
@@ -394,6 +407,100 @@ This setup is independent from HiLL checkpoints. It must not read or change
 choice is offered; normal lifecycle gate commands remain provider-neutral.
 They must not add a provider/model `--target` argument.
 
+## Shared Lifecycle Gate Posture Setup Contract
+
+Every plan-producing workflow invokes this procedure after the complete plan
+has stable phase IDs and before the plan artifact review begins, which is the
+same boundary the phase gate review setup uses. It runs adjacent to, but
+independently from, that setup: neither contract reads, writes, or
+satisfies the other's setting. The calling skill owns the prompt and the write
+to `"$PROJECT_PATH/state.md"`; this section owns the shared eligibility,
+preservation, validation, and non-interactive behavior.
+
+This contract governs the configured lifecycle gates declared with
+`oat_gateable: true` in skill frontmatter. It never reads or writes
+`oat_phase_review_gate`, HiLL policy, or any autonomous design-gate setting.
+
+### 1. Preserve an explicit existing map
+
+Inspect `"$PROJECT_PATH/state.md"` frontmatter before probing configuration. If
+an explicit `oat_skill_gate_overrides` key is present, preserve the complete
+value unchanged. Do not probe, prompt, or mutate it. This applies equally to
+resumed and imported projects. Report:
+
+```text
+Lifecycle gate posture: preserved existing oat_skill_gate_overrides setting.
+```
+
+A malformed map is never silently repaired, replaced, or dropped. Stop and
+report the offending project state path so the operator can correct it.
+
+### 2. Probe configured gate-aware skills
+
+When no explicit map exists, probe each gate-aware skill read-only. The probe
+resolves configuration and never launches a gate:
+
+```bash
+oat gate resolve <gate-aware-skill> --project "$PROJECT_PATH" --json
+```
+
+A gate qualifies for a choice only when `resolution` is literally `configured`.
+`not_configured` means no gate is configured for that skill: offer no choice and
+never fabricate configuration from an override alone.
+
+If the probe fails, emit exactly this concise warning and continue planning
+without writing a map:
+
+```text
+Warning: Lifecycle gate posture probe failed; configured gates remain enabled.
+```
+
+If no gate is configured, emit:
+
+```text
+Lifecycle gate posture: no configured lifecycle gates; nothing to disable.
+```
+
+### 3. Offer one choice per configured gate
+
+When at least one gate is configured and an interactive user-response channel is
+available, present each configured gate separately and let the user keep or
+disable it independently. Granularity is per skill; no single answer disables
+every gate at once.
+
+For each configured gate, show the skill name, its configured command, and the
+config source reported by the probe, then offer exactly these outcomes:
+
+1. **Keep** - run this configured gate for this project.
+2. **Disable** - skip this configured gate for this project only.
+
+Persist only the disabled choices, as a strict map whose sole permitted value is
+the literal `disabled`:
+
+```yaml
+oat_skill_gate_overrides:
+  oat-project-implement: disabled
+```
+
+Keeping every gate leaves the map absent; an explicitly empty map is equivalent.
+Never write an `enabled` value, a boolean, or a list. Write the map only to
+`"$PROJECT_PATH/state.md"`; the shared, local, and user configuration layers are
+never modified. Disabling here records project posture, not gate outcome: it
+never marks a gate passed, failed, or missing.
+
+### 4. Handle non-interactive planning
+
+Non-interactive mode includes `OAT_NON_INTERACTIVE=1` and any environment with
+no user-response channel. Never prompt in this mode, and never write a new map,
+even when configured gates exist. Leave the setting absent and emit:
+
+```text
+Lifecycle gate posture: configured gates unchanged (non-interactive; no selection recorded).
+```
+
+An explicit map that already exists is still preserved unchanged in this mode
+under section 1.
+
 ## Auto Artifact-Review Loop
 
 This is the canonical contract for bounded automated reviews of generated OAT artifacts. Calling skills own the concrete edits, progress indicators, and commits; this section defines the shared loop they must follow.
@@ -446,7 +553,7 @@ Every `plan.md` produced or edited by any OAT skill **must** satisfy these invar
 
 ```yaml
 ---
-oat_plan_source: spec-driven | quick | imported # origin workflow mode
+oat_plan_source: spec-driven | quick | imported | lite # origin workflow mode
 oat_status: in_progress | complete # plan lifecycle status
 oat_ready_for: null | oat-project-implement # downstream consumer
 # Optional after implementation confirmation:
@@ -550,10 +657,12 @@ Required inputs vary by workflow mode. The calling skill reads `oat_workflow_mod
 | `spec-driven` | Complete `design.md` (`oat_status: complete`)    | Yes         |
 | `quick`       | `discovery.md` + repo knowledge context          | No          |
 | `import`      | Preserved external source + normalized `plan.md` | No          |
+| `lite`        | `plan.md` only                                   | No          |
 
 - **`spec-driven`**: Plan is derived from a complete design document. All design components must be covered by tasks.
 - **`quick`**: Plan is generated directly from discovery decisions and repo knowledge. No design artifact is required.
 - **`import`**: External plan is preserved in `references/imported-plan.md` and normalized into canonical format. Subsequent edits follow this contract.
+- **`lite`**: `plan.md` is the sole requirements and implementation contract. It carries Summary, Decisions, Assumptions, Out of Scope, and Validation Criteria before one sequential phase; no discovery, spec, or design artifact is required.
 
 ## Resume and Edit Guardrails
 

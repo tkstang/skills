@@ -1,12 +1,12 @@
 ---
 name: oat-project-summary
-version: 1.5.1
 description: Use when the user requests or confirms summarizing an active OAT project — e.g. "summarize the project", "generate the summary", "run oat-project-summary", or confirms a previously offered summary run. Do NOT auto-invoke when implementation completes. Generates summary.md from project artifacts as institutional memory.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(jq:*), Bash(oat config:*), Bash(oat decision:*), Bash(oat pjm:*), Bash(oat project log:*), Bash(oat project push:*), Bash(oat project scope:*), Bash(oat tools:*), Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.5.5
 ---
 
 # Project Summary
@@ -119,7 +119,16 @@ test -f "$PROJECT_PATH/implementation.md"
 
 ### Step 2: Read Project Artifacts
 
-Read all available artifacts for synthesis:
+For `oat_workflow_mode: lite`, use the reduced artifact contract and skip the
+ordinary artifact list below. Read the five `plan.md` sections `Summary`,
+`Decisions`, `Assumptions`, `Out of Scope`, and `Validation Criteria`, then read
+`implementation.md` for task outcomes and the shipped results in `Final
+Summary (for PR/docs)`. Read `state.md` only for routing metadata. A lite
+project accepts `discovery.md`, `spec.md`, and `design.md` as absent; do not
+read or require them. Ground the summary in what actually shipped, with
+`implementation.md` taking precedence over the plan.
+
+For every other workflow mode, read all available artifacts for synthesis:
 
 - `"$PROJECT_PATH/discovery.md"` — initial request, decisions, constraints
 - `"$PROJECT_PATH/spec.md"` — requirements, goals (optional — may not exist in quick mode)
@@ -149,6 +158,24 @@ PROJECT_LOG_PROMOTION_APPENDED="false"
 Route on the structured result. `status: "absent"` is inert. When the entry
 counts show one or more entries, keep the log in the summary flow even if task,
 revision, and autonomous-learning tracking fields are otherwise current.
+
+`status: "ambiguous"` (exit 1, with an `ambiguity` reason) means the log's
+section markers are readable two ways — or a seal is physically present outside
+the parseable region — so the entry counts are not trustworthy. Stop the
+project-log part of this skill there: report the `ambiguity` reason verbatim,
+do not treat the log as empty, do not graduate the ledger, and do not append;
+the operator repairs the file (the mutators refuse it for the same reason).
+`summary.md` may still be authored from the other artifacts, with the log
+named as unreadable.
+
+`sealed: true` means the project log already carries its completion seal and is
+closed to further entries. Skip the ledger graduation below entirely — do not
+offer it, and append nothing. Report that the log is sealed and name the seal
+heading from the probe's `seal` field, then continue with the rest of this
+skill; `summary.md` is still authored or refreshed as normal. This is a real
+refusal in the CLI, not a convention: `oat project log append` rejects any
+non-seal append onto a sealed log with `status: "sealed"` and a non-zero exit,
+so attempting the promotion would fail the step rather than skip it.
 
 Before roll-up, inspect `project`-scoped judgments for observations that are
 reusable across projects and offer ledger graduation. For every observation the
@@ -191,7 +218,7 @@ test -f "$PROJECT_PATH/summary.md"
      identifiers (timestamp, category, and title) with the source pointers in
      the existing `## Autonomous Execution Learnings` section. Treat missing,
      added, or changed recommendations as `learnings_changed`.
-   - If `oat_summary_last_task == current_last_task` AND `oat_summary_revision_count == current_rev_count` AND learnings are absent or unchanged AND the project-log check reports no entries: **No changes detected. Skip update.** Report: "Summary is current. No updates needed."
+   - If `oat_summary_last_task == current_last_task` AND `oat_summary_revision_count == current_rev_count` AND learnings are absent or unchanged AND the project-log check reports `status: "ok"` with no entries: **No changes detected. Skip update.** Report: "Summary is current. No updates needed."
    - If `current_rev_count > oat_summary_revision_count`: New revision phases exist. Update: Revision History, What Was Implemented, Follow-up Items.
    - If `current_last_task > oat_summary_last_task`: New tasks completed. Update: What Was Implemented, Notable Challenges, Tradeoffs Made.
    - If `learnings_changed`: update Autonomous Execution Learnings even when
@@ -215,39 +242,64 @@ For each section, synthesize content from the relevant artifacts. Apply these ru
 
 **Minimum viable summary:** Overview + What Was Implemented + Key Decisions. All other sections are included only when they have content worth preserving.
 
-**Section sources:**
+**Lite section sources:**
 
-| Section                        | Primary Sources                                                        |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| Overview                       | discovery.md initial request, spec.md problem statement                |
-| What Was Implemented           | implementation.md task outcomes, plan.md phase structure               |
-| Key Decisions                  | design.md decisions, implementation.md notes/decisions                 |
-| Design Deltas                  | implementation.md deviations table; review-received design drift notes |
-| Notable Challenges             | implementation.md issues/blockers in task notes                        |
-| Tradeoffs Made                 | implementation.md decisions, design.md tradeoff sections               |
-| Integration Notes              | implementation.md notes about cross-cutting concerns                   |
-| Revision History               | plan.md p-revN phases, implementation.md revision notes                |
-| Follow-up Items                | implementation.md deferred findings, plan.md deferred items            |
-| Associated Issues              | state.md `associated_issues` field                                     |
-| Workflow Observations          | project-log.md via `oat project log rollup` only                       |
-| Autonomous Execution Learnings | oat-execution-learnings.md dated entries                               |
-| Explainer Outcome              | project-recap `manifest.json` and `build-record.json`                  |
+Use this table only for `oat_workflow_mode: lite`. It maps every canonical lite
+plan section and shipped implementation results without requiring discovery,
+spec, or design artifacts.
+
+| Summary Section      | Primary Lite Sources                                          |
+| -------------------- | ------------------------------------------------------------- |
+| Overview             | plan.md `Summary`; implementation.md `Final Summary`          |
+| What Was Implemented | implementation.md shipped results and task outcomes           |
+| Key Decisions        | plan.md `Decisions`; implementation.md accepted decisions     |
+| Tradeoffs Made       | plan.md `Assumptions`; implementation.md decisions            |
+| Follow-up Items      | plan.md `Out of Scope`; implementation.md deferred results    |
+| Integration Notes    | plan.md `Validation Criteria`; implementation.md test results |
+
+**Non-lite section sources:**
+
+| Section                        | Primary Sources                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------- |
+| Overview                       | discovery.md initial request, spec.md problem statement                           |
+| What Was Implemented           | implementation.md task outcomes, plan.md phase structure                          |
+| Key Decisions                  | design.md decisions, implementation.md notes/decisions                            |
+| Design Deltas                  | implementation.md deviations table; review-received design drift notes            |
+| Notable Challenges             | implementation.md issues/blockers in task notes                                   |
+| Tradeoffs Made                 | implementation.md decisions, design.md tradeoff sections                          |
+| Integration Notes              | implementation.md notes about cross-cutting concerns                              |
+| Revision History               | plan.md p-revN phases, implementation.md revision notes                           |
+| Follow-up Items                | implementation.md deferred findings, plan.md deferred items                       |
+| Associated Issues              | state.md `associated_issues` field                                                |
+| Workflow Observations          | project-log.md via `oat project log rollup` only                                  |
+| Autonomous Execution Learnings | oat-execution-learnings.md dated entries                                          |
+| Explainer Outcome              | project-recap `manifest.json` and `build-record.json`, or the recorded recap skip |
 
 **Explainer Outcome (conditional):**
 
-When a project-recap attempt exists, render this section:
+When a project-recap attempt or a recorded recap skip exists, render this
+section with exactly one item. A run that happened uses the first form:
 
 ```markdown
 ## Explainer Outcome
 
-- **project-recap:** {outcome} — `{run path}`{optional warning or recovery note}
+- **project-recap:** {generated | degraded} {outcome} — `{run path}`{optional warning or recovery note}
 ```
 
-When a project-recap attempt exists, include exactly one concise outcome item with its recipe, outcome (`built-durable`, `built-not-durable`, or `failed`), run path, and warning or recovery note when applicable.
+A recap that never ran because a required seam was unavailable uses the second
+form, which has a reason and no run path:
 
-Use `manifest.json` and `build-record.json` as the source of truth; refresh the existing item instead of appending a duplicate.
+```markdown
+## Explainer Outcome
 
-Omit `Explainer Outcome` when no project-recap attempt exists. A failed or non-durable recap remains visible as its product outcome; do not reinterpret it as project implementation failure.
+- **project-recap:** skipped — {skip reason}
+```
+
+Include exactly one concise item with its recipe, state (`generated`, `degraded`, or `skipped`), and either its outcome (`built-durable`, `built-not-durable`, `built-needs-review`, or `failed`) with run path, or its skip reason. Add a warning or recovery note when applicable. Use `generated` for `built-durable`, `degraded` for any other terminal outcome, and `skipped` only for a recap whose intent resolved to skip.
+
+Use `manifest.json` and `build-record.json` as the source of truth for a run, and the recorded recap intent for a skip; refresh the existing item instead of appending a duplicate.
+
+Omit `Explainer Outcome` only when no project-recap attempt and no recorded recap skip exist. A degraded or skipped recap remains visible as its own product outcome; do not reinterpret either as project implementation failure. A `capability_probe` skip means the host had no provider configured for a required seam, not that the recap failed.
 
 **Autonomous Execution Learnings (conditional):**
 
@@ -369,6 +421,10 @@ Route only on the structured `ProjectLogRollupResult`:
 - `status: "ok"` with `ledgerOutcome: "skipped_permitted"`: proceed and report
   that the ledger was permissibly skipped because the default reference layer
   is absent.
+- `status: "ambiguous"`: the log's structure has two readings, so nothing was
+  read and `summary.md` was not written. Surface the result's `ambiguity`
+  string to the user and stop before commit. Do not describe the summary as
+  rolled up, and do not treat the absent observations as "no entries".
 - `status: "failed"` or `ledgerOutcome: "failed"`: surface the failure to the
   user and stop before commit. Do not describe the summary as fully rolled up.
 
@@ -597,5 +653,6 @@ Summary tracks: last task {task_id}, {N} revision phases
   ledger graduation
 - When the PJM tool pack is available, each Key Decision is promoted to a canonical `reference/decisions/DR-YYMMDD-slug` record via `oat decision new` (status `accepted`), deduped on the date-independent slug so re-runs never create duplicate records
 - When the PJM tool pack is unavailable, decision promotion is skipped silently with no prompt
-- A project-recap attempt appears once in a concise Explainer Outcome section
-  sourced from its manifest and build record
+- A project-recap attempt or recorded capability skip appears once in a concise
+  Explainer Outcome section sourced from its manifest and build record, or from
+  the recorded recap intent

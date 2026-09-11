@@ -1,6 +1,5 @@
 ---
 name: authoring-docs
-version: 1.0.0
 description: Use when creating, restructuring, migrating, auditing, or reviewing technical documentation for software projects. Provides evidence-first, provider-portable Markdown authoring standards.
 argument-hint: '[docs task or target path]'
 disable-model-invocation: false
@@ -8,6 +7,7 @@ allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 user-invocable: true
 metadata:
   internal: true
+  version: 1.0.1
 ---
 
 # Authoring Docs

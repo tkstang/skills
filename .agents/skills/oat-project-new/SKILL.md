@@ -1,6 +1,5 @@
 ---
 name: oat-project-new
-version: 1.4.0
 description: Use when starting a spec-driven OAT project from scratch. Scaffolds a new project under PROJECTS_ROOT and sets it active.
 argument-hint: '<project-name> [--scope shared|local|synced] [--force]'
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.4.1
 ---
 
 # New OAT Project

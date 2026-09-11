@@ -1,12 +1,12 @@
 ---
 name: oat-project-review-provide
-version: 1.5.2
 description: Use when the user explicitly asks to review an OAT project — e.g. "review project", "review the project", "run project review", or confirms a previously offered review. Do NOT auto-invoke on completed work alone. Resolves a project review scope and offers before running.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(git:*), Bash(oat:*), Bash(pnpm:*), Bash(mkdir:*), Bash(date:*), Bash(realpath:*), Bash(awk:*), AskUserQuestion
 metadata:
   internal: true
+  version: 1.5.8
 ---
 
 # Request Review
@@ -308,6 +308,7 @@ WORKFLOW_MODE=$(oat project status --project-path "$PROJECT_PATH" --field projec
 - `spec-driven`: `spec.md`, `design.md`, `plan.md`
 - `quick`: `discovery.md`, `plan.md` (`spec.md`/`design.md` optional if present)
 - `import`: `plan.md` (`references/imported-plan.md` recommended, `spec.md`/`design.md` optional)
+- `lite`: `plan.md`, `implementation.md` (`discovery.md`/`spec.md`/`design.md` are absent by design)
 
 **Required for artifact review:**
 
@@ -316,9 +317,10 @@ WORKFLOW_MODE=$(oat project status --project-path "$PROJECT_PATH" --field projec
   - reviewing `spec` requires `discovery.md`
   - reviewing `design` in `spec-driven` mode requires `spec.md`
   - reviewing `design` in `quick/import` mode requires only `discovery.md` (spec is skipped in these modes)
-  - in `quick/import` mode, missing `spec.md` must not be treated as a project review gate failure for `artifact design`; proceed with normal project-scoped review flow, artifact writing, and bookkeeping
+  - in `quick/import` mode (lite has no design artifact), missing `spec.md` must not be treated as a project review gate failure for `artifact design`; proceed with normal project-scoped review flow, artifact writing, and bookkeeping
   - reviewing `plan` in `spec-driven` mode requires `spec.md` + `design.md`
-  - reviewing `plan` in `quick/import` mode may use `discovery.md` and/or `references/imported-plan.md` instead
+  - reviewing `plan` in `quick/import` mode may use `discovery.md` and/or `references/imported-plan.md` instead; lite uses the separate rule below
+  - reviewing `plan` in `lite` mode requires only `plan.md`; its Summary, Decisions, Assumptions, Out of Scope, and Validation Criteria sections are the complete upstream contract
 
 **If missing:** Report missing required artifacts for the current mode and stop if requirements are not met.
 
@@ -504,6 +506,8 @@ case "$SCOPE_TOKEN" in
       FILES_CHANGED=$(printf "%s\n" "$PROJECT_PATH/plan.md" "$PROJECT_PATH/spec.md" "$PROJECT_PATH/design.md")
     elif [[ "$WORKFLOW_MODE" == "quick" ]]; then
       FILES_CHANGED=$(printf "%s\n" "$PROJECT_PATH/plan.md" "$PROJECT_PATH/discovery.md")
+    elif [[ "$WORKFLOW_MODE" == "lite" ]]; then
+      FILES_CHANGED=$(printf "%s\n" "$PROJECT_PATH/plan.md")
     else
       FILES_CHANGED=$(printf "%s\n" "$PROJECT_PATH/plan.md" "$PROJECT_PATH/references/imported-plan.md")
     fi
@@ -583,10 +587,12 @@ Build the "Review Scope" metadata for the reviewer:
 **Scope:** {scope}{optional: " (" + SCOPE_RANGE + ")"}
 **Date:** {today}
 
+- Workflow mode: {WORKFLOW_MODE}
+
 **Artifact Paths:**
 
-- Spec: {PROJECT_PATH}/spec.md (required in spec-driven mode; optional in quick/import)
-- Design: {PROJECT_PATH}/design.md (required in spec-driven mode; optional in quick/import)
+- Spec: {PROJECT_PATH}/spec.md (required in spec-driven mode; optional in quick/import/lite)
+- Design: {PROJECT_PATH}/design.md (required in spec-driven mode; optional in quick/import/lite)
 - Plan: {PROJECT_PATH}/plan.md
 - Implementation: {PROJECT_PATH}/implementation.md
 - Discovery: {PROJECT_PATH}/discovery.md
@@ -624,6 +630,19 @@ Build the "Review Scope" metadata for the reviewer:
 - Do not force a code-defect framing for accepted design drift; `oat-project-review-receive` can convert artifact drift into alignment tasks or explicit deferrals.
 ```
 
+For `WORKFLOW_MODE=lite`, render the artifact-path portion of every artifact-plan
+and code-final Review Scope explicitly as:
+
+- Discovery: not required (absent by design)
+- Spec: not required (absent by design)
+- Design: not required (absent by design)
+- Import reference: not required
+- Plan: `{PROJECT_PATH}/plan.md` (Summary, Decisions, Assumptions, Out of Scope, and Validation Criteria are the requirements contract)
+- Implementation: `{PROJECT_PATH}/implementation.md`
+
+Always pass the resolved workflow mode. Never omit it and let the reviewer fall
+back to its spec-driven default.
+
 ### Step 6: Execute Review (3-Tier Capability Model)
 
 **Canonical reviewer instructions:** Before a direct reviewer-definition read or
@@ -656,11 +675,18 @@ oat project dispatch-ceiling resolve --provider "$ACTIVE_PROVIDER" --role review
 ```
 
 Require `dispatchReport.schemaVersion: 1`. Render/consume the resolver's
-versioned report using `formatDispatchReport(dispatchReport)` semantics, and
-derive the formal compatibility line only with
-`formatDispatchStamp(dispatchReport)` / `toDispatchStampRecord(dispatchReport)`.
-Include that derived line in the review dispatch audit metadata; do not
-hand-assemble `Dispatch:` fields from a role name or model string.
+versioned report using `formatDispatchReport(dispatchReport)` semantics. Take
+the formal compatibility line directly from the same response's additive
+`dispatchStamp` field: it must be a non-empty string beginning with the
+canonical `Dispatch:` prefix. Copy that returned value byte-for-byte into the
+review dispatch audit metadata. Reformatting the report through
+`formatDispatchStamp(dispatchReport)` / `toDispatchStampRecord(dispatchReport)`
+is an optional corroboration where that library is already loaded; it is never
+the normal path and never a substitute for the returned field, and no
+out-of-tree shim is required. Do not hand-assemble `Dispatch:` fields from a
+role name or model string. If `dispatchStamp` is absent or lacks the canonical
+prefix on a report-bearing response, stop and report instead of reconstructing
+it.
 
 The exact managed provider target still comes from
 `providers.<provider>.dispatchArgs` plus
@@ -725,6 +751,18 @@ After constructing the complete provider payload, record the launcher-owned
 `launcher-selected/config-declared` provenance. These fields are immutable:
 missing telemetry, missing reviewer self-report, or contradictory self-report
 must not populate, replace, or overwrite them and must not trigger fallback.
+
+This rail writes no launch record. Its only launch evidence is the `Dispatch:`
+stamp it already copies into the review artifact's dispatch audit metadata
+(Step 6.0); it never writes `implementation.md` (this rail requires that file
+clean and never commits it) and adds no request-id, launch-status, or outcome
+field to any artifact or ledger column. Construct and redact the complete
+generic record plus OAT role event before the native call. Writing a per-dispatch file with `oat project dispatch record` is optional and off by default: no lifecycle skill or command consumes those files, so do not write them unless the host has explicitly opted in. A rejected launch must
+attest `provesNoChildStarted: true`; only it permits one exact-target
+approximation with a fresh request ID. Preserve the exact model, effort, route,
+authority, and provider controls. Timeout, `BLOCKED`, refusal after acceptance,
+runtime mismatch, missing telemetry, interruption, and malformed output never
+authorize fallback or replacement.
 
 Once the native host accepts a reviewer, every terminal result is an
 authoritative review outcome. An accepted reviewer returning `BLOCKED` is a
@@ -928,7 +966,7 @@ If running inline (Tier 3), execute the review and write artifact.
 **Review checklist (from oat-reviewer):**
 
 1. Verify scope (don't review out-of-scope changes)
-2. If code review: verify alignment to available requirements sources (`spec`/`design` for spec-driven mode; `discovery`/import reference for quick/import)
+2. If code review: verify alignment to available requirements sources (`spec`/`design` for spec-driven mode; `discovery`/import reference for quick/import; plan.md Summary, Decisions, Assumptions, Out of Scope, and Validation Criteria for lite)
 3. If code review: verify code quality (correctness, tests, security, maintainability)
 4. If artifact review: verify completeness/clarity/readiness of the artifact and its alignment with upstream artifacts
 5. Categorize findings (Critical/Important/Medium/Minor)
@@ -1001,6 +1039,7 @@ Gate parsing contract:
 - Include either the `Findings: {N} critical, {N} important, {N} medium, {N} minor` summary line or the standard `## Findings` section with `### Critical`, `### Important`, `### Medium`, and `### Minor` subsections populated with findings or `None`.
 - Do not omit severity headings merely because a severity has zero findings; `oat gate review` depends on counts or standard Findings sections to determine whether the review blocks.
 
+```markdown
 ## Summary
 
 {2-3 sentence summary}
@@ -1044,8 +1083,7 @@ Findings: {N} critical, {N} important, {N} medium, {N} minor
 ## Recommended Next Step
 
 Run the `oat-project-review-receive` skill to convert findings into plan tasks.
-
-````
+```
 
 ### Step 8.5: Validate Review Orchestration and Append Root Log
 
@@ -1155,7 +1193,7 @@ else
   [ -f "$PROJECT_PATH/plan.md" ] && git add "$PROJECT_PATH/plan.md"
   git diff --cached --quiet || git commit -m "chore(oat): record {scope} review artifact"
 fi
-````
+```
 
 ### Step 10: Output Summary
 

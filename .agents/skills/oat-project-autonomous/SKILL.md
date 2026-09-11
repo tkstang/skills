@@ -1,6 +1,5 @@
 ---
 name: oat-project-autonomous
-version: 1.0.9
 description: Use when a user explicitly asks to run an OAT project autonomously end-to-end. Activates session-only autonomy, resumes the correct lifecycle phase, and drives the existing OAT skills through final PR or a reported boundary.
 argument-hint: '<goal | project-slug | ticket-ref>'
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion, Task
 metadata:
   internal: true
+  version: 1.0.14
 ---
 
 # Autonomous OAT Project
@@ -71,7 +71,7 @@ waits.
 
 - Setting the two autonomy environment variables for the current process tree.
 - Resolving project home and persisted entry state.
-- Selecting quick or spec-driven mode from the review-density rule.
+- Selecting lite, quick, or spec-driven mode from the review-density rule.
 - Invoking existing OAT lifecycle and dispatch skills in their required order.
 - Auto-resolving only the gates authorized by the autonomy contract.
 - Selecting the first existing compatible dispatch-ladder config scope through
@@ -167,7 +167,7 @@ fi
 ```
 
 For a new goal, derive a safe project slug but do not hand-create the project.
-Mode selection in Step 2 chooses `oat-project-new` or
+Mode selection in Step 2 chooses `oat-project-lite`, `oat-project-new`, or
 `oat-project-quick-start`, which owns scaffolding and pointer persistence. If
 the input is empty, ambiguous, collides with another project, or resolves
 outside the target repository, stop at the applicable product-judgment or
@@ -176,8 +176,8 @@ repository-policy boundary.
 ### Step 0.5: Capability Detection and Tier Selection
 
 Before artifact writes, external side effects, tests, or long-running work,
-load `oat-project-dispatch-subagents`, which in turn requires
-`oat-dispatch-subagents`. Probe the roles and dispatch surfaces needed for
+load the current `oat-project-dispatch-subagents/SKILL.md` and follow it, which
+in turn requires `oat-dispatch-subagents`. Probe the roles and dispatch surfaces needed for
 lifecycle workers and independent reviewers.
 
 Classify each required capability as:
@@ -221,6 +221,7 @@ Select the earliest incomplete lifecycle owner:
 | Persisted state                                           | Route                                                       |
 | --------------------------------------------------------- | ----------------------------------------------------------- |
 | No project yet                                            | Continue to Step 2, then invoke the selected creation skill |
+| Lite plan incomplete                                      | `oat-project-lite`                                          |
 | Quick-mode discovery, optional design, or plan incomplete | `oat-project-quick-start`                                   |
 | Spec-driven discovery incomplete                          | `oat-project-discover`                                      |
 | Spec-driven design/spec incomplete                        | `oat-project-design`                                        |
@@ -241,6 +242,9 @@ For a new goal, choose mode as a rigor selector:
   independent review before implementation.
 - **Quick:** use when one independent bundled pre-implementation review of
   discovery, optional lightweight design, and plan provides sufficient rigor.
+- **Lite:** use when the goal is a clear, single-sitting change whose interview,
+  decisions, assumptions, and validation criteria fit one combined plan and one
+  sequential implementation phase.
 
 Base the choice on uncertainty, integration risk, architecture decisions,
 reversibility, and review needs—not task count. Record the chosen mode and
@@ -248,8 +252,11 @@ evidence-based review-density rationale in the first owned project artifact.
 If evidence cannot support the choice without changing product intent, stop at
 a product-judgment boundary.
 
-Invoke `oat-project-new` for spec-driven mode or `oat-project-quick-start` for
-quick mode. Existing projects retain their persisted workflow mode.
+Invoke `oat-project-new` for spec-driven mode, `oat-project-quick-start` for quick, or `oat-project-lite` for lite;
+these three entry routes own new-project setup. Load the selected creation
+skill's current `SKILL.md` and follow it, or dispatch a child that carries it,
+never a remembered outcome. Existing projects retain their persisted workflow
+mode.
 
 ### Step 2.5: Persist Autonomous Explainer Intent
 
@@ -261,6 +268,15 @@ Resolve and persist `projectRecap` as `generate` with source `autonomous_policy`
 Reassert this forced recap intent on resume; a stale lower-precedence skip is overridden, warned, and recorded.
 The autonomous mode policy has precedence over project state and workflow
 preference, so `never` does not suppress the recap.
+
+Kickoff persists the forced `generate` intent without probing seams, because the
+host that runs the recap is the one that matters and closeout is where it runs.
+The closeout recap gate probes seam availability and may resolve a recordable
+`skip` with source `capability_probe` on a host where a required seam is
+unavailable. That later capability skip is the only thing that overrides this
+forced intent, it is decided before any run rather than from a failed one, and
+it never blocks unattended completion. Do not reassert `generate` over a
+recorded `capability_probe` skip within the same closeout.
 
 Resolve and persist `projectExplainer` as `generate` with source `kickoff_prompt` only when the kickoff request explicitly asks for a project explainer.
 A general autonomous goal, project creation, or normal planning does not count as an explainer request.
@@ -343,8 +359,11 @@ fi
 ### Step 5: Invoke Lifecycle Skills and Reviews
 
 Invoke each lifecycle skill by name and let it own its complete workflow,
-artifacts, gates, commits, and state transitions. Re-read project status after
-each return and route to the next earliest incomplete owner.
+artifacts, gates, commits, and state transitions. Invoking a lifecycle skill
+means loading that skill's current `SKILL.md` and following it, or dispatching a
+child that carries it; a remembered outcome or ambient discovery is not
+compliant. Re-read project status after each return and route to the next
+earliest incomplete owner.
 
 When planning finds an incomplete dispatch ladder, apply the gate inventory's
 autonomous ownership resolution instead of treating ordinary non-interactive
@@ -361,8 +380,9 @@ Block when the ladder remains incomplete after adoption.
 
 At every required artifact or code review:
 
-1. Resolve the route before launch through
-   `oat-project-dispatch-subagents` and its generic dispatch substrate.
+1. Resolve the route before launch by loading the current
+   `oat-project-dispatch-subagents/SKILL.md`, following it, and using its
+   generic dispatch substrate.
 2. Prefer a configured independent gate route when its exact target is
    available; otherwise select a policy-compliant cross-family reviewer.
 3. Select same-family/context-independent review only when no second family is
@@ -408,8 +428,9 @@ Ensure `oat-project-implement` resolves its immutable
   credential stops at its boundary.
 
 The orchestrator's responsibility is to keep invoking
-`oat-project-implement` until that sequence reaches `complete` or reports a
-boundary. Never wrap or replace implement's phase-agent topology.
+`oat-project-implement` — loading the current `oat-project-implement/SKILL.md`
+and following it on every resume — until that sequence reaches `complete` or
+reports a boundary. Never wrap or replace implement's phase-agent topology.
 
 ### Step 8: Commit and Push Phase Boundaries
 
@@ -431,7 +452,7 @@ On success, report:
 ```text
 Autonomous run: complete
 Project: {path}
-Workflow mode: {quick | spec-driven}
+Workflow mode: {lite | quick | spec-driven}
 Entry state: {phase}
 Phases executed: {list}
 Reviews: {scope → route, target, independence, record}
@@ -509,7 +530,7 @@ reconciliation path. Do not guess or overwrite the tracker.
 - ✅ Both autonomy signals were active only for the current process tree.
 - ✅ The entry phase came from persisted OAT state and completed work was not
   replayed.
-- ✅ Quick/spec-driven selection, when needed, recorded a review-density
+- ✅ Lite/quick/spec-driven selection, when needed, recorded a review-density
   rationale.
 - ✅ External-integration research and evidence gaps were recorded.
 - ✅ Every required review has dispatch provenance and no accepted launch fell

@@ -18,7 +18,12 @@
     "utility": true,
     "project-management": true,
     "research": true,
-    "brainstorm": false
+    "brainstorm": false,
+    "requiredBy": {
+      "utility": [
+        "research"
+      ]
+    }
   },
   "documentation": {
     "root": "documentation",

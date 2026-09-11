@@ -1,6 +1,5 @@
 ---
 name: oat-project-import-plan
-version: 1.4.10
 description: Use when you have an external markdown plan to execute with OAT. Preserves the source plan and normalizes it into canonical plan.md format.
 argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <name>]'
 oat_gateable: true
@@ -9,6 +8,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.4.15
 ---
 
 # Import External Plan
@@ -191,7 +191,7 @@ contract.
 
 ### Step 3: Normalize Into Canonical OAT plan.md
 
-Create/update `"$PROJECT_PATH/plan.md"` using `.oat/templates/plan.md` and map imported content into the canonical structure. Apply `oat-project-plan-writing` invariants after mapping:
+Create/update `"$PROJECT_PATH/plan.md"` using `.oat/templates/plan.md` and map imported content into the canonical structure. Apply `oat-project-plan-writing` invariants after mapping — load the current `oat-project-plan-writing/SKILL.md` and follow its invariants as written:
 
 Restore the exact snapshot into the resulting `plan.md` frontmatter as part of
 the first normalized plan write, before any later frontmatter rewrite and
@@ -223,6 +223,44 @@ Dispatch Profile import handling:
   effort preferences.
 - Do not generate Dispatch Profile recommendation rows during import.
 
+### Step 3.5: Lite Offer
+
+After normalization, count exact level-two phase headings. Offer lite only when
+the normalized plan has exactly one `## Phase` heading and
+`oat_plan_parallel_groups` is present as an empty list. Any additional phase or
+any declared parallel group keeps the project in import mode without an offer.
+
+When eligible, use AskUserQuestion with these choices:
+
+1. **Run as lite (Recommended)** — use the single authored plan contract and
+   collapsed single-phase lifecycle.
+2. **Keep import mode** — preserve the standard imported-plan lifecycle.
+
+State the tradeoff verbatim: "Single-phase plans can still be multi-session
+work; choose import mode when the author intentionally kept a longer-running
+project in one phase."
+
+If accepted, set an in-memory `LITE_OFFER_ACCEPTED=true` decision for the
+remaining steps and reshape `plan.md` into the `plan-lite.md` section order:
+
+1. Summary
+2. Decisions
+3. Assumptions
+4. Out of Scope
+5. Validation Criteria
+6. Parallelism
+7. the single Phase and its tasks
+8. Reviews, Implementation Complete, and References
+
+Lift Summary, Decisions, Assumptions, and Out of Scope from the external plan's
+prose when present. Where prose is absent, write an explicit assumption that
+names the missing source detail instead of leaving a template placeholder.
+Derive Validation Criteria from the tasks' verification steps and retain their
+commands or manual checks. Preserve the external source at
+`references/imported-plan.md`, keep `oat_plan_source: imported`, and preserve
+all `oat_import_*` fields; accepting lite changes execution mode, not import
+provenance.
+
 ### Step 4: Update Plan Metadata
 
 Set frontmatter in `"$PROJECT_PATH/plan.md"`:
@@ -247,7 +285,9 @@ cannot advance it to implementation.
 ### Step 4.1: Adopt Complete Ladders and Record the Named Ceiling
 
 Invoke the `Complete Dispatch Ladder Adoption Contract` from
-`oat-project-plan-writing`. If the effective ladder is missing or incomplete,
+`oat-project-plan-writing`: load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written. If the
+effective ladder is missing or incomplete,
 show the complete bundled recommendation and ask for its owning scope before
 running exactly one of:
 
@@ -290,8 +330,14 @@ explicit modes; `Leave Unresolved` is not implementation-ready.
 
 After normalization has produced stable phase IDs and before Step 4.5 starts
 the import-aware plan artifact review, invoke the `Shared Phase Gate Review Setup
-Contract` from `oat-project-plan-writing`. Provider native plan mode uses this
+Contract` from `oat-project-plan-writing`: load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written.
+Provider native plan mode uses this
 same import step and inherits its result.
+
+When the Step 3.5 lite offer was accepted, skip Step 4.25 phase-gate setup
+entirely. Lite has one phase and no phase-gate prompts; continue directly to
+the import-aware plan artifact review while preserving imported provenance.
 
 If `plan.md` already contains an explicit `oat_phase_review_gate`, preserve it
 through the shared contract without probing, prompting, or mutation. Resumed or
@@ -305,10 +351,31 @@ This Phase gate review setup is independent from HiLL checkpoints. Do not read o
 change HiLL fields here, and do not add a provider/model `--target` to any
 lifecycle command.
 
+### Step 4.35: Configure Lifecycle Gate Posture
+
+After normalization has produced stable phase IDs and before Step 4.5 starts
+the import-aware plan artifact review, invoke the `Shared Lifecycle Gate Posture Setup Contract` from
+`oat-project-plan-writing`: load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written. This
+runs adjacent to, but independently from, the phase gate review setup above.
+
+If `"$PROJECT_PATH/state.md"` already contains an explicit
+`oat_skill_gate_overrides` map, preserve it through the shared contract without
+probing, prompting, or mutation. Otherwise let the contract probe the configured
+gate-aware skills and offer a keep-or-disable choice for each configured gate
+independently.
+
+Persist only disabled choices, and only in `"$PROJECT_PATH/state.md"`. Keeping
+every gate leaves the map absent. Never modify the shared, local, or user
+configuration layers, and never prompt or write a new map in non-interactive
+mode.
+
 ### Step 4.5: Run Import-Aware Plan Artifact Review Loop
 
 Before dispatching the artifact reviewer, invoke the `Managed Dispatch
-Readiness and Review Contract` from `oat-project-plan-writing`:
+Readiness and Review Contract` from `oat-project-plan-writing` — load the
+current `oat-project-plan-writing/SKILL.md` and follow that contract as
+written:
 
 ```bash
 oat project dispatch-ceiling resolve --provider "$ACTIVE_PROVIDER" --role reviewer --preflight --json
@@ -319,7 +386,7 @@ If managed resolution or the complete ladder is unresolved, return to Step
 resolver. Do not set `oat_ready_for: oat-project-implement` while either
 contract is unresolved.
 
-Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before advancing project state or handing off to implementation.
+Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before advancing project state or handing off to implementation. Load the current `oat-project-plan-writing/SKILL.md` and follow that loop as written.
 
 Required payload:
 
@@ -388,8 +455,10 @@ them before stopping. Never expose a partially reviewed imported plan to
 
 Set `"$PROJECT_PATH/state.md"` frontmatter:
 
-- `oat_workflow_mode: import`
+- `oat_workflow_mode: lite` when `LITE_OFFER_ACCEPTED=true`; otherwise `oat_workflow_mode: import`
 - `oat_workflow_origin: imported`
+- preserve `oat_import_reference`, `oat_import_source_path`, `oat_import_provider`, and any other `oat_import_*` fields
+- keep `oat_plan_source: imported` in `plan.md` on both branches
 - `oat_phase: plan`
 - `oat_phase_status: complete`
 - `oat_current_task: null`
@@ -448,13 +517,19 @@ fi
 
 Before reporting this skill as complete, run the configured gate as the final step after artifact review, state sync, dashboard refresh, and the import artifact commit:
 
-1. Resolve the gate for this skill:
+1. Resolve the gate for this skill with project context:
 
    ```bash
-   oat gate resolve <this-skill> --json
+   oat gate resolve <this-skill> --project "$PROJECT_PATH" --json
    ```
 
-   If the command returns JSON `null`, no gate is configured; the skill is complete.
+   Handle all three `resolution` values explicitly:
+   - `not_configured`: no gate is configured; the skill is complete.
+   - `configured_disabled_by_project`: the operator disabled this configured gate for this project. Do not launch any process. Emit `configured but disabled by project override`, including the project path and the `projectOverride` source from the envelope, then the skill is complete. A project-disabled gate never enters the passed, missing, or failed branches, and its `configuredGate` is evidence only, never executed.
+   - `configured`: continue with the steps below, executing `effectiveGate` exactly as configured.
+
+   A null, missing, malformed, or unrecognized result is an operational failure
+   that fails closed as unresolved. Never treat it as "no gate configured."
 
 2. Export the resolved project path into the command shell:
 
@@ -462,7 +537,13 @@ Before reporting this skill as complete, run the configured gate as the final st
    export PROJECT_PATH
    ```
 
-   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` and must not include `--target <id>`. A valid reusable shape is `oat gate review --project "$PROJECT_PATH" ...`. If the declaration is missing, stop and migrate the stored gate command; do not inject or append arguments at execution time.
+   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` as part of the structured-output contract. Its canonical form is:
+
+   ```bash
+   oat --json gate review --project "$PROJECT_PATH" ...
+   ```
+
+   This requires global `--json` before `gate review`. Reusable declarations must not include `--target <id>`. Reject `oat gate review ...` without the global `--json` placement. Stop and migrate an invalid stored declaration before execution; never inject or append execution-time argv.
 
 3. Resolve the current planning parent's model identity from session context.
    When that identity is non-empty and the resolved configured command invokes
@@ -518,7 +599,7 @@ Report:
 - ✅ Canonical `plan.md` generated with OAT task structure.
 - ✅ `plan.md` metadata marks `oat_plan_source: imported`.
 - ✅ `plan.md` records the import-aware plan artifact review row unless `workflow.autoArtifactReview.plan` was explicitly disabled.
-- ✅ `state.md` marks `oat_workflow_mode: import`.
+- ✅ `state.md` marks `oat_workflow_mode: lite` when the single-phase lite offer was accepted, otherwise `import`; imported origin and `oat_import_*` provenance remain intact.
 - ✅ `implementation.md` is present and resumable.
 - ✅ `oat_plan_hill_phases` left unset in frontmatter (deferred to `oat-project-implement` Step 2.5).
 - ✅ `## Planning Checklist` items left unchecked (HiLL configuration deferred to implementation).

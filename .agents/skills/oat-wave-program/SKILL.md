@@ -1,6 +1,5 @@
 ---
 name: oat-wave-program
-version: 1.5.0
 description: Use when decomposing a corpus of external implementation plans into an ordered wave program — coverage inventory, dependency mapping, wave composition, and the durable execution-program artifact that oat-wave-execute consumes and updates.
 argument-hint: '[new|refresh|wave-close <wave-id>] (default: refresh against the current artifact)'
 disable-model-invocation: false
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Task
 metadata:
   internal: true
+  version: 1.5.2
 ---
 
 # Program a Corpus of External Plans into Waves
@@ -67,7 +67,12 @@ target (same disclaimer as the plan indexes).
   token-cost requires W3 permission-policy").
 - **Status ledger:** per wave — composed → in-progress (project link) → merged
   (PR + merge SHA + completion record link). Updated by this skill's
-  `wave-close` mode, invoked from `oat-wave-execute` closeout step 8.
+  `wave-close` mode, invoked from `oat-wave-execute` closeout step 9. Those
+  three are the complete ledger vocabulary, including at program close. `done`
+  is a wave-table plan-row status from the Wave table bullet above and is never
+  a ledger status. The executable owner of the ledger vocabulary is the
+  external-plan readiness contract, whose `WAVE_STATUSES` rejects any ledger
+  status outside it.
 
 ## Process
 
@@ -115,7 +120,7 @@ target (same disclaimer as the plan indexes).
    program recap is not run, record `recap: not run — {reason}` there. Every
    optional step gets an explicit disposition; silence is indistinguishable
    from oversight (Orc program-recap evidence).
-6. When the final wave's ledger row flips to `done` and all wave merges are
+6. When the final wave's ledger row flips to `merged` and all wave merges are
    recorded, stop at exactly one HUMAN-GATED program completion checkpoint,
    including in autonomous runs:
    "All waves are merged and the program is complete. Run the completion tail
@@ -170,7 +175,7 @@ Publishing is human-gated; this caller never invokes publish.
 
 - `oat-wave-execute` **Inputs** resolves its lane list from this artifact (falling
   back to index wave hints only when no program artifact exists).
-- `oat-wave-execute` closeout step 8 invokes `wave-close` here.
+- `oat-wave-execute` closeout step 9 invokes `wave-close` here.
 - A lane parked mid-wave (source-plan STOP) surfaces in BOTH artifacts: the
   wave project's blocker record and this ledger's `deferred` row.
 

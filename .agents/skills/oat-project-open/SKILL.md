@@ -1,12 +1,12 @@
 ---
 name: oat-project-open
 description: Use when switching to or resuming a specific OAT project. Delegates to `oat project open` for validation and activation.
-version: 1.2.0
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, AskUserQuestion
 metadata:
   internal: true
+  version: 1.2.1
 ---
 
 # Open Project

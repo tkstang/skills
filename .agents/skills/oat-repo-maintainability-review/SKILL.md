@@ -1,6 +1,5 @@
 ---
 name: oat-repo-maintainability-review
-version: 1.3.0
 description: Use when you need a structured maintainability analysis for a repository or directory target with actionable findings and an optional external-plan handoff.
 argument-hint: '[--scope repo|directory] [--target <path>] [--mode auto|tracked|local|inline] [--output <path>] [--focus <areas>] [--analysis-mode full] [--fan-out]'
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.3.1
 ---
 
 # Repo Maintainability Review
