@@ -10,6 +10,8 @@ oat_backlog_items:
   - BL-260723-investigate-live-submit
 oat_issue_url: null
 created: '2026-09-08T00:16:29Z'
+updated: '2026-09-11T13:15:47.721Z'
+oat_external_plan_reverified_commit: f5395a35
 ---
 
 # Reconcile the live submit verdict-source contract with real provider behavior
@@ -38,12 +40,15 @@ git diff --stat f5395a35..HEAD -- src/consensus/provider-cli tests/consensus/pro
 
 ## Scope
 
+Repository contract: Node >=22, pnpm 10.13.1, dependency-free shipped runtime, canonical TypeScript, Conventional Commits. No live execution is authorized by plan creation or ordinary implementation approval.
+
 ### In scope
 
 - Deterministic tracing/tests around submit-command injection, sidecar creation/read/cleanup, and final-message fallback.
-- One explicitly authorized, budgeted `pnpm run test:live-e2e` observation.
+- One separately authorized, budgeted diagnostic `pnpm run test:live-e2e` observation; if code or the assertion changes, a second separately authorized confirmation run against the final tree. Each grant specifies provider, runtime/sandbox policy, timeout and quota budget. Neither grant is supplied by this plan.
 - The smallest runtime, fixture, assertion, and documentation change required by the resulting contract.
 - Required generated outputs and skill version bumps if runtime behavior changes.
+- Exact evidence/test surfaces: `src/consensus/provider-cli/structured-output.ts`, `commands.ts`, `submit-capture.ts`, their existing tests, and `tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`; update `RELEASING.md` and `plugins/consensus/README.md` only where the verified submit/fallback contract changes their wording.
 
 ### Out of scope
 
@@ -61,7 +66,7 @@ Use existing stub tests to prove the exact command/prompt presented to the child
 
 ### 2. Obtain separate authorization and run one bounded live observation
 
-Confirm an authenticated provider is already available via the documented preflight without printing credentials. With explicit quota authorization, run the named live script once, retaining only redacted contract evidence: provider selector, exit state, whether the submit sidecar was produced, and verdict-source classification.
+Confirm an authenticated provider is already available via the documented preflight without printing credentials. Before any live run, inspect the test's failure reporting: it currently serializes the entire envelope at `submit-live.e2e.test.ts:71-74`. Replace that reporting with an allowlisted, synthetic-evidence summary and test it deterministically; do not copy prompts, args, stderr, credentials, or runtime output into artifacts. The live test defaults to a writable provider policy, so quota approval alone is insufficient: the grant must name the runtime policy and permitted writable boundary. With that explicit grant, run the named live script once, retaining only provider selector, exit state, sidecar-presence boolean, and verdict-source classification.
 
 **Verify:** `pnpm run test:live-e2e` reaches a terminal result under the approved timeout.
 
@@ -73,26 +78,27 @@ Confirm an authenticated provider is already available via the documented prefli
 
 Do not select among these branches before the live evidence exists.
 
-**Verify:** focused stub/evidence/live tests prove the selected branch and fail for the rejected interpretation.
+**Verify:** `pnpm exec vitest run tests/consensus/provider-cli/structured-output.test.ts tests/consensus/provider-cli/evidence` proves the selected deterministic contract. If any runtime/fixture/assertion changes, request one separate bounded live confirmation against the final tree. Without that grant, stop with diagnosis complete but reconciliation/live verification pending; do not close the source item or claim the repair is proven. A further live failure returns to Thomas; it does not authorize an automatic retry.
 
 ### 4. Regenerate and run gates
 
 When runtime changes, regenerate outputs and bump every affected skill version. Update release documentation only to reflect verified behavior.
 
-**Verify:** `pnpm run build:check && pnpm run validate && pnpm test` succeeds.
+**Verify:** `pnpm run premerge` and `pnpm run validate:skill-versions -- --base-ref origin/main` succeed. Check only changed authored TS/JS with `pnpm exec oxlint <changed-authored-files>` and `pnpm exec oxfmt --check <changed-authored-files>`, excluding generated and agent-instruction files.
 
 ## Done criteria
 
 - [ ] Root cause is recorded with redacted live evidence.
 - [ ] Runtime, fixtures, live assertion, and docs agree on one contract.
 - [ ] Submit behavior remains directly tested even if fallback is accepted.
+- [ ] If runtime, fixtures, or the live assertion changed, final-tree live confirmation passed under its own explicit grant; otherwise this item remains open with that gate pending.
 - [ ] Required builds, tests, validation, and version gates pass.
 
 ## STOP conditions
 
 - Explicit authorization for provider quota is absent.
 - A usable provider is unavailable or would require setup/credential changes.
-- The live outcome is nondeterministic across the single authorized observation and a second run is not authorized.
+- One observation is inconclusive, or a required confirmation/retry lacks a fresh grant. A single observation does not establish repeatability.
 - Resolution requires weakening the assertion without a documented contract decision.
 
 ## Review focus

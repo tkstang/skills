@@ -10,6 +10,8 @@ oat_backlog_items:
   - BL-260723-make-remaining-consensus-loop
 oat_issue_url: null
 created: '2026-09-08T00:16:29Z'
+updated: '2026-09-11T13:15:47.721Z'
+oat_external_plan_reverified_commit: f5395a35
 ---
 
 # Finish atomic writes for consensus section output and seeded records
@@ -37,7 +39,8 @@ git diff --stat f5395a35..HEAD -- src/consensus/core/consensus-loop.ts src/conse
 
 ## Repository conventions
 
-- Reuse the canonical atomic helper; do not create a subtly different local implementation.
+- Node >=22; pnpm 10.13.1 (`packageManager`). Conventional Commits; publication requires separate authority.
+- Reuse `atomicWriteFile` in `src/consensus/core/loop-records.ts:68`, currently private. Export it from that internal module and import it directly into `consensus-loop.ts`; no public facade re-export is needed. Do not use the same-named helper in `src/consensus/shared/cli-helpers.ts`, which lacks fsync and has different confinement semantics.
 - Run `pnpm run build` after canonical TypeScript changes and bump every affected skill version.
 - Verify with `pnpm run build:check`, `pnpm run validate:skill-versions -- --base-ref <ref>`, focused tests, and the full suite.
 
@@ -46,7 +49,8 @@ git diff --stat f5395a35..HEAD -- src/consensus/core/consensus-loop.ts src/conse
 ### In scope
 
 - The two named functions in `src/consensus/core/consensus-loop.ts`.
-- Focused crash/failure tests under `tests/consensus/core/`.
+- The minimal internal export in `src/consensus/core/loop-records.ts`.
+- Focused crash/failure tests in `tests/consensus/core/loop-records.test.ts` using the public `runConsensusLoop` entry point.
 - Generated outputs and required skill version bumps.
 
 ### Out of scope
@@ -58,15 +62,17 @@ git diff --stat f5395a35..HEAD -- src/consensus/core/consensus-loop.ts src/conse
 
 ### 1. Route both writes through the existing helper
 
-Replace the direct writes while preserving directory creation, exact content, fsync/rename semantics, and the existing return flow. Remove redundant fsync only when the shared helper already guarantees it.
+Export the existing records-layer helper and import it directly. Replace the two direct writes while preserving directory creation, exact content, temp-file fsync before rename, and the existing return flow. Remove the now-redundant target-file sync at these two sites only. Do not claim parent-directory fsync or stronger power-loss durability than the existing helper supplies.
 
 **Verify:** `pnpm exec vitest run tests/consensus/core/loop-records.test.ts` passes.
 
 ### 2. Add failure-path coverage for both call sites
 
-Prove success leaves no temporary residue. Inject rename failure after seeding/section output already contains known-good data; assert the original file remains byte-identical and the temporary file is cleaned up.
+Use `runConsensusLoop` with deterministic stub peers and `initialRecords` (entry at `consensus-loop.ts:761-773`); do not export the two private call sites for testing. Extend the existing `vi.mock('node:fs/promises')` rename spy to fail only for the intended destination, allowing unrelated status/records renames through.
 
-**Verify:** focused tests fail against the pre-change implementation and pass after the change.
+For section output, pre-create a known-good output file and drive the loop to a terminal artifact write. For seeded records, pre-create exactly `[]\n` and provide nonempty `initialRecords`: a nonempty existing record array returns early and does **not** exercise the seed write. Assert target bytes survive rename failure, the original injected error is propagated, and no temp residue remains. Separately assert missing-file success, fixed-time seed serialization, and unchanged no-op behavior for existing nonempty records and empty seeds.
+
+**Verify:** `pnpm exec vitest run tests/consensus/core/loop-records.test.ts` passes; destination-specific failure cases fail against the pre-change implementation.
 
 ### 3. Regenerate and validate consumers
 
@@ -79,6 +85,7 @@ Run the build, apply required skill version bumps, and confirm generated copies 
 - [ ] Both named writes are atomic with bytes unchanged.
 - [ ] Success, residue cleanup, and previous-file survival are tested for both sites.
 - [ ] `pnpm run build:check`, `pnpm run validate`, and `pnpm test` pass.
+- [ ] `pnpm run premerge` passes, including type-check and smoke as required by the source acceptance criteria. Check only changed authored TS with `pnpm exec oxlint <changed-authored-ts>` and `pnpm exec oxfmt --check <changed-authored-ts>`; exclude generated files and instruction files. Stop on baseline failures rather than fixing unrelated source.
 - [ ] Only explained source, test, generated, and version files are changed.
 
 ## STOP conditions
