@@ -17,11 +17,12 @@ What ships today:
   audit trails; `phone-a-friend` asks one peer for a one-shot advisory take.
 - **Standalone skills** — `session-observer` (review what another coding agent
   did), `session-observer-collab` (coordinate two exactly pinned agent
-  sessions), and `export-session-transcript` (export the current session to
-  sanitized Markdown).
+  sessions), `export-session-transcript` (export the current session to
+  sanitized Markdown), and `complexity-review` (judge whether a plan or
+  implementation's machinery earns its cost).
 
 ## Contents
 
 - [Installation](installation.md) — Install the consensus plugin per provider (Claude Code, Codex, Cursor) and check prerequisites.
 - [Consensus](consensus/index.md) — Overview, `create`, `decide`, `plan`, `refine`, `evaluate`, `phone-a-friend`, and shared configuration.
-- [Skills](skills/index.md) — The standalone session skills.
+- [Skills](skills/index.md) — The standalone session skills and the complexity review.
