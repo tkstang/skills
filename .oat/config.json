@@ -25,6 +25,10 @@
       ]
     }
   },
+  "pjm": {
+    "initialized": true,
+    "schemaVersion": 1
+  },
   "documentation": {
     "root": "documentation",
     "tooling": "fumadocs",
