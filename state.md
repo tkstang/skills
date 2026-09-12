@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t02
-oat_last_commit: 12cf6edffb12e2e201d1586aa7a049bbd666e633
+oat_last_commit: ae3829600a87cbcea0ab60c6ccebe9616878be0d
 oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-12T22:07:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-12T22:22:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate

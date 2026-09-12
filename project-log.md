@@ -220,6 +220,10 @@ run-27-review-boundary stopped after targeted t17/t18 review requested changes (
 
 run-28-bounded-cycle-complete: p03-t19 fixed I1/m1 at 12cf6edf; one independent re-review passed with zero findings; aggregate 1866 passed and 1 skipped. Stopped at fresh live-provider authorization boundary; no provider operations, activation, feature push, PR mutation, or portable-packet scope expansion.
 
+### 2026-09-12 · structural · oat-pjm-decision · DR-260912-separate-forks-and-handoffs
+
+handoff-split-decision-20260912: Recorded the accepted two-skill split in .oat/repo/reference/decisions/DR-260912-separate-forks-and-handoffs.md; portable activity enrichment and migration remain future work. p04-t02 remains at fresh authorization for isolated exact Claude 2.1.251 staging and mutation-free preflight/behavior-plan, followed by separately authorized behavior-verify; no provider operation or live retry ran.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
