@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import {
   DEFAULT_PREVIEW_BATCH_LIMITS,
   HANDOFF_SCHEMA_VERSION,
+  isValidProviderNativeId,
   SchemaValidationError,
   parseBehavioralGateReceipt,
   parseBatchOutcome,
@@ -293,6 +294,72 @@ describe('Git, capability, invocation, plan, and envelope schemas', () => {
 });
 
 describe('behavioral receipt and provider contract schemas', () => {
+  test.each(['codex', 'claude'] as const)(
+    'rejects noncanonical %s UUID evidence across schema boundaries',
+    (provider) => {
+      const parentId = 'abcdefab-cdef-4abc-8abc-abcdefabcdef';
+      const childId = 'abcdefab-cdef-4abc-8abc-abcdefabcdea';
+      const receipt = provider === 'codex' ? codexReceipt : claudeReceipt;
+      expect(isValidProviderNativeId(provider, parentId)).toBe(true);
+      for (const alternate of [
+        parentId.toUpperCase(),
+        parentId.replace('a', 'A'),
+      ]) {
+        expect(isValidProviderNativeId(provider, alternate)).toBe(false);
+        expect(() =>
+          parseBehavioralGateReceipt({
+            ...receipt,
+            observations: {
+              ...receipt.observations,
+              parentNativeId: parentId,
+              observedChildNativeId: alternate,
+              ...(provider === 'claude'
+                ? { requestedChildNativeId: alternate }
+                : {}),
+            },
+          }),
+        ).toThrow('native-session-id');
+        expect(() =>
+          parseBatchOutcome({
+            schemaVersion: 1,
+            planDigest: 'e'.repeat(64),
+            items: [
+              {
+                key: `${provider}:${parentId}`,
+                parentNativeId: parentId,
+                observedChildNativeId: alternate,
+                targetBaselineIds: [],
+                native: { status: 'succeeded', retryable: false, exitCode: 0 },
+                reporting: {
+                  status: 'mapped',
+                  childNativeId: alternate,
+                  evidence: 'machine-output-and-transcript',
+                },
+              },
+            ],
+            retryableKeys: [],
+          }),
+        ).toThrow('native-session-id');
+        expect(() =>
+          parseQualifiedSessionId(`${provider}:${alternate}`),
+        ).toThrow('native-session-id');
+      }
+      expect(
+        parseBehavioralGateReceipt({
+          ...receipt,
+          observations: {
+            ...receipt.observations,
+            parentNativeId: parentId,
+            observedChildNativeId: childId,
+            ...(provider === 'claude'
+              ? { requestedChildNativeId: childId }
+              : {}),
+          },
+        }),
+      ).toMatchObject({ status: 'passed' });
+    },
+  );
+
   test('accepts new observed-only and legacy requested-child Claude receipts', () => {
     expect(parseBehavioralGateReceipt(codexReceipt)).toMatchObject({
       provider: 'codex',

@@ -440,30 +440,49 @@ describe('bounded sequential execution', () => {
     },
   );
 
-  test('does not corroborate a Claude successor that equals its parent', async () => {
-    const claudeOnly = createHandoffPlan(
-      input({ selection: { sessions: ['claude:parent-b'] } }),
-    );
-    const corroborate = vi.fn();
-    const outcome = await executeHandoffPlan({
-      confirmedDigest: claudeOnly.confirmationDigest,
-      rebuildPlan: async () => claudeOnly,
-      run: async () => ({
-        exitCode: 0,
-        signal: null,
-        stdout: JSON.stringify({ session_id: 'parent-b' }),
-        stderr: '',
-      }),
-      corroborate,
-    });
+  test.each(['codex', 'claude'] as const)(
+    'does not corroborate a %s successor with the same UUID in any casing',
+    async (provider) => {
+      const parentId = 'abcdefab-cdef-4abc-8abc-abcdefabcdef';
+      const candidate: SessionCandidate = {
+        ...candidates.find((entry) => entry.provider === provider)!,
+        key: `${provider}:${parentId}`,
+        nativeId: parentId,
+      };
+      const selectedPlan = createHandoffPlan(
+        input({ candidates: [candidate] }),
+      );
+      for (const childId of [
+        parentId,
+        parentId.toUpperCase(),
+        parentId.replace('a', 'A'),
+      ]) {
+        const corroborate = vi.fn(async () => ({ status: 'mapped' as const }));
+        const outcome = await executeHandoffPlan({
+          confirmedDigest: selectedPlan.confirmationDigest,
+          rebuildPlan: async () => selectedPlan,
+          run: async () => ({
+            exitCode: 0,
+            signal: null,
+            stdout: JSON.stringify(
+              provider === 'claude'
+                ? { session_id: childId }
+                : { type: 'thread.started', thread_id: childId },
+            ),
+            stderr: '',
+          }),
+          corroborate,
+        });
 
-    expect(outcome.items[0]).toMatchObject({
-      native: { status: 'indeterminate', retryable: false },
-      reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
-    });
-    expect(outcome.items[0]).not.toHaveProperty('observedChildNativeId');
-    expect(corroborate).not.toHaveBeenCalled();
-  });
+        expect(outcome.items[0]).toMatchObject({
+          native: { status: 'indeterminate', retryable: false },
+          reporting: { status: 'unresolved', reasonCode: 'child-unresolved' },
+        });
+        expect(outcome.items[0]).not.toHaveProperty('observedChildNativeId');
+        expect(corroborate).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   test('allows retry only for deferral or explicit failed-before-child proof', async () => {
     const codexOnly = createHandoffPlan(

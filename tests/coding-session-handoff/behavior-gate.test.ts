@@ -832,6 +832,56 @@ describe('behavior-verify', () => {
     expect(result.status).toBe('passed');
   });
 
+  test.each(['codex', 'claude'] as const)(
+    'rejects an alternate-case %s parent UUID before child evidence or resume',
+    async (provider) => {
+      const events: string[] = [];
+      const receipts: BehavioralGateReceipt[] = [];
+      const base = dependencies(events, receipts);
+      const plan = createBehaviorPlan(provider, probe(provider));
+      const parentId =
+        provider === 'codex'
+          ? CODEX_PARENT_ID
+          : '00000000-0000-4000-a000-000000000001';
+      let providerCalls = 0;
+      const result = await verifyProviderBehavior({
+        provider,
+        providerProbe: probe(provider),
+        confirmedDigest: plan.confirmationDigest,
+        receiptPath: '/tmp/receipt.json',
+        deps: {
+          ...base,
+          runProvider: async (invocation, executablePath) => {
+            providerCalls += 1;
+            if (providerCalls === 2)
+              return {
+                exitCode: 0,
+                signal: null,
+                stderr: '',
+                stdout: JSON.stringify(
+                  provider === 'codex'
+                    ? {
+                        type: 'thread.started',
+                        thread_id: parentId.toUpperCase(),
+                      }
+                    : { session_id: parentId.toUpperCase() },
+                ),
+              };
+            return base.runProvider(invocation, executablePath);
+          },
+        },
+      });
+      expect(result).toMatchObject({
+        status: 'inconclusive',
+        failureStage: 'native-identity-invalid',
+      });
+      expect(providerCalls).toBe(2);
+      expect(events).not.toContain('evidence:child-before');
+      expect(events).not.toContain('evidence:source-resume');
+      expect(receipts[0].status).toBe('inconclusive');
+    },
+  );
+
   test('fails closed before transcript corroboration when Claude returns its parent as the child', async () => {
     const events: string[] = [];
     const receipts: BehavioralGateReceipt[] = [];
@@ -1306,8 +1356,7 @@ describe('disposable fixture paths', () => {
             process.execPath,
             ['-e', 'process.stdout.write(process.cwd())'],
             { cwd },
-            (error, stdout) =>
-              error ? reject(error) : resolve(stdout.trim()),
+            (error, stdout) => (error ? reject(error) : resolve(stdout.trim())),
           );
         });
         expect(childCwd).toBe(cwd);

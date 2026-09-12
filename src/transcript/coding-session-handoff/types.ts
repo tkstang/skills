@@ -8,9 +8,9 @@ const EXACT_PROVIDER_NATIVE_ID_PATTERNS: Readonly<
   Record<HandoffProvider, RegExp>
 > = Object.freeze({
   codex:
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
   claude:
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
 });
 
 export function isValidProviderNativeId(
@@ -485,7 +485,19 @@ function gitObjectId(value: unknown): string {
 }
 
 function nativeId(value: unknown): string {
-  return string(value, 'native-session-id');
+  const parsed = string(value, 'native-session-id');
+  const lowercase = parsed.toLowerCase();
+  // Preserve legacy opaque IDs, but require one representation of UUID evidence.
+  // Reject rather than rewrite provider identity or weaken exact comparisons.
+  if (
+    parsed !== lowercase &&
+    HANDOFF_PROVIDERS.some((provider) =>
+      isValidProviderNativeId(provider, lowercase),
+    )
+  ) {
+    fail('native-session-id');
+  }
+  return parsed;
 }
 
 function parseReasonCode(value: unknown): HandoffReasonCode {

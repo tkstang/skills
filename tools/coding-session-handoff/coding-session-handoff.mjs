@@ -2252,8 +2252,8 @@ import { realpath as realpath2 } from "node:fs/promises";
 var HANDOFF_SCHEMA_VERSION = 1;
 var HANDOFF_PROVIDERS = ["codex", "claude"];
 var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
-  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
-  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 });
 function isValidProviderNativeId(provider2, value2) {
   return typeof value2 === "string" && EXACT_PROVIDER_NATIVE_ID_PATTERNS[provider2].test(value2);
@@ -2396,7 +2396,14 @@ function isoTimestamp(value2, code) {
   return parsed;
 }
 function nativeId(value2) {
-  return string(value2, "native-session-id");
+  const parsed = string(value2, "native-session-id");
+  const lowercase = parsed.toLowerCase();
+  if (parsed !== lowercase && HANDOFF_PROVIDERS.some(
+    (provider2) => isValidProviderNativeId(provider2, lowercase)
+  )) {
+    fail("native-session-id");
+  }
+  return parsed;
 }
 function parseReasonCode(value2) {
   return enumValue(value2, HANDOFF_REASON_CODES, "reason-code");
