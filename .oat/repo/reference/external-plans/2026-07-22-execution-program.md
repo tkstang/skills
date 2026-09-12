@@ -117,7 +117,7 @@ coverage invariant holds terminally (15/15, none deferred/dropped).
   `gpt-5.6-sol` at xhigh reasoning effort**. The per-wave "sol unavailable"
   flags overstated the deviation; the operator's sol-xhigh requirement was
   satisfied in substance on every wave.
-- **Program recap:** AUTHORED — `.oat/repo/explainers/repo-audit-program-recap/recap.md`,
+- **Program recap:** AUTHORED — `.oat/repo/reference/explainers/repo-audit-program-recap/recap.md`,
   LLM-authored (Opus-class subagent) from a 12-claim synthesized fact base with
   per-section claim traceability; three fact-base synthesis errors were caught
   by the author's discrepancy check and corrected before finalization. The
