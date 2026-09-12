@@ -18,6 +18,7 @@ and reference surface for this repository. Agent-facing rules live in the
 | `pjm/handoffs/` | One-shot kickoff prompts for kickoff-stack items (one file per item, `git rm`'d in the PR that ships the item) | Alignment walkthrough; consumed at project kickoff |
 | `reference/decisions/` | Durable decision records + index | `oat decision` |
 | `reference/project-summaries/` | Completion records for shipped projects | Project lifecycle |
+| `reference/explainers/` | Durable explainers and authored recap source packages | Explainer workflows |
 | `reference/research/` | Evidence inputs by topic (read-only history) | Research workflows |
 | `reference/external-plans/` | Imported provider/external plans | Ad hoc |
 
