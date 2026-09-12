@@ -55,7 +55,7 @@
     "autoReviewAtHillCheckpoints": true,
     "retro": {
       "filing": {
-        "repo": "none",
+        "repo": "backlog",
         "upstream": "issues"
       },
       "apply": "ask",
