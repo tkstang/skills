@@ -1173,6 +1173,28 @@ provider-recorded cwd are identical strings on symlinked temp roots. Export
 
 ---
 
+### Task p03-t19: (review) Reject noncanonical UUID identity evidence
+
+**Dependencies:** p03-t18.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/types.ts`
+- Modify: `tests/coding-session-handoff/types.test.ts`
+- Modify: `tests/coding-session-handoff/handoff.test.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**Step 1: Understand:** I1 in `reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md`: case-insensitive UUID validation plus case-sensitive identity comparisons admits equivalent parent/child identities. The existing same-parent fixture is not a valid UUID.
+
+**Step 2: Implement:** Require canonical lowercase UUID evidence at the existing shared validation boundary, without rewriting provider IDs or introducing another identity abstraction. Replace the invalid equality fixture with a valid UUID. Add mixed-case production, disposable-gate, and receipt/schema regressions proving fail-closed behavior and no false mapping/passing receipt. Preserve valid lowercase distinct-successor coverage, current version policy, and inherited deferrals. No live provider calls.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/types.ts tests/coding-session-handoff/types.test.ts tests/coding-session-handoff/handoff.test.ts tests/coding-session-handoff/behavior-gate.test.ts`; do not format generated output. This also resolves m1's existing callback-layout issue in the same test file; both findings are grouped into this single bounded task.
+
+**Verify:** Demonstrate new behavioral regressions fail before the fix, then run `pnpm exec vitest run tests/coding-session-handoff && pnpm run type-check && pnpm run build && pnpm run build:check && git diff --check` and changed-authored-file lint/format checks.
+
+**Commit:** `fix(p03-t19): require canonical UUID identity evidence`
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their
@@ -1560,7 +1582,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t16 | code | passed | 2026-09-08 | reviews/archived/p03-t16-review-2026-09-08T220043Z.md | d15fd662d1baf5ff26cc6ccd09925212a8f9ff46 | manual | - |
 | p03 | code | fixes_completed | 2026-09-05 | reviews/p03-review-2026-09-05T202836Z.md | 9db197fe765e18c4c925a9792097c473437f2e84 | manual | - |
 | p03 | code | passed | 2026-09-05 | reviews/p03-review-2026-09-05T204213Z.md | 238f0513e41b35ecc4293268f7bcbeb5c1308d2b | manual | - |
-| p03-t17-t18 | code | pending | 2026-09-12 | reviews/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
+| p03-t17-t18 | code | fixes_added | 2026-09-12 | reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1572,10 +1594,9 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-The t17/t18 event is pending formal receipt, not pending review execution: its
-completed artifact requests changes (I1 UUID casing, m1 test formatting). The current
-execution head `37d955c` is tree-equivalent to its reviewed handoff code. No additional
-fix/re-review cycle or live gate is authorized by this ledger event.
+The t17/t18 review was received in Run 28: I1 and m1 convert to t19.
+The user explicitly authorized exactly one bounded fix/re-review cycle, with no live
+provider operation. Existing review-cap usage and inherited deferrals are preserved.
 
 Reviewers receive bounded scope and do not edit source. Raw provider receipts never
 enter this table or Git; redacted review artifacts may record their SHA-256 digests.
@@ -1591,13 +1612,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 18 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, three gate-observability repairs, bounded native-executable hashing, observed Claude successor identity, and canonical gate fixture paths
+- p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 38 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 39 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 38 tasks have exactly one verified commit,
+Implementation is complete only when all 39 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

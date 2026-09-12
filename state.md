@@ -1,5 +1,5 @@
 ---
-oat_current_task: p04-t02
+oat_current_task: p03-t19
 oat_last_commit: 37d955cbb76ddb49150ec900bf7035ba9914f5b1
 oat_blockers: ["p03-t17/t18 review requests changes: I1 UUID casing bypasses parent-distinctness; formal receipt and one bounded fix/re-review need authorization", "p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: pr_open # Status: in_progress | complete | pr_open
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 oat_dispatch_policy:
   mode: managed
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation complete through p03-t18; targeted t17/t18 review requests changes (I1).
+Implementation complete through p03-t18; authorized p03-t19 fix and one re-review in progress (Run 28).
 Root entry gates p04-t01 and p04-t02 still block activation.
 
 ## Artifacts
@@ -109,7 +109,7 @@ Root entry gates p04-t01 and p04-t02 still block activation.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (34/38 tasks implemented; p01/p02 complete, p03 latest t17/t18 review requests changes)
+- **Implementation:** `implementation.md` (34/39 tasks implemented; p01/p02 complete, p03-t19 resolves I1 and m1 before one authorized re-review)
 
 ## Progress
 
@@ -286,9 +286,9 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-1. Obtain authorization to receive the t17/t18 review and perform one bounded
-   I1 identity-comparison fix, m1 formatting correction, and independent re-review.
-   The observed-successor design/spec alignment is already complete.
+1. Execute the now-authorized p03-t19 fix for I1/m1 and exactly one independent
+   re-review. The source review is archived; its event is fixes_added. The
+   observed-successor design/spec alignment is already complete.
 2. After that review passes and with fresh user authorization only: make exact
    Claude 2.1.251 available on this Mini and run its mutation-free `behavior-plan`,
    followed only by a separately authorized single `behavior-verify` for p04-t02.

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: ["p03-t17/t18 targeted review requests changes: I1 UUID casing bypasses parent-distinct guard; bounded receive/fix/re-review authorization required", "p04-t01 inconclusive at native-identity-missing", "p04-t02 repairs unproven live; fresh exact-version plan and separately authorized verify required"]
 oat_last_updated: 2026-09-12
-oat_current_task_id: p04-t02
+oat_current_task_id: p03-t19
 oat_generated: false
 ---
 
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | changes requested | 18 | 18/18     |
+| p03   | fix in progress | 19 | 18/19     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 34/38 implementation tasks completed; latest p03 review and all four entry gates remain outstanding.
+**Total:** 34/39 implementation tasks completed; p03-t19 and one authorized re-review precede all four entry gates.
 
 ---
 
@@ -944,6 +944,22 @@ independently verified before p04-t01 can safely execute.
 - Runtime availability: read-only filesystem metadata identifies active Codex 0.154.0 and Claude 2.1.270 on this Mini. Cached Codex 0.151.0 exists, while Claude 2.1.251 was not found in the checked installed-version directory. No help/auth/version/session provider command was executed. Existing exact-version guards remain unchanged; using newer versions requires a separately agreed contract update and fresh proof.
 - Diagnostic clarification: the recorded Codex failure is the disposable parent call, before fork; `native-identity-missing` means the parser recognized no accepted stdout identity event, not that the provider necessarily created no session or emitted no identity on another surface. No output-shape hypothesis has been verified live.
 - Review reconciliation: root inspected the validator and parent-distinct comparisons and mechanically confirmed the mixed-case UUID mismatch with synthetic input. I1 is accepted as requiring a bounded fix; m1 is nonblocking formatting. Existing 204 handoff tests pass but the equality fixture is not a valid UUID, so it misses the relevant branch. No code fix, formal review receipt, new fix task, or re-review was started; prior three-cycle governance and explicit-override history were not reset. Next request is authorization to receive this review and perform one bounded fix/re-review cycle before any live operation.
+
+### Run 28 — 2026-09-12
+
+- Authorization: user confirmed receipt of the t17/t18 review and exactly one bounded fix/re-review cycle for I1 and m1. No live Claude/Codex help, version, authentication, session, gate, or cleanup command is authorized. No feature-branch push or PR mutation is authorized. Existing review-cap history remains unchanged.
+- Review received: `reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md`, manual code review at `42803fc7076ca9019522a935818c0107e976ced7`; 0 Critical, 1 Important, 0 Medium, 1 Minor. I1 is accepted as a code fix (Moderate scope); m1 is accepted formatting cleanup (Negligible scope). Both convert to p03-t19 because they touch the same bounded test area. No findings are deferred or dismissed.
+- Ledger correction: the prior completed review had been labeled pending; current CLI source requires received for actionable review discovery. Corrected that exact event monotonically before resolving/receiving it; no historical review was replaced.
+- Root-inline phase p03-t19: bounded shared-validator and synthetic-regression repair stays in the current root because the historical Claude phase handle/exact target cannot be resumed or reconstructed honestly. This is an explicit Tier 1 topology deviation, not a new claim of producer identity. Root model/effort are not exposed as launcher-owned telemetry; the independent reviewer will use the exact resolved native target. No implementation child or replacement is launched.
+- Minimum fix: reject noncanonical uppercase/mixed-case UUID evidence at the existing shared boundary rather than normalize IDs across every consumer. Provider values are never rewritten. Valid lowercase IDs and parent-distinct checks remain unchanged.
+- Completion: pending code, regression verification, one independent review, and durable bookkeeping. Synced project publication uses `--no-refresh-pr`.
+
+### Task p03-t19: (review) Reject noncanonical UUID identity evidence
+
+**Status:** in_progress
+**Findings:** I1 and m1 from the archived t17/t18 review.
+**Commit:** pending
+**Review:** exactly one independent re-review authorized, not yet launched.
 
 <!-- orchestration-runs-end -->
 
