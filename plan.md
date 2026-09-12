@@ -1193,7 +1193,7 @@ provider-recorded cwd are identical strings on symlinked temp roots. Export
 
 **Verify:** Demonstrate new behavioral regressions fail before the fix, then run `pnpm exec vitest run tests/coding-session-handoff && pnpm run type-check && pnpm run build && pnpm run build:check && git diff --check` and changed-authored-file lint/format checks.
 
-**Commit:** `fix(p03-t19): require canonical UUID identity evidence`
+**Commit:** `fix(p03-t19): require canonical UUID identity evidence` (`12cf6edffb12e2e201d1586aa7a049bbd666e633`)
 
 ## Root-owned entry gates between p03 and p05
 
@@ -1582,7 +1582,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t16 | code | passed | 2026-09-08 | reviews/archived/p03-t16-review-2026-09-08T220043Z.md | d15fd662d1baf5ff26cc6ccd09925212a8f9ff46 | manual | - |
 | p03 | code | fixes_completed | 2026-09-05 | reviews/p03-review-2026-09-05T202836Z.md | 9db197fe765e18c4c925a9792097c473437f2e84 | manual | - |
 | p03 | code | passed | 2026-09-05 | reviews/p03-review-2026-09-05T204213Z.md | 238f0513e41b35ecc4293268f7bcbeb5c1308d2b | manual | - |
-| p03-t17-t18 | code | fixes_added | 2026-09-12 | reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
+| p03-t17-t18 | code | fixes_completed | 2026-09-12 | reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |

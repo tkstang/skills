@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t19
-oat_last_commit: 37d955cbb76ddb49150ec900bf7035ba9914f5b1
+oat_current_task: p04-t02
+oat_last_commit: 12cf6edffb12e2e201d1586aa7a049bbd666e633
 oat_blockers: ["p03-t17/t18 review requests changes: I1 UUID casing bypasses parent-distinctness; formal receipt and one bounded fix/re-review need authorization", "p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-12T21:40:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-12T21:56:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation complete through p03-t18; authorized p03-t19 fix and one re-review in progress (Run 28).
+Implementation complete through p03-t19; the one authorized independent re-review is pending (Run 28).
 Root entry gates p04-t01 and p04-t02 still block activation.
 
 ## Artifacts
@@ -109,7 +109,7 @@ Root entry gates p04-t01 and p04-t02 still block activation.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (34/39 tasks implemented; p01/p02 complete, p03-t19 resolves I1 and m1 before one authorized re-review)
+- **Implementation:** `implementation.md` (35/39 tasks implemented; p01/p02 complete, p03-t19 resolves I1 and m1 subject to one authorized re-review)
 
 ## Progress
 
@@ -286,8 +286,8 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-1. Execute the now-authorized p03-t19 fix for I1/m1 and exactly one independent
-   re-review. The source review is archived; its event is fixes_added. The
+1. Complete exactly one independent re-review of p03-t19 at `12cf6edf`.
+   The source review is archived; its event is fixes_completed. The
    observed-successor design/spec alignment is already complete.
 2. After that review passes and with fresh user authorization only: make exact
    Claude 2.1.251 available on this Mini and run its mutation-free `behavior-plan`,
