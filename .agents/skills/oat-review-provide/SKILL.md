@@ -1,6 +1,5 @@
 ---
 name: oat-review-provide
-version: 1.2.3
 description: Use when you need an ad-hoc review outside an active OAT project lifecycle. Reviews code or artifacts without project phase state, unlike oat-project-review-provide.
 argument-hint: '[unstaged|staged|base_branch=<branch>|base_sha=<sha>|<sha1>..<sha2>|--files <path1,path2,...>] [--output <path>] [--mode auto|local|tracked|inline]'
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.2.4
 ---
 
 # Ad-Hoc Review

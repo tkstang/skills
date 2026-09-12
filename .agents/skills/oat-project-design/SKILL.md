@@ -1,12 +1,12 @@
 ---
 name: oat-project-design
-version: 2.3.1
 description: Use when discovery is complete and implementation-ready decisions are needed. Runs a collaborative, selective collaborative, or draft-and-review design flow, confirms requirements and produces both `spec.md` and `design.md`, and commits artifacts before the user-review gate.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 2.3.5
 ---
 
 # Design Phase
@@ -404,6 +404,20 @@ Draft `design.md` section-by-section (Collaborative mode) or in a single pass (D
 11. **Implementation Phases** — Break work into manageable phases (1-3 days each). Per-phase structure: Goal, Tasks (high-level), Verification.
 12. **Risks and Mitigation** — For each significant risk: Probability | Impact; Mitigation; Contingency.
 
+**Standing invariants (Error Handling and Testing Strategy):** when a section
+states a standing invariant — an "every", "always", "only", ordering, or
+completeness claim expected to hold for the life of the feature — name its
+executable owner and its verification method in the same design: the specific
+test or check that fails when the claim breaks, and how that failure surfaces.
+Route a claim decidable from tracked files to a contract test, and a claim that
+depends on execution state or ordering to the code that owns the operation and
+emits a structured result. A point-in-time observation about today's codebase
+needs a citation, not an owner. Record the owner beside the error category it
+guards, or in the Requirement-to-Test Mapping row it belongs to. The full
+taxonomy, stable-identity, and same-PR rules live in the `create-oat-skill`
+skill; do not restate them here. Changing this paragraph means updating its
+contract case in `packages/cli/src/validation/skills.test.ts` in the same PR.
+
 ### Step 4a: Selective Review Pass
 
 If `DESIGN_MODE == "selective"`, classify every section before drafting and present the Section Review Plan to the user. Use `.agents/skills/oat-project-design/references/selective-review-pass.md` for the full signal set, grounding rules, edge cases, and dogfood notes.
@@ -644,14 +658,19 @@ Wait for user response:
 After artifact finalization and any configured HiLL approval, run the configured
 gate as the last check before the completion boundary:
 
-1. Resolve the gate for this skill:
+1. Resolve the gate for this skill with project context:
 
    ```bash
-   oat gate resolve <this-skill> --json
+   oat gate resolve <this-skill> --project "$PROJECT_PATH" --json
    ```
 
-   If the command returns JSON `null`, no gate is configured; proceed directly
-   to the completion steps in Step 8 below.
+   Handle all three `resolution` values explicitly:
+   - `not_configured`: no gate is configured; proceed directly to the completion steps in Step 8 below.
+   - `configured`: continue with the steps below, executing `effectiveGate` exactly as configured.
+   - `configured_disabled_by_project`: unreachable for this skill. Per-project override keys are accepted only for `oat_gateable` skills, and this skill is not one, so a configured gate here applies to every project and no project override can disable it. Treat this value as an unexpected result and fail closed as unresolved.
+
+   A null, missing, malformed, or unrecognized result is an operational failure
+   that fails closed as unresolved. Never treat it as "no gate configured."
 
 2. Export the resolved project path into the command shell:
 
@@ -660,11 +679,18 @@ gate as the last check before the completion boundary:
    ```
 
    If the resolved command invokes `oat gate review`, the configured review
-   command must already include `--project "$PROJECT_PATH"` and must not include
-   `--target <id>`. A valid reusable shape is
-   `oat gate review --project "$PROJECT_PATH" ...`. If the declaration is
-   missing, stop and migrate the stored gate command; do not inject or append
-   arguments at execution time.
+   command must already include `--project "$PROJECT_PATH"` as part of the
+   structured-output contract. Its canonical form is:
+
+   ```bash
+   oat --json gate review --project "$PROJECT_PATH" ...
+   ```
+
+   This requires global `--json` before `gate review`. Reusable declarations
+   must not include
+   `--target <id>`. Reject `oat gate review ...` without the global `--json`
+   placement. Stop and migrate an invalid stored declaration before execution;
+   never inject or append execution-time argv.
 
 3. Execute the resolved command exactly as configured. Capture stdout, stderr,
    the exit code, and the structured JSON result. A zero exit code means the

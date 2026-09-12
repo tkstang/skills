@@ -3,6 +3,7 @@
     "index",
     "session-observer",
     "session-observer-collab",
-    "export-session-transcript"
+    "export-session-transcript",
+    "complexity-review"
   ]
 }

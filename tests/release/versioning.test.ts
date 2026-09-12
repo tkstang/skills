@@ -29,6 +29,7 @@ const jsonFiles = [
   '.agents/plugins/marketplace.json',
 ];
 const skillFiles = [
+  'skills/complexity-review/SKILL.md',
   'skills/session-observer/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
   'skills/export-session-transcript/SKILL.md',
@@ -214,6 +215,7 @@ describe('release-versioning', () => {
       'plugins/consensus/skills/phone-a-friend/SKILL.md',
       'plugins/consensus/skills/plan/SKILL.md',
       'plugins/consensus/skills/refine/SKILL.md',
+      'skills/complexity-review/SKILL.md',
       'skills/export-session-transcript/SKILL.md',
       'skills/session-observer-collab/SKILL.md',
       'skills/session-observer/SKILL.md',

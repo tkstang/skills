@@ -4,6 +4,7 @@
 
 ### Added
 
+- `complexity-review` standalone instruction-only skill for judging whether a plan, design, implementation, skill, prompt, or workflow's complexity is justified by its contract: restates the contract and minimum proof, establishes the simplest viable baseline, inventories complexity including process ceremony, applies the deletion test, and reports a keep/simplify/defer/delete ledger with graded evidence and reintroduction triggers.
 - `consensus-create` skill for generating a new artifact from a brief with v3 defaults (`independent_draft`, `parallel_synthesized`, `maximum`), optional templates, generated runtime output, bundled brief examples, a deliberation log, and `consensus-resolution` metadata including peer and synthesis call counts.
 - `consensus-decide` skill for choosing between documented options with v3 defaults (`independent_draft`, `parallel_synthesized`, `minimal`), required markdown headings including `## Dissent / Unresolved Disagreement`, generated runtime output, bundled options examples, a deliberation log, and `consensus-resolution` metadata.
 - `consensus-plan` skill for turning a goal and inline constraints into a structured markdown plan with v3 defaults (`independent_draft`, `parallel_synthesized`, `moderate`), required `## Steps`, `## Dependencies`, and `## Risks` headings, generated runtime output, bundled goal examples, a deliberation log, and `consensus-resolution` metadata.

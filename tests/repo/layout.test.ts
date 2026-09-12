@@ -41,14 +41,17 @@ async function listFiles(relativePath: string): Promise<string[]> {
 
 describe('repo-layout', () => {
   it('keeps the canonical public standalone skill set explicit', async () => {
-    const standaloneSkills = (await readdir(new URL('skills/', root), {
-      withFileTypes: true,
-    }))
+    const standaloneSkills = (
+      await readdir(new URL('skills/', root), {
+        withFileTypes: true,
+      })
+    )
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .toSorted();
 
     expect(standaloneSkills).toEqual([
+      'complexity-review',
       'export-session-transcript',
       'session-observer',
       'session-observer-collab',

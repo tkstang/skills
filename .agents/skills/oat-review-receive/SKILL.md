@@ -1,12 +1,12 @@
 ---
 name: oat-review-receive
-version: 1.4.0
 description: Use when processing review findings outside project context. Converts local review artifacts into actionable task lists.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.4.1
 ---
 
 # Review Receive (Ad-hoc Local)

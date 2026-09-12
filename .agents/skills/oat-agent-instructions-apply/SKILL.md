@@ -1,12 +1,12 @@
 ---
 name: oat-agent-instructions-apply
-version: 1.7.0
 description: Run when you have an agent instructions analysis artifact and want to generate or update instruction files. Creates a branch, generates files from templates, and optionally opens a PR.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash(git:*), Bash(gh:*), Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.7.2
 ---
 
 # Agent Instructions Apply

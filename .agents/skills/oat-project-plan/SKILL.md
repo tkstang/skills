@@ -1,6 +1,5 @@
 ---
 name: oat-project-plan
-version: 1.4.5
 description: Use when design.md is complete and executable implementation tasks are needed. Breaks design into bite-sized TDD tasks in canonical plan.md format.
 oat_gateable: true
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.4.11
 ---
 
 # Planning Phase
@@ -16,17 +16,20 @@ Transform detailed design into an executable implementation plan with bite-sized
 
 ## Prerequisites
 
-This skill is the plan authoring path for **spec-driven** projects only. Quick and import modes have dedicated entry skills that produce `plan.md` directly.
+This skill is the plan authoring path for **spec-driven** projects only. Quick,
+import, and lite modes have dedicated entry skills that produce `plan.md`
+directly.
 
 Read `oat_workflow_mode` from `{PROJECT_PATH}/state.md` (default: `spec-driven`):
 
-- **`spec-driven`**: Complete design document required (`design.md` with `oat_status: complete`). If missing, run the `oat-project-design` skill first. Proceed with planning.
-- **`quick`**: **Stop.** Plan is already produced by the quick workflow. Tell the user: "Plan already produced by quick workflow. Run `oat-project-implement` to begin execution."
+- **`spec-driven`**: Complete design document required (`design.md` with `oat_status: complete`). If missing, **Stop.** Tell the user: "Run the `oat-project-design` skill first, then return to planning." Otherwise proceed with planning.
+- **`quick`**: **Stop.** Spec-driven planning does not apply here: the quick workflow authors `plan.md` itself and owns it through its own review disposition. Step 1 routes the project by the named **quick plan readiness** predicate instead of assuming the plan is finished.
 - **`import`**: **Stop.** If a normalized `plan.md` exists, tell the user: "Imported plan is ready. Run `oat-project-implement` to begin execution." If no `plan.md` exists, tell the user: "Run `oat-project-import-plan` to import and normalize the external plan first."
+- **`lite`**: **Stop.** Tell the user: "Lite planning is owned by `oat-project-lite`; run it to author or resume the combined plan contract."
 
 ## Plan Format Contract
 
-When creating or editing `plan.md`, follow `oat-project-plan-writing` canonical format rules. This includes stable task IDs (`pNN-tNN`), required sections (`## Reviews`, `## Implementation Complete`, `## References`), required frontmatter keys (`oat_plan_source`, `oat_status`, `oat_ready_for`), and review table preservation rules. `oat_plan_hill_phases` remains optional until `oat-project-implement` confirms the checkpoint selection.
+When creating or editing `plan.md`, load the current `oat-project-plan-writing/SKILL.md` and follow its canonical format rules. This includes stable task IDs (`pNN-tNN`), required sections (`## Reviews`, `## Implementation Complete`, `## References`), required frontmatter keys (`oat_plan_source`, `oat_status`, `oat_ready_for`), and review table preservation rules. `oat_plan_hill_phases` remains optional until `oat-project-implement` confirms the checkpoint selection.
 
 ## Mode Assertion
 
@@ -112,11 +115,46 @@ PROJECTS_ROOT="${PROJECTS_ROOT%/}"
 WORKFLOW_MODE=$(oat project status --field project.workflowMode 2>/dev/null || echo null)
 ```
 
-**Mode: `quick`** — **STOP.** Print:
+**Mode: `quick`** — **STOP.** Spec-driven planning does not apply: the quick
+workflow owns `plan.md` from discovery through the review disposition it records
+at its Step 3.7, so this skill never authors, finishes, or reviews a quick plan.
+It still has to say where the project continues, and a quick plan that is not
+implementation-ready must not be handed to implementation. Decide the
+continuation with the named **quick plan readiness** predicate: load
+`oat-project-quick-start/SKILL.md` and apply that predicate as written to
+`"$PROJECT_PATH/plan.md"`, rather than restating or re-deriving its conditions
+here.
+
+**Not implementation-ready** (the predicate fails; substantive tasks alone never
+satisfy it). Print:
 
 ```
-⚠️  This project uses quick mode. Plan is produced by the quick workflow.
-    Run the `oat-project-implement` skill to begin execution.
+⚠️  This project uses quick mode and its plan is not implementation-ready.
+    Spec-driven planning does not apply — the quick workflow finishes its own
+    plan in place, without re-scaffolding the project.
+
+    Continue with: oat-project-quick-start
+```
+
+Then load `oat-project-quick-start/SKILL.md` and follow its Step 0.5 resume
+branch. Exit skill.
+
+**Implementation-ready** (every predicate condition holds). Print:
+
+```
+⚠️  This project uses quick mode and its plan is implementation-ready.
+
+    Continue with: oat-project-implement
+```
+
+Then load `oat-project-implement/SKILL.md` and follow it to begin execution.
+Exit skill.
+
+**Mode: `lite`** — **STOP.** Print:
+
+```
+⚠️  This project uses lite mode. Run `oat-project-lite` to author or resume
+    its combined requirements and single-phase plan.
 ```
 
 Exit skill.
@@ -285,8 +323,6 @@ git commit -m "feat(p{NN}-t{NN}): {description}"
 ```
 ````
 
-````
-
 ### Step 8: Apply TDD Discipline
 
 For each task that involves code:
@@ -297,6 +333,7 @@ For each task that involves code:
 4. **Refactor:** Clean up while tests pass
 
 **Task order for features:**
+
 1. Write test file
 2. Run tests (red)
 3. Write implementation
@@ -306,6 +343,7 @@ For each task that involves code:
 ### Step 9: Specify Exact Details
 
 For each task, include:
+
 - **Files:** Exact paths for create/modify/delete
 - **Signatures:** Interface definitions, function signatures, type declarations
 - **Test cases:** Test file paths and test descriptions (pseudocode OK for test bodies)
@@ -313,6 +351,7 @@ For each task, include:
 - **Commit:** Conventional commit message with task ID (e.g., `feat(p01-t03): ...`)
 
 **Avoid:**
+
 - Vague instructions ("update the file")
 - Missing verification steps
 - Verification shortcuts that claim file-scoped coverage but actually run a broader suite
@@ -324,6 +363,7 @@ For each task, include:
 Go back to spec.md and fill in the "Planned Tasks" column in the Requirement Index:
 
 For each requirement (FR/NFR):
+
 - List the stable task IDs that implement it
 - Example: "p01-t03, p02-t01, p02-t05"
 
@@ -331,7 +371,8 @@ This creates traceability: Requirement → Tasks → Implementation
 
 ### Step 10.1: Keep Reviews Table Rows
 
-Follow the review table preservation rules from `oat-project-plan-writing`:
+Load the current `oat-project-plan-writing/SKILL.md` and follow its review table preservation rules:
+
 - Include both **code** rows (p01/p02/…/final) and **artifact** rows (`spec`, `design`, `plan`)
 - Add additional rows as needed (e.g., p03), but never delete existing rows
 
@@ -344,6 +385,7 @@ Do **not** ask the user to choose HiLL checkpoints during planning.
 Unless the source artifact or user already supplied a confirmed `oat_plan_hill_phases` value that should be preserved, leave `oat_plan_hill_phases` unset in `plan.md` during planning. `oat-project-implement` will confirm the checkpoint choice at implementation start and write the chosen value before task execution begins.
 
 **Required plan body update (do not skip):**
+
 - In `## Planning Checklist`, mark:
   - `[x] Defer HiLL checkpoint confirmation to oat-project-implement`
 - If a legacy checklist item such as `Confirmed HiLL checkpoints with user` exists, replace it with:
@@ -355,7 +397,9 @@ If `## Planning Checklist` is missing (older plans), add it before finalizing wi
 
 Before marking the plan ready for implementation, invoke the
 `Complete Dispatch Ladder Adoption Contract` from
-`oat-project-plan-writing` and then resolve the project named ceiling.
+`oat-project-plan-writing` — load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written — and
+then resolve the project named ceiling.
 
 #### A. Ensure a complete owned ladder
 
@@ -426,6 +470,7 @@ unresolved and block readiness.
 ### Step 12: Review Plan with User
 
 Present plan summary:
+
 - Number of phases
 - Tasks per phase
 - Key milestones
@@ -459,7 +504,8 @@ Never silently infer parallelism without explicit user confirmation.
 
 After the confirmed plan has stable phase IDs and before Step 12.5 starts the
 plan artifact review, invoke the `Shared Phase Gate Review Setup Contract` from
-`oat-project-plan-writing`.
+`oat-project-plan-writing`: load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written.
 
 When that contract offers a choice, render its required question verbatim:
 "Should an additional cross-runtime phase gate review run after implementation
@@ -477,10 +523,31 @@ This Phase gate review setup is independent from HiLL checkpoints. Do not read o
 change HiLL fields here, and do not add a provider/model `--target` to any
 lifecycle command.
 
+### Step 12.35: Configure Lifecycle Gate Posture
+
+After the confirmed plan has stable phase IDs and before Step 12.5 starts the
+plan artifact review, invoke the `Shared Lifecycle Gate Posture Setup Contract` from
+`oat-project-plan-writing`: load the current
+`oat-project-plan-writing/SKILL.md` and follow that contract as written. This
+runs adjacent to, but independently from, the phase gate review setup above.
+
+If `"$PROJECT_PATH/state.md"` already contains an explicit
+`oat_skill_gate_overrides` map, preserve it through the shared contract without
+probing, prompting, or mutation. Otherwise let the contract probe the configured
+gate-aware skills and offer a keep-or-disable choice for each configured gate
+independently.
+
+Persist only disabled choices, and only in `"$PROJECT_PATH/state.md"`. Keeping
+every gate leaves the map absent. Never modify the shared, local, or user
+configuration layers, and never prompt or write a new map in non-interactive
+mode.
+
 ### Step 12.5: Run Plan Artifact Review Loop
 
 Before dispatching the artifact reviewer, invoke the `Managed Dispatch
-Readiness and Review Contract` from `oat-project-plan-writing`:
+Readiness and Review Contract` from `oat-project-plan-writing` — load the
+current `oat-project-plan-writing/SKILL.md` and follow that contract as
+written:
 
 ```bash
 oat project dispatch-ceiling resolve --provider "$ACTIVE_PROVIDER" --role reviewer --preflight --json
@@ -491,7 +558,7 @@ If managed resolution or the complete ladder is unresolved, return to Step
 resolver. Do not mark the spec-driven plan ready while either contract is
 unresolved.
 
-Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before setting `plan.md` to implementation-ready.
+Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before setting `plan.md` to implementation-ready. Load the current `oat-project-plan-writing/SKILL.md` and follow that loop as written.
 
 Required payload:
 
@@ -532,13 +599,19 @@ Apply the shared loop exactly:
 After the plan artifact is finalized and reviewed, run the configured gate as
 the last check before the completion boundary:
 
-1. Resolve the gate for this skill:
+1. Resolve the gate for this skill with project context:
 
    ```bash
-   oat gate resolve <this-skill> --json
+   oat gate resolve <this-skill> --project "$PROJECT_PATH" --json
    ```
 
-   If the command returns JSON `null`, no gate is configured; proceed directly to the completion steps in Step 13 below.
+   Handle all three `resolution` values explicitly:
+   - `not_configured`: no gate is configured; proceed directly to the completion steps in Step 13 below.
+   - `configured_disabled_by_project`: the operator disabled this configured gate for this project. Do not launch any process. Emit `configured but disabled by project override`, including the project path and the `projectOverride` source from the envelope, then proceed directly to the completion steps in Step 13 below. A project-disabled gate never enters the passed, missing, or failed branches, and its `configuredGate` is evidence only, never executed.
+   - `configured`: continue with the steps below, executing `effectiveGate` exactly as configured.
+
+   A null, missing, malformed, or unrecognized result is an operational failure
+   that fails closed as unresolved. Never treat it as "no gate configured."
 
 2. Export the resolved project path into the command shell:
 
@@ -546,7 +619,13 @@ the last check before the completion boundary:
    export PROJECT_PATH
    ```
 
-   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` and must not include `--target <id>`. A valid reusable shape is `oat gate review --project "$PROJECT_PATH" ...`. If the declaration is missing, stop and migrate the stored gate command; do not inject or append arguments at execution time.
+   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` as part of the structured-output contract. Its canonical form is:
+
+   ```bash
+   oat --json gate review --project "$PROJECT_PATH" ...
+   ```
+
+   This requires global `--json` before `gate review`. Reusable declarations must not include `--target <id>`. Reject `oat gate review ...` without the global `--json` placement. Stop and migrate an invalid stored declaration before execution; never inject or append execution-time argv.
 
 3. Resolve the current planning parent's model identity from session context.
    When that identity is non-empty and the resolved configured command invokes
@@ -593,20 +672,22 @@ Reach this completion boundary only after the configured gate passes or resolves
 according to its `onFailure` policy.
 
 Before setting `oat_status: complete`, verify:
+
 - `## Planning Checklist` exists
 - the checklist records that checkpoint confirmation is deferred to implementation
 - if `oat_plan_hill_phases` is already present, it is intentionally preserved and valid
 - the `plan` artifact review row has been recorded by Step 12.5, unless `workflow.autoArtifactReview.plan` was explicitly disabled
 
 Update frontmatter:
+
 ```yaml
 ---
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: {today}
+oat_last_updated: { today }
 ---
-````
+```
 
 ### Step 14: Update Project State
 

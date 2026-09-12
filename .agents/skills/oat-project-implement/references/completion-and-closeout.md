@@ -192,7 +192,9 @@ If `OAT_AUTONOMOUS=1`, do not present a review-execution choice. Resolve the
 exact reviewer target through the project dispatch substrate, select the
 highest target-preserving route before launch, and run
 `oat-project-review-provide code final` followed immediately by
-`oat-project-review-receive`.
+`oat-project-review-receive`. Run each of those by loading its current
+`SKILL.md` and following it, or by dispatching a child that carries it; a
+remembered review or receive outcome does not satisfy this step.
 
 - If receive creates fix tasks, return through the normal bounded implement and
   re-review loop.
@@ -240,7 +242,7 @@ REVIEW_MODEL=$(oat config get workflow.reviewExecutionModel 2>/dev/null || true)
 ```
 
 - **If `REVIEW_MODEL` is `subagent`:** Print `Review execution: subagent (from workflow.reviewExecutionModel).` Dispatch the review subagent directly via the Task tool. No prompt.
-- **If `REVIEW_MODEL` is `inline`:** Honor it only when the inline route satisfies the verified-equivalent-controls or documented-exception guard. Otherwise use the exact/pinned route or block. When allowed, print `Review execution: inline (from workflow.reviewExecutionModel).` and run the review in-context per `oat-project-review-provide`.
+- **If `REVIEW_MODEL` is `inline`:** Honor it only when the inline route satisfies the verified-equivalent-controls or documented-exception guard. Otherwise use the exact/pinned route or block. When allowed, print `Review execution: inline (from workflow.reviewExecutionModel).` and run the review in-context by loading the current `oat-project-review-provide/SKILL.md` and following it in this context.
 - **If `REVIEW_MODEL` is `fresh-session`:** This is a **soft preference with escape hatch** because the agent cannot run the review in a fresh session on the user's behalf. Print the guidance block below, then handle the user's response per the three outcomes listed after it.
 - **If unset or invalid:** Fall through to the standard 3-tier prompt below.
 
@@ -313,10 +315,11 @@ generation as a sibling of `oat_post_implement_sequence`:
 oat_implement_exit_gate:
   status: pending # pending | allowed | blocked | stale
   resolution: configured # configured | no_gate
-  disposition: null # null | passed | warned | prompt_approved | no_gate
+  disposition: null # null | passed | warned | prompt_approved | project_disabled | no_gate
   config_fingerprint: '<stable hash of the resolved declaration>'
   resolved_command: null
   resolved_description: null
+  project_override: null # null or {value: disabled, source: state.md:oat_skill_gate_overrides}
   on_failure: block # block | prompt | warn | null
   max_attempts: 2
   attempts_completed: 0
@@ -350,12 +353,33 @@ oat_implement_exit_gate:
 At the start of a new closeout generation, require a current passed final
 lifecycle review, capture `reviewed_head`, and compute a deterministic
 `implementation_fingerprint` from the gate-reviewed basis. Resolve
-`workflow.gates.skills.oat-project-implement` once. Canonically serialize the
-resolved command, description, `onFailure`, and `maxAttempts` to derive
+`workflow.gates.skills.oat-project-implement` once with project context, so a
+configured gate this project disabled is never mistaken for absent
+configuration. Canonically serialize the resolved command, description,
+`onFailure`, `maxAttempts`, and the resolved project override state to derive
 `config_fingerprint`; persist the complete resolved inputs with `status:
 pending` before any gate launch. Missing state means unresolved, never no gate.
-A `null` resolution persists `allowed/no_gate` with `disposition: no_gate`,
-null run/artifact/receive provenance, and the current implementation basis.
+A `not_configured` resolution persists `allowed/no_gate` with
+`disposition: no_gate`, null run/artifact/receive provenance, and the current
+implementation basis. Only that resolution may produce a no-gate success: a
+null, missing, malformed, or unrecognized resolver result is an operational
+failure that fails closed as unresolved and never as no gate.
+
+A `configured_disabled_by_project` resolution persists `allowed/configured`
+with `disposition: project_disabled`. It sets `resolved_command` to the
+configured command as evidence that is never executed, keeps null gate-run,
+artifact, and receive provenance because nothing launched, keeps
+`launch_state: not_started`, and records a `project_override` sub-record with
+`value: disabled` and `source: state.md:oat_skill_gate_overrides`. Completion
+stays allowed because the operator chose the project override; every other
+closeout freshness and snapshot rule is unchanged. A project-disabled gate must
+never enter the passed, missing, or failed branches.
+
+Because `config_fingerprint` covers the resolved override state as well as the
+configured declaration, removing the override from `state.md` changes the
+fingerprint. A stored `project_disabled` transition is therefore invalidated
+and can never be reused as a fresh `allowed` result once the gate is
+re-enabled; the re-enabled gate requires a new configured generation.
 
 New generations persist `implementation_fingerprint` as
 `sha256:effective-delta-v1:<digest>`. Resolve the logical integration base from
@@ -457,6 +481,8 @@ artifact paths, exact Reviews event identity, and `receive_pre_head` before
 invoking receive. `receive_correlation` binds the gate run ID, handoff, source
 artifact, scope, type, and source filename; set `receive_state:
 intent_persisted` and commit it before calling `oat-project-review-receive`.
+Calling receive means loading the current `oat-project-review-receive/SKILL.md`
+and following it, or dispatching a child that carries it.
 
 On normal return or resume from `intent_persisted`, reconcile all three durable
 receipt components:
@@ -516,6 +542,16 @@ disposition.
   configured-gate provenance when configured, an unchanged immutable
   implementation fingerprint, a valid rolling freshness checkpoint, and any
   eligible receive marked complete.
+- An `allowed/configured` result carrying `disposition: project_disabled` is
+  revalidated before it is reused, because the override lives in the state
+  carrier that the implementation fingerprint deliberately excludes. Re-resolve
+  the gate with project context, recompute `config_fingerprint` from that
+  current resolution, and require both that the current resolution is still
+  `configured_disabled_by_project` and that the recomputed fingerprint equals
+  the persisted one. Any other current resolution, including a re-enabled
+  `configured` gate, or any fingerprint mismatch marks the generation `stale`
+  and requires a new configured generation. Reproducing the fingerprint from
+  the persisted inputs alone never satisfies this check.
 - Closeout-only descendants include configured gate artifacts and receipts,
   project tracking, `project-log.md` appends, summary/documentation/PR sequence
   outputs, final HiLL bookkeeping, and completion bookkeeping. Classify
@@ -561,12 +597,14 @@ completion, or success output, run the configured gate:
    the gate for this skill:
 
    ```bash
-   oat gate resolve oat-project-implement --json
+   oat gate resolve oat-project-implement --project "$PROJECT_PATH" --json
    ```
 
-   Persist the resolution and configuration fingerprint before launch. If the
-   command returns JSON `null`, persist the allowed no-gate transition; no gate
-   is configured; proceed directly to the completion steps in Step 15 below.
+   Persist the resolution and configuration fingerprint before launch, then
+   handle all three `resolution` values explicitly:
+   - `not_configured`: persist the allowed no-gate transition; no gate is configured; proceed directly to the completion steps in Step 15 below.
+   - `configured_disabled_by_project`: persist the allowed project-disabled transition described above without launching any process, and proceed directly to the completion steps in Step 15 below.
+   - `configured`: continue with the launch steps below.
 
 2. Export the resolved project path into the command shell:
 
@@ -671,10 +709,65 @@ require `oat_implement_exit_gate` to remain allowed and fresh. If it becomes
 stale, malformed, pending, or blocked, persist/retain that state, stop the
 sequence, and resume through `oat-project-implement`.
 
-Identify the final implementation phase from the plan. A final HiLL checkpoint
-exists when `oat_plan_hill_phases` is `[]` (every phase) or when it explicitly
-contains that final phase ID. Defer only a checkpoint on the final implementation
-phase; non-final checkpoint behavior remains unchanged.
+For `oat_workflow_mode: lite`, there is no final HiLL approval step. A passed
+final review and allowed implementation exit gate proceed directly to closeout
+with `approval: not_required`; do not read
+`oat_plan_hill_phases`, ask for approval, or invoke the autonomous approval
+branch. Set `final_checkpoint_exists = false`,
+`awaiting_approval_reachable = false`, and
+`autonomous_approval_reachable = false`. Per-phase review and final review
+remain unchanged.
+
+Use this executable contract before any generic checkpoint or preference
+resolution:
+
+```bash
+# BEGIN LITE CLOSEOUT RESOLUTION CONTRACT
+if [ "$WORKFLOW_MODE" = "lite" ]; then
+  if [ "${PHASE_REVIEW_STATUS:-}" != "passed" ] || [ "${FINAL_REVIEW_STATUS:-}" != "passed" ]; then
+    echo "oat: lite closeout requires passed phase and final reviews" >&2
+    exit 65
+  fi
+  FINAL_CHECKPOINT_EXISTS="false"
+  APPROVAL="not_required"
+  AWAITING_APPROVAL_REACHABLE="false"
+  AUTONOMOUS_APPROVAL_REACHABLE="false"
+  PROJECT_RECAP_REACHABLE="false"
+  ORDERED_CLOSEOUT=("phase-review" "final-review")
+  PRE_APPROVAL=()
+  for STEP in ${LITE_PRE_APPROVAL:-}; do
+    case "$STEP" in
+      summary|document|pr)
+        ALREADY_PRESENT="false"
+        for PRESENT in "${PRE_APPROVAL[@]}"; do
+          [ "$PRESENT" = "$STEP" ] && ALREADY_PRESENT="true"
+        done
+        [ "$ALREADY_PRESENT" = "true" ] || PRE_APPROVAL+=("$STEP")
+        ;;
+    esac
+  done
+  PR_PRESENT="false"
+  for PRESENT in "${PRE_APPROVAL[@]}"; do
+    [ "$PRESENT" = "pr" ] && PR_PRESENT="true"
+  done
+  [ "$PR_PRESENT" = "true" ] || PRE_APPROVAL+=("pr")
+  POST_APPROVAL=()
+  ORDERED_CLOSEOUT+=("${PRE_APPROVAL[@]}" "complete")
+fi
+# END LITE CLOSEOUT RESOLUTION CONTRACT
+```
+
+The contract intentionally does not read `OAT_PLAN_HILL_PHASES`,
+`GENERIC_PRE_APPROVAL`, `GENERIC_POST_APPROVAL`, or `OAT_AUTONOMOUS` in its
+lite branch. After it resolves lite, skip every generic checkpoint,
+preference-resolution, awaiting-approval, and autonomous-approval algorithm
+below.
+
+For non-lite workflows only, identify the final implementation phase from the
+plan. A final HiLL checkpoint exists when `oat_plan_hill_phases` is `[]` (every
+phase) or when it explicitly contains that final phase ID. Defer only a
+checkpoint on the final implementation phase; non-final checkpoint behavior
+remains unchanged.
 
 Run final verification (Step 12). Final review must be `passed` and the
 configured implementation exit gate in Step 14 must be allowed before any
@@ -682,8 +775,9 @@ pre-approval dispatch. If final checkpoint auto-review is enabled, Step 8 has
 already run `oat-project-review-provide code final`; do not run a duplicate
 final review here.
 
-Read the effective `workflow.postImplementSequence` once. For a configured
-legacy or structured preference, normalize legacy values before snapshotting:
+For non-lite workflows, read the effective `workflow.postImplementSequence`
+once. For a configured legacy or structured preference, normalize legacy
+values before snapshotting:
 `wait` → `{ preApproval: [], postApproval: [] }`, `summary` →
 `{ preApproval: ["summary"], postApproval: [] }`, `pr` → `{ preApproval:
 ["summary", "pr"], postApproval: [] }`, and `docs-pr` → `{ preApproval:
@@ -691,8 +785,28 @@ legacy or structured preference, normalize legacy values before snapshotting:
 These legacy mappings remain unchanged. Structured preferences additionally
 accept `retro` in `postApproval`; `retro` is invalid in `preApproval`.
 
-If `OAT_AUTONOMOUS=1` and the preference is unset, use the inventory's
-autonomous lifecycle-tail default:
+For `oat_workflow_mode: lite`, the earlier resolution contract preempts that
+normalization. The generic `workflow.postImplementSequence` value is not a lite
+opt-in to summary or documentation. Supply only the explicit
+`workflow.postImplementSequence.lite.preApproval` override as
+`LITE_PRE_APPROVAL` for those opt-ins:
+
+- The default with no lite-specific override is `[pr]`.
+- Filter a lite-specific override to `summary`, `document`, and `pr`, remove
+  duplicates while retaining its order, and append `pr` when it is absent. For
+  example, `[summary, pr]` remains unchanged.
+- Resolve `postApproval` to `[]`. A lite closeout never includes `retro`, even
+  when the generic preference or autonomous default includes it.
+
+This transformation applies in interactive and autonomous execution alike.
+Persist the resulting arrays as the immutable sequence snapshot and set
+`approval: not_required`; the lite-specific override changes optional work,
+not the absence of a HiLL approval checkpoint. The generic configured and
+autonomous-default preference resolution immediately below applies only to
+non-lite workflows; it must not overwrite the lite transformation.
+
+For non-lite workflows, if `OAT_AUTONOMOUS=1` and the preference is unset, use
+the inventory's autonomous lifecycle-tail default:
 
 ```yaml
 preApproval: [summary, document, pr]
@@ -739,7 +853,10 @@ including a partially completed noncanonical order.
 
 For every pending `summary`, `document`, `pr`, or `retro`, dispatch respectively
 `oat-project-summary`, `oat-project-document`, `oat-project-pr-final`, or
-`oat-project-retro`. Dispatch `retro` in generate mode; apply and filing
+`oat-project-retro`. Immediately before each of those steps, load that step's
+current `SKILL.md` and follow it, or dispatch a child that carries it; a
+remembered outcome from an earlier run or an ambiently discovered copy does not
+satisfy the step. Dispatch `retro` in generate mode; apply and filing
 behavior remains config-gated inside that skill. Every `summary`, `document`,
 `pr`, and `retro` child receives the authoritative snapshot and must merge state
 updates without replacing `oat_post_implement_sequence`.
@@ -762,13 +879,49 @@ checkpoint protocol to gate bookkeeping, final HiLL bookkeeping, and completion
 bookkeeping. A mixed commit, missing child transition, or non-state path in the
 checkpoint-persistence commit fails closed as stale.
 
-**Implementation-Tail Project Recap:**
+**Implementation-Tail Project Recap (non-lite only):**
 
 The final-closeout orchestrator owns one project-recap gate. Run this recap gate after the final code review has passed and configured pre-approval summary/document steps have completed, but before final HiLL approval. Preserve the stored order of all other pre-approval steps and the existing final review sequence; the recap gate does not replace or repeat either.
 
+This entire project-recap subsection applies only to non-lite workflows. For
+lite, do not resolve recap intent, inspect recap runs, invoke
+`oat-explainer-kit`, run the terminal-outcome guard, or let recap block
+closeout. The lite contract sets `PROJECT_RECAP_REACHABLE=false` and proceeds
+from the required reviews through its stored optional steps to `pr` and
+sequence completion.
+
 Before generating, inspect the active project's explainer runs. A fresh `project-recap` manifest for the current completed implementation deduplicates the lifecycle-tail run: reuse it and do not invoke the adapter again. Fresh means the manifest identifies recipe `project-recap`, belongs to this project, has a terminal outcome, and its recorded source hashes match the current approved implementation inputs. A merely present, incomplete, wrong-recipe, or stale manifest does not satisfy this check.
 
-Resolve recap intent through `oat-explainer-kit`. When `OAT_AUTONOMOUS=1` and no fresh recap exists, attempt `project-recap` exactly once; missing or stale persisted intent cannot suppress this autonomous attempt. Interactive mode honors the adapter's resolved persisted or workflow intent.
+Probe seam availability before resolving intent. Call
+`oat-explainer-kit/scripts/probe-recap-seams.mjs#probeRecapSeams` in
+`mode: unattended` with the exact seam inputs this tail would pass. The probe is
+pure and covers all five required seams — author, fact critic, browser session,
+visual critic, and set planner — so a host missing only the set planner is
+detected here instead of at the adapter's `E_SET_PLANNER_REQUIRED`. Pass the
+result to autonomous intent resolution as `seamProbe`. The resolver accepts a
+`seamProbe` only for autonomous `projectRecap`, so interactive resolution keeps
+its existing inputs and its recorded human decision.
+
+Resolve recap intent through `oat-explainer-kit`. When `OAT_AUTONOMOUS=1` and no fresh recap exists, run this recap gate exactly once; missing or stale persisted intent cannot suppress this autonomous gate. In autonomy, attempt the adapter run exactly once and only when the seam probe resolves every required seam and intent resolves to `generate`; an interactive `generate` still attempts the run regardless of the probe result, and a seam-less interactive attempt is still the `failed` outcome it is today. The autonomy gate and the interactive rule are two separate rules and are never read as one. Interactive mode honors the adapter's resolved persisted or workflow intent.
+
+In autonomy, a probe result of `seams-unavailable` means no provider is
+configured for a required seam. Autonomous resolution then returns a recordable
+`skip` with source `capability_probe`: record it with the warning, do not invoke
+the adapter, and continue closeout. That probe-driven skip record supersedes the
+intent resolved and persisted earlier in this run for the remainder of the run:
+persist it through the same `oat-explainer-kit` intent-persistence helper with a
+freshly captured state hash, and pass the skip — not the earlier `generate` — to
+the terminal-outcome guard as `--intent skip --skip-reason capability_probe`.
+Passing the superseded `generate` with no manifest raises `E_RECAP_OUTCOME` and
+blocks approval, which is the exact failure this gate exists to prevent. Interactive closeout is unchanged: a
+recorded interactive `generate` still attempts the recap and a run that fails
+for a missing seam is still the `failed` outcome it is today. An unattended completion on a host with no explainer seams
+configured never blocks final HiLL approval on a missing recap, and this skip is
+resolved before any run, never from a failed one. A probe result of
+`seams-invalid` means a seam is supplied but violates a resolution rule: report
+the configuration error and fail closed exactly as an invalid seam does today.
+Never convert a configured-but-invalid seam, or a run that failed after a
+passing probe, into a skip; that run stays `failed`.
 
 Invoke the `oat-explainer-kit` adapter first, then run its shared tracked-run finalizer in `dedicated` mode for a successful build. Use the adapter result and finalizer result as returned; do not improvise commits, durability evidence, or reruns. Outcomes `failed` and `built-not-durable` are recorded warnings, never blockers for final HiLL approval, completion reporting, or later PR steps.
 For an adapter invocation, construct exactly one brief-aware,
@@ -780,10 +933,12 @@ alongside the existing `critic` callback (or validated
 `mode: unattended`.
 
 Always include the selected or attempted recap's outcome and run path in the
-implementation completion report. If `summary.md` exists, append or refresh its
-single concise `Explainer Outcome` section using the manifest and build record;
-never append a second outcome section. If no recap was attempted or reused,
-leave the summary unchanged.
+implementation completion report. Report a probe-driven skip as `skipped` with
+its reason and the unavailable seams instead of an outcome and run path. If
+`summary.md` exists, append or refresh its single concise `Explainer Outcome`
+section using the manifest and build record, or the recorded skip when no run
+exists; never append a second outcome section. If no recap was attempted,
+reused, or recorded as skipped, leave the summary unchanged.
 
 Before recording final approval, invoke the shared
 `oat-explainer-kit/scripts/check-terminal-outcome.mjs` guard with the resolved
@@ -791,7 +946,15 @@ intent and, for `generate`, the selected or attempted manifest. The only
 terminal generated outcomes are `built-durable`, `built-not-durable`,
 `built-needs-review`, and `failed`. Missing records and `incomplete` block
 approval; do not substitute a warning or infer an outcome from filesystem
-presence. A `skip` intent requires no manifest.
+presence. A `skip` intent requires no manifest; pass its recorded source as
+`--skip-reason` so the receipt states why no recap exists.
+
+**Lite completion algorithm:** Dispatch incomplete `pre_approval` steps in
+stored order, retain `approval: not_required`, keep both approval reachability
+flags false, and commit `status: complete` when they finish. Do not enter the
+generic checkpoint or autonomous algorithms below.
+
+**Non-lite approval algorithm:**
 
 1. Dispatch incomplete `pre_approval` steps in stored order.
 2. When they succeed and a final checkpoint exists, commit `status:
@@ -812,8 +975,8 @@ awaiting_approval` with `approval: pending` before asking for final HiLL
 
 **Autonomous final HiLL approval:**
 
-When `OAT_AUTONOMOUS=1`, gate `IMPLEMENT-16` replaces only the approval question
-in steps 2-4:
+For non-lite workflows only, when `OAT_AUTONOMOUS=1`, gate `IMPLEMENT-16`
+replaces only the approval question in steps 2-4:
 
 1. Require the final review row to be `passed` and verify its review artifact
    and dispatch record. A failed blocking review or unresolved Critical finding
@@ -832,10 +995,11 @@ approval, destructive-change risk, or missing-credential boundary. When
 autonomy is inactive, the explicit user approval/decline/defer behavior above
 is unchanged.
 
-If the preference is unset and autonomy is inactive, do not create a sequence
-snapshot. Retain the existing next-step prompt only after final approval when a
-final checkpoint is configured. Under autonomy, the default snapshot above
-always resolves the unset case.
+For non-lite workflows, if the preference is unset and autonomy is inactive,
+do not create a sequence snapshot. Retain the existing next-step prompt only
+after final approval when a final checkpoint is configured. Under autonomy,
+the default snapshot above always resolves the unset case. The lite branch
+always snapshots its deterministic `[pr]` default.
 
 ### Step 16: Mark Implementation Complete
 
@@ -921,6 +1085,8 @@ Choose:
 ```
 
 **If user chooses sequence (a or b):**
+
+Immediately before each numbered step below, load that named skill's current `SKILL.md` and follow it, or dispatch a child that carries it; never substitute a remembered outcome.
 
 1. Invoke `oat-project-summary` to generate summary.md
 2. If docs selected: invoke `oat-project-document`

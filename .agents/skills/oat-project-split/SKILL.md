@@ -1,6 +1,5 @@
 ---
 name: oat-project-split
-version: 1.1.0
 description: Use when a discovery or brainstorm should split one broad scope into coordinated OAT child projects.
 argument-hint: '--plan-file <path>'
 disable-model-invocation: true
@@ -8,6 +7,7 @@ user-invocable: true
 allowed-tools: Read, Write, Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
 metadata:
   internal: true
+  version: 1.1.1
 ---
 
 # Split OAT Project

@@ -1,12 +1,12 @@
 ---
 name: oat-project-next
-version: 1.0.12
 description: Use when continuing work on the active OAT project. Reads project state, determines the next lifecycle action, and invokes the appropriate skill automatically.
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), Bash(oat:*), Skill
 metadata:
   internal: true
+  version: 1.1.2
 ---
 
 # Project Next
@@ -108,12 +108,14 @@ projects, and synced records whose detached checkout is absent.
 - **The `projects` array is empty:** Report error and suggest:
   - `oat-project-new` — Create a spec-driven project
   - `oat-project-quick-start` — Start a quick workflow project
+  - `oat-project-lite` — Start a lite workflow project
   - `oat-project-import-plan` — Import an external plan
   - **STOP.** Do not attempt routing.
 
 - **The `projects` array is non-empty but the active pointer is missing or
   invalid:** Show the available project names with their `scope` and `checkout`
-  state, then invoke `oat-project-open` so the user selects an existing
+  state, then invoke `oat-project-open` by loading the current
+  `oat-project-open/SKILL.md` and following it, so the user selects an existing
   project. An absent-checkout synced record and a local-only project both take
   this selection route; never suggest creating a replacement project. **STOP**
   this router after the selection workflow returns so the next invocation can
@@ -125,15 +127,16 @@ projects, and synced records whose detached checkout is absent.
 
 Read `"$PROJECT_PATH/state.md"` frontmatter and extract:
 
-| Field                     | Used For                                                                     |
-| ------------------------- | ---------------------------------------------------------------------------- |
-| `oat_phase`               | Current lifecycle position (discovery, spec, design, plan, implement)        |
-| `oat_phase_status`        | Phase completion state (in_progress, complete, pr_open)                      |
-| `oat_workflow_mode`       | Routing table selection (spec-driven, quick, import). Default: `spec-driven` |
-| `oat_hill_checkpoints`    | Which phases require HiLL approval                                           |
-| `oat_hill_completed`      | Which HiLL gates have been passed                                            |
-| `oat_blockers`            | Informational warnings (not routing gates)                                   |
-| `oat_implement_exit_gate` | Whether the implementation exit gate is allowed and fresh                    |
+| Field                     | Used For                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `oat_phase`               | Current lifecycle position (discovery, spec, design, plan, implement)                        |
+| `oat_phase_status`        | Phase completion state (in_progress, complete, pr_open)                                      |
+| `oat_workflow_mode`       | Routing table selection (spec-driven, quick, import, lite). Default: `spec-driven`           |
+| `oat_hill_checkpoints`    | Which phases require HiLL approval                                                           |
+| `oat_hill_completed`      | Which HiLL gates have been passed                                                            |
+| `oat_blockers`            | Informational warnings (not routing gates)                                                   |
+| `oat_implement_exit_gate` | Whether the implementation exit gate is allowed and fresh                                    |
+| `oat_lifecycle`           | Terminal status (active, paused, complete). `complete` is the terminal signal Step 5.2 reads |
 
 **If state.md is missing or unreadable:** Report error and suggest running the relevant phase skill directly. STOP.
 
@@ -165,12 +168,22 @@ Apply the following tiers in order:
 
 - `oat_status == "complete"` AND `oat_ready_for` is not null
 - → Use `oat_ready_for` as the target skill
+- Exception: in quick mode at the `plan` phase, the Quick Mode table's
+  `Quick Plan Readiness` column decides the target. A tier-1 quick plan that
+  fails readiness returns to the quick workflow, and `oat_ready_for` is not
+  followed on its own.
 
 **Tier 1b (Complete without target):**
 
 - `oat_status == "complete"` AND `oat_ready_for` is null
 - → Route to the NEXT phase's skill (the artifact is complete, so advance)
 - This handles cases where a phase skill completed the artifact but didn't set `oat_ready_for`.
+- Exception: in quick mode at the `plan` phase, a tier-1b artifact is evaluated
+  against **quick plan readiness** like every other plan-phase classification.
+  Tier 1b means `oat_ready_for` is null, so readiness always fails, so it
+  returns to the quick workflow instead of advancing to the next phase's skill.
+  This state is reachable when the Step 3.7 frontmatter write is interrupted or
+  after a hand edit, and it must not reach implementation unchecked.
 
 **Tier 2 (Substantive content):**
 
@@ -238,21 +251,51 @@ Otherwise, look up the target skill from the routing table for the current `oat_
 
 **Quick Mode:**
 
-| Current Phase | Phase Status | Boundary Tier | Target Skill               |
-| ------------- | ------------ | ------------- | -------------------------- |
-| discovery     | in_progress  | tier 3        | `oat-project-discover`     |
-| discovery     | in_progress  | tier 2        | `oat-project-plan`         |
-| discovery     | complete     | tier 1        | `oat-project-plan`         |
-| plan          | in_progress  | tier 3        | `oat-project-quick-start`  |
-| plan          | in_progress  | tier 2        | `oat-project-implement` \* |
-| plan          | complete     | tier 1        | `oat-project-implement` \* |
-| implement     | in_progress  | —             | `oat-project-implement` \* |
+| Current Phase | Phase Status | Boundary Tier | Quick Plan Readiness | Target Skill               |
+| ------------- | ------------ | ------------- | -------------------- | -------------------------- |
+| discovery     | in_progress  | tier 3        | —                    | `oat-project-discover`     |
+| discovery     | in_progress  | tier 2        | —                    | `oat-project-plan`         |
+| discovery     | complete     | tier 1        | —                    | `oat-project-plan`         |
+| plan          | in_progress  | tier 3        | not ready            | `oat-project-quick-start`  |
+| plan          | in_progress  | tier 2        | not ready            | `oat-project-quick-start`  |
+| plan          | in_progress  | tier 1        | not ready            | `oat-project-quick-start`  |
+| plan          | in_progress  | tier 1        | ready                | `oat-project-implement` \* |
+| plan          | complete     | tier 1        | not ready            | `oat-project-quick-start`  |
+| plan          | complete     | tier 1        | ready                | `oat-project-implement` \* |
+| plan          | any          | tier 1b       | not ready (always)   | `oat-project-quick-start`  |
+| implement     | in_progress  | —             | —                    | `oat-project-implement` \* |
+
+The `Quick Plan Readiness` column applies to the `plan` phase only, and only
+after the boundary tier has already been classified by Step 2, so tier semantics
+are unchanged: it discriminates the two `plan` outcomes that would otherwise
+share one tier. A tier-2 or tier-1 quick plan is no longer assumed ready, and a
+tier-1 plan whose readiness fails is returned to the quick workflow rather than
+advanced. Both recorded phase statuses carry a tier-1 pair of rows, so a plan
+artifact that has already advanced past the `state.md` phase status still
+matches a route instead of falling through the table. Tier 1b carries one row
+under either phase status because a null `oat_ready_for` can never satisfy
+readiness. Readiness is the named **quick plan readiness** predicate: load
+`oat-project-quick-start/SKILL.md` and apply it as written to
+`{PROJECT_PATH}/plan.md` instead of restating its conditions here, and never
+infer readiness from the presence of substantive tasks. A `not ready` result
+resumes the quick workflow in place: load `oat-project-quick-start/SKILL.md` and
+follow its Step 0.5 resume branch. Spec-driven planning is not the recovery path
+for a quick project.
 
 **Import Mode:**
 
 | Current Phase | Phase Status | Boundary Tier | Target Skill               |
 | ------------- | ------------ | ------------- | -------------------------- |
 | plan          | in_progress  | tier 3        | `oat-project-import-plan`  |
+| plan          | in_progress  | tier 2        | `oat-project-implement` \* |
+| plan          | complete     | tier 1        | `oat-project-implement` \* |
+| implement     | in_progress  | —             | `oat-project-implement` \* |
+
+**Lite Mode:**
+
+| Current Phase | Phase Status | Boundary Tier | Target Skill               |
+| ------------- | ------------ | ------------- | -------------------------- |
+| plan          | in_progress  | tier 3        | `oat-project-lite`         |
 | plan          | in_progress  | tier 2        | `oat-project-implement` \* |
 | plan          | complete     | tier 1        | `oat-project-implement` \* |
 | implement     | in_progress  | —             | `oat-project-implement` \* |
@@ -303,7 +346,8 @@ unresolved or stale — resume with `oat-project-implement` before
 post-implementation routing."
 
 Only an `allowed` and fresh exit-gate disposition falls through to the normal
-post-implementation checks.
+post-implementation checks. Every other combination keeps its current
+fail-closed routing.
 
 Validate freshness from the complete persisted transition, not from `status`
 alone:
@@ -317,6 +361,32 @@ alone:
   `implementation_fingerprint`, configured gate-run provenance, and any eligible
   receive durably completed. Qualified state also requires the complete rolling
   freshness fields.
+- `allowed/configured` with `disposition: project_disabled` is the third valid
+  combination. Null gate-run and artifact provenance is required here, not
+  merely tolerated: nothing launched, so any non-null launch provenance is
+  contradictory and fails closed. It additionally requires a matching
+  `config_fingerprint`, `reviewed_head`, and `implementation_fingerprint`, a
+  `project_override` sub-record recording the disabled value and its
+  `state.md:oat_skill_gate_overrides` source, and the same rolling-freshness
+  rules as every other allowed result. The complete accepted shape is
+  `resolved_command` set to the configured command, `launch_state:
+not_started`, null `launch_attempt_id`, `launch_started_at`,
+  `launch_result_receipt`, `gate_run_marker`, `gate_run_id`, `envelope_status`,
+  `artifact`, and `handoff`, plus `receive_state: not_started`,
+  `receive_correlation`, `receive_source_artifact`,
+  `receive_archived_artifact`, `receive_event_identity`, `receive_pre_head`,
+  and `receive_commit` all null, `receive_eligible: false`,
+  `receive_completed: false`, `attempts_completed: 0`, and `failure: null`.
+  Any populated launch, receive, attempt, or failure field contradicts a gate
+  that never ran and fails closed.
+- Because the override lives in the state carrier the implementation
+  fingerprint excludes, a persisted `project_disabled` result is never accepted
+  on its stored value alone. Re-resolve the gate with project context and
+  require that the current resolution is still `configured_disabled_by_project`
+  and that `config_fingerprint` recomputed from that current resolution equals
+  the persisted one. A re-enabled gate changes the resolution and the
+  fingerprint, so an override-era transition routes as stale and a fresh
+  configured run is required.
 - `pending`, `blocked`, malformed, contradictory, or legacy-absent state never
   falls through. Pending and blocked generations resume their persisted
   configuration; configuration-fingerprint mismatch fails closed.
@@ -330,8 +400,9 @@ alone:
   a valid `freshness_fingerprint`. Exactly one merge base and 64-character
   lowercase hexadecimal implementation/freshness digests are mandatory.
   Missing or malformed inputs route as stale. When HEAD differs from
-  `freshness_head`, use the full raw Git byte algorithm from
-  `oat-project-implement` with only its literal state-carrier exclusion. Verify
+  `freshness_head`, use the full raw Git byte algorithm read from the current
+  `oat-project-implement/SKILL.md`, with only its literal state-carrier
+  exclusion, rather than a remembered version of that algorithm. Verify
   and ignore state-only checkpoint commits before classification. An unchanged
   qualified fingerprint preserves freshness across a merge, rebase, or base
   update but routes to `oat-project-implement` to persist the advanced rolling
@@ -354,6 +425,17 @@ in project state. When the snapshot exists and is incomplete, route to
 or a summary exists. A completed snapshot falls through to the normal router.
 
 **5.2: Incomplete revision tasks**
+
+Read `oat_lifecycle` from `state.md` before grepping anything. When
+`oat_lifecycle` is `complete`, revision phases are historical: skip this check
+and fall through to 5.3, and do not route to `oat-project-implement` even when
+`p-revN` tasks are still marked incomplete. Lifecycle is the only terminal
+signal here — neither a null current task nor a `complete` or `pr_open`
+`oat_phase_status` is terminal, because an active project reaches both while it
+still owns pending revision work. The guard is workflow-mode independent: it
+applies identically to `spec-driven`, `quick`, `import`, and `lite` projects.
+
+For every other `oat_lifecycle` value the check below is unchanged.
 
 Grep plan.md for `p-revN` phases. If any `p-revN` tasks exist with status != completed in implementation.md:
 → Route to `oat-project-implement`
@@ -396,6 +478,12 @@ Ignore matching rows outside `REVIEWS_SECTION`; they are not review events.
 
 - If `FINAL_ROW` has `Status="passed"`:
   → Continue to 5.5
+
+**Lite closeout route:** If `oat_workflow_mode: lite`, a passed final review
+routes directly to `oat-project-pr-final` before the summary check below.
+Announce: "Final review passed — creating final PR". Optional lite summary or
+documentation work is owned by the immutable implementation closeout snapshot,
+not this fallback router.
 
 **5.5: Summary not done**
 
@@ -440,7 +528,7 @@ Reason: {one-line explanation}
 
 The router still dispatches (blockers are informational, not gates).
 
-**Invoke the target skill** using the Skill tool. The agent will load the skill content and follow it directly.
+**Invoke the target skill** using the Skill tool. Invoking the target means loading the target skill's current `SKILL.md` and following it directly, or dispatching a child that carries it; a remembered outcome or ambient discovery is not compliant. This step, not the Step 5 routing decisions, is this router's execution boundary.
 
 ## Success Criteria
 

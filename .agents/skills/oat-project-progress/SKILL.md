@@ -1,12 +1,12 @@
 ---
 name: oat-project-progress
-version: 1.3.0
 description: Use when the user explicitly asks to check OAT project progress — e.g. "check progress", "what's next", "where are we", or confirms a previously offered progress check. Do NOT auto-invoke just because a workflow step completed. Reads project status and offers the next route.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), Bash(oat:*), AskUserQuestion
 metadata:
   internal: true
+  version: 1.4.2
 ---
 
 # Progress Router
@@ -162,6 +162,7 @@ No active projects.
 Start a new project:
   oat-project-new - Create a spec-driven project scaffold
   oat-project-quick-start - Start a quick workflow project
+  oat-project-lite - Start a lite workflow (interview -> plan -> implement)
   oat-project-import-plan - Import an external markdown plan into OAT
 ```
 
@@ -173,10 +174,12 @@ Read `{project}/state.md` frontmatter:
 
 - `oat_phase` - Current phase
 - `oat_phase_status` - in_progress or complete
-- `oat_workflow_mode` - spec-driven | quick | import
+- `oat_workflow_mode` - spec-driven | quick | import | lite
 - `oat_blockers` - Any blockers
 - `oat_hill_checkpoints` - Configured gates (e.g., `["discovery", "spec", "design"]`)
 - `oat_hill_completed` - Completed HiLL checkpoints
+- `oat_skill_gate_overrides` - Configured lifecycle gates this project
+  deliberately disabled, keyed by gate-aware skill name
 
 **Display format:**
 
@@ -188,9 +191,18 @@ Read `{project}/state.md` frontmatter:
    HiLL Gates: {oat_hill_checkpoints}
    Completed: {oat_hill_completed as checkmarks}
    HiLL Pending: {yes/no for current phase}
+   Gate Overrides: {gate-aware skill keys from oat_skill_gate_overrides, or "None"}
    Blockers: {oat_blockers or "None"}
    Next: {recommended_skill}
 ```
+
+Report every active override by its gate-aware skill key, so a deliberately
+disabled lifecycle gate is visible to reviewers rather than silently absent.
+An override is project posture recorded in `state.md`; it never changes shared,
+local, or user configuration, and it is not a gate outcome. Show an override
+even when no gate is currently configured for that skill, and never infer a
+configured gate from an override alone. This is read-only reporting: never add,
+remove, or repair the map here.
 
 ### Step 5: Determine Next Skill
 
@@ -201,6 +213,7 @@ Read `oat_workflow_mode` from `state.md` frontmatter:
 - `spec-driven` (default if missing)
 - `quick`
 - `import`
+- `lite`
 
 **HiLL override (apply before phase routing):**
 
@@ -265,17 +278,36 @@ Routing matrix by mode:
 | --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | discovery | in_progress      | Continue `oat-project-discover`                                                                                                     |
 | discovery | complete         | `oat-project-plan`                                                                                                                  |
-| plan      | in_progress      | Continue `oat-project-plan`                                                                                                         |
-| plan      | complete         | `oat-project-implement`                                                                                                             |
+| plan      | in_progress      | Continue `oat-project-quick-start` when the plan is not implementation-ready; otherwise `oat-project-implement`                     |
+| plan      | complete         | `oat-project-implement` when the plan is implementation-ready; otherwise `oat-project-quick-start`                                  |
 | implement | in_progress      | Continue `oat-project-implement`. If drift detected (see drift detection above), also mention `oat-project-reconcile` as an option. |
 | implement | complete         | Ready for final review / PR                                                                                                         |
 | implement | pr_open          | `oat-project-complete`                                                                                                              |
+
+**Quick plan readiness.** "Implementation-ready" in the two `plan` rows above is
+the named **quick plan readiness** predicate, defined once beside Step 3.7 of the
+quick workflow. Load `oat-project-quick-start/SKILL.md` and apply that predicate
+as written to `{PROJECT_PATH}/plan.md`; do not restate or re-derive its
+conditions here, and never read the presence of substantive tasks as readiness on
+its own. A not-ready quick plan is not a dead end and does not need spec-driven
+planning: load `oat-project-quick-start/SKILL.md` and follow its Step 0.5 resume
+branch, which finishes the plan in place without re-scaffolding the project.
 
 **Import mode (`oat_workflow_mode: import`):**
 
 | oat_phase | oat_phase_status | Next Skill                                                                                                                          |
 | --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | plan      | in_progress      | Continue `oat-project-import-plan`                                                                                                  |
+| plan      | complete         | `oat-project-implement`                                                                                                             |
+| implement | in_progress      | Continue `oat-project-implement`. If drift detected (see drift detection above), also mention `oat-project-reconcile` as an option. |
+| implement | complete         | Ready for final review / PR                                                                                                         |
+| implement | pr_open          | `oat-project-complete`                                                                                                              |
+
+**Lite mode (`oat_workflow_mode: lite`):**
+
+| oat_phase | oat_phase_status | Next Skill                                                                                                                          |
+| --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| plan      | in_progress      | Continue `oat-project-lite` when the plan is still tier 3; otherwise `oat-project-implement`                                        |
 | plan      | complete         | `oat-project-implement`                                                                                                             |
 | implement | in_progress      | Continue `oat-project-implement`. If drift detected (see drift detection above), also mention `oat-project-reconcile` as an option. |
 | implement | complete         | Ready for final review / PR                                                                                                         |
@@ -303,9 +335,10 @@ Knowledge:
   oat-repo-knowledge-index             - Generate/refresh codebase knowledge base
 
 Workflow:
+  oat-project-lite              - Start a lite workflow (interview -> plan -> implement)
   oat-project-quick-start       - Start a quick workflow (discover -> plan -> implement)
   oat-project-import-plan       - Import an external markdown plan and normalize plan.md
-  oat-project-promote-spec-driven - Promote quick/import project to spec-driven lifecycle
+  oat-project-promote-spec-driven - Promote quick/import/lite project to spec-driven lifecycle (lite promotes via quick)
   oat-project-discover          - Start discovery phase (requirements gathering)
   oat-project-design            - Confirm requirements + create technical design (folds spec authoring inline)
   oat-project-spec              - Optional standalone specification (most projects skip this — design handles it)
