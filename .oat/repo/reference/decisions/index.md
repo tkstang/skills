@@ -9,6 +9,7 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260912-separate-forks-and-handoffs | 2026-09-12 | accepted | Separate forks and handoffs | - |
 | DR-260724-content-availability-is-not | 2026-07-24 | accepted | Content availability is not completion | - |
 | DR-260724-gate-capability-claims | 2026-07-24 | accepted | Gate capability claims on evidence | - |
 | DR-260724-separate-observation | 2026-07-24 | accepted | Separate observation and collaboration cursors | - |
