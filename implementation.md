@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p04-t02 inconclusive at evidence-validation: Claude successor reported a valid session ID that did not match the pre-generated child ID"]
-oat_last_updated: 2026-09-08
-oat_current_task_id: null
+oat_blockers: ["p03-t17 and p03-t18 independent review pending", "p04-t01 inconclusive at native-identity-missing", "p04-t02 repairs unproven live; fresh exact-version plan and separately authorized verify required"]
+oat_last_updated: 2026-09-12
+oat_current_task_id: p04-t02
 oat_generated: false
 ---
 
 # Implementation: coding-session-handoff
 
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-12
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -28,11 +28,11 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | completed   | 16    | 16/16     |
+| p03   | review pending | 18 | 18/18     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
-**Total:** 32/36 tasks completed
+**Total:** 34/38 implementation tasks completed; latest p03 review and all four entry gates remain outstanding.
 
 ---
 
@@ -223,8 +223,9 @@ Important finding. That targeted review passed with 0 Critical, 0 Important, 0 M
 and 0 Minor findings. The three earlier Medium findings remain outside scope and
 explicitly deferred. The p03-t13 targeted review's single Medium diagnostic finding was
 fixed by p03-t14; the user waived re-review, so the event is `fixes_completed` rather
-than `passed`. Phase p03 implementation is complete at 15/15 tasks after p03-t15; its
-standard independent review is pending explicit authorization.
+than `passed`. Phase p03 implementation is complete at 18/18 tasks through p03-t18;
+p03-t16 has a passing targeted review, and t17/t18 now await the independent targeted
+review authorized on 2026-09-12. Historical review outcomes above remain unchanged.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -303,8 +304,21 @@ standard independent review is pending explicit authorization.
 
 ### Task p03-t16: (gate) Hash pinned native executables within bounded resources
 
-**Status:** completed; awaiting independent review
+**Status:** completed
 **Commit:** `d15fd662d1baf5ff26cc6ccd09925212a8f9ff46`
+**Review:** passed; `reviews/archived/p03-t16-review-2026-09-08T220043Z.md`.
+
+### Task p03-t17: (gate) Corroborate the observed Claude successor identity
+
+**Status:** completed
+**Commit:** `2c3a8358f5bd95fc76fa8629d42299be12c75428`
+**Review:** pending; independent targeted review authorized on 2026-09-12.
+
+### Task p03-t18: (gate) Canonicalize disposable gate fixture paths
+
+**Status:** completed
+**Commit:** `42803fc7076ca9019522a935818c0107e976ced7`
+**Review:** pending; review together with p03-t17.
 
 ---
 
@@ -912,6 +926,16 @@ independently verified before p04-t01 can safely execute.
 - Evidence: no `coding-session-handoff-gate-evidence` directory exists in the current worktrees; prior receipts and locators are unavailable
 - Disposition: published branch and project records; independent p03-t17/t18 review and any live p04 attempt remain pending user authorization
 
+### Run 27 — 2026-09-12
+
+- Authorization: user accepted the stocktake recommendation to review t17/t18, align the Claude contract and reconcile records, and integrate current main. Live provider gates still require a fresh bounded authorization; no provider operation is authorized by this run.
+- Launcher: the previously dangling pnpm OAT launcher is restored after the user's update; `oat --version` reports 0.2.73 and project pull/plan validation succeed.
+- Integration: merged origin/main without rewriting existing task commits; no handoff runtime or test file changed in the merge. Root branch publication is not part of this preparation; synced-project publication uses `--no-refresh-pr`.
+- Alignment: design.md, spec.md, p04-t02, and p05-t02 now describe the single valid parent-distinct observed Claude ID. Production corroborates exact child transcript/cwd/lineage; only the disposable gate proves later source resume leaves the child unchanged.
+- Reconciliation: added missing structured t17/t18 task entries, corrected t16 review state and task totals to 34/38, and restored the p04-t02 pointer without claiming either live gate passed.
+- Review: one independent targeted t17/t18 review is authorized on the aligned committed baseline; its dispatch and outcome will be appended here.
+- Complexity assessment: native identity is an existing provider session selector, not a new identity service. Keep exact selection/lineage and truthful outcomes; remove the disproven predetermined-Claude-ID assumption. Broader simplification or provider-version changes remain recommendations, not silent scope changes.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -1384,6 +1408,8 @@ paused in the meantime.
 - [x] p03-t14 — `eae373b8`
 - [x] p03-t15 — `9db197f`
 - [x] p03-t16 — `d15fd66`; targeted independent review passed with zero findings
+- [x] p03-t17 — `2c3a835`; independent review pending
+- [x] p03-t18 — `42803fc`; independent review pending
 
 ---
 
@@ -1393,7 +1419,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| p03-t17 | design.md, spec.md, plan.md p04-t02 | Claude successor passes a pre-generated child UUID via `--session-id` and the gate proves that exact UUID | Claude successor uses `--resume <parent> --fork-session` only; the provider-returned child ID is accepted once, parent-distinct, and corroborated by transcript, target cwd, lineage, and source resume | Run 23 showed exact Claude Code 2.1.251 returns a different valid session ID than the requested `--session-id` | Implementation at `2c3a835` | Align design.md/spec.md and p04-t02 plan wording after user approval |
+| p03-t17 | design.md, spec.md, plan.md p04-t02 and p05-t02 | Claude successor passes a pre-generated child UUID via `--session-id` and the gate proves that exact UUID | Claude successor uses `--resume <parent> --fork-session`; one valid parent-distinct provider-returned child ID is corroborated by exact transcript, target cwd, and lineage. The disposable gate additionally proves source resume leaves the child unchanged. | Recorded Run 23 result contradicted the requested child-ID assumption | Implementation at `2c3a835`; aligned artifacts accepted by user on 2026-09-12 | Alignment completed in Run 27; independent t17/t18 review and fresh live proof remain required |
 | p01 verification | plan.md | `pnpm run validate:skill-versions -- --base-ref origin/main` | `pnpm run validate:skill-versions --base-ref origin/main` | The package script rejects the standalone `--`; the corrected invocation passed and all remaining plan occurrences were aligned. | `package.json` script contract | None |
 
 ## Test Results

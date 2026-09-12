@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t02
-oat_last_commit: 42803fc7076ca9019522a935818c0107e976ced7
+oat_last_commit: 37d955cbb76ddb49150ec900bf7035ba9914f5b1
 oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; p03-t17 and p03-t18 repairs are unproven live and require a fresh mutation-free behavior-plan plus explicit authorization for one new attempt"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-12T21:10:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-12T21:21:32Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,8 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation blocked at root entry gates p04-t01 and p04-t02
+Implementation complete through p03-t18; authorized targeted t17/t18 review pending.
+Root entry gates p04-t01 and p04-t02 still block activation.
 
 ## Artifacts
 
@@ -108,7 +109,7 @@ Implementation blocked at root entry gates p04-t01 and p04-t02
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (in progress; p01, p02, and p03 passed)
+- **Implementation:** `implementation.md` (34/38 tasks implemented; p01/p02 complete, p03 latest t17/t18 review pending)
 
 ## Progress
 
@@ -247,9 +248,12 @@ Implementation blocked at root entry gates p04-t01 and p04-t02
 - ✓ p03-t18 completed at `42803fc`: disposable gate fixture root is canonicalized with `realpath`, so macOS `/var` → `/private/var` symlinks no longer break the exact recorded-cwd comparisons that threw `exact-transcript-unavailable` before child identity capture
 - ✓ Root verified `42803fc` on 2026-09-12: 204/204 handoff tests; full suite 1860/1861 with one unrelated consensus SIGKILL-timing flake that passed 3/3 in isolation; type-check, build parity, validate, smoke, and diff hygiene passed
 - ⚠ No independent review artifact exists for p03-t17 or p03-t18; a prior session reported a zero-finding p03-t17 review that is not recorded here
-- ⚠ p03-t17 deviates from design.md (pre-generated child UUID via `--session-id`); design/spec alignment is pending user approval
+- ✓ User authorized alignment on 2026-09-12; design/spec and both Claude execution/receipt-review instructions now use one valid parent-distinct observed child ID, with source-resume proof confined to the disposable gate
 - ⚠ No local gate-evidence directory (receipts or locators) was found in any current worktree; prior p04 receipts are unavailable for review and any p05 review needs fresh passing receipts
 - ⏹ No live provider operation, receipt review, or p05 work occurred during this bookkeeping run
+- ✓ OAT launcher works after the user's update (0.2.73); project pull and plan validation succeed on the Mini
+- ✓ Merged origin/main at `37d955c` without conflicts or handoff runtime/test changes; task commit IDs remain intact, and the local merge is not yet pushed to the feature branch
+- ✓ Reconciled current task counts and structured t16/t17/t18 status; the latest targeted independent review is authorized and pending
 
 ## Blockers
 
@@ -270,11 +274,13 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-1. Run independent targeted review of p03-t17 + p03-t18 (`d15fd66..42803fc`).
-2. Decide whether to align design.md/spec.md with the observed-successor Claude contract.
+1. Complete the authorized independent targeted review of p03-t17 + p03-t18
+   (`d15fd66..42803fc`) and aligned design/spec/gate instructions at merged head `37d955c`.
+2. Receive the review and reconcile its findings; observed-successor contract alignment
+   is complete, while exact live behavior remains unverified.
 3. With fresh user authorization only: exact Claude 2.1.251 mutation-free `behavior-plan`,
    then at most one `behavior-verify` attempt for p04-t02.
 4. p04-t01 Codex native-identity blocker remains undiagnosed beyond Run 13/Run 20.
 
-Do not retry either live gate automatically or infer cleanup targets. p05 remains
-blocked until its corresponding live receipt passes.
+Do not retry either live gate automatically or infer cleanup targets. p05 activation
+remains blocked until both live gates and both independent receipt reviews pass.

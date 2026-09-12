@@ -208,6 +208,10 @@ Observation: the exact Claude 2.1.251 successor call returned a valid session ID
 
 Recorded p03-t17 (2c3a835) and p03-t18 (42803fc) retroactively; root verified 42803fc with 204/204 handoff tests, full suite 1860/1861 (one unrelated consensus timing flake passing in isolation), type-check, build parity, validate, smoke, and diff hygiene. No review artifact exists for either task, no gate-evidence directory remains, and no live provider operation ran.
 
+### 2026-09-12 · structural · oat-project-implement · run-27
+
+run-27-pre-review aligned observed Claude identity contracts and reconciled task records after merging main; independent t17/t18 review pending, no live provider operation.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

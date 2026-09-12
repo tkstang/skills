@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-09-02
+oat_last_updated: 2026-09-12
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
@@ -1138,14 +1138,16 @@ the exact Claude Code 2.1.251 successor ignores the requested `--session-id`.
 
 **Change:** Remove the pre-generated child UUID from the Claude successor argv and
 handoff plan. Accept the provider-returned child ID only when it occurs exactly once,
-differs from the parent, and is corroborated by exact transcript, target cwd, parent
-lineage, and source resume. Missing, ambiguous, duplicate, invalid, or parent-equal IDs
-fail closed.
+differs from the parent, and is corroborated by exact transcript, target cwd, and parent
+lineage. The disposable gate additionally proves source resume leaves the child
+unchanged; production reconciliation does not resume the source. Missing, ambiguous,
+duplicate, invalid, or parent-equal IDs fail closed.
 
 **Commit:** `fix(p03-t17): corroborate observed Claude successor` (landed `2c3a835`; task recorded retroactively)
 
 **Review disposition:** One fresh independent targeted review before the next p04-t02
-plan check. Deviates from design.md; alignment pending user approval.
+plan check. Design/spec and Claude execution/receipt-review instructions aligned on
+2026-09-12 under the user's authorization to proceed with the stocktake recommendation.
 
 ---
 
@@ -1247,8 +1249,9 @@ safe-mode/plan/no-tools context fingerprint, three calls, $0.15-per-call cap,
 project-scoped purge cleanup, and digest without mutation.
 
 **Execute:** Root runs digest-confirmed `behavior-verify` once. It must prove the
-pre-generated child UUID in machine output/transcript, target cwd, inherited parent UUID
-prefix, source-only resume, both fresh project purges, and final receipt hash.
+single valid, parent-distinct child UUID in machine output/transcript, target cwd,
+inherited parent UUID prefix, source-only resume leaving the child unchanged, both
+fresh project purges, and final receipt hash. The successor does not request a child ID.
 
 **Verify:** Apply the same mode/status/evidence/cleanup/privacy checks as p04-t01. Any
 negative, unauthenticated, or unobservable result is a product blocker, not permission
@@ -1300,8 +1303,9 @@ project ref; no phase task or root-repository code commit is created.
 - Create: redacted project review artifact under `reviews/`
 - Read only: exact Claude receipt path/digest passed directly by root from the local-only locator and relevant gate/contract source
 
-**Review:** A distinct reviewer checks all common evidence plus pre-generated UUID,
-output/transcript match, inherited UUID prefix, source-only resume, spend bounds, exact
+**Review:** A distinct reviewer checks all common evidence plus exactly one valid,
+parent-distinct output UUID, output/transcript match, inherited UUID prefix,
+source-only resume leaving the child unchanged, spend bounds, exact
 project-purge cleanup, and credential absence. It validates locator/receipt mode and
 digest before reading and never searches local state.
 
@@ -1581,13 +1585,13 @@ root-repository task commit.
 
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
-- p03: 16 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, three gate-observability repairs, and one bounded native-executable hashing repair
+- p03: 18 tasks — provider contracts, orchestration, gate harness, CLI, development runtime, three final-review repairs, two gate-discovered auth corrections, one exact-output review repair, three gate-observability repairs, bounded native-executable hashing, observed Claude successor identity, and canonical gate fixture paths
 - p05: 2 tasks — reviewed behavior activation and exact outcome coverage
 - p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
 
-**Total: 36 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Total: 38 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
 
-Implementation is complete only when all 36 tasks have exactly one verified commit,
+Implementation is complete only when all 38 tasks have exactly one verified commit,
 both live gates and receipt reviews pass, exact contracts are activated, aggregate
 verification and the root-owned documentation gate succeed, and final independent
 review has no Critical or Important findings. Claude authentication remains a

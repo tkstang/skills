@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-design
 oat_blockers: []
-oat_last_updated: 2026-08-31
+oat_last_updated: 2026-09-12
 oat_generated: false
 oat_template: false
 ---
@@ -401,8 +401,8 @@ from reporting success.
   proven, stop with a product blocker; do not silently ship plan-only behavior.
 - **Same-ID proof:** No installed provider currently exposes writer-closed proof, so
   what future provider/host evidence could enable `resume` without weakening v1?
-- **Claude behavioral proof:** Does the exact pre-generated child UUID match machine
-  output and target transcript records, inherit the source UUID prefix, and preserve
+- **Claude behavioral proof:** Does exactly one valid, parent-distinct machine-output
+  child UUID match target transcript records, inherit the source UUID prefix, and preserve
   later source-only resumability in the bounded installed-version gate?
 
 ## Assumptions

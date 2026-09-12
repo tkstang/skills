@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-plan
 oat_blockers: []
-oat_last_updated: 2026-08-31
+oat_last_updated: 2026-09-12
 oat_generated: false
 oat_template: false
 ---
@@ -438,12 +438,12 @@ Codex successor:
 
 Claude successor:
   cwd=target
-  childId=pre-generated UUID
   argv=[--safe-mode, --print, --output-format, json,
-        --resume, parentId, --fork-session, --session-id, childId,
+        --resume, parentId, --fork-session,
         --permission-mode, plan, --tools, "", --max-budget-usd, 0.15,
         "Reply exactly HANDOFF_READY. Do not use tools."]
-  child ID=exact requested UUID corroborated by output session_id and transcript
+  child ID=one valid output session_id, distinct from parent,
+           corroborated by exact transcript, target cwd, and parent lineage
 
 Post-handoff user guidance:
   Codex:  codex resume -C target childId
@@ -505,8 +505,8 @@ and outcome semantics without durable state.
   discard raw stdout/stderr and retain only exit/signal plus safe reason codes.
 - Corroborate Codex `thread.started.thread_id` against child metadata
   (`payload.id`, `payload.cwd`, `payload.forked_from_id`). Corroborate Claude's
-  pre-generated UUID against output `session_id`, the exact transcript filename/
-  records, target cwd, and inherited parent-record UUID prefix observed by the gate.
+  single valid output `session_id` against the exact transcript identity/records,
+  target cwd, and inherited parent-record UUID prefix. Require a parent-distinct child.
 - Classify timeout/termination as `indeterminate` unless exact child corroboration proves
   creation; indeterminate operations are never automatically retryable.
 - Produce retry keys from failed/deferred native outcomes, never native successes.
@@ -620,11 +620,13 @@ interface BatchOutcome {
 
 The canonical digest projection includes schema version, canonical worktree evidence,
 selected IDs, candidate stat signatures without transcript paths, continuity mode,
-capability and execution-context fingerprints, behavior-contract state, any
-pre-generated child selector, item dispositions, and argv/cwd. It excludes display
+capability and execution-context fingerprints, behavior-contract state,
+item dispositions, and argv/cwd. It excludes display
 labels, timestamps, preview, raw Git status, and raw provider output.
 
-For Claude, `expectedChildNativeId` is the pre-generated UUID from the confirmed plan.
+Neither current successor builder pre-generates a child ID. The optional
+`expectedChildNativeId` outcome field remains compatible with an explicitly supplied
+expected selector; the Claude invocation does not request or depend on one.
 For either provider, `observedChildNativeId` is retained as soon as bounded machine
 output parses it, independently from transcript corroboration. `succeeded` requires an
 observed child ID; `indeterminate` may retain an expected and/or observed ID. `mapped`
@@ -697,10 +699,11 @@ Shared Codex metadata gains separate `nativeSessionId` (`payload.id`), optional
 The successor path requires all three observed values it uses to agree with the parsed
 `thread.started.thread_id`, selected parent, and target cwd.
 
-Claude successor identity is explicit rather than inferred: the runtime pre-generates a
-child UUID and passes it through provider-supported `--session-id` together with
-`--resume PARENT --fork-session`. It requires output `session_id`, child transcript
-identity/records, and target cwd to match that exact UUID. The disposable gate also
+Claude successor identity comes from exactly one valid machine-output `session_id`
+returned by `--resume PARENT --fork-session`, without a requested `--session-id`.
+It must differ from the selected parent and match the exact child transcript
+identity/records and target cwd. Production reconciliation requires the parent's
+ordered record UUID prefix to be inherited by that child. The disposable gate also
 proves that the parent's ordered pre-fork record UUIDs are inherited by the child and
 that resuming the source parent does not change the child. Production reconciliation
 never uses recency or set-size inference. Same-ID resume, if ever enabled, maps to the
@@ -868,7 +871,7 @@ body content, raw provider output, raw help, credentials, and Git filenames.
 | FR6 | unit + live gate | exact version/help/auth, timeout/output cap, version/context drift, hook isolation, receipt schema/digest/fingerprint/cleanup binding, required two-worktree activation |
 | FR7 | unit + CLI | canonical digest, wrong/missing digest, candidate/Git/capability drift, preview exclusion |
 | FR8 | unit + live gate | exact non-interactive successor argv/marker, shell false, bounded machine output, exact child IDs, current/unverified deferrals, no forbidden flags |
-| FR9 | unit + live gate | Codex metadata lineage, predetermined Claude UUID plus inherited-prefix corroboration, expected/observed selectors and baselines, cross-discriminated partial/indeterminate outcomes, failed-before-child proof, native/reporting independence, exact reconcile, retry safety |
+| FR9 | unit + live gate | Codex metadata lineage, single parent-distinct observed Claude UUID plus inherited-prefix corroboration, expected/observed selectors and baselines, cross-discriminated partial/indeterminate outcomes, failed-before-child proof, native/reporting independence, exact reconcile, retry safety |
 | FR10 | integration | public skill inventory, frontmatter/version, docs/navigation, generated runtime and provider sync |
 | NFR1 | integration | stale cache ignored; empty state remains absent; observer/transcript/provider byte identity |
 | NFR2 | unit + integration | no transcript body/path/raw output/credentials in plan, errors, outcome, or digest inputs |
@@ -913,8 +916,8 @@ creates a disposable Git repository with two worktrees and disposable Codex/Clau
 parent sessions, invokes each native successor contract, captures exact parent/child
 identity, verifies the child target cwd, proves the source parent remains resumable, and
 records metadata effects. Codex parses `thread.started.thread_id` and corroborates
-`payload.id/cwd/forked_from_id`; Claude pre-generates `--session-id`, requires matching
-output/transcript records and target cwd, and proves the inherited parent UUID prefix
+`payload.id/cwd/forked_from_id`; Claude requires one valid parent-distinct output
+`session_id`, matching transcript identity and target cwd, and proves the inherited parent UUID prefix
 plus later source-only resume record. The gate is explicitly authorized for the current
 implementation and exact installed versions. It must use no real project session, no
 bypass flag, and a strict prompt/quota/time bound. Codex uses documented hook
@@ -972,10 +975,10 @@ is a code revert; existing session-observer behavior remains unchanged.
 
 - Does exact Codex 0.151.0 successor execution corroborate returned child ID, target
   cwd, `forked_from_id`, and source parent resumability?
-- Does exact Claude Code 2.1.251 successor execution honor the pre-generated child UUID,
-  target cwd, inherited parent UUID prefix, and source parent resumability? Claude is
-  currently unauthenticated on this host, so the supported `claude auth login` flow is
-  a prerequisite; credentials must never be pasted into chat or captured in receipts.
+- Does exact Claude Code 2.1.251 successor execution return one valid parent-distinct
+  child ID corroborated by target cwd, inherited parent UUID prefix, and source parent
+  resumability? Supported authentication must be checked at the authorized gate;
+  credentials must never be pasted into chat or captured in receipts.
 
 Both successor questions must pass during implementation. A negative, unauthenticated,
 or unobservable result blocks v1 completion rather than reducing the product to
@@ -1027,7 +1030,7 @@ and read-only reconciliation.
   execution-context fingerprints.
 - Implement confirmation revalidation, bounded non-interactive native outcome parsing,
   exact child corroboration, indeterminate handling, and no automatic retries.
-- Extend exact Codex lineage/native ID extraction, implement predetermined Claude child
+- Extend exact Codex lineage/native ID extraction, implement observed Claude child
   UUID corroboration, retain expected/observed selectors and target baselines, and add
   exact read-only reconcile outcomes.
 - Implement `behavior-plan`/`behavior-verify`, receipt validation/redaction rules, auth
