@@ -1560,6 +1560,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t16 | code | passed | 2026-09-08 | reviews/archived/p03-t16-review-2026-09-08T220043Z.md | d15fd662d1baf5ff26cc6ccd09925212a8f9ff46 | manual | - |
 | p03 | code | fixes_completed | 2026-09-05 | reviews/p03-review-2026-09-05T202836Z.md | 9db197fe765e18c4c925a9792097c473437f2e84 | manual | - |
 | p03 | code | passed | 2026-09-05 | reviews/p03-review-2026-09-05T204213Z.md | 238f0513e41b35ecc4293268f7bcbeb5c1308d2b | manual | - |
+| p03-t17-t18 | code | pending | 2026-09-12 | reviews/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
@@ -1570,6 +1571,11 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
+
+The t17/t18 event is pending formal receipt, not pending review execution: its
+completed artifact requests changes (I1 UUID casing, m1 test formatting). The current
+execution head `37d955c` is tree-equivalent to its reviewed handoff code. No additional
+fix/re-review cycle or live gate is authorized by this ledger event.
 
 Reviewers receive bounded scope and do not edit source. Raw provider receipts never
 enter this table or Git; redacted review artifacts may record their SHA-256 digests.

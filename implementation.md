@@ -1,7 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p03-t17 and p03-t18 independent review pending", "p04-t01 inconclusive at native-identity-missing", "p04-t02 repairs unproven live; fresh exact-version plan and separately authorized verify required"]
+oat_blockers: ["p03-t17/t18 targeted review requests changes: I1 UUID casing bypasses parent-distinct guard; bounded receive/fix/re-review authorization required", "p04-t01 inconclusive at native-identity-missing", "p04-t02 repairs unproven live; fresh exact-version plan and separately authorized verify required"]
 oat_last_updated: 2026-09-12
 oat_current_task_id: p04-t02
 oat_generated: false
@@ -28,7 +28,7 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
-| p03   | review pending | 18 | 18/18     |
+| p03   | changes requested | 18 | 18/18     |
 | p05   | pending     | 2     | 0/2       |
 | p06   | pending     | 2     | 0/2       |
 
@@ -224,8 +224,11 @@ and 0 Minor findings. The three earlier Medium findings remain outside scope and
 explicitly deferred. The p03-t13 targeted review's single Medium diagnostic finding was
 fixed by p03-t14; the user waived re-review, so the event is `fixes_completed` rather
 than `passed`. Phase p03 implementation is complete at 18/18 tasks through p03-t18;
-p03-t16 has a passing targeted review, and t17/t18 now await the independent targeted
-review authorized on 2026-09-12. Historical review outcomes above remain unchanged.
+p03-t16 has a passing targeted review. The t17/t18 targeted review authorized on
+2026-09-12 returned 0 Critical, 1 Important (UUID casing bypasses parent-distinctness),
+0 Medium, and 1 Minor (fixture-test formatting). It is not a pass; formal receipt and
+a bounded fix/re-review continuation require user direction under the existing review
+cap. Historical review outcomes above remain unchanged.
 
 ### Task p03-t01: Implement provider probes and unverified contracts
 
@@ -312,13 +315,13 @@ review authorized on 2026-09-12. Historical review outcomes above remain unchang
 
 **Status:** completed
 **Commit:** `2c3a8358f5bd95fc76fa8629d42299be12c75428`
-**Review:** pending; independent targeted review authorized on 2026-09-12.
+**Review:** changes requested; I1 in `reviews/p03-t17-t18-review-2026-09-12T212400Z.md`; formal receipt pending.
 
 ### Task p03-t18: (gate) Canonicalize disposable gate fixture paths
 
 **Status:** completed
 **Commit:** `42803fc7076ca9019522a935818c0107e976ced7`
-**Review:** pending; review together with p03-t17.
+**Review:** reviewed together with p03-t17; combined review requests changes, with m1 formatting on this task. Formal receipt pending.
 
 ---
 
@@ -933,8 +936,14 @@ independently verified before p04-t01 can safely execute.
 - Integration: merged origin/main without rewriting existing task commits; no handoff runtime or test file changed in the merge. Root branch publication is not part of this preparation; synced-project publication uses `--no-refresh-pr`.
 - Alignment: design.md, spec.md, p04-t02, and p05-t02 now describe the single valid parent-distinct observed Claude ID. Production corroborates exact child transcript/cwd/lineage; only the disposable gate proves later source resume leaves the child unchanged.
 - Reconciliation: added missing structured t17/t18 task entries, corrected t16 review state and task totals to 34/38, and restored the p04-t02 pointer without claiming either live gate passed.
-- Review: one independent targeted t17/t18 review is authorized on the aligned committed baseline; its dispatch and outcome will be appended here.
+- Review: the independent targeted t17/t18 review completed with changes requested: 0 Critical, 1 Important, 0 Medium, 1 Minor. Artifact: `reviews/p03-t17-t18-review-2026-09-12T212400Z.md`. Code range and execution-head tree equivalence, project artifact baseline, and required single `not-attempted` reconnaissance confirmation were checked. No Review Orchestration section was present or required.
+- Dispatch request `handoff-t17-t18-review-20260912-01`: accepted native handle `/root/handoff_targeted_review`; role `oat-reviewer-gpt-5-6-sol-max`; model `gpt-5.6-sol`, effort `max`, service tier `priority` as exposed by the native host, no separate reasoning-mode selector. Policy `frontier`, cap `max`, selection `review-target` / `gate-target`; native catalog observed 2026-09-12; configured invocation accepted, runtime identity not reported. Authority: read source and synthetic tests, write only the named review artifact; no nested agents or live provider commands. Deadline 900 seconds, launch retry limit 0, no post-acceptance fallback. Review code range `d15fd66..42803fc`, execution head `37d955c`, aligned artifact baseline `a466c5c`; terminal completed with changes requested.
+- Dispatch: scope=p03-t17-t18 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 - Complexity assessment: native identity is an existing provider session selector, not a new identity service. Keep exact selection/lineage and truthful outcomes; remove the disproven predetermined-Claude-ID assumption. Broader simplification or provider-version changes remain recommendations, not silent scope changes.
+- Verification at merged head `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed across 130 passing files and one skipped file; type-check, generated build parity, repository validation, smoke, plan validation, and diff hygiene passed. This supersedes the earlier timing-flake result for the current local integration without rewriting its historical run.
+- Runtime availability: read-only filesystem metadata identifies active Codex 0.154.0 and Claude 2.1.270 on this Mini. Cached Codex 0.151.0 exists, while Claude 2.1.251 was not found in the checked installed-version directory. No help/auth/version/session provider command was executed. Existing exact-version guards remain unchanged; using newer versions requires a separately agreed contract update and fresh proof.
+- Diagnostic clarification: the recorded Codex failure is the disposable parent call, before fork; `native-identity-missing` means the parser recognized no accepted stdout identity event, not that the provider necessarily created no session or emitted no identity on another surface. No output-shape hypothesis has been verified live.
+- Review reconciliation: root inspected the validator and parent-distinct comparisons and mechanically confirmed the mixed-case UUID mismatch with synthetic input. I1 is accepted as requiring a bounded fix; m1 is nonblocking formatting. Existing 204 handoff tests pass but the equality fixture is not a valid UUID, so it misses the relevant branch. No code fix, formal review receipt, new fix task, or re-review was started; prior three-cycle governance and explicit-override history were not reset. Next request is authorization to receive this review and perform one bounded fix/re-review cycle before any live operation.
 
 <!-- orchestration-runs-end -->
 
@@ -1408,8 +1417,8 @@ paused in the meantime.
 - [x] p03-t14 — `eae373b8`
 - [x] p03-t15 — `9db197f`
 - [x] p03-t16 — `d15fd66`; targeted independent review passed with zero findings
-- [x] p03-t17 — `2c3a835`; independent review pending
-- [x] p03-t18 — `42803fc`; independent review pending
+- [x] p03-t17 — `2c3a835`; targeted review requests changes (I1); receipt/fix authorization pending
+- [x] p03-t18 — `42803fc`; reviewed with t17; m1 formatting and combined review disposition pending receipt
 
 ---
 
@@ -1419,7 +1428,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| p03-t17 | design.md, spec.md, plan.md p04-t02 and p05-t02 | Claude successor passes a pre-generated child UUID via `--session-id` and the gate proves that exact UUID | Claude successor uses `--resume <parent> --fork-session`; one valid parent-distinct provider-returned child ID is corroborated by exact transcript, target cwd, and lineage. The disposable gate additionally proves source resume leaves the child unchanged. | Recorded Run 23 result contradicted the requested child-ID assumption | Implementation at `2c3a835`; aligned artifacts accepted by user on 2026-09-12 | Alignment completed in Run 27; independent t17/t18 review and fresh live proof remain required |
+| p03-t17 | design.md, spec.md, plan.md p04-t02 and p05-t02 | Claude successor passes a pre-generated child UUID via `--session-id` and the gate proves that exact UUID | Claude successor uses `--resume <parent> --fork-session`; one valid parent-distinct provider-returned child ID is corroborated by exact transcript, target cwd, and lineage. The disposable gate additionally proves source resume leaves the child unchanged. | Recorded Run 23 result contradicted the requested child-ID assumption | Implementation at `2c3a835`; aligned artifacts accepted by user on 2026-09-12 | Alignment completed in Run 27; targeted review requests changes on UUID casing (I1), and fresh live proof remains required |
 | p01 verification | plan.md | `pnpm run validate:skill-versions -- --base-ref origin/main` | `pnpm run validate:skill-versions --base-ref origin/main` | The package script rejects the standalone `--`; the corrected invocation passed and all remaining plan occurrences were aligned. | `package.json` script contract | None |
 
 ## Test Results
@@ -1430,7 +1439,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, p03-t14 83 focused tests, p03-t15 88 focused tests, and p03-t16 101 targeted tests, 2026-09-12 root run of 204 handoff tests and full suite 1860/1861 (one unrelated consensus timing flake, passed in isolation); type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t18 | 0 | Eighteen task commits pass through `42803fc`; p03-t16 targeted review passed with zero findings; p03-t17/t18 have no review artifact; prior M1-M3 remain deferred |
+| p03   | Historical targeted checks retained in Runs 1–26; Run 27 at merged `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed; type-check, build-check, validate, smoke, plan validation, and diff hygiene passed. Targeted reviewer: 204 handoff tests and changed-file lint passed; changed-file format check found m1. | all through p03-t18 | 0 Critical; 1 Important | Eighteen tasks implemented; t17/t18 review requests changes for I1 UUID casing, with m1 formatting. Formal receipt/fix authorization pending; prior M1-M3 remain deferred. |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
