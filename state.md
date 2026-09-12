@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t02
-oat_last_commit: d15fd662d1baf5ff26cc6ccd09925212a8f9ff46
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate is inconclusive at evidence-validation; successor session ID did not match the pre-generated child ID"]
+oat_last_commit: 42803fc7076ca9019522a935818c0107e976ced7
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID exists for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; p03-t17 and p03-t18 repairs are unproven live and require a fresh mutation-free behavior-plan plus explicit authorization for one new attempt"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-08T22:11:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-12T21:10:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -96,7 +96,7 @@ oat_project_explainer:
 
 **Status:** Implementation in progress
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-12
 
 ## Current Phase
 
@@ -243,30 +243,38 @@ Implementation blocked at root entry gates p04-t01 and p04-t02
 - ✗ p04-t02 preflight reports `loggedIn: false`, `authMethod: none`
 - ⏹ Claude `behavior-plan` and `behavior-verify` were not invoked; no Claude session, receipt, locator update, cleanup, or quota-spending operation occurred
 - ✗ A fresh exact-version `claude auth login --claudeai` flow remained at its one-time-code prompt and was cancelled without writing authentication state
+- ✓ p03-t17 completed at `2c3a835`: Claude successor no longer passes a pre-generated `--session-id`; the provider-returned child ID is trusted only when it occurs exactly once, differs from the parent, and is corroborated by exact transcript, target cwd, parent lineage, and source resume
+- ✓ p03-t18 completed at `42803fc`: disposable gate fixture root is canonicalized with `realpath`, so macOS `/var` → `/private/var` symlinks no longer break the exact recorded-cwd comparisons that threw `exact-transcript-unavailable` before child identity capture
+- ✓ Root verified `42803fc` on 2026-09-12: 204/204 handoff tests; full suite 1860/1861 with one unrelated consensus SIGKILL-timing flake that passed 3/3 in isolation; type-check, build parity, validate, smoke, and diff hygiene passed
+- ⚠ No independent review artifact exists for p03-t17 or p03-t18; a prior session reported a zero-finding p03-t17 review that is not recorded here
+- ⚠ p03-t17 deviates from design.md (pre-generated child UUID via `--session-id`); design/spec alignment is pending user approval
+- ⚠ No local gate-evidence directory (receipts or locators) was found in any current worktree; prior p04 receipts are unavailable for review and any p05 review needs fresh passing receipts
+- ⏹ No live provider operation, receipt review, or p05 work occurred during this bookkeeping run
 
 ## Blockers
-
-Authentication correction (2026-09-08): exact Claude Code 2.1.251 reports
-`loggedIn: true`, `authMethod: claude.ai` outside the sandbox. Earlier sandboxed
-status checks and empty file-based credential fields did not establish that the
-user's login failed to persist. No additional login is needed.
 
 p04-t01 remains blocked after the exact Codex 0.151.0 live gate returned
 `inconclusive` at `native-identity-missing`. Authentication and the reviewed plan
 bounds passed, but the provider emitted no exact parent native ID; provider cleanup
 therefore could not run safely. The redacted receipt digest is
 `e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff`.
-p04-t02 is blocked after the exact Claude Code 2.1.251 live gate returned
-`inconclusive` at `evidence-validation`. The reviewed preflight and cleanup passed, but
-the successor reported a valid session ID that did not match the pre-generated child
-ID. The harness correctly stopped before target-cwd, lineage, and source-resume
-capture. The redacted receipt digest is
-`7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`.
+
+p04-t02 has not passed. Run 23 (receipt digest
+`7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b`) proved that
+Claude Code 2.1.251 does not honor the pre-generated child UUID. p03-t17 removed that
+contract and corroborates the observed successor instead; p03-t18 fixed a
+fixture-path canonicalization defect that would have stopped evidence capture before
+child identity on macOS. Both repairs are unit-verified only. The p03-t17 argv change
+alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
+`behavior-plan` is required before any new live attempt.
 
 ## Next Milestone
 
-Decide whether to revise the Claude 2.1.251 fork/session-ID contract or preserve this
-exact-version incompatibility as a release blocker; do not diagnose with another live
-provider mutation.
+1. Run independent targeted review of p03-t17 + p03-t18 (`d15fd66..42803fc`).
+2. Decide whether to align design.md/spec.md with the observed-successor Claude contract.
+3. With fresh user authorization only: exact Claude 2.1.251 mutation-free `behavior-plan`,
+   then at most one `behavior-verify` attempt for p04-t02.
+4. p04-t01 Codex native-identity blocker remains undiagnosed beyond Run 13/Run 20.
+
 Do not retry either live gate automatically or infer cleanup targets. p05 remains
 blocked until its corresponding live receipt passes.

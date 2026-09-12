@@ -204,6 +204,10 @@ Stopped after the single authorized Claude 2.1.251 live attempt: inconclusive at
 
 Observation: the exact Claude 2.1.251 successor call returned a valid session ID that differed from the pre-generated child ID, so the gate discarded it and stopped before cwd, lineage, or source-resume evidence capture. Impact: p04-t02 remains inconclusive even though authentication, resource bounds, and cleanup passed. Recommendation: revalidate the native --resume/--fork-session/--session-id contract without another live retry before changing the harness. (observed on Claude Code 2.1.251)
 
+### 2026-09-12 · structural · oat-project-implement · p03-t18-bookkeeping
+
+Recorded p03-t17 (2c3a835) and p03-t18 (42803fc) retroactively; root verified 42803fc with 204/204 handoff tests, full suite 1860/1861 (one unrelated consensus timing flake passing in isolation), type-check, build parity, validate, smoke, and diff hygiene. No review artifact exists for either task, no gate-evidence directory remains, and no live provider operation ran.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

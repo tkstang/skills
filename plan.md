@@ -1125,6 +1125,52 @@ mutation, cleanup, and privacy contracts.
 
 ---
 
+### Task p03-t17: (gate) Corroborate the observed Claude successor identity
+
+**Dependencies:** p03-t16 and the p04-t02 Run 23 `evidence-validation` result showing
+the exact Claude Code 2.1.251 successor ignores the requested `--session-id`.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-contracts.ts`, `behavior-gate.ts`, `handoff.ts`, `types.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`, `handoff.test.ts`, `providers.test.ts`, `types.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**Change:** Remove the pre-generated child UUID from the Claude successor argv and
+handoff plan. Accept the provider-returned child ID only when it occurs exactly once,
+differs from the parent, and is corroborated by exact transcript, target cwd, parent
+lineage, and source resume. Missing, ambiguous, duplicate, invalid, or parent-equal IDs
+fail closed.
+
+**Commit:** `fix(p03-t17): corroborate observed Claude successor` (landed `2c3a835`; task recorded retroactively)
+
+**Review disposition:** One fresh independent targeted review before the next p04-t02
+plan check. Deviates from design.md; alignment pending user approval.
+
+---
+
+### Task p03-t18: (gate) Canonicalize disposable gate fixture paths
+
+**Dependencies:** p03-t17.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/behavior-gate.ts`
+- Modify: `tests/coding-session-handoff/behavior-gate.test.ts`
+- Modify (generated): `tools/coding-session-handoff/coding-session-handoff.mjs`
+
+**Change:** `realpath` the `mkdtemp` fixture root so fixture paths, invocation cwd, and
+provider-recorded cwd are identical strings on symlinked temp roots. Export
+`createDefaultFixture` and assert canonical paths match a spawned child's cwd.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff && pnpm run type-check && pnpm run build:check && git diff --check`
+
+**Commit:** `fix(p03-t18): canonicalize disposable gate fixture paths` (landed `42803fc`; task recorded retroactively)
+
+**Review disposition:** Review together with p03-t17 before the next p04-t02 plan check.
+
+---
+
 ## Root-owned entry gates between p03 and p05
 
 These four gates are mandatory lifecycle boundaries, not implementation tasks. Their

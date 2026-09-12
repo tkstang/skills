@@ -886,6 +886,32 @@ independently verified before p04-t01 can safely execute.
 - Cleanup and privacy: Git fixture and exact disposable Claude project state were removed; receipt and locator are ignored and mode 0600; receipt digest matches; no raw provider output or credentials are stored
 - Disposition: product blocker recorded; no retry, p05-t02 receipt review, activation, or additional provider mutation launched
 
+### Run 24 — 2026-09-11
+
+- Scope: p03-t17 Claude successor identity contract repair following Run 23
+- Commit: `2c3a8358f5bd95fc76fa8629d42299be12c75428` (`fix(p03-t17): corroborate observed Claude successor`)
+- Change: removed `--session-id <pre-generated UUID>` from the Claude successor argv, removed deterministic child-ID derivation from `handoff.ts`, and dropped `requestedChildNativeId` from gate state
+- Guards: Claude successor ID must appear exactly once (`native-identity-multiple` otherwise), must differ from the parent (`provider-evidence-failed`), and receipts pass only when child cwd equals the target worktree, lineage is exact, and source resume holds
+- Recorded retroactively on 2026-09-12; the authoring session reported 157 tests, type-check, build parity, validation, diff hygiene, and a zero-finding independent review, but no review artifact exists in this project
+
+### Run 25 — 2026-09-11
+
+- Scope: p03-t18 disposable fixture canonical-path repair
+- Commit: `42803fc7076ca9019522a935818c0107e976ced7` (`fix(p03-t18): canonicalize disposable gate fixture paths`)
+- Root cause: `mkdtemp(tmpdir())` returned a symlinked `/var/folders/...` path while the provider child records the resolved `/private/var/...` cwd; the `discover()` target cwd, `exactTranscriptSnapshot` recorded-cwd filter, and child `recordedChildCwd` check are exact string matches, so parent evidence capture threw `exact-transcript-unavailable` before any child identity could be observed
+- Fix: `realpath` the fixture root once at creation (matching `discovery.ts` and `git-target.ts`); export `createDefaultFixture`; regression test asserts canonical fixture paths equal a spawned child's cwd
+- Files: `behavior-gate.ts`, `behavior-gate.test.ts`, generated `coding-session-handoff.mjs`
+- Recorded retroactively on 2026-09-12; no independent review artifact exists
+
+### Run 26 — 2026-09-12
+
+- Scope: root verification and bookkeeping of `42803fc`; no provider operation
+- Verification: 204/204 `tests/coding-session-handoff`; full Vitest 1860 passed / 1 failed / 1 skipped, where the failure is `tests/consensus/core/provider-cli-timeout.test.ts` SIGKILL escalation timing under full-suite load (branch changes no consensus files; passed 3/3 in isolation); `tsc --noEmit`, `build:check`, `validate`, `smoke`, and `git diff --check` passed
+- Lint: repo-wide `pnpm run lint` fails only on pre-existing `.claude/skills/explainer-kit` mirror files; changed handoff TypeScript files are outside oxlint/oxfmt targets
+- Branch: `feat/coding-session-handoff` is 5 commits behind `origin/main` (not rebased in this run)
+- Evidence: no `coding-session-handoff-gate-evidence` directory exists in the current worktrees; prior receipts and locators are unavailable
+- Disposition: published branch and project records; independent p03-t17/t18 review and any live p04 attempt remain pending user authorization
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -893,6 +919,25 @@ independently verified before p04-t01 can safely execute.
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### Task Completed: p03-t18 canonical fixture paths
+
+**Date:** 2026-09-11 (recorded 2026-09-12)
+**Commit:** `42803fc7076ca9019522a935818c0107e976ced7`
+
+Canonicalized the disposable behavior-gate fixture root so provider-recorded cwd values
+match fixture paths exactly on symlinked temp roots. Root verification passed on
+2026-09-12 (see Run 26). No independent review artifact exists.
+
+### Task Completed: p03-t17 observed Claude successor corroboration
+
+**Date:** 2026-09-11 (recorded 2026-09-12)
+**Commit:** `2c3a8358f5bd95fc76fa8629d42299be12c75428`
+
+Replaced the pre-generated Claude child UUID contract, which exact Claude Code 2.1.251
+did not honor in Run 23, with a single-occurrence, parent-distinct observed successor ID
+that must be corroborated by transcript, target cwd, lineage, and source resume. This
+is a design deviation recorded below. No independent review artifact exists.
 
 ### Entry Gate Inconclusive: p04-t02 child evidence unobserved
 
@@ -1348,6 +1393,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-t17 | design.md, spec.md, plan.md p04-t02 | Claude successor passes a pre-generated child UUID via `--session-id` and the gate proves that exact UUID | Claude successor uses `--resume <parent> --fork-session` only; the provider-returned child ID is accepted once, parent-distinct, and corroborated by transcript, target cwd, lineage, and source resume | Run 23 showed exact Claude Code 2.1.251 returns a different valid session ID than the requested `--session-id` | Implementation at `2c3a835` | Align design.md/spec.md and p04-t02 plan wording after user approval |
 | p01 verification | plan.md | `pnpm run validate:skill-versions -- --base-ref origin/main` | `pnpm run validate:skill-versions --base-ref origin/main` | The package script rejects the standalone `--`; the corrected invocation passed and all remaining plan occurrences were aligned. | `package.json` script contract | None |
 
 ## Test Results
@@ -1358,7 +1404,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
-| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, p03-t14 83 focused tests, p03-t15 88 focused tests, and p03-t16 101 targeted tests; type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t16 implementation and review | 0 | Sixteen task commits pass through `d15fd66`; p03-t16 targeted review passed with zero findings; prior M1-M3 remain deferred |
+| p03   | 270 original phase tests; final-repair runs of 218 focused, 244 broader, root/final-review 235 reviewer-facing tests, p03-t09 52 focused tests, p03-t10 70 focused tests, p03-t11 72 focused tests, p03-t12 82 focused tests, p03-t13 82 focused tests, p03-t14 83 focused tests, p03-t15 88 focused tests, and p03-t16 101 targeted tests, 2026-09-12 root run of 204 handoff tests and full suite 1860/1861 (one unrelated consensus timing flake, passed in isolation); type-check; build-check; validate; skill versions; smoke; lint/format; diff hygiene | all through p03-t18 | 0 | Eighteen task commits pass through `42803fc`; p03-t16 targeted review passed with zero findings; p03-t17/t18 have no review artifact; prior M1-M3 remain deferred |
 | p05   | -         | -      | -      | -        |
 | p06   | -         | -      | -      | -        |
 
