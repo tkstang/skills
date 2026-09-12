@@ -1,7 +1,7 @@
 ---
 oat_current_task: p04-t02
 oat_last_commit: 12cf6edffb12e2e201d1586aa7a049bbd666e633
-oat_blockers: ["p03-t17/t18 review requests changes: I1 UUID casing bypasses parent-distinctness; formal receipt and one bounded fix/re-review need authorization", "p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
+oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-12T21:56:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-12T22:07:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,7 +100,7 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation complete through p03-t19; the one authorized independent re-review is pending (Run 28).
+Implementation complete through p03-t19; independent re-review passed with zero findings (Run 28). Live gates remain blocked.
 Root entry gates p04-t01 and p04-t02 still block activation.
 
 ## Artifacts
@@ -109,7 +109,7 @@ Root entry gates p04-t01 and p04-t02 still block activation.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (complete; independently reviewed)
 - **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (35/39 tasks implemented; p01/p02 complete, p03-t19 resolves I1 and m1 subject to one authorized re-review)
+- **Implementation:** `implementation.md` (35/39 tasks implemented; p01/p02/p03 complete, p03-t19 resolves I1 and m1 with passing independent re-review)
 
 ## Progress
 
@@ -247,25 +247,25 @@ Root entry gates p04-t01 and p04-t02 still block activation.
 - ✓ p03-t17 completed at `2c3a835`: Claude successor no longer passes a pre-generated `--session-id`; the provider-returned child ID is trusted only when it occurs exactly once, differs from the parent, and is corroborated by exact transcript, target cwd, and parent lineage. The disposable gate separately verifies source resume leaves the child unchanged.
 - ✓ p03-t18 completed at `42803fc`: disposable gate fixture root is canonicalized with `realpath`, so macOS `/var` → `/private/var` symlinks no longer break the exact recorded-cwd comparisons that threw `exact-transcript-unavailable` before child identity capture
 - ✓ Root verified `42803fc` on 2026-09-12: 204/204 handoff tests; full suite 1860/1861 with one unrelated consensus SIGKILL-timing flake that passed 3/3 in isolation; type-check, build parity, validate, smoke, and diff hygiene passed
-- ✓ The missing t17/t18 review was performed in Run 27 and recorded in `reviews/p03-t17-t18-review-2026-09-12T212400Z.md`; it requests changes (0 Critical, 1 Important, 0 Medium, 1 Minor), not the previously unrecorded zero-finding outcome
+- ✓ The missing t17/t18 review was performed in Run 27 and recorded in `reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md`; it requests changes (0 Critical, 1 Important, 0 Medium, 1 Minor), not the previously unrecorded zero-finding outcome
 - ✓ User authorized alignment on 2026-09-12; design/spec and both Claude execution/receipt-review instructions now use one valid parent-distinct observed child ID, with source-resume proof confined to the disposable gate
 - ⚠ No local gate-evidence directory (receipts or locators) was found in any current worktree; prior p04 receipts are unavailable for review and any p05 review needs fresh passing receipts
 - ⏹ No live provider operation, receipt review, or p05 work occurred during this bookkeeping run
 - ✓ OAT launcher works after the user's update (0.2.73); project pull and plan validation succeed on the Mini
 - ✓ Merged origin/main at `37d955c` without conflicts or handoff runtime/test changes; task commit IDs remain intact, and the local merge is not yet pushed to the feature branch
-- ✓ Reconciled current task counts and structured t16/t17/t18 status; the latest targeted independent review is complete, with formal receipt and bounded fix/re-review authorization pending
+- ✓ Run 28 received the t17/t18 review and fixed I1/m1 in p03-t19 at `12cf6edf`; the single authorized independent re-review passed with zero findings and is archived as `reviews/archived/p03-t19-review-2026-09-12T215700Z.md`
+- ✓ Run 28 aggregate verification: 1,866 tests passed, 1 skipped, 0 failed; all 209 handoff tests, type-check, generated parity, validate, smoke, authored lint/format, and diff hygiene passed
 - ✓ Root verification at merged head `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed; type-check, generated build parity, repository validation, smoke, plan validation, and diff hygiene passed
 - ⚠ Filesystem installation metadata on the Mini identifies active Codex 0.154.0 and Claude 2.1.270, not the pinned gate versions. A cached Codex 0.151.0 release exists; Claude 2.1.251 was not found in the checked installed-version directory. No provider executable was invoked to obtain this information.
 
 ## Blockers
 
-The t17/t18 targeted review found I1: UUID validation accepts mixed casing while
-parent-distinctness comparisons are case-sensitive. The same UUID with alternate
-casing can pass the new guard. Root confirmed this with synthetic input; a bounded
-fix and meaningful valid-UUID regressions are required before re-review or live proof.
-The same review found one nonblocking formatter issue (m1). Prior review-cycle caps
-were not reset; formal receipt and one additional bounded fix/re-review cycle need
-explicit user authorization.
+The t17/t18 targeted review found I1 (UUID casing) and m1 (test formatting).
+The user authorized one bounded cycle; p03-t19 at `12cf6edf` fixes both, with
+six red regression cases before the change and all 209 handoff tests passing after.
+The one independent re-review passed with zero findings. Prior review-cycle caps
+were not reset, and this explicit one-cycle authorization is consumed. Neither
+finding remains a blocker.
 
 p04-t01 remains blocked after the exact Codex 0.151.0 live gate returned
 `inconclusive` at `native-identity-missing`. Authentication and the reviewed plan
@@ -286,13 +286,10 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-1. Complete exactly one independent re-review of p03-t19 at `12cf6edf`.
-   The source review is archived; its event is fixes_completed. The
-   observed-successor design/spec alignment is already complete.
-2. After that review passes and with fresh user authorization only: make exact
+1. With fresh user authorization only: make exact
    Claude 2.1.251 available on this Mini and run its mutation-free `behavior-plan`,
    followed only by a separately authorized single `behavior-verify` for p04-t02.
-3. p04-t01 Codex remains inconclusive during parent creation; its accepted stdout
+2. p04-t01 Codex remains inconclusive during parent creation; its accepted stdout
    identity shape needs sanitized diagnosis, not an automatic full-gate retry.
 
 Do not retry either live gate automatically or infer cleanup targets. p05 activation
