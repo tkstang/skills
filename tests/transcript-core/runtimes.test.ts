@@ -24,12 +24,17 @@ import {
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
   extractMeta,
+  extractMetaFromRecords,
   isAutomaticControlAcknowledgement,
   isNoOpText,
   normalizeEntries,
   parseAutomaticControlEnvelope,
+  readMetadataRecordsBounded,
   readRecords,
+  readTailRecordsBounded,
 } from '../../src/transcript/core/runtimes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -200,6 +205,235 @@ describe('readRecords', () => {
   });
 });
 
+describe('bounded transcript readers', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'bounded-runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('reads only complete metadata-prefix records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'metadata-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 24,
+        maxRecords: 1,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ index: 1 }],
+      incomplete: true,
+      bytesRead: 24,
+      recordsInspected: 1,
+    });
+  });
+
+  it('surfaces clean record-cap and newline-aligned byte truncation', async () => {
+    const recordCappedPath = join(tmpDir, 'metadata-record-capped.jsonl');
+    await writeFile(
+      recordCappedPath,
+      Array.from({ length: 129 }, (_, index) => JSON.stringify({ index })).join(
+        '\n',
+      ) + '\n',
+    );
+
+    await expect(
+      readMetadataRecordsBounded(recordCappedPath, {
+        maxBytes: 16 * 1024,
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toMatchObject({
+      incomplete: true,
+      recordsInspected: 128,
+    });
+
+    const firstLine = `${JSON.stringify({ cwd: '/repo/source' })}\n`;
+    const byteCappedPath = join(tmpDir, 'metadata-byte-capped.jsonl');
+    await writeFile(
+      byteCappedPath,
+      `${firstLine}${JSON.stringify({ later: true })}\n`,
+    );
+
+    await expect(
+      readMetadataRecordsBounded(byteCappedPath, {
+        maxBytes: Buffer.byteLength(firstLine),
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ cwd: '/repo/source' }],
+      incomplete: true,
+      bytesRead: Buffer.byteLength(firstLine),
+      recordsInspected: 1,
+    });
+  });
+
+  it('returns the newest complete tail records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'records-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readTailRecordsBounded(transcriptPath, {
+        maxBytes: 128,
+        maxRecords: 2,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ index: 2 }, { index: 3 }],
+      truncated: true,
+      bytesRead: Buffer.byteLength(
+        ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+      ),
+      recordsInspected: 3,
+    });
+  });
+
+  it('stops physical parsing before the inspected-record budget overshoots', async () => {
+    const transcriptPath = join(tmpDir, 'records-inspection-capped.jsonl');
+    await writeFile(
+      transcriptPath,
+      Array.from({ length: 10_001 }, (_, index) =>
+        JSON.stringify({ index }),
+      ).join('\n') + '\n',
+    );
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 1024 * 1024,
+      maxRecords: 10_000,
+      maxInspectedRecords: 10_000,
+      diagnostic: () => {},
+    });
+
+    expect(result.recordsInspected).toBe(10_000);
+    expect(result.truncated).toBe(true);
+    expect(result.recordLimitExceeded).toBe(true);
+  });
+
+  it('drops malformed and partial final records with path-free diagnostics', async () => {
+    const transcriptPath = join(tmpDir, 'sensitive-session-name.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\nnot-json\n{"partial":');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result.records).toEqual([{ ok: true }]);
+    expect(result.bytesRead).toBe(
+      Buffer.byteLength('{"ok":true}\nnot-json\n{"partial":'),
+    );
+    expect(result.recordsInspected).toBe(3);
+    expect(diagnostics).toEqual([
+      { code: 'malformed-record' },
+      { code: 'malformed-record' },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+    expect(JSON.stringify(diagnostics)).not.toContain('sensitive-session-name');
+  });
+
+  it('reports an oversized prefix record without whole-file fallback', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n{"later":true}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const result = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+  });
+
+  it('reports an oversized tail record when no complete record fits the byte window', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      truncated: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+  });
+
+  it('fails closed at an expired deadline without disclosing the path', async () => {
+    const transcriptPath = join(tmpDir, 'deadline-secret.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\n');
+    const diagnostics: unknown[] = [];
+
+    const result = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      deadlineMs: 0,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'deadline-exceeded' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+  });
+
+  it('reports read failures without transcript paths', async () => {
+    const transcriptPath = join(tmpDir, 'missing-secret.jsonl');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'read-failed' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // encodeCwd
 // ---------------------------------------------------------------------------
@@ -248,6 +482,54 @@ describe('encodeCwd', () => {
       '/Users/thomas.stang/Code/vox/duet',
     );
     expectDeepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
+  });
+});
+
+describe('extractClaudeRecordedCwdFromRecords', () => {
+  it('returns agreeing absolute top-level cwd evidence', () => {
+    expect(
+      extractClaudeRecordedCwdFromRecords([
+        { cwd: '/repo/exact', nested: { cwd: '/ignored' } },
+        { type: 'message' },
+        { cwd: '/repo/exact' },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['malformed', [{ cwd: 42 }]],
+    ['empty', [{ cwd: '' }]],
+    ['relative', [{ cwd: 'repo/relative' }]],
+    ['conflicting', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractClaudeRecordedCwdFromRecords(records)).toBeNull();
+  });
+});
+
+describe('extractCodexRecordedCwdFromRecords', () => {
+  it('returns one absolute cwd when every top-level and payload value agrees', () => {
+    expect(
+      extractCodexRecordedCwdFromRecords([
+        { cwd: '/repo/exact' },
+        { payload: { cwd: '/repo/exact' } },
+        { cwd: '/repo/exact', payload: { cwd: '/repo/exact' } },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['late top-level conflict', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+    [
+      'late payload conflict',
+      [{ cwd: '/repo/one' }, { payload: { cwd: '/repo/two' } }],
+    ],
+    ['empty', [{ cwd: '/repo/one' }, { payload: { cwd: '' } }]],
+    ['relative', [{ cwd: '/repo/one' }, { cwd: 'repo/relative' }]],
+    ['malformed', [{ cwd: '/repo/one' }, { payload: { cwd: 42 } }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractCodexRecordedCwdFromRecords(records)).toBeNull();
   });
 });
 
@@ -346,6 +628,113 @@ describe('extractMeta (codex)', () => {
     expectOk(meta !== null, 'meta should not be null');
     expectEqual(meta.sessionId, 'codex-payload-cwd-001');
     expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+  });
+});
+
+describe('exact provider lineage metadata', () => {
+  it('exposes Codex native, optional root, fork, and cwd fields without changing legacy sessionId', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-caller-id',
+          payload: {
+            id: 'native-child-id',
+            session_id: 'root-id',
+            forked_from_id: 'native-parent-id',
+            cwd: '/repo/target',
+          },
+        },
+        { type: 'response_item', payload: { id: 'message-id' } },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'legacy-caller-id',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'native-child-id',
+      rootSessionId: 'root-id',
+      forkedFromSessionId: 'native-parent-id',
+    });
+    expect(
+      new Set([meta?.sessionId, meta?.nativeSessionId, meta?.rootSessionId])
+        .size,
+    ).toBe(3);
+  });
+
+  it('does not mistake Codex message payload IDs for native session IDs', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [{ type: 'response_item', payload: { id: 'message-id' } }],
+      '/private/legacy-id.jsonl',
+    );
+    expect(meta).toEqual({
+      sessionId: 'legacy-id',
+      recordedCwd: null,
+    });
+  });
+
+  it('exposes ordered Claude uuid/parentUuid lineage and exact cwd', () => {
+    const meta = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: null,
+          cwd: '/repo/target',
+        },
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-2',
+          parentUuid: 'record-1',
+          cwd: '/repo/target',
+        },
+      ],
+      '/private/not-an-encoded-dir/session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'claude-child',
+      recordLineage: [
+        { uuid: 'record-1', parentUuid: null },
+        { uuid: 'record-2', parentUuid: 'record-1' },
+      ],
+    });
+  });
+
+  it('omits contradictory or malformed optional lineage fields', () => {
+    const codex = extractMetaFromRecords(
+      'codex',
+      [
+        { type: 'session_meta', payload: { id: 'one', cwd: '/repo' } },
+        { type: 'session_meta', payload: { id: 'two', cwd: '/repo' } },
+      ],
+      '/private/fallback.jsonl',
+    );
+    expect(codex).toEqual({ sessionId: 'fallback', recordedCwd: '/repo' });
+
+    const claude = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: 42,
+          cwd: 'relative',
+        },
+      ],
+      '/private/plain/session.jsonl',
+    );
+    expect(claude).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: null,
+      nativeSessionId: 'claude-child',
+    });
   });
 });
 

@@ -16,9 +16,9 @@
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
  */
 
-import { readFile } from 'node:fs/promises';
+import { open, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 
 export type Runtime = 'claude-code' | 'codex' | 'cursor';
 export type JsonObject = Record<string, unknown>;
@@ -26,6 +26,52 @@ export type JsonObject = Record<string, unknown>;
 export interface TranscriptMeta {
   sessionId: string;
   recordedCwd: string | null;
+  /** Provider-native session identity when exact transcript metadata exposes it. */
+  nativeSessionId?: string;
+  /** Optional provider root identity, distinct from the native child identity. */
+  rootSessionId?: string;
+  /** Exact provider-native parent identity for a forked session. */
+  forkedFromSessionId?: string;
+  /** Ordered Claude record lineage, retained only when every observed pair is valid. */
+  recordLineage?: TranscriptRecordLineage[];
+}
+
+export interface TranscriptRecordLineage {
+  uuid: string;
+  parentUuid: string | null;
+}
+
+export type SafeTranscriptDiagnosticCode =
+  | 'malformed-record'
+  | 'oversized-record'
+  | 'read-failed'
+  | 'deadline-exceeded';
+
+export interface SafeTranscriptDiagnostic {
+  code: SafeTranscriptDiagnosticCode;
+}
+
+export interface BoundedTranscriptReadOptions {
+  maxBytes: number;
+  maxRecords: number;
+  maxInspectedRecords?: number;
+  deadlineMs?: number;
+  diagnostic: (event: SafeTranscriptDiagnostic) => void;
+}
+
+export interface BoundedMetadataReadResult {
+  records: JsonObject[];
+  incomplete: boolean;
+  bytesRead: number;
+  recordsInspected: number;
+}
+
+export interface BoundedTailReadResult {
+  records: JsonObject[];
+  truncated: boolean;
+  bytesRead: number;
+  recordsInspected: number;
+  recordLimitExceeded?: true;
 }
 
 export interface CursorIdentityEvidence {
@@ -622,6 +668,295 @@ export function encodeCwdVariants(runtime: Runtime, cwd: string): string[] {
 // readRecords
 // ---------------------------------------------------------------------------
 
+interface BoundedFileWindow {
+  buffer: Buffer;
+  offset: number;
+  fileSize: number;
+}
+
+function validateBoundedReadOptions(
+  options: BoundedTranscriptReadOptions,
+): void {
+  if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0) {
+    throw new TypeError('maxBytes must be a positive safe integer');
+  }
+  if (!Number.isSafeInteger(options.maxRecords) || options.maxRecords <= 0) {
+    throw new TypeError('maxRecords must be a positive safe integer');
+  }
+  if (
+    options.maxInspectedRecords !== undefined &&
+    (!Number.isSafeInteger(options.maxInspectedRecords) ||
+      options.maxInspectedRecords <= 0)
+  ) {
+    throw new TypeError('maxInspectedRecords must be a positive safe integer');
+  }
+  if (
+    options.deadlineMs !== undefined &&
+    (!Number.isFinite(options.deadlineMs) || options.deadlineMs < 0)
+  ) {
+    throw new TypeError('deadlineMs must be a non-negative finite number');
+  }
+}
+
+function safeDiagnostic(
+  options: BoundedTranscriptReadOptions,
+  code: SafeTranscriptDiagnosticCode,
+): void {
+  options.diagnostic({ code });
+}
+
+function deadlineAt(options: BoundedTranscriptReadOptions): number | null {
+  return options.deadlineMs === undefined
+    ? null
+    : Date.now() + options.deadlineMs;
+}
+
+function deadlineExpired(deadline: number | null): boolean {
+  return deadline !== null && Date.now() >= deadline;
+}
+
+async function readBoundedWindow(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+  direction: 'prefix' | 'tail',
+  deadline: number | null,
+): Promise<BoundedFileWindow | null> {
+  if (deadlineExpired(deadline)) {
+    safeDiagnostic(options, 'deadline-exceeded');
+    return null;
+  }
+
+  let handle;
+  try {
+    handle = await open(transcriptPath, 'r');
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return null;
+    }
+
+    const { size } = await handle.stat();
+    const length = Math.min(size, options.maxBytes);
+    const offset = direction === 'tail' ? Math.max(0, size - length) : 0;
+    const buffer = Buffer.allocUnsafe(length);
+    let bytesRead = 0;
+    while (bytesRead < length) {
+      if (deadlineExpired(deadline)) {
+        safeDiagnostic(options, 'deadline-exceeded');
+        return null;
+      }
+      const result = await handle.read(
+        buffer,
+        bytesRead,
+        length - bytesRead,
+        offset + bytesRead,
+      );
+      if (result.bytesRead === 0) break;
+      bytesRead += result.bytesRead;
+    }
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return null;
+    }
+    return { buffer: buffer.subarray(0, bytesRead), offset, fileSize: size };
+  } catch {
+    safeDiagnostic(options, 'read-failed');
+    return null;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+function parseBoundedLines(
+  buffer: Buffer,
+  options: BoundedTranscriptReadOptions,
+  deadline: number | null,
+  mode: 'prefix' | 'tail',
+  dropLeadingFragment: boolean,
+  dropTrailingFragment: boolean,
+): {
+  records: JsonObject[];
+  incomplete: boolean;
+  deadlineExceeded: boolean;
+  recordsInspected: number;
+  recordLimitExceeded: boolean;
+} {
+  let start = 0;
+  let incomplete = false;
+  let recordsInspected = 0;
+  const records: JsonObject[] = [];
+
+  if (dropLeadingFragment) {
+    const newline = buffer.indexOf(0x0a);
+    if (newline === -1 || newline === buffer.length - 1) {
+      safeDiagnostic(options, 'oversized-record');
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: false,
+        recordsInspected,
+        recordLimitExceeded: false,
+      };
+    }
+    start = newline + 1;
+    incomplete = true;
+  }
+
+  while (start < buffer.length) {
+    if (deadlineExpired(deadline)) {
+      safeDiagnostic(options, 'deadline-exceeded');
+      return {
+        records: [],
+        incomplete: true,
+        deadlineExceeded: true,
+        recordsInspected,
+        recordLimitExceeded: false,
+      };
+    }
+
+    const newline = buffer.indexOf(0x0a, start);
+    const isFinalFragment = newline === -1;
+    const end = isFinalFragment ? buffer.length : newline;
+    if (isFinalFragment && dropTrailingFragment) {
+      safeDiagnostic(options, 'oversized-record');
+      incomplete = true;
+      break;
+    }
+
+    let line = buffer.subarray(start, end);
+    if (line.at(-1) === 0x0d) line = line.subarray(0, -1);
+    const text = line.toString('utf8').trim();
+    if (text) {
+      if (
+        options.maxInspectedRecords !== undefined &&
+        recordsInspected >= options.maxInspectedRecords
+      ) {
+        return {
+          records,
+          incomplete: true,
+          deadlineExceeded: false,
+          recordsInspected,
+          recordLimitExceeded: true,
+        };
+      }
+      recordsInspected += 1;
+      const parsed = safeParseLine(text);
+      if (parsed.ok) {
+        if (mode === 'prefix') {
+          if (records.length < options.maxRecords) records.push(parsed.value);
+        } else {
+          records.push(parsed.value);
+          if (records.length > options.maxRecords) {
+            records.shift();
+            incomplete = true;
+          }
+        }
+      } else {
+        safeDiagnostic(options, 'malformed-record');
+        incomplete = true;
+      }
+    }
+
+    if (mode === 'prefix' && records.length >= options.maxRecords) {
+      if (!isFinalFragment || end < buffer.length) incomplete = true;
+      break;
+    }
+    if (isFinalFragment) break;
+    start = newline + 1;
+  }
+
+  return {
+    records,
+    incomplete,
+    deadlineExceeded: false,
+    recordsInspected,
+    recordLimitExceeded: false,
+  };
+}
+
+/**
+ * Read complete JSONL records from a bounded metadata prefix. Diagnostics are
+ * deliberately code-only: transcript paths and parse details never escape.
+ */
+export async function readMetadataRecordsBounded(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+): Promise<BoundedMetadataReadResult> {
+  validateBoundedReadOptions(options);
+  const deadline = deadlineAt(options);
+  const window = await readBoundedWindow(
+    transcriptPath,
+    options,
+    'prefix',
+    deadline,
+  );
+  if (window === null) {
+    return {
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0,
+    };
+  }
+  const parsed = parseBoundedLines(
+    window.buffer,
+    options,
+    deadline,
+    'prefix',
+    false,
+    window.fileSize > window.buffer.length && window.buffer.at(-1) !== 0x0a,
+  );
+  return {
+    records: parsed.records,
+    incomplete: window.fileSize > window.buffer.length || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected,
+  };
+}
+
+/**
+ * Read the newest complete JSONL records from a bounded tail window. The
+ * result is marked truncated whenever bytes, records, malformed input, or a
+ * deadline prevent the complete window from being represented.
+ */
+export async function readTailRecordsBounded(
+  transcriptPath: string,
+  options: BoundedTranscriptReadOptions,
+): Promise<BoundedTailReadResult> {
+  validateBoundedReadOptions(options);
+  const deadline = deadlineAt(options);
+  const window = await readBoundedWindow(
+    transcriptPath,
+    options,
+    'tail',
+    deadline,
+  );
+  if (window === null) {
+    return {
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0,
+    };
+  }
+  const parsed = parseBoundedLines(
+    window.buffer,
+    options,
+    deadline,
+    'tail',
+    window.offset > 0,
+    false,
+  );
+  return {
+    records: parsed.records,
+    truncated: window.offset > 0 || parsed.incomplete,
+    bytesRead: window.buffer.length,
+    recordsInspected: parsed.recordsInspected,
+    ...(parsed.recordLimitExceeded
+      ? { recordLimitExceeded: true as const }
+      : {}),
+  };
+}
+
 /**
  * Read a JSONL transcript file tolerantly:
  * - Blank/whitespace-only lines are silently dropped.
@@ -744,6 +1079,74 @@ function codexSessionIdFromRecord(record: JsonObject): string | undefined {
   );
 }
 
+function consistentNonEmptyString(
+  values: readonly unknown[],
+): string | undefined {
+  let observed: string | undefined;
+  for (const value of values) {
+    if (typeof value !== 'string' || value.length === 0) return undefined;
+    if (observed !== undefined && observed !== value) return undefined;
+    observed = value;
+  }
+  return observed;
+}
+
+function codexLineageMetadata(
+  records: JsonObject[],
+): Pick<
+  TranscriptMeta,
+  'nativeSessionId' | 'rootSessionId' | 'forkedFromSessionId'
+> {
+  const sessionMetadata = records.filter(
+    (record) => record.type === 'session_meta' && isObject(record.payload),
+  );
+  const payloads = sessionMetadata.map(
+    (record) => record.payload as JsonObject,
+  );
+  const nativeValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'id'))
+    .map((payload) => payload.id);
+  const rootValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'session_id'))
+    .map((payload) => payload.session_id);
+  const forkValues = payloads
+    .filter((payload) => Object.hasOwn(payload, 'forked_from_id'))
+    .map((payload) => payload.forked_from_id);
+  const nativeSessionId = consistentNonEmptyString(nativeValues);
+  const rootSessionId = consistentNonEmptyString(rootValues);
+  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+  return {
+    ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+    ...(rootSessionId === undefined ? {} : { rootSessionId }),
+    ...(forkedFromSessionId === undefined ? {} : { forkedFromSessionId }),
+  };
+}
+
+function claudeRecordLineage(
+  records: JsonObject[],
+): TranscriptRecordLineage[] | undefined {
+  const result: TranscriptRecordLineage[] = [];
+  for (const record of records) {
+    if (!Object.hasOwn(record, 'uuid')) continue;
+    if (typeof record.uuid !== 'string' || record.uuid.length === 0) {
+      return undefined;
+    }
+    if (
+      Object.hasOwn(record, 'parentUuid') &&
+      record.parentUuid !== null &&
+      (typeof record.parentUuid !== 'string' || record.parentUuid.length === 0)
+    ) {
+      return undefined;
+    }
+    result.push({
+      uuid: record.uuid,
+      parentUuid:
+        typeof record.parentUuid === 'string' ? record.parentUuid : null,
+    });
+  }
+  return result.length === 0 ? undefined : result;
+}
+
 // ---------------------------------------------------------------------------
 // extractMeta
 // ---------------------------------------------------------------------------
@@ -779,6 +1182,59 @@ export async function extractMeta(
 }
 
 /**
+ * Extract exact Claude Code cwd evidence from top-level transcript records.
+ * Every present cwd field must be a non-empty absolute string, and all
+ * observed values must agree. A transcript without exact evidence is not
+ * classifiable for complete discovery.
+ */
+export function extractClaudeRecordedCwdFromRecords(
+  records: JsonObject[],
+): string | null {
+  let recordedCwd: string | null = null;
+
+  for (const record of records) {
+    if (!Object.hasOwn(record, 'cwd')) continue;
+    const cwd = record.cwd;
+    if (typeof cwd !== 'string' || cwd.length === 0 || !isAbsolute(cwd)) {
+      return null;
+    }
+    if (recordedCwd !== null && cwd !== recordedCwd) return null;
+    recordedCwd = cwd;
+  }
+
+  return recordedCwd;
+}
+
+/**
+ * Extract exact Codex cwd evidence from every recognized top-level `cwd` and
+ * `payload.cwd` field. Every present value must be a non-empty absolute string,
+ * and all observed values must agree.
+ */
+export function extractCodexRecordedCwdFromRecords(
+  records: JsonObject[],
+): string | null {
+  let recordedCwd: string | null = null;
+
+  for (const record of records) {
+    const values: unknown[] = [];
+    if (Object.hasOwn(record, 'cwd')) values.push(record.cwd);
+    if (isObject(record.payload) && Object.hasOwn(record.payload, 'cwd')) {
+      values.push(record.payload.cwd);
+    }
+
+    for (const cwd of values) {
+      if (typeof cwd !== 'string' || cwd.length === 0 || !isAbsolute(cwd)) {
+        return null;
+      }
+      if (recordedCwd !== null && cwd !== recordedCwd) return null;
+      recordedCwd = cwd;
+    }
+  }
+
+  return recordedCwd;
+}
+
+/**
  * Same extraction as `extractMeta`, but synchronous over an already-parsed
  * record array instead of reading the file. Split out so callers that also
  * need other record-derived data (e.g. session-observer's discovery, which
@@ -809,11 +1265,24 @@ export function extractMetaFromRecords(
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
     }
 
-    // Decode cwd from the parent directory name
-    const parentDirName = basename(dirname(transcriptPath));
-    const recordedCwd = decodeCwdDirName(parentDirName);
+    const nativeSessionId = consistentNonEmptyString(
+      records
+        .filter((record) => Object.hasOwn(record, 'sessionId'))
+        .map((record) => record.sessionId),
+    );
+    const exactRecordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    const recordLineage = claudeRecordLineage(records);
 
-    return { sessionId, recordedCwd };
+    // Retain the legacy directory decode when exact top-level cwd is absent.
+    const parentDirName = basename(dirname(transcriptPath));
+    const recordedCwd = exactRecordedCwd ?? decodeCwdDirName(parentDirName);
+
+    return {
+      sessionId,
+      recordedCwd,
+      ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+      ...(recordLineage === undefined ? {} : { recordLineage }),
+    };
   }
 
   if (runtime === 'codex') {
@@ -842,7 +1311,7 @@ export function extractMetaFromRecords(
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
     }
 
-    return { sessionId, recordedCwd };
+    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
   }
 
   if (runtime === 'cursor') {

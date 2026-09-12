@@ -3,7 +3,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
-  readdir,
   opendir,
   stat,
   mkdir,
@@ -19,8 +18,11 @@ import { promisify } from "node:util";
 import {
   discoverPaths,
   encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
   extractMeta,
   extractMetaFromRecords,
+  readMetadataRecordsBounded,
   readRecords
 } from './runtimes.mjs';
 import {
@@ -29,12 +31,77 @@ import {
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
+const EXACT_ALL_DISCOVERY_BUDGET = {
+  maxEntries: 5e4,
+  maxAggregateBytes: 512 * 1024 * 1024,
+  maxMetadataBytesPerEntry: 256 * 1024,
+  deadlineMs: 3e4
+};
+const EXACT_ALL_METADATA_MAX_RECORDS = 128;
 const CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 2e4;
 const CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2e3;
 const CURSOR_DISCOVERY_MAX_ENTRIES = 2e4;
 const CURSOR_DISCOVERY_MAX_ELAPSED_MS = 2e3;
 const CURSOR_DISCOVERY_MAX_BYTES = 64 * 1024 * 1024;
 const CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES = 5e3;
+class SessionDiscoveryError extends Error {
+  code;
+  constructor(code) {
+    super(code);
+    this.name = "SessionDiscoveryError";
+    this.code = code;
+  }
+}
+class ExactAllDiscoveryBudget {
+  constructor(limits, runtime, diagnostic) {
+    this.limits = limits;
+    this.runtime = runtime;
+    this.diagnostic = diagnostic;
+  }
+  limits;
+  runtime;
+  diagnostic;
+  startedAt = Date.now();
+  entries = 0;
+  aggregateBytes = 0;
+  emit(code) {
+    this.diagnostic?.({ code, runtime: this.runtime });
+  }
+  checkDeadline() {
+    if (Date.now() - this.startedAt >= this.limits.deadlineMs) {
+      this.emit("deadline-exceeded");
+      throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
+    }
+  }
+  consumeEntry() {
+    this.checkDeadline();
+    this.entries += 1;
+    if (this.entries > this.limits.maxEntries) {
+      this.emit("budget-exceeded");
+      throw new SessionDiscoveryError("DISCOVERY_ENTRY_BUDGET_EXCEEDED");
+    }
+  }
+  consumeBytes(bytes) {
+    this.checkDeadline();
+    this.aggregateBytes += bytes;
+    if (this.aggregateBytes > this.limits.maxAggregateBytes) {
+      this.emit("budget-exceeded");
+      throw new SessionDiscoveryError("DISCOVERY_BYTE_BUDGET_EXCEEDED");
+    }
+  }
+  remainingMs() {
+    this.checkDeadline();
+    return Math.max(1, this.limits.deadlineMs - (Date.now() - this.startedAt));
+  }
+}
+function exactAllBudget(runtime, options) {
+  if (options?.recency !== "exact-all") return null;
+  return new ExactAllDiscoveryBudget(
+    options.budget ?? EXACT_ALL_DISCOVERY_BUDGET,
+    runtime,
+    options.diagnostic
+  );
+}
 class CursorDiscoveryError extends Error {
   code;
   constructor(code) {
@@ -101,20 +168,22 @@ class ClassificationCache {
   constructor(maxEntries = DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES) {
     this.maxEntries = maxEntries;
   }
-  get(transcriptPath, mtimeMs, size) {
-    const entry = this.entries.get(transcriptPath);
+  get(transcriptPath, mtimeMs, size, derivation = "default") {
+    const key = JSON.stringify([derivation, transcriptPath]);
+    const entry = this.entries.get(key);
     if (!entry) return void 0;
     if (entry.mtimeMs !== mtimeMs || entry.size !== size) {
-      this.entries.delete(transcriptPath);
+      this.entries.delete(key);
       return void 0;
     }
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, entry);
+    this.entries.delete(key);
+    this.entries.set(key, entry);
     return entry.result;
   }
-  set(transcriptPath, mtimeMs, size, result) {
-    this.entries.delete(transcriptPath);
-    this.entries.set(transcriptPath, { mtimeMs, size, result });
+  set(transcriptPath, mtimeMs, size, result, derivation = "default") {
+    const key = JSON.stringify([derivation, transcriptPath]);
+    this.entries.delete(key);
+    this.entries.set(key, { mtimeMs, size, result });
     if (this.entries.size > this.maxEntries) {
       const oldestKey = this.entries.keys().next().value;
       if (oldestKey !== void 0) this.entries.delete(oldestKey);
@@ -156,6 +225,61 @@ async function candidateDerivedFields(runtime, transcriptPath, signature, cache)
   } catch {
     return { meta: null, classification: UNKNOWN_CLASSIFICATION };
   }
+}
+async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic) {
+  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
+  const cached = cache.get(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    derivation
+  );
+  if (cached) return cached;
+  let deadlineExceeded = false;
+  const read = await readMetadataRecordsBounded(transcriptPath, {
+    maxBytes: budget.limits.maxMetadataBytesPerEntry,
+    maxRecords: EXACT_ALL_METADATA_MAX_RECORDS,
+    deadlineMs: budget.remainingMs(),
+    diagnostic: ({ code }) => {
+      deadlineExceeded = code === "deadline-exceeded";
+      diagnostic?.({ code, runtime });
+    }
+  });
+  budget.checkDeadline();
+  if (deadlineExceeded) {
+    throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
+  }
+  if (read.incomplete) {
+    throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+  }
+  const records = read.records;
+  const classification = compactClassificationForCache(
+    classifyTranscriptRecords(runtime, records)
+  );
+  let meta = extractMetaFromRecords(runtime, records, transcriptPath);
+  if (runtime === "claude-code") {
+    const recordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    if (!meta || recordedCwd === null) {
+      throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+    }
+    meta = { ...meta, recordedCwd };
+  }
+  if (runtime === "codex") {
+    const recordedCwd = extractCodexRecordedCwdFromRecords(records);
+    if (!meta || recordedCwd === null) {
+      throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+    }
+    meta = { ...meta, recordedCwd };
+  }
+  const result = { meta, classification };
+  cache.set(
+    transcriptPath,
+    signature.mtimeMs,
+    signature.size,
+    result,
+    derivation
+  );
+  return result;
 }
 async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
   const { classification } = await candidateDerivedFields(
@@ -213,31 +337,45 @@ async function saveCwdCache(cache) {
 function cwdCacheKey(transcriptPath, mtimeSec) {
   return `${transcriptPath}:${mtimeSec}`;
 }
-async function discoverClaudeCode(targetCwd, cache) {
+async function discoverClaudeCode(targetCwd, cache, options) {
   const [projectsRoot] = discoverPaths("claude-code");
+  const budget = exactAllBudget("claude-code", options);
   const encodedVariants = encodeCwdVariants("claude-code", targetCwd);
   const now = Date.now() / 1e3;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
   let directHit = false;
   for (const encoded of encodedVariants) {
+    budget?.checkDeadline();
     const encodedDir = join(projectsRoot, encoded);
     try {
-      const entries = await readdir(encodedDir);
-      const jsonlFiles = entries.filter((e) => e.endsWith(".jsonl"));
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(encodedDir, file);
+      const entries = await opendir(encodedDir);
+      for await (const entry of entries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith(".jsonl")) continue;
+        const transcriptPath = join(encodedDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
         let fileStat;
         try {
           fileStat = await stat(transcriptPath);
         } catch {
+          if (budget) {
+            throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+          }
           continue;
         }
+        budget?.consumeBytes(fileStat.size);
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        const derived = await candidateDerivedFields(
+        const derived = budget ? await candidateDerivedFieldsBounded(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache,
+          budget,
+          options?.diagnostic
+        ) : await candidateDerivedFields(
           "claude-code",
           transcriptPath,
           fileStat,
@@ -248,10 +386,9 @@ async function discoverClaudeCode(targetCwd, cache) {
           runtime: "claude-code",
           transcriptPath,
           sessionId,
-          // Guaranteed exact match: do NOT use decodeCwdDirName (lossy).
-          recordedCwd: targetCwd,
+          recordedCwd: budget ? derived.meta?.recordedCwd ?? null : targetCwd,
           cwdSlug: encoded,
-          cwdEvidence: "direct-parent-dir",
+          cwdEvidence: budget ? "transcript-record" : "direct-parent-dir",
           mtime,
           size: fileStat.size,
           ageSec,
@@ -259,39 +396,64 @@ async function discoverClaudeCode(targetCwd, cache) {
         });
       }
       directHit = true;
-    } catch {
+    } catch (error) {
+      if (error instanceof SessionDiscoveryError) throw error;
+      if (budget && !isMissingPathError(error)) {
+        throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+      }
     }
   }
-  if (!directHit) {
-    let projectDirs = [];
+  if (!directHit || budget !== null) {
+    let projectDirs;
     try {
-      projectDirs = await readdir(projectsRoot);
-    } catch {
+      projectDirs = await opendir(projectsRoot);
+    } catch (error) {
+      if (budget && !isMissingPathError(error)) {
+        throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+      }
       return candidates;
     }
-    for (const dirName of projectDirs) {
+    for await (const projectEntry of projectDirs) {
+      budget?.consumeEntry();
+      if (!projectEntry.isDirectory()) continue;
+      const dirName = projectEntry.name;
       if (encodedVariants.includes(dirName)) continue;
       const projectDir = join(projectsRoot, dirName);
       let dirEntries;
       try {
-        dirEntries = await readdir(projectDir);
+        dirEntries = await opendir(projectDir);
       } catch {
+        if (budget) {
+          throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+        }
         continue;
       }
-      const jsonlFiles = dirEntries.filter((e) => e.endsWith(".jsonl"));
-      for (const file of jsonlFiles) {
-        const transcriptPath = join(projectDir, file);
+      for await (const entry of dirEntries) {
+        budget?.consumeEntry();
+        if (!entry.name.endsWith(".jsonl")) continue;
+        const transcriptPath = join(projectDir, entry.name);
         if (seenTranscripts.has(transcriptPath)) continue;
         seenTranscripts.add(transcriptPath);
         let fileStat;
         try {
           fileStat = await stat(transcriptPath);
         } catch {
+          if (budget) {
+            throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+          }
           continue;
         }
+        budget?.consumeBytes(fileStat.size);
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        const derived = await candidateDerivedFields(
+        const derived = budget ? await candidateDerivedFieldsBounded(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache,
+          budget,
+          options?.diagnostic
+        ) : await candidateDerivedFields(
           "claude-code",
           transcriptPath,
           fileStat,
@@ -305,7 +467,7 @@ async function discoverClaudeCode(targetCwd, cache) {
           sessionId,
           recordedCwd,
           cwdSlug: dirName,
-          cwdEvidence: "decoded-parent-dir",
+          cwdEvidence: budget ? "transcript-record" : "decoded-parent-dir",
           mtime,
           size: fileStat.size,
           ageSec,
@@ -332,60 +494,94 @@ async function claudeCodeLookupDiagnostics(targetCwd) {
   }
   return diagnostics;
 }
-async function collectJsonlFiles(dir) {
+async function collectJsonlFiles(dir, budget = null) {
   const results = [];
   let entries;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
+    entries = await opendir(dir);
+  } catch (error) {
+    if (budget && !isMissingPathError(error)) {
+      throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+    }
     return results;
   }
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const nested = await collectJsonlFiles(fullPath);
-      results.push(...nested);
-    } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
-      results.push(fullPath);
+  try {
+    for await (const entry of entries) {
+      budget?.consumeEntry();
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const nested = await collectJsonlFiles(fullPath, budget);
+        results.push(...nested);
+      } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+        results.push(fullPath);
+      }
+    }
+  } catch (error) {
+    if (error instanceof SessionDiscoveryError) throw error;
+    if (budget) {
+      throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
     }
   }
   return results;
 }
-async function discoverCodex(_targetCwd, classificationCache) {
+async function discoverCodex(_targetCwd, classificationCache, options) {
   const [sessionsRoot] = discoverPaths("codex");
+  const budget = exactAllBudget("codex", options);
   const now = Date.now() / 1e3;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
-  const allFiles = await collectJsonlFiles(sessionsRoot);
-  const cwdCache = await loadCwdCache();
+  const allFiles = await collectJsonlFiles(sessionsRoot, budget);
+  if (budget) allFiles.sort((left, right) => left.localeCompare(right));
+  const persistentCacheAllowed = options?.persistence !== "forbid";
+  const cwdCache = persistentCacheAllowed ? await loadCwdCache() : {};
   let cacheModified = false;
   const candidates = [];
   for (const transcriptPath of allFiles) {
+    budget?.checkDeadline();
     let fileStat;
     try {
       fileStat = await stat(transcriptPath);
     } catch {
+      if (budget) {
+        throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
+      }
       continue;
     }
+    budget?.consumeBytes(fileStat.size);
     const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
-    if (mtime < cutoffSec) continue;
+    if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
     const ageSec = now - mtime;
     const key = cwdCacheKey(transcriptPath, mtime);
     let recordedCwd;
     let sessionId;
-    if (cwdCache[key] && cwdCache[key].sessionId !== void 0) {
+    let boundedDerived = null;
+    if (budget) {
+      boundedDerived = await candidateDerivedFieldsBounded(
+        "codex",
+        transcriptPath,
+        fileStat,
+        classificationCache,
+        budget,
+        options?.diagnostic
+      );
+    }
+    if (persistentCacheAllowed && cwdCache[key] && cwdCache[key].sessionId !== void 0) {
       recordedCwd = cwdCache[key].recordedCwd;
       sessionId = cwdCache[key].sessionId;
     } else {
-      let meta;
-      try {
-        meta = await extractMeta("codex", transcriptPath);
-      } catch {
-        meta = null;
+      let meta = boundedDerived?.meta;
+      if (!budget) {
+        try {
+          meta = await extractMeta("codex", transcriptPath);
+        } catch {
+          meta = null;
+        }
       }
       recordedCwd = meta?.recordedCwd ?? null;
       sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
-      cwdCache[key] = { recordedCwd, sessionId };
-      cacheModified = true;
+      if (persistentCacheAllowed) {
+        cwdCache[key] = { recordedCwd, sessionId };
+        cacheModified = true;
+      }
     }
     candidates.push({
       runtime: "codex",
@@ -395,7 +591,7 @@ async function discoverCodex(_targetCwd, classificationCache) {
       mtime,
       size: fileStat.size,
       ageSec,
-      ...await candidateEngagementFields(
+      ...boundedDerived ? engagementCandidateFields(boundedDerived.classification) : await candidateEngagementFields(
         "codex",
         transcriptPath,
         fileStat,
@@ -403,7 +599,7 @@ async function discoverCodex(_targetCwd, classificationCache) {
       )
     });
   }
-  if (cacheModified) {
+  if (persistentCacheAllowed && cacheModified) {
     await saveCwdCache(cwdCache);
   }
   return candidates;
@@ -916,15 +1112,17 @@ async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId,
     reasons
   };
 }
-async function discover(runtime, targetCwd, cache = new ClassificationCache()) {
-  if (runtime === "claude-code") return discoverClaudeCode(targetCwd, cache);
-  if (runtime === "codex") return discoverCodex(targetCwd, cache);
+async function discover(runtime, targetCwd, cache = new ClassificationCache(), options) {
+  if (runtime === "claude-code") {
+    return discoverClaudeCode(targetCwd, cache, options);
+  }
+  if (runtime === "codex") return discoverCodex(targetCwd, cache, options);
   if (runtime === "cursor") return discoverCursor(targetCwd, cache);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
-async function findSessionCandidate(runtime, targetCwd, sessionId) {
+async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   const cache = new ClassificationCache();
-  const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache);
+  const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
   const matches = candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
   );
@@ -961,6 +1159,7 @@ async function gitWorktrees(cwd) {
 export {
   ClassificationCache,
   CursorDiscoveryError,
+  SessionDiscoveryError,
   claudeCodeLookupDiagnostics,
   configureCursorDiscoveryForTest,
   discover,

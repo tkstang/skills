@@ -1019,6 +1019,37 @@ describe('exit codes', () => {
 // ---------------------------------------------------------------------------
 
 describe('locate --json', () => {
+  test('legacy Codex locate keeps the seven-day cutoff and persistent cwd cache', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-locate-codex-defaults-'));
+    try {
+      const cwd = join(home, 'Code', 'codex-defaults');
+      const stateDir = join(home, '.local', 'state', 'session-observer');
+      const recentPath = await copyCodexTranscript(home, cwd, 'codex-recent');
+      const oldPath = await copyCodexTranscript(home, cwd, 'codex-old');
+      const oldTime = Date.now() / 1000 - 30 * 86400;
+      await utimes(oldPath, oldTime, oldTime);
+
+      const result = spawnCli(
+        ['locate', '--runtime', 'codex', '--cwd', cwd, '--json'],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout).winner).toMatchObject({
+        sessionId: 'codex-recent',
+        transcriptPath: recentPath,
+      });
+      const cache = await readFile(
+        join(stateDir, 'codex-cwd-cache.json'),
+        'utf8',
+      );
+      expect(cache).toContain(recentPath);
+      expect(cache).not.toContain(oldPath);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('locate --json outputs parseable JSON with winner/fallbacks', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {

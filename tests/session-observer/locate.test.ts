@@ -36,6 +36,7 @@ import {
   realpath,
   symlink,
   readdir,
+  stat,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -183,6 +184,7 @@ import {
   resolveCursorIdentity,
 } from '../../src/transcript/session-observer/lib/locate.js';
 import { resolveSelfIdentity } from '../../src/transcript/session-observer/lib/observe.js';
+import type { DiscoveryOptions } from '../../src/transcript/session-observer/lib/types.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -202,6 +204,10 @@ const CLAUDE_CODE_TYPICAL = `{"sessionId":"cc-session-001","type":"summary","sum
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi!"}]},"sessionId":"cc-session-001"}
 `;
 
+function makeClaudeTypical(cwd: string, sessionId = 'cc-session-001'): string {
+  return `${JSON.stringify({ sessionId, type: 'summary', cwd })}\n${JSON.stringify({ type: 'user', cwd, message: { role: 'user', content: 'Hello' }, sessionId })}\n${JSON.stringify({ type: 'assistant', cwd, message: { role: 'assistant', content: [{ type: 'text', text: 'Hi!' }] }, sessionId })}\n`;
+}
+
 // A transcript with hidden bootstrap user records (environment_context) plus a
 // genuine exchange. Used to prove the classification cache stores a compact
 // projection that drops the uncapped bootstrapRecordIndexes array while keeping
@@ -220,6 +226,11 @@ function makeCodexTypical(cwd: string): string {
 {"type":"response_item","sessionId":"codex-sess-001","payload":{"type":"message","role":"assistant","content":"Hi!","id":"msg-002"}}
 `;
 }
+
+const exactReadOnlyDiscovery: DiscoveryOptions = {
+  persistence: 'forbid',
+  recency: 'exact-all',
+};
 
 const CURSOR_TYPICAL = `{"role":"user","message":{"content":"Hello"}}
 {"role":"assistant","message":{"content":[{"type":"text","text":"Hi!"}]}}
@@ -415,6 +426,208 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
   });
 });
 
+test.each([
+  ['missing', CLAUDE_CODE_TYPICAL],
+  [
+    'conflicting',
+    `${JSON.stringify({ sessionId: 'cc-conflict', cwd: '/private/one' })}\n${JSON.stringify({ type: 'user', sessionId: 'cc-conflict', cwd: '/private/two', message: { role: 'user', content: 'Hello' } })}\n`,
+  ],
+] as const)(
+  'claude-code exact-all rejects %s exact cwd evidence path-free',
+  async (_kind, transcript) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'secret-project');
+      const projectDir = join(
+        home,
+        '.claude',
+        'projects',
+        encodeCwd(targetCwd),
+      );
+      await mkdir(projectDir, { recursive: true });
+      const transcriptPath = join(projectDir, 'secret-session.jsonl');
+      await writeFile(transcriptPath, transcript, 'utf8');
+
+      let thrown: unknown;
+      try {
+        await discover(
+          'claude-code',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
+test.each([
+  [
+    'late top-level conflict',
+    (targetCwd: string) => ({ cwd: `${targetCwd}-conflict` }),
+  ],
+  [
+    'late payload conflict',
+    (targetCwd: string) => ({ payload: { cwd: `${targetCwd}-conflict` } }),
+  ],
+  ['empty payload cwd', () => ({ payload: { cwd: '' } })],
+  ['relative top-level cwd', () => ({ cwd: 'relative/project' })],
+  ['malformed payload cwd', () => ({ payload: { cwd: 42 } })],
+] as const)(
+  'codex exact-all rejects %s path-free',
+  async (_name, lateEvidence) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'codex-cwd-evidence');
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+      await mkdir(sessionDir, { recursive: true });
+      const transcriptPath = join(sessionDir, 'secret-cwd-evidence.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'session_started',
+            sessionId: 'codex-cwd-evidence',
+            cwd: targetCwd,
+          },
+          { type: 'response_item', ...lateEvidence(targetCwd) },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      let thrown: unknown;
+      try {
+        await discover(
+          'codex',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toMatchObject({
+        code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE',
+      });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
+test('codex exact-all accepts repeated agreeing top-level and payload cwd evidence', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'codex-agreeing-cwd');
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '08', '31');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'agreeing-cwd.jsonl'),
+      [
+        {
+          type: 'session_started',
+          sessionId: 'codex-agreeing-cwd',
+          cwd: targetCwd,
+        },
+        { type: 'session_meta', payload: { cwd: targetCwd } },
+        { type: 'response_item', cwd: targetCwd },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+      'utf8',
+    );
+
+    await expect(
+      discover(
+        'codex',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        sessionId: 'codex-agreeing-cwd',
+        recordedCwd: targetCwd,
+      }),
+    ]);
+  });
+});
+
+test('claude-code exact-all uses exact transcript cwd evidence', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'exact-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(
+      join(projectDir, 'exact.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-exact'),
+      'utf8',
+    );
+
+    await expect(
+      discover(
+        'claude-code',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        sessionId: 'cc-exact',
+        recordedCwd: targetCwd,
+        cwdEvidence: 'transcript-record',
+      }),
+    ]);
+  });
+});
+
+test('claude-code exact-all enumerates unexpected project slugs after a direct hit', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'exact-project');
+    const directDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    const unexpectedDir = join(
+      home,
+      '.claude',
+      'projects',
+      'unexpected-alias-slug',
+    );
+    await mkdir(directDir, { recursive: true });
+    await mkdir(unexpectedDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'direct.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-direct'),
+      'utf8',
+    );
+    await writeFile(
+      join(unexpectedDir, 'unexpected.jsonl'),
+      makeClaudeTypical(targetCwd, 'cc-unexpected'),
+      'utf8',
+    );
+
+    const candidates = await discover(
+      'claude-code',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    expect(candidates.map(({ sessionId }) => sessionId).toSorted()).toEqual([
+      'cc-direct',
+      'cc-unexpected',
+    ]);
+    expect(
+      candidates.every(
+        ({ cwdEvidence }) => cwdEvidence === 'transcript-record',
+      ),
+    ).toBe(true);
+  });
+});
+
 test('findSessionCandidate returns only an exact same-cwd session match', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'identity-project');
@@ -602,6 +815,309 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
   });
 });
 
+test('codex exact-all includes old sessions while default discovery remains recent-only', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/exact-all-project';
+    const staleDir = join(home, '.codex', 'sessions', '2025', '01', '01');
+    await mkdir(staleDir, { recursive: true });
+    const stalePath = join(staleDir, 'session-exact-all.jsonl');
+    await writeFile(stalePath, makeCodexTypical(targetCwd), 'utf8');
+    const staleTime = Date.now() / 1000 - 30 * 86400;
+    await utimes(stalePath, staleTime, staleTime);
+
+    expect(
+      (await discover('codex', targetCwd)).some(
+        (candidate) => candidate.transcriptPath === stalePath,
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await discover(
+          'codex',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        )
+      ).some((candidate) => candidate.transcriptPath === stalePath),
+    ).toBe(true);
+  });
+});
+
+test('codex persistence=forbid ignores stale cache reads and leaves the cache byte-identical', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/read-only-cache-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '20');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session-read-only.jsonl');
+    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
+    const transcriptStat = await stat(transcriptPath);
+    const cachePath = join(process.env.STATE_DIR!, 'codex-cwd-cache.json');
+    await mkdir(dirname(cachePath), { recursive: true });
+    const seeded = JSON.stringify({
+      [`${transcriptPath}:${Math.floor(transcriptStat.mtimeMs / 1000)}`]: {
+        recordedCwd: '/stale/cache/value',
+        sessionId: 'stale-cache-id',
+      },
+    });
+    await writeFile(cachePath, seeded, 'utf8');
+
+    const candidates = await discover(
+      'codex',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        sessionId: 'codex-sess-001',
+        recordedCwd: targetCwd,
+      }),
+    ]);
+    expect(await readFile(cachePath, 'utf8')).toBe(seeded);
+  });
+});
+
+test('codex persistence=forbid does not create an absent state directory', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/no-cache-write-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '21');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'session-no-cache-write.jsonl'),
+      makeCodexTypical(targetCwd),
+      'utf8',
+    );
+
+    await discover(
+      'codex',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    await expect(readdir(process.env.STATE_DIR!)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+});
+
+test('exact-all rejects the complete discovery when aggregate entry or byte budgets are crossed', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/budget-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '22');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(join(sessionDir, 'one.jsonl'), makeCodexTypical(targetCwd));
+    await writeFile(join(sessionDir, 'two.jsonl'), makeCodexTypical(targetCwd));
+
+    const options: DiscoveryOptions = {
+      ...exactReadOnlyDiscovery,
+      budget: {
+        maxEntries: 1,
+        maxAggregateBytes: 1_000_000,
+        maxMetadataBytesPerEntry: 256 * 1024,
+        deadlineMs: 30_000,
+      },
+    };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_ENTRY_BUDGET_EXCEEDED' });
+
+    options.budget = {
+      ...options.budget!,
+      maxEntries: 10,
+      maxAggregateBytes: 1,
+    };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_BYTE_BUDGET_EXCEEDED' });
+  });
+});
+
+test.each(['codex', 'claude-code'] as const)(
+  '%s exact-all counts non-JSONL and nested directory entries against maxEntries',
+  async (runtime) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', `${runtime}-entry-budget`);
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(join(scanDir, 'nested-directory'), { recursive: true });
+      await writeFile(join(scanDir, 'ignored-one.txt'), 'one', 'utf8');
+      await writeFile(join(scanDir, 'ignored-two.log'), 'two', 'utf8');
+      const diagnostics: unknown[] = [];
+
+      await expect(
+        discover(runtime, targetCwd, new ClassificationCache(), {
+          ...exactReadOnlyDiscovery,
+          budget: {
+            maxEntries: 1,
+            maxAggregateBytes: 1_000_000,
+            maxMetadataBytesPerEntry: 256 * 1024,
+            deadlineMs: 30_000,
+          },
+          diagnostic: (event) => diagnostics.push(event),
+        }),
+      ).rejects.toMatchObject({ code: 'DISCOVERY_ENTRY_BUDGET_EXCEEDED' });
+      expect(diagnostics).toContainEqual({
+        code: 'budget-exceeded',
+        runtime,
+      });
+    });
+  },
+);
+
+test('exact-all rejects an unclassifiable oversized metadata prefix with path-free diagnostics', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/per-entry-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '23');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'secret-transcript-name.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ padding: 'x'.repeat(512) })}\n${makeCodexTypical(targetCwd)}`,
+    );
+    const diagnostics: unknown[] = [];
+
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 64,
+          deadlineMs: 30_000,
+        },
+        diagnostic: (event) => diagnostics.push(event),
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+    expect(diagnostics).toEqual([
+      { code: 'oversized-record', runtime: 'codex' },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+    expect(JSON.stringify(diagnostics)).not.toContain('secret-transcript-name');
+  });
+});
+
+test.each([
+  [
+    'clean 129th metadata record',
+    'codex' as const,
+    (targetCwd: string) =>
+      [
+        {
+          type: 'session_started',
+          sessionId: 'record-cap',
+          cwd: targetCwd,
+        },
+        ...Array.from({ length: 128 }, (_, index) => ({ index })),
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    256 * 1024,
+  ],
+  [
+    'late contradictory cwd',
+    'claude-code' as const,
+    (targetCwd: string) =>
+      [
+        ...Array.from({ length: 128 }, (_, index) => ({
+          type: index === 0 ? 'summary' : 'progress',
+          sessionId: 'late-conflict',
+          cwd: targetCwd,
+          index,
+        })),
+        {
+          type: 'user',
+          sessionId: 'late-conflict',
+          cwd: '/private/contradictory-cwd',
+          message: { role: 'user', content: 'late conflict' },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    256 * 1024,
+  ],
+  [
+    'newline-aligned byte boundary',
+    'codex' as const,
+    (targetCwd: string) =>
+      `${JSON.stringify({ type: 'session_started', sessionId: 'byte-cap', cwd: targetCwd })}\n${JSON.stringify({ later: true })}\n`,
+    0,
+  ],
+] as const)(
+  'exact-all rejects %s metadata-prefix truncation path-free',
+  async (_name, runtime, makeTranscript, configuredMaxBytes) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'metadata-prefix-project');
+      const transcript = makeTranscript(targetCwd);
+      const firstLineBytes = Buffer.byteLength(
+        transcript.slice(0, transcript.indexOf('\n') + 1),
+      );
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions', '2026', '08', '31')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(scanDir, { recursive: true });
+      const transcriptPath = join(scanDir, 'secret-metadata-prefix.jsonl');
+      await writeFile(transcriptPath, transcript, 'utf8');
+
+      let thrown: unknown;
+      try {
+        await discover(runtime, targetCwd, new ClassificationCache(), {
+          ...exactReadOnlyDiscovery,
+          budget: {
+            maxEntries: 10,
+            maxAggregateBytes: 1_000_000,
+            maxMetadataBytesPerEntry:
+              configuredMaxBytes === 0 ? firstLineBytes : configuredMaxBytes,
+            deadlineMs: 30_000,
+          },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toMatchObject({
+        code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE',
+      });
+      expect(String(thrown)).not.toContain(targetCwd);
+      expect(String(thrown)).not.toContain(transcriptPath);
+    });
+  },
+);
+
+test('exact-all rejects an expired aggregate deadline without returning partial candidates', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/deadline-project';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '24');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'deadline.jsonl'),
+      makeCodexTypical(targetCwd),
+    );
+    const diagnostics: unknown[] = [];
+
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 256 * 1024,
+          deadlineMs: 0,
+        },
+        diagnostic: (event) => diagnostics.push(event),
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_DEADLINE_EXCEEDED' });
+    expect(diagnostics).toContainEqual({
+      code: 'deadline-exceeded',
+      runtime: 'codex',
+    });
+  });
+});
+
 test('codex cwd cache: cache hit proved by observable cache-file state', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/cached-project';
@@ -626,7 +1142,6 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     ).toBeTruthy();
 
     // Read the original mtime
-    const { stat } = await import('node:fs/promises');
     const statResult = await stat(transcriptPath);
     const origMtime = statResult.mtime;
 
@@ -903,11 +1418,7 @@ test('cursor: explicit locate pin resolves the exact canonical candidate through
     });
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).resolves.toMatchObject({
       runtime: 'cursor',
       sessionId: fixture.targetSession,
@@ -934,11 +1445,7 @@ test('cursor: explicit locate pin surfaces aggregate metadata-entry exhaustion i
     });
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).rejects.toMatchObject({
       name: 'CursorDiscoveryError',
       code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
@@ -1039,11 +1546,7 @@ test('cursor: explicit pin preserves incomplete-index failure semantics', async 
     );
 
     await expect(
-      findSessionCandidate(
-        'cursor',
-        fixture.targetCwd,
-        fixture.targetSession,
-      ),
+      findSessionCandidate('cursor', fixture.targetCwd, fixture.targetSession),
     ).rejects.toMatchObject({
       name: 'CursorDiscoveryError',
       code: 'IDENTITY_INDEX_INCOMPLETE',
@@ -1930,6 +2433,86 @@ test('classification cache: appending to a transcript invalidates the cache and 
       secondCandidate.genuineUserMessages,
       'the re-classified result must reflect the appended content',
     ).toBe(2);
+  });
+});
+
+test('classification cache: default results cannot bypass exact-all per-entry bounds', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cache-default-to-bounded');
+    const transcriptDir = join(home, '.codex', 'sessions', '2026', '08', '30');
+    const transcriptPath = join(transcriptDir, 'default-to-bounded.jsonl');
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ padding: 'x'.repeat(512) })}\n${makeCodexTypical(targetCwd)}`,
+      'utf8',
+    );
+    const cache = new ClassificationCache();
+
+    expect(await discover('codex', targetCwd, cache)).toEqual([
+      expect.objectContaining({ recordedCwd: targetCwd }),
+    ]);
+    await expect(
+      discover('codex', targetCwd, cache, {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 10,
+          maxAggregateBytes: 1_000_000,
+          maxMetadataBytesPerEntry: 64,
+          deadlineMs: 30_000,
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+  });
+});
+
+test('classification cache: rejected exact-all prefixes cannot change default classification', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cache-bounded-to-default');
+    const transcriptDir = join(home, '.codex', 'sessions', '2026', '08', '30');
+    const transcriptPath = join(transcriptDir, 'bounded-to-default.jsonl');
+    await mkdir(transcriptDir, { recursive: true });
+    const prefixRecords = [
+      JSON.stringify({
+        type: 'session_started',
+        sessionId: 'bounded-to-default',
+        cwd: targetCwd,
+      }),
+      ...Array.from({ length: 127 }, (_, index) =>
+        JSON.stringify({ type: 'summary', index }),
+      ),
+    ];
+    await writeFile(
+      transcriptPath,
+      [
+        ...prefixRecords,
+        JSON.stringify({
+          type: 'response_item',
+          sessionId: 'bounded-to-default',
+          payload: { type: 'message', role: 'user', content: 'Hello' },
+        }),
+        JSON.stringify({
+          type: 'response_item',
+          sessionId: 'bounded-to-default',
+          payload: { type: 'message', role: 'assistant', content: 'Hi' },
+        }),
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    const cache = new ClassificationCache();
+
+    await expect(
+      discover('codex', targetCwd, cache, exactReadOnlyDiscovery),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+
+    const legacy = await discover('codex', targetCwd, cache);
+    expect(legacy[0]).toMatchObject({
+      engagementStatus: 'engaged',
+      genuineUserMessages: 1,
+      assistantMessages: 1,
+      realMessageCount: 2,
+    });
   });
 });
 
