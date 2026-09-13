@@ -53,7 +53,7 @@ Only configured outputs are supported. The two renamed session skills have no ol
 - Session observer owner: `src/transcript/session-observer`, `skills/session-observer/SKILL.md`, two references, and `tests/session-observer` including fixtures.
 - Session observer collaboration owner: `skills/session-observer-collab/SKILL.md`, three runtime references, authored control/lifecycle/hook/library MJS plus declarations, and `tests/session-observer-collab`. Its dependency on session-observer is a workflow prerequisite, not shared code.
 - Export owner: `src/transcript/export-session`, the standalone SKILL/reference, and `tests/export-session-transcript`. Its installed entrypoint consumes the shared transcript closure.
-- Fork owner: `src/transcript/coding-session-handoff`, the standalone SKILL/reference, and `tests/coding-session-handoff`. `tools/coding-session-handoff/{README.md,coding-session-handoff.mjs,guidance-capabilities.md}` stays experimental repository tooling and is not a distributable skill resource.
+- Fork skill owner: `src/skills/session-fork-to-destination`, the standalone SKILL/reference, and its eight product-guidance tests. Retained tooling owner: `src/tools/coding-session-handoff` and its five behavior/CLI/handoff/provider/reconcile tests. `tools/coding-session-handoff/{README.md,coding-session-handoff.mjs,guidance-capabilities.md}` stays experimental repository tooling and is not a distributable skill resource.
 - Consensus skill owners: each directory under `plugins/consensus/skills` owns its SKILL, schemas, references, and corresponding wrapper-specific source/tests under `src/consensus/{create,decide,plan,refine,evaluate,panel}` and `tests/consensus`. Phone-a-friend owns its schema/reference tests but no wrapper.
 - Consensus plugin owner: `src/consensus/{core,config,provider-cli,shared}`, plugin-level tests, `plugins/consensus/agents`, plugin references, provider manifests, root marketplaces, `install.sh`, and plugin README. Existing CLI entrypoints are `plugins/consensus/scripts/consensus.mjs`, `consensus-loop.mjs`, `loop-*.mjs`, and `consensus-cli-helpers.mjs`; these remain plugin-owned rather than being assigned to an arbitrary skill.
 - Current generation is a hand-maintained table in `scripts/build-generated.mjs`. `scripts/lib/discover-skills.mjs` discovers `skills/*` and `plugins/*/skills/*`; `scripts/bump-version.mjs` hardcodes consensus manifest/catalog surfaces. p01-t02 adds a declaration pipeline while retaining the table only as the migration bridge.
@@ -117,9 +117,9 @@ task_format_paths=(
   'src/skills/session-fork-to-destination/SKILL.md'
   'src/skills/session-fork-to-destination/references/provider-guidance.md'
   'src/skills/session-fork-to-destination/src/behavior-contracts.ts'
-  'src/skills/session-fork-to-destination/src/behavior-gate.test.ts'
+  'src/tools/coding-session-handoff/behavior-gate.test.ts'
   'src/skills/session-fork-to-destination/src/behavior-gate.ts'
-  'src/skills/session-fork-to-destination/src/cli.test.ts'
+  'src/tools/coding-session-handoff/cli.test.ts'
   'src/skills/session-fork-to-destination/src/cli.ts'
   'src/skills/session-fork-to-destination/src/discovery.test.ts'
   'src/skills/session-fork-to-destination/src/discovery.ts'
@@ -133,13 +133,13 @@ task_format_paths=(
   'src/skills/session-fork-to-destination/src/guidance-discovery.ts'
   'src/skills/session-fork-to-destination/src/guidance.test.ts'
   'src/skills/session-fork-to-destination/src/guidance.ts'
-  'src/skills/session-fork-to-destination/src/handoff.test.ts'
+  'src/tools/coding-session-handoff/handoff.test.ts'
   'src/skills/session-fork-to-destination/src/handoff.ts'
   'src/skills/session-fork-to-destination/src/preview.test.ts'
   'src/skills/session-fork-to-destination/src/preview.ts'
-  'src/skills/session-fork-to-destination/src/providers.test.ts'
+  'src/tools/coding-session-handoff/providers.test.ts'
   'src/skills/session-fork-to-destination/src/providers.ts'
-  'src/skills/session-fork-to-destination/src/reconcile.test.ts'
+  'src/tools/coding-session-handoff/reconcile.test.ts'
   'src/skills/session-fork-to-destination/src/types.test.ts'
   'src/skills/session-fork-to-destination/src/types.ts'
   'src/skills/session-observer-collab/SKILL.md'

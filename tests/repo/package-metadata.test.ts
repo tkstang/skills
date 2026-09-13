@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
@@ -43,6 +43,17 @@ describe('package-metadata', () => {
     expect(packageJson.scripts?.['test:vitest']).toBe(
       'node scripts/run-vitest.mjs',
     );
+    expect(packageJson.scripts?.['test:live-e2e']).toBe(
+      'CONSENSUS_LIVE_SUBMIT_E2E=1 node scripts/run-vitest.mjs src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts',
+    );
+    await expect(
+      access(
+        new URL(
+          '../../src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts',
+          import.meta.url,
+        ),
+      ),
+    ).resolves.toBeUndefined();
     expect(packageJson.scripts?.['type-check']).toBe('tsc --noEmit');
     expect(packageJson.scripts?.validate).toBe('tsx scripts/validate.ts');
     expect(packageJson.scripts?.['validate:skill-versions']).toBe(

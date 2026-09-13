@@ -1,6 +1,6 @@
 # Transcript Formats Reference
 
-Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing source lives in `src/transcript/core/runtimes.ts`, while `<skill-dir>/scripts/lib/runtimes.mjs` is this skill's generated shipped copy.
+Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing source lives in `src/shared/transcript/runtimes.ts`, while `<skill-dir>/scripts/lib/runtimes.mjs` is this skill's generated shipped copy.
 
 ---
 
@@ -488,7 +488,7 @@ facets. A mismatch blocks state advancement until an explicit reset/replay.
 
 ## Adding a New Runtime
 
-`src/transcript/core/runtimes.ts` owns base discovery and record normalization.
+`src/shared/transcript/runtimes.ts` owns base discovery and record normalization.
 Cursor's physical-frame and lifecycle semantics live in the adjacent canonical
 `cursor-frames.ts` and `cursor-analysis.ts` modules. Adding another conventional
 record-based runtime (for example, Gemini CLI) requires:

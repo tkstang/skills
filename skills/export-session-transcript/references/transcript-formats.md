@@ -2,7 +2,7 @@
 
 Condensed reference for the Claude Code, Codex, and Cursor JSONL record shapes that
 `scripts/lib/runtimes.mjs` parses for export. The canonical parsing logic lives in
-`src/transcript/core/runtimes.ts` and is generated into
+`src/shared/transcript/runtimes.ts` and is generated into
 `scripts/lib/runtimes.mjs`; these formats may drift between runtime releases.
 
 `runtimes.mjs` does **structural** filtering only (it drops tool calls/results and
@@ -92,7 +92,7 @@ mid-sentence are NOT dropped — only leading-content matches are removed.
 
 ## Adding a new runtime
 
-`src/transcript/core/runtimes.ts` is the only source file with structural knowledge
+`src/shared/transcript/runtimes.ts` is the only source file with structural knowledge
 of per-runtime formats. To add a runtime, extend `discoverPaths`,
 `encodeCwd`/`encodeCwdVariants`, `extractMeta`, and `normalizeEntries` there, then
 run `pnpm run build`. `pnpm run sync:transcript-core` remains available as a

@@ -34,7 +34,7 @@ checklist:
 - `pnpm run build:check`
 - `pnpm run test`
 - Focused Evaluate provider CLI integration tests:
-  `pnpm exec vitest run tests/consensus/evaluate/provider-cli-integration.test.ts tests/consensus/evaluate/wrapper.test.ts tests/consensus/evaluate/output.test.ts`
+  `pnpm exec vitest run src/skills/evaluate/src/provider-cli-integration.test.ts src/skills/evaluate/src/wrapper.test.ts src/skills/evaluate/src/output.test.ts`
 - `node plugins/consensus/scripts/consensus.mjs provider ls --json`
 - `node plugins/consensus/scripts/consensus.mjs preflight --json`
 - Per-provider preflight for `claude`, `codex`, and `cursor`, noting

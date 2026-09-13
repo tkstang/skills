@@ -201,7 +201,7 @@ The bounded acceptance command was run without touching live Codex hooks,
 trust records, leases, or session state:
 
 ```text
-pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/control.test.ts
+pnpm exec vitest run src/skills/session-observer-collab/src/codex-hook.test.ts src/skills/session-observer-collab/src/control.test.ts
 ```
 
 Result: the bounded automated subset passed at the recorded revision. This is automated proof only;

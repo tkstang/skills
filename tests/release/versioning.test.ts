@@ -1,3 +1,4 @@
+import { execFile as execFileCallback } from 'node:child_process';
 import {
   cp,
   mkdir,
@@ -9,6 +10,7 @@ import {
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
@@ -18,6 +20,7 @@ import { repoRoot } from '../helpers/process.mjs';
 const { bumpVersion, checkTagVersion, isValidSemver, SKILL_FILES } =
   bumpVersionScript;
 const { validateRepository } = validateScript;
+const execFile = promisify(execFileCallback);
 const jsonFiles = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
@@ -151,6 +154,32 @@ async function globSkillMarkdownFiles(root: string) {
 }
 
 describe('release-versioning', () => {
+  it('release workflow executes the target-scoped consensus tag check', async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, '.github/workflows/release.yml'),
+      'utf8',
+    );
+    expect(workflow).toContain(
+      'pnpm tsx scripts/bump-version.ts --check-tag "$GITHUB_REF_NAME" --plugin consensus',
+    );
+
+    const { stdout } = await execFile(
+      'pnpm',
+      [
+        'tsx',
+        'scripts/bump-version.ts',
+        '--check-tag',
+        'v0.1.0',
+        '--plugin',
+        'consensus',
+      ],
+      { cwd: repoRoot },
+    );
+    expect(stdout).toContain(
+      'tag v0.1.0 matches consensus plugin version 0.1.0',
+    );
+  });
+
   it('isValidSemver accepts release and prerelease versions only', () => {
     expect(isValidSemver('0.2.0')).toBe(true);
     expect(isValidSemver('0.2.0-beta.1')).toBe(true);

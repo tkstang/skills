@@ -44,6 +44,54 @@ async function read(relativePath: string) {
 }
 
 describe('docs-presence', () => {
+  it('canonical shipped references use executable colocated paths', async () => {
+    const resources = await Promise.all(
+      [
+        'src/skills/evaluate/references/operator-qa.md',
+        'src/skills/session-observer-collab/references/runtime-claude-code.md',
+        'src/skills/session-observer-collab/references/runtime-codex.md',
+        'src/skills/session-observer-collab/references/runtime-cursor.md',
+        'src/skills/session-observer/references/transcript-formats.md',
+        'src/skills/session-export-transcript/references/transcript-formats.md',
+      ].map(read),
+    );
+    const combined = resources.join('\n');
+    expect(combined).not.toMatch(
+      /(?:tests\/(?:consensus|session-observer|session-observer-collab|transcript-core)|src\/transcript\/core)/u,
+    );
+
+    const executablePaths = [
+      'src/skills/evaluate/src/provider-cli-integration.test.ts',
+      'src/skills/evaluate/src/wrapper.test.ts',
+      'src/skills/evaluate/src/output.test.ts',
+      'src/skills/session-observer/src/watch.test.ts',
+      'src/skills/session-observer-collab/src/codex-hook.test.ts',
+      'src/skills/session-observer-collab/src/control.test.ts',
+      'src/skills/session-observer-collab/src/cursor-hook.test.ts',
+      'src/skills/session-observer-collab/src/completion.test.ts',
+      'src/skills/session-observer-collab/src/wake-envelope-contract.test.ts',
+      'src/shared/transcript/runtimes.test.ts',
+      'src/shared/transcript/runtimes.ts',
+    ];
+    for (const executablePath of executablePaths) {
+      expect(combined).toContain(executablePath);
+      await expect(
+        lstat(new URL(executablePath, repoRoot)),
+      ).resolves.toBeTruthy();
+    }
+    expect(combined).toContain(
+      'src/skills/session-observer/src/fixtures/cursor/framed-*.jsonl',
+    );
+    await expect(
+      lstat(
+        new URL(
+          'src/skills/session-observer/src/fixtures/cursor/framed-closed.jsonl',
+          repoRoot,
+        ),
+      ),
+    ).resolves.toBeTruthy();
+  });
+
   it('generated docs manifest includes every Markdown page', async () => {
     const docsDir = new URL('documentation/docs/', repoRoot);
     const pages = (await readdir(docsDir, { recursive: true }))
@@ -521,7 +569,7 @@ describe('docs-presence', () => {
       /shared\/transcript-core\/runtimes\.mjs/,
     );
     expect(exportTranscriptFormats).toMatch(
-      /src\/transcript\/core\/runtimes\.ts/,
+      /src\/shared\/transcript\/runtimes\.ts/,
     );
     expect(exportTranscriptFormats).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,

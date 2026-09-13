@@ -140,7 +140,7 @@ base watcher behavior. It is not proof of a live Monitor harness row.
 
 ```text
 pnpm run validate
-pnpm exec vitest run tests/session-observer/watch.test.ts
+pnpm exec vitest run src/skills/session-observer/src/watch.test.ts
 ```
 
 | Acceptance area             | Evidence in this task                                                                            | Live status |
