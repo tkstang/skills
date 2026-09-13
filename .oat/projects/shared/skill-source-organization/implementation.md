@@ -120,6 +120,38 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery commit: a2014e9b8641cf0af03fe89eb634494614874260
 - Verification: focused 111 tests and full Vitest 1,974 passed with one skipped, plus type-check, build check, validation, internal flags, smoke, changed-owner versions, scoped lint/format, range, and clean-tree checks passed before and after the commit
 - Reason: updated only the bounded stale consensus/transcript source paths, moved Cursor fixture paths, removed panel output expectation, and generator-banner assertions created by the p02 owner migration
+
+### Run 3: Phase p03
+
+- Status: implementation complete; root review pending
+- Request: `cda18a03-7781-4baa-8994-c572f299bbb6`
+- Launch status: accepted
+- Phase base: `fce47d1dab2d5dbcbdd568c13e90c28d8a40c9f6`
+- Implementation head: `0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Classification: hard reasoning at preferred high effort, based on clean-break names, two plugin groupings, provenance-sensitive source promotions, and skill/CLI prerequisite contracts
+- Selection: exact hard-reasoning candidate at the managed High ceiling; candidates were `gpt-5.6-sol` medium, then `gpt-5.6-sol` high
+- Dispatch: `Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Task commits: p03-t01 `845b345688058d856ad2f3c3f99aa500dd19a221`; p03-t02 `22ce71493970a64982b72c456bed1dcef2dd2d2d`; p03-t03 `043a240a410027afcc58be081b4691f8b60b1be4`; p03-t04 `92c84d1c9a99054aa695a04598d5092d601aa33c`
+- Recovery: one successful phase-standing attempt at `0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86`; authoritative usage is 1/10 with no pending attempt.
+- Verification: implementer and root passed the complete premerge gate with 135 test files and 1,982 tests passed, one file/test skipped, plus build, type-check, generated-output check, validation, smoke, and the 12-owner version gate.
+- Source provenance: read-only personal source commit `80a5a76de093f812776efb5c90bdc40504dbedfb`; no personal repository or user installation was mutated.
+- Nested dispatches: none
+
+### Recovery Event p03-r01-docs-presence-clean-break
+
+- Phase/task: p03 / p03-t01
+- Original request: cda18a03-7781-4baa-8994-c572f299bbb6
+- Original commit: 845b345688058d856ad2f3c3f99aa500dd19a221
+- Defect class: composition
+- Discovered by: pnpm run premerge
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86
+- Verification: focused docs-presence test and complete premerge gate passed before and after the committed correction
+- Reason: full-suite composition found one stale test fixture path for the intentionally removed export-session-transcript output; the correction mechanically renamed it to session-export-transcript
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
