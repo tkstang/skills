@@ -220,6 +220,39 @@ describe('declared skill packaging', () => {
     );
   });
 
+  it('includes every allowed shared source root in the input fingerprint', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'runner');
+    await write(
+      root,
+      'src/skills/runner/build.json',
+      '{"runtime":["src/main.ts"]}\n',
+    );
+    await write(
+      root,
+      'src/skills/runner/src/main.ts',
+      "import { value } from '../../../shared/value.js';\nprocess.stdout.write(value);\n",
+    );
+    await write(root, 'src/shared/value.ts', "export const value = 'one';\n");
+    const declarations = [
+      target('runner', { allowedSourceRoots: ['src/shared'] }),
+    ];
+
+    const first = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations,
+    });
+    await write(root, 'src/shared/value.ts', "export const value = 'two';\n");
+    const second = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations,
+    });
+
+    expect(second[0].inputFingerprint).not.toBe(first[0].inputFingerprint);
+    await cleanupBuiltDistributions(first);
+    await cleanupBuiltDistributions(second);
+  });
+
   it('renders required skill names for the same plugin and standalone fallback', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'observer');

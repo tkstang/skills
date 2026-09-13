@@ -244,6 +244,37 @@ async function fingerprintPaths(
   return hash.digest('hex');
 }
 
+function resolveAllowedRoots(
+  repoRoot: string,
+  sourceRoot: string,
+  declaration: DistributionDeclaration,
+): string[] {
+  return [
+    ...new Set([
+      sourceRoot,
+      ...(declaration.allowedSourceRoots ?? []).map((root) =>
+        path.resolve(repoRoot, assertRelativePath(root, 'allowed source root')),
+      ),
+    ]),
+  ];
+}
+
+async function fingerprintInputRoots(
+  repoRoot: string,
+  roots: readonly string[],
+): Promise<string> {
+  const fingerprint = createHash('sha256');
+  for (const root of roots.toSorted()) {
+    const info = await stat(root);
+    if (!info.isDirectory())
+      fail(`allowed source root is not a directory: ${root}`);
+    const files = await walkRegularFiles(root);
+    fingerprint.update(posixPath(path.relative(repoRoot, root)));
+    fingerprint.update(await fingerprintPaths(root, files));
+  }
+  return fingerprint.digest('hex');
+}
+
 async function readBuildEntrypoints(sourceRoot: string): Promise<string[]> {
   const buildPath = path.join(sourceRoot, 'build.json');
   let source: string;
@@ -427,12 +458,7 @@ async function bundleEntrypoints(
 ): Promise<{ inputs: string[]; metafiles: Metafile[] }> {
   const inputs = new Set<string>();
   const metafiles: Metafile[] = [];
-  const allowedRoots = [
-    sourceRoot,
-    ...(declaration.allowedSourceRoots ?? []).map((root) =>
-      path.resolve(repoRoot, assertRelativePath(root, 'allowed source root')),
-    ),
-  ];
+  const allowedRoots = resolveAllowedRoots(repoRoot, sourceRoot, declaration);
   await mkdir(path.join(stageRoot, 'scripts'), { recursive: true });
   for (const relative of entrypoints) {
     const entrypoint = path.join(sourceRoot, relative);
@@ -552,10 +578,14 @@ export async function buildDeclaredDistributions(options: {
       const sourceRoot = path.resolve(options.repoRoot, sourceRelative);
       if (!(await stat(sourceRoot)).isDirectory())
         fail(`source is not a directory: ${sourceRelative}`);
-      const sourceFiles = await walkRegularFiles(sourceRoot);
-      const initialFingerprint = await fingerprintPaths(
+      const inputRoots = resolveAllowedRoots(
+        options.repoRoot,
         sourceRoot,
-        sourceFiles,
+        declaration,
+      );
+      const initialFingerprint = await fingerprintInputRoots(
+        options.repoRoot,
+        inputRoots,
       );
       const entrypoints = await readBuildEntrypoints(sourceRoot);
       for (const target of declaration.targets) {
@@ -590,8 +620,10 @@ export async function buildDeclaredDistributions(options: {
           stagingRoot,
         });
       }
-      const finalFiles = await walkRegularFiles(sourceRoot);
-      const finalFingerprint = await fingerprintPaths(sourceRoot, finalFiles);
+      const finalFingerprint = await fingerprintInputRoots(
+        options.repoRoot,
+        inputRoots,
+      );
       if (finalFingerprint !== initialFingerprint) {
         fail(`inputs changed during build for ${declaration.owner}`);
       }
