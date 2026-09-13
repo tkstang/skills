@@ -47,18 +47,26 @@ describe('docs-presence', () => {
   it('canonical shipped references use executable colocated paths', async () => {
     const resources = await Promise.all(
       [
+        'plugins/consensus/references/live-e2e.md',
         'src/skills/evaluate/references/operator-qa.md',
         'src/skills/session-observer-collab/references/runtime-claude-code.md',
         'src/skills/session-observer-collab/references/runtime-codex.md',
         'src/skills/session-observer-collab/references/runtime-cursor.md',
         'src/skills/session-observer/references/transcript-formats.md',
         'src/skills/session-export-transcript/references/transcript-formats.md',
+        'src/skills/panel/src/consensus-panel.ts',
+        'src/plugins/consensus/core/loop-provider.ts',
+        'src/skills/session-observer/src/lib/state.ts',
+        'src/skills/session-observer/src/fixtures/README.md',
       ].map(read),
     );
     const combined = resources.join('\n');
     expect(combined).not.toMatch(
-      /(?:tests\/(?:consensus|session-observer|session-observer-collab|transcript-core)|src\/transcript\/core)/u,
+      /(?:tests\/(?:consensus|session-observer|session-observer-collab|transcript-core)|src\/(?:consensus\/|transcript\/core)|scripts\/build-generated\.mjs)/u,
     );
+    expect(resources[0]).toContain('src/plugins/consensus/');
+    expect(resources[0]).toContain('src/skills/refine/');
+    expect(resources[0]).toContain('src/skills/evaluate/');
 
     const executablePaths = [
       'src/skills/evaluate/src/provider-cli-integration.test.ts',

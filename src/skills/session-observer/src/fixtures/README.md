@@ -128,4 +128,4 @@ not renumber later physical frames.
 
 The fixture-contract suite checks inventory, raw UTF-8 round trips, newline
 boundaries, synthetic redaction, and the intended scenario labels. Scanner
-behavior belongs to `tests/transcript-core/cursor-frames.test.ts`.
+behavior belongs to `src/shared/transcript/cursor-frames.test.ts`.

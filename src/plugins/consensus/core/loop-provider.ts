@@ -144,7 +144,7 @@ export function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
-// Twin: src/consensus/panel/consensus-panel.ts has an independently
+// Twin: src/skills/panel/src/consensus-panel.ts has an independently
 // maintained copy of this function. Keep both in sync — subprocess-runner
 // unification is explicitly deferred, out of scope for both the subprocess
 // hardening and cli-helper consolidation plans.

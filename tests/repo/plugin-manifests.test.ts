@@ -29,7 +29,7 @@ describe('plugin-manifests', () => {
       const manifest = await readJson(config.manifestPath);
 
       expect(manifest.name, `${provider} name`).toBe('consensus');
-      expect(manifest.version, `${provider} version`).toBe('0.1.0');
+      expect(manifest.version, `${provider} version`).toBe('0.1.1');
       expect(manifest.author, `${provider} author`).toEqual({
         name: 'Thomas Stang',
       });

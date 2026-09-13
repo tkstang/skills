@@ -163,20 +163,24 @@ describe('release-versioning', () => {
       'pnpm tsx scripts/bump-version.ts --check-tag "$GITHUB_REF_NAME" --plugin consensus',
     );
 
+    const pluginVersion = (
+      await readJson(repoRoot, 'plugins/consensus/.claude-plugin/plugin.json')
+    ).version as string;
+    const releaseTag = `v${pluginVersion}`;
     const { stdout } = await execFile(
       'pnpm',
       [
         'tsx',
         'scripts/bump-version.ts',
         '--check-tag',
-        'v0.1.0',
+        releaseTag,
         '--plugin',
         'consensus',
       ],
       { cwd: repoRoot },
     );
     expect(stdout).toContain(
-      'tag v0.1.0 matches consensus plugin version 0.1.0',
+      `tag ${releaseTag} matches consensus plugin version ${pluginVersion}`,
     );
   });
 
@@ -277,6 +281,9 @@ describe('release-versioning', () => {
 
   it('bumpVersion rejects malformed semver before modifying files', async () => {
     const root = await tempReleaseRoot();
+    const initialVersion = (
+      await readJson(root, 'plugins/consensus/.claude-plugin/plugin.json')
+    ).version;
 
     await expect(
       bumpVersion({
@@ -288,7 +295,7 @@ describe('release-versioning', () => {
     expect(
       (await readJson(root, 'plugins/consensus/.claude-plugin/plugin.json'))
         .version,
-    ).toBe('0.1.0');
+    ).toBe(initialVersion);
   });
 
   it('bumped patch versions validate and pass release tag consistency', async () => {

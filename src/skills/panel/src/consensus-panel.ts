@@ -1133,7 +1133,7 @@ function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
-// Twin: src/consensus/core/consensus-loop.ts has an independently
+// Twin: src/plugins/consensus/core/consensus-loop.ts has an independently
 // maintained copy of this function. Keep both in sync — subprocess-runner
 // unification is explicitly deferred, out of scope for both the subprocess
 // hardening and cli-helper consolidation plans.

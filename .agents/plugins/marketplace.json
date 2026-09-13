@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "consensus",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
       "source": {
         "source": "local",

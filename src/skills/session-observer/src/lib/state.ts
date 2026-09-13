@@ -114,7 +114,7 @@ function bakPath(dir: string, label: string): string {
 // ---------------------------------------------------------------------------
 
 // Mirrors watch-state.ts's isPidLive. Duplicated deliberately: state.ts and
-// watch-state.ts are separate build-generated bundles (scripts/build-generated.mjs),
+// watch-state.ts are separate build-generated bundles (scripts/build-generated.ts),
 // and extracting a shared lock helper would require new bundle mappings and
 // cascading import-rewrite config for both — the plan this module implements
 // prefers this explicit duplication over that churn.
