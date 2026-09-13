@@ -463,7 +463,7 @@ async function candidateDerivedFieldsBounded(
   unattributablePolicy: DiscoveryOptions['unattributablePolicy'] = 'fail',
   unattributable?: DiscoveryOptions['unattributable'],
 ): Promise<TranscriptDerivedFields | null> {
-  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
+  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}:${unattributablePolicy}`;
   const cached = cache.get(
     transcriptPath,
     signature.mtimeMs,

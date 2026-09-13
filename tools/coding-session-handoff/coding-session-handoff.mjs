@@ -1452,7 +1452,7 @@ async function candidateDerivedFields(runtime3, transcriptPath, signature, cache
   }
 }
 async function candidateDerivedFieldsBounded(runtime3, transcriptPath, signature, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
-  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
+  const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}:${unattributablePolicy}`;
   const cached = cache.get(
     transcriptPath,
     signature.mtimeMs,

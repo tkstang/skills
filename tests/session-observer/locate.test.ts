@@ -1234,6 +1234,41 @@ test.each(['claude-code', 'codex'] as const)(
   },
 );
 
+test.each(['claude-code', 'codex'] as const)(
+  '%s shared cache cannot transfer summarize acceptance into strict discovery',
+  async (runtime) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', `${runtime}-cache-policy`);
+      const sessionId =
+        runtime === 'claude-code' ? 'claude-cache-policy' : 'codex-sess-001';
+      const prefix =
+        runtime === 'claude-code'
+          ? makeClaudeTypical(targetCwd, sessionId)
+          : makeCodexTypical(targetCwd);
+      const transcript = `${prefix}${Array.from({ length: 140 }, (_, index) =>
+        JSON.stringify({ type: 'progress', index, padding: 'x'.repeat(2_200) }),
+      ).join('\n')}\n`;
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions', '2026', '09', '13')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(scanDir, { recursive: true });
+      await writeFile(join(scanDir, `${sessionId}.jsonl`), transcript, 'utf8');
+      const cache = new ClassificationCache();
+
+      await expect(
+        discover(runtime, targetCwd, cache, {
+          ...exactReadOnlyDiscovery,
+          unattributablePolicy: 'summarize',
+        }),
+      ).resolves.toHaveLength(1);
+      await expect(
+        discover(runtime, targetCwd, cache, exactReadOnlyDiscovery),
+      ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
+    });
+  },
+);
+
 test.each([
   [
     'clean 129th metadata record',
