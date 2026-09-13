@@ -32,7 +32,7 @@ oat_implement_exit_gate:
   operator_override:
     authorized_at: '2026-09-13T05:20:00Z'
     additional_fix_review_gate_cycles: 1
-    gate_attempts_remaining: 1
+    gate_attempts_remaining: 0
     scope: 'prev1-t12 through prev1-t14, one fresh final review, and one external gate attempt'
     additional_standard_rereview_authorized_at: '2026-09-13T13:27:42Z'
     additional_standard_rereviews: 1
@@ -42,26 +42,26 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
   freshness_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
   freshness_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
-  launch_state: result_persisted
-  launch_attempt_id: 11032bbf-dab8-4514-a7f3-985dc2909416
-  launch_started_at: '2026-09-13T05:00:45Z'
-  launch_result_receipt: /Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/11032bbf-dab8-4514-a7f3-985dc2909416.json
-  gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/e9e2ae8f-1305-4774-bf31-775a0f24e067.json
-  gate_run_id: e9e2ae8f-1305-4774-bf31-775a0f24e067
-  envelope_status: blocked
-  artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md
-  handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md before treating this gate review as consumed.'
-  receive_state: completed
-  receive_correlation: 474c2fbb-40eb-4b70-b3b5-feb4fbf670a2
-  receive_source_artifact: reviews/final-review-2026-09-13T051014Z.md
-  receive_archived_artifact: reviews/archived/final-review-2026-09-13T051014Z.md
-  receive_event_identity: 'final|code|final-review-2026-09-13T051014Z.md|e9e2ae8f-1305-4774-bf31-775a0f24e067'
-  receive_pre_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
-  receive_commit: bb87c1bf4242293bafbade0a8c606b3e4a7c3c22
-  receive_eligible: true
-  receive_completed: true
+  launch_state: intent_persisted
+  launch_attempt_id: 42417ad7-c826-40ec-b9bd-c83d6fedefa9
+  launch_started_at: '2026-09-13T13:38:06Z'
+  launch_result_receipt: /Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/42417ad7-c826-40ec-b9bd-c83d6fedefa9.json
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
   failure: null
-  updated_at: '2026-09-13T13:36:00Z'
+  updated_at: '2026-09-13T13:38:06Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -124,7 +124,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T13:36:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T13:38:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate

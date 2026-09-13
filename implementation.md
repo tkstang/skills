@@ -1419,6 +1419,14 @@ dispositions remain explicit. Artifact archived at
 `reviews/archived/final-review-2026-09-13T133000Z.md`. Final review is passed and the
 single operator-authorized external gate attempt is now eligible.
 
+**External gate launch intent:** The one operator-authorized additional Cursor Fable
+gate attempt is durably reserved as launch attempt
+`42417ad7-c826-40ec-b9bd-c83d6fedefa9` at reviewed head `10d901e8`, implementation
+fingerprint `sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a`.
+The result receipt target is
+`/Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/42417ad7-c826-40ec-b9bd-c83d6fedefa9.json`.
+The operator override now has zero gate attempts remaining. No retry is authorized.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
