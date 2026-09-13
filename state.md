@@ -9,10 +9,10 @@ oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
-oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
+oat_hill_completed: ['discovery', 'design', 'p-rev1'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: pr_open # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 oat_dispatch_policy:
   mode: managed
@@ -61,15 +61,15 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T14:17:20Z'
+  updated_at: '2026-09-13T14:24:28Z'
 oat_post_implement_sequence:
-  status: awaiting_approval
+  status: complete
   source: configured
   final_phase: p-rev1
   pre_approval: [summary, document, pr]
   pre_approval_completed: [summary, document, pr]
-  approval: pending
-  approval_source: null
+  approval: approved
+  approval_source: interactive
   post_approval: []
   post_approval_completed: []
   failure: null
@@ -135,7 +135,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T14:22:45Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T14:24:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: skip
@@ -159,10 +159,11 @@ Implementation — PR open; completion may run before or after merge. Revision p
 seventeen tasks, additional standard final re-review, Cursor Fable exit gate, summary,
 repository-reference update, and final PR step are complete. PR #70 points at the clean
 feature head `eb998085`; concurrent follow-up-project commits remain outside the PR.
-The closeout sequence is awaiting the configured final HiLL approval. Guidance remains
-experimental and unreleased, and the retained executor remains incomplete, unverified,
-and paused. Historical provider-gate failures remain evidence rather than blockers for
-the read-only guidance. No further provider operation or cleanup is authorized.
+The configured p-rev1 final HiLL checkpoint is approved and implementation closeout is
+complete. Guidance remains experimental and unreleased, and the retained executor
+remains incomplete, unverified, and paused. Historical provider-gate failures remain
+evidence rather than blockers for the read-only guidance. No further provider operation
+or cleanup is authorized.
 
 ## Artifacts
 
@@ -323,7 +324,8 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Root verification at merged head `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed; type-check, generated build parity, repository validation, smoke, plan validation, and diff hygiene passed
 - ⚠ Filesystem installation metadata on the Mini identifies active Codex 0.154.0 and Claude 2.1.270, not the pinned gate versions. A cached Codex 0.151.0 release exists; Claude 2.1.251 was not found in the checked installed-version directory. No provider executable was invoked to obtain this information.
 - ✓ Final PR #70 updated with the clean feature head `eb998085`, final title, and project-grounded body
-- ⧗ Awaiting final HiLL approval and human PR review
+- ✓ Final p-rev1 HiLL approval recorded; implementation closeout complete
+- ⧗ Awaiting human PR review
 
 ## Blockers
 
@@ -353,8 +355,7 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-PR #70 is open for review. Record the configured p-rev1 final HiLL decision to finish
-implementation closeout.
+PR #70 is open for review. Project lifecycle completion may run before or after merge.
 
 - To incorporate feedback: run `oat-project-revise`.
 - Complete before merge: run `oat-project-complete` now, then merge the PR.
