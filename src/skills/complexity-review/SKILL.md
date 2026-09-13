@@ -6,10 +6,10 @@ compatibility: Agent Skills baseline; instruction-only, with no language runtime
 argument-hint: '[target ...] [--out <path>]'
 disable-model-invocation: true
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git status:*), Bash(git ls-files:*), AskUserQuestion
+allowed-tools: Read Glob Grep Bash(git diff:*) Bash(git log:*) Bash(git show:*) Bash(git status:*) Bash(git ls-files:*) AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # Complexity Review
@@ -41,7 +41,7 @@ Do not use when:
 
 ## Arguments
 
-Parse from `$ARGUMENTS`:
+Resolve from the user request or host-supplied arguments:
 
 - **target** (optional, repeatable): files, directories, a git range such as `main..HEAD`, or a project directory containing plan, design, or spec documents. If absent, use the artifact the conversation is already about. If there is no such artifact, ask for one. Files changed in the same commits or working tree, including untracked files, are candidate context. Include them only when they implement, support, verify, document, or were introduced because of the target.
 - **--out `<path>`** (optional): write the full report to this path and give a short summary in chat.
@@ -52,6 +52,10 @@ Output rules:
 - When the request names an output destination in prose, treat it as `--out`.
 - Otherwise return the full report inline. Never infer an output destination from a target path.
 - When the request asks to save the review but names no destination, run the review inline and state that no file was written because no destination was given.
+
+This is a review workflow. Writing an authorized `--out` report does not authorize
+editing the reviewed artifact, applying proposed deletions, or changing its project
+state. Make those changes only under separate existing or newly granted authority.
 
 ## Workflow
 
@@ -133,17 +137,11 @@ Two classification notes:
 - A file or field that a validator, CLI, or lifecycle tool requires is a hard constraint and is `Keep`. The depth of prose inside it is not, and is reviewed like anything else.
 - Do not recommend rewriting an archived artifact solely to reduce historical complexity. If it remains in active discovery paths, misleads agents, duplicates current guidance, or carries maintenance cost, classify it normally. Otherwise omit it from the ledger and record the lesson as future process guidance under Proposed changes.
 
-The following categories are where engineering most often becomes theater. Use the evidence column as the bar for `Keep`.
-
-| Category                    | Evidence that earns `Keep`                                                                                                                                   | Not evidence                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Schema for a skill/prompt   | A downstream consumer parses it; models repeatedly omit or misread fields; several renderers share it; validation has caught a real failure                  | "Clean architecture"; a consumer that may exist later         |
-| Script or harness           | The operation runs often; manual execution is error-prone; reproducibility matters; a measured burden is eliminated                                          | The task could be automated; behavior has not stabilized yet  |
-| Tests and fixtures          | A regression occurred or would be costly; the assertion is a stable contract; failures score objectively; coverage unlocks iteration that is otherwise risky | Code exists, therefore tests; snapshots of incidental details |
-| Eval system                 | A defined decision the eval informs; representative fixtures exist; scoring separates meaningful differences; the result changes routing or release          | Nobody has yet said what "good" means                         |
-| Multi-agent or verification | A single pass misses a named class of evidence; verification measurably reduces false claims; fan-out beats one stronger model at comparable cost            | "More agents should be more robust"                           |
-| Generalized abstraction     | Two real implementations share it; near-term consumers have materially different needs; duplication is already causing defects; total complexity goes down   | A hypothetical second use case; a sibling has one             |
-| Process ceremony            | A decision was genuinely contested; a review pass found something the author could not; a phase gate blocked a real defect                                   | The template has a slot for it; the lifecycle always does it  |
+When the target contains schemas, harnesses, tests, evals, multiple agents,
+generalized abstractions, or substantial process ceremony, read
+[domain evidence and review red flags](references/evidence-guide.md). It gives
+category-specific evidence thresholds and drift checks; do not load it for a small
+review whose material items do not include those mechanisms.
 
 ### Step 5: Recommend the minimum sufficient version
 
@@ -220,34 +218,22 @@ Be skeptical, not reflexively minimalist.
 - Do not increase net machinery. A new mechanism is acceptable only when it closes a named contract gap or replaces more expensive machinery, and the review shows that total lifecycle cost decreases.
 - Sunk implementation cost is irrelevant. Removal and migration cost are not. Compare the forward ownership cost with the cost and risk of simplifying now.
 - Do not grade the artifact on whether it is correct. Grade it on whether it is necessary. Correctness findings go under Out of lane.
-
-### Red flags
-
-These thoughts mean the review has drifted into a correctness review, an approval, or reckless deletion. Return to Step 1.
-
-| Thought                                           | Reality                                                                                                                                         |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Proceed, with corrections"                       | A verdict before the ledger is a guess. Build the ledger first.                                                                                 |
-| "This part is fine as-is"                         | Internally correct is not the bar. Which contract line does it serve, and what is the evidence?                                                 |
-| "Every sibling does it this way"                  | Consistency is claimed value, not evidence. Siblings can be over-built too.                                                                     |
-| "Making it mechanically enforced is safer"        | Enforcement is machinery. Name the failure, threat, hard requirement, or irreversible boundary it addresses; otherwise defer it with a trigger. |
-| "We will probably need this later"                | Then it is Defer, with a trigger. Not Keep.                                                                                                     |
-| "It has not failed yet, so delete it"             | A hard requirement, credible threat model, or irreversible interface justifies machinery without a prior failure.                               |
-| "It is already built, removing it is wasted work" | Sunk cost is irrelevant. Removal cost is real; put it in Risks and decide on forward cost.                                                      |
-| "The plan already justifies it"                   | A plan cannot justify its own machinery. Go back to the request.                                                                                |
-| "The plan is four times the artifact, so fail it" | Volume is a signal to investigate, not a verdict. Trace the material to the contract first.                                                     |
+- Build the ledger before assigning a verdict. If the reasoning starts treating
+  consistency, sunk cost, hypothetical future use, or raw artifact volume as proof,
+  return to the contract and deletion test. Use the linked evidence guide for the
+  detailed drift checks when reviewing its named mechanism categories.
 
 ## Examples
 
-### Basic usage
+### Provider-labelled explicit invocation
 
 ```
-/complexity-review .oat/projects/my-skill/design.md .oat/projects/my-skill/plan.md
-/complexity-review main..HEAD --out reviews/complexity-review.md
-/complexity-review skills/recon-agent/
+Codex: $complexity-review .oat/projects/my-skill/design.md .oat/projects/my-skill/plan.md
+Codex: $complexity-review main..HEAD --out reviews/complexity-review.md
+Claude Code: /complexity-review src/skills/self-identify/
 ```
 
-### Conversational
+### Natural language
 
 ```
 This recon skill started as a one-hour prose task and turned into schemas, three scripts, and a test suite. Is any of that earning its keep?
@@ -268,3 +254,6 @@ Before I implement this plan, run a complexity review on it.
 - The report is proportional to the target.
 - Out-of-lane findings are incidental, concise, and were not actively investigated.
 - Any proposed replacement reduces total lifecycle cost.
+- The response names the reviewed target, gives the verdict and minimum sufficient
+  version, and identifies any provisional inference or unverified evidence without
+  burying it in process narration.

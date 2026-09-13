@@ -1021,7 +1021,10 @@ describe('representative real installation boundaries', () => {
     const complexityFiles = await inventoryTree(
       path.join(root, 'skills/complexity-review'),
     );
-    expect(complexityFiles.map((entry) => entry.path)).toEqual(['SKILL.md']);
+    expect(complexityFiles.map((entry) => entry.path)).toEqual([
+      'SKILL.md',
+      'references/evidence-guide.md',
+    ]);
 
     for (const installedHandoff of [
       'skills/session-handoff',
