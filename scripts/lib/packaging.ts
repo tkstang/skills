@@ -537,14 +537,11 @@ export async function buildDeclaredDistributions(options: {
 }): Promise<BuiltDistribution[]> {
   validateDistributionDeclarations(options.declarations);
   if (options.declarations.length === 0) return [];
+  const stagingParent = path.join(options.repoRoot, 'node_modules', '.cache');
+  await mkdir(stagingParent, { recursive: true });
   const stagingRoot =
     options.stagingRoot ??
-    (await mkdtemp(
-      path.join(
-        path.dirname(options.repoRoot),
-        `.${path.basename(options.repoRoot)}-skill-packaging-`,
-      ),
-    ));
+    (await mkdtemp(path.join(stagingParent, 'skill-packaging-')));
   const built: BuiltDistribution[] = [];
   try {
     for (const declaration of options.declarations) {

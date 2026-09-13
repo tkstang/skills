@@ -1,9 +1,13 @@
 import { execFile } from 'node:child_process';
 import {
   chmod,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
+  realpath,
+  rm,
   stat,
   symlink,
   writeFile,
@@ -12,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DistributionDeclaration } from '../../scripts/lib/packaging.js';
 import {
@@ -27,9 +31,24 @@ import {
 } from '../../scripts/lib/packaging.js';
 
 const execFileAsync = promisify(execFile);
+const repositoryRoot = path.resolve(import.meta.dirname, '..', '..');
+const fixtureRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    fixtureRoots.splice(0).map((root) =>
+      rm(root, {
+        recursive: true,
+        force: true,
+      }),
+    ),
+  );
+});
 
 async function fixtureRoot(): Promise<string> {
-  return mkdtemp(path.join(os.tmpdir(), 'skill-packaging-test-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'skill-packaging-test-'));
+  fixtureRoots.push(root);
+  return root;
 }
 
 async function write(
@@ -66,6 +85,67 @@ async function promptSkill(root: string, owner: string): Promise<void> {
     `src/skills/${owner}/SKILL.md`,
     `---\nname: ${owner}\nmetadata:\n  version: '1.0.0'\n---\n\n# {{distribution.name}}\n`,
   );
+}
+
+async function copyIfPresent(
+  source: string,
+  destination: string,
+): Promise<void> {
+  try {
+    await stat(source);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, { recursive: true });
+}
+
+async function copySkillResources(
+  source: string,
+  destination: string,
+): Promise<void> {
+  for (const name of [
+    'SKILL.md',
+    'agents',
+    'assets',
+    'references',
+    'schemas',
+  ]) {
+    await copyIfPresent(path.join(source, name), path.join(destination, name));
+  }
+}
+
+function codexTranscript(sessionId: string, cwd: string): string {
+  return [
+    {
+      type: 'session_started',
+      sessionId,
+      cwd,
+      timestamp: '2026-09-13T12:00:00Z',
+    },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: 'Synthetic installed-boundary request.',
+      },
+    },
+    {
+      type: 'response_item',
+      sessionId,
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: 'Synthetic installed-boundary response.',
+      },
+    },
+  ]
+    .map((record) => JSON.stringify(record))
+    .join('\n')
+    .concat('\n');
 }
 
 describe('declared skill packaging', () => {
@@ -450,5 +530,246 @@ describe('declared skill packaging', () => {
       ),
     ).toEqual([]);
     await cleanupBuiltDistributions(built);
+  });
+});
+
+describe('representative real installation boundaries', () => {
+  it('packages and executes prompt-only, shared-runtime, standalone-consensus, and complete-plugin units outside the checkout', async () => {
+    const root = await fixtureRoot();
+    const home = path.join(root, 'home');
+    const outside = path.join(root, 'outside');
+    const bin = path.join(root, 'bin');
+    await Promise.all([
+      mkdir(home, { recursive: true }),
+      mkdir(outside, { recursive: true }),
+      mkdir(bin, { recursive: true }),
+    ]);
+
+    await copySkillResources(
+      path.join(repositoryRoot, 'skills/complexity-review'),
+      path.join(root, 'src/skills/complexity-review'),
+    );
+
+    await copySkillResources(
+      path.join(repositoryRoot, 'skills/export-session-transcript'),
+      path.join(root, 'src/skills/session-export-transcript'),
+    );
+    await copyIfPresent(
+      path.join(repositoryRoot, 'src/transcript'),
+      path.join(root, 'src/transcript'),
+    );
+    await write(
+      root,
+      'src/skills/session-export-transcript/build.json',
+      '{"runtime":["src/session-export-transcript.ts"]}\n',
+    );
+    await write(
+      root,
+      'src/skills/session-export-transcript/src/session-export-transcript.ts',
+      "import '../../../transcript/export-session/export-session-transcript.js';\n",
+    );
+
+    await copyIfPresent(
+      path.join(repositoryRoot, 'src/consensus'),
+      path.join(root, 'src/consensus'),
+    );
+    const consensusSkills = (
+      await readdir(path.join(repositoryRoot, 'plugins/consensus/skills'), {
+        withFileTypes: true,
+      })
+    )
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .toSorted();
+    for (const skill of consensusSkills) {
+      await copySkillResources(
+        path.join(repositoryRoot, 'plugins/consensus/skills', skill),
+        path.join(root, 'src/skills', skill),
+      );
+    }
+    await write(
+      root,
+      'src/skills/create/build.json',
+      '{"runtime":["src/consensus-create.ts","src/consensus.ts"]}\n',
+    );
+    await write(
+      root,
+      'src/skills/create/src/consensus-create.ts',
+      "import { runCreateCli } from '../../../consensus/create/consensus-create.js';\nprocess.exitCode = await runCreateCli(process.argv.slice(2));\n",
+    );
+    await write(
+      root,
+      'src/skills/create/src/consensus.ts',
+      "import { readFile } from 'node:fs/promises';\nimport { runConsensusCli } from '../../../consensus/provider-cli/commands.js';\nconst io = { stdout: process.stdout, stderr: process.stderr, stdin: process.stdin, cwd: process.cwd(), env: process.env, readFile: (filePath: string) => readFile(filePath, 'utf8'), readStdin: async () => '' };\nprocess.exitCode = await runConsensusCli(process.argv.slice(2), io);\n",
+    );
+
+    const declarations: DistributionDeclaration[] = [
+      target('complexity-review'),
+      target('session-export-transcript', {
+        allowedSourceRoots: ['src/transcript'],
+      }),
+      ...consensusSkills.map((skill) =>
+        target(skill, {
+          allowedSourceRoots: skill === 'create' ? ['src/consensus'] : [],
+          targets: [
+            ...(skill === 'create'
+              ? [
+                  {
+                    kind: 'standalone' as const,
+                    name: 'consensus-create',
+                    output: 'skills/consensus-create',
+                  },
+                ]
+              : []),
+            {
+              kind: 'plugin' as const,
+              plugin: 'consensus',
+              name: skill,
+              output: `plugins/consensus/skills/${skill}`,
+            },
+          ],
+        }),
+      ),
+    ];
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations,
+    });
+    await writeDeclaredDistributions({ repoRoot: root, built });
+
+    const complexityFiles = await inventoryTree(
+      path.join(root, 'skills/complexity-review'),
+    );
+    expect(complexityFiles.map((entry) => entry.path)).toEqual(['SKILL.md']);
+
+    const exportSessionId = 'installed-export';
+    const exportCwd = '/synthetic/project';
+    await write(
+      home,
+      `.codex/sessions/2026/09/13/session-${exportSessionId}.jsonl`,
+      codexTranscript(exportSessionId, exportCwd),
+    );
+    const exportOutput = path.join(outside, 'export.md');
+    const exportRuntime = path.join(
+      root,
+      'skills/session-export-transcript/scripts/session-export-transcript.mjs',
+    );
+    const exported = await execFileAsync(
+      process.execPath,
+      [
+        exportRuntime,
+        '--runtime',
+        'codex',
+        '--cwd',
+        exportCwd,
+        '--session',
+        exportSessionId,
+        '--out',
+        exportOutput,
+      ],
+      { cwd: outside, env: { HOME: home, PATH: process.env.PATH ?? '' } },
+    );
+    expect(exported.stderr).toBe('');
+    expect(await readFile(exportOutput, 'utf8')).toContain(
+      'Synthetic installed-boundary response.',
+    );
+
+    await write(root, 'bin/codex', '#!/bin/sh\nprintf "codex 9.9.9\\n"\n');
+    await chmod(path.join(bin, 'codex'), 0o755);
+    const isolatedEnv = { HOME: home, PATH: bin };
+    const standaloneCreate = path.join(
+      root,
+      'skills/consensus-create/scripts/consensus-create.mjs',
+    );
+    const standaloneCli = path.join(
+      root,
+      'skills/consensus-create/scripts/consensus.mjs',
+    );
+    await expect(
+      execFileAsync(process.execPath, [standaloneCreate], {
+        cwd: outside,
+        env: isolatedEnv,
+      }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(
+        'consensus-create requires --brief or --brief-file',
+      ),
+    });
+    const standaloneInventory = JSON.parse(
+      (
+        await execFileAsync(
+          process.execPath,
+          [standaloneCli, 'provider', 'ls', '--json'],
+          { cwd: outside, env: isolatedEnv },
+        )
+      ).stdout,
+    ) as { providers: Array<{ id: string; status: string }> };
+    expect(
+      standaloneInventory.providers.find((provider) => provider.id === 'codex'),
+    ).toMatchObject({
+      id: 'codex',
+      status: 'ready',
+      executable: path.join(bin, 'codex'),
+      version: 'codex 9.9.9',
+    });
+
+    for (const name of [
+      '.claude-plugin',
+      '.cursor-plugin',
+      '.codex-plugin',
+      'agents',
+      'references',
+      'scripts',
+      'README.md',
+    ]) {
+      await copyIfPresent(
+        path.join(repositoryRoot, 'plugins/consensus', name),
+        path.join(root, 'plugins/consensus', name),
+      );
+    }
+    const installedPluginSkills = (
+      await readdir(path.join(root, 'plugins/consensus/skills'), {
+        withFileTypes: true,
+      })
+    )
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .toSorted();
+    expect(installedPluginSkills).toEqual(consensusSkills);
+    const pluginInventory = JSON.parse(
+      (
+        await execFileAsync(
+          process.execPath,
+          [
+            await realpath(
+              path.join(root, 'plugins/consensus/scripts/consensus.mjs'),
+            ),
+            'provider',
+            'ls',
+            '--json',
+          ],
+          { cwd: outside, env: isolatedEnv },
+        )
+      ).stdout,
+    ) as { providers: Array<{ id: string; status: string }> };
+    expect(
+      pluginInventory.providers.find((provider) => provider.id === 'codex'),
+    ).toMatchObject({ status: 'ready' });
+
+    for (const unit of built) {
+      for (const entry of unit.inventory) {
+        expect(entry.path).not.toMatch(
+          /(?:^|\/)(?:src|tests?|build\.json)(?:\/|$)/,
+        );
+      }
+    }
+    for (const runtime of [exportRuntime, standaloneCreate, standaloneCli]) {
+      expect(await readFile(runtime, 'utf8')).not.toMatch(
+        /from\s+['"](?:\.\.\/){2,}/,
+      );
+    }
+
+    await cleanupBuiltDistributions(built);
+    await rm(root, { recursive: true, force: true });
   });
 });
