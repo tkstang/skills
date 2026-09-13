@@ -2000,6 +2000,14 @@ No public user-guide or feature-code files changed in this documentation step. T
 nonblocking large Codex-store ceiling and preview failure-provenance findings remain
 deferred to the coordinated plugin/naming revision.
 
+### Project Recap
+
+- **Intent:** skip
+- **Source:** explicit interactive decision on 2026-09-13
+- **Outcome:** skipped
+- **Reason:** `interactive`
+- **Run path:** none; no explainer run or manifest was created
+
 **What shipped:**
 
 - An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.

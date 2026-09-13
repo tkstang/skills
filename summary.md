@@ -127,6 +127,12 @@ Historical live-provider gates remain evidence, not a release claim.
 - Complete provider-path, installation, publication, and release checks separately;
   current results do not claim marketplace availability or live native-fork support.
 
+## Explainer Outcome
+
+The implementation-tail project recap was skipped by explicit interactive decision on
+2026-09-13. No explainer run, generated recap artifact, provider call, publication, or
+installation change occurred.
+
 ## Workflow Observations
 
 ### 2026-08-31 · structural · oat gate review · plan
