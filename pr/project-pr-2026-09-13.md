@@ -57,7 +57,7 @@ The earlier automated executor remains preserved for evidence and future work, b
 
 <!-- oat:project-links:start -->
 
-**OAT project** `coding-session-handoff` (synced) — pinned to `refs/oat/projects/coding-session-handoff` @ `9de07dd` (2026-09-13)
-[Discovery](https://github.com/tkstang/skills/blob/9de07dd4cbb40947a16a6c5b4419519d89de0459/discovery.md) · [Design](https://github.com/tkstang/skills/blob/9de07dd4cbb40947a16a6c5b4419519d89de0459/design.md) · [Summary](https://github.com/tkstang/skills/blob/9de07dd4cbb40947a16a6c5b4419519d89de0459/summary.md)
+**OAT project** `coding-session-handoff` (synced) — pinned to `refs/oat/projects/coding-session-handoff` @ `0371caf` (2026-09-13)
+[Discovery](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/discovery.md) · [Design](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/design.md) · [Summary](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/summary.md)
 
 <!-- oat:project-links:end -->
