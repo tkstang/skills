@@ -1290,6 +1290,13 @@ budget is exhausted. These tasks are durable but must not be dispatched, and no 
 external gate may launch, without explicit user authorization for an additional
 bounded fix/review/gate cycle.
 
+**Operator override:** On 2026-09-13 the user explicitly authorized exactly one
+additional bounded cycle: implement `prev1-t12` through `prev1-t14`, run one fresh
+final review, and, only if that review passes, launch one additional external Cursor
+Fable gate attempt. No second extra attempt is authorized. All existing restrictions
+on provider execution by the feature, global installation/sync, feature push, PR
+mutation, merge, cleanup, publication, and release remain.
+
 ### Task prev1-t12: Make bounded discovery work on realistic stores
 
 **Status:** pending

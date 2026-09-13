@@ -1,8 +1,7 @@
 ---
 oat_current_task: prev1-t12
 oat_last_commit: b7a8d35f06acb0a850795e54ad40ea729caac8e5
-oat_blockers:
-  - 'Configured implementation exit gate blocked after 2 of 2 attempts; explicit override required for another fix/review/gate cycle.'
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -20,9 +19,9 @@ oat_dispatch_policy:
   policy: frontier
   source: project-state
 oat_implement_exit_gate:
-  status: blocked
+  status: pending
   resolution: configured
-  disposition: max_attempts_exhausted
+  disposition: operator_override_fix_cycle
   config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -30,6 +29,11 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 2
+  operator_override:
+    authorized_at: '2026-09-13T05:20:00Z'
+    additional_fix_review_gate_cycles: 1
+    gate_attempts_remaining: 1
+    scope: 'prev1-t12 through prev1-t14, one fresh final review, and one external gate attempt'
   reviewed_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
@@ -53,8 +57,8 @@ oat_implement_exit_gate:
   receive_commit: bb87c1bf4242293bafbade0a8c606b3e4a7c3c22
   receive_eligible: true
   receive_completed: true
-  failure: 'Attempt 2 completed with 1 Important, 2 Medium, and 1 Minor finding; review received into prev1-t12 through prev1-t14.'
-  updated_at: '2026-09-13T05:17:00Z'
+  failure: null
+  updated_at: '2026-09-13T05:20:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
