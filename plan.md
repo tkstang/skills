@@ -1638,7 +1638,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T044900Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | auto | - |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
-| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T064500Z.md | f5c6a51884202e44dc92236d267a941b2dbc2722 | auto | - |
+| final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T064500Z.md | f5c6a51884202e44dc92236d267a941b2dbc2722 | auto | - |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -2193,15 +2193,16 @@ it does not mark the experimental executor verified or its skipped work complete
 - p06: 2 tasks — superseded/unimplemented original packaging
 - p-rev1: 17 tasks — five destination-tab guidance tasks, one completed final-review fix, five first-gate fixes, three final-gate fixes, and three fresh-review fixes
 
-**Historical + active total: 56 tasks = 49 completed + 3 pending review fixes + 4 superseded/unimplemented.**
+**Historical + active total: 56 tasks = 52 completed + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
 The configured implementation gate exhausted both original attempts. Its final
 findings were repaired in three operator-authorized commits through `f5c6a518`; the
 authorized fresh review found three continued-prefix/cache/docs gaps now tracked as
-`prev1-t15` through `prev1-t17`. Exactly one additional gate attempt remains authorized
-after these findings are fixed and the standard review requirement is satisfied. Unsupported
+`prev1-t15` through `prev1-t17`; those repairs are complete through `10d901e8`.
+Exactly one additional gate attempt remains authorized after the standard review
+requirement is satisfied. Unsupported
 provider paths and unverified live behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.

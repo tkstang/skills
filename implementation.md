@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | fresh final review fixes added | 17 | 14/17 |
+| p-rev1 | fresh final review fixes complete | 17 | 17/17 |
 
 **Total:** 49 completed of 53 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented and 0 tasks pending.
@@ -1366,22 +1366,36 @@ attempt remains unspent and must not launch while these review findings are open
 
 ### Task prev1-t15: Preserve continued-prefix guidance end to end
 
-**Status:** pending
+**Status:** completed
+**Commit:** `06281afbc0257a07fbafc3ba0bfdecceb95f9cbb`
 **Finding:** Fresh-review I1 — Codex projection and preview/prepare re-enter strict
 bounded reads after guidance attribution.
 **Disposition:** code and generated-bundle test fix; Important scope.
 
 ### Task prev1-t16: Separate strict and summarize cache entries
 
-**Status:** pending
+**Status:** completed
+**Commit:** `fac800f794597a7fe866c4dbf55cdc510b7e3a3d`
 **Finding:** Fresh-review M1 — shared cache reuse crosses the strict policy boundary.
 **Disposition:** code and focused regression fix; Moderate scope.
 
 ### Task prev1-t17: Correct explicit-provider documentation
 
-**Status:** pending
+**Status:** completed
+**Commit:** `10d901e8afb3217db9855fa48c7e83f4f02c8e6c`
 **Finding:** Fresh-review m1 — two examples still lead with `--provider all`.
 **Disposition:** documentation fix; Minor scope.
+
+**Direct repair outcome:** the three fresh-review findings are fixed in ordered commits
+`06281afb` through `10d901e8`. The generated-bundle regression now proves Claude and
+Codex discover, preview, and prepare for transcripts over 256 KiB and 128 records;
+same-cache summarize then strict calls fail closed; public examples use an explicit
+provider. Worker verification passed the full 1,923-test suite with one skip plus all
+repository, generated, version, smoke, documentation, lint/format, and diff gates.
+Root repeated 566 focused tests, type-check, build parity, validation, version, and
+diff checks. Versions are `coding-session-handoff` 0.1.12 and `session-observer`
+1.0.33. The feature worktree is clean and the authorized external gate remains
+unspent.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
@@ -1890,7 +1904,8 @@ Track test execution during implementation.
 | p06   | superseded | - | - | Historical packaging tasks remain unimplemented. |
 | p-rev1 | Full suite 1,905 passed, 1 skipped; 377 scoped reviewer tests; type-check; build/build-check; validate; skill versions; smoke; lint/format; docs build/format; diff hygiene | all through `3fdfc2a1` | 0 findings in fresh phase re-review | Five revision tasks plus the accepted Cursor fail-closed review fix. |
 | p-rev1 gate fixes | Full suite 1,913 passed, 1 skipped; root 120 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `b7a8d35f` | 0 test failures | Five gate findings repaired in ordered commits; fresh final review pending. |
-| p-rev1 override fixes | Full suite 1,920 passed, 1 skipped; root 452 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `f5c6a518` | 0 test failures | Three realistic-store fixes completed; fresh final review pending. |
+| p-rev1 override fixes | Full suite 1,920 passed, 1 skipped; root 452 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `f5c6a518` | Fresh review: 1 Important, 1 Medium, 1 Minor | Three realistic-store fixes completed; review gaps converted to t15-t17. |
+| p-rev1 direct review repairs | Full suite 1,923 passed, 1 skipped; root 566 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `10d901e8` | 0 test failures | Continued-prefix guidance, cache policy isolation, and explicit-provider docs repaired; external gate unspent. |
 
 ## Final Summary (for PR/docs)
 
@@ -1919,7 +1934,7 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Full suite: 1,920 passed and 1 skipped at `f5c6a518`; root repeated 452 focused tests.
+- Full suite: 1,923 passed and 1 skipped at `10d901e8`; root repeated 566 focused tests.
 - Type-check, generated build parity, repository validation, skill-version validation, smoke, authored lint/format, docs format/build, syntax, and diff hygiene passed.
 - No live provider, authentication, installation, publication, cleanup, PR mutation, merge, or release operation was performed for p-rev1.
 
@@ -1930,8 +1945,10 @@ Track test execution during implementation.
 - Gate fix `f317d06e` gives the explicit-selection guidance path a separate
   transcript-level unattributable-summary policy while retaining strict defaults for
   the paused executor and shared observer consumers.
-- Override fixes `cf73ee75` through `f5c6a518` address the second gate's realistic-store
-  evidence. A fresh final review and one additional external gate remain before any
+- Override fixes `cf73ee75` through `f5c6a518` addressed the second gate's realistic-
+  store evidence; direct review repairs `06281afb` through `10d901e8` close the
+  downstream continued-prefix, cache-policy, and documentation gaps. The standard
+  review requirement and one additional external gate remain before any
   release/readiness claim.
 
 ## References

@@ -1,6 +1,6 @@
 ---
-oat_current_task: prev1-t15
-oat_last_commit: f5c6a51884202e44dc92236d267a941b2dbc2722
+oat_current_task: null
+oat_last_commit: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -21,7 +21,7 @@ oat_dispatch_policy:
 oat_implement_exit_gate:
   status: pending
   resolution: configured
-  disposition: fixes_added
+  disposition: fixes_completed
   config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -37,8 +37,8 @@ oat_implement_exit_gate:
   reviewed_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
-  freshness_head: f5c6a51884202e44dc92236d267a941b2dbc2722
-  freshness_fingerprint: sha256:effective-delta-v1:8cadd323909ca593a031aab4beda387edfa09eef6a55292fd0740ea63135bc49
+  freshness_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
+  freshness_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
   launch_state: result_persisted
   launch_attempt_id: 11032bbf-dab8-4514-a7f3-985dc2909416
   launch_started_at: '2026-09-13T05:00:45Z'
@@ -58,7 +58,7 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T07:08:00Z'
+  updated_at: '2026-09-13T12:08:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -121,7 +121,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T03:10:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T12:08:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -141,11 +141,11 @@ oat_project_explainer:
 
 ## Current Phase
 
-Revision p-rev1 is the only active implementation phase. Fourteen tasks are implemented
-through `f5c6a518`. The authorized fresh final review found one Important continued-
-prefix workflow gap, one Medium shared-cache policy leak, and one Minor stale-docs gap;
-they are tracked as `prev1-t15` through `prev1-t17`. The one additional external gate
-attempt remains unspent and cannot launch while these findings are open. The five
+Revision p-rev1 is the only active implementation phase. Seventeen tasks are implemented
+through `10d901e8`. The authorized fresh final review's Important continued-prefix
+workflow gap, Medium shared-cache policy leak, and Minor stale-docs gap are repaired as
+`prev1-t15` through `prev1-t17`. The one additional external gate attempt remains
+unspent and cannot launch until the standard review requirement is satisfied. The five
 inherited Medium deferrals retain their prior explicit dispositions under the paused-
 executor boundary. Final review, the implementation exit gate, and final HiLL closeout
 remain.
@@ -163,7 +163,7 @@ provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (49 completed, 3 pending review fixes, 4 superseded/unimplemented)
+- **Implementation:** `implementation.md` (52 completed, 4 superseded/unimplemented; standard review and exit gate remain)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
