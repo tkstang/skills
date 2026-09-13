@@ -104,7 +104,7 @@ function destinationCommand(
     quoteShellWord(argument.replace('{sessionId}', nativeId)),
   );
   const expected = quoteShellWord(destination);
-  return `test "$(pwd -P)" = ${expected} || { printf '%s\\n' 'Refusing: open the canonical destination worktree first.' >&2; exit 64; }; exec ${argv.join(' ')}`;
+  return `if test "$(pwd -P)" = ${expected}; then exec ${argv.join(' ')}; else printf '%s\\n' 'Refusing: open the canonical destination worktree first.' >&2; fi`;
 }
 
 export async function prepareForkGuidance(

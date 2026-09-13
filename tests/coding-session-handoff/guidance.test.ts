@@ -131,8 +131,20 @@ describe('destination-side fork guidance', () => {
       stdout: `mock:fork ${ID}\n`,
     });
     await expect(
-      execFileAsync('sh', ['-c', instruction.command], { cwd: wrong, env }),
-    ).rejects.toMatchObject({ code: 64 });
+      execFileAsync(
+        'sh',
+        ['-c', `${instruction.command}; printf shell-alive`],
+        {
+          cwd: wrong,
+          env,
+        },
+      ),
+    ).resolves.toMatchObject({
+      stdout: 'shell-alive',
+      stderr: expect.stringContaining(
+        'Refusing: open the canonical destination worktree first.',
+      ),
+    });
   });
 
   it('uses exit-then-relaunch for a fresh destination when no native switch is documented', async () => {

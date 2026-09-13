@@ -2719,7 +2719,7 @@ function destinationCommand(operation, destination, nativeId) {
     (argument) => quoteShellWord(argument.replace("{sessionId}", nativeId))
   );
   const expected = quoteShellWord(destination);
-  return `test "$(pwd -P)" = ${expected} || { printf '%s\\n' 'Refusing: open the canonical destination worktree first.' >&2; exit 64; }; exec ${argv.join(" ")}`;
+  return `if test "$(pwd -P)" = ${expected}; then exec ${argv.join(" ")}; else printf '%s\\n' 'Refusing: open the canonical destination worktree first.' >&2; fi`;
 }
 async function prepareForkGuidance(input, deps = DEFAULT_DEPENDENCIES3) {
   validateCandidate(input.candidate);
