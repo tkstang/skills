@@ -226,7 +226,7 @@ async function candidateDerivedFields(runtime, transcriptPath, signature, cache)
     return { meta: null, classification: UNKNOWN_CLASSIFICATION };
   }
 }
-async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic) {
+async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
   const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}`;
   const cached = cache.get(
     transcriptPath,
@@ -236,12 +236,16 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   );
   if (cached) return cached;
   let deadlineExceeded = false;
+  let transcriptIssue = null;
   const read = await readMetadataRecordsBounded(transcriptPath, {
     maxBytes: budget.limits.maxMetadataBytesPerEntry,
     maxRecords: EXACT_ALL_METADATA_MAX_RECORDS,
     deadlineMs: budget.remainingMs(),
     diagnostic: ({ code }) => {
       deadlineExceeded = code === "deadline-exceeded";
+      if (transcriptIssue === null && ["malformed-record", "oversized-record", "read-failed"].includes(code)) {
+        transcriptIssue = code;
+      }
       diagnostic?.({ code, runtime });
     }
   });
@@ -250,6 +254,12 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
     throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
   }
   if (read.incomplete) {
+    if (unattributablePolicy === "summarize") {
+      const reason = transcriptIssue ?? "metadata-prefix-incomplete";
+      if (transcriptIssue === null) diagnostic?.({ code: reason, runtime });
+      unattributable?.({ reason, runtime });
+      return null;
+    }
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
   }
   const records = read.records;
@@ -259,6 +269,16 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   let meta = extractMetaFromRecords(runtime, records, transcriptPath);
   if (runtime === "claude-code") {
     const recordedCwd = extractClaudeRecordedCwdFromRecords(records);
+    if (recordedCwd === null && unattributablePolicy === "summarize") {
+      diagnostic?.({ code: "cwd-missing", runtime });
+      unattributable?.({ reason: "cwd-missing", runtime });
+      return null;
+    }
+    if (!meta && unattributablePolicy === "summarize") {
+      diagnostic?.({ code: "metadata-prefix-incomplete", runtime });
+      unattributable?.({ reason: "metadata-prefix-incomplete", runtime });
+      return null;
+    }
     if (!meta || recordedCwd === null) {
       throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
     }
@@ -266,6 +286,16 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   }
   if (runtime === "codex") {
     const recordedCwd = extractCodexRecordedCwdFromRecords(records);
+    if (recordedCwd === null && unattributablePolicy === "summarize") {
+      diagnostic?.({ code: "cwd-missing", runtime });
+      unattributable?.({ reason: "cwd-missing", runtime });
+      return null;
+    }
+    if (!meta && unattributablePolicy === "summarize") {
+      diagnostic?.({ code: "metadata-prefix-incomplete", runtime });
+      unattributable?.({ reason: "metadata-prefix-incomplete", runtime });
+      return null;
+    }
     if (!meta || recordedCwd === null) {
       throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
     }
@@ -374,13 +404,16 @@ async function discoverClaudeCode(targetCwd, cache, options) {
           fileStat,
           cache,
           budget,
-          options?.diagnostic
+          options?.diagnostic,
+          options?.unattributablePolicy,
+          options?.unattributable
         ) : await candidateDerivedFields(
           "claude-code",
           transcriptPath,
           fileStat,
           cache
         );
+        if (derived === null) continue;
         const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
         candidates.push({
           runtime: "claude-code",
@@ -452,13 +485,16 @@ async function discoverClaudeCode(targetCwd, cache, options) {
           fileStat,
           cache,
           budget,
-          options?.diagnostic
+          options?.diagnostic,
+          options?.unattributablePolicy,
+          options?.unattributable
         ) : await candidateDerivedFields(
           "claude-code",
           transcriptPath,
           fileStat,
           cache
         );
+        if (derived === null) continue;
         const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
         const recordedCwd = derived.meta?.recordedCwd ?? null;
         candidates.push({
@@ -561,8 +597,11 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
         fileStat,
         classificationCache,
         budget,
-        options?.diagnostic
+        options?.diagnostic,
+        options?.unattributablePolicy,
+        options?.unattributable
       );
+      if (boundedDerived === null) continue;
     }
     if (persistentCacheAllowed && cwdCache[key] && cwdCache[key].sessionId !== void 0) {
       recordedCwd = cwdCache[key].recordedCwd;
@@ -673,6 +712,9 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     resolvedStat,
     cache
   );
+  if (derived === null) {
+    throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+  }
   budget.checkTime();
   return {
     runtime: "cursor",

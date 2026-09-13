@@ -16,6 +16,7 @@ import type { TranscriptCandidate } from '../session-observer/lib/types.js';
 import { readExactCodexNativeId } from './discovery.js';
 import {
   discoverGuidanceCandidates,
+  discoverGuidance,
   GUIDANCE_DISCOVERY_OPTIONS,
   selectGuidanceCandidate,
   type GuidanceQualifiedSessionId,
@@ -313,7 +314,7 @@ async function defaultPreview(source: string, key: GuidanceQualifiedSessionId) {
 
 const DEFAULT_DEPENDENCIES: GuidanceCliDependencies = {
   discover: async (source, selectedProvider) =>
-    discoverGuidanceCandidates(source, {
+    discoverGuidance(source, {
       providers: selectedProvider === 'all' ? undefined : [selectedProvider],
     }),
   preview: defaultPreview,

@@ -7,10 +7,10 @@ argument-hint: '[source-worktree] [destination-worktree]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Bash(node skills/coding-session-handoff/scripts/coding-session-handoff.mjs:*)
-version: '0.1.2'
+version: '0.1.3'
 metadata:
   author: thomas.stang
-  version: '0.1.2'
+  version: '0.1.3'
 ---
 
 # Coding Session Handoff

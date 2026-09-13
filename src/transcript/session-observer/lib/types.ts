@@ -28,10 +28,19 @@ export type RankTier = 'A' | 'B' | 'C';
 export type EngagementStatus = 'engaged' | 'unengaged' | 'unknown';
 export type DiscoveryPersistence = 'default' | 'forbid';
 export type DiscoveryRecency = 'default' | 'exact-all';
+export type DiscoveryUnattributablePolicy = 'fail' | 'summarize';
+export type DiscoveryUnattributableReason =
+  | 'malformed-record'
+  | 'oversized-record'
+  | 'read-failed'
+  | 'metadata-prefix-incomplete'
+  | 'cwd-missing';
 export type DiscoveryDiagnosticCode =
   | 'malformed-record'
   | 'oversized-record'
   | 'read-failed'
+  | 'metadata-prefix-incomplete'
+  | 'cwd-missing'
   | 'deadline-exceeded'
   | 'budget-exceeded';
 
@@ -48,9 +57,16 @@ export interface DiscoveryDiagnostic {
   sessionId?: string;
 }
 
+export interface DiscoveryUnattributable {
+  reason: DiscoveryUnattributableReason;
+  runtime: Runtime;
+}
+
 export interface DiscoveryOptions {
   persistence?: DiscoveryPersistence;
   recency?: DiscoveryRecency;
+  unattributablePolicy?: DiscoveryUnattributablePolicy;
+  unattributable?: (event: DiscoveryUnattributable) => void;
   budget?: DiscoveryBudgetOptions;
   diagnostic?: (event: DiscoveryDiagnostic) => void;
 }

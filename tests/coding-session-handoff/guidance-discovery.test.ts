@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  discoverGuidance,
   discoverGuidanceCandidates,
   selectCurrentGuidanceCandidate,
   selectGuidanceCandidate,
@@ -220,5 +221,40 @@ describe('guidance discovery', () => {
       code: 'discovery-incomplete',
       provider: 'cursor',
     });
+  });
+
+  it('returns a bounded path-free provider summary for skipped unattributable transcripts', async () => {
+    const deps = dependencies({
+      'claude-code': [transcript('claude-code', 'attributed')],
+    });
+    vi.mocked(deps.discover).mockImplementation(
+      async (runtime, _cwd, _cache, options) => {
+        options?.unattributable?.({
+          runtime,
+          reason: 'cwd-missing',
+        });
+        options?.unattributable?.({
+          runtime,
+          reason: 'cwd-missing',
+        });
+        return [transcript('claude-code', 'attributed')];
+      },
+    );
+
+    const result = await discoverGuidance('/repo/source', {
+      providers: ['claude'],
+      deps,
+    });
+
+    expect(result).toEqual({
+      candidates: [expect.objectContaining({ key: 'claude:cli:attributed' })],
+      unattributable: [
+        {
+          provider: 'claude',
+          reasons: [{ code: 'cwd-missing', count: 2 }],
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain('/private/');
   });
 });

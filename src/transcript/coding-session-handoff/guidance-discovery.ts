@@ -6,6 +6,7 @@ import {
 } from '../session-observer/lib/locate.js';
 import type {
   DiscoveryOptions,
+  DiscoveryUnattributableReason,
   TranscriptCandidate,
 } from '../session-observer/lib/types.js';
 import { readExactCodexNativeId } from './discovery.js';
@@ -59,6 +60,16 @@ export interface DiscoverGuidanceCandidatesOptions {
   deps?: GuidanceDiscoveryDependencies;
 }
 
+export interface GuidanceUnattributableSummary {
+  provider: GuidanceProvider;
+  reasons: Array<{ code: DiscoveryUnattributableReason; count: number }>;
+}
+
+export interface GuidanceDiscoveryResult {
+  candidates: GuidanceSessionCandidate[];
+  unattributable: GuidanceUnattributableSummary[];
+}
+
 export class GuidanceDiscoveryError extends Error {
   constructor(
     readonly code:
@@ -96,10 +107,10 @@ function compareKeys(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-export async function discoverGuidanceCandidates(
+export async function discoverGuidance(
   sourcePath: string,
   options: DiscoverGuidanceCandidatesOptions = {},
-): Promise<GuidanceSessionCandidate[]> {
+): Promise<GuidanceDiscoveryResult> {
   const deps = options.deps ?? DEFAULT_DEPENDENCIES;
   const sourceCanonical = await deps.canonicalize(sourcePath).catch(() => null);
   if (sourceCanonical === null)
@@ -114,6 +125,10 @@ export async function discoverGuidanceCandidates(
   }
 
   const projected: GuidanceSessionCandidate[] = [];
+  const unattributable = new Map<
+    GuidanceProvider,
+    Map<DiscoveryUnattributableReason, number>
+  >();
   for (const provider of providers.toSorted()) {
     let transcripts: TranscriptCandidate[];
     try {
@@ -121,7 +136,17 @@ export async function discoverGuidanceCandidates(
         RUNTIME_BY_PROVIDER[provider],
         sourceCanonical,
         new ClassificationCache(),
-        GUIDANCE_DISCOVERY_OPTIONS,
+        provider === 'cursor'
+          ? GUIDANCE_DISCOVERY_OPTIONS
+          : {
+              ...GUIDANCE_DISCOVERY_OPTIONS,
+              unattributablePolicy: 'summarize',
+              unattributable: ({ reason }) => {
+                const reasons = unattributable.get(provider) ?? new Map();
+                reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+                unattributable.set(provider, reasons);
+              },
+            },
       );
     } catch {
       throw new GuidanceDiscoveryError('discovery-incomplete', provider);
@@ -181,9 +206,26 @@ export async function discoverGuidanceCandidates(
     }
     byKey.set(candidate.key, candidate);
   }
-  return [...byKey.values()].toSorted((left, right) =>
-    compareKeys(left.key, right.key),
-  );
+  return {
+    candidates: [...byKey.values()].toSorted((left, right) =>
+      compareKeys(left.key, right.key),
+    ),
+    unattributable: [...unattributable.entries()]
+      .toSorted(([left], [right]) => compareKeys(left, right))
+      .map(([provider, reasons]) => ({
+        provider,
+        reasons: [...reasons.entries()]
+          .toSorted(([left], [right]) => compareKeys(left, right))
+          .map(([code, count]) => ({ code, count })),
+      })),
+  };
+}
+
+export async function discoverGuidanceCandidates(
+  sourcePath: string,
+  options: DiscoverGuidanceCandidatesOptions = {},
+): Promise<GuidanceSessionCandidate[]> {
+  return (await discoverGuidance(sourcePath, options)).candidates;
 }
 
 export function selectCurrentGuidanceCandidate(

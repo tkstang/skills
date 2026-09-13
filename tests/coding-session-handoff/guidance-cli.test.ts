@@ -29,7 +29,7 @@ function harness() {
     stderr: (value) => stderr.push(value),
   };
   const dependencies: GuidanceCliDependencies = {
-    discover: vi.fn(async () => []),
+    discover: vi.fn(async () => ({ candidates: [], unattributable: [] })),
     preview: vi.fn(async () => []),
     prepare: vi.fn(async () => ({ status: 'experimental-not-released' })),
   };
@@ -70,6 +70,7 @@ describe('experimental guidance CLI', () => {
       command: 'discover',
       status: 'experimental-not-released',
       currentSelection: 'explicit-required',
+      data: { candidates: [], unattributable: [] },
     });
   });
 

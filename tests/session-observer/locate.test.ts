@@ -644,6 +644,44 @@ test('claude-code exact-all uses exact transcript cwd evidence', async () => {
   });
 });
 
+test('claude-code guidance summary retains attributable candidates when an unrelated transcript lacks cwd', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'guidance-claude-target');
+    const directDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    const unrelatedDir = join(home, '.claude', 'projects', 'unrelated-store');
+    await mkdir(directDir, { recursive: true });
+    await mkdir(unrelatedDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'target.jsonl'),
+      makeClaudeTypical(targetCwd, 'guidance-claude-target'),
+      'utf8',
+    );
+    await writeFile(
+      join(unrelatedDir, 'cwd-missing.jsonl'),
+      `${JSON.stringify({ sessionId: 'unrelated', type: 'summary' })}\n`,
+      'utf8',
+    );
+    const unattributable: Array<{ reason: string; runtime: string }> = [];
+
+    await expect(
+      discover('claude-code', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        unattributablePolicy: 'summarize',
+        unattributable: (event) => unattributable.push(event),
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        sessionId: 'guidance-claude-target',
+        recordedCwd: targetCwd,
+      }),
+    ]);
+    expect(unattributable).toContainEqual({
+      reason: 'cwd-missing',
+      runtime: 'claude-code',
+    });
+  });
+});
+
 test('claude-code exact-all enumerates unexpected project slugs after a direct hit', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'exact-project');
@@ -898,6 +936,43 @@ test('codex exact-all includes old sessions while default discovery remains rece
         )
       ).some((candidate) => candidate.transcriptPath === stalePath),
     ).toBe(true);
+  });
+});
+
+test('codex guidance summary retains attributable candidates when an unrelated record is oversized', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'guidance-codex-target');
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '13');
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'a-target.jsonl'),
+      makeCodexTypical(targetCwd),
+      'utf8',
+    );
+    await writeFile(
+      join(sessionDir, 'z-unrelated.jsonl'),
+      `${JSON.stringify({ payload: 'x'.repeat(300_000) })}\n`,
+      'utf8',
+    );
+    const unattributable: Array<{ reason: string; runtime: string }> = [];
+
+    const candidates = await discover(
+      'codex',
+      targetCwd,
+      new ClassificationCache(),
+      {
+        ...exactReadOnlyDiscovery,
+        unattributablePolicy: 'summarize',
+        unattributable: (event) => unattributable.push(event),
+      },
+    );
+    expect(candidates).toEqual([
+      expect.objectContaining({ recordedCwd: targetCwd }),
+    ]);
+    expect(unattributable).toContainEqual({
+      reason: 'oversized-record',
+      runtime: 'codex',
+    });
   });
 });
 
