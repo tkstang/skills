@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | review fix completed; re-review pending | 5 | 5/5 |
+| p-rev1 | completed; phase review passed | 5 | 5/5 |
 
 **Total:** 40 completed of 44 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented, 0 revision tasks pending. p-rev1 independent review is pending.
@@ -78,7 +78,7 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ## Phase p-rev1: Destination-tab fork guidance
 
-**Status:** implementation and accepted review fix complete; independent re-review pending.
+**Status:** completed; independent phase re-review passed.
 
 ### Task prev1-t01: Establish provider/surface instruction capabilities
 
@@ -1056,6 +1056,7 @@ independently verified before p04-t01 can safely execute.
 - Fix outcome: completed in the single append-only commit `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; exact-all Cursor discovery now fails closed on unexpected root, iterator, and stat errors and returns no partial candidates. The worker reported 1,905 passing tests and one skipped, plus all repository gates. Root independently repeated 91 focused tests, generated parity, skill-version validation against the phase base, diff hygiene, and clean-worktree checks successfully.
 - Fresh re-review dispatch `handoff-prev1-rereview-20260913-01`: accepted native handle `/root/handoff_revision_rereview`; exact role `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier. Consequential class/floor satisfied under managed Frontier/max at route level 0. Scope is the complete phase range `30da3e20d8e62fa2fc12ae21d8778ba2f0106963..3fdfc2a17b0b94171871a5bf6460beac1a333bea`, with explicit prior-I1 disposition required; only the named review artifact is writable. No fallback or provider operation is authorized.
 - Re-review dispatch: scope=p-rev1-rereview-1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+- Fresh re-review outcome: PASS at `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; artifact `reviews/p-rev1-review-2026-09-13T022511Z.md`; 0 Critical, 0 Important, 0 Medium, 0 Minor. Prior I1 is explicitly resolved. The exact base/head/range, 377 scoped tests, repository gates, required `Reconnaissance: not-attempted` declaration, and absence of `## Review Orchestration` were validated before receipt. Phase p-rev1 is complete; final lifecycle review and the configured implementation exit gate remain.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 

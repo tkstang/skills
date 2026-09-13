@@ -100,9 +100,10 @@ oat_project_explainer:
 
 ## Current Phase
 
-Revision p-rev1 is the only active implementation phase. Its five tasks and the accepted
-phase-review fix are implemented through `3fdfc2a1`; a fresh independent re-review is
-pending. Guidance remains experimental and unreleased. The old executor remains incomplete,
+Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
+phase-review fix are implemented through `3fdfc2a1`; fresh independent re-review passed
+with zero findings. Final lifecycle review and the implementation exit gate remain.
+Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
 remain unresolved evidence, not blockers for read-only guidance. No cleanup targets
@@ -116,7 +117,7 @@ provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (40 completed, 4 superseded/unimplemented; p-rev1 fix completed and re-review pending)
+- **Implementation:** `implementation.md` (40 completed, 4 superseded/unimplemented; p-rev1 phase review passed)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
