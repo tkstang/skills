@@ -1,10 +1,10 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-07-24 (Cursor transcript observation is evidence-gated and its finite stronger-wake probes retain `buffered-manual` as the strongest supported collaboration tier. **BL-260713-cursor-transcript-store** and **BL-260713-stronger-cursor-collaboration** are closed; two independently verifiable N=2 v2 follow-ups remain open. Codex lifecycle evidence remains live-validated for the measured bounded path, while Claude Monitor remains unvalidated. Prior: shared generated runtime output closed — **BL-260620-share-consensus-generated**; provider CLI read-only capture relocated to `.consensus/submit/`; skills.sh hosted safety is verified for the two seeded standalone skills only. See DR-260705.)
+**Last updated:** 2026-09-13 (Experimental destination-session fork guidance is implemented on its feature branch and has passed standard review plus the Cursor Fable exit gate. PR update, user-level installation, publication, and release remain pending.)
 
 ## Overview
 
-This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, canonical TypeScript source under `src/`, compatibility/reference material under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. The canonical in-repository public standalone set is `session-observer`, `export-session-transcript`, and `session-observer-collab`; external marketplace, registry, provider-mirror, and hosted search/install claims remain release-gated unless supported by current evidence.
+This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, canonical TypeScript source under `src/`, compatibility/reference material under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. The canonical source tree currently contains four public standalone entries: `session-observer`, `export-session-transcript`, `session-observer-collab`, and the experimental `coding-session-handoff`. External marketplace, registry, provider-mirror, and hosted search/install claims remain release-gated unless supported by current evidence.
 
 ## Shipped Capabilities
 
@@ -59,6 +59,22 @@ Standalone skill exporting the current (or selected) session to sanitized markdo
 - **TypeScript/generated runtime slice (2026-06-17):** canonical source now lives at `src/transcript/export-session/export-session-transcript.ts` and `src/transcript/export-session/sanitize.ts`; generated shipped output remains at `skills/export-session-transcript/scripts/export-session-transcript.mjs` and `skills/export-session-transcript/scripts/lib/sanitize.mjs`, with import rewrites to local `./lib/*.mjs` dependencies.
 - **Sanitization:** two layers — structural (`normalizeEntries`) plus export-owned content detectors (`sanitize.mjs`), drop-on-match; validated against 41k+ real store entries with zero hidden-payload survivors.
 - **Output:** defaults to `~/Downloads/<branch>.md`; `--all` writes one file per session; exit codes 0/1/2/3 (success / hard error / no candidates / ambiguous).
+
+### coding-session-handoff (`skills/coding-session-handoff/`) — experimental, branch implemented
+
+Experimental, read-only guidance for discovering, previewing, and preparing a
+destination-session fork into an existing Git worktree. The user executes the
+prepared handoff in the destination tab; the skill does not execute provider
+commands, create sessions, write IDE or provider stores, or modify repository
+files. Cursor fails closed because its available transcript evidence cannot prove
+an exact working-directory match.
+
+The guidance uses exact-all selection, zero persistence, path-free prepared
+output, and bounded reads. Continued-session prefixes carry the destination
+guidance while preserving the strict observer/executor split. Paused or
+unreachable executors remain fail-closed. The implementation passed a standard
+final review and the Cursor Fable exit gate; PR update, user-level installation,
+publication, and release remain separate pending steps.
 
 ### session-observer-collab (`skills/session-observer-collab/`) — shipped 2026-07-12
 
