@@ -1640,6 +1640,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T064500Z.md | f5c6a51884202e44dc92236d267a941b2dbc2722 | auto | - |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T133000Z.md | 10d901e8afb3217db9855fa48c7e83f4f02c8e6c | auto | - |
+| final | code | received | 2026-09-13 | reviews/final-review-2026-09-13T134826Z.md | 10d901e8afb3217db9855fa48c7e83f4f02c8e6c | gate | cursor-fable-5-1-high |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
