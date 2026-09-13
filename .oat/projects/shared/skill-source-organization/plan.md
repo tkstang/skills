@@ -311,7 +311,8 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
-| p03 | code | fixes_added | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
+| p03 | code | fixes_completed | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
+| p03 | code | passed | 2026-09-13 | reviews/p03-review-2026-09-13T222103Z.md | de269575225719185ac456f1e8fcac1dde8ea0b5 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
@@ -369,10 +370,10 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | --- | --- | --- |
 | p01 Packaging foundation | 3 | 3 |
 | p02 Source/tooling migration | 4 | 4 |
-| p03 Products/promotions | 4 | 0 |
+| p03 Products/promotions | 4 | 4 |
 | p04 Public documentation/verification | 2 | 0 |
 | p05 Post-merge private cutover | 1 | 0 |
-| Total | 14 | 7 |
+| Total | 14 | 11 |
 
 p01–p04 comprise the 13-task public milestone; p05 is one post-merge cross-repo task. Do not mark all 14 complete when the public PR is ready.
 

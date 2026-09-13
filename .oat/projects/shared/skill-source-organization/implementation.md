@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-13
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-Implementation continues at p03-t01. Phases p01 and p02 are complete. P02 passed independent review cycle 3 with zero findings after two bounded review fixes.
+Implementation continues at p04-t01. Phases p01 through p03 are complete. P03 passed independent review cycle 2 with zero findings after one bounded review fix.
 
 ## Progress Overview
 
@@ -18,10 +18,10 @@ Implementation continues at p03-t01. Phases p01 and p02 are complete. P02 passed
 | --- | --- | --- | --- |
 | p01 Packaging foundation | complete | 3 | 3 |
 | p02 Source/tooling migration | complete | 4 | 4 |
-| p03 Products/promotions | pending | 4 | 0 |
+| p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | pending | 2 | 0 |
 | p05 Post-merge private cutover | pending | 1 | 0 |
-| Total | in progress | 14 | 7 |
+| Total | in progress | 14 | 11 |
 
 p01–p04 are the public milestone. p05 intentionally follows its merge; use the progress-PR boundary in plan.md rather than requiring all tasks to complete before that public PR can merge.
 
@@ -123,7 +123,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ### Run 3: Phase p03
 
-- Status: implementation complete; root review pending
+- Status: complete; review passed
 - Request: `cda18a03-7781-4baa-8994-c572f299bbb6`
 - Launch status: accepted
 - Phase base: `fce47d1dab2d5dbcbdd568c13e90c28d8a40c9f6`
@@ -135,6 +135,10 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Task commits: p03-t01 `845b345688058d856ad2f3c3f99aa500dd19a221`; p03-t02 `22ce71493970a64982b72c456bed1dcef2dd2d2d`; p03-t03 `043a240a410027afcc58be081b4691f8b60b1be4`; p03-t04 `92c84d1c9a99054aa695a04598d5092d601aa33c`
 - Recovery: one successful phase-standing attempt at `0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86`; authoritative usage is 1/10 with no pending attempt.
 - Verification: implementer and root passed the complete premerge gate with 135 test files and 1,982 tests passed, one file/test skipped, plus build, type-check, generated-output check, validation, smoke, and the 12-owner version gate.
+- Fix iteration 1: `de269575225719185ac456f1e8fcac1dde8ea0b5` added cross-form observer identities and enforced caller-required local CLI versions and operation capabilities.
+- Review cycle 1: `reviews/p03-review-2026-09-13T215053Z.md`, 0 Critical, 2 Important, 0 Medium, 0 Minor; fixes completed.
+- Review cycle 2: `reviews/p03-review-2026-09-13T222103Z.md`, 0 findings; passed at `de269575225719185ac456f1e8fcac1dde8ea0b5`.
+- Review dispatch: `Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 - Source provenance: read-only personal source commit `80a5a76de093f812776efb5c90bdc40504dbedfb`; no personal repository or user installation was mutated.
 - Nested dispatches: none
 
@@ -175,6 +179,8 @@ Review: reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Gate M1/M2/
 At the final p01 head, 62 scoped packaging/install tests pass with four workers, along with type-check, build check, repository validation, smoke, scoped formatting/lint, and range diff checks. The extra full-suite diagnostic still has the pre-existing session-observer help timeout under saturation; its affected file passes 49/49 alone and it is outside p01's required verification.
 
 At the final p02 head, the implementer, root, and passing reviewer each verified 135 test files and 1,976 tests with one skip, plus type-check, build check, validation, internal flags, smoke, 12 changed skill versions against `origin/main`, consensus `v0.1.1` tag selection, and credential-free live-E2E discovery.
+
+At the final p03 head, the implementer and root passed 135 test files and 1,987 tests with one skip, plus the complete premerge and 12-skill version gates. The passing reviewer independently verified 197 focused tests, generated-output validation, repository validation, and the phase version gate.
 
 ## Final Summary (for PR/docs)
 
