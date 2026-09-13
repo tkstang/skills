@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t04
+oat_current_task_id: prev1-t05
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | in_progress | 5 | 3/5 |
+| p-rev1 | in_progress | 5 | 4/5 |
 
-**Total:** 38 completed of 44 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented, 2 revision tasks pending. p03-t19 independent review passed.
+**Total:** 39 completed of 44 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented, 1 revision task pending. p03-t19 independent review passed.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -100,7 +100,9 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ### Task prev1-t04: Package an experimental guidance-only skill
 
-**Status:** pending
+**Status:** completed
+**Commit:** `ab935d2aae70fd2cf2874c6398ba2529bec9ea4a`
+**Verification:** 374 focused/tooling tests, type-check, generated parity, repository validation, and skill-version validation passed.
 
 ### Task prev1-t05: Document status and verify the revised workflow
 
