@@ -28,21 +28,21 @@ oat_implement_exit_gate:
   project_override: null
   on_failure: block
   max_attempts: 2
-  attempts_completed: 1
+  attempts_completed: 2
   reviewed_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
   freshness_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   freshness_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: 11032bbf-dab8-4514-a7f3-985dc2909416
   launch_started_at: '2026-09-13T05:00:45Z'
   launch_result_receipt: /Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/11032bbf-dab8-4514-a7f3-985dc2909416.json
   gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/e9e2ae8f-1305-4774-bf31-775a0f24e067.json
   gate_run_id: e9e2ae8f-1305-4774-bf31-775a0f24e067
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: blocked
+  artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md
+  handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md before treating this gate review as consumed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -50,10 +50,10 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-13T05:01:25Z'
+  updated_at: '2026-09-13T05:11:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets

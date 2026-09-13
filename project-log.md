@@ -232,6 +232,10 @@ handoff-guidance-revision-20260913: Recorded accepted destination-tab guidance s
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:2 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T042209Z.md run=d0d1b97a-1990-47ce-a35f-2b985f1116ce
 
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:1 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md run=e9e2ae8f-1305-4774-bf31-775a0f24e067
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
