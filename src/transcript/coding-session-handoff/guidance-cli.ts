@@ -14,6 +14,7 @@ import {
 } from '../session-observer/lib/locate.js';
 import type { TranscriptCandidate } from '../session-observer/lib/types.js';
 import { readExactCodexNativeId } from './discovery.js';
+import type { GuidanceProvider } from './guidance-capabilities.js';
 import {
   discoverGuidanceCandidates,
   discoverGuidance,
@@ -238,6 +239,10 @@ function runtimeFor(candidate: GuidanceSessionCandidate): Runtime {
   return candidate.provider;
 }
 
+function providerForKey(key: GuidanceQualifiedSessionId): GuidanceProvider {
+  return key.slice(0, key.indexOf(':')) as GuidanceProvider;
+}
+
 async function rawMatch(
   source: string,
   selected: GuidanceSessionCandidate,
@@ -269,7 +274,9 @@ async function rawMatch(
 }
 
 async function defaultPreview(source: string, key: GuidanceQualifiedSessionId) {
-  const candidates = await discoverGuidanceCandidates(source);
+  const candidates = await discoverGuidanceCandidates(source, {
+    providers: [providerForKey(key)],
+  });
   const selected = selectGuidanceCandidate(candidates, key);
   const raw = await rawMatch(selected.recordedCwd, selected);
   const diagnostics: string[] = [];
@@ -322,7 +329,9 @@ const DEFAULT_DEPENDENCIES: GuidanceCliDependencies = {
     }),
   preview: defaultPreview,
   prepare: async (source, target, key, selectedEntryPoint) => {
-    const candidates = await discoverGuidanceCandidates(source);
+    const candidates = await discoverGuidanceCandidates(source, {
+      providers: [providerForKey(key)],
+    });
     const candidate = selectGuidanceCandidate(candidates, key);
     return prepareForkGuidance({
       sourcePath: source,

@@ -381,7 +381,7 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
     const isFinalFragment = newline === -1;
     const end = isFinalFragment ? buffer.length : newline;
     if (isFinalFragment && dropTrailingFragment) {
-      safeDiagnostic(options, "oversized-record");
+      if (mode === "tail") safeDiagnostic(options, "oversized-record");
       incomplete = true;
       break;
     }
@@ -416,7 +416,7 @@ function parseBoundedLines(buffer, options, deadline, mode, dropLeadingFragment,
       }
     }
     if (mode === "prefix" && records.length >= options.maxRecords) {
-      if (!isFinalFragment || end < buffer.length) incomplete = true;
+      if (newline !== -1 && newline + 1 < buffer.length) incomplete = true;
       break;
     }
     if (isFinalFragment) break;
@@ -1475,14 +1475,12 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   if (deadlineExceeded) {
     throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
   }
-  if (read.incomplete) {
-    if (unattributablePolicy === "summarize") {
-      const reason = transcriptIssue ?? "metadata-prefix-incomplete";
-      if (transcriptIssue === null) diagnostic?.({ code: reason, runtime });
-      unattributable?.({ reason, runtime });
-      return null;
-    }
+  if (read.incomplete && unattributablePolicy !== "summarize") {
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+  }
+  if (transcriptIssue !== null && unattributablePolicy === "summarize") {
+    unattributable?.({ reason: transcriptIssue, runtime });
+    return null;
   }
   const records = read.records;
   const classification = compactClassificationForCache(
@@ -2221,6 +2219,15 @@ async function discoverGuidance(sourcePath, options = {}) {
         throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
       }
       const recordedCwd = await deps.canonicalize(transcript.recordedCwd).catch(() => null);
+      if (recordedCwd === null && provider2 !== "cursor") {
+        const reasons = unattributable.get(provider2) ?? /* @__PURE__ */ new Map();
+        reasons.set(
+          "cwd-unresolvable",
+          (reasons.get("cwd-unresolvable") ?? 0) + 1
+        );
+        unattributable.set(provider2, reasons);
+        continue;
+      }
       if (recordedCwd === null)
         throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
       if (recordedCwd !== sourceCanonical) continue;
@@ -3075,6 +3082,9 @@ function runtimeFor(candidate) {
   if (candidate.provider === "claude") return "claude-code";
   return candidate.provider;
 }
+function providerForKey(key) {
+  return key.slice(0, key.indexOf(":"));
+}
 async function rawMatch(source, selected) {
   const runtime = runtimeFor(selected);
   const raw = await discover(
@@ -3099,7 +3109,9 @@ async function rawMatch(source, selected) {
   return matches[0];
 }
 async function defaultPreview(source, key) {
-  const candidates = await discoverGuidanceCandidates(source);
+  const candidates = await discoverGuidanceCandidates(source, {
+    providers: [providerForKey(key)]
+  });
   const selected = selectGuidanceCandidate(candidates, key);
   const raw = await rawMatch(selected.recordedCwd, selected);
   const diagnostics = [];
@@ -3146,7 +3158,9 @@ var DEFAULT_DEPENDENCIES5 = {
   }),
   preview: defaultPreview,
   prepare: async (source, target, key, selectedEntryPoint) => {
-    const candidates = await discoverGuidanceCandidates(source);
+    const candidates = await discoverGuidanceCandidates(source, {
+      providers: [providerForKey(key)]
+    });
     const candidate = selectGuidanceCandidate(candidates, key);
     return prepareForkGuidance({
       sourcePath: source,

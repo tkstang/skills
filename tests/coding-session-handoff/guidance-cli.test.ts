@@ -387,6 +387,203 @@ describe('experimental guidance CLI', () => {
     }
   });
 
+  it('isolates preview and prepare discovery to the provider in the exact key', async () => {
+    const createdRoot = await mkdtemp(
+      join(tmpdir(), 'handoff-provider-scope-'),
+    );
+    const root = await realpath(createdRoot);
+    const previousHome = process.env.HOME;
+    const source = join(root, 'source');
+    const target = join(root, 'target');
+    const sessionId = '550e8400-e29b-41d4-a716-446655440099';
+    const claudeDir = join(
+      root,
+      '.claude',
+      'projects',
+      source.replace(/[/.]/gu, '-'),
+    );
+    const cursorDir = join(
+      root,
+      '.cursor',
+      'projects',
+      source.split(/[/.]/u).filter(Boolean).join('-'),
+      'agent-transcripts',
+      'blocking-cursor-session',
+    );
+    const runGit = (...args: string[]) =>
+      execFileAsync('git', args, { encoding: 'utf8' });
+
+    await mkdir(source, { recursive: true });
+    await runGit('-C', source, 'init', '-q');
+    await runGit('-C', source, 'config', 'user.name', 'Synthetic Test');
+    await runGit(
+      '-C',
+      source,
+      'config',
+      'user.email',
+      'synthetic@example.invalid',
+    );
+    await writeFile(join(source, 'README.md'), 'fixture\n', 'utf8');
+    await runGit('-C', source, 'add', 'README.md');
+    await runGit('-C', source, 'commit', '-qm', 'fixture');
+    await runGit(
+      '-C',
+      source,
+      'worktree',
+      'add',
+      '-qb',
+      'fixture-target',
+      target,
+    );
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, `${sessionId}.jsonl`),
+      `${JSON.stringify({ type: 'summary', cwd: source, sessionId })}\n${JSON.stringify({ type: 'user', cwd: source, sessionId, message: { role: 'user', content: 'hello' } })}\n${JSON.stringify({ type: 'assistant', cwd: source, sessionId, message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] } })}\n`,
+      'utf8',
+    );
+    await mkdir(cursorDir, { recursive: true });
+    await writeFile(
+      join(cursorDir, 'conversation.jsonl'),
+      `${JSON.stringify({ role: 'user', message: { content: 'BLOCKING_CURSOR_MARKER' } })}\n`,
+      'utf8',
+    );
+    process.env.HOME = root;
+
+    try {
+      const preview = harness();
+      expect(
+        await runGuidanceCli(
+          [
+            'preview',
+            '--source',
+            source,
+            '--session',
+            `claude:cli:${sessionId}`,
+            '--json',
+          ],
+          undefined,
+          preview.io,
+        ),
+      ).toBe(0);
+      expect(JSON.parse(preview.stdout[0])).toMatchObject({
+        ok: true,
+        data: { key: `claude:cli:${sessionId}` },
+      });
+
+      const prepare = harness();
+      const prepareStatus = await runGuidanceCli(
+        [
+          'prepare',
+          '--source',
+          source,
+          '--target',
+          target,
+          '--session',
+          `claude:cli:${sessionId}`,
+          '--entry-point',
+          'source-other',
+          '--json',
+        ],
+        undefined,
+        prepare.io,
+      );
+      expect(prepareStatus, prepare.stdout.join('')).toBe(0);
+      expect(JSON.parse(prepare.stdout[0])).toMatchObject({
+        ok: true,
+        data: { provider: 'claude', selectedSource: `claude:cli:${sessionId}` },
+      });
+      expect(prepare.stdout.join('')).not.toContain('BLOCKING_CURSOR_MARKER');
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('ships read-only discovery for a large attributed transcript beside a stale cwd', async () => {
+    const createdRoot = await mkdtemp(
+      join(tmpdir(), 'handoff-shipped-realistic-'),
+    );
+    const root = await realpath(createdRoot);
+    const source = join(root, 'source');
+    const stale = join(root, 'deleted-worktree');
+    const sessionId = 'large-shipped-session';
+    const claudeProjects = join(root, '.claude', 'projects');
+    const sourceDir = join(claudeProjects, source.replace(/[/.]/gu, '-'));
+    const staleDir = join(claudeProjects, stale.replace(/[/.]/gu, '-'));
+    const bundleUrl = new URL(
+      '../../skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      import.meta.url,
+    );
+    const records = [
+      { type: 'summary', cwd: source, sessionId },
+      {
+        type: 'user',
+        cwd: source,
+        sessionId,
+        message: { role: 'user', content: 'hello' },
+      },
+      {
+        type: 'assistant',
+        cwd: source,
+        sessionId,
+        message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] },
+      },
+      ...Array.from({ length: 140 }, (_, index) => ({
+        type: 'progress',
+        cwd: source,
+        sessionId,
+        index,
+        padding: 'x'.repeat(2_200),
+      })),
+    ];
+    const transcript = `${records.map((record) => JSON.stringify(record)).join('\n')}\n`;
+    expect(Buffer.byteLength(transcript)).toBeGreaterThan(256 * 1024);
+
+    await mkdir(source, { recursive: true });
+    await mkdir(sourceDir, { recursive: true });
+    await mkdir(staleDir, { recursive: true });
+    await writeFile(join(sourceDir, `${sessionId}.jsonl`), transcript, 'utf8');
+    await writeFile(
+      join(staleDir, 'stale-session.jsonl'),
+      `${JSON.stringify({ type: 'summary', cwd: stale, sessionId: 'stale-session' })}\n${JSON.stringify({ type: 'user', cwd: stale, sessionId: 'stale-session', message: { role: 'user', content: 'STALE_PRIVATE_MARKER' } })}\n`,
+      'utf8',
+    );
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          bundleUrl.pathname,
+          'discover',
+          '--source',
+          source,
+          '--provider',
+          'claude',
+          '--json',
+        ],
+        { encoding: 'utf8', env: { ...process.env, HOME: root } },
+      );
+      const output = JSON.parse(result.stdout);
+      expect(output).toMatchObject({
+        ok: true,
+        data: {
+          candidates: [{ key: `claude:cli:${sessionId}` }],
+          unattributable: [
+            {
+              provider: 'claude',
+              reasons: [{ code: 'cwd-unresolvable', count: 1 }],
+            },
+          ],
+        },
+      });
+      expect(result.stdout).not.toContain(stale);
+      expect(result.stdout).not.toContain('STALE_PRIVATE_MARKER');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it.each(['execute', 'reconcile', 'behavior-plan', 'behavior-verify'])(
     'rejects old automation command %s',
     async (command) => {

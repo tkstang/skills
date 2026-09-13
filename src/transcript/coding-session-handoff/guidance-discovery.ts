@@ -167,6 +167,15 @@ export async function discoverGuidance(
       const recordedCwd = await deps
         .canonicalize(transcript.recordedCwd)
         .catch(() => null);
+      if (recordedCwd === null && provider !== 'cursor') {
+        const reasons = unattributable.get(provider) ?? new Map();
+        reasons.set(
+          'cwd-unresolvable',
+          (reasons.get('cwd-unresolvable') ?? 0) + 1,
+        );
+        unattributable.set(provider, reasons);
+        continue;
+      }
       if (recordedCwd === null)
         throw new GuidanceDiscoveryError('discovery-incomplete', provider);
       if (recordedCwd !== sourceCanonical) continue;

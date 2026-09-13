@@ -817,7 +817,7 @@ function parseBoundedLines(
     const isFinalFragment = newline === -1;
     const end = isFinalFragment ? buffer.length : newline;
     if (isFinalFragment && dropTrailingFragment) {
-      safeDiagnostic(options, 'oversized-record');
+      if (mode === 'tail') safeDiagnostic(options, 'oversized-record');
       incomplete = true;
       break;
     }
@@ -857,7 +857,7 @@ function parseBoundedLines(
     }
 
     if (mode === 'prefix' && records.length >= options.maxRecords) {
-      if (!isFinalFragment || end < buffer.length) incomplete = true;
+      if (newline !== -1 && newline + 1 < buffer.length) incomplete = true;
       break;
     }
     if (isFinalFragment) break;

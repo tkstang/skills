@@ -384,7 +384,7 @@ function parseBoundedLines(buffer, options, deadline, mode2, dropLeadingFragment
     const isFinalFragment = newline === -1;
     const end = isFinalFragment ? buffer.length : newline;
     if (isFinalFragment && dropTrailingFragment) {
-      safeDiagnostic(options, "oversized-record");
+      if (mode2 === "tail") safeDiagnostic(options, "oversized-record");
       incomplete = true;
       break;
     }
@@ -419,7 +419,7 @@ function parseBoundedLines(buffer, options, deadline, mode2, dropLeadingFragment
       }
     }
     if (mode2 === "prefix" && records.length >= options.maxRecords) {
-      if (!isFinalFragment || end < buffer.length) incomplete = true;
+      if (newline !== -1 && newline + 1 < buffer.length) incomplete = true;
       break;
     }
     if (isFinalFragment) break;
@@ -1478,14 +1478,12 @@ async function candidateDerivedFieldsBounded(runtime3, transcriptPath, signature
   if (deadlineExceeded) {
     throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
   }
-  if (read.incomplete) {
-    if (unattributablePolicy === "summarize") {
-      const reason = transcriptIssue ?? "metadata-prefix-incomplete";
-      if (transcriptIssue === null) diagnostic?.({ code: reason, runtime: runtime3 });
-      unattributable?.({ reason, runtime: runtime3 });
-      return null;
-    }
+  if (read.incomplete && unattributablePolicy !== "summarize") {
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+  }
+  if (transcriptIssue !== null && unattributablePolicy === "summarize") {
+    unattributable?.({ reason: transcriptIssue, runtime: runtime3 });
+    return null;
   }
   const records = read.records;
   const classification = compactClassificationForCache(

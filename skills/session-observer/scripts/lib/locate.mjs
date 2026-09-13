@@ -253,14 +253,12 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   if (deadlineExceeded) {
     throw new SessionDiscoveryError("DISCOVERY_DEADLINE_EXCEEDED");
   }
-  if (read.incomplete) {
-    if (unattributablePolicy === "summarize") {
-      const reason = transcriptIssue ?? "metadata-prefix-incomplete";
-      if (transcriptIssue === null) diagnostic?.({ code: reason, runtime });
-      unattributable?.({ reason, runtime });
-      return null;
-    }
+  if (read.incomplete && unattributablePolicy !== "summarize") {
     throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+  }
+  if (transcriptIssue !== null && unattributablePolicy === "summarize") {
+    unattributable?.({ reason: transcriptIssue, runtime });
+    return null;
   }
   const records = read.records;
   const classification = compactClassificationForCache(

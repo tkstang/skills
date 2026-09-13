@@ -345,7 +345,7 @@ describe('bounded transcript readers', () => {
     expect(JSON.stringify(diagnostics)).not.toContain('sensitive-session-name');
   });
 
-  it('reports an oversized prefix record without whole-file fallback', async () => {
+  it('treats a cut metadata prefix as a bounded window rather than an oversized record', async () => {
     const transcriptPath = join(tmpDir, 'oversized-prefix.jsonl');
     await writeFile(
       transcriptPath,
@@ -365,7 +365,7 @@ describe('bounded transcript readers', () => {
       bytesRead: 64,
       recordsInspected: 0,
     });
-    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+    expect(diagnostics).toEqual([]);
   });
 
   it('reports an oversized tail record when no complete record fits the byte window', async () => {

@@ -939,7 +939,7 @@ test('codex exact-all includes old sessions while default discovery remains rece
   });
 });
 
-test('codex guidance summary retains attributable candidates when an unrelated record is oversized', async () => {
+test('codex guidance summary retains attributable candidates when an unrelated bounded prefix has no cwd', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'guidance-codex-target');
     const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '13');
@@ -970,7 +970,7 @@ test('codex guidance summary retains attributable candidates when an unrelated r
       expect.objectContaining({ recordedCwd: targetCwd }),
     ]);
     expect(unattributable).toContainEqual({
-      reason: 'oversized-record',
+      reason: 'cwd-missing',
       runtime: 'codex',
     });
   });
@@ -1101,7 +1101,7 @@ test.each(['codex', 'claude-code'] as const)(
   },
 );
 
-test('exact-all rejects an unclassifiable oversized metadata prefix with path-free diagnostics', async () => {
+test('exact-all rejects an unclassifiable bounded metadata prefix without path diagnostics', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/per-entry-project';
     const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '23');
@@ -1125,13 +1125,65 @@ test('exact-all rejects an unclassifiable oversized metadata prefix with path-fr
         diagnostic: (event) => diagnostics.push(event),
       }),
     ).rejects.toMatchObject({ code: 'DISCOVERY_TRANSCRIPT_INCOMPLETE' });
-    expect(diagnostics).toEqual([
-      { code: 'oversized-record', runtime: 'codex' },
-    ]);
+    expect(diagnostics).toEqual([]);
     expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
     expect(JSON.stringify(diagnostics)).not.toContain('secret-transcript-name');
   });
 });
+
+test.each(['claude-code', 'codex'] as const)(
+  '%s guidance summarization keeps an attributed transcript beyond both metadata window bounds',
+  async (runtime) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', `${runtime}-realistic-store`);
+      const sessionId =
+        runtime === 'claude-code'
+          ? 'claude-large-attributed'
+          : 'codex-sess-001';
+      const prefix =
+        runtime === 'claude-code'
+          ? makeClaudeTypical(targetCwd, sessionId)
+          : makeCodexTypical(targetCwd);
+      const transcript = `${prefix}${Array.from({ length: 140 }, (_, index) =>
+        JSON.stringify({ type: 'progress', index, padding: 'x'.repeat(2_200) }),
+      ).join('\n')}\n`;
+      expect(Buffer.byteLength(transcript)).toBeGreaterThan(256 * 1024);
+      expect(transcript.split('\n').length - 1).toBeGreaterThan(128);
+
+      const scanDir =
+        runtime === 'codex'
+          ? join(home, '.codex', 'sessions', '2026', '09', '13')
+          : join(home, '.claude', 'projects', encodeCwd(targetCwd));
+      await mkdir(scanDir, { recursive: true });
+      await writeFile(join(scanDir, `${sessionId}.jsonl`), transcript, 'utf8');
+      const diagnostics: unknown[] = [];
+      const unattributable: unknown[] = [];
+
+      const candidates = await discover(
+        runtime,
+        targetCwd,
+        new ClassificationCache(),
+        {
+          ...exactReadOnlyDiscovery,
+          unattributablePolicy: 'summarize',
+          diagnostic: (event) => diagnostics.push(event),
+          unattributable: (event) => unattributable.push(event),
+        },
+      );
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({
+        sessionId,
+        recordedCwd: targetCwd,
+      });
+      expect(diagnostics).not.toContainEqual({
+        code: 'oversized-record',
+        runtime,
+      });
+      expect(unattributable).toEqual([]);
+    });
+  },
+);
 
 test.each([
   [

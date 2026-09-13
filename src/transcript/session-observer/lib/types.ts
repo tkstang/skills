@@ -34,13 +34,15 @@ export type DiscoveryUnattributableReason =
   | 'oversized-record'
   | 'read-failed'
   | 'metadata-prefix-incomplete'
-  | 'cwd-missing';
+  | 'cwd-missing'
+  | 'cwd-unresolvable';
 export type DiscoveryDiagnosticCode =
   | 'malformed-record'
   | 'oversized-record'
   | 'read-failed'
   | 'metadata-prefix-incomplete'
   | 'cwd-missing'
+  | 'cwd-unresolvable'
   | 'deadline-exceeded'
   | 'budget-exceeded';
 

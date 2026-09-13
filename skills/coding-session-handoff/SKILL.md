@@ -7,10 +7,10 @@ argument-hint: '[source-worktree] [destination-worktree]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Bash(node <skill-dir>/scripts/coding-session-handoff.mjs:*)
-version: '0.1.7'
+version: '0.1.8'
 metadata:
   author: thomas.stang
-  version: '0.1.7'
+  version: '0.1.8'
 ---
 
 # Coding Session Handoff
@@ -34,12 +34,16 @@ Use this skill for one of three entry points:
 ## Workflow
 
 1. Establish the canonical source worktree. For the third entry point, ask for it.
-2. Run read-only discovery:
+2. Run read-only discovery for the expected provider. Use `--provider claude` or
+   `--provider codex`, and repeat for the other provider when needed:
 
    ```bash
    node <skill-dir>/scripts/coding-session-handoff.mjs discover \
-     --source "/absolute/source/worktree" --provider all --json
+     --source "/absolute/source/worktree" --provider claude --json
    ```
+
+   `--provider all` remains fail closed when Cursor discovery is incomplete, so it is
+   not the default workflow while Cursor lacks independent exact cwd evidence.
 
 3. Current identity is never guessed. If direct identity is unavailable or does not
    corroborate exactly, show the candidates and ask the user to choose one qualified

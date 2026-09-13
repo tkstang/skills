@@ -257,4 +257,34 @@ describe('guidance discovery', () => {
     });
     expect(JSON.stringify(result)).not.toContain('/private/');
   });
+
+  it('summarizes an unrelated stale cwd without dropping attributed candidates', async () => {
+    const deps = dependencies({
+      'claude-code': [
+        transcript('claude-code', 'attributed'),
+        transcript('claude-code', 'stale', {
+          recordedCwd: '/deleted/private-worktree',
+        }),
+      ],
+    });
+    deps.canonicalize = async (path) =>
+      path === '/repo/source' ? '/repo/source' : null;
+
+    const result = await discoverGuidance('/repo/source', {
+      providers: ['claude'],
+      deps,
+    });
+
+    expect(result).toEqual({
+      candidates: [expect.objectContaining({ key: 'claude:cli:attributed' })],
+      unattributable: [
+        {
+          provider: 'claude',
+          reasons: [{ code: 'cwd-unresolvable', count: 1 }],
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain('deleted');
+    expect(JSON.stringify(result)).not.toContain('stale');
+  });
 });
