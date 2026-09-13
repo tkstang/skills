@@ -290,6 +290,9 @@ export async function validateHandoffTarget(
   return { source, target };
 }
 
+/** Read-only target validation used by the guidance path. */
+export const validateGuidanceTarget = validateHandoffTarget;
+
 function evidenceMatches(
   expected: GitWorktreeEvidence,
   actual: GitWorktreeEvidence,
