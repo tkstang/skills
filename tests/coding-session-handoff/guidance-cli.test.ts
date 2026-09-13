@@ -191,6 +191,36 @@ describe('experimental guidance CLI', () => {
     expect(toolReadme).toMatch(/unverified/i);
   });
 
+  it('states that current Cursor discovery cannot produce selectable candidates', async () => {
+    const skill = await readFile(
+      new URL('../../skills/coding-session-handoff/SKILL.md', import.meta.url),
+      'utf8',
+    );
+    const providerGuidance = await readFile(
+      new URL(
+        '../../skills/coding-session-handoff/references/provider-guidance.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const userGuide = await readFile(
+      new URL(
+        '../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    for (const document of [skill, providerGuidance, userGuide]) {
+      expect(document).toMatch(/independent exact cwd evidence/i);
+      expect(document).toMatch(/discovery-incomplete/);
+      expect(document).toMatch(
+        /no Cursor candidate can be selected\s+or\s+previewed/i,
+      );
+      expect(document).not.toMatch(/An ambiguous Cursor candidate/i);
+    }
+  });
+
   it('does not discover or preview a Cursor transcript through colliding lossy worktree slugs', async () => {
     const createdRoot = await mkdtemp(
       join(tmpdir(), 'handoff-cursor-collision-'),

@@ -4,6 +4,13 @@ This guidance is based on official public documentation and provider-owned sourc
 retrieved 2026-09-12. No provider executable was run. A documented command remains
 unverified in this repository and may differ from the installed version.
 
+Codex and Claude Code transcript discovery can associate candidates with an exact
+source worktree. Current Cursor transcript discovery is unavailable because its store
+layout does not provide independent exact cwd evidence. A matching Cursor store
+returns a path-free `discovery-incomplete` result; no Cursor candidate can be selected
+or previewed. The Cursor capability rows below are future-facing evidence and do not
+imply that a candidate is currently available.
+
 | Surface         | Fork guidance                                                                     | Fresh destination session                                                                  |
 | --------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Codex CLI       | Guarded `codex fork SESSION_ID` from the destination worktree                     | Exit and run the guarded terminal command; `/fork` applies only to the currently open chat |

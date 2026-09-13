@@ -1,16 +1,16 @@
 ---
 name: coding-session-handoff
-description: Use when the user wants to find a Codex, Claude Code, or Cursor conversation in one Git worktree and prepare safe instructions for creating and opening a fork in an existing destination worktree tab.
+description: Use when the user wants to find a Codex or Claude Code conversation in one Git worktree and prepare safe instructions for creating and opening a fork in an existing destination worktree tab. Cursor capability evidence is reported, but current transcript discovery fails closed without independent source-worktree evidence.
 license: MIT
 compatibility: Experimental and not released. Requires Node.js 22+ and local provider transcript stores for read-only discovery. The user runs any provider command manually.
 argument-hint: '[source-worktree] [destination-worktree]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Bash(node skills/coding-session-handoff/scripts/coding-session-handoff.mjs:*)
-version: '0.1.3'
+version: '0.1.4'
 metadata:
   author: thomas.stang
-  version: '0.1.3'
+  version: '0.1.4'
 ---
 
 # Coding Session Handoff
@@ -18,6 +18,11 @@ metadata:
 > **Experimental / not released.** This skill discovers and previews local sessions
 > read-only, then prepares instructions. It does not run a provider, authenticate,
 > create a fork, write a receipt, retry, reconcile a child ID, or control an IDE tab.
+
+Current Cursor transcript discovery is unavailable. Its store layout supplies a lossy
+project slug rather than independent exact cwd evidence, so a matching store returns a
+path-free `discovery-incomplete` result. No Cursor candidate can be selected or
+previewed.
 
 Use this skill for one of three entry points:
 

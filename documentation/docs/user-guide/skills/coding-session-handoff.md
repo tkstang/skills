@@ -13,6 +13,11 @@ is created by discovery, preview, or preparation.
 The older executor remains experimental, incomplete, unverified, and paused.
 The guidance workflow does not depend on its reconcile or behavior-gate path.
 
+Current Cursor transcript discovery is unavailable. Cursor's store layout supplies a
+lossy project slug rather than independent exact cwd evidence, so a matching store
+returns a path-free `discovery-incomplete` result. No Cursor candidate can be selected
+or previewed.
+
 ## Choose an entry point
 
 Use one of three explicit entry points:
@@ -70,9 +75,8 @@ and have not been live verified for this experiment.
 
 Cursor CLI documents resume, and Cursor IDE documents Duplicate Chat. Cursor
 CLI fork semantics, CLI-to-IDE identity interoperability, and reliable
-cross-worktree destination placement are unsupported. An ambiguous Cursor
-candidate fails closed with a manual unsupported result and no executable fork
-instruction.
+cross-worktree destination placement are unsupported. These capabilities are
+future-facing evidence and do not make Cursor transcript discovery available.
 
 ## Current limitations
 
@@ -80,6 +84,9 @@ instruction.
 - Provider capabilities are based on dated public documentation, not a live
   provider run.
 - Discovery reads bounded transcript data and may require explicit selection.
+- Cursor discovery reports `discovery-incomplete` because the current store does not
+  provide independent exact cwd evidence; no Cursor candidate can be selected or
+  previewed.
 - Dirty destination state is reported, but Git changes are not transferred.
 - Cursor transitions remain unsupported unless the exact surface has sufficient
   documented evidence.
