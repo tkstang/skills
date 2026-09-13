@@ -62,6 +62,17 @@ oat_implement_exit_gate:
   receive_completed: true
   failure: null
   updated_at: '2026-09-13T13:56:00Z'
+oat_post_implement_sequence:
+  status: pre_approval
+  source: configured
+  final_phase: p-rev1
+  pre_approval: [summary, document, pr]
+  pre_approval_completed: []
+  approval: pending
+  approval_source: null
+  post_approval: []
+  post_approval_completed: []
+  failure: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets

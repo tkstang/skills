@@ -1463,6 +1463,11 @@ The artifact is archived at
 `reviews/archived/final-review-2026-09-13T134826Z.md`. The gate is received and passed;
 the retained executor remains paused and all inherited deferrals remain explicit.
 
+**Closeout sequence snapshot:** configured shared preference captured immutably as
+`preApproval: [summary, document, pr]`, `postApproval: []`, final phase `p-rev1`, with
+final HiLL approval pending. Execute each pre-approval step in order and commit it
+before the next. PR mutation remains a separate user-authorization boundary.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
