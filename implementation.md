@@ -1193,6 +1193,27 @@ discovery workflow unavailable.
 **Finding:** Gate m2 — repository-relative examples fail from an installed skill.
 **Disposition:** skill and contract-test fix; Minor scope.
 
+### Run 30 — 2026-09-13
+
+- Configured implementation exit gate run
+  `d0d1b97a-1990-47ce-a35f-2b985f1116ce` completed on cross-family target
+  `cursor-fable-5-1-high` with 0 Critical, 1 Important, 2 Medium, and 2 Minor
+  findings. The valid blocked receipt was persisted before the review was received.
+- Blocking-gate auto-disposition converted all five findings to `prev1-t07` through
+  `prev1-t11`; review artifact
+  `reviews/archived/final-review-2026-09-13T042209Z.md`. Receive bookkeeping commit
+  `e019cc8a13aa1f0ef4d388145ab785630d40eaac`; receipt completion was persisted at
+  synced project commit `b9d4f1a35813cacd0c150b77795126c8e718bac6`.
+- Fix continuation request `cont-handoff-exit-gate-fixes-1` resumed the existing
+  `/root/handoff_revision_phase` implementer at feature head
+  `20e86a100832b114a8aa3a20469b849de7ec7f45`. Exact target remains
+  `oat-phase-implementer-gpt-5-6-sol-medium`, managed Frontier route level 0,
+  default-implementation class. Authority is limited to the five declared tasks,
+  their tests/docs/generated outputs, required version bumps, and t07 design/spec
+  alignment. No real provider command, global install/sync, feature push, PR mutation,
+  merge, cleanup, publication, or release is authorized.
+- Dispatch: scope=p-rev1-gate-fixes action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
