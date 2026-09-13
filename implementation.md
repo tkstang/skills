@@ -1561,31 +1561,41 @@ Track test execution during implementation.
 | p01   | 223 focused + 68 export tests; type-check; build-check; validate; skill versions; lint/format | all | 0 | Exact task and fix surfaces |
 | p02   | 852 focused/shared tests plus targeted 201-test suite; type-check; build-check; validate; skill versions; lint/format | all at `63d2703` | 0 | Original tasks, eight-finding repair cycle, and Critical-only p02-t13 follow-up |
 | p03   | Historical checks retained in Runs 1–27; Run 28 at `12cf6edf`: full suite 1,866 passed, 1 skipped, 0 failed; 209 handoff tests; type-check, build parity, validate, smoke, authored lint/format, plan validation, and diff hygiene passed. Independent reviewer repeated focused checks. | all through p03-t19 | 0 findings in targeted re-review | Nineteen tasks implemented; I1/m1 resolved and independently re-reviewed. Prior M1-M3 remain deferred. |
-| p05   | -         | -      | -      | -        |
-| p06   | -         | -      | -      | -        |
+| p05   | superseded | - | - | Historical activation tasks remain unimplemented. |
+| p06   | superseded | - | - | Historical packaging tasks remain unimplemented. |
+| p-rev1 | Full suite 1,905 passed, 1 skipped; 377 scoped reviewer tests; type-check; build/build-check; validate; skill versions; smoke; lint/format; docs build/format; diff hygiene | all through `3fdfc2a1` | 0 findings in fresh phase re-review | Five revision tasks plus the accepted Cursor fail-closed review fix. |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.
+- Evidence-backed provider/surface capability records, exact worktree checks, shell-safe destination commands where documented, and explicit unsupported guidance where native continuity cannot be proven.
+- Strict exact-all Cursor discovery that fails closed on incomplete roots, enumeration, iteration, or transcript-stat races without leaking partial candidates.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Users now receive read-only instructions and run any native fork themselves in the destination tab. Public help exposes only `discover`, `preview`, and `prepare`; it does not execute providers, create sessions, reconcile child IDs, or manage IDE tabs.
+- The retained automated executor remains clearly marked incomplete, unverified, and paused. Portable `session-handoff` packet migration remains a separate skill.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/transcript/coding-session-handoff/guidance-*.ts` and `guidance.ts` — canonical capability, discovery, CLI, and instruction logic.
+- `src/transcript/session-observer/lib/locate.ts` — strict read-only three-provider discovery support.
+- `skills/coding-session-handoff/` — public experimental skill, provider reference, and generated runtime.
+- `tools/coding-session-handoff/` — retained experimental executor plus generated guidance entry point.
+- `documentation/docs/user-guide/skills/coding-session-handoff.md` — user workflow, limitations, and release status.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Full suite: 1,905 passed and 1 skipped at `3fdfc2a1`; independent phase reviewer ran 377 scoped tests.
+- Type-check, generated build parity, repository validation, skill-version validation, smoke, authored lint/format, docs format/build, syntax, and diff hygiene passed.
+- No live provider, authentication, installation, publication, cleanup, PR mutation, merge, or release operation was performed for p-rev1.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- The accepted p-rev1 revision supersedes the earlier automated-execution product with destination-tab guidance after live evidence showed provider identity and exact-version gaps. Historical executor code and evidence remain preserved and paused.
+- Review fix `3fdfc2a1` strengthens Cursor exact-all discovery to reject incomplete scans; this narrows behavior to the existing fail-closed contract.
 
 ## References
 

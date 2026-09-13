@@ -102,7 +102,8 @@ oat_project_explainer:
 
 Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
 phase-review fix are implemented through `3fdfc2a1`; fresh independent re-review passed
-with zero findings. Final lifecycle review and the implementation exit gate remain.
+with zero findings. Tasks are complete; final lifecycle review and the implementation
+exit gate remain before final HiLL closeout.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
@@ -298,11 +299,8 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-1. With fresh user authorization only: make exact
-   Claude 2.1.251 available on this Mini and run its mutation-free `behavior-plan`,
-   followed only by a separately authorized single `behavior-verify` for p04-t02.
-2. p04-t01 Codex remains inconclusive during parent creation; its accepted stdout
-   identity shape needs sanitized diagnosis, not an automatic full-gate retry.
-
-Do not retry either live gate automatically or infer cleanup targets. p05 activation
-remains blocked until both live gates and both independent receipt reviews pass.
+Run the mandatory final lifecycle review over the completed revision, then resolve and
+run the configured implementation exit gate. If both pass, execute the configured
+pre-approval sequence and stop at the p-rev1 final HiLL approval boundary. Historical
+live provider gates remain paused and require separate authorization; no cleanup target
+is inferred from their old receipts.
