@@ -870,7 +870,7 @@ independently verified before p04-t01 can safely execute.
 - Authority: read-only source review; only one timestamped `reviews/p03-review-*.md` artifact may be written; no live provider mutation, implementation edit, or project-log write
 - Expected output: artifact-mode severity counts, exact file/line evidence, verification commands, and exactly one reconnaissance status line
 - Review launch status: accepted; child outcome: completed
-- Review artifact: `reviews/p03-review-2026-09-05T202836Z.md`; findings 0 Critical, 1 Important, 3 Medium, 0 Minor; reconnaissance attempted with caller-inline reconciliation
+- Review artifact: `reviews/archived/p03-review-2026-09-05T202836Z.md`; findings 0 Critical, 1 Important, 3 Medium, 0 Minor; reconnaissance attempted with caller-inline reconciliation
 - Review verification: 281 focused tests, type-check, generated parity, range diff hygiene, and generated CLI syntax passed
 - Fix continuation: original `/root/implement_p03_t15` handle resumed for I1 only; event `CD1F4F6C-6A7C-4565-82F6-3A5156823980` links to original request `68aa1323-e253-49a0-abdb-3f7b1b330cdf`; retry 1 of 3
 - Fix target: `oat-phase-implementer-gpt-5-6-sol-high`; task class and floor `default-implementation`; floor satisfied
@@ -891,13 +891,13 @@ independently verified before p04-t01 can safely execute.
 - Authorization: standard bounded re-review required by the active review-fix loop
 - Scope: narrowed p03 re-review over `9db197fe765e18c4c925a9792097c473437f2e84..238f0513e41b35ecc4293268f7bcbeb5c1308d2b`; finding I1 only
 - Request: `FDE1ACFA-FA8B-436B-8B39-73549685C423`; reviewer launch accepted as `/root/p03_fix_rereview`
-- Prior artifact/head: `reviews/p03-review-2026-09-05T202836Z.md` at `9db197fe765e18c4c925a9792097c473437f2e84`
+- Prior artifact/head: `reviews/archived/p03-review-2026-09-05T202836Z.md` at `9db197fe765e18c4c925a9792097c473437f2e84`
 - Target: `oat-reviewer-gpt-5-6-sol-max`; model axis `selected:gpt-5.6-sol`; effort axis `selected:max`
 - Policy: managed `frontier` from project state; cap `max`; matrix-pinned review target; not capped
 - Authority: read-only one-commit fix review and one timestamped p03 artifact; no delegation, source edit, live provider operation, network, cleanup, or project-log write
 - Expected output: independently verify the I1 fix; carry M1-M3 as inherited/deferred; exactly one `not-attempted` reconnaissance signal
 - Launch status: accepted; child outcome: completed
-- Review artifact: `reviews/p03-review-2026-09-05T204213Z.md`; findings 0 Critical, 0 Important, 0 Medium, 0 Minor; reconnaissance not attempted
+- Review artifact: `reviews/archived/p03-review-2026-09-05T204213Z.md`; findings 0 Critical, 0 Important, 0 Medium, 0 Minor; reconnaissance not attempted
 - Verification: reviewer independently passed 289 focused tests, type-check, generated parity, generated CLI syntax, and exact-range diff hygiene
 - Outcome: I1 resolved; p03 passed after one bounded fix iteration; inherited M1-M3 remain explicitly deferred
 
@@ -1050,14 +1050,14 @@ independently verified before p04-t01 can safely execute.
 - Concerns: native provider behavior remains documentation-backed rather than live verified; the new skill remains experimental and unreleased; the old executor remains paused, incomplete, and unverified. These are intended product/evidence limits, not blocking implementation defects.
 - Review dispatch `handoff-prev1-review-20260913-01`: accepted native handle `/root/handoff_revision_review`; exact role `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier, no reasoning-mode selector. Consequential class/floor satisfied; managed Frontier/max review target, native catalog, no fallback, runtime identity not reported. The original handle exceeded its recorded 900-second deadline while still reporting progress and then finalized after a status nudge; no replacement was launched.
 - Review dispatch: scope=p-rev1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
-- Review outcome: `CHANGES_REQUESTED` at `0df47b79d55493bd213c4680752e4df45e8cc848`; artifact `reviews/p-rev1-review-2026-09-13T015500Z.md`; 0 Critical, 1 Important, 0 Medium, 0 Minor. Reconnaissance was `not-attempted`, and the artifact contains no `## Review Orchestration` section.
+- Review outcome: `CHANGES_REQUESTED` at `0df47b79d55493bd213c4680752e4df45e8cc848`; artifact `reviews/archived/p-rev1-review-2026-09-13T015500Z.md`; 0 Critical, 1 Important, 0 Medium, 0 Minor. Reconnaissance was `not-attempted`, and the artifact contains no `## Review Orchestration` section.
 - I1 accepted for the bounded phase fix loop: under Cursor `recency: 'exact-all'`, propagate fail-on-incomplete behavior through direct and fallback collectors and convert unexpected root/enumeration/stat failures into typed incomplete discovery with no partial candidates. Add synthetic regressions and regenerate affected outputs/version bumps. No product, architecture, live-provider, or authorization boundary changes.
 - Fix dispatch continuation `cont-handoff-p-rev1-review-fix-1`: resumed the original `/root/handoff_revision_phase` handle with exact role `oat-phase-implementer-gpt-5-6-sol-medium`; route level 0, retry 1 of 3, no phase-recovery attempt. Scope was limited to accepted I1, focused regressions, generated outputs, and required skill version bumps.
 - Fix dispatch: scope=p-rev1-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
 - Fix outcome: completed in the single append-only commit `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; exact-all Cursor discovery now fails closed on unexpected root, iterator, and stat errors and returns no partial candidates. The worker reported 1,905 passing tests and one skipped, plus all repository gates. Root independently repeated 91 focused tests, generated parity, skill-version validation against the phase base, diff hygiene, and clean-worktree checks successfully.
 - Fresh re-review dispatch `handoff-prev1-rereview-20260913-01`: accepted native handle `/root/handoff_revision_rereview`; exact role `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier. Consequential class/floor satisfied under managed Frontier/max at route level 0. Scope is the complete phase range `30da3e20d8e62fa2fc12ae21d8778ba2f0106963..3fdfc2a17b0b94171871a5bf6460beac1a333bea`, with explicit prior-I1 disposition required; only the named review artifact is writable. No fallback or provider operation is authorized.
 - Re-review dispatch: scope=p-rev1-rereview-1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
-- Fresh re-review outcome: PASS at `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; artifact `reviews/p-rev1-review-2026-09-13T022511Z.md`; 0 Critical, 0 Important, 0 Medium, 0 Minor. Prior I1 is explicitly resolved. The exact base/head/range, 377 scoped tests, repository gates, required `Reconnaissance: not-attempted` declaration, and absence of `## Review Orchestration` were validated before receipt. Phase p-rev1 is complete; final lifecycle review and the configured implementation exit gate remain.
+- Fresh re-review outcome: PASS at `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; artifact `reviews/archived/p-rev1-review-2026-09-13T022511Z.md`; 0 Critical, 0 Important, 0 Medium, 0 Minor. Prior I1 is explicitly resolved. The exact base/head/range, 377 scoped tests, repository gates, required `Reconnaissance: not-attempted` declaration, and absence of `## Review Orchestration` were validated before receipt. Phase p-rev1 is complete; final lifecycle review and the configured implementation exit gate remain.
 - Closeout baseline: final summary, task/phase state, and test evidence reconciled and pushed before final verification. Final verification at `3fdfc2a1` passed build, 1,905 tests with one skipped, type-check, generated parity, repository validation, smoke, changed-authored-file lint, and diff hygiene. The generic repo-wide `pnpm lint` command also reports inherited errors only in paths unchanged from the exact final range; repository policy uses changed-file lint during incremental adoption, and all 71 final-range authored files are clean under that scoped gate.
 - Final lifecycle review intent `handoff-final-review-20260913-01`: exact managed target `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier, managed Frontier/max route level 0. Review execution preference is `subagent`. Scope is the exact complete branch delta `0042b84937076f875380892b87a39120eeefad9e..3fdfc2a17b0b94171871a5bf6460beac1a333bea` plus all project artifacts and the five inherited Medium deferrals. Only the named final review artifact is writable; no provider operation or implementation fix is authorized inside review.
 - Final review dispatch: scope=final action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
@@ -1578,7 +1578,7 @@ login method is API key rather than ChatGPT. Execution stopped before
 ### Review Passed: p03 fresh re-review
 
 **Date:** 2026-09-05
-**Review artifact:** `reviews/p03-review-2026-09-05T204213Z.md`
+**Review artifact:** `reviews/archived/p03-review-2026-09-05T204213Z.md`
 **Reviewed head:** `238f0513e41b35ecc4293268f7bcbeb5c1308d2b`
 
 The narrowed independent re-review confirmed I1 resolved with zero findings. Phase p03
@@ -1590,7 +1590,7 @@ plan check; no prior receipt authorizes inferred cleanup or automatic retry.
 
 **Date:** 2026-09-05
 **Commit:** `238f0513e41b35ecc4293268f7bcbeb5c1308d2b`
-**Review artifact:** `reviews/p03-review-2026-09-05T202836Z.md`
+**Review artifact:** `reviews/archived/p03-review-2026-09-05T202836Z.md`
 
 Production handoff execution now validates provider-emitted child identities with the
 same exact native UUID boundary used by the behavior gate. The one-commit fix passed

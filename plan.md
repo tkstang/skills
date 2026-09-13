@@ -1619,8 +1619,8 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p03-t12 | code | passed | 2026-09-01 | reviews/archived/p03-t12-review-2026-09-01T234310Z.md | 07d0165157ffd468c5603cab1b3c5674e3500aeb | manual | - |
 | p03-t13 | code | fixes_completed | 2026-09-02 | reviews/archived/p03-t13-review-2026-09-02T133557Z.md | 0e5bc879a7f68c50d69b5207ce07efd631462fb5 | manual | - |
 | p03-t16 | code | passed | 2026-09-08 | reviews/archived/p03-t16-review-2026-09-08T220043Z.md | d15fd662d1baf5ff26cc6ccd09925212a8f9ff46 | manual | - |
-| p03 | code | fixes_completed | 2026-09-05 | reviews/p03-review-2026-09-05T202836Z.md | 9db197fe765e18c4c925a9792097c473437f2e84 | manual | - |
-| p03 | code | passed | 2026-09-05 | reviews/p03-review-2026-09-05T204213Z.md | 238f0513e41b35ecc4293268f7bcbeb5c1308d2b | manual | - |
+| p03 | code | fixes_completed | 2026-09-05 | reviews/archived/p03-review-2026-09-05T202836Z.md | 9db197fe765e18c4c925a9792097c473437f2e84 | manual | - |
+| p03 | code | passed | 2026-09-05 | reviews/archived/p03-review-2026-09-05T204213Z.md | 238f0513e41b35ecc4293268f7bcbeb5c1308d2b | manual | - |
 | p03-t17-t18 | code | passed | 2026-09-12 | reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md | 42803fc7076ca9019522a935818c0107e976ced7 | manual | - |
 | p03-t19 | code | passed | 2026-09-12 | reviews/archived/p03-t19-review-2026-09-12T215700Z.md | 12cf6edffb12e2e201d1586aa7a049bbd666e633 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
@@ -1632,8 +1632,8 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
-| p-rev1 | code | fixes_completed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T015500Z.md | 0df47b79d55493bd213c4680752e4df45e8cc848 | manual | - |
-| p-rev1 | code | passed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T022511Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
+| p-rev1 | code | fixes_completed | 2026-09-13 | reviews/archived/p-rev1-review-2026-09-13T015500Z.md | 0df47b79d55493bd213c4680752e4df45e8cc848 | manual | - |
+| p-rev1 | code | passed | 2026-09-13 | reviews/archived/p-rev1-review-2026-09-13T022511Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T044900Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | auto | - |
