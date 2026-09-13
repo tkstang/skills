@@ -74,7 +74,10 @@ describe('guidance discovery', () => {
       'claude-code': [transcript('claude-code', 'same-id')],
       codex: [transcript('codex', 'same-id')],
       cursor: [
-        transcript('cursor', 'same-id', { cwdEvidence: 'direct-parent-dir' }),
+        transcript('cursor', 'same-id', {
+          cwdEvidence: 'store-metadata',
+          cwdEvidenceQuality: 'independent-exact',
+        }),
       ],
     });
 
@@ -118,7 +121,14 @@ describe('guidance discovery', () => {
 
   it('requires explicit selection for absent, ambiguous, and IDE/CLI-ambiguous identity', async () => {
     const candidates = await discoverGuidanceCandidates('/repo/source', {
-      deps: dependencies({ cursor: [transcript('cursor', 'cursor-one')] }),
+      deps: dependencies({
+        cursor: [
+          transcript('cursor', 'cursor-one', {
+            cwdEvidence: 'store-metadata',
+            cwdEvidenceQuality: 'independent-exact',
+          }),
+        ],
+      }),
     });
 
     expect(selectCurrentGuidanceCandidate(candidates)).toBeNull();
@@ -134,6 +144,28 @@ describe('guidance discovery', () => {
       selectGuidanceCandidate(candidates, 'cursor:ambiguous:cursor-one'),
     ).toMatchObject({
       nativeId: 'cursor-one',
+    });
+  });
+
+  it('rejects caller-derived Cursor cwd association before returning candidates', async () => {
+    const deps = dependencies({
+      cursor: [
+        transcript('cursor', 'lossy-source', {
+          cwdEvidence: 'direct-parent-dir',
+          cwdEvidenceQuality: 'caller-derived-lossy',
+        }),
+      ],
+    });
+
+    await expect(
+      discoverGuidanceCandidates('/repo/source', {
+        providers: ['cursor'],
+        deps,
+      }),
+    ).rejects.toMatchObject({
+      name: 'GuidanceDiscoveryError',
+      code: 'discovery-incomplete',
+      provider: 'cursor',
     });
   });
 

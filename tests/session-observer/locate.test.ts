@@ -1434,6 +1434,7 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
     expect(c.recordedCwd).toBe(targetCwd);
     expect(c.cwdSlug).toBe(encoded);
     expect(c.cwdEvidence).toBe('direct-parent-dir');
+    expect(c.cwdEvidenceQuality).toBe('caller-derived-lossy');
   });
 });
 
@@ -1713,6 +1714,7 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
     expect(c.recordedCwd).toBe(null);
     expect(c.cwdSlug).toBe(fallbackSlug);
     expect(c.cwdEvidence).toBe('project-dir-slug');
+    expect(c.cwdEvidenceQuality).toBe('diagnostic');
   });
 });
 

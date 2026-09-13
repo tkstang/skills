@@ -128,6 +128,12 @@ export async function discoverGuidanceCandidates(
     }
     for (const transcript of transcripts) {
       if (
+        provider === 'cursor' &&
+        transcript.cwdEvidenceQuality !== 'independent-exact'
+      ) {
+        throw new GuidanceDiscoveryError('discovery-incomplete', provider);
+      }
+      if (
         transcript.runtime !== RUNTIME_BY_PROVIDER[provider] ||
         transcript.recordedCwd === null
       ) {

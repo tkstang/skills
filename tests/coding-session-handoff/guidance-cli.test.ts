@@ -1,5 +1,14 @@
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -179,6 +188,80 @@ describe('experimental guidance CLI', () => {
     }
     expect(toolReadme).toMatch(/paused/i);
     expect(toolReadme).toMatch(/unverified/i);
+  });
+
+  it('does not discover or preview a Cursor transcript through colliding lossy worktree slugs', async () => {
+    const createdRoot = await mkdtemp(
+      join(tmpdir(), 'handoff-cursor-collision-'),
+    );
+    const root = await realpath(createdRoot);
+    const previousHome = process.env.HOME;
+    const sourceA = join(root, 'repo', 'a-b', 'c');
+    const sourceB = join(root, 'repo', 'a', 'b-c');
+    const encodeCursorCwd = (cwd: string) =>
+      cwd.split(/[/.]/u).filter(Boolean).join('-');
+    expect(encodeCursorCwd(sourceA)).toBe(encodeCursorCwd(sourceB));
+
+    const transcriptDir = join(
+      root,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(sourceA),
+      'agent-transcripts',
+      'collision-session',
+    );
+    await mkdir(sourceA, { recursive: true });
+    await mkdir(sourceB, { recursive: true });
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, 'conversation.jsonl'),
+      `${JSON.stringify({ role: 'user', message: { content: 'COLLISION_PRIVATE_MARKER' } })}\n`,
+      'utf8',
+    );
+    process.env.HOME = root;
+
+    try {
+      for (const source of [sourceA, sourceB]) {
+        const discovery = harness();
+        expect(
+          await runGuidanceCli(
+            ['discover', '--source', source, '--provider', 'cursor', '--json'],
+            undefined,
+            discovery.io,
+          ),
+        ).toBe(2);
+        expect(discovery.stdout.join('')).toContain('discovery-incomplete');
+        expect(discovery.stdout.join('')).not.toContain(source);
+        expect(discovery.stdout.join('')).not.toContain(
+          'COLLISION_PRIVATE_MARKER',
+        );
+
+        const preview = harness();
+        expect(
+          await runGuidanceCli(
+            [
+              'preview',
+              '--source',
+              source,
+              '--session',
+              'cursor:ambiguous:collision-session',
+              '--json',
+            ],
+            undefined,
+            preview.io,
+          ),
+        ).toBe(2);
+        expect(preview.stdout.join('')).toContain('discovery-incomplete');
+        expect(preview.stdout.join('')).not.toContain(source);
+        expect(preview.stdout.join('')).not.toContain(
+          'COLLISION_PRIVATE_MARKER',
+        );
+      }
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it.each(['execute', 'reconcile', 'behavior-plan', 'behavior-verify'])(

@@ -1887,6 +1887,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
+    cwdEvidenceQuality: evidence.cwdEvidenceQuality,
     mtime,
     size: resolvedStat.size,
     ageSec,
@@ -1946,7 +1947,8 @@ async function discoverCursor(targetCwd, cache, options) {
         {
           recordedCwd: targetCwd,
           cwdSlug: encoded,
-          cwdEvidence
+          cwdEvidence,
+          cwdEvidenceQuality: "caller-derived-lossy"
         },
         null,
         cache,
@@ -2003,7 +2005,8 @@ async function discoverCursor(targetCwd, cache, options) {
           {
             recordedCwd: null,
             cwdSlug: projectDir.name,
-            cwdEvidence: "project-dir-slug"
+            cwdEvidence: "project-dir-slug",
+            cwdEvidenceQuality: "diagnostic"
           },
           fileStat,
           cache,
@@ -2160,6 +2163,9 @@ async function discoverGuidanceCandidates(sourcePath, options = {}) {
       throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
     }
     for (const transcript of transcripts) {
+      if (provider2 === "cursor" && transcript.cwdEvidenceQuality !== "independent-exact") {
+        throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
+      }
       if (transcript.runtime !== RUNTIME_BY_PROVIDER[provider2] || transcript.recordedCwd === null) {
         throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
       }

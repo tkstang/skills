@@ -681,6 +681,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
+    cwdEvidenceQuality: evidence.cwdEvidenceQuality,
     mtime,
     size: resolvedStat.size,
     ageSec,
@@ -740,7 +741,8 @@ async function discoverCursor(targetCwd, cache, options) {
         {
           recordedCwd: targetCwd,
           cwdSlug: encoded,
-          cwdEvidence
+          cwdEvidence,
+          cwdEvidenceQuality: "caller-derived-lossy"
         },
         null,
         cache,
@@ -797,7 +799,8 @@ async function discoverCursor(targetCwd, cache, options) {
           {
             recordedCwd: null,
             cwdSlug: projectDir.name,
-            cwdEvidence: "project-dir-slug"
+            cwdEvidence: "project-dir-slug",
+            cwdEvidenceQuality: "diagnostic"
           },
           fileStat,
           cache,
@@ -900,7 +903,8 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
           {
             recordedCwd: cwdEvidence === void 0 ? null : targetCwd,
             cwdSlug: projectDir.name,
-            cwdEvidence: cwdEvidence ?? "project-dir-slug"
+            cwdEvidence: cwdEvidence ?? "project-dir-slug",
+            cwdEvidenceQuality: cwdEvidence === void 0 ? "diagnostic" : "caller-derived-lossy"
           },
           fileStat,
           cache,

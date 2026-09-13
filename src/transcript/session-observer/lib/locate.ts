@@ -63,6 +63,7 @@ import {
 } from './session-classifier.js';
 import type {
   CursorCwdEvidence,
+  CursorCwdEvidenceQuality,
   CursorIdentityEvidence,
   CursorSessionEvidence,
   DiscoveryBudgetOptions,
@@ -552,6 +553,7 @@ interface CursorCandidateEvidence {
   recordedCwd: string | null;
   cwdSlug: string;
   cwdEvidence: string;
+  cwdEvidenceQuality: CursorCwdEvidenceQuality;
 }
 
 /**
@@ -1144,6 +1146,7 @@ async function cursorCandidate(
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
+    cwdEvidenceQuality: evidence.cwdEvidenceQuality,
     mtime,
     size: resolvedStat.size,
     ageSec,
@@ -1228,6 +1231,7 @@ async function discoverCursor(
           recordedCwd: targetCwd,
           cwdSlug: encoded,
           cwdEvidence,
+          cwdEvidenceQuality: 'caller-derived-lossy',
         },
         null,
         cache,
@@ -1292,6 +1296,7 @@ async function discoverCursor(
             recordedCwd: null,
             cwdSlug: projectDir.name,
             cwdEvidence: 'project-dir-slug',
+            cwdEvidenceQuality: 'diagnostic',
           },
           fileStat,
           cache,
@@ -1416,6 +1421,8 @@ async function findCursorSessionCandidates(
             recordedCwd: cwdEvidence === undefined ? null : targetCwd,
             cwdSlug: projectDir.name,
             cwdEvidence: cwdEvidence ?? 'project-dir-slug',
+            cwdEvidenceQuality:
+              cwdEvidence === undefined ? 'diagnostic' : 'caller-derived-lossy',
           },
           fileStat,
           cache,

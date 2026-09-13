@@ -107,9 +107,15 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   ageSec: number;
   cwdSlug?: string;
   cwdEvidence?: string;
+  cwdEvidenceQuality?: CursorCwdEvidenceQuality;
   active?: boolean;
   snippetMatch?: SnippetMatch;
 }
+
+export type CursorCwdEvidenceQuality =
+  | 'independent-exact'
+  | 'caller-derived-lossy'
+  | 'diagnostic';
 
 export type CursorCwdEvidence =
   | 'direct-project-root'
