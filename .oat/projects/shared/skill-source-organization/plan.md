@@ -1,17 +1,17 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-13
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: Skill Source Organization and Plugin Packaging
@@ -20,7 +20,7 @@ oat_template: true
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** Active planning; plan authored and required review disposition pending. User's “proceed” on 2026-09-13 accepted the settled design as the planning basis. Coding-session-handoff has merged, and the user explicitly activated this project and authorized self-review plus the plan review gate. Implementation has not started.
+**Status:** Implementation-ready. The user accepted the design, activated this project after its predecessor merged, and approved the bounded review cleanups without another gate run. All findings are dispositioned below; the prior Fable threshold pass remains evidence for its original basis, not a fresh review of these edits. Implementation has not started; Sol will pick it up in a separate session.
 
 ## Execution Boundaries
 
@@ -58,7 +58,28 @@ Use representative prompt-only, executable, shared-code, required-skill, and com
 
 **Scoped source formatting:** pnpm exec oxfmt --write followed by the explicit authored file paths listed by the task. Never pass a whole source root or include generated outputs, upstream mirrors, AGENTS/CLAUDE files. Shell/YAML exclusions follow repository config; check their diff hygiene.
 
-**Project-artifact formatting:** .oat is excluded from file-mode oxfmt. For each edited project Markdown file, run the documented formatter via pnpm exec oxfmt --stdin-filepath followed by that exact file path, supply its contents on stdin, and apply the formatted output only to that file. Do not alter formatter config.
+**Inventory-dependent source paths:** p01-t01 must record per-task, shell-quoted authored file lists and complete formatter invocations in migration-inventory.md, especially for p02–p03 moves. Before starting each such task, copy its verified list into a task-local shell array named `task_format_paths` and replace that task's inventory-dependent Format command with the literal paths. Include directly affected tests/resources/configs; exclude deleted files, generated payloads, upstream mirrors and AGENTS/CLAUDE. Update the list for actual path drift before formatting. The non-empty guard below prevents an unpopulated array from formatting the repository root. This is ordinary task bookkeeping, not a new formatter or manifest system.
+
+**Project-artifact formatting:** .oat is excluded from file-mode oxfmt. Load this shell function in the task terminal when a Format step calls it; it applies the existing stdin formatter only to the explicitly supplied files. Do not alter formatter config or create a repository helper for this recipe.
+
+```bash
+format_project_artifacts() {
+  node --input-type=module -e '
+    import { readFileSync, writeFileSync } from "node:fs";
+    import { spawnSync } from "node:child_process";
+    const paths = process.argv.slice(1);
+    if (!paths.length) throw new Error("Explicit artifact paths required");
+    for (const path of paths) {
+      const source = readFileSync(path, "utf8");
+      const result = spawnSync("pnpm", ["exec", "oxfmt", "--stdin-filepath", path], {
+        input: source, encoding: "utf8"
+      });
+      if (result.status !== 0 || !result.stdout) throw new Error(result.stderr || "Formatting failed");
+      if (source !== result.stdout) writeFileSync(path, result.stdout);
+    }
+  ' "$@"
+}
+```
 
 Every task includes Format, Verify, and an atomic conventional commit. Stage only its owned paths. The explicit file sets below may grow only to directly affected imports/inventories identified during migration; record those additions. Documentation checks are not full runtime-suite gates.
 
@@ -74,7 +95,9 @@ Sequential: p01 establishes build/version compatibility, p02 moves owners and re
 
 **Implement:** Verify the current handoff project's merge and active execution authority. Record actual base/head and a compact old-owner → new-owner → output/name/version map. Include skill-owned versus shared/plugin tests, executable/resource paths, references requiring the clean-break rename, existing consensus CLI entrypoints, and any retained experimental tooling under tools/coding-session-handoff. Do not inventory backward-compatibility obligations or design a legacy support layer. No code move yet. Confirm the source revisions and licenses for handoff and complexity-review. The inventory must cover every current product skill, not upstream OAT tooling.
 
-**Format:** Use the project-artifact formatting command above for migration-inventory.md and any amended plan.
+Emit per-task explicit authored formatter path lists and complete command lines in migration-inventory.md, including p02–p03 destination paths and affected test/config/resource files. Replace inventory-dependent Format steps with those literal path lists before each task begins; do not require downstream agents to rediscover formatting syntax. The inventory remains Markdown bookkeeping, not a new executable manifest.
+
+**Format:** `format_project_artifacts .oat/projects/shared/skill-source-organization/migration-inventory.md .oat/projects/shared/skill-source-organization/plan.md`.
 
 **Verify:** git status --short; git merge-base HEAD "$TASK_BASE_REF"; gh pr view 70 --json state,mergedAt,mergeCommit; manually reconcile the inventory against scripts/lib/discover-skills.mjs and rg --files src skills plugins tests. Stop on unmapped owners, unmerged prerequisite, dirty overlap, or materially changed scope. GitHub status is evidence, not permission to merge.
 
@@ -90,7 +113,7 @@ Implement installed-name/reference rendering with explicit slots, allowed-source
 
 Keep the legacy file table only as a bounded bridge for not-yet-moved owners; one command owns both paths, no duplicate writers. Add source test globs now so moved tests cannot disappear later. Prepare legacy-owner version mapping support without changing today's version policy.
 
-**Format:** pnpm exec oxfmt --write on the explicit changed authored scripts/*.ts, scripts/lib/*.ts, src/distributions.ts, package.json, tsconfig.json, vitest.config.mjs and the two named tooling test files; exclude any generated compatibility output.
+**Format:** `pnpm exec oxfmt --write scripts/build-generated.ts scripts/lib/packaging.ts src/distributions.ts package.json tsconfig.json vitest.config.mjs tests/tooling/generated-output-sync.test.ts tests/tooling/skill-packaging.test.ts`. Append any additional changed authored callers/tests from this task's inventory as literal paths; exclude generated compatibility output and the lockfile.
 
 **Verify:** pnpm exec vitest run tests/tooling/generated-output-sync.test.ts tests/tooling/skill-packaging.test.ts tests/tooling/vitest-config.test.ts; pnpm run type-check; pnpm run build:check. Existing output must remain fresh or be deliberately rebuilt/versioned. Reuse table-driven negative cases and a controlled replacement failure fixture; no second test harness.
 
@@ -104,7 +127,7 @@ Keep the legacy file table only as a bounded bridge for not-yet-moved owners; on
 
 Assert no sibling-install/checkout imports, valid resource links, and full output containment. Keep cheap inventory checks separate from representative execution. A future new runtime boundary warrants another case, not another matrix dimension.
 
-**Format:** pnpm exec oxfmt --write on tests/tooling/skill-packaging.test.ts and only added/changed helper or builder source files.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Populate from p01-t01's p01-t03 list, including tests/tooling/skill-packaging.test.ts and only changed helper/builder sources; concretize before this task starts.
 
 **Verify:** pnpm exec vitest run tests/tooling/skill-packaging.test.ts tests/consensus/install-contract.test.ts; pnpm run build:check. The temporary fixtures must exercise the new declaration pipeline, not merely the old committed outputs. No user installations change.
 
@@ -114,11 +137,11 @@ Assert no sibling-install/checkout imports, valid resource links, and full outpu
 
 ### Task p02-t01: Colocate standalone skill owners and their tests
 
-**Files:** Move owned content from skills/session-observer, skills/session-observer-collab, skills/export-session-transcript, skills/coding-session-handoff, skills/complexity-review and corresponding src/transcript skill areas into src/skills/<owner>; move genuine src/transcript/core to src/shared/transcript; move associated tests/session-observer*, tests/transcript and handoff tests according to the inventory. Update declarations, imports, affected test helper paths, and generated outputs.
+**Files:** Move owned content from skills/session-observer, skills/session-observer-collab, skills/export-session-transcript, skills/coding-session-handoff, skills/complexity-review and corresponding src/transcript skill areas into src/skills/<owner>; move genuine src/transcript/core to src/shared/transcript; move associated tests/session-observer*, tests/transcript-core and handoff tests according to the inventory. Update tsconfig.json (including moved/removed declaration-file inputs), declarations, imports, affected test helper paths, and generated outputs.
 
 **Implement:** Preserve behavior and installed legacy names during this move; p03 owns public renames. Port collab's authored .mjs/.d.ts runtime to TS, or document a narrow required declaration boundary with objective evidence. Keep plugin-independent transcript code shared. Retained experimental handoff gate/tools code stays a tooling owner, not secretly shipped inside the public guidance skill. Move existing tests without re-authoring fixtures. Bump changed owners and affected consumers under the current policy, retaining legacy version comparison.
 
-**Format:** pnpm exec oxfmt --write on the explicit moved/edited authored .ts, SKILL.md and resource paths from the inventory, not generated payloads. Regenerate via pnpm run build.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p02-t01 authored destination/test/resource list plus tsconfig.json, concretized by p01-t01 before this task starts. Regenerate with `pnpm run build`.
 
 **Verify:** pnpm exec vitest run src/skills/session-observer src/skills/session-observer-collab src/skills/export-session-transcript src/skills/coding-session-handoff src/shared/transcript tests/tooling/skill-packaging.test.ts; pnpm run type-check; pnpm run build:check; pnpm run validate. Reconcile source test counts/identities against the inventory so moved suites cannot silently stop running.
 
@@ -130,7 +153,7 @@ Assert no sibling-install/checkout imports, valid resource links, and full outpu
 
 **Implement:** Keep all existing consensus plugin-local names and complete-plugin install paths. Do not force the consensus CLI/core into an arbitrary skill or duplicate it per plugin skill when plugin-local sharing works. Assign unambiguous canonical identities in the inventory without renaming unrelated user-facing skills. Preserve provider adapters, subprocess/permission boundaries, recovery installer semantics, fixtures, and output behavior. Remove migrated legacy output mappings; bump all affected owners.
 
-**Format:** pnpm exec oxfmt --write on the explicit authored destination .ts/resource/manifest/test files from the inventory. Run pnpm run build for generated outputs.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p02-t02 authored destination/resource/manifest/test list, concretized by p01-t01 before this task starts. Run `pnpm run build` for generated outputs.
 
 **Verify:** pnpm exec vitest run src/skills src/plugins/consensus src/shared tests/consensus/install-contract.test.ts tests/consensus/install-sh.test.ts tests/tooling/skill-packaging.test.ts; pnpm run type-check; pnpm run build:check; pnpm run smoke. This is the one broad source migration check, not a requirement to rerun all tests for each moved file.
 
@@ -146,7 +169,7 @@ Derive affected skill owners from actual runtime closure, including plugin-share
 
 Make plugin release selection explicit and target-scoped; session/consensus versions are independent of each other and skill versions. Preserve current manifest/catalog consistency and tag checks. Use one legacy map, not permanent dual source authority.
 
-**Format:** pnpm exec oxfmt --write on explicit changed authored TS, tests, source SKILL.md and package files; use project-artifact formatting for backlog Markdown. Do not format generated indexes or AGENTS. Run pnpm run build.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p02-t03 authored TS/test/SKILL.md/package list, concretized by p01-t01 before this task starts. Format the exact authored backlog files with `format_project_artifacts "${task_backlog_paths[@]}"` after assigning their concrete non-generated paths during the backlog lifecycle step. Do not format generated indexes or AGENTS. Run `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/release/skill-version-bumps.test.ts tests/release/versioning.test.ts tests/release/validate-script.test.ts tests/repo/skill-frontmatter.test.ts; pnpm run validate:skill-versions -- --base-ref "$TASK_BASE_REF"; pnpm run validate; pnpm run build:check. Fixtures cover renamed-owner baseline, the observed transitive missed-bump case, local edit states, nonstable/regressed versions, missing/shallow base, and one-plugin release isolation. Reuse existing fixtures rather than duplicate each scenario by owner.
 
@@ -160,7 +183,7 @@ Make plugin release selection explicit and target-scoped; session/consensus vers
 
 CI checks committed freshness without first repairing it, resolves the actual PR base/head/merge-base with sufficient history, fails on ambiguous/missing history, and reruns version comparison on base changes. Preserve pinned actions, frozen lockfile installs, read-only permissions, safe checkout credentials, and separate docs/release/live workflows. Avoid duplicate full builds. Keep optional hooks as consumers, not new authoritative infrastructure.
 
-**Format:** pnpm exec oxfmt --write on explicit changed authored TS/JS/JSON/test files. YAML, generated outputs and instruction files remain excluded; inspect git diff --check. Regenerate outputs only via pnpm run build.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p02-t04 authored tooling/config/test list, concretized by p01-t01 before this task starts. YAML, generated outputs and instruction files remain excluded; inspect `git diff --check`. Regenerate outputs only with `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/tooling/generated-output-sync.test.ts tests/tooling/git-hooks.test.ts tests/tooling/vitest-config.test.ts tests/release/smoke-test-script.test.ts; pnpm run build:check; pnpm run type-check; pnpm run validate:internal-flags. A temporary stale/orphan fixture must fail before any rebuild; inspect changed-file selectors and base-change rerun coverage. Do not alter live hooks or user installs to prove behavior.
 
@@ -176,7 +199,7 @@ CI checks committed freshness without first repairing it, resolves the actual PR
 
 Make the export/fork renames a clean break: remove superseded generated product paths through the builder's owned-output replacement, update maintained references and document the new names. Do not preserve old script entrypoints or generate legacy aliases/redirects/wrappers. Add both plugins to supported manifest/catalog surfaces and ensure release tooling has no consensus-only assumptions. Keep standalone eligibility opt-in but demonstrate one real consensus consumer can be configured without bespoke build code.
 
-**Format:** pnpm exec oxfmt --write on the explicit authored catalog, source skill/resource, manifest and named test files. Run pnpm run build.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p03-t01 authored catalog/skill/resource/manifest/test list, concretized by p01-t01 before this task starts. Run `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/repo/marketplace-manifests.test.ts tests/release/versioning.test.ts tests/consensus/install-sh.test.ts tests/tooling/skill-packaging.test.ts; pnpm run validate; pnpm run build:check. Extend the existing packaging suite with one real session-plugin export-transcript execution from a temporary installation outside the checkout, using fake HOME/config and synthetic input. Verify installed resources resolve without checkout or sibling-install imports; use deterministic provider stubs only if needed, never a live provider. Inspect all target names/resources and both complete-plugin inventories, including absence of superseded old-name product outputs. Preserve the pinned recovery installer behavior; do not infer live provider discovery from static success.
 
@@ -190,7 +213,7 @@ Make the export/fork renames a clean break: remove superseded generated product 
 
 Do not implement research-backed evidence enrichment or issue #75 own-session review. Inspect public safety and carry existing promotion-readiness gaps into validation rather than declaring behavioral acceptance from packaging.
 
-**Format:** pnpm exec oxfmt --write src/skills/session-handoff/SKILL.md src/skills/session-handoff/assets/handoff-template.md src/distributions.ts and explicit edited fixture files. Run pnpm run build.
+**Format:** `pnpm exec oxfmt --write src/skills/session-handoff/SKILL.md src/skills/session-handoff/assets/handoff-template.md src/distributions.ts`. Append this task's actual edited fixture paths from the inventory as literal arguments. Run `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/repo/layout.test.ts tests/repo/skill-frontmatter.test.ts tests/tooling/skill-packaging.test.ts; pnpm run validate; manually compare source/resources to the pinned personal baseline and inspect optional-integration/authorization behavior. Synthetic/manual examples suffice; no paid provider run or new evaluator.
 
@@ -202,7 +225,7 @@ Do not implement research-backed evidence enrichment or issue #75 own-session re
 
 **Implement:** Bring the newer personal-skills 1.0.2 content, including authorization safeguards, provider-neutral invocation, and conditional evidence-guide loading, into the public canonical owner. Verify the source revision and compare complete resources, not just version numbers. Preserve attribution and choose a valid increased version consistent with the public baseline and current policy. Remain standalone and prompt-only; do not add runtime or speculative tests.
 
-**Format:** pnpm exec oxfmt --write src/skills/complexity-review/SKILL.md src/skills/complexity-review/references/evidence-guide.md; project-artifact formatting for the inventory. Run pnpm run build.
+**Format:** `pnpm exec oxfmt --write src/skills/complexity-review/SKILL.md src/skills/complexity-review/references/evidence-guide.md`; `format_project_artifacts .oat/projects/shared/skill-source-organization/migration-inventory.md`. Append any actual edited fixture paths as literal arguments to the source formatter. Run `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/tooling/skill-packaging.test.ts; pnpm run validate; pnpm run validate:skill-versions -- --base-ref "$TASK_BASE_REF"; manually inspect the intended source delta and installed reference resolution. Record public ownership and p05 dependency.
 
@@ -216,7 +239,7 @@ Do not implement research-backed evidence enrichment or issue #75 own-session re
 
 CLI-backed operations resolve installed helper paths, reliable minimum versions and operation-specific capabilities before work. Scope checks to the selected provider; no unrelated authentication probes or mandatory network. Known-newer compatible update advice may use existing evidence only, with no new updater/cache service. Prefer prose guards for prose workflows and small helper reuse for executable consumers.
 
-**Format:** pnpm exec oxfmt --write on the explicit affected authored SKILL.md/resources, helper TS and test files. Run pnpm run build.
+**Format:** `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Use the p03-t04 affected authored SKILL.md/resource/helper/test list, concretized by p01-t01 before this task starts. Run `pnpm run build`.
 
 **Verify:** pnpm exec vitest run tests/tooling/skill-packaging.test.ts and the exact owner-level preflight test files identified in the inventory; pnpm run validate; pnpm run build:check. Cover present/missing required skill in supported forms, absent optional integrations, missing/incompatible selected CLI, and no unrelated probe/network/auto-install. Use deterministic stubs and a manual instruction check where no executable contract exists.
 
@@ -226,15 +249,17 @@ CLI-backed operations resolve installed helper paths, reliable minimum versions 
 
 ### Task p04-t01: Document installation, authoring, and migration contracts
 
-**Files:** README.md, CONTRIBUTING.md, RELEASING.md, root AGENTS/CLAUDE contract as needed, documentation/docs/user-guide/installation.md and affected skill/consensus/session maps/pages, documentation/docs/engineering/repository-layout.md and affected architecture/contributing pages, documentation/index.md (generated), existing docs/layout checks.
+**Files:** README.md, CONTRIBUTING.md, RELEASING.md, CHANGELOG.md, root AGENTS/CLAUDE contract as needed, documentation/docs/user-guide/installation.md and affected skill/consensus/session maps/pages, documentation/docs/engineering/repository-layout.md and affected architecture/contributing pages, documentation/index.md (generated), existing docs/layout checks.
 
 **Implement:** Use oat-project-document and documentation/AGENTS.md, obtain its required concise recommendation approval, then update the maintained site and lean README. Explain multi-plugin and opt-in standalone patterns, short/full names, required versus shared-code dependencies, install links, clean-break renames without old-name support, source colocation/build declarations, generated outputs, independent plugin releases, and sole metadata.version policy. Document private-owner transitions and either/or installation guidance unless co-installation was actually verified.
 
 Preserve authored Contents navigation, regenerate the Fumadocs index through its owner, and keep dated evidence in this project. Do not turn static output checks into claims of marketplace/live discovery or mature fork support.
 
-**Format:** pnpm exec oxfmt --write on the explicit changed authored Markdown paths, excluding AGENTS/CLAUDE and generated documentation/index.md. Run oat docs generate-index --docs-dir docs --output index.md with cwd documentation.
+Update CHANGELOG.md's existing Unreleased section for the session plugin, clean-break skill renames, session-handoff promotion, newer complexity-review content, and sole metadata.version policy. Reconcile the entries against the final provider manifests and actual implemented changes; do not invent release dates or published versions.
 
-**Verify:** pnpm exec vitest run tests/repo/docs-presence.test.ts tests/repo/readme-scope.test.ts tests/repo/layout.test.ts; pnpm run validate; pnpm --dir documentation run build. Validate local links for project and user/engineering Markdown through the existing validation surface, accounting for MDX syntax and external paths. Do not claim docs:lint (currently a no-op) is evidence.
+**Format:** `pnpm exec oxfmt --write README.md CONTRIBUTING.md RELEASING.md CHANGELOG.md documentation/docs/user-guide/installation.md documentation/docs/engineering/repository-layout.md`. Append the other exact authored paths approved by oat-project-document before execution; exclude AGENTS/CLAUDE and generated documentation/index.md. Run `(cd documentation && oat docs generate-index --docs-dir docs --output index.md)`.
+
+**Verify:** pnpm exec vitest run tests/repo/docs-presence.test.ts tests/repo/readme-scope.test.ts tests/repo/layout.test.ts; pnpm run validate; pnpm --dir documentation run build. Inspect `git diff -- CHANGELOG.md` for the five named changes against actual source/manifests; no new prose-locking test is required. Validate local links for project and user/engineering Markdown through the existing validation surface, accounting for MDX syntax and external paths. Do not claim docs:lint (currently a no-op) is evidence.
 
 **Commit:** docs(p04-t01): document multi-plugin and standalone skill ownership
 
@@ -246,7 +271,7 @@ Preserve authored Contents navigation, regenerate the Fumadocs index through its
 
 Run the required independent review of the whole public code delta and receive its findings before publication; root review alone is not final gate evidence. Use oat-project-pr-progress for the public milestone when publication is authorized. Project stays incomplete with p05 pending; get explicit merge approval. Missing live promotion/readiness evidence remains an honest release limitation or an authorization-bound blocker, never an inferred pass.
 
-**Format:** Project-artifact formatter for validation.md, implementation.md and state.md; any review-driven code fixes use their new task's scoped formatter.
+**Format:** `format_project_artifacts .oat/projects/shared/skill-source-organization/validation.md .oat/projects/shared/skill-source-organization/implementation.md .oat/projects/shared/skill-source-organization/state.md`. Any review-driven code fixes use their new task's scoped formatter.
 
 **Verify:** pnpm run validate:skill-versions -- --base-ref "$TASK_BASE_REF"; pnpm run type-check; pnpm run build:check (before any repair); pnpm run validate; pnpm run test; pnpm run smoke; pnpm run validate:internal-flags; git diff --check. Reuse p04-t01 docs build if its basis is unchanged. Capture isolated-artifact suite output and independent review disposition. No live/paid gate without explicit execution authorization.
 
@@ -264,7 +289,7 @@ Run the required independent review of the whole public code delta and receive i
 
 Regenerate affected payloads, update registry/docs, and use the private repository's version policy. Open and link the PR to the public change when executing the approved task. Do not merge it or run uninstall/global sync. Record a frozen transitional owner only while that PR is pending. If the prerequisite is not met, remain pending without retries or guessed cleanup targets.
 
-**Format:** Use personal-skills' currently documented file-scoped pnpm exec oxfmt --write on changed authored TS/JSON/Markdown, excluding pristine imported snapshots and generated output; verify that command against its package/AGENTS at execution. Use the project-artifact formatter for public tracking files.
+**Format:** In the authorized private worktree, assign `task_format_paths` to the exact changed authored TS/JSON/Markdown paths from its refreshed inventory, excluding pristine snapshots, deleted files and generated output; verify the currently documented formatter there, then run `test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"`. Back in this public worktree, run `format_project_artifacts .oat/projects/shared/skill-source-organization/validation.md .oat/projects/shared/skill-source-organization/implementation.md .oat/projects/shared/skill-source-organization/state.md`.
 
 **Verify:** In personal-skills run its documented pnpm check and pnpm check:versions --base-ref "$TASK_BASE_REF" against that repository's actual PR base, with package/installer tests restricted to temporary destinations. Inspect the exact source removals and regenerated inventory; verify public source/version provenance and that active user installs are unchanged. gh pr view on both linked PRs records actual status, not assumed merge. Task acceptance is a correctly scoped open removal PR plus recorded disposition; its merge/install transition remains explicitly pending unless separately approved.
 
@@ -279,13 +304,15 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
-| plan | artifact | received | 2026-09-13 | - | - | - | - |
+| plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
-| plan | artifact | received | 2026-09-13 | reviews/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
+| plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
 Existing scaffold rows are preserved. Spec is intentionally absent in quick mode; design approval for planning does not fabricate an independent review. p04's public milestone review is distinct from project-wide final review after post-merge follow-through. All gate results require actual recorded evidence.
+
+The plan event with Artifact `-` intentionally records the structured, artifact-less self-review; its findings and dispatch stamp are below. It is not evidence of a missing file. The second plan event is the separate artifact-backed Fable gate. Both use fixes_completed to preserve the distinction between applied/dispositioned findings and a fresh clean reviewer pass. The user accepted these bounded changes without a rerun and authorized implementation readiness; no unresolved findings remain.
 
 ### Plan Self-Review: 2026-09-13
 
@@ -305,7 +332,7 @@ Parent model/effort were unavailable as launcher evidence, so the exact-ceiling 
 
 The configured Claude Fable gate passed its Important threshold: 0 Critical, 0 Important, 3 Medium, 3 Minor. The structured result is ok and receive-eligible, with matching project, run and configured invocation corroboration. The reviewer ran inline through the validated headless route and reported no nested reconnaissance. This is configured Fable invocation evidence, not independent runtime-model telemetry; automated diversity attribution reported unknown producer.
 
-The active review above remains received, not fully consumed or clean-passed. Artifact edits require user confirmation under oat-project-review-receive. The initial proposed dispositions below are historical; the current user disposition supersedes them:
+The review above is now consumed and archived, with applied/dispositioned findings rather than a new clean reviewer pass. The initial proposed dispositions below are historical; the current user disposition supersedes them:
 
 - Gate M1 / self-review M1 (Minor task scope): resolve in p03-t01 with one real session-plugin export smoke in the existing packaging suite; no extra matrix.
 - Gate M2 / self-review M2 (Minor task scope): assign the existing CHANGELOG.md Unreleased record to p04-t01, with formatting and inspection.
@@ -314,16 +341,19 @@ The active review above remains received, not fully consumed or clean-passed. Ar
 - Gate m2 (Negligible task scope): clarify the artifact-less self-review ledger convention; preserve both review events.
 - Gate m3 / self-review M3 (Minor task scope): require p01-t01 to emit explicit per-task formatter path lists and make the formatting recipes directly runnable. This closes the same issue even though the two reviewers assigned different severities.
 
-No new implementation tasks or source edits have been made. Keep plan readiness unset until the remaining review disposition is settled. The following user disposition supersedes the proposed automatic re-review/re-gate step for these bounded edits.
+No new implementation tasks or source edits have been made. Review disposition is complete. The following user disposition supersedes the proposed automatic re-review/re-gate step for these bounded edits.
 
 ### Current User Disposition: 2026-09-13
 
 - Gate M1 / self-review M1: resolve_in_artifact. User approved the single session-plugin test; p03-t01 now explicitly plans one outside-checkout export-transcript smoke inside the existing packaging suite. The test is planned, not implemented or run.
 - Gate M3: rejected_with_rationale under the revised requirement. The user explicitly rejected backward compatibility as unnecessary complexity and overhead. Discovery, design, Product Contract and execution tasks now require a clean break, with no legacy aliases, redirects, wrappers or old entrypoints. The earlier finding was valid against the earlier requirement; that requirement has been removed rather than implemented with more machinery.
-- Gate M2, m1, m2, m3 / self-review M2, M3: needs_user_direction. Changelog ownership and the previously proposed formatting/path/ledger cleanups remain unchanged; the user's latest message specifically approved the test and removed compatibility work, not these other edits. Do not silently mark them resolved or default-defer them.
-- Re-execution: the user questioned the value of another gate for this change; the root agrees that this scope reduction and one explicit existing-suite smoke do not warrant another provider review. No reviewer or gate is launched for these edits, and no persistent gate configuration is disabled. The prior Fable threshold pass applies to the reviewed basis at 001af602, not the updated artifacts. These edits are user-directed and locally checked, not newly independently reviewed. Any later material expansion requires its own review judgment.
+- Gate M2 / self-review M2: resolve_in_artifact. User approved the remaining cleanup; p04-t01 now owns CHANGELOG.md's Unreleased entries, scoped formatting and manual comparison against actual source/manifests.
+- Gate m1: resolve_in_artifact. p02-t01 now names tests/transcript-core and owns tsconfig.json declaration-input updates.
+- Gate m2: resolve_in_artifact. The ledger prose explicitly explains the artifact-less self-review event and preserves it separately from the artifact-backed gate event.
+- Gate m3 / self-review M3: resolve_in_artifact. p01-t01 explicitly supplies per-task formatter path lists and concrete invocations; Format steps use exact known paths or guarded task-local lists to be concretized before execution. A documented stdin-format/apply recipe covers project Markdown without adding a helper subsystem.
+- Re-execution: the user approved all remaining cleanups after the root recommended applying them without another gate, then explicitly requested implementation readiness for Sol's separate session. No reviewer or gate is launched for these edits, and no persistent gate configuration is disabled. The prior Fable threshold pass applies to the reviewed basis at 001af602, not the updated artifacts. These edits are user-approved and locally checked, not newly independently reviewed. Any later material expansion requires its own review judgment.
 
-The active gate artifact remains in reviews/ while receipt is partial. Task count stays 14 and implementation remains unstarted.
+The consumed gate artifact is archived at reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Receipt is complete; no findings are deferred or awaiting direction. Task count stays 14 and implementation remains unstarted. Planning readiness is approved; implementation kickoff must still confirm HiLL checkpoints, refresh the actual source/base inventory, and honor the public/private milestone authority boundaries.
 
 ## Implementation Complete
 

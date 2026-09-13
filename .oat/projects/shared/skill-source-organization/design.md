@@ -10,7 +10,7 @@ oat_template_name: design
 
 # Design: Skill Source Organization and Plugin Packaging
 
-Accepted as the planning basis by the user's “proceed” on 2026-09-13. This is a lightweight quick-mode design, not implementation approval. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants. The predecessor has now merged and the user activated this project; planning reviews are the current boundary.
+Accepted as the planning basis by the user's “proceed” on 2026-09-13. This is a lightweight quick-mode design. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants. The predecessor merged, the user activated this project, and planning reviews plus user-approved feedback disposition are complete. The plan is implementation-ready; execution will start in Sol's separate session, not as part of this artifact cleanup.
 
 ## Overview
 

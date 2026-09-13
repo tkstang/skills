@@ -10,7 +10,7 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-Not started. Project is active. Self-review and the configured Fable gate have run; the gate passed its Important threshold. The next planned task is p01-t01, but that pointer is not authorization to execute: remaining artifact-review dispositions are still open.
+Not started. Project is active and implementation-ready. Self-review and the configured Fable gate have run; the gate passed its Important threshold. All plan findings are dispositioned with user approval. The next task is p01-t01; the user will have Sol begin implementation in another session, including kickoff checkpoint confirmation and the source/base inventory refresh.
 
 ## Progress Overview
 
@@ -40,6 +40,12 @@ No implementation activity. On 2026-09-13, discovery/design were prepared, the u
 None implemented. Observer plugin-local names may retain their full session- prefix if materially simpler, as allowed by the user; standalone names must retain it.
 
 On 2026-09-13 the user removed backward compatibility from the planned renames, rejecting its complexity/overhead. Discovery/design/plan now require no legacy aliases, redirects, wrappers or preserved old entrypoints. Historical version comparison remains a safety requirement, not a compatibility feature. The user approved planning one session-plugin export smoke in the existing packaging suite. No code/test implementation occurred. The root agreed a repeat gate was not warranted for these bounded edits; the original Fable pass is retained only for its actual reviewed basis. See plan.md's current disposition for remaining unapproved cleanup findings; the active review is not yet fully consumed.
+
+### Plan Review Receipt Completed: 2026-09-13
+
+The user subsequently approved all four remaining cleanup items and directed this session to stop at implementation readiness. Applied changelog task ownership, runnable scoped formatting recipes and kickoff path-list ownership, the tests/transcript-core and tsconfig.json corrections, and the artifact-less self-review ledger clarification. All findings are now dispositioned; this note supersedes the earlier partial-receipt status above.
+
+Review: reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Gate M1/M2/m1/m2/m3 and self-review M1/M2/M3 are resolve_in_artifact; gate M3 is rejected_with_rationale because backward compatibility was explicitly removed from requirements. No findings are deferred, no new tasks were created, and 0/14 implementation tasks are complete. Review events are fixes_completed, not a claimed new clean review. The user accepted these bounded edits without another provider review; the prior threshold pass remains attributed to 001af602.
 
 ## Test Results
 
