@@ -1,6 +1,6 @@
 ---
-oat_current_task: prev1-t03
-oat_last_commit: e6209e17310dc230a8e1a155770f538df02564df
+oat_current_task: prev1-t04
+oat_last_commit: 410c93796124756a4cc438a9f0cae54a2fc37510
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T01:52:15Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T01:52:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t03
+oat_current_task_id: prev1-t04
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | in_progress | 5 | 2/5 |
+| p-rev1 | in_progress | 5 | 3/5 |
 
-**Total:** 37 completed of 44 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented, 3 revision tasks pending. p03-t19 independent review passed.
+**Total:** 38 completed of 44 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented, 2 revision tasks pending. p03-t19 independent review passed.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -94,7 +94,9 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ### Task prev1-t03: Prepare destination-only interactive fork instructions
 
-**Status:** pending
+**Status:** completed
+**Commit:** `410c93796124756a4cc438a9f0cae54a2fc37510`
+**Verification:** Eight focused tests, type-check, generated parity, lint, and diff hygiene passed.
 
 ### Task prev1-t04: Package an experimental guidance-only skill
 
