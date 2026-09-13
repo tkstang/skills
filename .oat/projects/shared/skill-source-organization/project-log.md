@@ -44,6 +44,14 @@ Entries are chronological and append-only.
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:3,minor:3 exit=0 status=ok artifact=.oat/projects/shared/skill-source-organization/reviews/artifact-plan-review-2026-09-13T151722Z.md run=ad0f809d-26ad-4210-9d55-2f0340097ea0
 
+### 2026-09-13 · structural · oat-reviewer · p01-review-cycle-3
+
+7c4c38ea-f650-4f95-8fec-252278d09f90 artifact=.oat/projects/shared/skill-source-organization/reviews/p01-review-2026-09-13T172248Z.md reconnaissance=attempted waves=2 result=critical:0,important:1,medium:0,minor:0
+
+### 2026-09-13 · structural · oat-project-implement · p01
+
+26360de4-05a7-4c8a-ae15-cfffe34fe1f8 status=blocked review_cycle=3 fix_iterations=2 remaining=important:1 artifact=.oat/projects/shared/skill-source-organization/reviews/p01-review-2026-09-13T172248Z.md
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

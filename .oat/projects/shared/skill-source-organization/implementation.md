@@ -1,27 +1,28 @@
 ---
-oat_status: in_progress
+oat_status: blocked
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p01 review cycle 3 retains one Important finding: declared-output freshness follows symlinks"
 oat_last_updated: 2026-09-13
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-review-cycle-cap
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-Implementation started on 2026-09-13. Self-review and the configured Fable gate ran during planning; all findings are dispositioned with user approval. Phase p01 begins with p01-t01 under the managed High policy. The final-only HiLL checkpoint is p05, and automatic checkpoint review is enabled.
+Implementation stopped at the p01 review-cycle cap. All three p01 tasks and two bounded fix iterations are committed, and the required phase checks pass. The third independent review retains one Important declared-output freshness symlink finding, so p02 has not started.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p01 Packaging foundation | in progress | 3 | 0 |
+| p01 Packaging foundation | blocked in review | 3 | 3 |
 | p02 Source/tooling migration | pending | 4 | 0 |
 | p03 Products/promotions | pending | 4 | 0 |
 | p04 Public docs/verification | pending | 2 | 0 |
 | p05 Post-merge private cutover | pending | 1 | 0 |
-| Total | pending | 14 | 0 |
+| Total | blocked | 14 | 3 |
 
 p01–p04 are the public milestone. p05 intentionally follows its merge; use the progress-PR boundary in plan.md rather than requiring all tasks to complete before that public PR can merge.
 
@@ -30,7 +31,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 <!-- orchestration-runs-start -->
 ### Run 1: Phase p01
 
-- Status: implementation complete; root review pending
+- Status: blocked after review cycle 3
 - Request: `6e50b09f-78fc-4be3-8ccd-ac9c4912962b`
 - Launch status: accepted
 - Phase base: `348d46caead591060ba00581dd6add22654120c8`
@@ -43,6 +44,13 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery: one successful phase-standing attempt, commit `fa4e6256d63af58806c4ef273d7700af1af21534`; authoritative usage remains 1/10 with no pending attempt
 - Verification: phase implementer passed the focused suites, type-check, build check, validation, smoke, and the complete suite with four workers. Root reran 49 focused tests, type-check, build check, validation, and smoke successfully.
 - Concern: the unconstrained complete suite twice timed out only in the existing session-observer CLI help case under saturation; that file passed 49/49 alone and the complete suite passed with four workers.
+- Fix iteration 1: `c14f9d524554f49f01080f3e9502696b9b3a19a3` closed the first review's two Important findings and one Minor inventory issue.
+- Fix iteration 2: `737e7c06041f7344bf8eeed0cfbc4b79877c72f8` closed the second review's two Important findings and one Medium finding.
+- Review cycle 1: `reviews/p01-review-2026-09-13T164437Z.md`, 0 Critical, 2 Important, 0 Medium, 1 Minor; fixes completed.
+- Review cycle 2: `reviews/p01-review-2026-09-13T165921Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; fixes completed.
+- Review cycle 3: `reviews/p01-review-2026-09-13T172248Z.md`, 0 Critical, 1 Important, 0 Medium, 0 Minor; terminal at the governance cap.
+- Final review dispatch: `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+- Outstanding item: reject direct and ancestor declared-output symlinks in the read-only freshness path, apply the same segment policy to source ancestors, and add the review's negative controls. Continuing requires explicit direction beyond the automatic review-cycle cap.
 - Nested dispatches: none
 
 ### Recovery Event p01-r01-input-consistency
@@ -63,7 +71,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, the implementation run started at p01-t01. The kickoff records the repository's final-only p05 checkpoint, automatic checkpoint review, and the default phase-recovery ledger before the phase implementer takes ownership of the worktree.
+On 2026-09-13, p01 implemented the migration inventory, packaging pipeline, and representative install-boundary suite in three planned commits. One phase recovery and two bounded review-fix commits followed. Required p01 verification passes at `737e7c06041f7344bf8eeed0cfbc4b79877c72f8`; the third independent review leaves one Important finding, so execution stopped before p02.
 
 ## Deviations from Plan / Design
 
@@ -79,11 +87,11 @@ Review: reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Gate M1/M2/
 
 ## Test Results
 
-No runtime tests run for planning-only edits. OAT plan/discovery validation, formatting, local links, and diff hygiene do not establish runtime acceptance.
+At the current p01 head, 59 scoped packaging/install tests pass with four workers, along with type-check, build check, repository validation, smoke, scoped formatting/lint, and range diff checks. The extra full-suite diagnostic still has the pre-existing session-observer help timeout under saturation; its affected file passes 49/49 alone and it is outside p01's required verification.
 
 ## Final Summary (for PR/docs)
 
-Nothing shipped. Source migration, promotions, releases, and installation cutovers remain pending. A future public-PR milestone summary must distinguish p01–p04 results from p05's pending cross-repo work.
+Nothing shipped. The p01 foundation is implemented but not review-passed. Source migration, promotions, releases, and installation cutovers remain pending. A future public-PR milestone summary must distinguish p01–p04 results from p05's pending cross-repo work.
 
 ## References
 

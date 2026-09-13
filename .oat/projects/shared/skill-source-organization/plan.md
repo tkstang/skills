@@ -301,8 +301,9 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| p01 | code | fixes_added | 2026-09-13 | reviews/p01-review-2026-09-13T164437Z.md | fa4e6256d63af58806c4ef273d7700af1af21534 | manual | - |
-| p01 | code | fixes_added | 2026-09-13 | reviews/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T164437Z.md | fa4e6256d63af58806c4ef273d7700af1af21534 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
+| p01 | code | blocked | 2026-09-13 | reviews/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
 | p02 | code | pending | - | - | - | - | - |
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |

@@ -1,7 +1,8 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: null
-oat_blockers: []
+oat_current_task: p01-review-cycle-cap
+oat_last_commit: 737e7c06041f7344bf8eeed0cfbc4b79877c72f8
+oat_blockers:
+  - "p01 review cycle 3 retains one Important finding: declared-output freshness follows symlinks"
 associated_issues:
   - type: project
     ref: "https://github.com/tkstang/skills/issues/74"
@@ -13,7 +14,7 @@ oat_hill_checkpoints:
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: blocked
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -32,19 +33,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T16:38:22Z"
+oat_project_state_updated: "2026-09-13T17:26:24Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** Implementation in progress. Phase p01 is starting with task p01-t01 under the managed High dispatch ceiling. The final-only HiLL checkpoint resolves to p05, with automatic checkpoint review enabled.
+**Status:** Implementation stopped at the p01 review-cycle cap. All three p01 tasks and two bounded fix commits are complete, but cycle 3 retains one Important finding in declared-output freshness symlink handling.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Planning is complete and implementation has begun. Quick mode remains appropriate; discovery plus issue #74 establish the requirements. Phase p01 starts from the accepted plan and merged predecessor baseline, with p01-t01 refreshing the source and ownership inventory before code moves.
+Phase p01 implementation is complete at `737e7c06041f7344bf8eeed0cfbc4b79877c72f8`, and all required p01 verification passes. The third independent review found one remaining Important issue: the read-only freshness path can follow a symlinked declared output or ancestor and certify an external tree as in sync. The configured two fix iterations and three review cycles are exhausted, so p02 has not started.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -54,7 +55,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 14 tasks across five sequential phases, implementation-ready with complete review disposition and explicit no-rerun acceptance for the bounded edits.
-- [Implementation](implementation.md): 0/14 complete; p01-t01 is active.
+- [Implementation](implementation.md): 3/14 tasks implemented; p01 is blocked in review and p02 has not started.
 
 ## Progress
 
@@ -62,7 +63,9 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Verified current public layout and personal session-handoff promotion source.
 - User confirmed bringing the newer complexity-review here and planning a separate personal-skills authored-copy removal PR after the public replacement is available; plan/discovery/design now record that sequence.
 - Activated this follow-up after its predecessor closed and merged, as explicitly requested.
-- No code, source moves, installation changes, or external publication has occurred yet. The implementation run is starting on p01-t01.
+- Completed the p01 inventory, declared distribution pipeline, representative installed-boundary tests, one phase recovery, and two bounded review fixes.
+- Required p01 tests, type-check, generated-output checks, repository validation, and smoke pass at the current head.
+- Review cycle 3 closes all earlier findings and retains one Important freshness-path symlink issue. No external publication or installation change occurred.
 
 ## Activation and Execution Prerequisites
 
@@ -76,7 +79,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Complete p01 under the managed High policy, beginning with the verified migration inventory. Do not automatically repeat the planning review/gate for the accepted cleanups or resurrect backward-compatibility work. Keep publication, live-provider, merge and private-repo authority boundaries intact.
+Obtain direction for the remaining p01 Important finding. Continuing requires an explicit exception to the three-cycle review governance cap; otherwise preserve the current clean branch and review artifact. Do not start p02 while p01 remains blocked.
 
 ## Planning Settings and Review Status
 
