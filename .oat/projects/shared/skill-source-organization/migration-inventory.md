@@ -402,6 +402,32 @@ task_format_paths=(
 test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"
 ~~~
 
+### p02-t04
+
+~~~bash
+task_format_paths=(
+  '.lintstagedrc.mjs'
+  '.oxfmtrc.json'
+  '.oxlintrc.json'
+  'package.json'
+  'scripts/apply-internal-flags.ts'
+  'scripts/build-generated.ts'
+  'scripts/smoke-test.mjs'
+  'scripts/validate-internal-flags.ts'
+  'tests/release/smoke-test-script.test.ts'
+  'tests/release/validate-script.test.ts'
+  'tests/repo/package-metadata.test.ts'
+  'tests/scripts/apply-internal-flags.test.ts'
+  'tests/scripts/validate-internal-flags.test.ts'
+  'tests/tooling/generated-output-sync.test.ts'
+  'tests/tooling/git-hooks.test.ts'
+  'tests/tooling/vitest-config.test.ts'
+  'tools/git-hooks/README.md'
+  'vitest.config.mjs'
+)
+test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"
+~~~
+
 ### p03-t01
 
 ~~~bash

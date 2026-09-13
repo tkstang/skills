@@ -238,15 +238,15 @@ describe('validate-script', () => {
 
     assertOrdered(workflow, [
       'pnpm install --frozen-lockfile',
-      'node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"',
-      'pnpm run build',
-      'git diff --exit-code -- "${generated_outputs[@]}"',
-      'pnpm run type-check',
+      'pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"',
       'pnpm run build:check',
+      'pnpm run type-check',
       'pnpm run test',
       'pnpm run validate',
       'pnpm run smoke',
     ]);
+    expect(workflow).not.toContain('pnpm run build\n');
+    expect(workflow).not.toContain('git diff --exit-code');
   });
 
   it('every workflow action is SHA-pinned with a version comment', async () => {

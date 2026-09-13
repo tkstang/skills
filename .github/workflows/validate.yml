@@ -2,6 +2,7 @@ name: Validate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   push:
     branches:
       - main
@@ -22,6 +23,8 @@ jobs:
       GIT_HOOKS: "0" # skip git-hook setup in CI
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -29,17 +32,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Capture generated output paths
-        run: node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
-      - run: pnpm run build
-      - name: Verify generated outputs are committed
-        run: |
-          generated_outputs=()
-          while IFS= read -r file; do
-            generated_outputs+=("$file")
-          done < "$RUNNER_TEMP/generated-output-paths.txt"
-          git diff --exit-code -- "${generated_outputs[@]}"
+        run: pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+      - name: Verify committed generated outputs before tests
+        run: pnpm run build:check
       - run: pnpm run type-check
-      - run: pnpm run build:check
       - run: pnpm run test
       - run: pnpm run validate
       - run: pnpm run smoke
@@ -61,8 +57,18 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Resolve PR comparison range
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git cat-file -e "$BASE_SHA^{commit}"
+          git cat-file -e "$HEAD_SHA^{commit}"
+          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          test -n "$merge_base"
+          echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
       - name: Validate changed skill version bumps
-        run: node scripts/validate-skill-versions.mjs --base-ref "${{ github.event.pull_request.base.sha }}"
+        run: pnpm tsx scripts/validate-skill-versions.ts --base-ref "$MERGE_BASE"
 
   internal-flags:
     # Block merge if any .agents/skills/**/SKILL.md is missing
@@ -100,10 +106,20 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Resolve PR comparison range
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git cat-file -e "$BASE_SHA^{commit}"
+          git cat-file -e "$HEAD_SHA^{commit}"
+          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          test -n "$merge_base"
+          echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
       - name: Lint PR commits (Conventional Commits)
         run: >-
           pnpm exec commitlint
-          --from "${{ github.event.pull_request.base.sha }}"
+          --from "$MERGE_BASE"
           --to "${{ github.event.pull_request.head.sha }}"
           --verbose
 
@@ -126,14 +142,27 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: oxlint (changed JS)
+      - name: Resolve PR comparison range and generated roots
+        run: |
+          git cat-file -e "$BASE_SHA^{commit}"
+          git cat-file -e "$HEAD_SHA^{commit}"
+          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          test -n "$merge_base"
+          echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
+          pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+      - name: oxlint (changed authored source)
         run: |
           exclude='^(node_modules|\.oat|\.agents)/'
           files=()
           while IFS= read -r file; do
+            generated=false
+            while IFS= read -r root; do
+              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
+            done < "$RUNNER_TEMP/generated-output-paths.txt"
+            $generated && continue
             files+=("$file")
-          done < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' | grep -vE "$exclude" | grep -vxF -f <(node scripts/build-generated.mjs --list-outputs) || true)
-          if [ ${#files[@]} -eq 0 ]; then echo "no JS changed"; exit 0; fi
+          done < <(git diff --name-only --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' | grep -vE "$exclude" || true)
+          if [ ${#files[@]} -eq 0 ]; then echo "no authored source changed"; exit 0; fi
           printf 'linting:\n%s\n' "${files[*]}"
           pnpm exec oxlint "${files[@]}"
       - name: oxfmt --check (changed files)
@@ -141,8 +170,13 @@ jobs:
           exclude='^(node_modules|\.oat|\.agents)/|\.(claude|cursor)/rules/|(^|/)(AGENTS|CLAUDE)\.md$'
           files=()
           while IFS= read -r file; do
+            generated=false
+            while IFS= read -r root; do
+              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
+            done < "$RUNNER_TEMP/generated-output-paths.txt"
+            $generated && continue
             files+=("$file")
-          done < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" | grep -vxF -f <(node scripts/build-generated.mjs --list-outputs) || true)
+          done < <(git diff --name-only --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" || true)
           if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
           printf 'checking format:\n%s\n' "${files[*]}"
           pnpm exec oxfmt --check "${files[@]}"

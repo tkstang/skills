@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsx scripts/build-generated.ts",
     "build:check": "tsx scripts/build-generated.ts --check",
-    "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
+    "sync:transcript-core": "tsx scripts/build-generated.ts",
     "test": "pnpm run test:vitest",
     "test:vitest": "node scripts/run-vitest.mjs",
     "test:live-e2e": "CONSENSUS_LIVE_SUBMIT_E2E=1 node scripts/run-vitest.mjs tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts",
@@ -14,7 +14,7 @@
     "premerge": "pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke",
     "validate": "tsx scripts/validate.ts",
     "validate:skill-versions": "tsx scripts/validate-skill-versions.ts",
-    "validate:internal-flags": "node scripts/validate-internal-flags.mjs",
+    "validate:internal-flags": "tsx scripts/validate-internal-flags.ts",
     "smoke": "node scripts/smoke-test.mjs",
     "worktree:init": "bash scripts/worktree/init.sh",
     "worktree:validate": "bash scripts/worktree/validate.sh",

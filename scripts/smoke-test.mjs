@@ -422,7 +422,7 @@ export async function runSmokeTest(options = {}) {
 
   await runCommand(
     process.execPath,
-    [path.join(root, 'scripts/validate.mjs')],
+    ['--import', 'tsx', path.join(root, 'scripts/validate.ts')],
     {
       cwd: root,
       env,

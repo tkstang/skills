@@ -44,13 +44,16 @@ describe('package-metadata', () => {
       'node scripts/run-vitest.mjs',
     );
     expect(packageJson.scripts?.['type-check']).toBe('tsc --noEmit');
-    expect(packageJson.scripts?.validate).toBe('node scripts/validate.mjs');
+    expect(packageJson.scripts?.validate).toBe('tsx scripts/validate.ts');
     expect(packageJson.scripts?.['validate:skill-versions']).toBe(
-      'node scripts/validate-skill-versions.mjs',
+      'tsx scripts/validate-skill-versions.ts',
     );
     expect(packageJson.scripts?.['validate:internal-flags']).toBe(
-      'node scripts/validate-internal-flags.mjs',
+      'tsx scripts/validate-internal-flags.ts',
     );
     expect(packageJson.scripts?.smoke).toBe('node scripts/smoke-test.mjs');
+    expect(packageJson.scripts?.['sync:transcript-core']).toBe(
+      'tsx scripts/build-generated.ts',
+    );
   });
 });

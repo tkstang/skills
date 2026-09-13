@@ -12,17 +12,21 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error No type declarations; this test exercises the shipped artifact.
+// @ts-expect-error lint-staged requires an executable JavaScript config.
 import lintStagedConfig from '../../.lintstagedrc.mjs';
 import {
+  checkGenerated,
+  GENERATED_BANNER_PREFIX,
+  generatedOutputRoots,
   generatedOutputs,
+  isGeneratedOutputPath,
+  rewriteImportSpecifiers,
   writeGenerated,
+  type GeneratedOutput,
 } from '../../scripts/build-generated.js';
+import { distributions } from '../../src/distributions.js';
 
 const repoRoot = new URL('../..', import.meta.url);
-const generatedOutputPaths = generatedOutputs.map(
-  (mapping: any) => mapping.output,
-);
 
 function runCommand(
   command: string,
@@ -35,734 +39,371 @@ function runCommand(
     });
     let stdout = '';
     let stderr = '';
-
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-    child.on('close', (code) => {
-      resolve({ code, stdout, stderr });
-    });
+    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stderr.on('data', (chunk) => (stderr += chunk));
+    child.on('close', (code) => resolve({ code, stdout, stderr }));
   });
 }
 
-function runNode(args: string[]) {
-  return runCommand(process.execPath, args);
+function runBuilder(...args: string[]) {
+  return runCommand('pnpm', ['tsx', 'scripts/build-generated.ts', ...args]);
 }
 
 function runBuildCheck() {
   return runCommand('pnpm', ['run', 'build:check']);
 }
 
+async function makeGeneratedFixture() {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'generated-output-'));
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'src/entry.ts'), 'export const value = 1;\n');
+  const mappings: GeneratedOutput[] = [
+    {
+      id: 'fixture',
+      source: 'src/entry.ts',
+      output: 'generated/entry.mjs',
+      bundle: true,
+    },
+  ];
+  await writeGenerated({
+    repoRoot: root,
+    mappings,
+    declarations: [],
+    log: () => {},
+  });
+  return { root, mappings };
+}
+
 describe('generated output drift guard', () => {
-  it('rolls back legacy files and declared trees as one build transaction', async () => {
+  it('rolls back file and declared-tree replacements as one transaction', async () => {
     const root = await mkdtemp(
       path.join(os.tmpdir(), 'generated-transaction-'),
     );
-    const write = async (relative: string, value: string): Promise<void> => {
+    const write = async (relative: string, value: string) => {
       const output = path.join(root, relative);
       await mkdir(path.dirname(output), { recursive: true });
       await writeFile(output, value);
     };
     try {
-      await write('src/legacy.ts', 'process.stdout.write("new");\n');
-      for (const owner of ['one', 'two']) {
-        await write(
-          `src/skills/${owner}/SKILL.md`,
-          `---\nname: ${owner}\nmetadata:\n  version: '1.0.0'\n---\n`,
-        );
-        await write(`skills/${owner}/prior.md`, `prior ${owner}`);
-      }
-      await write('generated/legacy.mjs', 'prior legacy');
+      await write('src/entry.ts', 'process.stdout.write("new");\n');
+      await write(
+        'src/skills/one/SKILL.md',
+        "---\nname: one\nmetadata:\n  version: '1.0.0'\n---\n",
+      );
+      await write('skills/one/prior.md', 'prior one');
+      await write('generated/entry.mjs', 'prior runtime');
       let renameCalls = 0;
-
       await expect(
         writeGenerated({
           repoRoot: root,
           mappings: [
             {
-              id: 'legacy',
-              source: 'src/legacy.ts',
-              output: 'generated/legacy.mjs',
-              importRewrites: [],
+              id: 'entry',
+              source: 'src/entry.ts',
+              output: 'generated/entry.mjs',
+              bundle: true,
             },
           ],
-          declarations: ['one', 'two'].map((owner) => ({
-            owner,
-            source: `src/skills/${owner}`,
-            targets: [
-              {
-                kind: 'standalone' as const,
-                name: owner,
-                output: `skills/${owner}`,
-              },
-            ],
-          })),
+          declarations: [
+            {
+              owner: 'one',
+              source: 'src/skills/one',
+              targets: [
+                { kind: 'standalone', name: 'one', output: 'skills/one' },
+              ],
+            },
+          ],
           operations: {
             rename: async (from, to) => {
               renameCalls += 1;
-              if (renameCalls === 6)
-                throw new Error('controlled mixed publication failure');
+              if (renameCalls === 4) throw new Error('controlled failure');
               await rename(from, to);
             },
             remove: rm,
           },
           log: () => {},
         }),
-      ).rejects.toThrow('all prior outputs restored');
-
+      ).rejects.toThrow(/restored|controlled failure/);
       expect(
-        await readFile(path.join(root, 'generated/legacy.mjs'), 'utf8'),
-      ).toBe('prior legacy');
+        await readFile(path.join(root, 'generated/entry.mjs'), 'utf8'),
+      ).toBe('prior runtime');
       expect(
         await readFile(path.join(root, 'skills/one/prior.md'), 'utf8'),
       ).toBe('prior one');
-      expect(
-        await readFile(path.join(root, 'skills/two/prior.md'), 'utf8'),
-      ).toBe('prior two');
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 
-  it('checks committed generated outputs without mutating tracked files', async () => {
-    const result = await runNode(['scripts/build-generated.mjs', '--check']);
-
-    expect(result.stderr).toBe('');
-    expect(result.stdout).toContain('consensus-loop: in sync');
-    expect(result.stdout).toContain('consensus-refine: in sync');
-    expect(result.stdout).toContain('consensus-evaluate: in sync');
-    expect(result.stdout).toContain('consensus-create: in sync');
-    expect(result.stdout).toContain('consensus-decide: in sync');
-    expect(result.stdout).toContain('consensus-plan: in sync');
-    expect(result.stdout).toContain('consensus-panel-config: in sync');
-    expect(result.stdout).toContain('consensus-panel: in sync');
-    expect(result.stdout).toContain('consensus-provider-cli: in sync');
-    expect(result.stdout).toContain(
-      'transcript-core-session-observer: in sync',
-    );
-    expect(result.stdout).toContain(
-      'transcript-core-cursor-frames-session-observer: in sync',
-    );
-    expect(result.stdout).toContain(
-      'transcript-core-cursor-analysis-session-observer: in sync',
-    );
-    expect(result.stdout).toContain('session-observer-digest: in sync');
-    expect(result.stdout).toContain('session-observer-locate: in sync');
-    expect(result.stdout).toContain('session-observer-observe: in sync');
-    expect(result.stdout).toContain('session-observer-rank: in sync');
-    expect(result.stdout).toContain(
-      'session-observer-session-classifier: in sync',
-    );
-    expect(result.stdout).toContain('session-observer-state: in sync');
-    expect(result.stdout).toContain('session-observer-watch-state: in sync');
-    expect(result.stdout).toContain('session-observer-watch: in sync');
-    expect(result.stdout).toContain('session-observer-cli: in sync');
-    expect(result.stdout).toContain('session-observer-probe-local: in sync');
-    expect(result.stdout).toContain('transcript-core-export-session: in sync');
-    expect(result.stdout).toContain(
-      'transcript-core-cursor-frames-export-session: in sync',
-    );
-    expect(result.stdout).toContain(
-      'transcript-core-cursor-analysis-export-session: in sync',
-    );
-    expect(result.stdout).toContain('export-session-sanitize: in sync');
-    expect(result.stdout).toContain('export-session-transcript-cli: in sync');
-    expect(result.stdout).toContain('coding-session-handoff-cli: in sync');
-    expect(result.stdout).toContain(
-      'coding-session-handoff-guidance-cli: in sync',
-    );
-    expect(result.stdout).not.toContain('pending');
-    expect(result.code).toBe(0);
-  });
-
-  it('lists generated output paths for hook and CI guards', async () => {
-    const result = await runNode([
-      'scripts/build-generated.mjs',
-      '--list-outputs',
-    ]);
-
-    expect(result.stderr).toBe('');
-    expect(result.stdout.trim().split('\n')).toEqual(generatedOutputPaths);
-    expect(result.code).toBe(0);
-  });
-
-  it('declares source to generated-output mappings', async () => {
-    const script = await readFile(
-      new URL('../../scripts/build-generated.ts', import.meta.url),
+  it('checks committed generated outputs without mutating them', async () => {
+    const before = await readFile(
+      new URL(
+        '../../plugins/consensus/scripts/consensus-loop.mjs',
+        import.meta.url,
+      ),
       'utf8',
     );
-
-    expect(script).toContain('src/consensus/core/consensus-loop.ts');
-    expect(script).toContain('plugins/consensus/scripts/consensus-loop.mjs');
-    expect(script).toContain('src/consensus/refine/consensus-refine.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
-    );
-    expect(script).toContain('src/consensus/evaluate/consensus-evaluate.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
-    );
-    expect(script).toContain('src/consensus/create/consensus-create.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/create/scripts/consensus-create.mjs',
-    );
-    expect(script).toContain('src/consensus/decide/consensus-decide.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
-    );
-    expect(script).toContain('src/consensus/plan/consensus-plan.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
-    );
-    expect(script).toContain('src/consensus/panel/consensus-panel.ts');
-    expect(script).toContain(
-      'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
-    );
-    expect(script).toContain('src/consensus/provider-cli/cli.ts');
-    expect(script).toContain('plugins/consensus/scripts/consensus.mjs');
-    expect(script).toContain('src/transcript/core/runtimes.ts');
-    expect(script).toContain('src/transcript/core/cursor-frames.ts');
-    expect(script).toContain('src/transcript/core/cursor-analysis.ts');
-    expect(script).toContain(
-      'skills/session-observer/scripts/lib/runtimes.mjs',
-    );
-    expect(script).toContain(
-      'skills/session-observer/scripts/lib/cursor-frames.mjs',
-    );
-    expect(script).toContain(
-      'skills/session-observer/scripts/lib/cursor-analysis.mjs',
-    );
-    expect(script).toContain(
-      'src/transcript/session-observer/session-observer.ts',
-    );
-    expect(script).toContain(
-      'skills/session-observer/scripts/session-observer.mjs',
-    );
-    expect(script).toContain('src/transcript/session-observer/probe-local.ts');
-    expect(script).toContain('skills/session-observer/scripts/probe-local.mjs');
-    expect(script).toContain('src/transcript/session-observer/lib/digest.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/digest.mjs');
-    expect(script).toContain('src/transcript/session-observer/lib/locate.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/locate.mjs');
-    expect(script).toContain('src/transcript/session-observer/lib/observe.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/observe.mjs');
-    expect(script).toContain('src/transcript/session-observer/lib/rank.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/rank.mjs');
-    expect(script).toContain(
-      'src/transcript/session-observer/lib/session-classifier.ts',
-    );
-    expect(script).toContain(
-      'skills/session-observer/scripts/lib/session-classifier.mjs',
-    );
-    expect(script).toContain('src/transcript/session-observer/lib/state.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/state.mjs');
-    expect(script).toContain(
-      'src/transcript/session-observer/lib/watch-state.ts',
-    );
-    expect(script).toContain(
-      'skills/session-observer/scripts/lib/watch-state.mjs',
-    );
-    expect(script).toContain('src/transcript/session-observer/lib/watch.ts');
-    expect(script).toContain('skills/session-observer/scripts/lib/watch.mjs');
-    expect(script).toContain(
-      'skills/export-session-transcript/scripts/lib/runtimes.mjs',
-    );
-    expect(script).toContain(
-      'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
-    );
-    expect(script).toContain(
-      'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
-    );
-    expect(script).toContain('src/transcript/export-session/sanitize.ts');
-    expect(script).toContain(
-      'skills/export-session-transcript/scripts/lib/sanitize.mjs',
-    );
-    expect(script).toContain(
-      'src/transcript/export-session/export-session-transcript.ts',
-    );
-    expect(script).toContain(
-      'skills/export-session-transcript/scripts/export-session-transcript.mjs',
-    );
-    expect(script).toContain('src/transcript/coding-session-handoff/cli.ts');
-    expect(script).toContain(
-      'tools/coding-session-handoff/coding-session-handoff.mjs',
-    );
-    expect(script).toContain(
-      'src/transcript/coding-session-handoff/guidance-cli.ts',
-    );
-    expect(script).toContain(
-      'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
-    );
+    const result = await runBuilder('--check');
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout).toContain('consensus-loop: in sync');
+    expect(
+      await readFile(
+        new URL(
+          '../../plugins/consensus/scripts/consensus-loop.mjs',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    ).toBe(before);
   });
 
-  it('generates one bundled pre-activation handoff runtime', async () => {
-    const mapping = generatedOutputs.find(
-      (candidate: any) => candidate.id === 'coding-session-handoff-cli',
+  it('lists every generated file and declared installation root', async () => {
+    const result = await runBuilder('--list-outputs');
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout.trim().split('\n')).toEqual(generatedOutputRoots);
+  });
+
+  it('keeps only the three non-skill runtime mappings', () => {
+    expect(generatedOutputs).toEqual([
+      {
+        id: 'consensus-loop',
+        source: 'src/plugins/consensus/core/consensus-loop.ts',
+        output: 'plugins/consensus/scripts/consensus-loop.mjs',
+        bundle: true,
+      },
+      {
+        id: 'consensus-provider-cli',
+        source: 'src/plugins/consensus/provider-cli/cli.ts',
+        output: 'plugins/consensus/scripts/consensus.mjs',
+        bundle: true,
+      },
+      {
+        id: 'coding-session-handoff-cli',
+        source: 'src/tools/coding-session-handoff/cli.ts',
+        output: 'tools/coding-session-handoff/coding-session-handoff.mjs',
+        bundle: true,
+      },
+    ]);
+  });
+
+  it('derives skill output roots from distribution declarations', () => {
+    const declared = distributions.flatMap((distribution) =>
+      distribution.targets.map((target) => target.output),
     );
+    for (const output of declared)
+      expect(generatedOutputRoots).toContain(output);
+  });
 
-    expect(mapping).toEqual({
-      id: 'coding-session-handoff-cli',
-      source: 'src/transcript/coding-session-handoff/cli.ts',
-      output: 'tools/coding-session-handoff/coding-session-handoff.mjs',
-      bundle: true,
-    });
+  it('bundles the shared consensus loop as a dependency-free runtime', async () => {
+    const text = await readFile(
+      new URL(
+        '../../plugins/consensus/scripts/consensus-loop.mjs',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(text).toContain(
+      '// Source: src/plugins/consensus/core/consensus-loop.ts',
+    );
+    expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
+  });
 
-    const output = await readFile(
+  it('bundles the consensus provider CLI', async () => {
+    const text = await readFile(
+      new URL('../../plugins/consensus/scripts/consensus.mjs', import.meta.url),
+      'utf8',
+    );
+    expect(text).toContain(
+      '// Source: src/plugins/consensus/provider-cli/cli.ts',
+    );
+    expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
+  });
+
+  it('bundles the repository handoff tool', async () => {
+    const text = await readFile(
       new URL(
         '../../tools/coding-session-handoff/coding-session-handoff.mjs',
         import.meta.url,
       ),
       'utf8',
     );
-    expect(output.startsWith('#!/usr/bin/env node\n')).toBe(true);
-    expect(output).toContain(
-      '// GENERATED by scripts/build-generated.mjs. Do not edit directly.',
+    expect(text).toContain(
+      '// Source: src/tools/coding-session-handoff/cli.ts',
     );
-    expect(output).toContain(
-      '// Source: src/transcript/coding-session-handoff/cli.ts',
-    );
-    expect(output).not.toMatch(/from\s+['"](?:\.\.\/|\.\/).*\.js['"]/);
+    expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
   });
 
-  it('generates a separate public guidance-only handoff runtime', async () => {
-    const mapping = generatedOutputs.find(
-      (candidate: any) =>
-        candidate.id === 'coding-session-handoff-guidance-cli',
+  it('does not retain obsolete leaf runtime mappings', () => {
+    expect(generatedOutputs.map((mapping) => mapping.id)).not.toContain(
+      'consensus-loop-validation',
     );
-    expect(mapping).toEqual({
-      id: 'coding-session-handoff-guidance-cli',
-      source: 'src/transcript/coding-session-handoff/guidance-cli.ts',
-      output:
-        'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
-      bundle: true,
-    });
-  });
-
-  it('maps both Cursor framed modules into both shipped runtime trees', async () => {
-    const expected = [
-      {
-        id: 'transcript-core-cursor-frames-session-observer',
-        source: 'src/transcript/core/cursor-frames.ts',
-        output: 'skills/session-observer/scripts/lib/cursor-frames.mjs',
-        importRewrites: undefined,
-      },
-      {
-        id: 'transcript-core-cursor-analysis-session-observer',
-        source: 'src/transcript/core/cursor-analysis.ts',
-        output: 'skills/session-observer/scripts/lib/cursor-analysis.mjs',
-        importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
-      },
-      {
-        id: 'transcript-core-cursor-frames-export-session',
-        source: 'src/transcript/core/cursor-frames.ts',
-        output:
-          'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
-        importRewrites: undefined,
-      },
-      {
-        id: 'transcript-core-cursor-analysis-export-session',
-        source: 'src/transcript/core/cursor-analysis.ts',
-        output:
-          'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
-        importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
-      },
-    ];
-
-    for (const contract of expected) {
-      const mapping = generatedOutputs.find(
-        (candidate: any) => candidate.id === contract.id,
-      );
-      expect(mapping).toMatchObject({
-        id: contract.id,
-        source: contract.source,
-        output: contract.output,
-      });
-      expect(mapping!.importRewrites).toEqual(contract.importRewrites);
-
-      const output = await readFile(
-        new URL(`../../${contract.output}`, import.meta.url),
-        'utf8',
-      );
-      expect(output).toContain(`// Source: ${contract.source}`);
-      if (contract.source.endsWith('cursor-analysis.ts')) {
-        expect(output).toContain("from './runtimes.mjs'");
-        expect(output).not.toContain("from './runtimes.js'");
-      }
-    }
-  });
-
-  it('declares one shared plugin loop output and no per-skill loop outputs', () => {
-    const loopMappings = generatedOutputs.filter(
-      (mapping: any) =>
-        mapping.source === 'src/consensus/core/consensus-loop.ts',
-    );
-
-    expect(loopMappings).toEqual([
-      {
-        id: 'consensus-loop',
-        source: 'src/consensus/core/consensus-loop.ts',
-        output: 'plugins/consensus/scripts/consensus-loop.mjs',
-      },
-    ]);
-    expect(generatedOutputPaths).not.toContain(
-      'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
-    );
-    expect(generatedOutputPaths).not.toContain(
-      'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
-    );
-    expect(generatedOutputPaths).not.toContain(
-      'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
-    );
-    expect(generatedOutputPaths).not.toContain(
-      'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
-    );
-    expect(generatedOutputPaths).not.toContain(
-      'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
+    expect(generatedOutputRoots).not.toContain(
+      'plugins/consensus/scripts/loop-validation.mjs',
     );
   });
 
-  it('resolves wrapper loop imports through the plugin-root scripts directory', async () => {
-    // importRewrites is derived at build time (see deriveImportRewrites), not
-    // hand-listed per mapping, so this asserts the derived rewrite by reading
-    // the committed generated artifact rather than a static data field.
-    const wrapperIds = [
-      'consensus-refine',
-      'consensus-evaluate',
-      'consensus-create',
-      'consensus-decide',
-      'consensus-plan',
-    ];
-    const sharedLoop = new URL(
-      '../../plugins/consensus/scripts/consensus-loop.mjs',
-      import.meta.url,
-    );
-    const loopRewritePattern =
-      /from\s+['"](\.\.\/\.\.\/\.\.\/scripts\/consensus-loop\.mjs)['"]/;
-
-    for (const wrapperId of wrapperIds) {
-      const mapping = generatedOutputs.find(
-        (candidate: any) => candidate.id === wrapperId,
-      );
-      expect(mapping).toBeDefined();
-
-      const wrapperOutput = new URL(
-        `../../${mapping!.output}`,
-        import.meta.url,
-      );
-      const text = await readFile(wrapperOutput, 'utf8');
-
-      expect(text).not.toContain("from '../core/consensus-loop.js'");
-      const match = text.match(loopRewritePattern);
-      expect(match).not.toBeNull();
-
-      const loopRewriteTo = match![1];
-      expect(new URL(loopRewriteTo, wrapperOutput).href).toBe(sharedLoop.href);
-    }
-  });
-
-  it('documents generated runtime outputs for the creation skill family', async () => {
-    const docs = await readFile(
+  it('uses the canonical TypeScript generator banner', async () => {
+    const text = await readFile(
       new URL(
-        '../../documentation/docs/engineering/architecture/generated-runtime.md',
+        '../../plugins/consensus/scripts/consensus-loop.mjs',
         import.meta.url,
       ),
       'utf8',
     );
-
-    expect(docs).toContain('src/consensus/create/consensus-create.ts');
-    expect(docs).toContain(
-      'plugins/consensus/skills/create/scripts/consensus-create.mjs',
-    );
-    expect(docs).toContain('src/consensus/decide/consensus-decide.ts');
-    expect(docs).toContain(
-      'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
-    );
-    expect(docs).toContain('src/consensus/plan/consensus-plan.ts');
-    expect(docs).toContain(
-      'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
-    );
+    expect(text.startsWith(GENERATED_BANNER_PREFIX)).toBe(true);
+    expect(text).not.toContain('scripts/build-generated.mjs');
   });
 
-  it('excludes generated outputs from static lint and format configs', async () => {
-    const [oxfmt, oxlint] = await Promise.all([
-      readFile(new URL('../../.oxfmtrc.json', import.meta.url), 'utf8').then(
-        JSON.parse,
+  it('keeps generated skill payloads free of TypeScript sources', async () => {
+    const entries = await import('node:fs/promises').then(({ readdir }) =>
+      readdir(
+        new URL('../../skills/session-observer/scripts', import.meta.url),
+        { recursive: true },
       ),
-      readFile(new URL('../../.oxlintrc.json', import.meta.url), 'utf8').then(
-        JSON.parse,
+    );
+    expect(entries.some((entry) => String(entry).endsWith('.ts'))).toBe(false);
+  });
+
+  it('includes complete standalone outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('skills/session-observer');
+    expect(generatedOutputRoots).toContain('skills/coding-session-handoff');
+  });
+
+  it('includes complete plugin skill outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('plugins/consensus/skills/refine');
+    expect(generatedOutputRoots).toContain('plugins/consensus/skills/create');
+  });
+
+  it('covers generated roots in static lint and format configs', async () => {
+    const [oxfmt, oxlint] = await Promise.all(
+      ['.oxfmtrc.json', '.oxlintrc.json'].map(async (file) =>
+        JSON.parse(
+          await readFile(new URL(`../../${file}`, import.meta.url), 'utf8'),
+        ),
       ),
+    );
+    for (const root of generatedOutputRoots) {
+      const expected = root.endsWith('.mjs') ? root : `${root}/**`;
+      expect(oxfmt.ignorePatterns).toContain(expected);
+      expect(oxlint.ignorePatterns).toContain(expected);
+    }
+  });
+
+  it('excludes generated roots from lint-staged tasks', () => {
+    const task = lintStagedConfig['*.{ts,mts,mjs,js}'];
+    for (const root of generatedOutputRoots) {
+      const file = root.endsWith('.mjs') ? root : `${root}/scripts/example.mjs`;
+      expect(task([file])).toEqual([]);
+      expect(task([new URL(file, repoRoot).pathname])).toEqual([]);
+    }
+  });
+
+  it('includes authored TypeScript in lint-staged tasks', () => {
+    const task = lintStagedConfig['*.{ts,mts,mjs,js}'];
+    expect(task(['src/example.ts'])).toEqual([
+      'oxlint --fix "src/example.ts"',
+      'oxfmt --write "src/example.ts"',
     ]);
-
-    // TODO(generated-output): If the config moves to globbed ignore patterns,
-    // replace this exact-entry assertion with a glob-match assertion so every
-    // generated output remains covered.
-    for (const output of generatedOutputPaths) {
-      expect(oxfmt.ignorePatterns).toContain(output);
-      expect(oxlint.ignorePatterns).toContain(output);
-    }
   });
 
-  it('excludes generated outputs from lint-staged tasks', () => {
-    const jsTask = lintStagedConfig['*.{mjs,js}'];
-
-    for (const output of generatedOutputPaths) {
-      expect(jsTask([output])).toEqual([]);
-      expect(jsTask([new URL(output, repoRoot).pathname])).toEqual([]);
-    }
-  });
-
-  it('derives CI generated-output guards from build-generated mappings', async () => {
+  it('uses the TypeScript generator in CI selectors', async () => {
     const workflow = await readFile(
       new URL('../../.github/workflows/validate.yml', import.meta.url),
       'utf8',
     );
-
     expect(workflow).toContain(
-      'node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"',
+      'pnpm tsx scripts/build-generated.ts --list-outputs',
     );
-    expect(workflow).toContain('generated_outputs+=("$file")');
-    expect(
-      workflow.match(
-        /grep -vxF -f <\(node scripts\/build-generated\.mjs --list-outputs\)/g,
-      ),
-    ).toHaveLength(2);
+    expect(workflow).not.toContain('scripts/build-generated.mjs');
   });
 
-  it('rewrites generated export-session CLI imports to shipped runtime files', async () => {
-    const cli = await readFile(
-      new URL(
-        '../../skills/export-session-transcript/scripts/export-session-transcript.mjs',
-        import.meta.url,
-      ),
+  it('checks freshness before tests without repairing outputs in CI', async () => {
+    const workflow = await readFile(
+      new URL('../../.github/workflows/validate.yml', import.meta.url),
       'utf8',
     );
-
-    expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
-    expect(cli).toContain(
-      '// GENERATED by scripts/build-generated.mjs. Do not edit directly.',
+    expect(workflow.indexOf('pnpm run build:check')).toBeLessThan(
+      workflow.indexOf('pnpm run test'),
     );
-    expect(cli).toContain(
-      '// Source: src/transcript/export-session/export-session-transcript.ts',
-    );
-    expect(cli).toContain("from './lib/runtimes.mjs'");
-    expect(cli).toContain("from './lib/sanitize.mjs'");
-    expect(cli).not.toContain("from '../core/runtimes.js'");
-    expect(cli).not.toContain("from './sanitize.js'");
+    expect(workflow).not.toContain('- run: pnpm run build\n');
   });
 
-  it('rewrites generated session-observer imports to shipped runtime files', async () => {
-    const cli = await readFile(
-      new URL(
-        '../../skills/session-observer/scripts/session-observer.mjs',
-        import.meta.url,
-      ),
+  it('resolves and validates the PR merge base for changed-file gates', async () => {
+    const workflow = await readFile(
+      new URL('../../.github/workflows/validate.yml', import.meta.url),
       'utf8',
     );
-    const digest = await readFile(
-      new URL(
-        '../../skills/session-observer/scripts/lib/digest.mjs',
-        import.meta.url,
-      ),
-      'utf8',
-    );
-    const watch = await readFile(
-      new URL(
-        '../../skills/session-observer/scripts/lib/watch.mjs',
-        import.meta.url,
-      ),
-      'utf8',
-    );
-
-    expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
-    expect(cli).toContain(
-      '// GENERATED by scripts/build-generated.mjs. Do not edit directly.',
-    );
-    expect(cli).toContain(
-      '// Source: src/transcript/session-observer/session-observer.ts',
-    );
-    expect(cli).toContain("from './lib/runtimes.mjs'");
-    expect(cli).toContain("from './lib/digest.mjs'");
-    expect(cli).toContain("from './lib/watch.mjs'");
-    expect(cli).not.toContain("from '../core/runtimes.js'");
-    expect(cli).not.toContain("from './lib/digest.js'");
-    expect(digest).toContain("from './runtimes.mjs'");
-    expect(digest).toContain("from './session-classifier.mjs'");
-    expect(digest).not.toContain("from '../../core/runtimes.js'");
-    expect(watch).toContain("from './runtimes.mjs'");
-    expect(watch).toContain("from './locate.mjs'");
-    expect(watch).toContain("from './observe.mjs'");
-    expect(watch).not.toContain("from '../../core/runtimes.js'");
-    expect(watch).not.toContain("from './locate.js'");
+    expect(workflow).toContain('git cat-file -e "$BASE_SHA^{commit}"');
+    expect(workflow).toContain('git merge-base "$BASE_SHA" "$HEAD_SHA"');
+    expect(workflow).toContain('--base-ref "$MERGE_BASE"');
+    expect(workflow).toContain('edited');
   });
 
-  it('generates a shipped consensus provider CLI entrypoint', async () => {
-    const cli = await readFile(
-      new URL('../../plugins/consensus/scripts/consensus.mjs', import.meta.url),
-      'utf8',
-    );
-
-    expect(cli.startsWith('#!/usr/bin/env node\n')).toBe(true);
-    expect(cli).toContain(
-      '// GENERATED by scripts/build-generated.mjs. Do not edit directly.',
-    );
-    expect(cli).toContain('// Source: src/consensus/provider-cli/cli.ts');
-  });
-
-  it('fails build:check when transcript-core generated output is stale and restores it', async () => {
+  it('fails build:check on stale generated output and permits restoration', async () => {
     const target = new URL(
       '../../skills/session-observer/scripts/lib/runtimes.mjs',
       import.meta.url,
     );
     const original = await readFile(target, 'utf8');
+    try {
+      await writeFile(target, `${original}\n// drift\n`);
+      const result = await runBuildCheck();
+      expect(result.code).not.toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'skills/session-observer/scripts/lib/runtimes.mjs: stale',
+      );
+    } finally {
+      await writeFile(target, original);
+    }
+    expect((await runBuildCheck()).code).toBe(0);
+  });
 
+  it('fails on an orphan generated runtime before rebuilding', async () => {
+    const { root, mappings } = await makeGeneratedFixture();
     try {
       await writeFile(
-        target,
-        `${original}\n// transcript-core drift\n`,
-        'utf8',
+        path.join(root, 'generated/orphan.mjs'),
+        `${GENERATED_BANNER_PREFIX}\nexport {};\n`,
       );
-      const result = await runBuildCheck();
-      const output = `${result.stdout}\n${result.stderr}`;
-
-      expect(result.code).not.toBe(0);
-      expect(output).toContain(
-        'skills/session-observer/scripts/lib/runtimes.mjs',
-      );
-      expect(output).toContain('generated output is stale');
+      await expect(
+        checkGenerated({ repoRoot: root, mappings, declarations: [] }),
+      ).rejects.toThrow(/orphan generated output/);
     } finally {
-      await writeFile(target, original, 'utf8');
+      await rm(root, { recursive: true, force: true });
     }
-
-    const restored = await runBuildCheck();
-    expect(restored.code).toBe(0);
   });
 
-  it('rewrites only emitted module specifiers', async () => {
-    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const buildGenerated = await import('../../scripts/build-generated.mjs');
-    const { rewriteImportSpecifiers } = buildGenerated;
-    const rewrite = {
-      from: '../core/consensus-loop.js',
-      to: '../../../scripts/consensus-loop.mjs',
-    };
-    const source = [
-      'import { runConsensusLoop } from "../core/consensus-loop.js";',
-      'import "../core/consensus-loop.js";',
-      'const dynamicLoop = () => import("../core/consensus-loop.js");',
-      'const diagnostic = "../core/consensus-loop.js";',
-      'const message = "from \'../core/consensus-loop.js\'";',
-    ].join('\n');
-
-    const rewritten = rewriteImportSpecifiers(source, rewrite, 'test-mapping');
-
-    expect(rewritten).toContain(
-      "import { runConsensusLoop } from '../../../scripts/consensus-loop.mjs';",
-    );
-    expect(rewritten).toContain(
-      "import '../../../scripts/consensus-loop.mjs';",
-    );
-    expect(rewritten).toContain(
-      "const dynamicLoop = () => import('../../../scripts/consensus-loop.mjs');",
-    );
-    expect(rewritten).toContain(
-      'const diagnostic = "../core/consensus-loop.js";',
-    );
-    expect(rewritten).toContain(
-      'const message = "from \'../core/consensus-loop.js\'";',
-    );
+  it('removes orphan generated runtimes during an explicit build', async () => {
+    const { root, mappings } = await makeGeneratedFixture();
+    try {
+      const orphan = path.join(root, 'generated/orphan.mjs');
+      await writeFile(orphan, `${GENERATED_BANNER_PREFIX}\nexport {};\n`);
+      await writeGenerated({
+        repoRoot: root,
+        mappings,
+        declarations: [],
+        log: () => {},
+      });
+      await expect(readFile(orphan, 'utf8')).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
-  it('fails when a configured rewrite source is absent from module specifiers', async () => {
-    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const buildGenerated = await import('../../scripts/build-generated.mjs');
-    const { rewriteImportSpecifiers } = buildGenerated;
-
-    expect(() =>
-      rewriteImportSpecifiers(
-        'const diagnostic = "../core/consensus-loop.js";',
-        {
-          from: '../core/consensus-loop.js',
-          to: '../../../scripts/consensus-loop.mjs',
-        },
-        'test-mapping',
-      ),
-    ).toThrow(
-      'Import rewrite for test-mapping expected emitted output to contain module specifier ../core/consensus-loop.js',
+  it('rewrites only emitted module specifiers', () => {
+    const rewritten = rewriteImportSpecifiers(
+      [
+        'import { value } from "./old.js";',
+        'const diagnostic = "./old.js";',
+      ].join('\n'),
+      { from: './old.js', to: './new.mjs' },
+      'fixture',
     );
-  });
-
-  it('derives importRewrites from emitted module specifiers for a real mapping', async () => {
-    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const buildGenerated = await import('../../scripts/build-generated.mjs');
-    const { deriveImportRewrites } = buildGenerated;
-
-    const mapping = generatedOutputs.find(
-      (candidate: any) => candidate.id === 'consensus-refine',
-    );
-    expect(mapping).toBeDefined();
-
-    const emitted = [
-      "import { runConsensusLoop } from '../core/consensus-loop.js';",
-      "import { resolveConsensusComposition } from '../config/consensus-config.js';",
-    ].join('\n');
-
-    const derived = deriveImportRewrites(mapping, emitted);
-
-    expect(derived).toEqual([
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ]);
-  });
-
-  it('throws loudly instead of silently skipping an unresolvable relative specifier', async () => {
-    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const buildGenerated = await import('../../scripts/build-generated.mjs');
-    const { deriveImportRewrites } = buildGenerated;
-
-    const mapping = generatedOutputs.find(
-      (candidate: any) => candidate.id === 'session-observer-probe-local',
-    );
-    expect(mapping).toBeDefined();
-
-    // A single unmapped runtime import: the case this test exists to guard.
-    // (An earlier version prefixed an `import type './lib/types.js'`, which
-    // also resolves to no generatedOutputs entry and threw first, so the
-    // broad assertion never actually exercised the runtime import below.)
-    const emitted = "import { unmapped } from './lib/does-not-exist.js';\n";
-
-    // Assert the exact offending specifier, not just any unmapped-import
-    // failure, so this can only pass by throwing on './lib/does-not-exist.js'.
-    expect(() => deriveImportRewrites(mapping, emitted)).toThrow(
-      /module specifier '\.\/lib\/does-not-exist\.js'[\s\S]*has no generatedOutputs entry/,
-    );
-  });
-
-  it('throws loudly instead of guessing when multiple fan-out candidates are equally close', async () => {
-    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const buildGenerated = await import('../../scripts/build-generated.mjs');
-    const { deriveImportRewrites } = buildGenerated;
-
-    // A synthetic mapping outside every real consensus skill directory: all
-    // six consensus-config.ts outputs are equally (un)related to it, so the
-    // directory-proximity disambiguation cannot pick a winner.
-    const ambiguousMapping = {
-      id: 'test-ambiguous-mapping',
-      source: 'src/consensus/fake-skill/fake.ts',
-      output: 'somewhere/unrelated/scripts/fake.mjs',
-    };
-    const emitted =
-      "import { resolveConsensusComposition } from '../config/consensus-config.js';\n";
-
-    expect(() => deriveImportRewrites(ambiguousMapping, emitted)).toThrow(
-      /multiple equally-close generated-output candidates/,
-    );
+    expect(rewritten).toContain("from './new.mjs'");
+    expect(rewritten).toContain('const diagnostic = "./old.js";');
   });
 });

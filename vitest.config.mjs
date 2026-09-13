@@ -9,6 +9,13 @@ export default defineConfig({
       'src/**/*.test.ts',
       'src/**/*.test.mts',
     ],
+    exclude: [
+      '**/node_modules/**',
+      '.agents/**',
+      '.oat/**',
+      'plugins/**',
+      'skills/**',
+    ],
     // Some integration tests spawn subprocesses or drive real timers; under a
     // saturated parallel run their ~1-3s of work can be starved past a tight
     // budget. 30s gives headroom without masking genuine hangs; fast unit tests

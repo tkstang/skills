@@ -15,6 +15,13 @@ describe('vitest tooling', () => {
       'src/**/*.test.ts',
       'src/**/*.test.mts',
     ]);
+    expect(vitestConfig.test?.exclude).toEqual([
+      '**/node_modules/**',
+      '.agents/**',
+      '.oat/**',
+      'plugins/**',
+      'skills/**',
+    ]);
   });
 
   it('allows integration tests enough time for subprocess fixtures', () => {

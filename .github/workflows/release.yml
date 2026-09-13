@@ -22,7 +22,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Capture generated output paths
-        run: node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+        run: pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
       - run: pnpm run build
       - name: Verify generated outputs are committed
         run: |
@@ -36,4 +36,4 @@ jobs:
       - run: pnpm run test
       - run: pnpm run validate
       - run: pnpm run smoke
-      - run: node scripts/bump-version.mjs --check-tag "$GITHUB_REF_NAME"
+      - run: pnpm tsx scripts/bump-version.ts --check-tag "$GITHUB_REF_NAME"

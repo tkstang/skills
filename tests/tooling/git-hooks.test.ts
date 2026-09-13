@@ -12,6 +12,7 @@
 // class of mistake the prior-incident rule in tests/helpers/git-env.mjs
 // guards against. Every spawned `git` call also goes through that scrub.
 import { execFile as execFileCallback, spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import {
   chmod,
   copyFile,
@@ -24,14 +25,14 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { fixtureBin, repoRoot } from '../helpers/process.mjs';
 import { gitEnv } from '../helpers/git-env.mjs';
+import { fixtureBin, repoRoot } from '../helpers/process.mjs';
 
 const execFile = promisify(execFileCallback);
 
@@ -223,8 +224,8 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     const disabledContents = (await readFile(disabledFile, 'utf8'))
       .trim()
       .split('\n')
-      .sort();
-    expect(disabledContents).toEqual([...hookNames].sort());
+      .toSorted();
+    expect(disabledContents).toEqual(hookNames.toSorted());
 
     // disable-all round trip: status now reports every hook intentionally disabled.
     const status = await runManageHooks(root, ['status']);
@@ -335,34 +336,6 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
     return root;
   }
 
-  /** Stub scripts/validate-skill-versions.mjs and scripts/validate-internal-flags.mjs
-   * that pre-push invokes by relative path (not via PATH), so the hook's
-   * delegation chain can be exercised without touching the real repo's
-   * validators. */
-  async function stubPrePushNodeScripts(
-    root: string,
-    callsPath: string,
-    failScript?: string,
-  ): Promise<void> {
-    await mkdir(path.join(root, 'scripts'), { recursive: true });
-    for (const name of [
-      'validate-skill-versions.mjs',
-      'validate-internal-flags.mjs',
-    ]) {
-      const exitLine =
-        failScript === name ? 'process.exit(1);' : 'process.exit(0);';
-      await writeFile(
-        path.join(root, 'scripts', name),
-        [
-          "import { appendFileSync } from 'node:fs';",
-          `appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ script: ${JSON.stringify(name)}, args: process.argv.slice(2) }) + '\\n');`,
-          exitLine,
-          '',
-        ].join('\n'),
-      );
-    }
-  }
-
   it('commit-msg delegates to `pnpm exec commitlint` and propagates its exit code', async () => {
     const root = await makeScratchHookRunRepo();
     const artifacts = await makeScratchArtifactDir();
@@ -441,8 +414,6 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
     const root = await makeScratchHookRunRepo();
     const artifacts = await makeScratchArtifactDir();
     const callsPath = path.join(artifacts, 'calls.jsonl');
-    const nodeCallsPath = path.join(artifacts, 'node-calls.jsonl');
-    await stubPrePushNodeScripts(root, nodeCallsPath);
 
     const result = await run(
       'sh',
@@ -457,12 +428,8 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
       'validate',
       'build:check',
       'type-check',
-    ]);
-
-    const nodeCalls = await readCalls<{ script: string }>(nodeCallsPath);
-    expect(nodeCalls.map((call) => call.script)).toEqual([
-      'validate-skill-versions.mjs',
-      'validate-internal-flags.mjs',
+      'validate:skill-versions',
+      'validate:internal-flags',
     ]);
   });
 
@@ -470,8 +437,6 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
     const root = await makeScratchHookRunRepo();
     const artifacts = await makeScratchArtifactDir();
     const callsPath = path.join(artifacts, 'calls.jsonl');
-    const nodeCallsPath = path.join(artifacts, 'node-calls.jsonl');
-    await stubPrePushNodeScripts(root, nodeCallsPath);
 
     const result = await run(
       'sh',
@@ -487,34 +452,30 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
     const calls = await readCalls(callsPath);
     // `type-check` (after the failing build:check) never runs — `set -e`.
     expect(calls.map((call) => call.step)).toEqual(['validate', 'build:check']);
-
-    const nodeCalls = await readCalls<{ script: string }>(nodeCallsPath);
-    expect(nodeCalls).toEqual([]);
   });
 
   it('pre-push propagates a failure from the skill-version validator', async () => {
     const root = await makeScratchHookRunRepo();
     const artifacts = await makeScratchArtifactDir();
     const callsPath = path.join(artifacts, 'calls.jsonl');
-    const nodeCallsPath = path.join(artifacts, 'node-calls.jsonl');
-    await stubPrePushNodeScripts(
-      root,
-      nodeCallsPath,
-      'validate-skill-versions.mjs',
-    );
 
     const result = await run(
       'sh',
       [path.join(realHooksDir, 'pre-push')],
       root,
-      pnpmStubEnv({ PNPM_STUB_CALLS_JSONL: callsPath }),
+      pnpmStubEnv({
+        PNPM_STUB_CALLS_JSONL: callsPath,
+        PNPM_STUB_FAIL_STEP: 'validate:skill-versions',
+      }),
     );
 
     expect(result.code).not.toBe(0);
-    const nodeCalls = await readCalls<{ script: string }>(nodeCallsPath);
-    // internal-flags validator never runs once skill-versions fails.
-    expect(nodeCalls.map((call) => call.script)).toEqual([
-      'validate-skill-versions.mjs',
+    const calls = await readCalls(callsPath);
+    expect(calls.map((call) => call.step)).toEqual([
+      'validate',
+      'build:check',
+      'type-check',
+      'validate:skill-versions',
     ]);
   });
 

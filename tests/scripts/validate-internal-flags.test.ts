@@ -6,15 +6,14 @@ import { promisify } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error The script helper is intentionally declaration-free; this test exercises the dev script directly.
-import { validateInternalFlags } from '../../scripts/validate-internal-flags.mjs';
+import { validateInternalFlags } from '../../scripts/validate-internal-flags.js';
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 const detectorScript = path.join(
   repoRoot,
   'scripts',
-  'validate-internal-flags.mjs',
+  'validate-internal-flags.ts',
 );
 
 const FLAGGED_SKILL = `---
@@ -105,13 +104,13 @@ describe('validateInternalFlags (detector)', () => {
 
       // All flagged -> exit 0.
       await expect(
-        execFileAsync('node', [detectorScript, skillsDir]),
+        execFileAsync('pnpm', ['exec', 'tsx', detectorScript, skillsDir]),
       ).resolves.toBeDefined();
 
       // Introduce an offender -> non-zero exit, names the offender.
       await writeSkill(skillsDir, 'bad', UNFLAGGED_SKILL);
       await expect(
-        execFileAsync('node', [detectorScript, skillsDir]),
+        execFileAsync('pnpm', ['exec', 'tsx', detectorScript, skillsDir]),
       ).rejects.toMatchObject({ code: 1 });
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
