@@ -1115,6 +1115,15 @@ must be reopened before any executor activation; the two final reviewers indepen
 confirmed this product-boundary rationale. With no Minor findings, the latest final
 review event advances to `passed`.
 
+**Implementation exit-gate resolution:** configured, blocking on Important or higher,
+maximum 2 review attempts. The fresh reviewed basis is `20e86a10` against
+`origin/main`, fingerprint
+`sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047`.
+The exact configured command is persisted with launch state `not_started`. Current
+target inventory and same-family avoidance select the available external Claude target
+`claude-fable-skip-permissions`; project handoff requires fresh user authorization
+before this external provider review is launched.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed

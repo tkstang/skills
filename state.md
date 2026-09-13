@@ -18,6 +18,42 @@ oat_dispatch_policy:
   mode: managed
   policy: frontier
   source: project-state
+oat_implement_exit_gate:
+  status: pending
+  resolution: configured
+  disposition: null
+  config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
+  resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
+  resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
+  project_override: null
+  on_failure: block
+  max_attempts: 2
+  attempts_completed: 0
+  reviewed_head: 20e86a100832b114a8aa3a20469b849de7ec7f45
+  implementation_base_ref: origin/main
+  implementation_fingerprint: sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047
+  freshness_head: 20e86a100832b114a8aa3a20469b849de7ec7f45
+  freshness_fingerprint: sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-09-13T03:22:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
