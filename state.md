@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 5765a239c941ffcec0ce73d06ea016ccca75c617
+oat_last_commit: eb99808556b0483471d54a159c9d4cb451ca7265
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 oat_orchestration_retry_limit: 3 # one explicit extra design review after the default retry budget found a residual FR9 contradiction
 oat_dispatch_policy:
   mode: managed
@@ -40,8 +40,8 @@ oat_implement_exit_gate:
   reviewed_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
-  freshness_head: 5765a239c941ffcec0ce73d06ea016ccca75c617
-  freshness_fingerprint: sha256:effective-delta-v1:d358ad979b1e4a83a86e9b446fe09509335b3445c3036ada3b27cbfd046c2a11
+  freshness_head: eb99808556b0483471d54a159c9d4cb451ca7265
+  freshness_fingerprint: sha256:effective-delta-v1:15ac8682ebe569643722079fc92389b9e81ef01caf628f259841b144f10ee9e7
   launch_state: result_persisted
   launch_attempt_id: 42417ad7-c826-40ec-b9bd-c83d6fedefa9
   launch_started_at: '2026-09-13T13:38:06Z'
@@ -61,13 +61,13 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T14:08:13Z'
+  updated_at: '2026-09-13T14:17:20Z'
 oat_post_implement_sequence:
-  status: pre_approval
+  status: awaiting_approval
   source: configured
   final_phase: p-rev1
   pre_approval: [summary, document, pr]
-  pre_approval_completed: [summary, document]
+  pre_approval_completed: [summary, document, pr]
   approval: pending
   approval_source: null
   post_approval: []
@@ -135,7 +135,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T14:08:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T14:17:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -155,22 +155,14 @@ oat_project_explainer:
 
 ## Current Phase
 
-Revision p-rev1 is the only active implementation phase. Seventeen tasks are implemented
-through `10d901e8`. The authorized fresh final review's Important continued-prefix
-workflow gap, Medium shared-cache policy leak, and Minor stale-docs gap are repaired as
-`prev1-t15` through `prev1-t17`. The additional standard final re-review passed with
-zero findings at `10d901e8`, and the final authorized Cursor Fable gate passed its
-Important threshold with no blocking findings. One Medium and two Minor gate findings
-are durably dispositioned without changing the reviewed feature head. The five
-inherited Medium deferrals retain their prior explicit dispositions under the paused-
-executor boundary. Pre-approval closeout and the final HiLL checkpoint remain.
-Guidance remains experimental and unreleased. The old executor remains incomplete,
-unverified, and paused.
-Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
-remain unresolved evidence, not blockers for read-only guidance. No cleanup targets
-are inferred; old p05 activation and p06 packaging tasks are superseded/unimplemented.
-The final-only HiLL checkpoint is configured for p-rev1 with automatic review. No
-further provider operation is authorized.
+Implementation — PR open; completion may run before or after merge. Revision p-rev1's
+seventeen tasks, additional standard final re-review, Cursor Fable exit gate, summary,
+repository-reference update, and final PR step are complete. PR #70 points at the clean
+feature head `eb998085`; concurrent follow-up-project commits remain outside the PR.
+The closeout sequence is awaiting the configured final HiLL approval. Guidance remains
+experimental and unreleased, and the retained executor remains incomplete, unverified,
+and paused. Historical provider-gate failures remain evidence rather than blockers for
+the read-only guidance. No further provider operation or cleanup is authorized.
 
 ## Artifacts
 
@@ -330,6 +322,8 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Run 28 aggregate verification: 1,866 tests passed, 1 skipped, 0 failed; all 209 handoff tests, type-check, generated parity, validate, smoke, authored lint/format, and diff hygiene passed
 - ✓ Root verification at merged head `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed; type-check, generated build parity, repository validation, smoke, plan validation, and diff hygiene passed
 - ⚠ Filesystem installation metadata on the Mini identifies active Codex 0.154.0 and Claude 2.1.270, not the pinned gate versions. A cached Codex 0.151.0 release exists; Claude 2.1.251 was not found in the checked installed-version directory. No provider executable was invoked to obtain this information.
+- ✓ Final PR #70 updated with the clean feature head `eb998085`, final title, and project-grounded body
+- ⧗ Awaiting final HiLL approval and human PR review
 
 ## Blockers
 
@@ -359,8 +353,9 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-Run the mandatory final lifecycle review over the completed revision, then resolve and
-run the configured implementation exit gate. If both pass, execute the configured
-pre-approval sequence and stop at the p-rev1 final HiLL approval boundary. Historical
-live provider gates remain paused and require separate authorization; no cleanup target
-is inferred from their old receipts.
+PR #70 is open for review. Record the configured p-rev1 final HiLL decision to finish
+implementation closeout.
+
+- To incorporate feedback: run `oat-project-revise`.
+- Complete before merge: run `oat-project-complete` now, then merge the PR.
+- Merge before completion: merge the PR, then run `oat-project-complete`.
