@@ -6,11 +6,11 @@ compatibility: Experimental and not released. Requires Node.js 22+ and local pro
 argument-hint: '[source-worktree] [destination-worktree]'
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Bash(node skills/coding-session-handoff/scripts/coding-session-handoff.mjs:*)
-version: '0.1.6'
+allowed-tools: Read, Bash(node <skill-dir>/scripts/coding-session-handoff.mjs:*)
+version: '0.1.7'
 metadata:
   author: thomas.stang
-  version: '0.1.6'
+  version: '0.1.7'
 ---
 
 # Coding Session Handoff
@@ -37,7 +37,7 @@ Use this skill for one of three entry points:
 2. Run read-only discovery:
 
    ```bash
-   node skills/coding-session-handoff/scripts/coding-session-handoff.mjs discover \
+   node <skill-dir>/scripts/coding-session-handoff.mjs discover \
      --source "/absolute/source/worktree" --provider all --json
    ```
 
@@ -47,7 +47,7 @@ Use this skill for one of three entry points:
 4. Offer a sanitized preview when it helps selection:
 
    ```bash
-   node skills/coding-session-handoff/scripts/coding-session-handoff.mjs preview \
+   node <skill-dir>/scripts/coding-session-handoff.mjs preview \
      --source "/absolute/source/worktree" \
      --session "codex:cli:00000000-0000-4000-8000-000000000001" --json
    ```
@@ -60,7 +60,7 @@ Use this skill for one of three entry points:
 6. Prepare the destination-side instructions with the matching entry point:
 
    ```bash
-   node skills/coding-session-handoff/scripts/coding-session-handoff.mjs prepare \
+   node <skill-dir>/scripts/coding-session-handoff.mjs prepare \
      --source "/absolute/source/worktree" \
      --target "/absolute/destination/worktree" \
      --session "claude:cli:00000000-0000-4000-8000-000000000002" \

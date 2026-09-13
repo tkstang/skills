@@ -221,6 +221,20 @@ describe('experimental guidance CLI', () => {
     }
   });
 
+  it('resolves every shipped command from the installed skill directory', async () => {
+    const skill = await readFile(
+      new URL('../../skills/coding-session-handoff/SKILL.md', import.meta.url),
+      'utf8',
+    );
+
+    expect(skill).not.toContain(
+      'node skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+    );
+    expect(
+      skill.match(/node <skill-dir>\/scripts\/coding-session-handoff\.mjs/gu),
+    ).toHaveLength(4);
+  });
+
   it('does not discover or preview a Cursor transcript through colliding lossy worktree slugs', async () => {
     const createdRoot = await mkdtemp(
       join(tmpdir(), 'handoff-cursor-collision-'),
