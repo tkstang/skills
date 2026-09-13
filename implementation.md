@@ -1297,6 +1297,14 @@ Fable gate attempt. No second extra attempt is authorized. All existing restrict
 on provider execution by the feature, global installation/sync, feature push, PR
 mutation, merge, cleanup, publication, and release remain.
 
+**Fix dispatch:** continuation `cont-handoff-real-store-fixes-1` resumed the existing
+`/root/handoff_revision_phase` implementer at feature head
+`b7a8d35f06acb0a850795e54ad40ea729caac8e5`. Exact target remains
+`oat-phase-implementer-gpt-5-6-sol-medium`, managed Frontier route level 0,
+default-implementation class. Authority is limited to the three tasks, declared
+tests/docs/generated outputs/version bumps, and t12/t13 artifact alignment.
+Dispatch: scope=p-rev1-real-store-fixes action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+
 ### Task prev1-t12: Make bounded discovery work on realistic stores
 
 **Status:** pending
