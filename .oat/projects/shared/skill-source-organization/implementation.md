@@ -10,7 +10,7 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-Not started. Project is active for planning review following the predecessor's merge and explicit user activation. The next planned task is p01-t01, but that pointer is not authorization to execute: plan self-review and the configured review gate remain pending.
+Not started. Project is active. Self-review and the configured Fable gate have run; the gate passed its Important threshold. The next planned task is p01-t01, but that pointer is not authorization to execute: remaining artifact-review dispositions are still open.
 
 ## Progress Overview
 
@@ -38,6 +38,8 @@ No implementation activity. On 2026-09-13, discovery/design were prepared, the u
 ## Deviations from Plan / Design
 
 None implemented. Observer plugin-local names may retain their full session- prefix if materially simpler, as allowed by the user; standalone names must retain it.
+
+On 2026-09-13 the user removed backward compatibility from the planned renames, rejecting its complexity/overhead. Discovery/design/plan now require no legacy aliases, redirects, wrappers or preserved old entrypoints. Historical version comparison remains a safety requirement, not a compatibility feature. The user approved planning one session-plugin export smoke in the existing packaging suite. No code/test implementation occurred. The root agreed a repeat gate was not warranted for these bounded edits; the original Fable pass is retained only for its actual reviewed basis. See plan.md's current disposition for remaining unapproved cleanup findings; the active review is not yet fully consumed.
 
 ## Test Results
 

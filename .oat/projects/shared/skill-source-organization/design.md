@@ -42,13 +42,13 @@ plugins/<plugin>/                 declared generated plugin installation units
 
 Keep canonical identity independent of the plugin-local name. Existing consensus-only skills can retain their present authored identity if unambiguous; assign full canonical names only where necessary to avoid collisions or support a declared standalone form. Do not rename all consensus skills merely for symmetry.
 
-Use one small repository distribution declaration, owned by the build tooling, for standalone selection and plugin membership/aliases. Plugin-specific authored manifests and CLI entrypoints stay with their plugin owner. Resolve declarations into one in-memory target list consumed by build, validation, versioning, release, and changed-file tooling. Do not persist a second registry/cache of that derived list.
+Use one small repository distribution declaration, owned by the build tooling, for standalone selection and plugin membership/local names. Plugin-specific authored manifests and CLI entrypoints stay with their plugin owner. Resolve declarations into one in-memory target list consumed by build, validation, versioning, release, and changed-file tooling. Do not persist a second registry/cache of that derived list. The user's 2026-09-13 decision removes backward compatibility: do not add an alias schema, legacy redirects/wrappers, old-name payloads, or preserved renamed entrypoints. Supported standalone and plugin-local names are product forms, not legacy aliases.
 
 ### Build flow
 
 Authored owners and declarations → resolve target names and runtime dependency closure → copy permitted resources and bundle declared entrypoints → validate staged installation units → compare for freshness or safely replace owned output.
 
-The existing generated-output pipeline remains the command owner. During migration, a temporary explicit legacy-owner mapping supports old paths and version baselines. Remove obsolete file-by-file mappings once all consumers move; do not retain two permanent builders.
+The existing generated-output pipeline remains the command owner. During migration, a temporary explicit legacy-owner mapping supports historical source paths and version baselines, not old user-facing commands. Remove obsolete file-by-file mappings once all consumers move; do not retain two permanent builders or ship transitional build adapters as compatibility payloads.
 
 ## Component Design
 
@@ -128,7 +128,7 @@ Keep the current source unit/integration tests and move skill-owned tests with t
 | Freshness/build failure loses or hides output | Extend existing generation tests with representative stale/missing/orphan, rejected-input, and failed-replacement cases |
 | Version migration bypasses guards | Extend existing version fixtures for old/new owner mapping, shared fan-out, local edit states, and missing base |
 
-Test each distinct installation contract, not the Cartesian product of every skill, alias, provider, and module. Cheap full-tree metadata/link/dependency scans can cover all declared outputs; executable fixtures cover distinct runtime boundaries. Use table-driven negative cases when they exercise different guard behavior, not separate harnesses.
+Test each distinct installation contract, not the Cartesian product of every skill, distribution name, provider, and module. Cheap full-tree metadata/link/dependency scans can cover all declared outputs; executable fixtures cover distinct runtime boundaries. In p03-t01, execute the real session plugin's export-transcript entrypoint outside the checkout with fake HOME and synthetic input in the existing packaging suite. Use table-driven negative cases when they exercise different guard behavior, not separate harnesses.
 
 Do not snapshot whole prompts/docs, add prose-string locks, fabricate golden transcripts, repeat paid native-session gates, or introduce coverage-percentage targets. A manual fresh-agent handoff example is useful behavioral evidence; no custom LLM evaluator is required. Preserve the private promotion record's still-pending readiness checks and obtain authorization before live/provider discovery work.
 
@@ -142,7 +142,7 @@ At implementation closeout run existing type-check, build:check, validate, sourc
 
 - Outcome: one authored owner, multiple plugin/standalone distributions, agreed names, and public handoff promotion.
 - Hard constraints: issue #74 packaging/version safety; dependency-free shipped runtime; explicit workflow prerequisites; planning only until review readiness.
-- Acceptance criteria: discovery's distribution, ownership, compatibility, and migration outcomes.
+- Acceptance criteria: discovery's distribution, ownership, clean-break naming, and migration outcomes.
 - Minimum proof: existing regression suites plus representative isolated installations and focused failure/version cases.
 
 ### Simplest Viable Solution

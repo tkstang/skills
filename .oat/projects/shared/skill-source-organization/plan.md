@@ -46,6 +46,8 @@ oat_template: true
 
 Standalone observer names always retain session-. The user also permits full session-observer/session-observer-collab plugin-local names if materially simpler; default to the short names and record any use of that fallback. Existing consensus-local names remain unchanged. Every plugin skill can opt into standalone output through configuration; do not advertise an unconfigured output.
 
+Clean-break renames, confirmed by the user on 2026-09-13: no backward compatibility for old skill names, install paths, or renamed script entrypoints. Do not add legacy alias declarations, redirects, wrappers, or duplicate generated payloads. Update maintained documentation and references to the new names; a migration note is not a compatibility mechanism. Retain historical old-to-new owner/version mapping solely for version validation. Temporary internal build adapters, if needed between migration commits, must be removed before the public milestone and are not shipped compatibility layers.
+
 Shared script imports are bundled/materialized into each installation unit. A genuine installed-skill prerequisite is declared and checked, not auto-installed. Observer-collab requires observer; handoff's observer/export integrations remain optional.
 
 ## Verification and Formatting Contract
@@ -70,7 +72,7 @@ Sequential: p01 establishes build/version compatibility, p02 moves owners and re
 
 **Files:** Create migration-inventory.md in this project; update this plan only for verified path drift. Read issue #74, root AGENTS, current build/discovery/version tooling, all current canonical SKILL.md files, provider catalogs/manifests, install.sh, and personal-skills source/ownership declarations.
 
-**Implement:** Verify the current handoff project's merge and active execution authority. Record actual base/head and a compact old-owner → new-owner → output/name/version map. Include skill-owned versus shared/plugin tests, executable/resource paths, published compatibility obligations, existing consensus CLI entrypoints, and any retained experimental tooling under tools/coding-session-handoff. No code move yet. Confirm the source revisions and licenses for handoff and complexity-review. The inventory must cover every current product skill, not upstream OAT tooling.
+**Implement:** Verify the current handoff project's merge and active execution authority. Record actual base/head and a compact old-owner → new-owner → output/name/version map. Include skill-owned versus shared/plugin tests, executable/resource paths, references requiring the clean-break rename, existing consensus CLI entrypoints, and any retained experimental tooling under tools/coding-session-handoff. Do not inventory backward-compatibility obligations or design a legacy support layer. No code move yet. Confirm the source revisions and licenses for handoff and complexity-review. The inventory must cover every current product skill, not upstream OAT tooling.
 
 **Format:** Use the project-artifact formatting command above for migration-inventory.md and any amended plan.
 
@@ -98,7 +100,7 @@ Keep the legacy file table only as a bounded bridge for not-yet-moved owners; on
 
 **Files:** Extend tests/tooling/skill-packaging.test.ts and existing tests/helpers only where reusable setup is absent; update build declarations/compatibility bridge only for fixture-exposed defects.
 
-**Implement:** Test the new source layout in temporary fixture roots using current real skill/resource/runtime inputs: complexity-review (prompt-only), export (executable with shared transcript code), a standalone-configured consensus consumer requiring its helper/CLI closure, and the complete consensus plugin. Execute installed .mjs from outside the checkout with fake HOME, synthetic input, and deterministic provider stubs. Establish that multiple declared plugin units and target aliases are handled; p03 supplies the real session plugin.
+**Implement:** Test the new source layout in temporary fixture roots using current real skill/resource/runtime inputs: complexity-review (prompt-only), export (executable with shared transcript code), a standalone-configured consensus consumer requiring its helper/CLI closure, and the complete consensus plugin. Execute installed .mjs from outside the checkout with fake HOME, synthetic input, and deterministic provider stubs. Establish that multiple declared plugin units and target-local names are handled; p03 supplies the real session plugin. No legacy alias cases are required.
 
 Assert no sibling-install/checkout imports, valid resource links, and full output containment. Keep cheap inventory checks separate from representative execution. A future new runtime boundary warrants another case, not another matrix dimension.
 
@@ -172,13 +174,13 @@ CI checks committed freshness without first repairing it, resolves the actual PR
 
 **Implement:** Apply the Product Contract table. Observer/collab keep session- standalone names and join consensus; export/fork join session while remaining standalone. Existing consensus names stay unchanged. Rewrite only explicit target references, not ordinary prose. Preserve experimental status and the current merged fork guidance behavior.
 
-Provide narrow generated compatibility redirects/aliases for actual published old export/fork names and install paths identified at kickoff; no second authored copy. Preserve old script entrypoints where externally documented, or give an explicit supported transition. Add both plugins to supported manifest/catalog surfaces and ensure release tooling has no consensus-only assumptions. Keep standalone eligibility opt-in but demonstrate one real consensus consumer can be configured without bespoke build code.
+Make the export/fork renames a clean break: remove superseded generated product paths through the builder's owned-output replacement, update maintained references and document the new names. Do not preserve old script entrypoints or generate legacy aliases/redirects/wrappers. Add both plugins to supported manifest/catalog surfaces and ensure release tooling has no consensus-only assumptions. Keep standalone eligibility opt-in but demonstrate one real consensus consumer can be configured without bespoke build code.
 
 **Format:** pnpm exec oxfmt --write on the explicit authored catalog, source skill/resource, manifest and named test files. Run pnpm run build.
 
-**Verify:** pnpm exec vitest run tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/repo/marketplace-manifests.test.ts tests/release/versioning.test.ts tests/consensus/install-sh.test.ts tests/tooling/skill-packaging.test.ts; pnpm run validate; pnpm run build:check. Inspect all target names/resources and both complete-plugin inventories. Preserve the pinned recovery installer behavior; do not infer live provider discovery from static success.
+**Verify:** pnpm exec vitest run tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/repo/marketplace-manifests.test.ts tests/release/versioning.test.ts tests/consensus/install-sh.test.ts tests/tooling/skill-packaging.test.ts; pnpm run validate; pnpm run build:check. Extend the existing packaging suite with one real session-plugin export-transcript execution from a temporary installation outside the checkout, using fake HOME/config and synthetic input. Verify installed resources resolve without checkout or sibling-install imports; use deterministic provider stubs only if needed, never a live provider. Inspect all target names/resources and both complete-plugin inventories, including absence of superseded old-name product outputs. Preserve the pinned recovery installer behavior; do not infer live provider discovery from static success.
 
-**Commit:** feat(p03-t01): group session operations and generate standalone aliases
+**Commit:** feat(p03-t01): group session operations and generate standalone forms
 
 ### Task p03-t02: Promote portable session-handoff without adding an engine
 
@@ -226,7 +228,7 @@ CLI-backed operations resolve installed helper paths, reliable minimum versions 
 
 **Files:** README.md, CONTRIBUTING.md, RELEASING.md, root AGENTS/CLAUDE contract as needed, documentation/docs/user-guide/installation.md and affected skill/consensus/session maps/pages, documentation/docs/engineering/repository-layout.md and affected architecture/contributing pages, documentation/index.md (generated), existing docs/layout checks.
 
-**Implement:** Use oat-project-document and documentation/AGENTS.md, obtain its required concise recommendation approval, then update the maintained site and lean README. Explain multi-plugin and opt-in standalone patterns, short/full names, required versus shared-code dependencies, install links, compatibility bridges, source colocation/build declarations, generated outputs, independent plugin releases, and sole metadata.version policy. Document private-owner transitions and either/or installation guidance unless co-installation was actually verified.
+**Implement:** Use oat-project-document and documentation/AGENTS.md, obtain its required concise recommendation approval, then update the maintained site and lean README. Explain multi-plugin and opt-in standalone patterns, short/full names, required versus shared-code dependencies, install links, clean-break renames without old-name support, source colocation/build declarations, generated outputs, independent plugin releases, and sole metadata.version policy. Document private-owner transitions and either/or installation guidance unless co-installation was actually verified.
 
 Preserve authored Contents navigation, regenerate the Fumadocs index through its owner, and keep dated evidence in this project. Do not turn static output checks into claims of marketplace/live discovery or mature fork support.
 
@@ -240,7 +242,7 @@ Preserve authored Contents navigation, regenerate the Fumadocs index through its
 
 **Files:** Create validation.md in this project; update implementation.md and state.md with actual outcomes; narrow source/test fixes only through separately identified follow-up tasks when required.
 
-**Implement:** Confirm all p01–p03/p04-t01 changes and declared outputs, source test migration completeness, transitive version guard/backlog closure, compatibility bridges, and both plugins. Run one full closeout sweep and record static, isolated-artifact, behavioral, and live-release evidence separately. Apply complexity-review to the effective migration delta: remove duplicated test infrastructure and justify any new machinery by a real contract.
+**Implement:** Confirm all p01–p03/p04-t01 changes and declared outputs, source test migration completeness, transitive version guard/backlog closure, clean-break renames with no legacy support layer, and both plugins. Run one full closeout sweep and record static, isolated-artifact, behavioral, and live-release evidence separately. Apply complexity-review to the effective migration delta: remove duplicated test infrastructure and justify any new machinery by a real contract.
 
 Run the required independent review of the whole public code delta and receive its findings before publication; root review alone is not final gate evidence. Use oat-project-pr-progress for the public milestone when publication is authorized. Project stays incomplete with p05 pending; get explicit merge approval. Missing live promotion/readiness evidence remains an honest release limitation or an authorization-bound blocker, never an inferred pass.
 
@@ -287,7 +289,7 @@ Existing scaffold rows are preserved. Spec is intentionally absent in quick mode
 
 ### Plan Self-Review: 2026-09-13
 
-Structured review completed: 0 Critical, 0 Important, 3 Medium, 0 Minor. No review artifact was written by the read-only reviewer. The Medium refinements were offered; no user selection has been received, so they remain unresolved and were not silently applied. The separately authorized gate will assess this unchanged task contract; a threshold pass alone does not settle these findings or establish readiness.
+Structured review completed: 0 Critical, 0 Important, 3 Medium, 0 Minor. No review artifact was written by the read-only reviewer. These are the original findings; the subsequent gate reviewed that task contract. See the current disposition below for the user's decisions. A threshold pass alone does not settle remaining findings or establish readiness.
 
 - M1: Explicitly execute one real session-plugin entrypoint outside the checkout in p03-t01's existing packaging suite, closing the design's distinct-runtime-layout proof.
 - M2: Assign CHANGELOG.md to p04-t01 with the existing changelog convention, formatting and verification.
@@ -303,7 +305,7 @@ Parent model/effort were unavailable as launcher evidence, so the exact-ceiling 
 
 The configured Claude Fable gate passed its Important threshold: 0 Critical, 0 Important, 3 Medium, 3 Minor. The structured result is ok and receive-eligible, with matching project, run and configured invocation corroboration. The reviewer ran inline through the validated headless route and reported no nested reconnaissance. This is configured Fable invocation evidence, not independent runtime-model telemetry; automated diversity attribution reported unknown producer.
 
-The active review above remains received, not consumed or clean-passed. Artifact edits require user confirmation under oat-project-review-receive. Proposed dispositions, all awaiting that confirmation:
+The active review above remains received, not fully consumed or clean-passed. Artifact edits require user confirmation under oat-project-review-receive. The initial proposed dispositions below are historical; the current user disposition supersedes them:
 
 - Gate M1 / self-review M1 (Minor task scope): resolve in p03-t01 with one real session-plugin export smoke in the existing packaging suite; no extra matrix.
 - Gate M2 / self-review M2 (Minor task scope): assign the existing CHANGELOG.md Unreleased record to p04-t01, with formatting and inspection.
@@ -312,7 +314,16 @@ The active review above remains received, not consumed or clean-passed. Artifact
 - Gate m2 (Negligible task scope): clarify the artifact-less self-review ledger convention; preserve both review events.
 - Gate m3 / self-review M3 (Minor task scope): require p01-t01 to emit explicit per-task formatter path lists and make the formatting recipes directly runnable. This closes the same issue even though the two reviewers assigned different severities.
 
-No new implementation tasks or source edits have been made. Keep plan readiness unset until review disposition is settled; after substantive plan edits, re-review and re-gate the changed basis within the configured bounds.
+No new implementation tasks or source edits have been made. Keep plan readiness unset until the remaining review disposition is settled. The following user disposition supersedes the proposed automatic re-review/re-gate step for these bounded edits.
+
+### Current User Disposition: 2026-09-13
+
+- Gate M1 / self-review M1: resolve_in_artifact. User approved the single session-plugin test; p03-t01 now explicitly plans one outside-checkout export-transcript smoke inside the existing packaging suite. The test is planned, not implemented or run.
+- Gate M3: rejected_with_rationale under the revised requirement. The user explicitly rejected backward compatibility as unnecessary complexity and overhead. Discovery, design, Product Contract and execution tasks now require a clean break, with no legacy aliases, redirects, wrappers or old entrypoints. The earlier finding was valid against the earlier requirement; that requirement has been removed rather than implemented with more machinery.
+- Gate M2, m1, m2, m3 / self-review M2, M3: needs_user_direction. Changelog ownership and the previously proposed formatting/path/ledger cleanups remain unchanged; the user's latest message specifically approved the test and removed compatibility work, not these other edits. Do not silently mark them resolved or default-defer them.
+- Re-execution: the user questioned the value of another gate for this change; the root agrees that this scope reduction and one explicit existing-suite smoke do not warrant another provider review. No reviewer or gate is launched for these edits, and no persistent gate configuration is disabled. The prior Fable threshold pass applies to the reviewed basis at 001af602, not the updated artifacts. These edits are user-directed and locally checked, not newly independently reviewed. Any later material expansion requires its own review judgment.
+
+The active gate artifact remains in reviews/ while receipt is partial. Task count stays 14 and implementation remains unstarted.
 
 ## Implementation Complete
 

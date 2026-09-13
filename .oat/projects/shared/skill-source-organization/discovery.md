@@ -52,7 +52,7 @@ Qualified invocation follows each host's supported namespace; this table specifi
 3. **Safeguards:** observer-collab explicitly requires observer today. Preserve that workflow prerequisite, recognize supported standalone/plugin installations, and stop with the canonical skill name and install link when unavailable. Do not copy the other skill's workflow or guess availability.
 4. **Promotion:** Move portable handoff ownership to this public repo, preserving attribution, useful assets, version lineage, and behavior. Coordinate the personal-skills consumer through its existing external-source mechanism; do not leave two editable owners or silently replace user installations.
 5. **Versions:** Migrate to issue #74's quoted stable metadata.version as the sole authored field. One skill version applies across its generated forms. Plugin release versions are independent. Renames must preserve historical comparison; shared-code changes must reach all affected owners.
-6. **Compatibility:** Cover old names/install paths, references, provider manifests, discovery, pinned recovery installation, and releases together. Prefer a narrow deprecation bridge where needed, not duplicate maintained implementations. Do not assume plugin-plus-standalone installations are deduplicated by hosts.
+6. **Clean-break renames (user decision, 2026-09-13):** No backward compatibility for renamed skills, old installation paths, or old script entrypoints. Do not generate legacy aliases, redirects, wrappers, or duplicate payloads. Update maintained references, provider manifests, discovery and installation documentation to the new names together. Existing unrelated consensus behavior and pinned recovery installation remain in scope. Do not assume plugin-plus-standalone installations are deduplicated by hosts.
 7. **Behavior:** Portable handoff remains agent-to-agent context transfer. Fork-to-destination preserves the guidance contract actually merged by the current project. Packaging does not resurrect native-identity automation or claim unsupported Cursor fork capabilities.
 
 ## Constraints
@@ -102,7 +102,7 @@ Dated local baseline: skills commit 10d901e8afb3217db9855fa48c7e83f4f02c8e6c, in
 
 - Names/grouping are settled. Exact manifest spelling and rendering mechanics are engineering choices, not another product interview.
 - Kickoff must verify final merged fork behavior and the promotion source; installed user copies are not canonical baselines.
-- Derive compatibility bridges from actual published contracts. If a host cannot resolve a prerequisite across package forms, document the supported route and stop rather than invent success.
+- Renamed skills have a clean break; documentation names the replacements without retaining old entrypoints. Historical owner/version comparison is still required for version safety, not backward compatibility. If a host cannot resolve a prerequisite across package forms, document the supported route and stop rather than invent success.
 - Public promotion needs attribution/license reconciliation and an explicit separate personal-skills cutover before its authored owner is retired.
 
 ## Risks

@@ -30,7 +30,7 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** Active planning; self-review complete and Fable gate passed its Important threshold. Artifact refinements await user confirmation; plan is not yet implementation-ready. Implementation not started.
+**Status:** Active planning; self-review complete and Fable gate passed its Important threshold. User removed backward compatibility and approved the session-plugin smoke; those plan edits are applied without another gate. Other proposed cleanup dispositions remain open. Implementation not started.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
@@ -68,13 +68,13 @@ These are intentional sequencing conditions, not failed technical checks. Do not
 
 ## Next Milestone
 
-Confirm proposed artifact refinements recorded in plan.md, apply approved changes, then re-review/re-gate the updated basis within the remaining bounds. Keep the project active; do not start implementation as part of the review request.
+Settle the remaining changelog/formatting/path/ledger cleanup dispositions recorded in plan.md. Do not automatically repeat the plan gate for the approved scope reduction and test clarification; the root agreed with the user's concern about unnecessary gate overhead. Keep the project active; do not start implementation as part of the review request.
 
 ## Planning Settings and Review Status
 
 - User selected the managed High project ceiling on 2026-09-13. Reviewer preflight resolves High to oat-reviewer-gpt-5-6-sol-high with a complete ladder. The separate user-level Codex Frontier ladder update does not raise this project's ceiling.
 - A qualifying independent phase-review target exists. The optional All phases / Selected phases / Disabled question was offered; no selection has been recorded or enablement invented. The plan's p05 is post-merge follow-through; any selected phase IDs must be validated against all five final phases.
 - User-configured lifecycle gates exist for quick-start, implement, plan, and import-plan. The user explicitly authorized the current quick-start plan gate; no project overrides have been written. Lite has no configured gate.
-- Automatic plan artifact review completed with 0 Critical, 0 Important, 3 Medium, 0 Minor findings; plan.md records the findings and exact dispatch stamp. Medium edits were offered but remain unapplied without a user selection. The configured quick-start exit gate is next; it does not by itself resolve these self-review findings.
-- The first configured quick-start gate subsequently completed on claude-fable-skip-permissions (model fable, provider-default effort): 0 Critical, 0 Important, 3 Medium, 3 Minor; exit 0, status ok, receiveEligible true, matching run/project/invocation. Its active review is committed and linked in the plan. Artifact receipt pauses for explicit edit confirmation under oat-project-review-receive; no findings were silently discarded. Self-review has two rewrite cycles available; one of two configured gate attempts has run.
+- Automatic plan artifact review completed with 0 Critical, 0 Important, 3 Medium, 0 Minor findings; plan.md records the findings and exact dispatch stamp. Self-review M1 is now resolved in the plan with the user-approved test; M2/M3 remain open. This is artifact receipt, not a new reviewer pass.
+- The first configured quick-start gate completed on claude-fable-skip-permissions (model fable, provider-default effort): 0 Critical, 0 Important, 3 Medium, 3 Minor; exit 0, status ok, receiveEligible true, matching run/project/invocation. Its active review is committed and linked in the plan. Gate M1 is resolved in the artifact; M3 is rejected under the user's superseding no-compatibility requirement; the other findings remain open under oat-project-review-receive. One gate attempt ran against 001af602. No new provider review is claimed or scheduled for these bounded user-directed edits; persistent gate configuration is unchanged.
 - The inherited empty implementation HiLL phase list was scaffold output, not a confirmed user selection, and was removed from plan.md. Implementation must confirm checkpoints at kickoff; this does not alter optional independent phase-gate settings.
