@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-generated.mjs",
-    "build:check": "node scripts/build-generated.mjs --check",
+    "build": "tsx scripts/build-generated.ts",
+    "build:check": "tsx scripts/build-generated.ts --check",
     "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
     "test": "pnpm run test:vitest",
     "test:vitest": "node scripts/run-vitest.mjs",
@@ -36,6 +36,7 @@
     "lint-staged": "^17.0.7",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.69.0",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },

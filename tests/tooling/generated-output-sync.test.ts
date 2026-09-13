@@ -5,8 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import lintStagedConfig from '../../.lintstagedrc.mjs';
-// @ts-expect-error No type declarations; this test exercises the shipped artifact.
-import { generatedOutputs } from '../../scripts/build-generated.mjs';
+import { generatedOutputs } from '../../scripts/build-generated.js';
 
 const repoRoot = new URL('../..', import.meta.url);
 const generatedOutputPaths = generatedOutputs.map(
@@ -112,7 +111,7 @@ describe('generated output drift guard', () => {
 
   it('declares source to generated-output mappings', async () => {
     const script = await readFile(
-      new URL('../../scripts/build-generated.mjs', import.meta.url),
+      new URL('../../scripts/build-generated.ts', import.meta.url),
       'utf8',
     );
 
@@ -301,7 +300,7 @@ describe('generated output drift guard', () => {
         source: contract.source,
         output: contract.output,
       });
-      expect(mapping.importRewrites).toEqual(contract.importRewrites);
+      expect(mapping!.importRewrites).toEqual(contract.importRewrites);
 
       const output = await readFile(
         new URL(`../../${contract.output}`, import.meta.url),
@@ -369,7 +368,10 @@ describe('generated output drift guard', () => {
       );
       expect(mapping).toBeDefined();
 
-      const wrapperOutput = new URL(`../../${mapping.output}`, import.meta.url);
+      const wrapperOutput = new URL(
+        `../../${mapping!.output}`,
+        import.meta.url,
+      );
       const text = await readFile(wrapperOutput, 'utf8');
 
       expect(text).not.toContain("from '../core/consensus-loop.js'");

@@ -3,7 +3,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.mts'],
+    include: [
+      'tests/**/*.test.ts',
+      'tests/**/*.test.mts',
+      'src/**/*.test.ts',
+      'src/**/*.test.mts',
+    ],
     // Some integration tests spawn subprocesses or drive real timers; under a
     // saturated parallel run their ~1-3s of work can be starved past a tight
     // budget. 30s gives headroom without masking genuine hangs; fast unit tests

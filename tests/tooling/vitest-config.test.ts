@@ -12,6 +12,8 @@ describe('vitest tooling', () => {
     expect(vitestConfig.test?.include).toEqual([
       'tests/**/*.test.ts',
       'tests/**/*.test.mts',
+      'src/**/*.test.ts',
+      'src/**/*.test.mts',
     ]);
   });
 
