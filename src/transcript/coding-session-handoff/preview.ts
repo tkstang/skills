@@ -100,7 +100,7 @@ function diagnosticFailure(
   }
 }
 
-function conversationEntries(
+export function sanitizePreviewConversationEntries(
   runtime: Runtime,
   entries: readonly DigestEntry[],
 ): PreviewEntry[] {
@@ -322,7 +322,7 @@ export async function previewHandoffCandidates(
       includeCommandMessages: false,
     });
     const limited = limitConversation(
-      conversationEntries(source.runtime, normalized),
+      sanitizePreviewConversationEntries(source.runtime, normalized),
       sessionLimits,
     );
     aggregateRenderedCharacters += limited.renderedCharacters;

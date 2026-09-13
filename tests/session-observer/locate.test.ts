@@ -1732,6 +1732,59 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
   });
 });
 
+test('cursor: exact-all includes old sessions while default discovery remains recent-only', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'missing-project');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      'Users-test-Code-old-cursor-project',
+      'agent-transcripts',
+      'session-old-exact',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+    const staleTime = Date.now() / 1000 - 30 * 86400;
+    await utimes(transcriptPath, staleTime, staleTime);
+
+    expect(await discover('cursor', targetCwd)).toEqual([]);
+    await expect(
+      discover(
+        'cursor',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({ sessionId: 'session-old-exact' }),
+    ]);
+  });
+});
+
+test('cursor: exact-all honors the caller aggregate byte budget', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cursor-budget');
+    await writeCursorTranscriptForCwd(home, targetCwd, 'session-budget');
+
+    await expect(
+      discover('cursor', targetCwd, new ClassificationCache(), {
+        ...exactReadOnlyDiscovery,
+        budget: {
+          maxEntries: 100,
+          maxAggregateBytes: 1,
+          maxMetadataBytesPerEntry: 1024,
+          deadlineMs: 10_000,
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED',
+    });
+  });
+});
+
 test('cursor identity: direct and fallback evidence remain diagnostic without an exact session signal', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'identity-project');

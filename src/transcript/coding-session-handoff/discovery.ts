@@ -83,29 +83,33 @@ export class HandoffDiscoveryError extends Error {
 const DEFAULT_DEPENDENCIES: HandoffDiscoveryDependencies = {
   discover,
   canonicalize: async (path) => realpath(path).catch(() => null),
-  readCodexNativeId: async (candidate) => {
-    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
-      maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
-      maxRecords: 128,
-      diagnostic: () => {},
-    });
-    if (bounded.incomplete) return null;
-    const meta = extractMetaFromRecords(
-      'codex',
-      bounded.records,
-      candidate.transcriptPath,
-    );
-    if (
-      meta === null ||
-      meta.sessionId !== candidate.sessionId ||
-      meta.nativeSessionId === undefined ||
-      meta.nativeSessionId.length === 0
-    ) {
-      return null;
-    }
-    return meta.nativeSessionId;
-  },
+  readCodexNativeId: readExactCodexNativeId,
 };
+
+export async function readExactCodexNativeId(
+  candidate: TranscriptCandidate,
+): Promise<string | null> {
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+    maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+    maxRecords: 128,
+    diagnostic: () => {},
+  });
+  if (bounded.incomplete) return null;
+  const meta = extractMetaFromRecords(
+    'codex',
+    bounded.records,
+    candidate.transcriptPath,
+  );
+  if (
+    meta === null ||
+    meta.sessionId !== candidate.sessionId ||
+    meta.nativeSessionId === undefined ||
+    meta.nativeSessionId.length === 0
+  ) {
+    return null;
+  }
+  return meta.nativeSessionId;
+}
 
 function candidateSignature(candidate: SessionCandidate): string {
   return JSON.stringify([

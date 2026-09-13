@@ -645,7 +645,7 @@ async function* collectCursorAgentTranscripts(transcriptsRoot, budget, expectedS
     }
   }
 }
-async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget) {
+async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget, exactBudget = null, diagnostic) {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -657,7 +657,14 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
   budget.reserveBytes(resolvedStat.size);
-  const derived = await candidateDerivedFields(
+  const derived = exactBudget ? await candidateDerivedFieldsBounded(
+    "cursor",
+    transcriptPath,
+    resolvedStat,
+    cache,
+    exactBudget,
+    diagnostic
+  ) : await candidateDerivedFields(
     "cursor",
     transcriptPath,
     resolvedStat,
@@ -677,7 +684,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     ...engagementCandidateFields(derived.classification)
   };
 }
-async function discoverCursor(targetCwd, cache) {
+async function discoverCursor(targetCwd, cache, options) {
   const [projectsRoot] = discoverPaths("cursor");
   const normalizedTargetCwd = resolve(targetCwd);
   const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
@@ -703,7 +710,15 @@ async function discoverCursor(targetCwd, cache) {
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
-  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
+  const exactBudget = exactAllBudget("cursor", options);
+  const budget = new CursorDiscoveryBudget(
+    exactBudget ? {
+      maxEntries: exactBudget.limits.maxEntries,
+      maxElapsedMs: exactBudget.limits.deadlineMs,
+      maxBytes: exactBudget.limits.maxAggregateBytes,
+      maxRetainedCandidates: exactBudget.limits.maxEntries
+    } : cursorDiscoveryTestOptions
+  );
   for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, "agent-transcripts");
     for await (const transcriptPath of collectCursorAgentTranscripts(
@@ -724,7 +739,9 @@ async function discoverCursor(targetCwd, cache) {
         },
         null,
         cache,
-        budget
+        budget,
+        exactBudget,
+        options?.diagnostic
       );
       if (candidate) candidates.push(candidate);
     }
@@ -759,7 +776,7 @@ async function discoverCursor(targetCwd, cache) {
         continue;
       }
       const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
-      if (mtime < cutoffSec) continue;
+      if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
       const candidate = await cursorCandidate(
         transcriptPath,
         now,
@@ -770,7 +787,9 @@ async function discoverCursor(targetCwd, cache) {
         },
         fileStat,
         cache,
-        budget
+        budget,
+        exactBudget,
+        options?.diagnostic
       );
       if (candidate) candidates.push(candidate);
     }
@@ -1117,7 +1136,7 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
     return discoverClaudeCode(targetCwd, cache, options);
   }
   if (runtime === "codex") return discoverCodex(targetCwd, cache, options);
-  if (runtime === "cursor") return discoverCursor(targetCwd, cache);
+  if (runtime === "cursor") return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 async function findSessionCandidate(runtime, targetCwd, sessionId, options) {

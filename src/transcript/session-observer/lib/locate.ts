@@ -1095,6 +1095,8 @@ async function cursorCandidate(
   fileStat: Stats | null,
   cache: ClassificationCache,
   budget: CursorDiscoveryBudget,
+  exactBudget: ExactAllDiscoveryBudget | null = null,
+  diagnostic?: DiscoveryOptions['diagnostic'],
 ): Promise<TranscriptCandidate | null> {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
@@ -1113,12 +1115,21 @@ async function cursorCandidate(
   // read, so an over-budget candidate fails before body classification.
   budget.reserveBytes(resolvedStat.size);
 
-  const derived = await candidateDerivedFields(
-    'cursor',
-    transcriptPath,
-    resolvedStat,
-    cache,
-  );
+  const derived = exactBudget
+    ? await candidateDerivedFieldsBounded(
+        'cursor',
+        transcriptPath,
+        resolvedStat,
+        cache,
+        exactBudget,
+        diagnostic,
+      )
+    : await candidateDerivedFields(
+        'cursor',
+        transcriptPath,
+        resolvedStat,
+        cache,
+      );
   budget.checkTime();
 
   return {
@@ -1147,6 +1158,7 @@ async function cursorCandidate(
 async function discoverCursor(
   targetCwd: string,
   cache: ClassificationCache,
+  options?: DiscoveryOptions,
 ): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
   const normalizedTargetCwd = resolve(targetCwd);
@@ -1177,7 +1189,17 @@ async function discoverCursor(
 
   const candidates: TranscriptCandidate[] = [];
   const seenTranscripts = new Set<string>();
-  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
+  const exactBudget = exactAllBudget('cursor', options);
+  const budget = new CursorDiscoveryBudget(
+    exactBudget
+      ? {
+          maxEntries: exactBudget.limits.maxEntries,
+          maxElapsedMs: exactBudget.limits.deadlineMs,
+          maxBytes: exactBudget.limits.maxAggregateBytes,
+          maxRetainedCandidates: exactBudget.limits.maxEntries,
+        }
+      : cursorDiscoveryTestOptions,
+  );
 
   // Cursor direct lookup is intentionally transcript-based, not directory-based:
   // an encoded project dir can exist before it contains usable agent JSONL, so
@@ -1205,6 +1227,8 @@ async function discoverCursor(
         null,
         cache,
         budget,
+        exactBudget,
+        options?.diagnostic,
       );
       if (candidate) candidates.push(candidate);
     }
@@ -1245,7 +1269,7 @@ async function discoverCursor(
       }
 
       const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
-      if (mtime < cutoffSec) continue;
+      if (options?.recency !== 'exact-all' && mtime < cutoffSec) continue;
 
       const candidate = await cursorCandidate(
         transcriptPath,
@@ -1258,6 +1282,8 @@ async function discoverCursor(
         fileStat,
         cache,
         budget,
+        exactBudget,
+        options?.diagnostic,
       );
       if (candidate) candidates.push(candidate);
     }
@@ -1733,7 +1759,7 @@ export async function discover(
     return discoverClaudeCode(targetCwd, cache, options);
   }
   if (runtime === 'codex') return discoverCodex(targetCwd, cache, options);
-  if (runtime === 'cursor') return discoverCursor(targetCwd, cache);
+  if (runtime === 'cursor') return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 

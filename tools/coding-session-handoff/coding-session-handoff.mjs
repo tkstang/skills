@@ -1854,7 +1854,7 @@ async function* collectCursorAgentTranscripts(transcriptsRoot, budget, expectedS
     }
   }
 }
-async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget) {
+async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget, exactBudget = null, diagnostic) {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -1866,7 +1866,14 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
   budget.reserveBytes(resolvedStat.size);
-  const derived = await candidateDerivedFields(
+  const derived = exactBudget ? await candidateDerivedFieldsBounded(
+    "cursor",
+    transcriptPath,
+    resolvedStat,
+    cache,
+    exactBudget,
+    diagnostic
+  ) : await candidateDerivedFields(
     "cursor",
     transcriptPath,
     resolvedStat,
@@ -1886,7 +1893,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     ...engagementCandidateFields(derived.classification)
   };
 }
-async function discoverCursor(targetCwd, cache) {
+async function discoverCursor(targetCwd, cache, options) {
   const [projectsRoot] = discoverPaths("cursor");
   const normalizedTargetCwd = resolve(targetCwd);
   const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
@@ -1912,7 +1919,15 @@ async function discoverCursor(targetCwd, cache) {
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
-  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
+  const exactBudget = exactAllBudget("cursor", options);
+  const budget = new CursorDiscoveryBudget(
+    exactBudget ? {
+      maxEntries: exactBudget.limits.maxEntries,
+      maxElapsedMs: exactBudget.limits.deadlineMs,
+      maxBytes: exactBudget.limits.maxAggregateBytes,
+      maxRetainedCandidates: exactBudget.limits.maxEntries
+    } : cursorDiscoveryTestOptions
+  );
   for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join2(projectsRoot, encoded, "agent-transcripts");
     for await (const transcriptPath of collectCursorAgentTranscripts(
@@ -1933,7 +1948,9 @@ async function discoverCursor(targetCwd, cache) {
         },
         null,
         cache,
-        budget
+        budget,
+        exactBudget,
+        options?.diagnostic
       );
       if (candidate) candidates.push(candidate);
     }
@@ -1968,7 +1985,7 @@ async function discoverCursor(targetCwd, cache) {
         continue;
       }
       const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
-      if (mtime < cutoffSec) continue;
+      if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
       const candidate = await cursorCandidate(
         transcriptPath,
         now,
@@ -1979,7 +1996,9 @@ async function discoverCursor(targetCwd, cache) {
         },
         fileStat,
         cache,
-        budget
+        budget,
+        exactBudget,
+        options?.diagnostic
       );
       if (candidate) candidates.push(candidate);
     }
@@ -2005,7 +2024,7 @@ async function discover(runtime3, targetCwd, cache = new ClassificationCache(), 
     return discoverClaudeCode(targetCwd, cache, options);
   }
   if (runtime3 === "codex") return discoverCodex(targetCwd, cache, options);
-  if (runtime3 === "cursor") return discoverCursor(targetCwd, cache);
+  if (runtime3 === "cursor") return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime3}`);
 }
 
@@ -2972,25 +2991,26 @@ var HandoffDiscoveryError = class extends Error {
 var DEFAULT_DEPENDENCIES = {
   discover,
   canonicalize: async (path) => realpath2(path).catch(() => null),
-  readCodexNativeId: async (candidate) => {
-    const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
-      maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
-      maxRecords: 128,
-      diagnostic: () => {
-      }
-    });
-    if (bounded.incomplete) return null;
-    const meta = extractMetaFromRecords(
-      "codex",
-      bounded.records,
-      candidate.transcriptPath
-    );
-    if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
-      return null;
-    }
-    return meta.nativeSessionId;
-  }
+  readCodexNativeId: readExactCodexNativeId
 };
+async function readExactCodexNativeId(candidate) {
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+    maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+    maxRecords: 128,
+    diagnostic: () => {
+    }
+  });
+  if (bounded.incomplete) return null;
+  const meta = extractMetaFromRecords(
+    "codex",
+    bounded.records,
+    candidate.transcriptPath
+  );
+  if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
+    return null;
+  }
+  return meta.nativeSessionId;
+}
 function candidateSignature(candidate) {
   return JSON.stringify([
     candidate.key,
@@ -4497,7 +4517,7 @@ function diagnosticFailure(diagnostics, key) {
     throw new HandoffPreviewError("transcript-malformed", key);
   }
 }
-function conversationEntries(runtime3, entries) {
+function sanitizePreviewConversationEntries(runtime3, entries) {
   const structurallySafe = entries.filter(
     (entry) => entry.kind === "message" && (entry.role === "user" || entry.role === "assistant") && entry.origin !== "automatic-control" && entry.displayRole !== "automatic-control"
   );
@@ -4654,7 +4674,7 @@ async function previewHandoffCandidates(sources, options = {}) {
       includeCommandMessages: false
     });
     const limited = limitConversation(
-      conversationEntries(source.runtime, normalized),
+      sanitizePreviewConversationEntries(source.runtime, normalized),
       sessionLimits
     );
     aggregateRenderedCharacters += limited.renderedCharacters;
