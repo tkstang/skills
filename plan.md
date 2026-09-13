@@ -1631,7 +1631,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
-| p-rev1 | code | pending | - | - | - | - | - |
+| p-rev1 | code | received | 2026-09-13 | reviews/p-rev1-review-2026-09-13T015500Z.md | 0df47b79d55493bd213c4680752e4df45e8cc848 | manual | - |
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`

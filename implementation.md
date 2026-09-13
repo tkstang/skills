@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | implementation complete; review pending | 5 | 5/5 |
+| p-rev1 | review changes requested; fix in progress | 5 | 5/5 |
 
 **Total:** 40 completed of 44 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented, 0 revision tasks pending. p-rev1 independent review is pending.
@@ -1047,6 +1047,10 @@ independently verified before p04-t01 can safely execute.
 - Phase implementer outcome: `DONE_WITH_CONCERNS`, validated as accepted success at `0df47b79d55493bd213c4680752e4df45e8cc848`; five ordered task commits span `30da3e20d8e62fa2fc12ae21d8778ba2f0106963..0df47b79d55493bd213c4680752e4df45e8cc848`, worktree clean, no recovery attempts, `pending_attempt: null`, and no optional children.
 - Verification: root repeated the complete 1,899-test suite, type-check, generated parity, repository validation, smoke, skill-version validation, docs formatting, and diff hygiene successfully. The corrected skill-version command omits the unsupported standalone `--` already recorded as a historical plan deviation.
 - Concerns: native provider behavior remains documentation-backed rather than live verified; the new skill remains experimental and unreleased; the old executor remains paused, incomplete, and unverified. These are intended product/evidence limits, not blocking implementation defects.
+- Review dispatch `handoff-prev1-review-20260913-01`: accepted native handle `/root/handoff_revision_review`; exact role `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier, no reasoning-mode selector. Consequential class/floor satisfied; managed Frontier/max review target, native catalog, no fallback, runtime identity not reported. The original handle exceeded its recorded 900-second deadline while still reporting progress and then finalized after a status nudge; no replacement was launched.
+- Review dispatch: scope=p-rev1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+- Review outcome: `CHANGES_REQUESTED` at `0df47b79d55493bd213c4680752e4df45e8cc848`; artifact `reviews/p-rev1-review-2026-09-13T015500Z.md`; 0 Critical, 1 Important, 0 Medium, 0 Minor. Reconnaissance was `not-attempted`, and the artifact contains no `## Review Orchestration` section.
+- I1 accepted for the bounded phase fix loop: under Cursor `recency: 'exact-all'`, propagate fail-on-incomplete behavior through direct and fallback collectors and convert unexpected root/enumeration/stat failures into typed incomplete discovery with no partial candidates. Add synthetic regressions and regenerate affected outputs/version bumps. No product, architecture, live-provider, or authorization boundary changes.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
