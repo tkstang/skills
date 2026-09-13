@@ -10,7 +10,7 @@ oat_template_name: design
 
 # Design: Skill Source Organization and Plugin Packaging
 
-Accepted as the planning basis by the user's “proceed” on 2026-09-13. This is a lightweight quick-mode design, not implementation approval. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants. The project remains inactive pending the current handoff project's merge and explicit activation.
+Accepted as the planning basis by the user's “proceed” on 2026-09-13. This is a lightweight quick-mode design, not implementation approval. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants. The predecessor has now merged and the user activated this project; planning reviews are the current boundary.
 
 ## Overview
 
@@ -141,7 +141,7 @@ At implementation closeout run existing type-check, build:check, validate, sourc
 ### Contract
 
 - Outcome: one authored owner, multiple plugin/standalone distributions, agreed names, and public handoff promotion.
-- Hard constraints: issue #74 packaging/version safety; dependency-free shipped runtime; explicit workflow prerequisites; inactive planning now.
+- Hard constraints: issue #74 packaging/version safety; dependency-free shipped runtime; explicit workflow prerequisites; planning only until review readiness.
 - Acceptance criteria: discovery's distribution, ownership, compatibility, and migration outcomes.
 - Minimum proof: existing regression suites plus representative isolated installations and focused failure/version cases.
 

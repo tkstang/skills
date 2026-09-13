@@ -113,4 +113,4 @@ Dated local baseline: skills commit 10d901e8afb3217db9855fa48c7e83f4f02c8e6c, in
 
 ## Next Steps
 
-The user accepted the design as a planning basis and authorized plan authoring on 2026-09-13. The plan now has 14 tasks across five sequential phases, including a post-public-merge private-repo cutover. Keep the project inactive; finish planning settings/reviews before claiming implementation readiness, and refresh the execution inventory after the current handoff project merges.
+The user accepted the design as a planning basis and authorized plan authoring on 2026-09-13. The plan now has 14 tasks across five sequential phases, including a post-public-merge private-repo cutover. The predecessor PR #70 merged at 20bb893ef6bcdd30704c681e12c60702b7c89bb8; this project's planning commits are now on feat/skill-source-organization based on that merge. The user explicitly activated this project and authorized self-review and the plan gate. Finish those reviews before claiming implementation readiness; refresh the execution inventory at p01-t01.

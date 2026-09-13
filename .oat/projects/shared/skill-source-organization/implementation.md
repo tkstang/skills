@@ -10,7 +10,7 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-Not started. Project remains inactive. The next planned task is p01-t01, but that pointer is not authorization to execute: planning review/readiness, the current project's merge, and explicit activation are prerequisites.
+Not started. Project is active for planning review following the predecessor's merge and explicit user activation. The next planned task is p01-t01, but that pointer is not authorization to execute: plan self-review and the configured review gate remain pending.
 
 ## Progress Overview
 

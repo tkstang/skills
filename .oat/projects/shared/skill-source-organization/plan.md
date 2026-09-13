@@ -20,7 +20,7 @@ oat_template: true
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** Plan authored; required review/settings disposition pending. User's “proceed” on 2026-09-13 accepts the settled design as the planning basis. Project remains inactive. Do not start implementation from this conversation.
+**Status:** Active planning; plan authored and required review disposition pending. User's “proceed” on 2026-09-13 accepted the settled design as the planning basis. Coding-session-handoff has merged, and the user explicitly activated this project and authorized self-review plus the plan review gate. Implementation has not started.
 
 ## Execution Boundaries
 
