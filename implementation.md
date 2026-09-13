@@ -1072,6 +1072,14 @@ source-worktree boundary and expose preview content under a caller-derived cwd.
 **Next:** Resume the original p-rev1 implementer for one append-only fix commit, then
 run a fresh final re-review.
 
+**Fix dispatch intent:** request `handoff-final-fix-20260913-01`, continuation
+`cont-handoff-final-review-fix-1`, original handle `/root/handoff_revision_phase`,
+exact target `oat-phase-implementer-gpt-5-6-sol-medium`, route level 0, final-review
+fix round 1 of 3. Authority is limited to prev1-t06 source/tests/generated outputs and
+required skill version bumps; no provider operation, installation, publication, or
+project bookkeeping edits.
+**Dispatch:** scope=final-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
