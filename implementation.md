@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t01
+oat_current_task_id: prev1-t02
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | in_progress | 5 | 0/5 |
+| p-rev1 | in_progress | 5 | 1/5 |
 
-**Total:** 35 completed of 44 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented, 5 revision tasks pending. p03-t19 independent review passed.
+**Total:** 36 completed of 44 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented, 4 revision tasks pending. p03-t19 independent review passed.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -82,7 +82,9 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ### Task prev1-t01: Establish provider/surface instruction capabilities
 
-**Status:** pending
+**Status:** completed
+**Commit:** `8ab10b30df504336d689153a18109fb0a3183c90`
+**Verification:** Five focused tests, type-check, lint, and diff hygiene passed.
 
 ### Task prev1-t02: Extend read-only discovery and current-session selection
 
