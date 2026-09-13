@@ -236,6 +236,10 @@ target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:1 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md run=e9e2ae8f-1305-4774-bf31-775a0f24e067
 
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:2 exit=0 status=ok artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md run=40318b14-539a-49c6-ad8b-167fac333457
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

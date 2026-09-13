@@ -42,15 +42,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
   freshness_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
   freshness_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
-  launch_state: intent_persisted
+  launch_state: result_persisted
   launch_attempt_id: 42417ad7-c826-40ec-b9bd-c83d6fedefa9
   launch_started_at: '2026-09-13T13:38:06Z'
   launch_result_receipt: /Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/42417ad7-c826-40ec-b9bd-c83d6fedefa9.json
-  gate_run_marker: null
-  gate_run_id: null
-  envelope_status: null
-  artifact: null
-  handoff: null
+  gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/40318b14-539a-49c6-ad8b-167fac333457.json
+  gate_run_id: 40318b14-539a-49c6-ad8b-167fac333457
+  envelope_status: ok
+  artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md
+  handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md before marking the passing gate consumed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -58,10 +58,10 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-13T13:38:06Z'
+  updated_at: '2026-09-13T13:50:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -124,7 +124,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T13:38:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T13:50:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate

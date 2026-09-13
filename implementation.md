@@ -1427,6 +1427,16 @@ The result receipt target is
 `/Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/42417ad7-c826-40ec-b9bd-c83d6fedefa9.json`.
 The operator override now has zero gate attempts remaining. No retry is authorized.
 
+**External gate result:** run `40318b14-539a-49c6-ad8b-167fac333457` completed
+`ok` at the Important threshold with 0 Critical, 0 Important, 1 Medium, and 2 Minor
+findings. The gate independently verified the prior Important repair against real
+Claude stores and passed 1,055 focused tests plus type-check, generated parity,
+repository validation, and skill-version checks. Receipt:
+`/Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/42417ad7-c826-40ec-b9bd-c83d6fedefa9.json`.
+Artifact `reviews/final-review-2026-09-13T134826Z.md` is receive-eligible; its
+sub-threshold findings require judgment-sweep disposition before the gate can be
+marked consumed.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
