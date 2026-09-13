@@ -1635,7 +1635,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p-rev1 | code | fixes_completed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T015500Z.md | 0df47b79d55493bd213c4680752e4df45e8cc848 | manual | - |
 | p-rev1 | code | passed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T022511Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
-| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
+| final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -2025,13 +2025,13 @@ it does not mark the experimental executor verified or its skipped work complete
 - p06: 2 tasks — superseded/unimplemented original packaging
 - p-rev1: 11 tasks — five destination-tab guidance tasks, one completed final-review fix, and five gate-review fixes
 
-**Historical + active total: 50 tasks = 41 completed + 5 pending + 4 superseded/unimplemented.**
+**Historical + active total: 50 tasks = 46 completed + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-The active guidance revision's first six tasks and standard final review are complete.
-The configured implementation gate added five pending fixes for one Important, two
-Medium, and two Minor findings. Unsupported provider paths and unverified live
-behavior stay explicit. The old executor remains
+The active guidance revision's eleven tasks are complete. The configured implementation
+gate's one Important, two Medium, and two Minor findings were repaired in five ordered
+commits; a fresh final review of the changed basis is pending. Unsupported provider
+paths and unverified live behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.

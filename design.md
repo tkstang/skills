@@ -26,6 +26,12 @@ user switches to the destination tab and performs the fork-and-open action.
   unions or enabling Cursor mutation. Cursor's existing discovery path does not
   currently consume the bounded `DiscoveryOptions` argument; address that seam and
   test limits/non-persistence rather than assuming parity with other providers.
+- The guidance path opts into transcript-level unattributable summaries for Claude
+  Code and Codex. A bounded transcript that cannot establish cwd metadata is omitted
+  while fully attributed source candidates remain available, and the public result
+  reports only provider, stable reason code, and count. Enumeration, aggregate-budget,
+  and deadline failures still fail the request. The paused executor and all other
+  locator consumers retain strict all-or-error defaults.
 - Introduce a pure instruction builder and thin read-only CLI entrypoint. Store
   provider-specific supported syntax/evidence separately from experimental
   `PROVIDER_BEHAVIOR_CONTRACTS`. Do not call `buildDefaultPlan` or `probeProvider`:

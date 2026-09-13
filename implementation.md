@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t07
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | gate review fixes queued | 11 | 6/11 |
+| p-rev1 | gate fixes complete; fresh final review pending | 11 | 11/11 |
 
-**Total:** 41 completed of 50 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented and 5 tasks pending.
+**Total:** 46 completed of 50 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 0 tasks pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -1164,32 +1164,37 @@ attempt if the standard review passes.
 
 ### Task prev1-t07: Preserve attributable guidance candidates
 
-**Status:** pending
+**Status:** completed
+**Commit:** `f317d06eeac177737a7011489247cedd7e4fbdc8`
 **Finding:** Gate I1 — unrelated unreadable transcripts make the entire guidance
 discovery workflow unavailable.
 **Disposition:** code fix and artifact alignment required; Large scope.
 
 ### Task prev1-t08: State the current Cursor discovery limitation
 
-**Status:** pending
+**Status:** completed
+**Commit:** `e531eef3a476e7b74f1d4c9a666083cc6fad1da0`
 **Finding:** Gate M1 — public surfaces imply Cursor discovery is currently reachable.
 **Disposition:** documentation and contract-test fix; Minor scope.
 
 ### Task prev1-t09: Preserve the destination shell on cwd mismatch
 
-**Status:** pending
+**Status:** completed
+**Commit:** `ac9173ac458b51cc877c0fd009e264df799c1d82`
 **Finding:** Gate M2 — top-level `exit 64` can close an interactive destination shell.
 **Disposition:** code and test fix; Minor scope.
 
 ### Task prev1-t10: Report entry-level preview truncation
 
-**Status:** pending
+**Status:** completed
+**Commit:** `8e21d5e21e4138e11e1d45c9a41782cdd19626e1`
 **Finding:** Gate m1 — mid-entry text trimming can report `truncated: false`.
 **Disposition:** code and test fix; Minor scope.
 
 ### Task prev1-t11: Resolve the installed skill runtime path
 
-**Status:** pending
+**Status:** completed
+**Commit:** `b7a8d35f06acb0a850795e54ad40ea729caac8e5`
 **Finding:** Gate m2 — repository-relative examples fail from an installed skill.
 **Disposition:** skill and contract-test fix; Minor scope.
 
@@ -1213,6 +1218,22 @@ discovery workflow unavailable.
   alignment. No real provider command, global install/sync, feature push, PR mutation,
   merge, cleanup, publication, or release is authorized.
 - Dispatch: scope=p-rev1-gate-fixes action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+- Fix outcome: completed in five ordered commits from `f317d06e` through
+  `b7a8d35f06acb0a850795e54ad40ea729caac8e5`. Guidance-only Claude/Codex
+  discovery now omits unrelated unattributable transcripts while returning bounded,
+  path-free provider/reason counts; observer/executor defaults remain strict. Public
+  docs state Cursor's current independent-cwd limitation, wrong-cwd guidance preserves
+  the destination shell, preview reports entry-level trimming, and installed skill
+  commands use `<skill-dir>`.
+- Verification: worker full suite 1,913 passed and 1 skipped; type-check, generated
+  parity, repository validation, smoke, skill-version validation, docs format/build,
+  changed-file lint/format, and diff hygiene passed. Root repeated 120 focused tests,
+  type-check, generated parity, skill-version validation, and diff hygiene. The
+  feature worktree is clean. `coding-session-handoff` is version `0.1.7` and
+  `session-observer` is version `1.0.30`.
+- Design/spec alignment for I1 is present in the synced project. The five tasks are
+  complete; a fresh standard final review is required before the second configured
+  gate attempt.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
@@ -1720,6 +1741,7 @@ Track test execution during implementation.
 | p05   | superseded | - | - | Historical activation tasks remain unimplemented. |
 | p06   | superseded | - | - | Historical packaging tasks remain unimplemented. |
 | p-rev1 | Full suite 1,905 passed, 1 skipped; 377 scoped reviewer tests; type-check; build/build-check; validate; skill versions; smoke; lint/format; docs build/format; diff hygiene | all through `3fdfc2a1` | 0 findings in fresh phase re-review | Five revision tasks plus the accepted Cursor fail-closed review fix. |
+| p-rev1 gate fixes | Full suite 1,913 passed, 1 skipped; root 120 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `b7a8d35f` | 0 test failures | Five gate findings repaired in ordered commits; fresh final review pending. |
 
 ## Final Summary (for PR/docs)
 
@@ -1728,6 +1750,9 @@ Track test execution during implementation.
 - An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.
 - Evidence-backed provider/surface capability records, exact worktree checks, shell-safe destination commands where documented, and explicit unsupported guidance where native continuity cannot be proven.
 - Strict exact-all Cursor discovery that fails closed on incomplete roots, enumeration, iteration, or transcript-stat races without leaking partial candidates.
+- Guidance-only Claude/Codex discovery preserves fully attributable source candidates
+  when unrelated transcripts are individually unattributable, with bounded path-free
+  reason summaries; strict observer/executor defaults remain unchanged.
 
 **Behavioral changes (user-facing):**
 
@@ -1744,7 +1769,7 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Full suite: 1,905 passed and 1 skipped at `3fdfc2a1`; independent phase reviewer ran 377 scoped tests.
+- Full suite: 1,913 passed and 1 skipped at `b7a8d35f`; root repeated 120 focused tests.
 - Type-check, generated build parity, repository validation, skill-version validation, smoke, authored lint/format, docs format/build, syntax, and diff hygiene passed.
 - No live provider, authentication, installation, publication, cleanup, PR mutation, merge, or release operation was performed for p-rev1.
 
@@ -1752,6 +1777,9 @@ Track test execution during implementation.
 
 - The accepted p-rev1 revision supersedes the earlier automated-execution product with destination-tab guidance after live evidence showed provider identity and exact-version gaps. Historical executor code and evidence remain preserved and paused.
 - Review fix `3fdfc2a1` strengthens Cursor exact-all discovery to reject incomplete scans; this narrows behavior to the existing fail-closed contract.
+- Gate fix `f317d06e` gives the explicit-selection guidance path a separate
+  transcript-level unattributable-summary policy while retaining strict defaults for
+  the paused executor and shared observer consumers.
 
 ## References
 
