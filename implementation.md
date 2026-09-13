@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | in_progress (planning only) | 5 | 0/5 |
+| p-rev1 | in_progress | 5 | 0/5 |
 
 **Total:** 35 completed of 44 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented, 5 revision tasks pending. p03-t19 independent review passed.
@@ -1026,6 +1026,13 @@ independently verified before p04-t01 can safely execute.
 - Dispatch: scope=p03-t19 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 - Aggregate verification at `12cf6edf`: 1,866 tests passed, 1 skipped, 0 failures (130 passing files and one skipped); repository validation and smoke passed. No actual provider executable was invoked.
 - Stop boundary: authorized code/review cycle complete; p04 live-provider authorization remains absent, and exact Claude 2.1.251 is not present in the checked Mini install directory. No p04 attempt, provider cleanup, activation, skill migration, portable-packet implementation, feature-branch push, or PR mutation occurred. Existing p02/p03 Medium deferrals remain unchanged.
+
+### Run 29 — 2026-09-12
+
+- Authorization: user invoked `oat-project-implement`, read the revision handoff, and confirmed that the superseded final-only `p06` HiLL checkpoint moves to the sole active revision phase `p-rev1`; automatic HiLL review remains enabled.
+- Preflight: synced project pull and plan validation passed; current task is `prev1-t01`; no in-flight p-rev1 implementer or reviewer exists.
+- Dispatch policy: Tier 1 native Codex dispatch, managed Frontier policy from project state, cap `max`; p-rev1 implementation is classified `default-implementation` with preferred effort `medium`. Exact phase dispatch remains pending until the phase route resolves and emits its report.
+- Boundaries: no live provider executable, installation, feature-branch push, PR mutation, merge, cleanup, or release is authorized. Public documentation/source inspection and synthetic tests are allowed.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
