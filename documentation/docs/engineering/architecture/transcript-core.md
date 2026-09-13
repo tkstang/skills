@@ -30,6 +30,11 @@ Current consumers of the shared transcript-core:
   watch pipeline.
 - `export-session-transcript` — ships
   `runtimes.mjs`, `cursor-frames.mjs`, and `cursor-analysis.mjs`.
+- `coding-session-handoff` — ships a single generated experimental guidance
+  bundle that reuses bounded transcript discovery and sanitized preview logic.
+  Its public commands are limited to `discover`, `preview`, and `prepare`; it
+  does not import or expose the older executor, reconciliation, or behavior
+  gate.
 
 The lower-level Cursor normalizer remains terminal-only for Export Session
 Transcript compatibility. Session Observer explicitly requests the
@@ -52,6 +57,13 @@ Consumers dispatch on both fields. They never infer an index base from the
 runtime name or convert a persisted record position into a frame position.
 Cursor observation may expose stable content with lifecycle pending, while the
 completion projection remains terminal-success-only.
+
+Coding Session Handoff keeps provider capability evidence separate from
+transcript qualification. It preserves provider and surface in qualified
+candidate IDs, applies bounded discovery options to Claude Code, Codex, and
+Cursor, and fails closed when a Cursor transcript cannot be corroborated as CLI
+or IDE. Guidance preparation validates canonical Git paths and emits commands;
+it never invokes a provider or mutates a provider store.
 
 ## Editing the source
 

@@ -112,6 +112,75 @@ describe('experimental guidance CLI', () => {
     );
   });
 
+  it.each([
+    ['source-current', 'codex:cli:00000000-0000-4000-8000-000000000001'],
+    ['source-other', 'claude:cli:00000000-0000-4000-8000-000000000002'],
+    ['destination-fresh', 'codex:cli:00000000-0000-4000-8000-000000000003'],
+    ['destination-fresh', 'cursor:ambiguous:synthetic-cursor-session'],
+  ] as const)(
+    'routes the %s entry point for %s without invoking a provider',
+    async (entryPoint, qualifiedSession) => {
+      const test = harness();
+
+      expect(
+        await runGuidanceCli(
+          [
+            'prepare',
+            '--source',
+            '/synthetic/source',
+            '--target',
+            '/synthetic/destination',
+            '--session',
+            qualifiedSession,
+            '--entry-point',
+            entryPoint,
+            '--json',
+          ],
+          test.dependencies,
+          test.io,
+        ),
+      ).toBe(0);
+      expect(test.dependencies.prepare).toHaveBeenCalledOnce();
+      expect(test.dependencies.prepare).toHaveBeenCalledWith(
+        '/synthetic/source',
+        '/synthetic/destination',
+        qualifiedSession,
+        entryPoint,
+      );
+      expect(JSON.parse(test.stdout[0])).toMatchObject({
+        status: 'experimental-not-released',
+        noForkCreated: true,
+      });
+    },
+  );
+
+  it('keeps the operator-facing docs explicit about the paused executor and unsupported Cursor transitions', async () => {
+    const toolReadme = await readFile(
+      new URL('../../tools/coding-session-handoff/README.md', import.meta.url),
+      'utf8',
+    );
+    const userGuide = await readFile(
+      new URL(
+        '../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    for (const document of [toolReadme, userGuide]) {
+      expect(document).toMatch(/experimental/i);
+      expect(document).toMatch(/not released/i);
+      expect(document).toMatch(/no fork/i);
+      expect(document).toMatch(/source-current/);
+      expect(document).toMatch(/source-other/);
+      expect(document).toMatch(/destination-fresh/);
+      expect(document).toMatch(/Cursor/);
+      expect(document).toMatch(/unsupported/i);
+    }
+    expect(toolReadme).toMatch(/paused/i);
+    expect(toolReadme).toMatch(/unverified/i);
+  });
+
   it.each(['execute', 'reconcile', 'behavior-plan', 'behavior-verify'])(
     'rejects old automation command %s',
     async (command) => {

@@ -36,6 +36,7 @@
     - [Refine](user-guide/consensus/refine.md) — Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.
   - Skills
     - [Skills](user-guide/skills/index.md) — Standalone skills: work across coding-agent sessions, and review whether an artifact is more complex than its contract needs.
+    - [Coding Session Handoff](user-guide/skills/coding-session-handoff.md) — Prepare experimental, read-only guidance for forking a coding-agent session into another Git worktree.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
     - [Export Session Transcript](user-guide/skills/export-session-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
     - [Session Observer Collaboration](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
