@@ -1104,6 +1104,17 @@ gates passed. The five inherited Mediums remain technically unchanged and accept
 only for the experimental guidance-only boundary. Final review receipt remains
 `received` until their required final-scope disposition is explicitly recorded.
 
+**Final deferred-Medium disposition:** The user had already explicitly deferred all
+five findings during the prior bounded review cycles. No new disposition was returned
+when they were resurfaced at final receive, so the existing explicit decisions are
+preserved rather than creating unrequested scope. p02 M1 remains a fail-closed
+availability edge at the exact metadata cap. p02 M2 and p03 M1-M3 remain confined to
+the retained executor, which is incomplete, unverified, paused, and unreachable from
+the public skill. All five are accepted past this experimental guidance revision and
+must be reopened before any executor activation; the two final reviewers independently
+confirmed this product-boundary rationale. With no Minor findings, the latest final
+review event advances to `passed`.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed

@@ -104,9 +104,9 @@ Revision p-rev1 is the only active implementation phase. Its five tasks and acce
 phase-review fix are implemented through `3fdfc2a1`; fresh independent phase re-review
 passed. Final lifecycle review requests one Important Cursor source-association fix;
 `prev1-t06` completed at `20e86a10`, and fresh final re-review passed with zero
-findings. Explicit final disposition of five inherited Medium deferrals is pending
-before the review can be marked passed; the implementation exit gate and final HiLL
-closeout remain afterward.
+findings. The five inherited Medium deferrals retain their prior explicit dispositions
+under the paused-executor boundary, and final review is passed. The implementation
+exit gate and final HiLL closeout remain.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
