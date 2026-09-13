@@ -34,12 +34,12 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047
   freshness_head: 20e86a100832b114a8aa3a20469b849de7ec7f45
   freshness_fingerprint: sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047
-  launch_state: intent_persisted
+  launch_state: accepted
   launch_attempt_id: bbfbc133-0a2a-45bc-9dcc-15aca6c3b53d
   launch_started_at: '2026-09-13T04:10:25Z'
   launch_result_receipt: /Users/tstang/.oat/runtime/closeout-receipts/coding-session-handoff/bbfbc133-0a2a-45bc-9dcc-15aca6c3b53d.json
-  gate_run_marker: null
-  gate_run_id: null
+  gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/d0d1b97a-1990-47ce-a35f-2b985f1116ce.json
+  gate_run_id: d0d1b97a-1990-47ce-a35f-2b985f1116ce
   envelope_status: null
   artifact: null
   handoff: null
@@ -53,7 +53,7 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-09-13T04:10:25Z'
+  updated_at: '2026-09-13T04:12:15Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
