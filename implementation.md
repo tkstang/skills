@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | override fixes complete; fresh final review pending | 14 | 14/14 |
+| p-rev1 | fresh final review fixes added | 17 | 14/17 |
 
 **Total:** 49 completed of 53 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented and 0 tasks pending.
@@ -1331,6 +1331,18 @@ installation, feature push, PR mutation, merge, cleanup, publication, or release
 authorized.
 Review dispatch: scope=final-real-store-fixes action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
+**Fresh review received:** `CHANGES_REQUESTED` at unchanged head `f5c6a518` with
+0 Critical, 1 Important, 1 Medium, and 1 Minor finding. Root reproduced and accepted
+the review evidence: Codex projection and preview still re-enter strict bounded reads,
+a shared classification cache can transfer summarize acceptance to a later strict
+call, and two documentation examples still lead with `--provider all`. The artifact
+is archived at `reviews/archived/final-review-2026-09-13T064500Z.md`; the event is
+`fixes_added`. Resolved t12-t14 subfindings remain resolved.
+
+**New tasks added:** `prev1-t15`, `prev1-t16`, `prev1-t17`. These are direct repair
+work for the authorized realistic-store cycle. The one additional external gate
+attempt remains unspent and must not launch while these review findings are open.
+
 ### Task prev1-t12: Make bounded discovery work on realistic stores
 
 **Status:** completed
@@ -1351,6 +1363,25 @@ Review dispatch: scope=final-real-store-fixes action=review role=reviewer produc
 **Commit:** `f5c6a51884202e44dc92236d267a941b2dbc2722`
 **Finding:** Gate M2 — failure envelopes discard provider and stable reason.
 **Disposition:** code and test fix; Minor scope.
+
+### Task prev1-t15: Preserve continued-prefix guidance end to end
+
+**Status:** pending
+**Finding:** Fresh-review I1 — Codex projection and preview/prepare re-enter strict
+bounded reads after guidance attribution.
+**Disposition:** code and generated-bundle test fix; Important scope.
+
+### Task prev1-t16: Separate strict and summarize cache entries
+
+**Status:** pending
+**Finding:** Fresh-review M1 — shared cache reuse crosses the strict policy boundary.
+**Disposition:** code and focused regression fix; Moderate scope.
+
+### Task prev1-t17: Correct explicit-provider documentation
+
+**Status:** pending
+**Finding:** Fresh-review m1 — two examples still lead with `--provider all`.
+**Disposition:** documentation fix; Minor scope.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 

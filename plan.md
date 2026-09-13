@@ -1638,6 +1638,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T044900Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | auto | - |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
+| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T064500Z.md | f5c6a51884202e44dc92236d267a941b2dbc2722 | auto | - |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -2095,6 +2096,74 @@ incomplete.
 
 **Commit:** `fix(prev1-t14): expose discovery failure provenance`
 
+### Task prev1-t15: (review) Preserve continued-prefix guidance end to end
+
+**Dependencies:** prev1-t14 and final review
+`reviews/archived/final-review-2026-09-13T064500Z.md`.
+
+**Files:**
+
+- Modify: guidance discovery/projection and CLI source plus focused tests.
+- Regenerate the guidance runtime and bump the changed guidance skill version.
+
+**Step 1 — RED/GREEN:** Add a guidance-only Codex native-ID extractor that accepts
+complete, internally consistent exact metadata from a continuing bounded prefix while
+preserving the retained executor's strict extractor. Keep preview/prepare on the same
+guidance summarize policy, or carry the already attributed selected candidate without
+strict rediscovery. Add generated-bundle cases over 256 KiB and 128 records for Codex
+discovery and Claude/Codex preview and prepare. Preserve stable path-free errors, zero
+persistence, and provider isolation.
+
+**Verify:** Focused guidance/runtime suites, type-check, generated parity, repository
+and skill-version validation, and diff hygiene.
+
+Expected: realistic continuing Claude and Codex sessions complete the supported
+discover, preview, and prepare workflow without relaxing executor strictness.
+
+**Commit:** `fix(prev1-t15): preserve continued guidance prefixes`
+
+### Task prev1-t16: (review) Separate strict and summarize cache entries
+
+**Dependencies:** prev1-t15.
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts` and focused locator tests.
+- Regenerate affected outputs and bump every changed shipped skill.
+
+**Step 1 — RED/GREEN:** Include `unattributablePolicy` in the bounded classification
+cache namespace, or otherwise prevent a summarize-accepted incomplete result from
+being reused by strict callers. Prove summarize followed by strict with one shared
+cache still fails closed; retain fresh/default observer and executor coverage.
+
+**Verify:** Focused locator/shared-consumer suites, type-check, generated parity,
+repository and skill-version validation, and diff hygiene.
+
+Expected: request-local cache reuse cannot transfer guidance-only acceptance across
+the shared strict policy boundary.
+
+**Commit:** `fix(prev1-t16): isolate classification cache policy`
+
+### Task prev1-t17: (review) Correct explicit-provider documentation
+
+**Dependencies:** prev1-t16.
+
+**Files:**
+
+- Modify: `documentation/docs/user-guide/skills/coding-session-handoff.md` and
+  `tools/coding-session-handoff/README.md`.
+
+**Step 1 — RED/GREEN:** Replace the two retained default `--provider all` examples
+with an explicit supported Claude or Codex provider while preserving the explanation
+that `all` fails closed when Cursor lacks exact cwd evidence.
+
+**Verify:** Documentation format/build, focused command-example assertions, and diff
+hygiene.
+
+Expected: public and retained documentation match the installed skill workflow.
+
+**Commit:** `docs(prev1-t17): use explicit discovery providers`
+
 ### Revision closeout (root-owned, not an implementation task)
 
 Receive independent p-rev1 code review; preserve all historical review events/caps.
@@ -2122,15 +2191,17 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 14 tasks — five destination-tab guidance tasks, one completed final-review fix, five first-gate fixes, and three final-gate fixes
+- p-rev1: 17 tasks — five destination-tab guidance tasks, one completed final-review fix, five first-gate fixes, three final-gate fixes, and three fresh-review fixes
 
-**Historical + active total: 53 tasks = 49 completed + 4 superseded/unimplemented.**
+**Historical + active total: 56 tasks = 49 completed + 3 pending review fixes + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
 The configured implementation gate exhausted both original attempts. Its final
-findings were repaired in three operator-authorized commits through `f5c6a518`; a fresh
-final review and exactly one additional gate attempt are authorized. Unsupported
+findings were repaired in three operator-authorized commits through `f5c6a518`; the
+authorized fresh review found three continued-prefix/cache/docs gaps now tracked as
+`prev1-t15` through `prev1-t17`. Exactly one additional gate attempt remains authorized
+after these findings are fixed and the standard review requirement is satisfied. Unsupported
 provider paths and unverified live behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.

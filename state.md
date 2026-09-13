@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: prev1-t15
 oat_last_commit: f5c6a51884202e44dc92236d267a941b2dbc2722
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -21,7 +21,7 @@ oat_dispatch_policy:
 oat_implement_exit_gate:
   status: pending
   resolution: configured
-  disposition: fixes_completed
+  disposition: fixes_added
   config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -58,7 +58,7 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T06:42:00Z'
+  updated_at: '2026-09-13T07:08:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -141,13 +141,14 @@ oat_project_explainer:
 
 ## Current Phase
 
-Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
-phase-review fix are implemented through `3fdfc2a1`; fresh independent phase re-review
-passed. Final lifecycle review requests one Important Cursor source-association fix;
-`prev1-t06` completed at `20e86a10`, and fresh final re-review passed with zero
-findings. The five inherited Medium deferrals retain their prior explicit dispositions
-under the paused-executor boundary, and final review is passed. The implementation
-exit gate and final HiLL closeout remain.
+Revision p-rev1 is the only active implementation phase. Fourteen tasks are implemented
+through `f5c6a518`. The authorized fresh final review found one Important continued-
+prefix workflow gap, one Medium shared-cache policy leak, and one Minor stale-docs gap;
+they are tracked as `prev1-t15` through `prev1-t17`. The one additional external gate
+attempt remains unspent and cannot launch while these findings are open. The five
+inherited Medium deferrals retain their prior explicit dispositions under the paused-
+executor boundary. Final review, the implementation exit gate, and final HiLL closeout
+remain.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
@@ -162,7 +163,7 @@ provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (41 completed, 4 superseded/unimplemented; final re-review pending)
+- **Implementation:** `implementation.md` (49 completed, 3 pending review fixes, 4 superseded/unimplemented)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
