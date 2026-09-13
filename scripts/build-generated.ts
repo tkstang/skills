@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +21,13 @@ import {
   buildDeclaredDistributions,
   checkDeclaredDistributions,
   cleanupBuiltDistributions,
-  writeDeclaredDistributions,
+  describeBuiltDistribution,
+  describeStagedFile,
+  validateBuiltDistributions,
+  writeStagedOutputs,
+  type DistributionDeclaration,
+  type PackagingOperations,
+  type StagedReplacement,
 } from './lib/packaging.js';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -42,6 +57,8 @@ interface BuiltMapping {
   status: 'built';
   outputPath: string;
   text: string;
+  mode: number;
+  inputFingerprint: string;
 }
 
 interface PendingMapping {
@@ -588,9 +605,10 @@ export function deriveImportRewrites(
 
 async function buildMapping(
   mapping: GeneratedOutput,
+  root: string = repoRoot,
 ): Promise<BuiltMapping | PendingMapping> {
-  const sourcePath = path.join(repoRoot, mapping.source);
-  const outputPath = path.join(repoRoot, mapping.output);
+  const sourcePath = path.join(root, mapping.source);
+  const outputPath = path.join(root, mapping.output);
   const source = await readIfExists(sourcePath);
 
   if (source === null && mapping.pendingUntilSourceExists) {
@@ -606,13 +624,15 @@ async function buildMapping(
   }
 
   const result = await build({
-    entryPoints: [sourcePath],
+    absWorkingDir: root,
+    entryPoints: [mapping.source],
     outfile: outputPath,
     bundle: mapping.bundle ?? false,
     platform: 'node',
     format: 'esm',
     target: 'node22',
     write: false,
+    metafile: true,
     legalComments: 'none',
     logLevel: 'silent',
     banner: {
@@ -631,12 +651,27 @@ async function buildMapping(
   for (const rewrite of rewrites) {
     text = rewriteImportSpecifiers(text, rewrite, mapping.id);
   }
+  const inputFingerprint = createHash('sha256');
+  for (const input of Object.keys(result.metafile.inputs).toSorted()) {
+    const absolute = path.resolve(root, input);
+    const info = await lstat(absolute);
+    inputFingerprint.update(input);
+    inputFingerprint.update(String(info.mode & 0o777));
+    inputFingerprint.update(await readFile(absolute));
+  }
 
   return {
     mapping,
     status: 'built',
     outputPath,
     text,
+    inputFingerprint: inputFingerprint.digest('hex'),
+    mode: await lstat(outputPath)
+      .then((info) => info.mode & 0o777)
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return 0o644;
+        throw error;
+      }),
   };
 }
 
@@ -692,31 +727,86 @@ async function checkGenerated() {
   }
 }
 
-async function writeGenerated() {
+export interface WriteGeneratedOptions {
+  repoRoot?: string;
+  mappings?: readonly GeneratedOutput[];
+  declarations?: readonly DistributionDeclaration[];
+  operations?: PackagingOperations;
+  log?: (message: string) => void;
+}
+
+export async function writeGenerated(
+  options: WriteGeneratedOptions = {},
+): Promise<void> {
+  const root = options.repoRoot ?? repoRoot;
+  const mappings = options.mappings ?? generatedOutputs;
+  const declarations = options.declarations ?? distributions;
+  const log = options.log ?? console.log;
   const declared = await buildDeclaredDistributions({
-    repoRoot,
-    declarations: distributions,
+    repoRoot: root,
+    declarations,
   });
+  const stagingParent = path.join(root, 'node_modules', '.cache');
+  await mkdir(stagingParent, { recursive: true });
+  const legacyStagingRoot = await mkdtemp(
+    path.join(stagingParent, 'generated-files-'),
+  );
 
   try {
-    for (const mapping of generatedOutputs) {
-      const result = await buildMapping(mapping);
+    const legacy: StagedReplacement[] = [];
+    const initial = new Map<string, BuiltMapping | PendingMapping>();
+    for (const mapping of mappings) {
+      const result = await buildMapping(mapping, root);
+      initial.set(mapping.id, result);
       if (result.status === 'pending') {
-        console.log(`${mapping.id}: pending (${result.message})`);
+        log(`${mapping.id}: pending (${result.message})`);
         continue;
       }
-
-      await mkdir(path.dirname(result.outputPath), { recursive: true });
-      await writeFile(result.outputPath, result.text);
-      console.log(`${mapping.id}: wrote ${mapping.output}`);
+      const stagedPath = path.join(legacyStagingRoot, `${randomUUID()}.mjs`);
+      await writeFile(stagedPath, result.text);
+      await chmod(stagedPath, result.mode);
+      legacy.push(await describeStagedFile(mapping.output, stagedPath));
     }
 
-    await writeDeclaredDistributions({ repoRoot, built: declared });
+    await writeStagedOutputs({
+      repoRoot: root,
+      replacements: [...legacy, ...declared.map(describeBuiltDistribution)],
+      operations: options.operations,
+      validateBeforeMutation: async () => {
+        for (const mapping of mappings) {
+          const expected = initial.get(mapping.id);
+          if (!expected) {
+            throw new Error(
+              `Missing staged generated output for ${mapping.id}`,
+            );
+          }
+          const current = await buildMapping(mapping, root);
+          if (
+            current.status !== expected.status ||
+            (current.status === 'built' &&
+              expected.status === 'built' &&
+              (current.text !== expected.text ||
+                current.mode !== expected.mode ||
+                current.inputFingerprint !== expected.inputFingerprint))
+          ) {
+            throw new Error(
+              `Generated-output inputs changed before publication for ${mapping.id}`,
+            );
+          }
+        }
+        await validateBuiltDistributions({ repoRoot: root, built: declared });
+      },
+    });
+    for (const mapping of mappings) {
+      if (initial.get(mapping.id)?.status === 'built')
+        log(`${mapping.id}: wrote ${mapping.output}`);
+    }
     for (const unit of declared) {
-      console.log(`${unit.declaration.owner}: wrote ${unit.target.output}`);
+      log(`${unit.declaration.owner}: wrote ${unit.target.output}`);
     }
   } finally {
     await cleanupBuiltDistributions(declared);
+    await rm(legacyStagingRoot, { recursive: true, force: true });
   }
 }
 

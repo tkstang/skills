@@ -1,11 +1,23 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import lintStagedConfig from '../../.lintstagedrc.mjs';
-import { generatedOutputs } from '../../scripts/build-generated.js';
+import {
+  generatedOutputs,
+  writeGenerated,
+} from '../../scripts/build-generated.js';
 
 const repoRoot = new URL('../..', import.meta.url);
 const generatedOutputPaths = generatedOutputs.map(
@@ -47,6 +59,76 @@ function runBuildCheck() {
 }
 
 describe('generated output drift guard', () => {
+  it('rolls back legacy files and declared trees as one build transaction', async () => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), 'generated-transaction-'),
+    );
+    const write = async (relative: string, value: string): Promise<void> => {
+      const output = path.join(root, relative);
+      await mkdir(path.dirname(output), { recursive: true });
+      await writeFile(output, value);
+    };
+    try {
+      await write('src/legacy.ts', 'process.stdout.write("new");\n');
+      for (const owner of ['one', 'two']) {
+        await write(
+          `src/skills/${owner}/SKILL.md`,
+          `---\nname: ${owner}\nmetadata:\n  version: '1.0.0'\n---\n`,
+        );
+        await write(`skills/${owner}/prior.md`, `prior ${owner}`);
+      }
+      await write('generated/legacy.mjs', 'prior legacy');
+      let renameCalls = 0;
+
+      await expect(
+        writeGenerated({
+          repoRoot: root,
+          mappings: [
+            {
+              id: 'legacy',
+              source: 'src/legacy.ts',
+              output: 'generated/legacy.mjs',
+              importRewrites: [],
+            },
+          ],
+          declarations: ['one', 'two'].map((owner) => ({
+            owner,
+            source: `src/skills/${owner}`,
+            targets: [
+              {
+                kind: 'standalone' as const,
+                name: owner,
+                output: `skills/${owner}`,
+              },
+            ],
+          })),
+          operations: {
+            rename: async (from, to) => {
+              renameCalls += 1;
+              if (renameCalls === 6)
+                throw new Error('controlled mixed publication failure');
+              await rename(from, to);
+            },
+            remove: rm,
+          },
+          log: () => {},
+        }),
+      ).rejects.toThrow('all prior outputs restored');
+
+      expect(
+        await readFile(path.join(root, 'generated/legacy.mjs'), 'utf8'),
+      ).toBe('prior legacy');
+      expect(
+        await readFile(path.join(root, 'skills/one/prior.md'), 'utf8'),
+      ).toBe('prior one');
+      expect(
+        await readFile(path.join(root, 'skills/two/prior.md'), 'utf8'),
+      ).toBe('prior two');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('checks committed generated outputs without mutating tracked files', async () => {
     const result = await runNode(['scripts/build-generated.mjs', '--check']);
 

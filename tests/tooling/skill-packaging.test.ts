@@ -210,6 +210,14 @@ describe('declared skill packaging', () => {
     ).toThrow('plugin identifier is invalid');
   });
 
+  it('rejects non-escaping traversal segments before normalization', () => {
+    expect(() =>
+      validateDistributionDeclarations([
+        target('example', { source: 'src/skills/one/../example' }),
+      ]),
+    ).toThrow('contains a traversal segment');
+  });
+
   it('bundles shared TypeScript into an executable installed unit', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'runner');
@@ -568,6 +576,74 @@ describe('declared skill packaging', () => {
         code: 'ENOENT',
       },
     );
+    await cleanupBuiltDistributions(built);
+  });
+
+  it.each([
+    {
+      name: 'standalone',
+      declaration: target('escaped'),
+      link: 'skills',
+      externalOutput: 'escaped',
+    },
+    {
+      name: 'plugin',
+      declaration: target('escaped', {
+        targets: [
+          {
+            kind: 'plugin',
+            plugin: 'demo',
+            name: 'escaped',
+            output: 'plugins/demo/skills/escaped',
+          },
+        ],
+      }),
+      link: 'plugins/demo',
+      externalOutput: 'skills/escaped',
+    },
+  ])('rejects a symlinked $name output ancestor', async (fixture) => {
+    const root = await fixtureRoot();
+    const external = await fixtureRoot();
+    await promptSkill(root, 'escaped');
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [fixture.declaration],
+    });
+    await mkdir(path.dirname(path.join(root, fixture.link)), {
+      recursive: true,
+    });
+    await symlink(external, path.join(root, fixture.link));
+
+    await expect(
+      writeDeclaredDistributions({ repoRoot: root, built }),
+    ).rejects.toThrow('symlinked ancestor');
+    await expect(
+      stat(path.join(external, fixture.externalOutput)),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await cleanupBuiltDistributions(built);
+  });
+
+  it('rejects staged inventory drift before moving any output', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'stable');
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('stable')],
+    });
+    await write(root, 'skills/stable/prior.md', 'prior');
+    await writeFile(path.join(built[0].stagedPath, 'SKILL.md'), 'changed');
+
+    await expect(
+      writeDeclaredDistributions({ repoRoot: root, built }),
+    ).rejects.toThrow('staged inventory drift');
+    expect(
+      await readFile(path.join(root, 'skills/stable/prior.md'), 'utf8'),
+    ).toBe('prior');
+    expect(
+      (await readdir(path.join(root, 'skills'))).some((name) =>
+        name.includes('.recovery-'),
+      ),
+    ).toBe(false);
     await cleanupBuiltDistributions(built);
   });
 

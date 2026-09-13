@@ -58,6 +58,21 @@ export interface PackagingOperations {
   remove: typeof rm;
 }
 
+export type StagedReplacement =
+  | {
+      kind: 'tree';
+      output: string;
+      stagedPath: string;
+      inventory: readonly PackageInventoryEntry[];
+    }
+  | {
+      kind: 'file';
+      output: string;
+      stagedPath: string;
+      hash: string;
+      mode: number;
+    };
+
 const defaultOperations: PackagingOperations = {
   rename,
   remove: rm,
@@ -99,6 +114,13 @@ function posixPath(value: string): string {
 function assertRelativePath(value: string, label: string): string {
   if (!value || path.isAbsolute(value))
     fail(`${label} must be relative: ${value}`);
+  if (
+    posixPath(value)
+      .split('/')
+      .some((part) => part === '.' || part === '..')
+  ) {
+    fail(`${label} contains a traversal segment: ${value}`);
+  }
   const normalized = path.posix.normalize(posixPath(value));
   if (normalized === '..' || normalized.startsWith('../')) {
     fail(`${label} escapes its root: ${value}`);
@@ -597,6 +619,92 @@ export async function inventoryTree(
   return entries;
 }
 
+async function validateStagedReplacement(
+  replacement: StagedReplacement,
+): Promise<void> {
+  const info = await lstat(replacement.stagedPath);
+  if (info.isSymbolicLink()) {
+    fail(`staged output is a symlink: ${replacement.output}`);
+  }
+  if (replacement.kind === 'tree') {
+    if (!info.isDirectory())
+      fail(`staged tree is not a directory: ${replacement.output}`);
+    const drift = compareInventories(
+      await inventoryTree(replacement.stagedPath),
+      replacement.inventory,
+    );
+    if (drift.length > 0) {
+      fail(
+        `staged inventory drift for ${replacement.output}: ${drift.join('; ')}`,
+      );
+    }
+    return;
+  }
+  if (!info.isFile()) fail(`staged file is not a file: ${replacement.output}`);
+  const actualHash = await hashFile(replacement.stagedPath);
+  const actualMode = info.mode & 0o777;
+  if (actualHash !== replacement.hash || actualMode !== replacement.mode) {
+    fail(`staged file drift for ${replacement.output}`);
+  }
+}
+
+export async function describeStagedFile(
+  output: string,
+  stagedPath: string,
+): Promise<StagedReplacement> {
+  assertRelativePath(output, 'staged file output');
+  const info = await lstat(stagedPath);
+  if (info.isSymbolicLink() || !info.isFile()) {
+    fail(`staged file is not a regular file: ${output}`);
+  }
+  return {
+    kind: 'file',
+    output,
+    stagedPath,
+    hash: await hashFile(stagedPath),
+    mode: info.mode & 0o777,
+  };
+}
+
+export function describeBuiltDistribution(
+  unit: BuiltDistribution,
+): StagedReplacement {
+  return {
+    kind: 'tree',
+    output: declaredOutput(unit.target),
+    stagedPath: unit.stagedPath,
+    inventory: unit.inventory,
+  };
+}
+
+export async function validateBuiltDistributions(options: {
+  repoRoot: string;
+  built: readonly BuiltDistribution[];
+}): Promise<void> {
+  const repoRoot = await realpath(options.repoRoot);
+  const declarations = new Map<
+    string,
+    { declaration: DistributionDeclaration; fingerprint: string }
+  >();
+  for (const unit of options.built) {
+    await validateStagedReplacement(describeBuiltDistribution(unit));
+    const current = declarations.get(unit.declaration.owner);
+    if (current && current.fingerprint !== unit.inputFingerprint) {
+      fail(`inconsistent input fingerprints for ${unit.declaration.owner}`);
+    }
+    declarations.set(unit.declaration.owner, {
+      declaration: unit.declaration,
+      fingerprint: unit.inputFingerprint,
+    });
+  }
+  for (const { declaration, fingerprint } of declarations.values()) {
+    const roots = await resolveAllowedRoots(repoRoot, declaration);
+    if ((await fingerprintInputRoots(repoRoot, roots)) !== fingerprint) {
+      fail(`inputs changed before publication for ${declaration.owner}`);
+    }
+  }
+}
+
 export async function buildDeclaredDistributions(options: {
   repoRoot: string;
   declarations: readonly DistributionDeclaration[];
@@ -723,32 +831,127 @@ export async function replaceDeclaredDistribution(
   await writeDeclaredDistributions({ repoRoot, built: [unit], operations });
 }
 
-export async function writeDeclaredDistributions(options: {
+async function validateMutationPath(
+  repoRoot: string,
+  relative: string,
+  label: string,
+): Promise<string> {
+  const normalized = assertRelativePath(relative, label);
+  const parts = normalized.split('/');
+  let current = repoRoot;
+  for (const part of parts.slice(0, -1)) {
+    current = path.join(current, part);
+    let info;
+    try {
+      info = await lstat(current);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') break;
+      throw error;
+    }
+    if (info.isSymbolicLink()) {
+      fail(
+        `${label} has a symlinked ancestor: ${posixPath(path.relative(repoRoot, current))}`,
+      );
+    }
+    if (!info.isDirectory()) {
+      fail(
+        `${label} has a non-directory ancestor: ${posixPath(path.relative(repoRoot, current))}`,
+      );
+    }
+    if (!isContainedBy(repoRoot, await realpath(current))) {
+      fail(`${label} resolves outside repository: ${relative}`);
+    }
+  }
+  return path.join(repoRoot, normalized);
+}
+
+export async function writeStagedOutputs(options: {
   repoRoot: string;
-  built: readonly BuiltDistribution[];
+  replacements: readonly StagedReplacement[];
   operations?: PackagingOperations;
+  validateBeforeMutation?: () => Promise<void>;
 }): Promise<void> {
+  const repoRoot = await realpath(options.repoRoot);
   const operations = options.operations ?? defaultOperations;
-  const entries = options.built.map((unit) => {
-    const outputRelative = declaredOutput(unit.target);
-    const output = path.resolve(options.repoRoot, outputRelative);
-    return {
-      unit,
-      outputRelative,
-      output,
-      backup: path.join(
-        path.dirname(output),
-        `.${path.basename(output)}.recovery-${randomUUID()}`,
-      ),
-      movedPrior: false,
-      installed: false,
-    };
-  });
+  const outputs: string[] = [];
+  for (const replacement of options.replacements) {
+    const output = assertRelativePath(replacement.output, 'generated output');
+    if (
+      outputs.some(
+        (prior) =>
+          prior === output ||
+          prior.startsWith(`${output}/`) ||
+          output.startsWith(`${prior}/`),
+      )
+    ) {
+      fail(`output collision: ${output}`);
+    }
+    outputs.push(output);
+    await validateStagedReplacement(replacement);
+  }
+
+  const entries = await Promise.all(
+    options.replacements.map(async (replacement) => {
+      const outputRelative = assertRelativePath(
+        replacement.output,
+        'generated output',
+      );
+      const output = await validateMutationPath(
+        repoRoot,
+        outputRelative,
+        `output ${outputRelative}`,
+      );
+      const backupRelative = posixPath(
+        path.join(
+          path.posix.dirname(outputRelative),
+          `.${path.posix.basename(outputRelative)}.recovery-${randomUUID()}`,
+        ),
+      );
+      const backup = await validateMutationPath(
+        repoRoot,
+        backupRelative,
+        `backup ${outputRelative}`,
+      );
+      return {
+        replacement,
+        outputRelative,
+        output,
+        backupRelative,
+        backup,
+        movedPrior: false,
+        installed: false,
+      };
+    }),
+  );
+  for (const replacement of options.replacements) {
+    await validateStagedReplacement(replacement);
+  }
+  await options.validateBeforeMutation?.();
 
   let replacementError: unknown;
   try {
     for (const entry of entries) {
+      await validateMutationPath(
+        repoRoot,
+        entry.outputRelative,
+        `output ${entry.outputRelative}`,
+      );
+      await validateMutationPath(
+        repoRoot,
+        entry.backupRelative,
+        `backup ${entry.outputRelative}`,
+      );
       await mkdir(path.dirname(entry.output), { recursive: true });
+      await validateMutationPath(
+        repoRoot,
+        entry.outputRelative,
+        `output ${entry.outputRelative}`,
+      );
+      await validateMutationPath(
+        repoRoot,
+        entry.backupRelative,
+        `backup ${entry.outputRelative}`,
+      );
       try {
         await operations.rename(entry.output, entry.backup);
         entry.movedPrior = true;
@@ -757,7 +960,12 @@ export async function writeDeclaredDistributions(options: {
       }
     }
     for (const entry of entries) {
-      await operations.rename(entry.unit.stagedPath, entry.output);
+      await validateMutationPath(
+        repoRoot,
+        entry.outputRelative,
+        `output ${entry.outputRelative}`,
+      );
+      await operations.rename(entry.replacement.stagedPath, entry.output);
       entry.installed = true;
     }
   } catch (error) {
@@ -767,6 +975,23 @@ export async function writeDeclaredDistributions(options: {
   if (replacementError) {
     const rollbackFailures: string[] = [];
     for (const entry of entries.toReversed()) {
+      try {
+        await validateMutationPath(
+          repoRoot,
+          entry.outputRelative,
+          `rollback output ${entry.outputRelative}`,
+        );
+        await validateMutationPath(
+          repoRoot,
+          entry.backupRelative,
+          `rollback backup ${entry.outputRelative}`,
+        );
+      } catch (error) {
+        rollbackFailures.push(
+          `${entry.outputRelative}: unsafe rollback path: ${String(error)}`,
+        );
+        continue;
+      }
       if (entry.installed) {
         try {
           await operations.remove(entry.output, {
@@ -803,6 +1028,11 @@ export async function writeDeclaredDistributions(options: {
   for (const entry of entries) {
     if (!entry.movedPrior) continue;
     try {
+      await validateMutationPath(
+        repoRoot,
+        entry.backupRelative,
+        `backup cleanup ${entry.outputRelative}`,
+      );
       await operations.remove(entry.backup, { recursive: true, force: true });
     } catch (error) {
       cleanupFailures.push(`${entry.backup}: ${String(error)}`);
@@ -813,6 +1043,19 @@ export async function writeDeclaredDistributions(options: {
       `distribution installed but backup cleanup failed: ${cleanupFailures.join('; ')}`,
     );
   }
+}
+
+export async function writeDeclaredDistributions(options: {
+  repoRoot: string;
+  built: readonly BuiltDistribution[];
+  operations?: PackagingOperations;
+}): Promise<void> {
+  await writeStagedOutputs({
+    repoRoot: options.repoRoot,
+    replacements: options.built.map(describeBuiltDistribution),
+    operations: options.operations,
+    validateBeforeMutation: () => validateBuiltDistributions(options),
+  });
 }
 
 export async function cleanupBuiltDistributions(
