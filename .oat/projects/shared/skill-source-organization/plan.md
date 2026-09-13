@@ -305,7 +305,8 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
 | p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
 | p02 | code | fixes_completed | 2026-09-13 | reviews/p02-review-2026-09-13T202600Z.md | a2014e9b8641cf0af03fe89eb634494614874260 | manual | - |
-| p02 | code | fixes_added | 2026-09-13 | reviews/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
+| p02 | code | fixes_completed | 2026-09-13 | reviews/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
+| p02 | code | passed | 2026-09-13 | reviews/p02-review-2026-09-13T210441Z.md | 9104c37597c8b7fa452ef1aeadaf48e153e1a210 | manual | - |
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
@@ -367,11 +368,11 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | Phase | Tasks | Completed |
 | --- | --- | --- |
 | p01 Packaging foundation | 3 | 3 |
-| p02 Source/tooling migration | 4 | 0 |
+| p02 Source/tooling migration | 4 | 4 |
 | p03 Products/promotions | 4 | 0 |
 | p04 Public documentation/verification | 2 | 0 |
 | p05 Post-merge private cutover | 1 | 0 |
-| Total | 14 | 3 |
+| Total | 14 | 7 |
 
 p01–p04 comprise the 13-task public milestone; p05 is one post-merge cross-repo task. Do not mark all 14 complete when the public PR is ready.
 
