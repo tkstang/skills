@@ -117,6 +117,34 @@ describe('provider readiness probes', () => {
     ]);
   });
 
+  it('preflights only the selected provider CLI with an injected local runner', async () => {
+    const calls: string[] = [];
+    const runner: ProbeCommandRunner = {
+      async findExecutable(command) {
+        calls.push(`find:${command}`);
+        if (command !== 'codex') throw new Error(`unexpected CLI: ${command}`);
+        return '/usr/local/bin/codex';
+      },
+      async run(command, args, provider) {
+        calls.push(`run:${provider}:${command} ${args.join(' ')}`);
+        return {
+          code: 0,
+          signal: null,
+          stdout: 'codex 1.2.3\n',
+          stderr: '',
+        };
+      },
+    };
+
+    await expect(
+      runPreflight({ provider: 'codex', probeRunner: runner }),
+    ).resolves.toMatchObject({
+      usable: true,
+      providers: [{ id: 'codex', status: 'ready' }],
+    });
+    expect(calls).toEqual(['find:codex', 'run:codex:codex --version']);
+  });
+
   it('bounds sleeping provider probes as unavailable timeouts', async () => {
     const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
     await writeExecutableFixture(binDir, 'claude', '#!/bin/sh\n/bin/sleep 5\n');

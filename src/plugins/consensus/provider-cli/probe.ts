@@ -3,9 +3,11 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
+import { buildProviderProbeEnvironment } from './runtime-policy.js';
 import { runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
 import type { ProviderInventoryEntry, ProviderDiagnostics } from './types.js';
+import type { ProviderId } from './types.js';
 
 export interface ProviderProbeDefinition {
   version_args: readonly string[];
@@ -28,7 +30,11 @@ export interface ProbeCommandResult {
 
 export interface ProbeCommandRunner {
   findExecutable(command: string): Promise<string | undefined>;
-  run(command: string, args: readonly string[]): Promise<ProbeCommandResult>;
+  run(
+    command: string,
+    args: readonly string[],
+    provider: ProviderId,
+  ): Promise<ProbeCommandResult>;
 }
 
 export interface ProviderProbeOptions {
@@ -37,6 +43,7 @@ export interface ProviderProbeOptions {
 
 export interface ProviderRegistryProbeOptions extends ProviderProbeOptions {
   registry: ProviderAdapterRegistry;
+  provider?: ProviderId;
 }
 
 export interface NodeProbeCommandRunnerOptions {
@@ -52,11 +59,15 @@ const DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 export async function probeProviderRegistry({
   registry,
   runner,
+  provider,
 }: ProviderRegistryProbeOptions): Promise<ProviderInventoryEntry[]> {
+  const adapters = provider
+    ? [registry.get(provider)].filter(
+        (adapter): adapter is ProviderAdapter => adapter !== undefined,
+      )
+    : registry.list();
   return Promise.all(
-    registry
-      .list()
-      .map((adapter) => probeProviderReadiness(adapter, { runner })),
+    adapters.map((adapter) => probeProviderReadiness(adapter, { runner })),
   );
 }
 
@@ -76,6 +87,7 @@ export async function probeProviderReadiness(
   const result = await options.runner.run(
     adapter.executable,
     adapter.probe.version_args,
+    adapter.id,
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -113,8 +125,13 @@ export function nodeProbeCommandRunner(
     findExecutable(command) {
       return findExecutable(command, env);
     },
-    run(command, args) {
-      return runProbeCommand(command, args, env, options);
+    run(command, args, provider) {
+      return runProbeCommand(
+        command,
+        args,
+        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        options,
+      );
     },
   };
 }

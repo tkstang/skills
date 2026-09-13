@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { providerRegistry } from '../provider-cli/adapters.js';
 import {
   buildChildEnvironment,
+  buildProviderProbeEnvironment,
   defaultRuntimePolicy,
   redactedRuntimePolicyDiagnostics,
   validateProviderOptions,
@@ -203,6 +204,43 @@ describe('provider runtime policy validation', () => {
     });
     expect(JSON.stringify(diagnostics)).not.toContain('custom-secret-value');
   });
+
+  it.each([
+    ['claude', ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']],
+    ['codex', ['OPENAI_API_KEY']],
+    ['cursor', ['CURSOR_API_KEY']],
+  ] as const)(
+    'limits the %s readiness probe environment to base and selected-provider variables',
+    (provider, selectedKeys) => {
+      const env = buildProviderProbeEnvironment({
+        parentEnv: {
+          PATH: '/usr/bin',
+          HOME: '/Users/test',
+          ANTHROPIC_API_KEY: 'anthropic-secret',
+          CLAUDE_CODE_OAUTH_TOKEN: 'claude-token',
+          OPENAI_API_KEY: 'openai-secret',
+          CURSOR_API_KEY: 'cursor-secret',
+          HTTPS_PROXY: 'https://proxy.example.test',
+          SECRET_TOKEN: 'do-not-pass',
+        },
+        provider,
+      });
+
+      expect(env).toMatchObject({ PATH: '/usr/bin', HOME: '/Users/test' });
+      for (const key of selectedKeys) expect(env).toHaveProperty(key);
+      for (const key of [
+        'ANTHROPIC_API_KEY',
+        'CLAUDE_CODE_OAUTH_TOKEN',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+      ]) {
+        if (!selectedKeys.includes(key as never))
+          expect(env).not.toHaveProperty(key);
+      }
+      expect(env).not.toHaveProperty('HTTPS_PROXY');
+      expect(env).not.toHaveProperty('SECRET_TOKEN');
+    },
+  );
 });
 
 function capabilities(id: 'claude' | 'codex' | 'cursor'): ProviderCapabilities {

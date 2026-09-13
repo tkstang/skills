@@ -4,7 +4,7 @@ description: Use when the user asks to hand off, transfer, or let another agent 
 license: MIT
 metadata:
   author: thomas.stang
-  version: '1.1.1'
+  version: '1.1.2'
 compatibility: Agent Skills baseline. Uses read-only repository inspection when a repository is in scope. An exact stateless observer review is optional and may be unavailable for the current session.
 argument-hint: '[successor or scope] [--out <path>]'
 disable-model-invocation: false
@@ -54,6 +54,15 @@ requires the user's acceptance before invocation.
 
 Read [the handoff template](assets/handoff-template.md) only when preparing the output.
 It defines the compact artifact shape; omit headings with no useful content.
+
+## Optional integration preflight
+
+The `session-observer` and `export-transcript`
+integrations are optional. Check only the current host's effective skill inventory
+before choosing either integration. If one is absent, continue the core handoff with
+conversation and repository evidence and omit that integration. Do not install or
+fetch an optional skill, access transcripts directly, or use network discovery as a
+preflight step.
 
 ## Workflow
 

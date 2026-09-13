@@ -1911,14 +1911,138 @@ function buildAttemptSummary(attempts, retryable) {
 import { constants } from "node:fs";
 import { access as access2 } from "node:fs/promises";
 import path3 from "node:path";
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+var PROVIDER_ENV_ALLOWLIST = [
+  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
+  ["codex", ["OPENAI_API_KEY"]],
+  ["cursor", ["CURSOR_API_KEY"]]
+];
+function validateProviderOptions(request, capabilities) {
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  return { ok: true };
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  return {
+    ...childEnv,
+    ...hostEnv
+  };
+}
+function buildProviderProbeEnvironment({
+  parentEnv,
+  provider
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(provider)
+  ]);
+  const probeEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) probeEnv[name] = value;
+  }
+  return probeEnv;
+}
+function providerEnvAllowlist(provider) {
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/plugins/consensus/provider-cli/probe.ts
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
   registry,
-  runner
+  runner,
+  provider
 }) {
+  const adapters = provider ? [registry.get(provider)].filter(
+    (adapter) => adapter !== void 0
+  ) : registry.list();
   return Promise.all(
-    registry.list().map((adapter) => probeProviderReadiness(adapter, { runner }))
+    adapters.map((adapter) => probeProviderReadiness(adapter, { runner }))
   );
 }
 async function probeProviderReadiness(adapter, options) {
@@ -1932,7 +2056,8 @@ async function probeProviderReadiness(adapter, options) {
   }
   const result = await options.runner.run(
     adapter.executable,
-    adapter.probe.version_args
+    adapter.probe.version_args,
+    adapter.id
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -1960,8 +2085,13 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
     findExecutable(command) {
       return findExecutable(command, env);
     },
-    run(command, args) {
-      return runProbeCommand(command, args, env, options);
+    run(command, args, provider) {
+      return runProbeCommand(
+        command,
+        args,
+        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        options
+      );
     }
   };
 }
@@ -2126,109 +2256,6 @@ function matchesJsonType(value, type) {
 import { readFile as readFile3, rm as rm3, stat } from "node:fs/promises";
 import path5 from "node:path";
 import { fileURLToPath } from "node:url";
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
-var DEFAULT_RUNTIME_POLICY = {
-  permission_mode: "non-interactive"
-};
-var BASE_ENV_ALLOWLIST = [
-  "PATH",
-  "HOME",
-  "TMPDIR",
-  "TEMP",
-  "TMP",
-  "USER",
-  "LOGNAME",
-  "SHELL",
-  "LANG"
-];
-var PROVIDER_ENV_ALLOWLIST = [
-  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
-  ["codex", ["OPENAI_API_KEY"]],
-  ["cursor", ["CURSOR_API_KEY"]]
-];
-function validateProviderOptions(request, capabilities) {
-  if (request.model && !capabilities.options.model) {
-    return unsupported("model", "Provider does not support model selection.");
-  }
-  if (request.effort && capabilities.options.effort === null) {
-    return unsupported("effort", "Provider does not support effort selection.");
-  }
-  const policy = defaultRuntimePolicy(request.runtime_policy);
-  const runtimeCapabilities = capabilities.options.runtime_policy;
-  const permissionResult = validateOptionValue(
-    "runtime_policy.permission_mode",
-    policy.permission_mode,
-    runtimeCapabilities.permission_modes
-  );
-  if (permissionResult) return permissionResult;
-  const sandboxResult = validateOptionValue(
-    "runtime_policy.sandbox",
-    policy.sandbox,
-    runtimeCapabilities.sandboxes
-  );
-  if (sandboxResult) return sandboxResult;
-  const approvalResult = validateOptionValue(
-    "runtime_policy.approval_policy",
-    policy.approval_policy,
-    runtimeCapabilities.approval_policies
-  );
-  if (approvalResult) return approvalResult;
-  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
-    return unsupported(
-      "runtime_policy.env_allowlist",
-      "Provider does not support child environment allowlist extension."
-    );
-  }
-  return { ok: true };
-}
-function defaultRuntimePolicy(policy = {}) {
-  return {
-    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
-    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
-    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}
-  };
-}
-function buildChildEnvironment({
-  parentEnv,
-  request,
-  hostEnv
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
-    ...request.runtime_policy?.env_allowlist ?? []
-  ]);
-  const childEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) childEnv[name] = value;
-  }
-  return {
-    ...childEnv,
-    ...hostEnv
-  };
-}
-function providerEnvAllowlist(provider) {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
-}
-function validateOptionValue(option, value, supportedValues) {
-  if (!value) return void 0;
-  if (supportedValues?.includes(value)) return void 0;
-  return unsupported(
-    option,
-    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
-  );
-}
-function unsupported(option, message) {
-  return {
-    ok: false,
-    code: "PROVIDER_UNSUPPORTED_OPTION",
-    option,
-    message
-  };
-}
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -2759,7 +2786,11 @@ async function runProviderList(options = {}) {
   };
 }
 async function runPreflight(options = {}) {
-  const registry = await resolveRegistry(options.registry, options);
+  const registry = await resolveRegistry(
+    options.registry,
+    options,
+    options.provider
+  );
   const providers = applyHostGuardToProviders(
     selectProviders(registry, options.provider),
     options.host
@@ -3222,13 +3253,14 @@ function mergeDiagnostics2(current, next) {
     ...warnings.length > 0 ? { warnings } : {}
   };
 }
-async function resolveRegistry(registry, options = {}) {
+async function resolveRegistry(registry, options = {}, provider) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === "function") return registry();
   if (options.probeRunner) {
     return probeProviderRegistry({
       registry: providerRegistry(),
-      runner: options.probeRunner
+      runner: options.probeRunner,
+      ...provider ? { provider } : {}
     });
   }
   return defaultProviderRegistry();

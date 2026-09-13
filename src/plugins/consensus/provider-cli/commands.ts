@@ -195,7 +195,11 @@ export async function runProviderList(
 export async function runPreflight(
   options: PreflightCommandOptions = {},
 ): Promise<PreflightEnvelope> {
-  const registry = await resolveRegistry(options.registry, options);
+  const registry = await resolveRegistry(
+    options.registry,
+    options,
+    options.provider,
+  );
   const providers = applyHostGuardToProviders(
     selectProviders(registry, options.provider),
     options.host,
@@ -803,6 +807,7 @@ function mergeDiagnostics(
 async function resolveRegistry(
   registry: ProviderCommandOptions['registry'],
   options: Pick<ProviderCommandOptions, 'probeRunner'> = {},
+  provider?: ProviderId,
 ) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === 'function') return registry();
@@ -810,6 +815,7 @@ async function resolveRegistry(
     return probeProviderRegistry({
       registry: providerRegistry(),
       runner: options.probeRunner,
+      ...(provider ? { provider } : {}),
     });
   }
   return defaultProviderRegistry();

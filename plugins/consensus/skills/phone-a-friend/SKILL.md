@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: thomas.stang
-  version: '0.1.3'
+  version: '0.1.4'
 ---
 
 # Phone a Friend
@@ -31,21 +31,24 @@ Use this skill when the user asks for one other AI peer's advice, or when your c
 
 Before a run, ensure Node.js 22 or newer is available and the generated `consensus` CLI can run. From an installed plugin this may be exposed as `consensus`; from a repository checkout the same provider CLI lives at `plugins/consensus/scripts/consensus.mjs` and can be run with `node`.
 
-Check provider inventory and readiness before spending a peer call:
+Resolve the exact advisory peer this run will call from the explicit flag or
+effective configuration. Preflight that selected provider locally:
 
 ```bash
-consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <selected-provider-id>
 ```
 
 From a checkout, use the same commands through the script path:
 
 ```bash
-node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id>
 ```
 
-Relay provider-neutral diagnostics such as `missing`, `auth_required`, `unavailable`, or `unsupported` instead of retrying blindly.
+Do not use unscoped `provider ls` or `preflight` as a prerequisite: they probe
+unselected CLIs. The scoped preflight checks only the named local executable and
+does not install anything. If it reports `missing`, `auth_required`, `unavailable`,
+or `unsupported`, stop before the provider call and relay the provider-neutral
+diagnostic. Do not fetch installers, probe another provider's auth, or retry blindly.
 
 Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
 

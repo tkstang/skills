@@ -26,6 +26,11 @@ export interface BuildChildEnvironmentInput {
   hostEnv: Record<string, string>;
 }
 
+export interface BuildProviderProbeEnvironmentInput {
+  parentEnv: Record<string, string | undefined>;
+  provider: string;
+}
+
 export interface RedactedRuntimePolicyDiagnostics {
   permission_mode?: string;
   sandbox?: string;
@@ -142,6 +147,24 @@ export function buildChildEnvironment({
     ...childEnv,
     ...hostEnv,
   };
+}
+
+export function buildProviderProbeEnvironment({
+  parentEnv,
+  provider,
+}: BuildProviderProbeEnvironmentInput): Record<string, string> {
+  const allowedNames = new Set<string>([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(provider),
+  ]);
+  const probeEnv: Record<string, string> = {};
+
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== undefined) probeEnv[name] = value;
+  }
+
+  return probeEnv;
 }
 
 function providerEnvAllowlist(provider: string): readonly string[] {

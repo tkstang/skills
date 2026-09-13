@@ -9,12 +9,19 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.37'
+  version: '1.0.38'
 ---
 
 # session-observer
 
 Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript for the current project, render a tool-free digest, and track runtime-specific read positions so follow-up checks surface only new content.
+
+## Local runtime preflight
+
+Before any observer command or transcript access, verify locally that `node --version`
+reports Node.js 22 or newer. If Node is missing or older, stop and report the
+requirement. Do not install or fetch Node, inspect transcripts, or probe provider
+authentication as part of this preflight.
 
 ---
 

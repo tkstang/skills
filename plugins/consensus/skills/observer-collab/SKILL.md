@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.23'
+  version: '1.0.24'
 ---
 
 # observer-collab
@@ -18,6 +18,19 @@ Coordinate a user and two agent sessions through the canonical
 `observer` skill. This skill defines collaboration protocol and wake
 boundaries; it does not reimplement transcript discovery, normalization,
 rendering, or offset storage.
+
+## Required-skill preflight
+
+Before any transcript access or observer command, inspect the current host's
+effective skill inventory for `observer`. If it is unavailable,
+stop and report that the required canonical skill is `session-observer`, with its
+install source:
+
+<https://github.com/tkstang/skills/tree/main/skills/session-observer>
+
+Do not fetch the URL, install the skill, or continue with direct transcript access.
+Installation requires a separately authorized action. This inventory check is local
+and must not inspect transcripts or probe provider authentication.
 
 ## When to Use
 

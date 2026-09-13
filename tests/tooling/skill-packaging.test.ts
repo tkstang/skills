@@ -1040,7 +1040,50 @@ describe('representative real installation boundaries', () => {
       expect(handoffFiles.some((entry) => entry.path.endsWith('.mjs'))).toBe(
         false,
       );
+      const handoffInstruction = await readFile(
+        path.join(root, installedHandoff, 'SKILL.md'),
+        'utf8',
+      );
+      expect(handoffInstruction).toContain('integrations are optional');
+      expect(handoffInstruction).toContain(
+        'If one is absent, continue the core handoff',
+      );
     }
+
+    const standaloneCollabInstruction = await readFile(
+      path.join(root, 'skills/session-observer-collab/SKILL.md'),
+      'utf8',
+    );
+    expect(standaloneCollabInstruction).toContain(
+      'effective skill inventory for `session-observer`',
+    );
+    expect(standaloneCollabInstruction).toContain(
+      'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+    );
+    expect(standaloneCollabInstruction).toContain(
+      'Do not fetch the URL, install the skill, or continue',
+    );
+
+    const pluginCollabInstruction = await readFile(
+      path.join(root, 'plugins/consensus/skills/observer-collab/SKILL.md'),
+      'utf8',
+    );
+    expect(pluginCollabInstruction).toContain(
+      'effective skill inventory for `observer`',
+    );
+    expect(pluginCollabInstruction).toContain(
+      'required canonical skill is `session-observer`',
+    );
+    const standaloneObserverInstruction = await readFile(
+      path.join(root, 'skills/session-observer/SKILL.md'),
+      'utf8',
+    );
+    expect(standaloneObserverInstruction).toContain(
+      'Before any observer command or transcript access',
+    );
+    expect(standaloneObserverInstruction).toContain(
+      'Do not install or fetch Node',
+    );
 
     const exportSessionId = 'installed-export';
     const exportCwd = '/synthetic/project';
