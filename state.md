@@ -67,7 +67,7 @@ oat_post_implement_sequence:
   source: configured
   final_phase: p-rev1
   pre_approval: [summary, document, pr]
-  pre_approval_completed: [summary]
+  pre_approval_completed: [summary, document]
   approval: pending
   approval_source: null
   post_approval: []
@@ -130,12 +130,12 @@ oat_workflow_origin: native # native | imported
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
-oat_docs_updated: null # null | skipped | complete — documentation sync status
+oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T14:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T14:08:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -170,7 +170,7 @@ Historical p04 Codex native-identity-missing and Claude unpassed exact-version g
 remain unresolved evidence, not blockers for read-only guidance. No cleanup targets
 are inferred; old p05 activation and p06 packaging tasks are superseded/unimplemented.
 The final-only HiLL checkpoint is configured for p-rev1 with automatic review. No
-provider operation is authorized.
+further provider operation is authorized.
 
 ## Artifacts
 
@@ -178,7 +178,7 @@ provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (52 completed, 4 superseded/unimplemented; standard review and exit gate remain)
+- **Implementation:** `implementation.md` (49 completed, 4 superseded/unimplemented; standard review and exit gate passed)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress

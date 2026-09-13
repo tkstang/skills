@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-12
+oat_last_updated: 2026-09-13
 oat_current_task_id: null
 oat_generated: false
 ---
@@ -10,7 +10,7 @@ oat_generated: false
 # Implementation: coding-session-handoff
 
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | fresh final review fixes complete | 17 | 17/17 |
+| p-rev1 | exit gate passed; pre-approval closeout | 17 | 17/17 |
 
 **Total:** 49 completed of 53 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented and 0 tasks pending.
@@ -1987,6 +1987,19 @@ Track test execution during implementation.
 
 ## Final Summary (for PR/docs)
 
+### Documentation Closeout
+
+Repository planning references were updated in feature commit `5765a239`:
+
+- `.oat/repo/pjm/current-state.md` now records the experimental source-tree skill,
+  its read-only boundary, and its review-complete but unreleased status.
+- `.oat/repo/pjm/roadmap.md` now records PR closeout as current work and the proposed
+  `session` plugin plus `session-fork-to-destination` naming migration as follow-up.
+
+No public user-guide or feature-code files changed in this documentation step. The
+nonblocking large Codex-store ceiling and preview failure-provenance findings remain
+deferred to the coordinated plugin/naming revision.
+
 **What shipped:**
 
 - An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.
@@ -2025,9 +2038,10 @@ Track test execution during implementation.
   the paused executor and shared observer consumers.
 - Override fixes `cf73ee75` through `f5c6a518` addressed the second gate's realistic-
   store evidence; direct review repairs `06281afb` through `10d901e8` close the
-  downstream continued-prefix, cache-policy, and documentation gaps. The standard
-  review requirement and one additional external gate remain before any
-  release/readiness claim.
+  downstream continued-prefix, cache-policy, and documentation gaps. The additional
+  standard re-review passed with zero findings, and the final authorized Cursor Fable
+  gate passed its Important threshold. PR update, installation, publication, and
+  release remain separate pending steps.
 
 ## References
 
