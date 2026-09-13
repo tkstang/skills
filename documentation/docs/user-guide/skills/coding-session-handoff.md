@@ -41,7 +41,7 @@ The following examples use synthetic paths and IDs:
 
 ```bash
 node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
-  discover --source /synthetic/source --provider all --json
+  discover --source /synthetic/source --provider claude --json
 
 node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
   preview --source /synthetic/source \
@@ -52,6 +52,10 @@ node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
   --session claude:cli:00000000-0000-4000-8000-000000000002 \
   --entry-point source-other --json
 ```
+
+`--provider all` fails closed while Cursor lacks independent exact cwd evidence. Use
+an explicit `--provider claude` or `--provider codex` discovery for the supported
+guidance workflow.
 
 The output keeps provider and surface in the qualified identifier. It reports
 the canonical source and destination, destination dirty state, evidence status,

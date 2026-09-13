@@ -29,10 +29,14 @@ current identity cannot be corroborated.
 The commands are:
 
 ```text
-coding-session-handoff discover --source /synthetic/source --provider all --json
+coding-session-handoff discover --source /synthetic/source --provider claude --json
 coding-session-handoff preview --source /synthetic/source --session codex:cli:00000000-0000-4000-8000-000000000001 --json
 coding-session-handoff prepare --source /synthetic/source --target /synthetic/destination --session claude:cli:00000000-0000-4000-8000-000000000002 --entry-point source-other --json
 ```
+
+`--provider all` fails closed while Cursor lacks independent exact cwd evidence. Use
+an explicit `--provider claude` or `--provider codex` discovery for the supported
+guidance workflow.
 
 `discover` and `preview` read bounded transcript evidence. `prepare` validates
 the source and destination Git worktrees and emits quoted instructions guarded

@@ -229,6 +229,26 @@ describe('experimental guidance CLI', () => {
     expect(toolReadme).toMatch(/unverified/i);
   });
 
+  it('uses explicit supported providers in public discovery examples', async () => {
+    const toolReadme = await readFile(
+      new URL('../../tools/coding-session-handoff/README.md', import.meta.url),
+      'utf8',
+    );
+    const userGuide = await readFile(
+      new URL(
+        '../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    for (const document of [toolReadme, userGuide]) {
+      expect(document).not.toMatch(/discover[^\n]*--provider all/);
+      expect(document).toMatch(/discover[^\n]*--provider (?:claude|codex)/);
+      expect(document).toMatch(/`--provider all`[^.]*fail(?:s)? closed/is);
+    }
+  });
+
   it('states that current Cursor discovery cannot produce selectable candidates', async () => {
     const skill = await readFile(
       new URL('../../skills/coding-session-handoff/SKILL.md', import.meta.url),
