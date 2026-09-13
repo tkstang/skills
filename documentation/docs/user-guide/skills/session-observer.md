@@ -5,8 +5,10 @@ description: 'Review what another coding agent did in this project with tool-fre
 
 # Session Observer
 
-`session-observer` is a standalone Agent Skill for checking what another coding
-agent just did in the current project. It lets you (Claude Code, Codex, or
+`session-observer` checks what another coding agent just did in the current
+project. It is generated as the standalone `session-observer` skill and as the
+consensus plugin-local `observer` skill. Both forms share one canonical owner,
+runtime behavior, and `metadata.version`. It lets you (Claude Code, Codex, or
 Cursor) inspect another runtime's transcript, render a tool-free digest, and
 track per-session read positions so follow-up checks surface only new content.
 Claude Code and Codex retain record-index offsets. Cursor uses a separate

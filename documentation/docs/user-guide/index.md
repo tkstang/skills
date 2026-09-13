@@ -1,6 +1,6 @@
 ---
 title: 'User Guide'
-description: 'Install, use, and configure the consensus plugin and the standalone skills shipped by this repo.'
+description: 'Install and use the consensus and session plugins or their declared standalone skill forms.'
 ---
 
 # User Guide
@@ -14,15 +14,16 @@ What ships today:
 
 - **Consensus plugin** — `create`, `decide`, and `plan` start from a brief,
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
-  audit trails; `phone-a-friend` asks one peer for a one-shot advisory take.
-- **Standalone skills** — `session-observer` (review what another coding agent
-  did), `session-observer-collab` (coordinate two exactly pinned agent
-  sessions), `export-session-transcript` (export the current session to
-  sanitized Markdown), and `complexity-review` (judge whether a plan or
-  implementation's machinery earns its cost).
+  audit trails; `phone-a-friend` asks one peer for a one-shot advisory take;
+  `observer` and `observer-collab` provide plugin-local session observation.
+- **Session plugin** — `handoff`, `export-transcript`, and
+  `fork-to-destination` package continuation, sanitized export, and
+  experimental destination-side fork guidance.
+- **Optional standalone skills** — the session capabilities retain descriptive
+  `session-*` names, while `complexity-review` remains standalone only.
 
 ## Contents
 
-- [Installation](installation.md) — Install the consensus plugin per provider (Claude Code, Codex, Cursor) and check prerequisites.
-- [Consensus](consensus/index.md) — Overview, `create`, `decide`, `plan`, `refine`, `evaluate`, `phone-a-friend`, and shared configuration.
-- [Skills](skills/index.md) — The standalone session skills and the complexity review.
+- [Installation](installation.md) — Choose plugin or standalone forms, install per provider, and check prerequisites and release evidence.
+- [Consensus](consensus/index.md) — Overview, peer workflows, session observation members, and shared configuration.
+- [Skills](skills/index.md) — Canonical session skill names, standalone links, plugin-local names, and complexity review.

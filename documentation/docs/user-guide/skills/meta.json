@@ -3,8 +3,9 @@
     "index",
     "session-observer",
     "session-observer-collab",
-    "export-session-transcript",
-    "coding-session-handoff",
+    "session-export-transcript",
+    "session-fork-to-destination",
+    "session-handoff",
     "complexity-review"
   ]
 }

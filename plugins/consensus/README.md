@@ -2,11 +2,23 @@
 
 Status: v0.1.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log; `panel`, which asks multiple provider-backed panelists the same question and writes side-by-side attributed responses while the host stays a neutral moderator; and `phone-a-friend`, which asks one other provider-backed peer for a structured advisory take without a deliberation loop.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows
+and cross-provider session observation. It ships the peer workflows `create`,
+`decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend`, plus
+plugin-local `observer` and `observer-collab` forms of the canonical
+`session-observer` and `session-observer-collab` skills.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, the `--agency` flag, single-round neutral panel questions through `consensus-panel`, and one-shot advisory peer consultation through `consensus run`. Future work may add `consensus-research`, a whole-document harmonization pass, multi-round panel discussion, and deliberation metrics/cost caps.
+The peer-workflow scope is intentionally narrow: seven peer skills, three
+iteration modes selected with `--iteration`, a configurable synthesizer, an
+agency-gated escalation ladder, sequential sections by default for refine,
+opt-in host-mediated parallel section orchestration, single-round neutral panel
+questions, and one-shot advisory consultation. The two observer skills are
+grouped here because observing and collaborating across providers is consensus
+behavior; they do not invoke the peer-deliberation loop. Future work may add
+`consensus-research`, a whole-document harmonization pass, multi-round panel
+discussion, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -34,7 +46,10 @@ Cursor Agent:
 cursor agent --plugin-dir "$PWD/plugins/consensus"
 ```
 
-The Cursor CLI does not currently expose `cursor plugin marketplace` or `cursor plugin install`; local plugin loading is session-scoped through Cursor Agent's `--plugin-dir` option.
+Cursor Agent local plugin loading is session-scoped through `--plugin-dir`.
+Its marketplace command can add a Git repository URL, but it does not accept the
+local `"$PWD"` pattern used above and does not expose a CLI `plugin install`
+verb; use the interactive plugin picker for marketplace installation.
 
 Published provider marketplace install flows are not release claims yet. Re-check provider CLIs and marketplace flows before making new public install claims.
 
@@ -316,6 +331,11 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/phone-a-friend/schemas/advisory.schema.json` - structured advisory response contract.
 - `skills/phone-a-friend/references/operator-qa.md` - manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
 - `skills/phone-a-friend/references/examples/` - example advisory prompt and response payload.
+- `skills/observer/` - plugin-local `session-observer`, including its generated
+  dependency-free transcript CLI.
+- `skills/observer-collab/` - plugin-local
+  `session-observer-collab`; requires the observer workflow and recognizes its
+  standalone or plugin-local installed identity.
 - `references/live-e2e.md` - repeatable live provider E2E release-gate runbook for Refine and Evaluate.
 - `references/e2e/` - small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

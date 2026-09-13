@@ -1,14 +1,15 @@
 ---
 title: 'Skills'
-description: 'Standalone skills: work across coding-agent sessions, and review whether an artifact is more complex than its contract needs.'
+description: 'Canonical session skills, their plugin-local and optional standalone forms, and the standalone complexity review.'
 ---
 
 # Skills
 
-These are standalone Agent Skills, not part of the consensus plugin. They ship
-alongside it under `skills/`. Four help you work across coding-agent sessions
-(Claude Code, Codex, and Cursor) without inventing new infrastructure; one
-reviews whether an artifact's complexity is earning its keep.
+Session skills have canonical descriptive names and may be installed as
+standalone Agent Skills or through a plugin-local short name. Observation and
+collaboration live in the consensus plugin; handoff, export, and destination
+fork guidance live in the session plugin. `complexity-review` is standalone
+only.
 
 - **session-observer** — review what another coding agent just did in this
   project, render a tool-free digest, and track per-session read offsets so
@@ -16,12 +17,15 @@ reviews whether an artifact's complexity is earning its keep.
 - **session-observer-collab** — coordinate a user and two mutually observing
   agent sessions with exact pins, bounded wake behavior, and explicit
   authority and closeout rules.
-- **export-session-transcript** — export the current agent session to a
+- **session-export-transcript** (session-local `export-transcript`) — export the current agent session to a
   sanitized Markdown transcript, named after the current git branch and written
   by default to `~/Downloads`.
-- **coding-session-handoff** — experimentally discover and preview an explicit
+- **session-fork-to-destination** (session-local `fork-to-destination`) — experimentally discover and preview an explicit
   source session, then prepare destination-safe fork guidance without invoking
   a provider or creating a fork. It is not released.
+- **session-handoff** (session-local `handoff`) — prepare a concise,
+  evidence-grounded continuation brief; observer and transcript export are
+  optional integrations.
 - **complexity-review** — judge whether each schema, script, test, harness,
   agent pass, or abstraction in a plan or implementation earns its ongoing
   cost, and get the minimum sufficient version with reintroduction triggers.
@@ -30,6 +34,7 @@ reviews whether an artifact's complexity is earning its keep.
 
 - [Session Observer](session-observer.md) - Review a peer coding agent's session with tool-free digests, per-session read offsets, and foreground watch mode.
 - [Session Observer Collaboration](session-observer-collab.md) - Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.
-- [Export Session Transcript](export-session-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
-- [Coding Session Handoff](coding-session-handoff.md) - Prepare experimental, read-only destination-tab fork guidance without invoking a provider.
+- [Session Export Transcript](session-export-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
+- [Session Fork to Destination](session-fork-to-destination.md) - Prepare experimental, read-only destination-tab fork guidance without invoking a provider.
+- [Session Handoff](session-handoff.md) - Prepare concise continuation context with optional observer and transcript-export integrations.
 - [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.

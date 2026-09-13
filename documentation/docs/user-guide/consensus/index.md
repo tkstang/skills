@@ -8,13 +8,16 @@ description: 'How the consensus plugin uses provider-backed AI peers for converg
 The consensus plugin uses provider-CLI-backed AI peers for three related
 workflows: converging artifacts through peer deliberation, single-round panel
 responses with side-by-side attribution, and one-shot advisory takes that the
-host dispositions. The peers are invoked through the generated consensus CLI; the
+host dispositions. It also packages `observer` and `observer-collab`, the
+plugin-local forms of the standalone session observation skills. The peers are invoked through the generated consensus CLI; the
 converging wrappers parse your document, run the peers through structured verdict
 rounds, and write a markdown deliberation artifact with the final output,
 resolution metadata, and a deliberation log.
 
-The scope is intentionally narrow. v0.1 ships seven skills: five converging
-skills, one panel skill, and one advisory skill.
+The peer-workflow scope stays intentionally narrow: five converging skills, one
+panel skill, and one advisory skill. The plugin additionally ships two
+session-observation skills because observing and collaborating across providers
+belong with consensus behavior.
 
 - **[`create`](create.md)** — creates a new artifact from a brief with
   `independent_draft`, `parallel_synthesized`, maximum agency, a deliberation
@@ -38,6 +41,11 @@ skills, one panel skill, and one advisory skill.
 - **[`phone-a-friend`](phone-a-friend.md)** — asks one other provider-backed peer
   for a structured advisory take, then leaves the host responsible for agreeing,
   applying, ignoring, or following up.
+- **`observer`** — plugin-local form of
+  [`session-observer`](../skills/session-observer.md).
+- **`observer-collab`** — plugin-local form of
+  [`session-observer-collab`](../skills/session-observer-collab.md); it requires
+  the observer workflow and accepts either supported installation identity.
 
 For the deepest reference — operator-QA walkthroughs, exact commands, and example
 inputs — see the
@@ -84,10 +92,9 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
-  `phone-a-friend` skills.
-  The standalone `session-observer` and `export-session-transcript` skills ship
-  alongside the consensus plugin but are not part of it.
+- The plugin ships `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`,
+  `phone-a-friend`, `observer`, and `observer-collab`. The two observer skills
+  also have declared standalone forms with their full `session-*` names.
 - Remaining consensus-family skills are future work: `consensus-research`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`

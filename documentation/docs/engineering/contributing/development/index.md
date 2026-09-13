@@ -36,13 +36,13 @@ pnpm run smoke
 
 ## Contribution workflow
 
-For the contribution rules — where standalone skills versus plugin-bundled skills
-live, plugin-manifest constraints, additive skill frontmatter, and the
+For the contribution rules — canonical `src/skills/` ownership, distribution
+declarations, plugin-manifest constraints, sole `metadata.version`, and the
 cross-provider testing release requirement — see
 [`CONTRIBUTING.md`](https://github.com/tkstang/skills/blob/main/CONTRIBUTING.md).
 
 ## Contents
 
-- [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, pnpm dev tooling, generated-runtime discipline, skill version bumps, and worktrees.
+- [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, canonical owners, generated distributions, skill version bumps, and worktrees.
 - [Commit conventions](commit-conventions.md) — Conventional Commits format, common types, and how it is enforced.
 - [Hooks and safety](hooks-and-safety.md) — Git hooks, lint-staged, skill version-bump enforcement, and lint/format exclusions.

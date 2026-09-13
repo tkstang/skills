@@ -1,14 +1,18 @@
 ---
-title: 'Coding Session Handoff'
-description: 'Prepare experimental, read-only guidance for forking a coding-agent session into another Git worktree.'
+title: 'Session Fork to Destination'
+description: 'Prepare experimental, read-only destination-side guidance for forking a coding-agent session into another Git worktree.'
 ---
 
-# Coding Session Handoff
+# Session Fork to Destination
 
-Coding Session Handoff is an **experimental, not released** standalone skill.
-It discovers session candidates, shows a sanitized preview, and prepares
-destination-safe fork instructions. It never runs a provider itself, so no fork
-is created by discovery, preview, or preparation.
+`session-fork-to-destination` is an **experimental, not released** skill. It is
+generated as that standalone name and as `fork-to-destination` in the session
+plugin. It discovers session candidates, shows a sanitized preview, and
+prepares destination-safe fork instructions. It never runs a provider itself,
+so no fork is created by discovery, preview, or preparation.
+
+The former `coding-session-handoff` name and script path are unsupported after
+the clean-break rename; no alias or compatibility wrapper is generated.
 
 The older executor remains experimental, incomplete, unverified, and paused.
 The guidance workflow does not depend on its reconcile or behavior-gate path.
@@ -40,14 +44,14 @@ current session identity, and display labels are not native provider IDs.
 The following examples use synthetic paths and IDs:
 
 ```bash
-node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
+node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs \
   discover --source /synthetic/source --provider claude --json
 
-node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
+node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs \
   preview --source /synthetic/source \
   --session codex:cli:00000000-0000-4000-8000-000000000001 --json
 
-node skills/coding-session-handoff/scripts/coding-session-handoff.mjs \
+node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs \
   prepare --source /synthetic/source --target /synthetic/destination \
   --session claude:cli:00000000-0000-4000-8000-000000000002 \
   --entry-point source-other --json

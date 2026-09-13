@@ -1,12 +1,14 @@
 ---
-title: 'Export Session Transcript'
+title: 'Session Export Transcript'
 description: 'Export the current coding-agent session to a sanitized, branch-named Markdown transcript.'
 ---
 
-# Export Session Transcript
+# Session Export Transcript
 
-`export-session-transcript` is a standalone Agent Skill that exports the current
-agent session to a sanitized Markdown transcript.
+`session-export-transcript` exports the current agent session to a sanitized
+Markdown transcript. Install it standalone under that full name or through the
+session plugin as `export-transcript`; both generated forms share one authored
+owner and one `metadata.version`.
 
 ## What it does
 

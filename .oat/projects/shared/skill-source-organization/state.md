@@ -34,8 +34,18 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p04:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p04-t01-composition-01
+        original_request: 5df39234-95ce-4ba8-a894-a3ce2d4c5f15
+        original_task: p04-t01
+        original_commit: d989a27c5714e3fda918b29a6d56474a4fcb4e00
+        discovered_by: "git add: renamed old path did not match, leaving the remaining bounded documentation delta unstaged"
+        exact_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: d989a27c5714e3fda918b29a6d56474a4fcb4e00
+        status: completed
+        verification: "56 focused docs tests, repository validation, formatting, and the unchanged-basis 38-route documentation build passed before candidate commit"
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null

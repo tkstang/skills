@@ -538,7 +538,7 @@ describe('docs-presence', () => {
     expect(config).toMatch(/consensus config/);
   });
 
-  it('documentation records the generated TypeScript runtime contract', async () => {
+  it('documentation records the generated installation-unit contract', async () => {
     const docs = await readDocsSite();
     const rootAgents = await read('AGENTS.md');
     const consensusAgents = await read('plugins/consensus/AGENTS.md');
@@ -555,13 +555,13 @@ describe('docs-presence', () => {
       'skills/session-export-transcript/references/transcript-formats.md',
     );
 
-    // The generated-runtime contract now lives in the docs site
+    // The generated-installation contract lives in the docs site
     // (Engineering → Architecture), not the README.
-    expect(docs).toMatch(/[Gg]enerated runtime/);
-    expect(docs).toMatch(/src\/transcript\/core\/runtimes\.ts/);
+    expect(docs).toMatch(/[Gg]enerated installation units/);
+    expect(docs).toMatch(/src\/shared\/transcript\/runtimes\.ts/);
     expect(docs).toMatch(/sync:transcript-core/);
-    expect(docs).toMatch(/scripts\/build-generated\.mjs/);
-    expect(rootAgents).toMatch(/canonical TypeScript source/);
+    expect(docs).toMatch(/scripts\/build-generated\.ts/);
+    expect(rootAgents).toMatch(/canonical owners under `src\/skills\/`/);
     expect(rootAgents).toMatch(
       /pnpm run sync:transcript-core.*compatibility wrapper/,
     );

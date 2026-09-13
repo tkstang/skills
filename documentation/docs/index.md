@@ -1,6 +1,6 @@
 ---
 title: 'skills'
-description: 'A personal home for Agent Skills and plugins, including the consensus plugin for deliberation and one-shot advisory takes.'
+description: 'A personal home for Agent Skills and the consensus and session plugins, with explicit optional standalone skill distributions.'
 ---
 
 # skills
@@ -9,9 +9,9 @@ description: 'A personal home for Agent Skills and plugins, including the consen
 
 A personal Agent Skills home — standalone skills under `skills/` and packaged
 plugins under `plugins/<name>/`, runnable across Claude Code, Codex, and Cursor.
-It ships the **consensus** plugin (provider-CLI-backed AI peers for converging
-artifacts and one-shot advisory takes) plus standalone session skills
-(peer-transcript review and sanitized session export).
+It ships the **consensus** plugin (provider-CLI-backed AI peers plus session
+observation/collaboration), the **session** plugin (handoff, transcript export,
+and destination-fork guidance), and explicitly declared standalone forms.
 
 These docs are organized by audience. If you want to **install and use** what
 this repo ships, start in the User Guide. If you want to understand **how it

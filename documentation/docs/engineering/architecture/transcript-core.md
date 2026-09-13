@@ -1,19 +1,19 @@
 ---
 title: 'Shared transcript-core'
-description: 'How per-provider transcript knowledge has a single source of truth at src/transcript/core/runtimes.ts, with a committed generated copy shipped per consuming skill.'
+description: 'How per-provider transcript knowledge has one shared source under src/shared/transcript, with a complete generated copy shipped per installation unit.'
 ---
 
 # Shared transcript-core
 
 Per-provider store locations, record parsing, and structural filtering for
 Claude Code, Codex, and Cursor start in
-`src/transcript/core/runtimes.ts`. Cursor's reliability contract adds two
+`src/shared/transcript/runtimes.ts`. Cursor's reliability contract adds two
 canonical modules beside it:
 
-- `src/transcript/core/cursor-frames.ts` streams physical JSONL frames,
+- `src/shared/transcript/cursor-frames.ts` streams physical JSONL frames,
   preserving closed, blank, malformed, partial, repaired, and replaced
   boundaries plus file identity and prefix-verification evidence.
-- `src/transcript/core/cursor-analysis.ts` assembles turns and separates
+- `src/shared/transcript/cursor-analysis.ts` assembles turns and separates
   prefix-stable content availability from terminal lifecycle outcomes.
 
 Rather than cross-skill runtime imports, each consumer ships committed
@@ -28,9 +28,9 @@ Current consumers of the shared transcript-core:
 - `session-observer` — ships `runtimes.mjs`, `cursor-frames.mjs`, and
   `cursor-analysis.mjs`, plus its generated digest, locate, observe, state, and
   watch pipeline.
-- `export-session-transcript` — ships
+- `session-export-transcript` — ships
   `runtimes.mjs`, `cursor-frames.mjs`, and `cursor-analysis.mjs`.
-- `coding-session-handoff` — ships a single generated experimental guidance
+- `session-fork-to-destination` — ships a single generated experimental guidance
   bundle that reuses bounded transcript discovery and sanitized preview logic.
   Its public commands are limited to `discover`, `preview`, and `prepare`; it
   does not import or expose the older executor, reconciliation, or behavior
@@ -58,7 +58,7 @@ runtime name or convert a persisted record position into a frame position.
 Cursor observation may expose stable content with lifecycle pending, while the
 completion projection remains terminal-success-only.
 
-Coding Session Handoff keeps provider capability evidence separate from
+Session Fork to Destination keeps provider capability evidence separate from
 transcript qualification. It preserves provider and surface in qualified
 candidate IDs, applies bounded discovery options to Claude Code, Codex, and
 Cursor, and fails closed when a Cursor transcript cannot be corroborated as CLI
@@ -67,9 +67,9 @@ it never invokes a provider or mutates a provider store.
 
 ## Editing the source
 
-Edit the applicable canonical module under `src/transcript/core/` or
-`src/transcript/session-observer/`, then run `pnpm run build` to update every
-declared committed output.
+Edit shared parsing under `src/shared/transcript/` or the owning skill under
+`src/skills/<name>/src/`, then run `pnpm run build` to update every declared
+committed output.
 
 The drift guard makes skipping the rebuild a hard error: `pnpm run build:check`
 regenerates expected output in check mode and fails on any divergence, and the
@@ -80,6 +80,5 @@ suite.
 ## Compatibility wrapper
 
 `pnpm run sync:transcript-core` remains as a compatibility command for existing
-habits and automation. It delegates to `scripts/build-generated.mjs`, and
-`node scripts/sync-transcript-core.mjs --check` delegates to
-`scripts/build-generated.mjs --check`.
+habits and automation. It delegates to the same `scripts/build-generated.ts`
+owner as `pnpm run build`.

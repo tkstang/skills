@@ -1,6 +1,6 @@
 ---
 title: 'Conventions'
-description: 'Repository conventions: shipped skills run with no install step, dev tooling may take pnpm dependencies, generated-runtime discipline, skill version-bump-on-edit, and worktree init/validate.'
+description: 'Repository conventions: canonical skill owners, generated distributions, dependency-free runtime, metadata.version bumps, and worktree checks.'
 ---
 
 # Conventions
@@ -20,34 +20,42 @@ dependencies. Developer dependencies use **pnpm** (`packageManager` is pinned in
 runs `pnpm install --frozen-lockfile`. Never add runtime dependencies to shipped
 skills.
 
-## Generated-runtime discipline
+## Canonical skill ownership and generated distributions
 
-Generated runtime outputs come from canonical TypeScript source under `src/`. Edit
-the canonical TypeScript source, run `pnpm run build` to regenerate committed
-`.mjs` runtime output under `plugins/` and `skills/`, and use
-`pnpm run build:check` or `tests/tooling/generated-output-sync.test.ts` to catch
-drift. `pnpm run sync:transcript-core` is a compatibility wrapper around the same
-generated-output build. Never hand-edit generated `.mjs` outputs with a
-`// GENERATED` banner.
+Every product skill is authored under `src/skills/<canonical-name>/`, including
+its instruction file, resources, runtime source, and skill-owned tests.
+`src/distributions.ts` declares which owners produce standalone output and which
+plugins expose them under local names. Prompt-only skills need no empty runtime
+or build manifest.
+
+Run `pnpm run build` to regenerate complete committed installation units under
+`plugins/` and `skills/`, and use `pnpm run build:check` or
+`tests/tooling/generated-output-sync.test.ts` to catch inventory, content, and
+mode drift. `pnpm run sync:transcript-core` is a compatibility wrapper around
+the same build. Never hand-edit generated instructions, resources, schemas, or
+`.mjs` outputs.
+
+Shared runtime imports are materialized into every installation unit that needs
+them. A genuine workflow dependency is declared separately, checked before use,
+and never auto-installed.
 
 ## Skill version-bump-on-edit
 
-When you ship a behavior or content change to a shipped skill, bump that skill's
-`version`. Keep the top-level `version` and `metadata.version` in sync — the
-skills validator (`scripts/validate.mjs`) requires them to match when both are
-present. The release version-bump tooling derives the skill list from disk via
-`scripts/lib/discover-skills.mjs` (shared with the validators), so new skills are
-picked up automatically — no manual list to maintain. Do not hand-edit one field
-and leave the other stale.
+When you ship a behavior or content change to a skill, bump the quoted stable
+SemVer at `metadata.version` in its canonical `src/skills/<name>/SKILL.md`.
+That is the sole authored skill version; top-level `version` is rejected. Every
+generated form inherits it. Plugin release versions are independent.
 
 Changed skills must bump their version. Any change under a canonical skill
-directory (`skills/<name>/` or `plugins/*/skills/<name>/`) — `SKILL.md`,
-`scripts/`, `references/`, or generated output — requires that skill's `SKILL.md`
-version to increase. This is enforced by `scripts/validate-skill-versions.mjs`
+directory (`src/skills/<name>/`) — `SKILL.md`, runtime source, tests,
+references/assets, or build declaration — requires that skill's
+`metadata.version` to increase. This is enforced by
+`scripts/validate-skill-versions.ts`
 (run `pnpm run validate:skill-versions -- --base-ref <ref>`), wired into the
 PR-only `skill-versions` CI job and the local `pre-push` hook. Only
-`.agents/skills/`, `.claude/skills/`, and `.cursor/skills/` are synced mirrors;
-never treat them as canonical sources.
+`skills/`, `plugins/*/skills/`, `.agents/skills/`, `.claude/skills/`, and
+`.cursor/skills/` are generated payloads or mirrors; never treat them as
+canonical sources.
 
 ## Worktrees
 
