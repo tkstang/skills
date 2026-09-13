@@ -1468,6 +1468,13 @@ the retained executor remains paused and all inherited deferrals remain explicit
 final HiLL approval pending. Execute each pre-approval step in order and commit it
 before the next. PR mutation remains a separate user-authorization boundary.
 
+**Pre-approval summary complete:** `summary.md` was refreshed through `prev1-t17`,
+the passing final review and exit gate, current deferred findings, and the proposed
+`session` plugin / `session-fork-to-destination` follow-up. The project-log rollup
+incorporated 50 observations and deduplicated the repository ledger. Existing decision
+`DR-260912-separate-forks-and-handoffs` covers the promoted key decision, so no new
+decision record was created. Synced summary commit: `32d7397d`.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
