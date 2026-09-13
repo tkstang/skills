@@ -311,7 +311,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
-| p03 | code | pending | - | - | - | - | - |
+| p03 | code | fixes_added | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
