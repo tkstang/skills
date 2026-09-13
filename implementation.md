@@ -1320,6 +1320,17 @@ validation, and diff hygiene. Versions are `coding-session-handoff` 0.1.10,
 `session-observer` 1.0.32, and `export-session-transcript` 1.0.10. The feature
 worktree is clean; no provider executed and no persistence occurred.
 
+**Fresh review dispatch:** request `handoff-real-store-fixes-final-review-20260913-01`
+resumed `/root/handoff_final_rereview` at exact target
+`oat-reviewer-gpt-5-6-sol-max`, managed Frontier/max, consequential class. Nominal
+scope is final; narrowed range
+`b7a8d35f06acb0a850795e54ad40ea729caac8e5..f5c6a51884202e44dc92236d267a941b2dbc2722`
+inherits prior full coverage and must disposition every final-gate finding plus reopened
+p02 M1. Only `reviews/final-review-2026-09-13T064500Z.md` is writable. No provider,
+installation, feature push, PR mutation, merge, cleanup, publication, or release is
+authorized.
+Review dispatch: scope=final-real-store-fixes action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+
 ### Task prev1-t12: Make bounded discovery work on realistic stores
 
 **Status:** completed
