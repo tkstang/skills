@@ -1637,7 +1637,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T044900Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | auto | - |
-| final | code | received | 2026-09-13 | reviews/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
+| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1998,6 +1998,103 @@ Expected: documented commands resolve from an installed canonical skill director
 
 **Commit:** `fix(prev1-t11): resolve installed guidance runtime`
 
+### Task prev1-t12: (review) Make bounded guidance discovery work on realistic stores
+
+**Dependencies:** prev1-t11 and gate review
+`reviews/archived/final-review-2026-09-13T051014Z.md`.
+
+**Files:**
+
+- Modify: `src/transcript/core/runtimes.ts` only if needed to distinguish a bounded
+  window cut from a malformed source record.
+- Modify: `src/transcript/session-observer/lib/locate.ts`, shared discovery types,
+  `guidance-discovery.ts`, and `guidance-cli.ts`.
+- Modify: realistic filesystem-backed locator/guidance/CLI tests and the public skill
+  workflow.
+- Modify: p-rev1 `design.md` and `spec.md` R2 alignment; re-disposition inherited p02
+  M1 in implementation bookkeeping.
+- Regenerate affected outputs with `pnpm run build`; bump every changed shipped skill.
+
+**Step 1 — RED/GREEN:** Prove a source transcript larger than 256 KiB and longer than
+128 records remains attributable when its exact metadata and cwd occur within the
+bounded prefix. Do not classify a bounded window cut as a malformed or oversized
+record. Under the guidance-only summarize policy, treat an unrelated recorded cwd
+that no longer resolves as path-free `cwd-unresolvable` and continue; strict consumers
+remain fail closed. Parse the provider from preview/prepare's exact qualified key and
+discover only that provider so Cursor or another provider cannot block it. Add a
+CLI-level test where another provider throws and the selected provider's preview and
+prepare still succeed. Update the skill workflow to lead with explicit Claude/Codex
+provider selection; the gate Minor workflow finding is absorbed here as the same root
+cause. Preserve bounds, zero persistence, no recency selection, and path-free output.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for changed authored TypeScript,
+tests, docs, and skill Markdown; never format generated output. Run `pnpm run build`.
+
+**Verify:** Focused runtime/locator/guidance suites; full tests; type-check; generated
+parity; repository and skill-version validation; smoke; docs format/build; changed-file
+lint/format; diff hygiene; a read-only shipped-bundle fixture using large and stale-cwd
+transcripts.
+
+Expected: realistic fully attributed Claude/Codex sessions remain discoverable, and
+preview/prepare are isolated to the selected provider without relaxing strict defaults.
+
+**Commit:** `fix(prev1-t12): support realistic bounded transcript discovery`
+
+### Task prev1-t13: (review) Charge Codex discovery for bounded bytes read
+
+**Dependencies:** prev1-t12.
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts` and focused locator tests.
+- Modify: guidance design/spec wording only if the corrected accounting changes their
+  declared budget semantics.
+- Regenerate affected outputs and bump the changed `session-observer` and guidance
+  skill versions as required.
+
+**Step 1 — RED/GREEN:** Charge exact-all Codex discovery by bytes the bounded metadata
+reader can consume, such as `min(stat.size, maxMetadataBytesPerEntry)`, while preserving
+the 512 MiB aggregate I/O bound. Add a store fixture whose total file sizes exceed the
+cap but whose bounded prefixes do not, and retain a fixture that exceeds the bounded
+aggregate and still fails closed.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for authored source/tests; never
+format generated output. Run `pnpm run build`.
+
+**Verify:** Focused locator/guidance suites, type-check, generated parity, repository
+and skill-version validation, and diff hygiene.
+
+Expected: large-body Codex stores remain discoverable when bounded metadata I/O stays
+within budget, while the aggregate read cap remains enforced.
+
+**Commit:** `fix(prev1-t13): budget Codex bounded metadata reads`
+
+### Task prev1-t14: (review) Surface path-free discovery failure provenance
+
+**Dependencies:** prev1-t13.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/guidance-discovery.ts`,
+  `guidance-cli.ts`, and focused CLI tests.
+- Regenerate the guidance runtime and bump the changed guidance skill version.
+
+**Step 1 — RED/GREEN:** Preserve the failing provider and stable locator/projection
+reason on `GuidanceDiscoveryError`, then include both in the JSON failure envelope.
+Prove the envelope contains no path, session ID, or transcript content. Keep existing
+outer error codes stable.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for authored source/tests; never
+format generated output. Run `pnpm run build`.
+
+**Verify:** Focused guidance discovery/CLI tests, type-check, generated parity,
+repository and skill-version validation, and diff hygiene.
+
+Expected: a user can safely identify which provider and bounded reason made discovery
+incomplete.
+
+**Commit:** `fix(prev1-t14): expose discovery failure provenance`
+
 ### Revision closeout (root-owned, not an implementation task)
 
 Receive independent p-rev1 code review; preserve all historical review events/caps.
@@ -2025,15 +2122,16 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 11 tasks — five destination-tab guidance tasks, one completed final-review fix, and five gate-review fixes
+- p-rev1: 14 tasks — five destination-tab guidance tasks, one completed final-review fix, five first-gate fixes, and three final-gate fixes
 
-**Historical + active total: 50 tasks = 46 completed + 4 superseded/unimplemented.**
+**Historical + active total: 53 tasks = 46 completed + 3 pending + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-The active guidance revision's eleven tasks are complete. The configured implementation
-gate's one Important, two Medium, and two Minor findings were repaired in five ordered
-commits; a fresh final review of the changed basis is pending. Unsupported provider
-paths and unverified live behavior stay explicit. The old executor remains
+The configured implementation gate exhausted both allowed attempts. Its final attempt
+found one Important, two Medium, and one Minor finding; these are queued as three tasks,
+with the duplicate workflow-doc point absorbed into `prev1-t12`. A new gate cycle is
+not authorized. Unsupported provider paths and unverified live behavior stay explicit.
+The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.

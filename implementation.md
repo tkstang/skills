@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: null
+oat_current_task_id: prev1-t12
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | gate fixes complete; fresh final review pending | 11 | 11/11 |
+| p-rev1 | blocked; configured gate attempts exhausted | 14 | 11/14 |
 
-**Total:** 46 completed of 50 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented and 0 tasks pending.
+**Total:** 46 completed of 53 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 3 tasks pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -1252,7 +1252,61 @@ discovery workflow unavailable.
   docs format/build, changed-file lint/format, diff/syntax checks, plan validation,
   and a synthetic path-free zero-persistence generated-bundle check. The five inherited
   Medium deferrals remain accepted only inside the guidance-only, paused-executor
-  boundary. The second and final configured gate attempt is next.
+  boundary.
+- Second configured gate run `e9e2ae8f-1305-4774-bf31-775a0f24e067` completed on
+  `cursor-fable-5-1-high` with 0 Critical, 1 Important, 2 Medium, and 1 Minor finding.
+  The valid blocked result was persisted before receipt. This consumed attempt 2 of 2.
+
+### Review Received: final configured gate attempt 2
+
+**Date:** 2026-09-13
+**Review artifact:** `reviews/archived/final-review-2026-09-13T051014Z.md`
+**Reviewed head:** `b7a8d35f06acb0a850795e54ad40ea729caac8e5`
+**Invocation:** gate, target `cursor-fable-5-1-high`, run
+`e9e2ae8f-1305-4774-bf31-775a0f24e067`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 2
+- Minor: 1
+
+**Disposition:** I1 converts to `prev1-t12` and includes the duplicate Minor workflow
+instruction: recognize valid bounded-prefix evidence in large transcripts, summarize
+stale recorded cwd values, and isolate preview/prepare to the key's provider. The
+previously deferred p02 M1 metadata-cap issue is reopened and included in this task.
+M1 converts to `prev1-t13` to charge Codex aggregate budgets for bounded metadata I/O.
+M2 converts to `prev1-t14` to expose path-free provider/reason provenance. The Minor is
+not a separate task because its exact `--provider all` workflow correction is already
+required and verified by `prev1-t12`; it is explicitly absorbed, not skipped. The
+other four inherited Medium deferrals remain accepted only while the executor stays
+paused and unreachable.
+
+**New tasks added:** `prev1-t12`, `prev1-t13`, `prev1-t14`.
+
+**Stop boundary:** The configured exit gate is blocking and its `max_attempts: 2`
+budget is exhausted. These tasks are durable but must not be dispatched, and no third
+external gate may launch, without explicit user authorization for an additional
+bounded fix/review/gate cycle.
+
+### Task prev1-t12: Make bounded discovery work on realistic stores
+
+**Status:** pending
+**Finding:** Gate I1 plus duplicated Minor, and reopened p02 M1.
+**Disposition:** code fix and artifact alignment required; Large scope.
+
+### Task prev1-t13: Charge Codex discovery for bounded bytes read
+
+**Status:** pending
+**Finding:** Gate M1 — stat-size accounting exhausts ordinary Codex stores.
+**Disposition:** code and test fix; Moderate scope.
+
+### Task prev1-t14: Surface path-free discovery failure provenance
+
+**Status:** pending
+**Finding:** Gate M2 — failure envelopes discard provider and stable reason.
+**Disposition:** code and test fix; Minor scope.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
@@ -1769,9 +1823,11 @@ Track test execution during implementation.
 - An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.
 - Evidence-backed provider/surface capability records, exact worktree checks, shell-safe destination commands where documented, and explicit unsupported guidance where native continuity cannot be proven.
 - Strict exact-all Cursor discovery that fails closed on incomplete roots, enumeration, iteration, or transcript-stat races without leaking partial candidates.
-- Guidance-only Claude/Codex discovery preserves fully attributable source candidates
-  when unrelated transcripts are individually unattributable, with bounded path-free
-  reason summaries; strict observer/executor defaults remain unchanged.
+- Guidance-only Claude/Codex discovery has an opt-in path-free unattributable-summary
+  seam while strict observer/executor defaults remain unchanged. The final external
+  gate found that large transcripts, stale cwd values, and cross-provider CLI scans
+  still make realistic-store discovery unavailable; `prev1-t12` through `prev1-t14`
+  are queued and closeout is blocked.
 
 **Behavioral changes (user-facing):**
 
@@ -1799,6 +1855,9 @@ Track test execution during implementation.
 - Gate fix `f317d06e` gives the explicit-selection guidance path a separate
   transcript-level unattributable-summary policy while retaining strict defaults for
   the paused executor and shared observer consumers.
+- The second configured gate showed that the initial summary policy does not yet meet
+  R1/R2 on ordinary stores. No release/readiness claim should be derived from the
+  synthetic green suite until the three queued tasks pass a newly authorized gate.
 
 ## References
 
