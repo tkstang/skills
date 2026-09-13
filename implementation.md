@@ -1397,6 +1397,18 @@ diff checks. Versions are `coding-session-handoff` 0.1.12 and `session-observer`
 1.0.33. The feature worktree is clean and the authorized external gate remains
 unspent.
 
+**Additional standard re-review authorization:** On 2026-09-13 the user authorized
+one additional independent standard final re-review of repaired head `10d901e8`. The
+review must confirm t15-t17 and the strict shared-consumer boundary before the single
+remaining external gate attempt. Request
+`handoff-direct-repairs-final-rereview-20260913-01` resumes
+`/root/handoff_final_rereview` at exact managed target
+`oat-reviewer-gpt-5-6-sol-max`, Frontier/max consequential class. Nominal scope is
+final, narrowed to `f5c6a518..10d901e8` with inherited prior coverage. Only
+`reviews/final-review-2026-09-13T133000Z.md` is writable. No provider, installation,
+feature push, PR mutation, merge, cleanup, publication, or release is authorized.
+Review dispatch: scope=final-direct-repairs action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
