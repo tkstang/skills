@@ -240,6 +240,14 @@ target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:2 exit=0 status=ok artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md run=40318b14-539a-49c6-ad8b-167fac333457
 
+### 2026-09-13 · structural · oat-project-complete · retirement-sweep
+
+Retirement sweep: no absorbed projects recorded.
+
+### 2026-09-13 · structural · oat-project-complete · seal
+
+Completion sealed at 2026-09-13T14:26:17Z; project-log roll-up status: ok. oat-seal:coding-session-handoff
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

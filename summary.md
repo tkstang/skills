@@ -334,3 +334,7 @@ target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1
 ### 2026-09-13 · structural · oat gate review · final
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:2 exit=0 status=ok artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md run=40318b14-539a-49c6-ad8b-167fac333457
+
+### 2026-09-13 · structural · oat-project-complete · retirement-sweep
+
+Retirement sweep: no absorbed projects recorded.

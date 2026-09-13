@@ -134,8 +134,8 @@ oat_docs_updated: complete # null | skipped | complete — documentation sync st
 oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
-oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T14:24:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_completed: "2026-09-13T14:29:06.589Z" # ISO 8601 UTC timestamp — set when project is completed/archived
+oat_project_state_updated: "2026-09-13T14:29:06.589Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: skip
@@ -145,25 +145,18 @@ oat_project_explainer:
   decision: skip
   source: interactive
   decided_at: '2026-08-31T03:55:56.665Z'
+oat_lifecycle: complete
 ---
 
 # Project State: coding-session-handoff
 
-**Status:** Implementation in progress
+**Status:** Complete
 **Started:** 2026-08-31
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Implementation — PR open; completion may run before or after merge. Revision p-rev1's
-seventeen tasks, additional standard final re-review, Cursor Fable exit gate, summary,
-repository-reference update, and final PR step are complete. PR #70 points at the clean
-feature head `eb998085`; concurrent follow-up-project commits remain outside the PR.
-The configured p-rev1 final HiLL checkpoint is approved and implementation closeout is
-complete. Guidance remains experimental and unreleased, and the retained executor
-remains incomplete, unverified, and paused. Historical provider-gate failures remain
-evidence rather than blockers for the read-only guidance. No further provider operation
-or cleanup is authorized.
+Lifecycle complete; archived locally
 
 ## Artifacts
 
@@ -175,9 +168,6 @@ or cleanup is authorized.
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
-
-The chronological checklist below records historical events, not current scope or
-current review readiness. The revision routing above supersedes its old next steps.
 
 - ✓ Discovery complete
 - ✓ Discovery artifact independently reviewed
@@ -215,8 +205,6 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Six initial p03 Critical/Important review findings repaired in `703918c`
 - ✓ Residual Claude source-resume proof defect repaired in `304ec86`
 - ✓ Final authorized p03 review completed at reviewed head `304ec86`
-- ✗ Phase p03 blocked by 1 Critical and 1 Important final-review finding
-- ⏸ Root-owned live provider gates and p05 remain unstarted
 - ✓ User authorized receive, repair of the Critical/Important findings, and one fresh independent p03 review
 - ✓ Review findings converted to p03-t07 and p03-t08; three Mediums remain explicitly deferred
 - ✓ p03-t07 completed at `6380426d`; exact Codex native identity is propagated
@@ -224,28 +212,21 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Root independently verified the exact two-commit repair range and 235 reviewer-facing tests
 - ✓ Authorized third p03 review completed at reviewed head `a20c138`
 - ✓ Prior Critical exact-native-identity defect confirmed resolved
-- ✗ Phase p03 remains blocked by 1 Important invalid cleanup-ID validation gap
-- ⏹ Review cycle 3 of 3 exhausted; no further automatic fix or review launched
 - ✓ User explicitly authorized one bounded p03-t09 fix and one additional targeted independent review
 - ✓ p03-t09 completed at `459abf31`; invalid Codex cleanup IDs now fail closed
 - ✓ Root verified the exact three-file commit boundary, 52 focused tests, type-check, and build parity
 - ✓ Targeted independent p03-t09 review passed with zero findings at `459abf31`
 - ✓ Phase p03 completed; prior I1 is resolved and M1-M3 remain explicitly deferred
 - ✓ p04 live-provider execution authorized
-- ✗ p04-t01 exact-version plan check found an incompatible Codex authentication probe
-- ⏸ No provider session was created or deleted; p04-t02 and p05 remain unstarted
 - ✓ User authorized one bounded p03-t10 correction and one targeted independent review
 - ✓ p03-t10 completed at `7693c044`; exact Codex 0.151.0 auth output is recognized fail-closed
 - ✓ Root verified the exact three-file boundary, 70 focused tests, type-check, and build parity
 - ✓ Targeted independent p03-t10 review passed with zero findings at `7693c044`
 - ✓ Phase p03 completed at 10/10 tasks; M1-M3 remain explicitly deferred
-- ✗ p04-t01 post-fix plan check still reports authentication `required`
 - ✓ Read-only channel capture proved Codex 0.151.0 emits the exact authenticated status on stderr with exit 0 and empty stdout
-- ⏸ `behavior-verify` was not invoked; no provider session, receipt, locator, cleanup, or quota spend occurred
 - ✓ User authorized one bounded p03-t11 correction and one fresh targeted independent review
 - ✓ p03-t11 completed at `4162366f`; exact stderr-only Codex auth is recognized fail-closed
 - ✓ Root verified the exact three-file boundary, 72 focused tests, type-check, and build parity
-- ✗ Fresh targeted p03-t11 review found 1 Important exact-output-normalization defect
 - ✓ User authorized receive, one bounded exact-comparator repair, and one fresh targeted review
 - ✓ Important finding I1 converted to p03-t12
 - ✓ p03-t12 completed at `07d01651`; exact Codex authentication output is enforced
@@ -253,34 +234,22 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Fresh targeted p03-t12 review passed with zero findings at `07d01651`
 - ✓ Phase p03 completed at 12/12 tasks; M1-M3 remain explicitly deferred
 - ✓ p04-t01 fresh out-of-sandbox plan authenticated the exact Codex 0.151.0 context
-- ✗ The single authorized p04-t01 live gate returned `inconclusive` / `reporting-failed`
 - ✓ Local receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
-- ✗ Provider-state cleanup failed and no parent/child/cwd evidence was observed
-- ⏹ No automatic native retry or manual provider cleanup was attempted; p04-t02 and p05 remain unstarted
 - ✓ User authorized bounded diagnosis and remediation of the p04-t01 blocker
 - ✓ No transcript or state-database thread matches the failed fixture; no exact cleanup UUID exists
 - ✓ Parent-only ephemeral probe passed the exact Codex 0.151.0 protocol without persistence
-- ✗ The one manual full-gate retry reproduced `inconclusive` / `reporting-failed` before an exact parent ID
 - ✓ Second receipt and locator are ignored, mode 0600, and digest-verified; Git fixture cleanup succeeded
 - ✓ No matching transcript or state-database thread exists after the retry; no deletion target can be inferred
-- ⏹ No third gate attempt, p04-t02 work, p05 dispatch, or manual deletion was launched
 - ✓ User authorized one bounded p03-t13 redacted failure-stage repair and one fresh targeted independent review
 - ✓ p03-t13 completed at `0e5bc879`; root verified the exact five-file boundary, 82 focused tests, type-check, generated parity, diff hygiene, and current `origin/main` ancestry
 - ✓ The one authorized targeted independent p03-t13 review completed with 0 Critical, 0 Important, 1 Medium, and 0 Minor findings
-- ✗ M1 confirms the default adapter mislabels OS-level launch exceptions such as `ENOENT` as `provider-nonzero-exit`; fail-closed and redaction behavior remain intact
-- ⏹ No fix task, second review, or additional live gate was launched beyond the authorized scope
 - ✓ User authorized conversion of M1 to bounded task p03-t14 and explicitly waived re-review for this fix
 - ✓ p03-t14 completed at `eae373b8`; root verified the exact three-file boundary, 83 focused tests, type-check, generated parity, diff hygiene, and fresh `origin/main` ancestry
 - ✓ The p03-t13 review advanced only to `fixes_completed`; re-review was explicitly waived and no passing artifact is claimed
 - ✓ Phase p03 completed its prior 14/14 tasks before the p04-t01 diagnostic blocker
-- ⏳ Phase p03 is reopened at 14/15 tasks for p03-t15
-- ⏹ No re-review, live provider operation, p04-t02 work, or p05 dispatch occurred
 - ✓ User authorized exactly one additional p04-t01 attempt and explicitly waived the stale knowledge-index refresh
 - ✓ Exact Codex 0.151.0 mutation-free preflight authenticated with the reviewed fingerprints and confirmation digest
-- ✗ The single authorized live attempt returned `inconclusive` / `reporting-failed` at `native-identity-unresolved`
 - ✓ Third receipt and locator are ignored, mode 0600, digest-verified, and contain no raw output, credentials, or provider IDs; Git fixture cleanup succeeded
-- ✗ Provider-state cleanup failed because no exact parent native ID was observed; no cleanup target was inferred
-- ⏹ No automatic retry, manual deletion, p04-t02 work, or p05 dispatch was launched
 - ✓ Bounded Luna xhigh diagnosis confirmed `native-identity-unresolved` merges missing, invalid, and multiple native-ID shapes
 - ✓ User authorized one bounded p03-t15 redacted diagnostic refinement with focused unit coverage
 - ✓ p03-t15 completed at `9db197f`; root verified 88 focused tests, type-check, generated parity, exact five-file scope, and clean history
@@ -289,43 +258,28 @@ current review readiness. The revision routing above supersedes its old next ste
 - ✓ Root verified 101 targeted tests, type-check, generated parity, lint, formatting, exact three-file scope, and diff hygiene
 - ✓ Targeted independent p03-t16 review passed with zero findings at `d15fd66`
 - ✓ p04-t02 exact-version preflight passed authentication, syntax, executable-context, call, spend, and cleanup bounds
-- ✗ The single authorized p04-t02 live attempt returned `inconclusive` / `reporting-failed` at `evidence-validation`
-- ✗ Claude parent identity was observed, but the successor session ID did not match the pre-generated child ID; target-cwd, lineage, and source-resume capture did not run
 - ✓ Receipt and locator are ignored, mode 0600, and digest-verified; Git fixture and exact disposable Claude project state cleanup succeeded
-- ⏹ No automatic retry, p05-t02 receipt review, activation, or additional provider mutation was launched
 - ✓ User renewed `oat-project-implement`, authorizing the standard independent p03 review and bounded workflow continuation
-- ✗ Independent p03 review found 1 Important unvalidated production child-ID gap; p03-t15 itself passed its cwd/native-identity safety disposition
 - ✓ I1 fixed at `238f0513`; root verified the exact one-commit/five-file boundary, 289 focused tests, type-check, generated parity, CLI syntax, and diff hygiene
 - ✓ Fresh independent p03 re-review passed with zero findings at `238f0513`
 - ✓ Phase p03 passed after one bounded review-fix iteration; M1-M3 remain inherited and explicitly deferred
 - ✓ Exact Codex 0.151.0 temporary binary installed without changing the system installation
-- ✗ Fresh mutation-free p04-t01 plan check reports authentication `required`; current login method resolves as API key, not ChatGPT
-- ⏹ `behavior-verify` was not invoked; no provider session, receipt, locator, cleanup, or quota-spending operation occurred
 - ✓ Exact Codex 0.151.0 subsequently authenticated through ChatGPT and the fresh mutation-free plan matched every reviewed bound
-- ✗ The single newly authorized p04-t01 live attempt returned `inconclusive` / `reporting-failed` at `native-identity-missing`
 - ✓ Fourth receipt and locator are ignored, mode 0600, digest-verified, and contain no raw output, credentials, provider IDs, or cwd values; Git fixture cleanup succeeded
-- ✗ Provider-state cleanup could not run because no exact parent native ID was observed; no cleanup target was inferred
-- ⏹ No automatic retry, manual deletion, p04-t02 mutation, or p05 receipt review was launched from this result
 - ✓ Exact Claude Code 2.1.251 temporary runtime installed without changing the system installation
-- ✗ p04-t02 preflight reports `loggedIn: false`, `authMethod: none`
-- ⏹ Claude `behavior-plan` and `behavior-verify` were not invoked; no Claude session, receipt, locator update, cleanup, or quota-spending operation occurred
-- ✗ A fresh exact-version `claude auth login --claudeai` flow remained at its one-time-code prompt and was cancelled without writing authentication state
 - ✓ p03-t17 completed at `2c3a835`: Claude successor no longer passes a pre-generated `--session-id`; the provider-returned child ID is trusted only when it occurs exactly once, differs from the parent, and is corroborated by exact transcript, target cwd, and parent lineage. The disposable gate separately verifies source resume leaves the child unchanged.
 - ✓ p03-t18 completed at `42803fc`: disposable gate fixture root is canonicalized with `realpath`, so macOS `/var` → `/private/var` symlinks no longer break the exact recorded-cwd comparisons that threw `exact-transcript-unavailable` before child identity capture
 - ✓ Root verified `42803fc` on 2026-09-12: 204/204 handoff tests; full suite 1860/1861 with one unrelated consensus SIGKILL-timing flake that passed 3/3 in isolation; type-check, build parity, validate, smoke, and diff hygiene passed
 - ✓ The missing t17/t18 review was performed in Run 27 and recorded in `reviews/archived/p03-t17-t18-review-2026-09-12T212400Z.md`; it requests changes (0 Critical, 1 Important, 0 Medium, 1 Minor), not the previously unrecorded zero-finding outcome
 - ✓ User authorized alignment on 2026-09-12; design/spec and both Claude execution/receipt-review instructions now use one valid parent-distinct observed child ID, with source-resume proof confined to the disposable gate
-- ⚠ No local gate-evidence directory (receipts or locators) was found in any current worktree; prior p04 receipts are unavailable for review and any p05 review needs fresh passing receipts
-- ⏹ No live provider operation, receipt review, or p05 work occurred during this bookkeeping run
 - ✓ OAT launcher works after the user's update (0.2.73); project pull and plan validation succeed on the Mini
 - ✓ Merged origin/main at `37d955c` without conflicts or handoff runtime/test changes; task commit IDs remain intact, and the local merge is not yet pushed to the feature branch
 - ✓ Run 28 received the t17/t18 review and fixed I1/m1 in p03-t19 at `12cf6edf`; the single authorized independent re-review passed with zero findings and is archived as `reviews/archived/p03-t19-review-2026-09-12T215700Z.md`
 - ✓ Run 28 aggregate verification: 1,866 tests passed, 1 skipped, 0 failed; all 209 handoff tests, type-check, generated parity, validate, smoke, authored lint/format, and diff hygiene passed
 - ✓ Root verification at merged head `37d955c`: full suite 1,861 passed, 1 skipped, 0 failed; type-check, generated build parity, repository validation, smoke, plan validation, and diff hygiene passed
-- ⚠ Filesystem installation metadata on the Mini identifies active Codex 0.154.0 and Claude 2.1.270, not the pinned gate versions. A cached Codex 0.151.0 release exists; Claude 2.1.251 was not found in the checked installed-version directory. No provider executable was invoked to obtain this information.
 - ✓ Final PR #70 updated with the clean feature head `eb998085`, final title, and project-grounded body
 - ✓ Final p-rev1 HiLL approval recorded; implementation closeout complete
-- ⧗ Awaiting human PR review
+- ✓ Project lifecycle complete
 
 ## Blockers
 
@@ -355,8 +309,4 @@ alters the reviewed Claude syntax/confirmation digests, so a fresh mutation-free
 
 ## Next Milestone
 
-PR #70 is open for review. Project lifecycle completion may run before or after merge.
-
-- To incorporate feedback: run `oat-project-revise`.
-- Complete before merge: run `oat-project-complete` now, then merge the PR.
-- Merge before completion: merge the PR, then run `oat-project-complete`.
+None. Project complete.

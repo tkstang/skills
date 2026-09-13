@@ -55,9 +55,6 @@ The earlier automated executor remains preserved for evidence and future work, b
 - The configured Cursor Fable final gate passed its Important threshold with 0 Critical, 0 Important, 1 Medium, and 2 Minor findings at the same reviewed head.
 - The nonblocking large Codex-store ceiling and second-stage preview provenance findings are deferred to the coordinated session-plugin/naming follow-up. The design wording finding was corrected in the project artifact without changing the reviewed feature implementation.
 
-<!-- oat:project-links:start -->
+## References
 
-**OAT project** `coding-session-handoff` (synced) — pinned to `refs/oat/projects/coding-session-handoff` @ `0371caf` (2026-09-13)
-[Discovery](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/discovery.md) · [Design](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/design.md) · [Summary](https://github.com/tkstang/skills/blob/0371caf45fdddfbd1a48f79816ba99740d3c61e7/summary.md)
-
-<!-- oat:project-links:end -->
+- Project record: [.oat/repo/reference/project-summaries/20260913-coding-session-handoff.md](https://github.com/tkstang/skills/blob/feat/coding-session-handoff/.oat/repo/reference/project-summaries/20260913-coding-session-handoff.md)
