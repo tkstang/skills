@@ -17,6 +17,39 @@ oat_generated: false
 
 # Implementation Plan: coding-session-handoff
 
+## Current Revision Routing — p-rev1
+
+**Authoritative scope:** the accepted 2026-09-12 revision in discovery/spec/design
+replaces the automated-execution product below. Implement `p-rev1` beginning at
+`prev1-t01`; do not resume p04-t02. User requested a planning handoff to Sol, not
+implementation during this turn. Independent revision review found no blocking
+findings; one Medium verification suggestion is preserved below for user disposition.
+
+**New goal:** Provide read-only discovery, explicit selection, safe preview, existing
+destination validation, and user-run destination-tab fork-and-open instructions for
+Codex, Claude, and Cursor. Support current-source-session, other-source-session, and
+fresh-destination-session entry points. Unsupported provider/surface transitions are
+explicit; the fresh-session fallback is exit and relaunch in the same tab.
+
+**Disposition of old work:** p01–p03 remain completed historical implementation.
+p04-t01/p04-t02 and p05-t01/p05-t02 live/receipt gates are paused, not passed.
+Unimplemented p05-t03/p05-t04 activation and p06-t01/p06-t03 packaging tasks are
+superseded for the public guidance product by p-rev1, not completed or deleted.
+Reserved p06-t02/p06-t04 closeout instructions are historical; use the revised
+closeout below. Their old dependencies must not block or silently reactivate the
+new guidance path. No old review-cap usage, findings, or evidence is erased.
+
+**Review/closeout:** Independent review of this revised artifact, per-phase code
+review, and final configured lifecycle review remain required. Historical HiLL
+settings are preserved; p06 is no longer executable, so the implementation root must
+confirm the checkpoint applicable to p-rev1 before starting, not silently skip it.
+No live provider gate, installation, help/version/auth operation, cleanup, branch
+push, PR update, or release is authorized by this revision.
+
+The sections describing the original goal, dependencies, and p01–p06 below are
+historical except for reusable implementation evidence. `p-rev1` is the sole active
+implementation phase. Spec R1–R8 and design's revision section govern its acceptance.
+
 > Execute this plan using `oat-project-implement`. Phases are sequential because each
 > phase consumes contracts or reviewed evidence produced by the preceding phase.
 
@@ -1341,6 +1374,9 @@ project ref; no phase task or root-repository code commit is created.
 
 ## Phase p05: Reviewed behavior activation
 
+**Disposition (2026-09-12): Superseded for guidance; retained unimplemented.**
+Do not activate experimental execution as part of p-rev1.
+
 **Goal:** Activate only independently reviewed exact contracts and prove
 executable/native/reporting behavior without weakening drift rules.
 
@@ -1408,6 +1444,9 @@ contract tests.
 ---
 
 ## Phase p06: Public skill, documentation, and repository completion
+
+**Disposition (2026-09-12): Superseded by p-rev1 guidance packaging/closeout.**
+Preserve these original IDs without running their automation-dependent steps.
 
 **Goal:** Ship the public 1.0.0 workflow and document exact support/safety boundaries.
 Repository-wide verification, independent final review, and the implementation exit
@@ -1592,8 +1631,20 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T034519Z.md | - | gate | claude-fable-skip-permissions |
+| p-rev1 | code | pending | - | - | - | - | - |
+| plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
+
+**Revision artifact review (2026-09-13 UTC):** Independent structured review of p-rev1
+and its discovery/spec/design/state/decision alignment returned 0 Critical, 0 Important,
+1 Medium, 0 Minor. No review file was created (structured in-memory mode). This new
+event is `received`, not a zero-finding pass. M1: explicitly include and format/run
+`tests/repo/layout.test.ts` and `tests/release/versioning.test.ts` in prev1-t04, instead
+of relying on prev1-t05's full suite to verify its required inventory edits. Offered
+to the user; not applied without direction. The full-suite requirement and existing
+inventory-edit scope remain. See `revision-handoff.md` for the exact suggestion.
+This nonblocking residual does not reopen or reset prior code review cycles.
 
 The t17/t18 review was received in Run 28: I1 and m1 were fixed by t19, and the
 independent t19 review passed with zero findings. Its explicit I1/m1 resolution
@@ -1609,6 +1660,182 @@ IDs are mandatory root-owned entry gates, while p06-t02 and p06-t04 are reserved
 lifecycle closeout gates; none is counted as an implementation task or
 root-repository task commit.
 
+## Phase p-rev1: Destination-tab fork guidance
+
+Source: inline user feedback (2026-09-12), accepted three-entry-point workflow.
+Dependencies: reusable completed p01–p03 code only; no paused live/activation gates.
+All tasks are sequential; one task commit plus scoped synced-project bookkeeping per
+task. No implementation runs in this planning turn. See `revision-handoff.md` first.
+
+### Task prev1-t01: (revision) Establish provider/surface instruction capabilities
+
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/guidance-capabilities.ts`
+- Create: `tools/coding-session-handoff/guidance-capabilities.md`
+- Create: `tests/coding-session-handoff/guidance-capabilities.test.ts`
+
+**Step 1 — RED/GREEN:** Define guidance-only provider/surface capability data for
+Codex, Claude, Cursor CLI, and Cursor IDE-origin sessions. Inspect official docs and
+available provider source, recording URLs, retrieval date, syntax/version context,
+fork-vs-resume semantics, interactive launch, cross-worktree caveats, and in-provider
+switch support independently. Seed synthetic contract tests before the data model.
+Unknown fork/switch syntax stays unverified/unsupported with no executable template.
+Do not infer CLI launchability from IDE transcripts, probe provider executables,
+install versions, or alter the old exact-version executor matrix. Documentation-backed
+guidance is allowed with explicit lack of live proof; it is not production verification.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/guidance-capabilities.ts tools/coding-session-handoff/guidance-capabilities.md tests/coding-session-handoff/guidance-capabilities.test.ts`
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/guidance-capabilities.test.ts && pnpm run type-check`
+Expected: every provider/surface has explicit evidence/limits; missing capabilities
+fail closed. Escalate if requested behavior needs undocumented store mutation.
+
+**Commit:** `feat(prev1-t01): define evidence-backed fork guidance capabilities`
+
+### Task prev1-t02: (revision) Extend read-only discovery and current-session selection
+
+**Dependencies:** prev1-t01.
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/guidance-discovery.ts`
+- Modify: `src/transcript/coding-session-handoff/discovery.ts`, `preview.ts` (extract/reuse helpers without widening executor mutation types)
+- Modify: `src/transcript/session-observer/lib/locate.ts`, `types.ts`
+- Create: `tests/coding-session-handoff/guidance-discovery.test.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Modify: `skills/session-observer/SKILL.md` (bump existing version when canonical shipped content changes)
+- Regenerate: affected outputs via `pnpm run build`; any additionally changed canonical skill directory receives its own matching version bump.
+
+**Step 1 — RED/GREEN:** Reuse exact-source discovery/preview for all three providers.
+Add Cursor bounded exact-all/persistence-forbid support instead of merely passing
+ignored options. Preserve observer defaults and return incomplete on bounds/errors.
+Test direct current identity corroboration, absent/ambiguous current identity selection,
+explicit source from destination, old sessions, ID collisions, Cursor origin/surface
+ambiguity, no cache writes, and sanitized previews. Selection uses exact parent
+identity; no child-ID capture, current-writer proof, or legacy auth probe is needed.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/guidance-discovery.ts src/transcript/coding-session-handoff/discovery.ts src/transcript/coding-session-handoff/preview.ts src/transcript/session-observer/lib/locate.ts src/transcript/session-observer/lib/types.ts tests/coding-session-handoff/guidance-discovery.test.ts tests/session-observer/locate.test.ts skills/session-observer/SKILL.md`; `pnpm run build` (never format generated files).
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
+Expected: bounded/non-mutating discovery for all providers and no observer/executor regressions.
+
+**Commit:** `feat(prev1-t02): support three-provider read-only handoff discovery`
+
+### Task prev1-t03: (revision) Prepare destination-only interactive fork instructions
+
+**Dependencies:** prev1-t02.
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/guidance.ts`
+- Modify: `src/transcript/coding-session-handoff/git-target.ts` (only reusable read-only seams if needed)
+- Create: `tests/coding-session-handoff/guidance.test.ts`
+
+**Step 1 — RED/GREEN:** Build typed, pure guidance output with separate terminal,
+slash-command, and manual/UI instruction kinds. Validate existing same-repository
+destination, preserve dirty-source refusal for preparation, and show destination dirty
+state. Render correctly quoted commands with an explicit canonical-cwd guard so they
+refuse execution from another worktree rather than silently launching there. Cover
+spaces, quotes, shell metacharacters, path aliases, invalid IDs, and wrong cwd using
+mock provider executables only. Interactive commands must not contain readiness
+prompts or automation-only print/JSON/disabled-tool settings. Unknown syntax yields
+an explanation, not guessed flags. For fresh destination sessions, supported native
+switch steps must target the selected source's fork; otherwise exit then fork-and-open
+in the same tab. Never resume the original as a silent fallback, merge histories, or
+launch a nested TUI. Existing executor remains unchanged and unverified.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/guidance.ts src/transcript/coding-session-handoff/git-target.ts tests/coding-session-handoff/guidance.test.ts`
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff/guidance.test.ts && pnpm run type-check && pnpm run build:check`
+Expected: correct destination-side instruction kinds and zero real provider calls.
+If a shared executor dependency changed, run `pnpm run build` and include its generated output before parity verification.
+
+**Commit:** `feat(prev1-t03): prepare safe destination-side fork instructions`
+
+### Task prev1-t04: (revision) Package an experimental guidance-only skill
+
+**Dependencies:** prev1-t03.
+**Files:**
+
+- Create: `src/transcript/coding-session-handoff/guidance-cli.ts`
+- Create: `skills/coding-session-handoff/SKILL.md`, `references/provider-guidance.md`
+- Create (generated): `skills/coding-session-handoff/scripts/coding-session-handoff.mjs`
+- Create: `tests/coding-session-handoff/guidance-cli.test.ts`
+- Modify: `scripts/build-generated.mjs`, `scripts/validate.mjs`, `.oxfmtrc.json`, `.oxlintrc.json`
+- Modify: `tests/tooling/generated-output-sync.test.ts` and existing exact skill inventory assertions affected by the new on-disk skill.
+
+**Step 1 — RED/GREEN:** Add a dedicated guidance CLI (discover, preview, prepare) and
+skill routing for the three entry points. Test current session not guessed, explicit
+source selection, no provider processes or provider/auth probes, no session mutation,
+no persisted preview, and no execution/reconcile/gate commands exposed by public help,
+exports, or bundle imports. Keep the old tool bundle separate. New skill starts at
+matching top-level/metadata version 0.1.0; changes in later tasks increment both.
+Label experimental/not released in SKILL, help, JSON status, and human output. Explain
+that the user must act in the destination tab and that no fork has yet been created.
+Use canonical TS and dependency-free generated output; no global installation/sync.
+Inspect current inventory assertions mechanically and update only those naming the
+new skill, preserving unrelated manifests and main-installed user skills.
+
+**Format:** `pnpm exec oxfmt --write src/transcript/coding-session-handoff/guidance-cli.ts skills/coding-session-handoff/SKILL.md skills/coding-session-handoff/references/provider-guidance.md tests/coding-session-handoff/guidance-cli.test.ts scripts/build-generated.mjs scripts/validate.mjs .oxfmtrc.json .oxlintrc.json tests/tooling/generated-output-sync.test.ts`; `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/coding-session-handoff tests/tooling && pnpm run type-check && pnpm run build:check && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main`
+Expected: standalone guidance bundle works with synthetic fixtures, generated mappings
+and inventories agree, no old execution path is reachable through the public skill.
+
+**Commit:** `feat(prev1-t04): package experimental destination-tab guidance skill`
+
+### Task prev1-t05: (revision) Document status and verify the revised workflow
+
+**Dependencies:** prev1-t04.
+**Files:**
+
+- Create: `tools/coding-session-handoff/README.md`
+- Create: `documentation/docs/user-guide/skills/coding-session-handoff.md`
+- Modify: `documentation/docs/user-guide/skills/index.md`, `meta.json`
+- Modify: `documentation/docs/engineering/architecture/transcript-core.md`
+- Modify: `README.md`, `RELEASING.md` (experimental status and release checks only)
+- Modify: `tests/coding-session-handoff/guidance-cli.test.ts` (three-entry-point regression matrix)
+- Regenerate: `documentation/index.md` using the documented docs build; never hand-edit.
+
+**Step 1 — RED/GREEN:** Pin end-to-end fixture scenarios for each entry point and
+provider/surface, including unsupported Cursor transitions and fresh-session exit/
+relaunch fallback. Load `oat-project-document` and `documentation/AGENTS.md` for the
+declared project-docs scope; retain its provenance/approval workflow, with any new
+targets outside this explicit scope requiring user approval. Write practical
+source-tab/destination-tab examples with synthetic
+IDs and paths, no claims that preparing instructions created/opened a session. Mark
+the retained executor experimental/incomplete/paused and its old gates unpassed; mark
+the new guidance implemented only as evidence warrants and unreleased until release
+checks/user approval. Explain fork vs resume and IDE visibility limits. Preserve
+portable `session-handoff` separation. Do not import the old automation gate as a
+guidance release prerequisite; require honest per-capability evidence instead.
+
+**Format:** `pnpm exec oxfmt --write tools/coding-session-handoff/README.md README.md RELEASING.md tests/coding-session-handoff/guidance-cli.test.ts`; `pnpm --dir documentation exec oxfmt --write docs/user-guide/skills/coding-session-handoff.md docs/user-guide/skills/index.md docs/user-guide/skills/meta.json docs/engineering/architecture/transcript-core.md`; `pnpm --dir documentation run build`.
+
+**Verify:** `pnpm run test && pnpm run type-check && pnpm run build:check && pnpm run validate && pnpm run smoke && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && git diff --check`
+Expected: complete synthetic/shared regression suite and docs/build consistency; no
+live provider invocation. Human/ADE checks remain explicitly unverified unless the
+user separately approves bounded checks. Do not claim a release or publish anything.
+
+**Commit:** `docs(prev1-t05): document experimental guidance and paused automation`
+
+### Revision closeout (root-owned, not an implementation task)
+
+Receive independent p-rev1 code review; preserve all historical review events/caps.
+Run final configured lifecycle review under current authorization (ask before any
+external live provider route), record actual verification and residual limitations,
+and update summary/state. Confirm the applicable HiLL checkpoint before execution.
+Do not dispatch paused p04/p05 gates or original p06 tasks. No automatic feature push,
+PR update, merge, installation, or release. A finished revision returns to PR review;
+it does not mark the experimental executor verified or its skipped work complete.
+
+## References
+
+- Current revision handoff: `revision-handoff.md`
+- Design: `design.md` (revision section governs)
+- Spec: `spec.md` (R1–R8 govern)
+- Discovery: `discovery.md` (accepted revision governs)
+- Historical clean design review: `reviews/archived/artifact-design-review-2026-08-31T023100Z.md`
+
 ## Implementation Complete
 
 **Summary:**
@@ -1616,20 +1843,16 @@ root-repository task commit.
 - p01: 3 tasks — bounded mutation-free transcript substrate
 - p02: 13 tasks — exact candidate/preview/Git evidence plus nine review repairs
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
-- p05: 2 tasks — reviewed behavior activation and exact outcome coverage
-- p06: 2 tasks — atomic public skill/runtime/inventories and project-only sync
+- p05: 2 tasks — superseded/unimplemented automation activation
+- p06: 2 tasks — superseded/unimplemented original packaging
+- p-rev1: 5 tasks — active destination-tab guidance revision
 
-**Total: 39 implementation tasks, 4 mandatory entry gates, and 2 reserved closeout gates**
+**Historical + active total: 44 tasks = 35 completed + 4 superseded/unimplemented + 5 pending revision tasks.**
+Four historical live/receipt gates are paused, and two original reserved closeout gates
+are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-Implementation is complete only when all 39 tasks have exactly one verified commit,
-both live gates and receipt reviews pass, exact contracts are activated, aggregate
-verification and the root-owned documentation gate succeed, and final independent
-review has no Critical or Important findings. Claude authentication remains a
-gate-local external precondition for p04-t02; failure there is a product blocker.
-
-## References
-
-- Design: `design.md`
-- Spec: `spec.md`
-- Discovery: `discovery.md`
-- Clean design review: `reviews/archived/artifact-design-review-2026-08-31T023100Z.md`
+The active guidance revision is implementation-complete only when its five task
+commits, per-phase/final reviews, and aggregate/docs verification pass. Unsupported
+provider paths and unverified live behavior stay explicit. The old executor remains
+paused and unverified regardless of the guidance result. Release/merge/push are
+separate user-authorized boundaries, not consequences of completing these tasks.

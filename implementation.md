@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["p04-t01 inconclusive at native-identity-missing", "p04-t02 repairs unproven live; fresh exact-version plan and separately authorized verify required"]
+oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: p04-t02
+oat_current_task_id: prev1-t01
 oat_generated: false
 ---
 
@@ -29,10 +29,76 @@ oat_generated: false
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 13    | 13/13     |
 | p03   | completed | 19 | 19/19     |
-| p05   | pending     | 2     | 0/2       |
-| p06   | pending     | 2     | 0/2       |
+| p05   | superseded (unimplemented) | 2 | 0/2 |
+| p06   | superseded (unimplemented) | 2 | 0/2 |
+| p-rev1 | in_progress (planning only) | 5 | 0/5 |
 
-**Total:** 35/39 implementation tasks completed; p03-t19 independent re-review passed, and all four entry gates remain outstanding.
+**Total:** 35 completed of 44 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented, 5 revision tasks pending. p03-t19 independent review passed.
+Four original live/receipt gates remain unpassed and paused, not active prerequisites.
+
+## Revision Received: Inline Feedback
+
+**Date:** 2026-09-12 (local date; bookkeeping may use 2026-09-13 UTC).
+**Source:** inline conversation; user requested documentation/revision planning and
+later implementation with Sol. No implementation or provider operation in this turn.
+
+**Changes requested:**
+
+- Replace public automated handoff with read-only destination-tab fork guidance.
+- Support invocation from the exact session to fork, another source-worktree session,
+  or a fresh destination session with an explicitly supplied source worktree.
+- Cover Codex, Claude, and Cursor, distinguishing discoverability, IDE/CLI origin,
+  terminal fork-and-open, and in-provider switching. Never guess unsupported paths.
+- User runs the native operation in the destination tab. If already inside a fresh
+  provider session, use supported native switching or exit/relaunch in that same tab.
+- No create-only/pre-created child, source-tab provider launch, nested TUI, child-ID
+  reconciliation, automatic execution, or ADE tab management in the public workflow.
+- Preserve existing discovery/preview/Git checks and experimental execution code;
+  prominently label unfinished behavior and keep old gates/failures historical.
+- Keep portable `session-handoff` migration and activity enrichment separate.
+
+**New tasks added:** prev1-t01 through prev1-t05 in phase p-rev1.
+**Intentional design deviation:** New revision sections in discovery/spec/design are
+authoritative over historical automated-execution requirements. Old p04/p05 gates
+are paused, not passed; old p05/p06 implementation tasks are superseded, not completed.
+This is a user-requested product change, not a bypass that activates unverified code.
+**Next:** Sol resumes through `oat-project-implement` at prev1-t01; independent plan
+review found no blocking findings, with M1 recorded in `revision-handoff.md`;
+see `revision-handoff.md`. Confirm revision HiLL before implementation. Existing
+review-cap usage and deferred findings remain preserved; no new cycle reset inferred.
+
+**Planning verification:** `oat project validate-plan` and `pnpm run validate` pass;
+diff hygiene passes. Mechanical checks preserve all 39 original task IDs and every
+historical review row; total 44 tasks with five revision tasks and consistent resume
+pointers. The repo formatter excludes these `.oat` files, so no formatting success
+is claimed. No code/provider test was run or runtime changed in this planning turn.
+Additional phase-gate and per-skill gate choices were offered asynchronously; no
+answer was received at bookkeeping time, so existing configuration remains unchanged.
+
+## Phase p-rev1: Destination-tab fork guidance
+
+**Status:** pending implementation; revision planning only.
+
+### Task prev1-t01: Establish provider/surface instruction capabilities
+
+**Status:** pending
+
+### Task prev1-t02: Extend read-only discovery and current-session selection
+
+**Status:** pending
+
+### Task prev1-t03: Prepare destination-only interactive fork instructions
+
+**Status:** pending
+
+### Task prev1-t04: Package an experimental guidance-only skill
+
+**Status:** pending
+
+### Task prev1-t05: Document status and verify the revised workflow
+
+**Status:** pending
 
 ---
 

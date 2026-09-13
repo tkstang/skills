@@ -2,11 +2,71 @@
 oat_status: complete
 oat_ready_for: oat-project-design
 oat_blockers: []
-oat_last_updated: 2026-08-31
+oat_last_updated: 2026-09-12
 oat_generated: false
 ---
 
 # Discovery: coding-session-handoff
+
+## Accepted Revision — 2026-09-12: Destination-tab fork guidance
+
+This section is the current discovery contract. The original discovery below is
+preserved as historical rationale; where it conflicts, this revision wins. The user
+approved documenting and planning this revision for later implementation with Sol,
+not executing it in this planning session.
+
+**Problem clarified:** ADEs organize tabs and sessions by worktree. The user wants to
+find the right source conversation and continue a fork in the destination tab. They
+do not need the skill to create a background child, discover its resulting identity,
+launch another provider inside the source tab, or manage ADE tabs.
+
+**Chosen product:** A read-only session finder and fork-instruction preparer covering
+Codex, Claude Code, and Cursor. The user performs the provider-native operation in
+the destination worktree. Fork preserves the original conversation; resume is not a
+silent substitute. The destination must already exist. No Git state is transferred.
+
+### Three entry points, one destination-side action
+
+| Entry point | Selection | Output / user action |
+| --- | --- | --- |
+| Invoked inside the session to fork | Resolve exact current identity from trusted direct evidence; if unavailable, offer explicit candidate selection, never recency inference | Give instructions to create and open its fork in the destination tab |
+| Invoked from another session in the source worktree | Discover source-worktree candidates; user explicitly selects | Give the same destination-side fork-and-open instructions |
+| Invoked from a fresh session in the destination worktree | User supplies source-worktree path; discover and select there | Guide the user to the fork in this destination tab: supported in-provider actions when available, otherwise exit the fresh session and run the terminal command |
+
+The fresh destination conversation is not merged with the selected source history.
+The skill cannot replace its own conversation by launching a nested interactive
+process. It must distinguish terminal commands from slash commands/UI actions.
+
+### Decisions and exclusions
+
+- The baseline is **prepare now, fork-and-open in the destination later**. No
+  create-only/background fork, automatic execution, child-ID reconciliation,
+  receipt tracking, retry engine, or ADE sidebar management is required.
+- Commands are intended to run in the existing destination worktree, not from any
+  terminal with an implicit directory change. Output includes the destination and
+  a working-directory check; it never claims a command has run.
+- Retain bounded, sanitized preview and exact source/target repository checks.
+  Keep the distinct-dirty-source refusal until deliberately reconsidered; discovery
+  and preview remain usable without a clean source. Do not silently transfer changes.
+- Cursor discovery is in scope; Cursor IDE and CLI continuity are distinct surfaces.
+  Unsupported or unverified fork/switch combinations must be labeled, not guessed.
+- Preserve existing automated execution as experimental, incomplete, and paused.
+  Historical live failures are not erased or marked passed. They no longer gate the
+  read-only guidance product, but still prevent activation of the old automation.
+- Keep portable any-agent-to-any-agent `session-handoff` separate. Its future
+  migration and research-backed tool-evidence enrichment are not this revision.
+
+**Value retained:** finding source sessions without manually locating IDs, choosing
+the right conversation using safe previews, and avoiding wrong-worktree/Git-state
+mistakes. The research packet informs reuse and provider-specific caveats; it is not
+proof of CLI/ADE fork behavior. The current code is not yet this revised product.
+
+**Acceptance:** See revision requirements R1–R8 in `spec.md`, the revised architecture
+in `design.md`, and phase `p-rev1` in `plan.md`. Prior exact-version mutation-gate
+approvals do not authorize new provider operations. Documentation/source inspection
+and synthetic tests are the initial evidence path; live checks need fresh approval.
+
+## Historical Discovery Baseline — Superseded Where Noted Above
 
 ## Initial Request
 

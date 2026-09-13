@@ -224,6 +224,10 @@ run-28-bounded-cycle-complete: p03-t19 fixed I1/m1 at 12cf6edf; one independent 
 
 handoff-split-decision-20260912: Recorded the accepted two-skill split in .oat/repo/reference/decisions/DR-260912-separate-forks-and-handoffs.md; portable activity enrichment and migration remain future work. p04-t02 remains at fresh authorization for isolated exact Claude 2.1.251 staging and mutation-free preflight/behavior-plan, followed by separately authorized behavior-verify; no provider operation or live retry ran.
 
+### 2026-09-13 · structural · oat-project-revise · p-rev1
+
+handoff-guidance-revision-20260913: Recorded accepted destination-tab guidance scope for three entry points and Codex/Claude/Cursor; created prev1-t01 through prev1-t05, updated discovery/spec/design/state/summary and revision-handoff.md, and paused/superseded original automation work without marking its gates passed. Independent structured plan review has no blocking findings and one offered Medium verification suggestion. Stop at user-requested planning handoff to Sol; no implementation, provider operations, feature push, or PR mutation.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

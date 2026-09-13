@@ -1,7 +1,7 @@
 ---
-oat_current_task: p04-t02
-oat_last_commit: ae3829600a87cbcea0ab60c6ccebe9616878be0d
-oat_blockers: ["p04-t01 exact Codex 0.151.0 live gate is inconclusive at native-identity-missing; no exact parent ID was recognized for safe provider cleanup", "p04-t02 exact Claude Code 2.1.251 live gate has not passed; repairs require a fresh mutation-free behavior-plan plus separately authorized verify; the checked Mini Claude installation does not contain this pinned version"]
+oat_current_task: prev1-t01
+oat_last_commit: 30da3e20d8e62fa2fc12ae21d8778ba2f0106963
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-12T22:22:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T00:33:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,18 +100,28 @@ oat_project_explainer:
 
 ## Current Phase
 
-Implementation complete through p03-t19; independent re-review passed with zero findings (Run 28). Live gates remain blocked.
-Root entry gates p04-t01 and p04-t02 still block activation.
+Revision p-rev1 is the only active implementation phase; next task prev1-t01.
+Planning/docs only in this turn; user will resume with Sol. Guidance is not implemented
+or released. The old executor remains experimental, incomplete, unverified, and paused.
+Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
+remain unresolved evidence, not blockers for read-only guidance. No cleanup targets
+are inferred; old p05 activation and p06 packaging tasks are superseded/unimplemented.
+See `revision-handoff.md`. Confirm revision HiLL before implementation because the
+preserved old setting names superseded p06. No provider operation is authorized.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete)
-- **Design:** `design.md` (complete; independently reviewed)
-- **Plan:** `plan.md` (complete; independently reviewed)
-- **Implementation:** `implementation.md` (35/39 tasks implemented; p01/p02/p03 complete, p03-t19 resolves I1 and m1 with passing independent re-review)
+- **Design:** `design.md` (accepted revision section; historical review applies only to old design)
+- **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
+- **Implementation:** `implementation.md` (35 completed, 4 superseded/unimplemented, 5 pending revision tasks; prior p03-t19 review remains passed)
+- **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
+
+The chronological checklist below records historical events, not current scope or
+current review readiness. The revision routing above supersedes its old next steps.
 
 - ✓ Discovery complete
 - ✓ Discovery artifact independently reviewed

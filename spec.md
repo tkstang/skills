@@ -9,6 +9,51 @@ oat_template: false
 
 # Specification: coding-session-handoff
 
+## Revision Contract R1–R8 — Accepted 2026-09-12
+
+These requirements supersede conflicting original FRs/NFRs below for the public
+guidance product. Original mutation requirements remain historical requirements of
+the paused experimental executor, not prerequisites for the new read-only path.
+
+| ID | Current requirement / acceptance | Planned task |
+| --- | --- | --- |
+| R1 | Support all three discovery entry points in revised discovery; direct current identity must be trustworthy and corroborated within the source boundary, otherwise require explicit selection. Never select by recency. | prev1-t02, prev1-t04 |
+| R2 | Discover Codex, Claude, and Cursor from an explicit canonical source worktree with bounded, zero-persistence reads and optional sanitized previews. Separate Cursor IDE/CLI origin and launchability; incomplete discovery or ambiguous identity is explicit. | prev1-t01, prev1-t02 |
+| R3 | Require an existing destination registered to the same Git repository; preserve dirty-source refusal for instruction preparation, show target dirty state, and never create worktrees or transfer Git changes. Read-only discovery/preview need not require a clean source. | prev1-t03 |
+| R4 | Return shell-safe destination-only interactive fork-and-open guidance with a cwd guard, exact source selector, provider/surface, expected effect, evidence status, and limitations. Never emit the automation readiness prompt/print-only invocation as the interactive workflow. Never silently substitute original-session resume. | prev1-t01, prev1-t03 |
+| R5 | For an already-open fresh destination session, offer documented in-provider fork/switch steps only when applicable to the selected source; otherwise instruct exit then fork-and-open in the same destination tab. No nested TUI, history merge, self-session replacement, or automatic ADE control. | prev1-t01, prev1-t03, prev1-t04 |
+| R6 | The public skill and its runtime path perform no provider execution, authentication, fork creation, receipt write, child-ID reconciliation, or retry. No create-only or source-tab launch. Read-only Git and bounded transcript inspection are allowed. | prev1-t03, prev1-t04 |
+| R7 | Mark the entire new workflow experimental/not released until its own closeout is satisfied. Independently mark retained automated execution incomplete, unverified, paused, and unavailable through the public guidance path. Old live-gate failures remain recorded; never imply that synthetic tests prove native behavior. | prev1-t04, prev1-t05 |
+| R8 | Keep portable cross-provider packets and activity enrichment separate; reuse existing canonical TS/core, add no runtime dependency or provider-store mutation, preserve existing consumers, and test quoting, identity, cwd, limitations, and non-execution. | prev1-t02–prev1-t05 |
+
+### Capability and evidence semantics
+
+Record discovery, CLI fork-and-open, and in-provider switch separately per provider
+and surface. Documentation-backed syntax is not live-verified destination behavior.
+Use dated source provenance plus an explicit `documented`, `locally-verified`,
+`unverified`, or `unsupported` status for each relevant claim. Do not make all three
+providers appear equally launchable because their transcripts are discoverable.
+Unknown syntax or an unavailable fork path yields no guessed executable command.
+Cursor may require multiple manual steps or remain discovery-only for a surface.
+
+An exact parent selector is necessary to target the user's chosen history. It does
+not require the old child-observation proof, fixed historical CLI versions, auth
+probe, confirmation digest, or receipt lifecycle. Those belong only to the paused
+executor. Command generation never executes providers to discover their capabilities.
+
+### Privacy and authorization
+
+User-requested local instructions necessarily contain the selected native ID and
+destination. Include only those necessary values in the local command output; never
+write actual IDs, transcript bodies, credentials, or private evidence locators to
+project artifacts, logs, fixtures, or review prompts. Use synthetic placeholders in
+documentation/tests. Existing preview sanitizer and path-free diagnostics remain.
+During this revision's planning and implementation, no live provider command (including
+help/version/auth), provider installation, session mutation, or cleanup is authorized
+without fresh explicit user approval. Public docs/source inspection and mocks are allowed.
+
+## Historical Specification — Original Automated Handoff Product
+
 ## Problem Statement
 
 Agent sessions are usually discovered and resumed in the filesystem directory where

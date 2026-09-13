@@ -2,14 +2,38 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-03
+oat_last_updated: 2026-09-12
 oat_generated: true
-oat_summary_last_task: p03-t15
-oat_summary_revision_count: 0
-oat_summary_includes_revisions: []
+oat_summary_last_task: p03-t19
+oat_summary_revision_count: 1
+oat_summary_includes_revisions: [p-rev1]
 ---
 
 # Summary: coding-session-handoff
+
+## Current status — 2026-09-12 revision
+
+The user narrowed this project to read-only session discovery and destination-tab
+fork-and-open guidance for Codex, Claude, and Cursor. Three entry points are accepted:
+the current source session, another source-worktree session, or a fresh destination
+session supplied with the source worktree. The user performs the actual provider
+operation in the destination tab; supported in-provider switching is optional, with
+exit/relaunch in the same tab as fallback. No background child, automatic execution,
+child tracking, worktree creation, or ADE tab manipulation is in the new product.
+
+Phase p-rev1 has five pending tasks; Sol starts at prev1-t01. Discovery/spec/design
+revision sections supersede the old automation requirements. The existing code is
+implemented through p03-t19 with a passing independent re-review and 209 handoff tests;
+the last full suite had 1866 passes and one skip. Those are prior results, not new
+verification of the revised workflow. Guidance itself is not implemented or released.
+
+Old native gates remain unpassed/paused, with historical failures preserved. Old
+p05/p06 tasks are superseded/unimplemented, not complete. The experimental executor
+must remain isolated and disabled through the public guidance path. Portable
+`session-handoff` migration and research-backed evidence enrichment stay separate.
+See `revision-handoff.md` and the latest plan review event for implementation readiness.
+
+## Historical progress summary — superseded where it conflicts above
 
 ## Overview
 

@@ -11,6 +11,57 @@ oat_template: false
 
 ## Overview
 
+### Accepted revision: read-only destination-tab guidance (2026-09-12)
+
+This is the current architecture for requirements R1–R8. The original architecture
+after this section is preserved as the historical experimental executor; it must not
+drive public guidance implementation where the contracts conflict.
+
+Flow: explicit source/current identity → bounded discovery/optional preview → explicit
+selection → existing-destination Git checks → pure provider-specific instructions →
+user switches to the destination tab and performs the fork-and-open action.
+
+- Keep discovery, preview, and Git validation reusable. Extend guidance-specific
+  provider/surface types to Cursor without widening the old executor's Codex/Claude
+  unions or enabling Cursor mutation. Cursor's existing discovery path does not
+  currently consume the bounded `DiscoveryOptions` argument; address that seam and
+  test limits/non-persistence rather than assuming parity with other providers.
+- Introduce a pure instruction builder and thin read-only CLI entrypoint. Store
+  provider-specific supported syntax/evidence separately from experimental
+  `PROVIDER_BEHAVIOR_CONTRACTS`. Do not call `buildDefaultPlan` or `probeProvider`:
+  those invoke provider help/auth and impose the old mutation-gate contract.
+- Instructions distinguish terminal command, in-provider slash command, and UI/manual
+  steps. Include expected canonical destination, safe shell quoting/cwd guard, selected
+  parent, fork semantics, and evidence limitations. The default is a user-run command
+  inside the destination directory, not auto-cd-and-launch from the source.
+- Interactive fork commands are not the existing bounded `exec`/`--print` readiness
+  invocations. Reuse argument-validation helpers where appropriate; never blindly
+  strip flags or assume CLI options are shared between interactive/noninteractive modes.
+- A fresh destination-session entrypoint selects the source explicitly. Native
+  switching is optional and provider/surface-specific; fallback is exit and relaunch
+  in the same tab. Never inject transcript history into the current conversation or
+  spawn an interactive child from a tool as a substitute for switching.
+- Publish only the guidance runtime in the new skill. Preserve the generated
+  experimental executor under `tools/coding-session-handoff/`, with its default
+  unverified contracts and prominent status documentation. Public help/exports/import
+  reachability must not expose `execute`, `behavior-verify`, or reconciliation.
+- No new database, provider SDK dependency, daemon, background fork, transcript-store
+  rewrite, global skill installation, or ADE integration. Portable `session-handoff`
+  migration and research-backed activity enrichment remain separate future work.
+
+**Evidence strategy:** First build a dated provider/surface capability matrix using
+official docs and available source, without provider execution. Test exact selection,
+Cursor discovery bounds, shell/cwd safety, correct instruction kinds, and no provider
+spawns with synthetic fixtures. Human/live checks are separate opt-in evidence and
+must distinguish fork creation, destination behavior, and ADE visibility. A missing
+live proof is labeled; it is not converted into supported behavior by a green unit test.
+
+**Implementation ownership:** `p-rev1` replaces the old p04/p05 activation dependency
+and p06 packaging sequence for this product. Existing tasks/reviews remain historical.
+See `revision-handoff.md` for Sol's entrypoint and `plan.md` for exact task boundaries.
+
+### Historical automated-execution architecture
+
 `coding-session-handoff` is one public skill backed by a dependency-free Node.js
 runtime. The runtime composes the repository's existing transcript discovery,
 normalization, and sanitization layers; it does not add a provider database, daemon,
