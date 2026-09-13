@@ -19,9 +19,9 @@ oat_dispatch_policy:
   policy: frontier
   source: project-state
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: fixes_completed
+  disposition: passed
   config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -50,18 +50,18 @@ oat_implement_exit_gate:
   gate_run_id: 40318b14-539a-49c6-ad8b-167fac333457
   envelope_status: ok
   artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md
-  handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md before marking the passing gate consumed.'
-  receive_state: intent_persisted
+  handoff: null
+  receive_state: completed
   receive_correlation: ac42d8a6-6a7c-4589-8b3e-ad82bbb511a8
   receive_source_artifact: reviews/final-review-2026-09-13T134826Z.md
-  receive_archived_artifact: null
+  receive_archived_artifact: reviews/archived/final-review-2026-09-13T134826Z.md
   receive_event_identity: 'final|code|final-review-2026-09-13T134826Z.md|40318b14-539a-49c6-ad8b-167fac333457'
   receive_pre_head: b487ef915063f627d5f0e268e1935b27a57387f0
   receive_commit: null
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-13T13:52:00Z'
+  updated_at: '2026-09-13T13:55:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -124,7 +124,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T13:52:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T13:55:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -148,10 +148,11 @@ Revision p-rev1 is the only active implementation phase. Seventeen tasks are imp
 through `10d901e8`. The authorized fresh final review's Important continued-prefix
 workflow gap, Medium shared-cache policy leak, and Minor stale-docs gap are repaired as
 `prev1-t15` through `prev1-t17`. The additional standard final re-review passed with
-zero findings at `10d901e8`. The one additional external gate attempt remains unspent
-and is now eligible. The five inherited Medium deferrals retain their prior explicit
-dispositions under the paused-executor boundary. The implementation exit gate and
-final HiLL closeout remain.
+zero findings at `10d901e8`, and the final authorized Cursor Fable gate passed its
+Important threshold with no blocking findings. One Medium and two Minor gate findings
+are durably dispositioned without changing the reviewed feature head. The five
+inherited Medium deferrals retain their prior explicit dispositions under the paused-
+executor boundary. Pre-approval closeout and the final HiLL checkpoint remain.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate

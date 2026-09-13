@@ -239,8 +239,10 @@ function readTailRecordsBounded(
 - Existing defaults remain unchanged to avoid altering session-observer performance or
   cache semantics.
 - Handoff always requests `persistence=forbid` and `recency=exact-all`. Its fixed scan
-  budget is 50,000 entries, 512 MiB aggregate stat size, 256 KiB/128 records for each
-  metadata prefix, and a 30-second deadline. Crossing any bound returns
+  budget is 50,000 entries, 512 MiB aggregate bounded metadata I/O, 256 KiB/128
+  records for each metadata prefix, and a 30-second deadline. Codex charges
+  `min(file size, 256 KiB)` per entry; Claude and Cursor charge stat size within their
+  scoped directories. Crossing any bound returns
   `discovery-incomplete` and makes selection/planning unavailable; a partial candidate
   set is never presented as complete.
 - Preview reads at most a 2 MiB/10,000-record tail per selected session before applying
@@ -868,8 +870,10 @@ token, not a security credential.
 
 Exact discovery uses the new quiet bounded prefix reader and a request-local metadata
 cache while persistent Codex cache access and the seven-day cutoff are disabled.
-Completeness is all-or-error within 50,000 store entries, 512 MiB aggregate stat size,
-256 KiB/128 metadata records per entry, and 30 seconds. Candidates are sorted
+Completeness is all-or-error within 50,000 store entries, 512 MiB aggregate bounded
+metadata I/O, 256 KiB/128 metadata records per entry, and 30 seconds. Codex charges
+`min(file size, 256 KiB)` per entry; Claude and Cursor charge stat size within their
+scoped directories. Candidates are sorted
 deterministically only after every entry is classified. Preview reads at most 20
 selected candidates through a 2 MiB/10,000-record bounded tail, with a 32 MiB/100,000
 record/10-second aggregate input cap, then applies per-candidate and 128 KiB aggregate

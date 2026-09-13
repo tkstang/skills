@@ -1437,6 +1437,32 @@ Artifact `reviews/final-review-2026-09-13T134826Z.md` is receive-eligible; its
 sub-threshold findings require judgment-sweep disposition before the gate can be
 marked consumed.
 
+**Passing-gate judgment sweep:** The gate's 0 Critical/0 Important result controls the
+exit decision. Root dispositioned every sub-threshold finding without changing the
+reviewed feature head:
+
+- M1 `explicit_deferral` — Codex exact-all discovery can exhaust its intentional
+  512 MiB cap on stores above roughly 2,048 maximum-prefix entries. The behavior is
+  spec-conforming, fail-closed, and reports the stable path-free
+  `DISCOVERY_BYTE_BUDGET_EXCEEDED` reason. A two-stage Codex header scan is a material
+  post-release optimization, and changing shipped code or public skill documentation
+  here would invalidate the passing gate. Revisit during the proposed session-plugin
+  packaging/rename work or the next coding-session-handoff release plan.
+- m1 `address_now` — `design.md` is aligned to the implemented aggregate bounded-I/O
+  accounting. The implementation is the accepted source of truth; Codex charges
+  `min(file size, 256 KiB)` while Claude/Cursor charge stat size within scoped
+  directories. This project-artifact-only correction does not change the reviewed
+  feature tree.
+- m2 `explicit_deferral` — second-stage preview failures retain a stable path-free
+  `preview-incomplete` code but omit provider/reason detail. The first-stage discovery
+  already surfaces that provenance, so user impact is low. A code/test/version change
+  would invalidate the passing gate; revisit with the next code revision or the
+  session-plugin migration.
+
+The artifact is archived at
+`reviews/archived/final-review-2026-09-13T134826Z.md`. The gate is received and passed;
+the retained executor remains paused and all inherited deferrals remain explicit.
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
