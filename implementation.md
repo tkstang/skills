@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t12
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | blocked; configured gate attempts exhausted | 14 | 11/14 |
+| p-rev1 | override fixes complete; fresh final review pending | 14 | 14/14 |
 
-**Total:** 46 completed of 53 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented and 3 tasks pending.
+**Total:** 49 completed of 53 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 0 tasks pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -1305,21 +1305,39 @@ default-implementation class. Authority is limited to the three tasks, declared
 tests/docs/generated outputs/version bumps, and t12/t13 artifact alignment.
 Dispatch: scope=p-rev1-real-store-fixes action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
 
+**Fix outcome:** completed in three ordered commits from `cf73ee75` through
+`f5c6a51884202e44dc92236d267a941b2dbc2722`. Bounded-prefix guidance now retains
+exact metadata/cwd evidence from large continuing transcripts, summarizes unrelated
+unresolvable cwd values without paths, scopes preview/prepare to the qualified
+provider, charges Codex for bounded metadata I/O, and emits stable provider/reason
+failure provenance. Strict callers still reject incomplete bounded reads.
+
+**Verification:** worker full suite 1,920 passed and 1 skipped; all task-level tests,
+type-check, generated parity, repository validation, smoke, skill-version validation,
+docs format/build, changed-file lint/format, and diff hygiene passed. Root repeated 452
+focused tests plus type-check, generated parity, repository and skill-version
+validation, and diff hygiene. Versions are `coding-session-handoff` 0.1.10,
+`session-observer` 1.0.32, and `export-session-transcript` 1.0.10. The feature
+worktree is clean; no provider executed and no persistence occurred.
+
 ### Task prev1-t12: Make bounded discovery work on realistic stores
 
-**Status:** pending
+**Status:** completed
+**Commit:** `cf73ee75e69902822953f24cab32645d13d4142e`
 **Finding:** Gate I1 plus duplicated Minor, and reopened p02 M1.
 **Disposition:** code fix and artifact alignment required; Large scope.
 
 ### Task prev1-t13: Charge Codex discovery for bounded bytes read
 
-**Status:** pending
+**Status:** completed
+**Commit:** `98e39a0e6c93d299e602f9591bea8bd754306da3`
 **Finding:** Gate M1 — stat-size accounting exhausts ordinary Codex stores.
 **Disposition:** code and test fix; Moderate scope.
 
 ### Task prev1-t14: Surface path-free discovery failure provenance
 
-**Status:** pending
+**Status:** completed
+**Commit:** `f5c6a51884202e44dc92236d267a941b2dbc2722`
 **Finding:** Gate M2 — failure envelopes discard provider and stable reason.
 **Disposition:** code and test fix; Minor scope.
 
@@ -1830,6 +1848,7 @@ Track test execution during implementation.
 | p06   | superseded | - | - | Historical packaging tasks remain unimplemented. |
 | p-rev1 | Full suite 1,905 passed, 1 skipped; 377 scoped reviewer tests; type-check; build/build-check; validate; skill versions; smoke; lint/format; docs build/format; diff hygiene | all through `3fdfc2a1` | 0 findings in fresh phase re-review | Five revision tasks plus the accepted Cursor fail-closed review fix. |
 | p-rev1 gate fixes | Full suite 1,913 passed, 1 skipped; root 120 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `b7a8d35f` | 0 test failures | Five gate findings repaired in ordered commits; fresh final review pending. |
+| p-rev1 override fixes | Full suite 1,920 passed, 1 skipped; root 452 focused tests; type-check; build-check; validate; smoke; skill versions; docs build/format; changed-file lint/format; diff hygiene | all through `f5c6a518` | 0 test failures | Three realistic-store fixes completed; fresh final review pending. |
 
 ## Final Summary (for PR/docs)
 
@@ -1838,11 +1857,10 @@ Track test execution during implementation.
 - An experimental `coding-session-handoff` skill and guidance-only CLI for discovering, previewing, selecting, and preparing destination-tab session forks across Codex, Claude Code, and Cursor.
 - Evidence-backed provider/surface capability records, exact worktree checks, shell-safe destination commands where documented, and explicit unsupported guidance where native continuity cannot be proven.
 - Strict exact-all Cursor discovery that fails closed on incomplete roots, enumeration, iteration, or transcript-stat races without leaking partial candidates.
-- Guidance-only Claude/Codex discovery has an opt-in path-free unattributable-summary
-  seam while strict observer/executor defaults remain unchanged. The final external
-  gate found that large transcripts, stale cwd values, and cross-provider CLI scans
-  still make realistic-store discovery unavailable; `prev1-t12` through `prev1-t14`
-  are queued and closeout is blocked.
+- Guidance-only Claude/Codex discovery retains exact metadata/cwd evidence from large
+  continuing transcripts, summarizes unrelated stale cwd values without paths, scopes
+  preview/prepare to the selected provider, and budgets Codex by bounded metadata I/O.
+  Strict observer/executor defaults remain unchanged.
 
 **Behavioral changes (user-facing):**
 
@@ -1859,7 +1877,7 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Full suite: 1,913 passed and 1 skipped at `b7a8d35f`; root repeated 120 focused tests.
+- Full suite: 1,920 passed and 1 skipped at `f5c6a518`; root repeated 452 focused tests.
 - Type-check, generated build parity, repository validation, skill-version validation, smoke, authored lint/format, docs format/build, syntax, and diff hygiene passed.
 - No live provider, authentication, installation, publication, cleanup, PR mutation, merge, or release operation was performed for p-rev1.
 
@@ -1870,9 +1888,9 @@ Track test execution during implementation.
 - Gate fix `f317d06e` gives the explicit-selection guidance path a separate
   transcript-level unattributable-summary policy while retaining strict defaults for
   the paused executor and shared observer consumers.
-- The second configured gate showed that the initial summary policy does not yet meet
-  R1/R2 on ordinary stores. No release/readiness claim should be derived from the
-  synthetic green suite until the three queued tasks pass a newly authorized gate.
+- Override fixes `cf73ee75` through `f5c6a518` address the second gate's realistic-store
+  evidence. A fresh final review and one additional external gate remain before any
+  release/readiness claim.
 
 ## References
 

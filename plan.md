@@ -1637,7 +1637,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
 | final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 | final | code | passed | 2026-09-13 | reviews/archived/final-review-2026-09-13T044900Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | auto | - |
-| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
+| final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T051014Z.md | b7a8d35f06acb0a850795e54ad40ea729caac8e5 | gate | cursor-fable-5-1-high |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -2124,14 +2124,13 @@ it does not mark the experimental executor verified or its skipped work complete
 - p06: 2 tasks — superseded/unimplemented original packaging
 - p-rev1: 14 tasks — five destination-tab guidance tasks, one completed final-review fix, five first-gate fixes, and three final-gate fixes
 
-**Historical + active total: 53 tasks = 46 completed + 3 pending + 4 superseded/unimplemented.**
+**Historical + active total: 53 tasks = 49 completed + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-The configured implementation gate exhausted both allowed attempts. Its final attempt
-found one Important, two Medium, and one Minor finding; these are queued as three tasks,
-with the duplicate workflow-doc point absorbed into `prev1-t12`. A new gate cycle is
-not authorized. Unsupported provider paths and unverified live behavior stay explicit.
-The old executor remains
+The configured implementation gate exhausted both original attempts. Its final
+findings were repaired in three operator-authorized commits through `f5c6a518`; a fresh
+final review and exactly one additional gate attempt are authorized. Unsupported
+provider paths and unverified live behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.
