@@ -15,18 +15,22 @@ oat_phase: plan
 oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T14:21:44Z"
+oat_project_state_updated: "2026-09-13T14:32:41Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** Inactive follow-up; discovery/design accepted for planning, 14-task plan authored, dispatch selection and planning reviews pending.
+**Status:** Inactive follow-up; discovery/design accepted for planning, 14-task plan authored, High dispatch ceiling selected, planning reviews pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
@@ -64,12 +68,12 @@ These are intentional sequencing conditions, not failed technical checks. Do not
 
 ## Next Milestone
 
-Resolve project dispatch selection and finish the quick-start plan review/exit-gate boundary; then leave the project inactive until explicitly started after the current project merges.
+Finish the quick-start plan review/exit-gate boundary using the selected High ceiling; then leave the project inactive until explicitly started after the current project merges.
 
 ## Planning Settings and Review Status
 
-- Reviewer preflight resolved a complete reusable ladder but no project policy (unresolvedReason: policy). High was recommended; the user-choice request is pending. No configuration adoption or inferred project policy was written.
+- User selected the managed High project ceiling on 2026-09-13. It is recorded here only; the project remains inactive. Reviewer preflight resolves High to oat-reviewer-gpt-5-6-sol-high with a complete ladder. The separate user-level Codex Frontier ladder update does not raise this project's ceiling.
 - A qualifying independent phase-review target exists. The optional All phases / Selected phases / Disabled question was offered; no selection has been recorded or enablement invented. The plan's p05 is post-merge follow-through; any selected phase IDs must be validated against all five final phases.
 - User-configured lifecycle gates exist for quick-start, implement, plan, and import-plan. Individual Keep/Disable questions were offered; no project overrides have been written. Lite has no configured gate.
-- Automatic plan artifact review is enabled; it has not run while the dispatch policy is unresolved. The quick-start configured exit gate likewise has not run. No native/CLI reviewer or provider operation was launched for this planning update.
+- Automatic plan artifact review is enabled and now has a resolved dispatch policy, but has not yet run. The quick-start configured exit gate likewise has not run. No native/CLI reviewer or provider operation was launched during the configuration update.
 - The inherited empty implementation HiLL phase list was scaffold output, not a confirmed user selection, and was removed from plan.md. Implementation must confirm checkpoints at kickoff; this does not alter optional independent phase-gate settings.
