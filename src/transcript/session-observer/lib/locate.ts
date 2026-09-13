@@ -977,7 +977,9 @@ async function discoverCodex(
       }
       continue;
     }
-    budget?.consumeBytes(fileStat.size);
+    budget?.consumeBytes(
+      Math.min(fileStat.size, budget.limits.maxMetadataBytesPerEntry),
+    );
 
     const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
 

@@ -1067,6 +1067,55 @@ test('exact-all rejects the complete discovery when aggregate entry or byte budg
   });
 });
 
+test('codex exact-all charges aggregate bytes by bounded metadata I/O', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'bounded-codex-budget');
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '13');
+    await mkdir(sessionDir, { recursive: true });
+    for (const index of [1, 2]) {
+      const sessionId = `bounded-budget-${index}`;
+      const records = [
+        { type: 'session_started', sessionId, cwd: targetCwd },
+        {
+          type: 'response_item',
+          sessionId,
+          payload: { type: 'message', role: 'user', content: 'Hello' },
+        },
+        {
+          type: 'response_item',
+          sessionId,
+          payload: { type: 'message', role: 'assistant', content: 'Hi' },
+        },
+        { type: 'progress', padding: 'x'.repeat(8_000) },
+      ];
+      await writeFile(
+        join(sessionDir, `${sessionId}.jsonl`),
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+        'utf8',
+      );
+    }
+
+    const options: DiscoveryOptions = {
+      ...exactReadOnlyDiscovery,
+      unattributablePolicy: 'summarize',
+      budget: {
+        maxEntries: 20,
+        maxAggregateBytes: 2_048,
+        maxMetadataBytesPerEntry: 1_024,
+        deadlineMs: 30_000,
+      },
+    };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).resolves.toHaveLength(2);
+
+    options.budget = { ...options.budget!, maxAggregateBytes: 2_047 };
+    await expect(
+      discover('codex', targetCwd, new ClassificationCache(), options),
+    ).rejects.toMatchObject({ code: 'DISCOVERY_BYTE_BUDGET_EXCEEDED' });
+  });
+});
+
 test.each(['codex', 'claude-code'] as const)(
   '%s exact-all counts non-JSONL and nested directory entries against maxEntries',
   async (runtime) => {

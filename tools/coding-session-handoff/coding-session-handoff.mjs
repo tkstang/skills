@@ -1789,7 +1789,9 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       }
       continue;
     }
-    budget?.consumeBytes(fileStat.size);
+    budget?.consumeBytes(
+      Math.min(fileStat.size, budget.limits.maxMetadataBytesPerEntry)
+    );
     const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
     if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
     const ageSec = now - mtime;
