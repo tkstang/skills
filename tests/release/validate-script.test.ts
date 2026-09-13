@@ -4,8 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import * as validation from '../../scripts/validate.mjs';
+import * as validation from '../../scripts/validate.js';
 const {
   parseFrontmatter,
   parseJsonFile,
@@ -43,6 +42,10 @@ async function createValidTempRepository() {
   );
 
   await mkdir(path.join(tempRoot, 'skills'), { recursive: true });
+  await mkdir(path.join(tempRoot, 'src/skills/session-fork-to-destination'), {
+    recursive: true,
+  });
+  await mkdir(path.join(tempRoot, 'src/skills/refine'), { recursive: true });
   await mkdir(path.join(tempRoot, 'skills/coding-session-handoff/references'), {
     recursive: true,
   });
@@ -94,13 +97,25 @@ async function createValidTempRepository() {
   await writeFile(path.join(tempRoot, 'AGENTS.md'), '# Agents\n');
   await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
   await writeFile(
+    path.join(tempRoot, 'src/skills/session-fork-to-destination/SKILL.md'),
+    `---
+name: session-fork-to-destination
+description: Test handoff skill
+license: MIT
+compatibility: codex
+metadata:
+  version: '0.1.0'
+---
+# Coding Session Handoff
+`,
+  );
+  await writeFile(
     path.join(tempRoot, 'skills/coding-session-handoff/SKILL.md'),
     `---
 name: coding-session-handoff
 description: Test handoff skill
 license: MIT
 compatibility: codex
-version: '0.1.0'
 metadata:
   version: '0.1.0'
 ---
@@ -133,7 +148,7 @@ metadata:
 # Consensus Refine
 `;
   await writeFile(
-    path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+    path.join(tempRoot, 'src/skills/refine/SKILL.md'),
     skillFrontmatter,
   );
 
@@ -206,7 +221,7 @@ describe('validate-script', () => {
   it('parseFrontmatter reads skill metadata', () => {
     const parsed = parseFrontmatter(
       `---\nname: refine\nmetadata:\n  version: "0.1.0"\n---\n# Body\n`,
-    );
+    ) as any;
 
     expect(parsed.name).toBe('refine');
     expect(parsed.metadata).toEqual({ version: '0.1.0' });
@@ -371,9 +386,11 @@ describe('validate-script', () => {
 
   it('full repository validation rejects invalid standalone skill directories', async () => {
     const tempRoot = await createValidTempRepository();
-    await mkdir(path.join(tempRoot, 'skills/bad-skill'), { recursive: true });
+    await mkdir(path.join(tempRoot, 'src/skills/bad-skill'), {
+      recursive: true,
+    });
     await writeFile(
-      path.join(tempRoot, 'skills/bad-skill/SKILL.md'),
+      path.join(tempRoot, 'src/skills/bad-skill/SKILL.md'),
       `---
 name: bad-skill
 ---
@@ -389,10 +406,10 @@ name: bad-skill
     );
   });
 
-  it('validation accepts skill with matching top-level and metadata versions', async () => {
+  it('validation rejects a top-level version even when metadata matches', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
       `---
 name: refine
 description: Test skill
@@ -407,13 +424,16 @@ metadata:
     );
 
     const result = await validateRepository({ root: tempRoot });
-    expect(result.ok, result.errors.join('\n')).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(
+      /top-level version is not allowed/i,
+    );
   });
 
-  it('validation accepts legacy metadata-only skill frontmatter', async () => {
+  it('validation accepts quoted stable metadata.version as sole authority', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
       `---
 name: refine
 description: Test skill
@@ -430,10 +450,10 @@ metadata:
     expect(result.ok, result.errors.join('\n')).toBe(true);
   });
 
-  it('validation rejects mismatched top-level and metadata versions', async () => {
+  it('validation rejects conflicting historical-style version fields', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
       `---
 name: refine
 description: Test skill
@@ -449,21 +469,22 @@ metadata:
 
     const result = await validateRepository({ root: tempRoot });
     expect(result.ok).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/version mismatch/i);
+    expect(result.errors.join('\n')).toMatch(
+      /top-level version is not allowed/i,
+    );
   });
 
-  it('validation rejects malformed top-level version with a clear message', async () => {
+  it('validation rejects malformed or nonstable metadata.version with a clear message', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
       `---
 name: refine
 description: Test skill
 license: MIT
 compatibility: codex
-version: not-a-version
 metadata:
-  version: '0.1.0'
+  version: '1.0.0-alpha.1'
 ---
 # Consensus Refine
 `,
@@ -471,6 +492,29 @@ metadata:
 
     const result = await validateRepository({ root: tempRoot });
     expect(result.ok).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/version must be valid semver/i);
+    expect(result.errors.join('\n')).toMatch(/quoted stable semver/i);
+  });
+
+  it('validation rejects an unquoted metadata.version', async () => {
+    const tempRoot = await createValidTempRepository();
+    await writeFile(
+      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      `---
+name: refine
+description: Test skill
+license: MIT
+compatibility: codex
+metadata:
+  version: 0.1.0
+---
+# Consensus Refine
+`,
+    );
+
+    const result = await validateRepository({ root: tempRoot });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(
+      /metadata\.version must be quoted/i,
+    );
   });
 });

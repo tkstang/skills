@@ -21,7 +21,15 @@ import path from 'node:path';
  *   bodyLines: string[],
  * } | null}
  */
-export function parseFrontmatter(content) {
+interface SplitFrontmatter {
+  eol: string;
+  openFence: string;
+  closeFence: string;
+  frontmatterLines: string[];
+  bodyLines: string[];
+}
+
+export function parseFrontmatter(content: string): SplitFrontmatter | null {
   const eol = content.includes('\r\n') ? '\r\n' : '\n';
   const lines = content.split(eol);
   if (lines.length === 0 || lines[0].trim() !== '---') {
@@ -49,7 +57,7 @@ export function parseFrontmatter(content) {
 }
 
 /** Index of the top-level `metadata:` block line, or -1 when absent. */
-function findMetadataIndex(frontmatterLines) {
+function findMetadataIndex(frontmatterLines: string[]): number {
   for (let index = 0; index < frontmatterLines.length; index += 1) {
     if (/^metadata:\s*$/u.test(frontmatterLines[index])) {
       return index;
@@ -59,7 +67,10 @@ function findMetadataIndex(frontmatterLines) {
 }
 
 /** Detect the indentation used by nested keys under `metadata:` (default 2sp). */
-function detectNestedIndent(frontmatterLines, metadataIndex) {
+function detectNestedIndent(
+  frontmatterLines: string[],
+  metadataIndex: number,
+): string {
   for (
     let index = metadataIndex + 1;
     index < frontmatterLines.length;
@@ -78,7 +89,7 @@ function detectNestedIndent(frontmatterLines, metadataIndex) {
 }
 
 /** True when the frontmatter lines carry `metadata.internal: true`. */
-function frontmatterHasInternal(frontmatterLines) {
+function frontmatterHasInternal(frontmatterLines: string[]): boolean {
   const metadataIndex = findMetadataIndex(frontmatterLines);
   if (metadataIndex === -1) {
     return false;
@@ -115,7 +126,7 @@ function frontmatterHasInternal(frontmatterLines) {
  * @param {string} content SKILL.md document text
  * @returns {boolean} whether the document declares `metadata.internal: true`
  */
-export function hasInternalFlag(content) {
+export function hasInternalFlag(content: string): boolean {
   const parsed = parseFrontmatter(content);
   if (!parsed) {
     return false;
@@ -131,7 +142,10 @@ export function hasInternalFlag(content) {
  * @param {string} content SKILL.md document text
  * @returns {{ content: string, changed: boolean }}
  */
-export function addInternalFlag(content) {
+export function addInternalFlag(content: string): {
+  content: string;
+  changed: boolean;
+} {
   const parsed = parseFrontmatter(content);
   if (!parsed) {
     throw new Error(
@@ -145,7 +159,7 @@ export function addInternalFlag(content) {
   const { eol, openFence, closeFence, frontmatterLines, bodyLines } = parsed;
   const metadataIndex = findMetadataIndex(frontmatterLines);
 
-  let nextFrontmatter;
+  let nextFrontmatter: string[];
   if (metadataIndex === -1) {
     nextFrontmatter = [...frontmatterLines, 'metadata:', '  internal: true'];
   } else {
@@ -174,18 +188,20 @@ export function addInternalFlag(content) {
  * @param {string} skillsDir directory containing one subdir per skill
  * @returns {Promise<string[]>} sorted absolute paths to each SKILL.md
  */
-export async function listAgentSkillFiles(skillsDir) {
+export async function listAgentSkillFiles(
+  skillsDir: string,
+): Promise<string[]> {
   let entries;
   try {
     entries = await readdir(skillsDir, { withFileTypes: true });
-  } catch (error) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return [];
     }
     throw error;
   }
 
-  const files = [];
+  const files: string[] = [];
   for (const entry of entries) {
     if (entry.isSymbolicLink() || !entry.isDirectory()) {
       continue;

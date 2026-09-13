@@ -1,7 +1,7 @@
 ---
 id: BL-260723-guard-transitive-shared
 title: Guard transitive shared-runtime skill version bumps
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - wave-2-follow-up
 assignee: null
 created: 2026-07-23T06:40:00Z
-updated: 2026-09-11T13:15:47.721Z
+updated: 2026-09-13T19:46:14Z
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-09-07-guard-transitive-shared-runtime-versions.md

@@ -1,5 +1,30 @@
 import type { DistributionDeclaration } from '../scripts/lib/packaging.js';
 
+export interface PluginReleaseTarget {
+  name: string;
+  providerManifests: readonly string[];
+  marketplaceManifests: readonly string[];
+}
+
+// Plugin release versions are separate from canonical skill versions. Keep
+// the provider and catalog surfaces together so release and validation tooling
+// can select one plugin without rewriting another plugin or its member skills.
+export const pluginReleaseTargets: readonly PluginReleaseTarget[] = [
+  {
+    name: 'consensus',
+    providerManifests: [
+      'plugins/consensus/.claude-plugin/plugin.json',
+      'plugins/consensus/.cursor-plugin/plugin.json',
+      'plugins/consensus/.codex-plugin/plugin.json',
+    ],
+    marketplaceManifests: [
+      '.claude-plugin/marketplace.json',
+      '.cursor-plugin/marketplace.json',
+      '.agents/plugins/marketplace.json',
+    ],
+  },
+];
+
 // Authored owners declare their installation targets here as they migrate
 // under src/skills. Generated payloads remain derivative build output.
 export const distributions: readonly DistributionDeclaration[] = [

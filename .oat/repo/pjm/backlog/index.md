@@ -20,7 +20,6 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260723-guard-transitive-shared | Guard transitive shared-runtime skill version bumps | open | medium | task | S |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |

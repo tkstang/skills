@@ -12,10 +12,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import * as bumpVersionScript from '../../scripts/bump-version.mjs';
-// @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import * as validateScript from '../../scripts/validate.mjs';
+import * as bumpVersionScript from '../../scripts/bump-version.js';
+import * as validateScript from '../../scripts/validate.js';
 import { repoRoot } from '../helpers/process.mjs';
 const { bumpVersion, checkTagVersion, isValidSemver, SKILL_FILES } =
   bumpVersionScript;
@@ -28,19 +26,28 @@ const jsonFiles = [
   '.cursor-plugin/marketplace.json',
   '.agents/plugins/marketplace.json',
 ];
+const MARKETPLACE_FILES_WITH_VERSIONS = [
+  '.claude-plugin/marketplace.json',
+  '.agents/plugins/marketplace.json',
+];
 const skillFiles = [
-  'skills/coding-session-handoff/SKILL.md',
-  'skills/complexity-review/SKILL.md',
-  'skills/session-observer/SKILL.md',
-  'skills/session-observer-collab/SKILL.md',
-  'skills/export-session-transcript/SKILL.md',
+  'src/skills/session-fork-to-destination/SKILL.md',
+  'src/skills/complexity-review/SKILL.md',
+  'src/skills/session-observer/SKILL.md',
+  'src/skills/session-observer-collab/SKILL.md',
+  'src/skills/session-export-transcript/SKILL.md',
+  'src/skills/refine/SKILL.md',
+  'src/skills/evaluate/SKILL.md',
+  'src/skills/create/SKILL.md',
+  'src/skills/decide/SKILL.md',
+  'src/skills/plan/SKILL.md',
+  'src/skills/panel/SKILL.md',
+  'src/skills/phone-a-friend/SKILL.md',
+];
+const generatedSkillFiles = [
   'plugins/consensus/skills/refine/SKILL.md',
-  'plugins/consensus/skills/evaluate/SKILL.md',
-  'plugins/consensus/skills/create/SKILL.md',
-  'plugins/consensus/skills/decide/SKILL.md',
-  'plugins/consensus/skills/plan/SKILL.md',
-  'plugins/consensus/skills/panel/SKILL.md',
-  'plugins/consensus/skills/phone-a-friend/SKILL.md',
+  'skills/coding-session-handoff/SKILL.md',
+  'skills/session-observer-collab/SKILL.md',
 ];
 const sessionObserverWatchDocs = [
   'skills/session-observer/references/watch-design.md',
@@ -83,6 +90,10 @@ async function tempReleaseRoot() {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
+  for (const file of generatedSkillFiles) {
+    await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
+    await cp(path.join(repoRoot, file), path.join(tempRoot, file));
+  }
   for (const file of [
     ...sessionObserverWatchDocs,
     ...collaborationDistributionFiles,
@@ -122,28 +133,17 @@ async function listDirectoryNames(directory: string) {
   }
 }
 
-// Independent re-implementation of the "skills/<name>/SKILL.md" and
-// "plugins/<name>/skills/<name>/SKILL.md" discovery contract, deliberately
-// not sharing code with scripts/lib/discover-skills.mjs, so this test proves
+// Independent re-implementation of the "src/skills/<name>/SKILL.md" discovery contract, deliberately
+// not sharing code with scripts/lib/discover-skills.js, so this test proves
 // SKILL_FILES matches disk rather than merely echoing the same
 // implementation.
 async function globSkillMarkdownFiles(root: string) {
   const found: string[] = [];
 
-  for (const skillName of await listDirectoryNames(path.join(root, 'skills'))) {
-    if (await fileExists(path.join(root, 'skills', skillName, 'SKILL.md'))) {
-      found.push(`skills/${skillName}/SKILL.md`);
-    }
-  }
-
-  for (const pluginName of await listDirectoryNames(
-    path.join(root, 'plugins'),
-  )) {
-    const skillsDir = path.join(root, 'plugins', pluginName, 'skills');
-    for (const skillName of await listDirectoryNames(skillsDir)) {
-      if (await fileExists(path.join(skillsDir, skillName, 'SKILL.md'))) {
-        found.push(`plugins/${pluginName}/skills/${skillName}/SKILL.md`);
-      }
+  const skillsDir = path.join(root, 'src/skills');
+  for (const skillName of await listDirectoryNames(skillsDir)) {
+    if (await fileExists(path.join(skillsDir, skillName, 'SKILL.md'))) {
+      found.push(`src/skills/${skillName}/SKILL.md`);
     }
   }
 
@@ -159,7 +159,7 @@ describe('release-versioning', () => {
     expect(isValidSemver('0.2.0+build')).toBe(false);
   });
 
-  it('bumpVersion updates plugin manifests and present marketplace versions', async () => {
+  it('bumpVersion updates one explicit plugin without changing skill versions', async () => {
     const root = await tempReleaseRoot();
     const cursorMarketplacePath = '.cursor-plugin/marketplace.json';
     const cursorMarketplace = await readJson(root, cursorMarketplacePath);
@@ -168,11 +168,34 @@ describe('release-versioning', () => {
       path.join(root, cursorMarketplacePath),
       `${JSON.stringify(cursorMarketplace, null, 2)}\n`,
     );
+    for (const marketplacePath of MARKETPLACE_FILES_WITH_VERSIONS) {
+      const marketplace = await readJson(root, marketplacePath);
+      marketplace.plugins.push({
+        name: 'session',
+        source: './plugins/session',
+        version: '9.0.0',
+      });
+      await writeFile(
+        path.join(root, marketplacePath),
+        `${JSON.stringify(marketplace, null, 2)}\n`,
+      );
+    }
 
-    const result = await bumpVersion({ root, version: '0.2.0-beta.1' });
+    const beforeSkills = await Promise.all(
+      skillFiles.map((file) => readFile(path.join(root, file), 'utf8')),
+    );
+    const result = await bumpVersion({
+      root,
+      version: '0.2.0-beta.1',
+      target: { kind: 'plugin', name: 'consensus' },
+    });
 
     expect([...result.updatedFiles].toSorted()).toEqual(
-      [...jsonFiles, ...skillFiles].toSorted(),
+      [
+        ...jsonFiles.slice(0, 3),
+        '.claude-plugin/marketplace.json',
+        '.agents/plugins/marketplace.json',
+      ].toSorted(),
     );
     for (const file of jsonFiles.slice(0, 3)) {
       expect((await readJson(root, file)).version).toBe('0.2.0-beta.1');
@@ -188,23 +211,17 @@ describe('release-versioning', () => {
     expect(
       'version' in (await readJson(root, cursorMarketplacePath)).plugins[0],
     ).toBe(false);
-    for (const file of skillFiles) {
-      const skillMarkdown = await readFile(path.join(root, file), 'utf8');
-      const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
-      const frontmatter = frontmatterMatch![1];
-      if (/^version:/m.test(frontmatter)) {
-        expect(
-          frontmatter,
-          `${file} top-level version should be bumped`,
-        ).toMatch(/^version: "0\.2\.0-beta\.1"$/m);
-      }
-      if (/^metadata:\n(?:  .+\n)*?  version:/m.test(frontmatter)) {
-        expect(
-          frontmatter,
-          `${file} metadata.version should be bumped`,
-        ).toMatch(/^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m);
-      }
+    for (const marketplacePath of MARKETPLACE_FILES_WITH_VERSIONS) {
+      const session = (await readJson(root, marketplacePath)).plugins.find(
+        (plugin: { name: string }) => plugin.name === 'session',
+      );
+      expect(session.version).toBe('9.0.0');
     }
+    await expect(
+      Promise.all(
+        skillFiles.map((file) => readFile(path.join(root, file), 'utf8')),
+      ),
+    ).resolves.toEqual(beforeSkills);
   });
 
   it('SKILL_FILES matches an independently globbed skill set', async () => {
@@ -214,27 +231,31 @@ describe('release-versioning', () => {
 
   it('SKILL_FILES pins the current shipped skill set (update deliberately on change)', () => {
     expect([...SKILL_FILES].toSorted()).toEqual([
-      'plugins/consensus/skills/create/SKILL.md',
-      'plugins/consensus/skills/decide/SKILL.md',
-      'plugins/consensus/skills/evaluate/SKILL.md',
-      'plugins/consensus/skills/panel/SKILL.md',
-      'plugins/consensus/skills/phone-a-friend/SKILL.md',
-      'plugins/consensus/skills/plan/SKILL.md',
-      'plugins/consensus/skills/refine/SKILL.md',
-      'skills/coding-session-handoff/SKILL.md',
-      'skills/complexity-review/SKILL.md',
-      'skills/export-session-transcript/SKILL.md',
-      'skills/session-observer-collab/SKILL.md',
-      'skills/session-observer/SKILL.md',
+      'src/skills/complexity-review/SKILL.md',
+      'src/skills/create/SKILL.md',
+      'src/skills/decide/SKILL.md',
+      'src/skills/evaluate/SKILL.md',
+      'src/skills/panel/SKILL.md',
+      'src/skills/phone-a-friend/SKILL.md',
+      'src/skills/plan/SKILL.md',
+      'src/skills/refine/SKILL.md',
+      'src/skills/session-export-transcript/SKILL.md',
+      'src/skills/session-fork-to-destination/SKILL.md',
+      'src/skills/session-observer-collab/SKILL.md',
+      'src/skills/session-observer/SKILL.md',
     ]);
   });
 
   it('bumpVersion rejects malformed semver before modifying files', async () => {
     const root = await tempReleaseRoot();
 
-    await expect(bumpVersion({ root, version: 'v0.2.0' })).rejects.toThrow(
-      /semver/i,
-    );
+    await expect(
+      bumpVersion({
+        root,
+        version: 'v0.2.0',
+        target: { kind: 'plugin', name: 'consensus' },
+      }),
+    ).rejects.toThrow(/semver/i);
     expect(
       (await readJson(root, 'plugins/consensus/.claude-plugin/plugin.json'))
         .version,
@@ -244,23 +265,30 @@ describe('release-versioning', () => {
   it('bumped patch versions validate and pass release tag consistency', async () => {
     const root = await tempReleaseRoot();
 
-    await bumpVersion({ root, version: '0.1.1' });
+    await bumpVersion({
+      root,
+      version: '0.1.1',
+      target: { kind: 'plugin', name: 'consensus' },
+    });
 
     const validation = await validateRepository({ root });
     expect(validation.ok, validation.errors.join('\n')).toBe(true);
-    expect(await checkTagVersion({ root, tag: 'v0.1.1' })).toEqual({
+    expect(
+      await checkTagVersion({ root, tag: 'v0.1.1', plugin: 'consensus' }),
+    ).toEqual({
       version: '0.1.1',
+      plugin: 'consensus',
       ok: true,
     });
   });
 
-  it('bumpVersion and checkTagVersion derive the skill set from each effective root, not a build-time SKILL_FILES snapshot', async () => {
+  it('skill selection derives from the effective root and updates metadata.version only', async () => {
     const root = await tempReleaseRoot();
     // A skill that exists ONLY in this target checkout — not in the source
     // checkout the module-level SKILL_FILES was derived from. If the
     // operations reused that DEFAULT_ROOT snapshot they would silently skip
     // it (under-bumping the target).
-    const extraSkillRelPath = 'skills/extra-scratch-skill/SKILL.md';
+    const extraSkillRelPath = 'src/skills/extra-scratch-skill/SKILL.md';
     await mkdir(path.dirname(path.join(root, extraSkillRelPath)), {
       recursive: true,
     });
@@ -270,7 +298,6 @@ describe('release-versioning', () => {
         '---',
         'name: extra-scratch-skill',
         'description: Scratch skill present only in this target checkout.',
-        'version: "0.1.0"',
         'metadata:',
         '  version: "0.1.0"',
         '---',
@@ -283,19 +310,31 @@ describe('release-versioning', () => {
     // Guard: the DEFAULT_ROOT snapshot does not know about this skill.
     expect(SKILL_FILES).not.toContain(extraSkillRelPath);
 
-    const result = await bumpVersion({ root, version: '0.3.0' });
+    const result = await bumpVersion({
+      root,
+      version: '0.3.0',
+      target: { kind: 'skill', name: 'extra-scratch-skill' },
+    });
 
-    // Derived from the target root: the extra skill is bumped in both fields.
+    // Derived from the target root: the extra skill is bumped at the sole
+    // canonical metadata.version field.
     expect(result.updatedFiles).toContain(extraSkillRelPath);
     const bumped = await readFile(path.join(root, extraSkillRelPath), 'utf8');
-    expect(bumped).toMatch(/^version: "0\.3\.0"$/m);
+    expect(bumped).not.toMatch(/^version:/m);
     expect(bumped).toMatch(/^metadata:\n {2}version: "0\.3\.0"$/m);
+  });
 
-    // checkTagVersion likewise derives from the target root, so it sees the
-    // extra skill and confirms post-bump consistency across the whole set.
-    expect(await checkTagVersion({ root, tag: 'v0.3.0' })).toEqual({
-      version: '0.3.0',
-      ok: true,
-    });
+  it('rejects nonstable skill versions and requires an explicit target', async () => {
+    const root = await tempReleaseRoot();
+    await expect(
+      bumpVersion({
+        root,
+        version: '1.0.0-alpha.1',
+        target: { kind: 'skill', name: 'refine' },
+      }),
+    ).rejects.toThrow(/stable semver/i);
+    await expect(
+      bumpVersion({ root, version: '1.0.0', target: undefined as never }),
+    ).rejects.toThrow(/target is required/i);
   });
 });

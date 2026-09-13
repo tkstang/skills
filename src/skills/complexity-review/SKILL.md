@@ -7,7 +7,6 @@ argument-hint: '[target ...] [--out <path>]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git status:*), Bash(git ls-files:*), AskUserQuestion
-version: '1.0.1'
 metadata:
   author: thomas.stang
   version: '1.0.1'

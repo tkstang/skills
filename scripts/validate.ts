@@ -2,21 +2,20 @@ import { lstat, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isValidSemver } from './bump-version.mjs';
-import { discoverSkillDirectories } from './lib/discover-skills.mjs';
+import { pluginReleaseTargets } from '../src/distributions.js';
+import { isStableSemver, isValidSemver } from './bump-version.js';
+import { discoverSkillDirectories } from './lib/discover-skills.js';
 
 const DEFAULT_ROOT = path.resolve(
   fileURLToPath(new URL('..', import.meta.url)),
 );
-const PROVIDER_MANIFESTS = [
-  'plugins/consensus/.claude-plugin/plugin.json',
-  'plugins/consensus/.cursor-plugin/plugin.json',
-  'plugins/consensus/.codex-plugin/plugin.json',
-];
+const PROVIDER_MANIFESTS = pluginReleaseTargets.flatMap(
+  (target) => target.providerManifests,
+);
 const MARKETPLACE_MANIFESTS = [
-  '.claude-plugin/marketplace.json',
-  '.cursor-plugin/marketplace.json',
-  '.agents/plugins/marketplace.json',
+  ...new Set(
+    pluginReleaseTargets.flatMap((target) => target.marketplaceManifests),
+  ),
 ];
 const REQUIRED_SKILL_FIELDS = [
   'name',
@@ -37,7 +36,32 @@ const COLLABORATION_REQUIRED_FILES = [
   'scripts/hooks/cursor-stop.mjs',
 ];
 
-function inside(root, target) {
+type FrontmatterValue = string | Record<string, string>;
+interface ParsedFrontmatter {
+  [key: string]: FrontmatterValue | undefined;
+  name?: string;
+  version?: string;
+  metadata?: Record<string, string>;
+}
+
+interface SkillReference {
+  name?: string;
+  path?: string;
+}
+
+interface MarketplaceEntry {
+  name?: string;
+  source?: string | { path?: string };
+  version?: string;
+}
+
+type JsonObject = Record<string, unknown>;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function inside(root: string, target: string): boolean {
   const relative = path.relative(root, target);
   return (
     relative === '' ||
@@ -45,39 +69,46 @@ function inside(root, target) {
   );
 }
 
-function stripQuotes(value) {
+function stripQuotes(value: string): string {
   return value.trim().replace(/^["']|["']$/g, '');
 }
 
-async function pathExists(targetPath) {
+async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await stat(targetPath);
     return true;
-  } catch (error) {
-    if (error.code === 'ENOENT') return false;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
     throw error;
   }
 }
 
-// Re-exported for existing consumers (e.g. scripts/validate-skill-versions.mjs)
+// Re-exported for existing consumers (e.g. scripts/validate-skill-versions.ts)
 // that import skill discovery from this module.
 export { discoverSkillDirectories };
 
-export function parseFrontmatter(markdown, source = 'markdown') {
+export function parseFrontmatter(
+  markdown: string,
+  source = 'markdown',
+): ParsedFrontmatter {
   const match = markdown.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
   if (!match) {
     throw new Error(`${source}: missing frontmatter block`);
   }
 
-  const result = {};
-  let activeMap = null;
+  const result: ParsedFrontmatter = {};
+  let activeMap: string | null = null;
 
   for (const line of match[1].split('\n')) {
     if (!line.trim()) continue;
 
     const nested = line.match(/^  ([^:]+):\s*(.+)$/);
     if (nested && activeMap) {
-      result[activeMap][nested[1].trim()] = stripQuotes(nested[2]);
+      const map = result[activeMap];
+      if (typeof map !== 'object') {
+        throw new Error(`${source}: invalid nested frontmatter map`);
+      }
+      map[nested[1].trim()] = stripQuotes(nested[2]);
       continue;
     }
 
@@ -100,16 +131,20 @@ export function parseFrontmatter(markdown, source = 'markdown') {
   return result;
 }
 
-export async function parseJsonFile(filePath) {
+export async function parseJsonFile(filePath: string): Promise<JsonObject> {
   try {
-    return JSON.parse(await readFile(filePath, 'utf8'));
-  } catch (error) {
-    throw new Error(`${filePath}: ${error.message}`, { cause: error });
+    return JSON.parse(await readFile(filePath, 'utf8')) as JsonObject;
+  } catch (error: unknown) {
+    throw new Error(`${filePath}: ${errorMessage(error)}`, { cause: error });
   }
 }
 
-export async function validateSkillReference(root, skill, pluginRoot = root) {
-  const issues = [];
+export async function validateSkillReference(
+  root: string,
+  skill: SkillReference,
+  pluginRoot = root,
+): Promise<string[]> {
+  const issues: string[] = [];
 
   if (!skill?.path) {
     return ['skill reference is missing path'];
@@ -135,48 +170,43 @@ export async function validateSkillReference(root, skill, pluginRoot = root) {
   return issues;
 }
 
-function resolveEffectiveSkillVersion(parsed, sourceLabel) {
+function resolveEffectiveSkillVersion(
+  parsed: ParsedFrontmatter,
+  sourceLabel: string,
+): string | null {
   const topLevel = parsed.version != null ? String(parsed.version) : null;
   const metaVersion =
     parsed.metadata?.version != null ? String(parsed.metadata.version) : null;
 
-  const effective = topLevel ?? metaVersion;
-
-  if (!effective) {
-    return `${sourceLabel} metadata.version must be valid semver`;
+  if (topLevel) {
+    return `${sourceLabel} top-level version is not allowed; use quoted metadata.version`;
   }
 
-  if (topLevel && !isValidSemver(topLevel)) {
-    return `${sourceLabel} version must be valid semver (got "${topLevel}")`;
-  }
-
-  if (metaVersion && !isValidSemver(metaVersion)) {
-    return `${sourceLabel} metadata.version must be valid semver`;
-  }
-
-  if (topLevel && metaVersion && topLevel !== metaVersion) {
-    return `${sourceLabel} version mismatch: top-level version "${topLevel}" does not match metadata.version "${metaVersion}"`;
+  if (!metaVersion || !isStableSemver(metaVersion)) {
+    return `${sourceLabel} metadata.version must be quoted stable semver`;
   }
 
   return null;
 }
 
-async function validateSkillFrontmatter(root, skillPath) {
-  const issues = [];
+async function validateSkillFrontmatter(
+  root: string,
+  skillPath: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const skillFile = path.join(skillPath, 'SKILL.md');
 
   if (!(await pathExists(skillFile))) {
     return [`missing SKILL.md: ${path.relative(root, skillFile)}`];
   }
 
-  let parsed;
+  let parsed: ParsedFrontmatter;
+  let markdown: string;
   try {
-    parsed = parseFrontmatter(
-      await readFile(skillFile, 'utf8'),
-      path.relative(root, skillFile),
-    );
-  } catch (error) {
-    return [error.message];
+    markdown = await readFile(skillFile, 'utf8');
+    parsed = parseFrontmatter(markdown, path.relative(root, skillFile));
+  } catch (error: unknown) {
+    return [errorMessage(error)];
   }
 
   for (const field of REQUIRED_SKILL_FIELDS) {
@@ -198,12 +228,24 @@ async function validateSkillFrontmatter(root, skillPath) {
   if (versionIssue) {
     issues.push(versionIssue);
   }
+  if (
+    parsed.metadata?.version &&
+    !/^metadata:\n(?:  .+\n)*?  version:\s*(["'])[^"'\n]+\1\s*$/mu.test(
+      markdown.match(/^---\n([\s\S]*?)\n---(?:\n|$)/u)?.[1] ?? '',
+    )
+  ) {
+    issues.push(
+      `${path.relative(root, skillFile)} metadata.version must be quoted`,
+    );
+  }
 
   return issues;
 }
 
-async function validateDiscoveredSkillDirectories(root) {
-  const issues = [];
+async function validateDiscoveredSkillDirectories(
+  root: string,
+): Promise<string[]> {
+  const issues: string[] = [];
 
   for (const skillPath of await discoverSkillDirectories(root)) {
     issues.push(...(await validateSkillFrontmatter(root, skillPath)));
@@ -212,9 +254,9 @@ async function validateDiscoveredSkillDirectories(root) {
   return issues;
 }
 
-async function listFilesRecursively(directory) {
+async function listFilesRecursively(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
-  const files = [];
+  const files: string[] = [];
 
   for (const entry of entries) {
     const entryPath = path.join(directory, entry.name);
@@ -228,8 +270,10 @@ async function listFilesRecursively(directory) {
   return files;
 }
 
-export async function validateCollaborationSkillDistribution(root) {
-  const issues = [];
+export async function validateCollaborationSkillDistribution(
+  root: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const skillRoot = path.join(root, COLLABORATION_SKILL_PATH);
   if (!(await pathExists(skillRoot))) return issues;
 
@@ -280,8 +324,10 @@ export async function validateCollaborationSkillDistribution(root) {
   return issues;
 }
 
-export async function validateGuidanceSkillDistribution(root) {
-  const issues = [];
+export async function validateGuidanceSkillDistribution(
+  root: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const required = [
     'SKILL.md',
     'references/provider-guidance.md',
@@ -330,8 +376,11 @@ export async function validateGuidanceSkillDistribution(root) {
   return issues;
 }
 
-export async function validateMarketplaceSource(root, entry) {
-  const issues = [];
+export async function validateMarketplaceSource(
+  root: string,
+  entry: MarketplaceEntry,
+): Promise<string[]> {
+  const issues: string[] = [];
   const sourcePath =
     typeof entry?.source === 'string' ? entry.source : entry?.source?.path;
 
@@ -361,10 +410,12 @@ export async function validateMarketplaceSource(root, entry) {
   return issues;
 }
 
-export async function validateReadmeInstallMatrix(root) {
+export async function validateReadmeInstallMatrix(
+  root: string,
+): Promise<string[]> {
   const readmePath = path.join(root, 'README.md');
   const readme = await readFile(readmePath, 'utf8');
-  const issues = [];
+  const issues: string[] = [];
 
   if (!/^## Install$/m.test(readme)) {
     issues.push('README.md missing Install section');
@@ -373,7 +424,7 @@ export async function validateReadmeInstallMatrix(root) {
   // The README carries the three-provider install matrix: it is the tag-time
   // gate, re-verified against live provider CLIs at release, and the entry
   // point claims cross-provider support in its first sentence.
-  const matrixCommands = [
+  const matrixCommands: Array<[string, RegExp]> = [
     [
       'Claude Code marketplace',
       /claude plugin marketplace add "\$PWD" --scope user/,
@@ -405,8 +456,10 @@ export async function validateReadmeInstallMatrix(root) {
   return issues;
 }
 
-export async function validateSessionObserverWatchDocs(root) {
-  const issues = [];
+export async function validateSessionObserverWatchDocs(
+  root: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const canonicalSkillPath = path.join(
     root,
     'skills/session-observer/SKILL.md',
@@ -453,39 +506,48 @@ export async function validateSessionObserverWatchDocs(root) {
   return issues;
 }
 
-export async function validateVersionConsistency(root) {
-  const versions = new Map();
-  const issues = [];
+export async function validateVersionConsistency(
+  root: string,
+): Promise<string[]> {
+  const issues: string[] = [];
 
-  for (const relativePath of PROVIDER_MANIFESTS) {
-    const manifest = await parseJsonFile(path.join(root, relativePath));
-    versions.set(relativePath, manifest.version);
-    if (!isValidSemver(manifest.version)) {
-      issues.push(`${relativePath} version must be valid semver`);
+  for (const target of pluginReleaseTargets) {
+    const versions = new Map<string, unknown>();
+    for (const relativePath of target.providerManifests) {
+      const manifest = await parseJsonFile(path.join(root, relativePath));
+      versions.set(relativePath, manifest.version);
+      if (!isValidSemver(manifest.version)) {
+        issues.push(`${relativePath} version must be valid semver`);
+      }
     }
-  }
-
-  const uniqueVersions = new Set(versions.values());
-  if (uniqueVersions.size > 1) {
-    issues.push(
-      `plugin manifest versions differ: ${[...versions.entries()]
-        .map(([relativePath, version]) => `${relativePath}=${version}`)
-        .join(', ')}`,
-    );
+    const uniqueVersions = new Set(versions.values());
+    if (uniqueVersions.size > 1) {
+      issues.push(
+        `${target.name} plugin manifest versions differ: ${[
+          ...versions.entries(),
+        ]
+          .map(([relativePath, version]) => `${relativePath}=${version}`)
+          .join(', ')}`,
+      );
+    }
   }
 
   return issues;
 }
 
-async function validateProviderManifest(root, relativePath) {
-  const issues = [];
+async function validateProviderManifest(
+  root: string,
+  relativePath: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const manifestPath = path.join(root, relativePath);
   const pluginRoot = path.resolve(path.dirname(manifestPath), '..');
   const manifest = await parseJsonFile(manifestPath);
   const provider = relativePath.match(/\.([^./]+)-plugin/u)?.[1];
 
-  if (manifest.name !== 'consensus') {
-    issues.push(`${relativePath} name should be consensus`);
+  const expectedName = relativePath.split('/')[1];
+  if (manifest.name !== expectedName) {
+    issues.push(`${relativePath} name should be ${expectedName}`);
   }
 
   if (!isValidSemver(manifest.version)) {
@@ -504,17 +566,15 @@ async function validateProviderManifest(root, relativePath) {
     }
   }
 
-  const requiredSkillPath = path.join(pluginRoot, 'skills/refine');
-  if (!(await pathExists(requiredSkillPath))) {
-    issues.push(`${relativePath} missing skills/refine directory`);
-  } else {
-    issues.push(...(await validateSkillFrontmatter(root, requiredSkillPath)));
-  }
-
   if (Array.isArray(manifest.skills)) {
     for (const skill of manifest.skills) {
-      issues.push(...(await validateSkillReference(root, skill, pluginRoot)));
-      const skillPath = path.resolve(pluginRoot, skill.path);
+      if (!skill || typeof skill !== 'object') continue;
+      const reference = skill as SkillReference;
+      issues.push(
+        ...(await validateSkillReference(root, reference, pluginRoot)),
+      );
+      if (!reference.path) continue;
+      const skillPath = path.resolve(pluginRoot, reference.path);
       issues.push(...(await validateSkillFrontmatter(root, skillPath)));
     }
   }
@@ -522,30 +582,35 @@ async function validateProviderManifest(root, relativePath) {
   return issues.map((issue) => `${relativePath}: ${issue}`);
 }
 
-async function validateMarketplaceManifest(root, relativePath) {
-  const issues = [];
+async function validateMarketplaceManifest(
+  root: string,
+  relativePath: string,
+): Promise<string[]> {
+  const issues: string[] = [];
   const manifest = await parseJsonFile(path.join(root, relativePath));
 
   if (!Array.isArray(manifest.plugins)) {
     return [`${relativePath}: missing plugins array`];
   }
 
-  const consensus = manifest.plugins.find(
-    (plugin) => plugin.name === 'consensus',
-  );
-  if (!consensus) {
-    return [`${relativePath}: missing consensus plugin entry`];
-  }
-
-  issues.push(...(await validateMarketplaceSource(root, consensus)));
-  const sourcePath =
-    typeof consensus.source === 'string'
-      ? consensus.source
-      : consensus.source?.path;
-  if (sourcePath !== './plugins/consensus') {
-    issues.push(
-      `${relativePath}: consensus source.path should be ./plugins/consensus`,
+  for (const target of pluginReleaseTargets) {
+    const entries = manifest.plugins.filter(
+      (plugin): plugin is MarketplaceEntry =>
+        Boolean(plugin) && typeof plugin === 'object',
     );
+    const entry = entries.find((plugin) => plugin.name === target.name);
+    if (!entry) {
+      issues.push(`${relativePath}: missing ${target.name} plugin entry`);
+      continue;
+    }
+    issues.push(...(await validateMarketplaceSource(root, entry)));
+    const sourcePath =
+      typeof entry.source === 'string' ? entry.source : entry.source?.path;
+    if (sourcePath !== `./plugins/${target.name}`) {
+      issues.push(
+        `${relativePath}: ${target.name} source.path should be ./plugins/${target.name}`,
+      );
+    }
   }
 
   return issues.map((issue) =>
@@ -553,8 +618,8 @@ async function validateMarketplaceManifest(root, relativePath) {
   );
 }
 
-async function validateDocs(root) {
-  const issues = [];
+async function validateDocs(root: string): Promise<string[]> {
+  const issues: string[] = [];
   const docs = [
     'README.md',
     'LICENSE',
@@ -603,8 +668,8 @@ async function validateDocs(root) {
   return issues;
 }
 
-async function validateDirectoryLayout(root) {
-  const issues = [];
+async function validateDirectoryLayout(root: string): Promise<string[]> {
+  const issues: string[] = [];
   const directories = [
     'skills',
     'plugins/consensus/skills/refine',
@@ -624,9 +689,11 @@ async function validateDirectoryLayout(root) {
   return issues;
 }
 
-export async function validateRepository(options = {}) {
+export async function validateRepository(
+  options: { root?: string } = {},
+): Promise<{ ok: boolean; errors: string[] }> {
   const root = path.resolve(options.root ?? DEFAULT_ROOT);
-  const errors = [];
+  const errors: string[] = [];
 
   errors.push(...(await validateDirectoryLayout(root)));
   errors.push(...(await validateDocs(root)));
@@ -664,8 +731,8 @@ async function main() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
-    console.error(`validation error: ${error.message}`);
+  main().catch((error: unknown) => {
+    console.error(`validation error: ${errorMessage(error)}`);
     process.exitCode = 1;
   });
 }
