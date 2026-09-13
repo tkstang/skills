@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: prev1-t06
 oat_last_commit: 3fdfc2a17b0b94171871a5bf6460beac1a333bea
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T02:24:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T03:07:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -103,7 +103,8 @@ oat_project_explainer:
 Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
 phase-review fix are implemented through `3fdfc2a1`; fresh independent phase re-review
 passed. Final lifecycle review requests one Important Cursor source-association fix;
-the implementation exit gate and final HiLL closeout remain after repair and re-review.
+`prev1-t06` is the next task. The implementation exit gate and final HiLL closeout
+remain after repair and re-review.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
@@ -118,7 +119,7 @@ provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (40 completed, 4 superseded/unimplemented; p-rev1 phase review passed)
+- **Implementation:** `implementation.md` (40 completed, 4 superseded/unimplemented, 1 final-review fix pending)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress

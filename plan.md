@@ -1626,7 +1626,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
-| final | code | received | 2026-09-13 | reviews/final-review-2026-09-13T023957Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
+| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T023957Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
@@ -1819,6 +1819,43 @@ user separately approves bounded checks. Do not claim a release or publish anyth
 
 **Commit:** `docs(prev1-t05): document experimental guidance and paused automation`
 
+### Task prev1-t06: (review) Require exact Cursor source-worktree association
+
+**Dependencies:** prev1-t05, p-rev1 phase re-review at `3fdfc2a1`, and final review
+`reviews/archived/final-review-2026-09-13T023957Z.md`.
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`, `types.ts` as required to
+  preserve Cursor cwd-evidence quality instead of promoting the requested cwd to
+  independently recorded evidence.
+- Modify: `src/transcript/coding-session-handoff/guidance-discovery.ts` and the public
+  CLI/preview seam only as required to prevent selection or preview without exact
+  source-worktree corroboration.
+- Modify: focused Cursor locator and guidance discovery/CLI tests.
+- Regenerate affected outputs via `pnpm run build`; bump every changed canonical
+  shipped skill version in both top-level and `metadata.version` fields.
+
+**Step 1 — RED/GREEN:** Reproduce two distinct canonical worktrees whose paths encode
+to the same Cursor project slug. Prove the existing guidance path can attribute and
+preview the wrong transcript, then carry explicit cwd-evidence quality through the
+shared locator. Public Cursor discovery must require independent exact cwd
+corroboration; without it, return path-free `discovery-incomplete` or a distinct
+source-association-ambiguous result that cannot be selected or previewed. Do not infer
+exact cwd from the requested source, recent timestamps, IDE/CLI origin, or a unique
+transcript under the lossy slug. Preserve zero persistence, bounded enumeration, the
+prev1 review fix's fail-on-incomplete behavior, and the paused executor boundary.
+
+**Format:** Use file-scoped `pnpm exec oxfmt --write` for changed authored TypeScript,
+tests, and skill Markdown; never format generated output. Run `pnpm run build`.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts tests/coding-session-handoff/guidance-discovery.test.ts tests/coding-session-handoff/guidance-cli.test.ts && pnpm run type-check && pnpm run build:check && pnpm run validate && pnpm run validate:skill-versions --base-ref 0042b84937076f875380892b87a39120eeefad9e && git diff --check`
+
+Expected: colliding Cursor slugs cannot cross the requested canonical source boundary
+or expose preview content; Codex/Claude and fail-closed exact-all behavior remain green.
+
+**Commit:** `fix(prev1-t06): require exact Cursor source association`
+
 ### Revision closeout (root-owned, not an implementation task)
 
 Receive independent p-rev1 code review; preserve all historical review events/caps.
@@ -1846,9 +1883,9 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 5 tasks — implemented destination-tab guidance revision; final review fix pending
+- p-rev1: 6 tasks — five implemented destination-tab guidance tasks plus one final-review fix
 
-**Historical + active total: 44 tasks = 40 completed + 4 superseded/unimplemented.**
+**Historical + active total: 45 tasks = 40 completed + 4 superseded/unimplemented + 1 pending final-review fix.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: null
+oat_current_task_id: prev1-t06
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | completed; phase review passed | 5 | 5/5 |
+| p-rev1 | final review fix pending | 6 | 5/6 |
 
-**Total:** 40 completed of 44 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented, 0 revision tasks pending. p-rev1 independent review is pending.
+**Total:** 40 completed of 45 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 1 revision review-fix task pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -1061,6 +1061,16 @@ independently verified before p04-t01 can safely execute.
 - Final lifecycle review intent `handoff-final-review-20260913-01`: exact managed target `oat-reviewer-gpt-5-6-sol-max`, configured model `gpt-5.6-sol`, effort `max`, priority service tier, managed Frontier/max route level 0. Review execution preference is `subagent`. Scope is the exact complete branch delta `0042b84937076f875380892b87a39120eeefad9e..3fdfc2a17b0b94171871a5bf6460beac1a333bea` plus all project artifacts and the five inherited Medium deferrals. Only the named final review artifact is writable; no provider operation or implementation fix is authorized inside review.
 - Final review dispatch: scope=final action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 - Final lifecycle review outcome: `CHANGES_REQUESTED` at `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; artifact `reviews/final-review-2026-09-13T023957Z.md`; 0 Critical, 1 Important, 0 Medium, 0 Minor. I1 finds that Cursor's lossy project slug can conflate distinct canonical worktrees while guidance relabels and previews the transcript as an exact source. All five inherited Medium deferrals remain accepted only while the old executor stays paused and unreachable from the public skill. Reconnaissance was not attempted.
+- Final review received: I1 is accepted as `code_fix_required` with Moderate scope and converted to `prev1-t06`. The review artifact is archived at `reviews/archived/final-review-2026-09-13T023957Z.md`; the final event is `fixes_added`. The five inherited Medium dispositions will be resurfaced at the final passing-review receive boundary as required; their existing explicit deferrals remain unchanged while the repair runs.
+
+### Task prev1-t06: (review) Require exact Cursor source-worktree association
+
+**Status:** pending
+**Finding:** Final review I1 — Cursor's lossy project slug can cross the exact
+source-worktree boundary and expose preview content under a caller-derived cwd.
+**Disposition:** code fix required; Moderate scope.
+**Next:** Resume the original p-rev1 implementer for one append-only fix commit, then
+run a fresh final re-review.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
