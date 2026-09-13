@@ -30,7 +30,7 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** Active planning; self-review complete with three Medium refinements awaiting user disposition; configured plan gate authorized and pending. Implementation not started.
+**Status:** Active planning; self-review complete and Fable gate passed its Important threshold. Artifact refinements await user confirmation; plan is not yet implementation-ready. Implementation not started.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
@@ -68,7 +68,7 @@ These are intentional sequencing conditions, not failed technical checks. Do not
 
 ## Next Milestone
 
-Finish the quick-start self-review/exit-gate boundary using the selected High ceiling and configured cross-family gate. Keep the project active; do not start implementation as part of the review request.
+Confirm proposed artifact refinements recorded in plan.md, apply approved changes, then re-review/re-gate the updated basis within the remaining bounds. Keep the project active; do not start implementation as part of the review request.
 
 ## Planning Settings and Review Status
 
@@ -76,4 +76,5 @@ Finish the quick-start self-review/exit-gate boundary using the selected High ce
 - A qualifying independent phase-review target exists. The optional All phases / Selected phases / Disabled question was offered; no selection has been recorded or enablement invented. The plan's p05 is post-merge follow-through; any selected phase IDs must be validated against all five final phases.
 - User-configured lifecycle gates exist for quick-start, implement, plan, and import-plan. The user explicitly authorized the current quick-start plan gate; no project overrides have been written. Lite has no configured gate.
 - Automatic plan artifact review completed with 0 Critical, 0 Important, 3 Medium, 0 Minor findings; plan.md records the findings and exact dispatch stamp. Medium edits were offered but remain unapplied without a user selection. The configured quick-start exit gate is next; it does not by itself resolve these self-review findings.
+- The first configured quick-start gate subsequently completed on claude-fable-skip-permissions (model fable, provider-default effort): 0 Critical, 0 Important, 3 Medium, 3 Minor; exit 0, status ok, receiveEligible true, matching run/project/invocation. Its active review is committed and linked in the plan. Artifact receipt pauses for explicit edit confirmation under oat-project-review-receive; no findings were silently discarded. Self-review has two rewrite cycles available; one of two configured gate attempts has run.
 - The inherited empty implementation HiLL phase list was scaffold output, not a confirmed user selection, and was removed from plan.md. Implementation must confirm checkpoints at kickoff; this does not alter optional independent phase-gate settings.

@@ -299,6 +299,21 @@ Dispatch: scope=plan action=review role=reviewer producer=unknown provenance=unk
 
 Parent model/effort were unavailable as launcher evidence, so the exact-ceiling exception was used. Configured quick-start gate scope is legacy-plan-only; its command is preserved unchanged.
 
+### Plan Gate: 2026-09-13
+
+The configured Claude Fable gate passed its Important threshold: 0 Critical, 0 Important, 3 Medium, 3 Minor. The structured result is ok and receive-eligible, with matching project, run and configured invocation corroboration. The reviewer ran inline through the validated headless route and reported no nested reconnaissance. This is configured Fable invocation evidence, not independent runtime-model telemetry; automated diversity attribution reported unknown producer.
+
+The active review above remains received, not consumed or clean-passed. Artifact edits require user confirmation under oat-project-review-receive. Proposed dispositions, all awaiting that confirmation:
+
+- Gate M1 / self-review M1 (Minor task scope): resolve in p03-t01 with one real session-plugin export smoke in the existing packaging suite; no extra matrix.
+- Gate M2 / self-review M2 (Minor task scope): assign the existing CHANGELOG.md Unreleased record to p04-t01, with formatting and inspection.
+- Gate M3 (Minor task scope): make compatibility aliases optional explicitly owned declaration entries, inheriting the canonical owner's version and generated-output validation. Preserve actual published old names/paths without creating another authored skill; define discovery/layout treatment in p01-t02 and p03-t01. This retains the accepted compatibility requirement rather than weakening it to docs-only redirects.
+- Gate m1 (Negligible task scope): correct tests/transcript to tests/transcript-core and explicitly include tsconfig.json in the source-move task.
+- Gate m2 (Negligible task scope): clarify the artifact-less self-review ledger convention; preserve both review events.
+- Gate m3 / self-review M3 (Minor task scope): require p01-t01 to emit explicit per-task formatter path lists and make the formatting recipes directly runnable. This closes the same issue even though the two reviewers assigned different severities.
+
+No new implementation tasks or source edits have been made. Keep plan readiness unset until review disposition is settled; after substantive plan edits, re-review and re-gate the changed basis within the configured bounds.
+
 ## Implementation Complete
 
 Not started.
