@@ -911,6 +911,10 @@ describe('representative real installation boundaries', () => {
       path.join(root, 'src/skills/session-export-transcript'),
     );
     await copyIfPresent(
+      path.join(repositoryRoot, 'src/skills/session-handoff'),
+      path.join(root, 'src/skills/session-handoff'),
+    );
+    await copyIfPresent(
       path.join(repositoryRoot, 'src/shared/transcript'),
       path.join(root, 'src/shared/transcript'),
     );
@@ -986,6 +990,9 @@ describe('representative real installation boundaries', () => {
           },
         ],
       }),
+      distributions.find(
+        (declaration) => declaration.owner === 'session-handoff',
+      )!,
       ...consensusDeclarations.map((declaration) =>
         target(declaration.owner, {
           allowedSourceRoots: declaration.allowedSourceRoots,
@@ -1000,10 +1007,7 @@ describe('representative real installation boundaries', () => {
                   },
                 ]
               : []),
-            ...declaration.targets.filter(
-              (candidate) =>
-                candidate.kind === 'plugin' && candidate.plugin === 'consensus',
-            ),
+            ...declaration.targets,
           ],
         }),
       ),
@@ -1018,6 +1022,22 @@ describe('representative real installation boundaries', () => {
       path.join(root, 'skills/complexity-review'),
     );
     expect(complexityFiles.map((entry) => entry.path)).toEqual(['SKILL.md']);
+
+    for (const installedHandoff of [
+      'skills/session-handoff',
+      'plugins/session/skills/handoff',
+    ]) {
+      const handoffFiles = await inventoryTree(
+        path.join(root, installedHandoff),
+      );
+      expect(handoffFiles.map((entry) => entry.path)).toEqual([
+        'SKILL.md',
+        'assets/handoff-template.md',
+      ]);
+      expect(handoffFiles.some((entry) => entry.path.endsWith('.mjs'))).toBe(
+        false,
+      );
+    }
 
     const exportSessionId = 'installed-export';
     const exportCwd = '/synthetic/project';

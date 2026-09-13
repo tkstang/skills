@@ -38,6 +38,7 @@ const MARKETPLACE_FILES_WITH_VERSIONS = [
 ];
 const skillFiles = [
   'src/skills/session-fork-to-destination/SKILL.md',
+  'src/skills/session-handoff/SKILL.md',
   'src/skills/complexity-review/SKILL.md',
   'src/skills/session-observer/SKILL.md',
   'src/skills/session-observer-collab/SKILL.md',
@@ -54,6 +55,7 @@ const generatedSkillFiles = [
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/session/skills/export-transcript/SKILL.md',
   'plugins/session/skills/fork-to-destination/SKILL.md',
+  'plugins/session/skills/handoff/SKILL.md',
   'skills/session-fork-to-destination/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
 ];
@@ -312,6 +314,7 @@ describe('release-versioning', () => {
       'src/skills/refine/SKILL.md',
       'src/skills/session-export-transcript/SKILL.md',
       'src/skills/session-fork-to-destination/SKILL.md',
+      'src/skills/session-handoff/SKILL.md',
       'src/skills/session-observer-collab/SKILL.md',
       'src/skills/session-observer/SKILL.md',
     ]);

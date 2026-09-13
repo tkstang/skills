@@ -49,6 +49,8 @@
     "plugins/consensus/skills/observer/**",
     "plugins/consensus/skills/observer-collab/**",
     "plugins/session/skills/export-transcript/**",
-    "plugins/session/skills/fork-to-destination/**"
+    "plugins/session/skills/fork-to-destination/**",
+    "skills/session-handoff/**",
+    "plugins/session/skills/handoff/**"
   ]
 }

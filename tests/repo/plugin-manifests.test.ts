@@ -30,7 +30,7 @@ const plugins = [
     version: '0.1.0',
     description:
       'Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.',
-    skills: ['export-transcript', 'fork-to-destination'],
+    skills: ['export-transcript', 'fork-to-destination', 'handoff'],
     permissionDeclaration: 'unverified',
     permissionEvidence: /isolated export execution.*live provider.*unverified/i,
   },

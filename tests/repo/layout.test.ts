@@ -54,6 +54,7 @@ describe('repo-layout', () => {
       'complexity-review',
       'session-export-transcript',
       'session-fork-to-destination',
+      'session-handoff',
       'session-observer',
       'session-observer-collab',
     ]);
@@ -100,6 +101,7 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'session', 'skills'),
       path.posix.join('plugins', 'session', 'skills', 'export-transcript'),
       path.posix.join('plugins', 'session', 'skills', 'fork-to-destination'),
+      path.posix.join('plugins', 'session', 'skills', 'handoff'),
       path.posix.join('plugins', 'session', '.claude-plugin'),
       path.posix.join('plugins', 'session', '.cursor-plugin'),
       path.posix.join('plugins', 'session', '.codex-plugin'),

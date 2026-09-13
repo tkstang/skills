@@ -41,6 +41,8 @@
     "plugins/consensus/skills/observer-collab/**",
     "plugins/session/skills/export-transcript/**",
     "plugins/session/skills/fork-to-destination/**",
+    "skills/session-handoff/**",
+    "plugins/session/skills/handoff/**",
     "**/fixtures/**",
     "**/*.yml",
     "**/*.yaml"

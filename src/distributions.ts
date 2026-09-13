@@ -76,6 +76,35 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'session-handoff',
+    source: 'src/skills/session-handoff',
+    optionalSkills: [
+      {
+        name: 'session-observer',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+      },
+      {
+        name: 'session-export-transcript',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'session-handoff',
+        output: 'skills/session-handoff',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'handoff',
+        output: 'plugins/session/skills/handoff',
+      },
+    ],
+  },
+  {
     owner: 'session-observer',
     source: 'src/skills/session-observer',
     allowedSourceRoots: ['src/shared/transcript'],
