@@ -7,6 +7,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
@@ -108,22 +109,32 @@ function assertRelativePath(value: string, label: string): string {
   return normalized;
 }
 
-function assertTarget(target: DistributionTarget): void {
-  assertRelativePath(target.output, `output for ${target.name}`);
+function declaredOutput(target: DistributionTarget): string {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(target.name)) {
     fail(`installed name is invalid: ${target.name}`);
   }
   if (target.kind === 'plugin') {
     if (!target.plugin) fail(`plugin target ${target.name} is missing plugin`);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(target.plugin)) {
+      fail(`plugin identifier is invalid: ${target.plugin}`);
+    }
     const expected = `plugins/${target.plugin}/skills/${target.name}`;
     if (target.output !== expected) {
       fail(
         `plugin target ${target.name} must own ${expected}, got ${target.output}`,
       );
     }
-  } else if (target.plugin) {
-    fail(`standalone target ${target.name} cannot declare plugin`);
+    return expected;
   }
+  if (target.plugin)
+    fail(`standalone target ${target.name} cannot declare plugin`);
+  const expected = `skills/${target.name}`;
+  if (target.output !== expected) {
+    fail(
+      `standalone target ${target.name} must own ${expected}, got ${target.output}`,
+    );
+  }
+  return expected;
 }
 
 export function validateDistributionDeclarations(
@@ -140,18 +151,18 @@ export function validateDistributionDeclarations(
       fail(`owner ${declaration.owner} has no installation targets`);
     }
     for (const target of declaration.targets) {
-      assertTarget(target);
+      const output = declaredOutput(target);
       if (
         outputs.some(
-          (output) =>
-            output === target.output ||
-            output.startsWith(`${target.output}/`) ||
-            target.output.startsWith(`${output}/`),
+          (prior) =>
+            prior === output ||
+            prior.startsWith(`${output}/`) ||
+            output.startsWith(`${prior}/`),
         )
       ) {
-        fail(`output collision: ${target.output}`);
+        fail(`output collision: ${output}`);
       }
-      outputs.push(target.output);
+      outputs.push(output);
     }
     const required = new Set(
       (declaration.requiredSkills ?? []).map((reference) => reference.name),
@@ -244,19 +255,49 @@ async function fingerprintPaths(
   return hash.digest('hex');
 }
 
-function resolveAllowedRoots(
+function isContainedBy(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative))
+  );
+}
+
+async function resolveInputRoot(
   repoRoot: string,
-  sourceRoot: string,
+  relative: string,
+  label: string,
+): Promise<string> {
+  const candidate = path.resolve(repoRoot, assertRelativePath(relative, label));
+  const info = await lstat(candidate);
+  if (info.isSymbolicLink()) fail(`${label} cannot be a symlink: ${relative}`);
+  if (!info.isDirectory()) fail(`${label} is not a directory: ${relative}`);
+  const resolved = await realpath(candidate);
+  if (!isContainedBy(repoRoot, resolved)) {
+    fail(`${label} resolves outside repository: ${relative}`);
+  }
+  return resolved;
+}
+
+async function resolveAllowedRoots(
+  repoRoot: string,
   declaration: DistributionDeclaration,
-): string[] {
-  return [
-    ...new Set([
-      sourceRoot,
-      ...(declaration.allowedSourceRoots ?? []).map((root) =>
-        path.resolve(repoRoot, assertRelativePath(root, 'allowed source root')),
-      ),
-    ]),
+): Promise<string[]> {
+  const roots = [
+    await resolveInputRoot(
+      repoRoot,
+      declaration.source,
+      `source for ${declaration.owner}`,
+    ),
   ];
+  for (const relative of declaration.allowedSourceRoots ?? []) {
+    roots.push(
+      await resolveInputRoot(repoRoot, relative, 'allowed source root'),
+    );
+  }
+  return [...new Set(roots)];
 }
 
 async function fingerprintInputRoots(
@@ -455,10 +496,10 @@ async function bundleEntrypoints(
   stageRoot: string,
   declaration: DistributionDeclaration,
   entrypoints: readonly string[],
+  allowedRoots: readonly string[],
 ): Promise<{ inputs: string[]; metafiles: Metafile[] }> {
   const inputs = new Set<string>();
   const metafiles: Metafile[] = [];
-  const allowedRoots = resolveAllowedRoots(repoRoot, sourceRoot, declaration);
   await mkdir(path.join(stageRoot, 'scripts'), { recursive: true });
   for (const relative of entrypoints) {
     const entrypoint = path.join(sourceRoot, relative);
@@ -563,7 +604,8 @@ export async function buildDeclaredDistributions(options: {
 }): Promise<BuiltDistribution[]> {
   validateDistributionDeclarations(options.declarations);
   if (options.declarations.length === 0) return [];
-  const stagingParent = path.join(options.repoRoot, 'node_modules', '.cache');
+  const repoRoot = await realpath(options.repoRoot);
+  const stagingParent = path.join(repoRoot, 'node_modules', '.cache');
   await mkdir(stagingParent, { recursive: true });
   const stagingRoot =
     options.stagingRoot ??
@@ -571,20 +613,10 @@ export async function buildDeclaredDistributions(options: {
   const built: BuiltDistribution[] = [];
   try {
     for (const declaration of options.declarations) {
-      const sourceRelative = assertRelativePath(
-        declaration.source,
-        `source for ${declaration.owner}`,
-      );
-      const sourceRoot = path.resolve(options.repoRoot, sourceRelative);
-      if (!(await stat(sourceRoot)).isDirectory())
-        fail(`source is not a directory: ${sourceRelative}`);
-      const inputRoots = resolveAllowedRoots(
-        options.repoRoot,
-        sourceRoot,
-        declaration,
-      );
+      const inputRoots = await resolveAllowedRoots(repoRoot, declaration);
+      const [sourceRoot] = inputRoots;
       const initialFingerprint = await fingerprintInputRoots(
-        options.repoRoot,
+        repoRoot,
         inputRoots,
       );
       const entrypoints = await readBuildEntrypoints(sourceRoot);
@@ -603,11 +635,12 @@ export async function buildDeclaredDistributions(options: {
         );
         if (entrypoints.length > 0) {
           await bundleEntrypoints(
-            options.repoRoot,
+            repoRoot,
             sourceRoot,
             stagedPath,
             declaration,
             entrypoints,
+            inputRoots,
           );
         }
         await validateLinks(stagedPath);
@@ -621,7 +654,7 @@ export async function buildDeclaredDistributions(options: {
         });
       }
       const finalFingerprint = await fingerprintInputRoots(
-        options.repoRoot,
+        repoRoot,
         inputRoots,
       );
       if (finalFingerprint !== initialFingerprint) {
@@ -663,16 +696,17 @@ export async function checkDeclaredDistributions(options: {
 }): Promise<string[]> {
   const failures: string[] = [];
   for (const unit of options.built) {
-    const output = path.resolve(options.repoRoot, unit.target.output);
+    const outputRelative = declaredOutput(unit.target);
+    const output = path.resolve(options.repoRoot, outputRelative);
     try {
       failures.push(
         ...compareInventories(await inventoryTree(output), unit.inventory).map(
-          (failure) => `${unit.target.output}/${failure}`,
+          (failure) => `${outputRelative}/${failure}`,
         ),
       );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        failures.push(`${unit.target.output}: missing output`);
+        failures.push(`${outputRelative}: missing output`);
       } else {
         throw error;
       }
@@ -686,38 +720,7 @@ export async function replaceDeclaredDistribution(
   unit: BuiltDistribution,
   operations: PackagingOperations = defaultOperations,
 ): Promise<void> {
-  const output = path.resolve(repoRoot, unit.target.output);
-  const parent = path.dirname(output);
-  const backup = path.join(
-    parent,
-    `.${path.basename(output)}.recovery-${randomUUID()}`,
-  );
-  await mkdir(parent, { recursive: true });
-  let movedPrior = false;
-  try {
-    await operations.rename(output, backup);
-    movedPrior = true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  try {
-    await operations.rename(unit.stagedPath, output);
-  } catch (replacementError) {
-    if (movedPrior) {
-      try {
-        await operations.rename(backup, output);
-      } catch (rollbackError) {
-        fail(
-          `replacement failed for ${unit.target.output}; rollback failed; recovery copy retained at ${backup}; replacement=${String(replacementError)}; rollback=${String(rollbackError)}`,
-        );
-      }
-    }
-    fail(
-      `replacement failed for ${unit.target.output}; prior output restored: ${String(replacementError)}`,
-    );
-  }
-  if (movedPrior)
-    await operations.remove(backup, { recursive: true, force: true });
+  await writeDeclaredDistributions({ repoRoot, built: [unit], operations });
 }
 
 export async function writeDeclaredDistributions(options: {
@@ -725,11 +728,89 @@ export async function writeDeclaredDistributions(options: {
   built: readonly BuiltDistribution[];
   operations?: PackagingOperations;
 }): Promise<void> {
-  for (const unit of options.built) {
-    await replaceDeclaredDistribution(
-      options.repoRoot,
+  const operations = options.operations ?? defaultOperations;
+  const entries = options.built.map((unit) => {
+    const outputRelative = declaredOutput(unit.target);
+    const output = path.resolve(options.repoRoot, outputRelative);
+    return {
       unit,
-      options.operations,
+      outputRelative,
+      output,
+      backup: path.join(
+        path.dirname(output),
+        `.${path.basename(output)}.recovery-${randomUUID()}`,
+      ),
+      movedPrior: false,
+      installed: false,
+    };
+  });
+
+  let replacementError: unknown;
+  try {
+    for (const entry of entries) {
+      await mkdir(path.dirname(entry.output), { recursive: true });
+      try {
+        await operations.rename(entry.output, entry.backup);
+        entry.movedPrior = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+    for (const entry of entries) {
+      await operations.rename(entry.unit.stagedPath, entry.output);
+      entry.installed = true;
+    }
+  } catch (error) {
+    replacementError = error;
+  }
+
+  if (replacementError) {
+    const rollbackFailures: string[] = [];
+    for (const entry of entries.toReversed()) {
+      if (entry.installed) {
+        try {
+          await operations.remove(entry.output, {
+            recursive: true,
+            force: true,
+          });
+        } catch (error) {
+          rollbackFailures.push(
+            `${entry.outputRelative}: cannot remove replacement: ${String(error)}`,
+          );
+        }
+      }
+      if (entry.movedPrior) {
+        try {
+          await operations.rename(entry.backup, entry.output);
+        } catch (error) {
+          rollbackFailures.push(
+            `${entry.outputRelative}: cannot restore ${entry.backup}: ${String(error)}`,
+          );
+        }
+      }
+    }
+    if (rollbackFailures.length > 0) {
+      fail(
+        `distribution replacement failed and rollback was incomplete; replacement=${String(replacementError)}; recovery=${rollbackFailures.join('; ')}`,
+      );
+    }
+    fail(
+      `distribution replacement failed; all prior outputs restored: ${String(replacementError)}`,
+    );
+  }
+
+  const cleanupFailures: string[] = [];
+  for (const entry of entries) {
+    if (!entry.movedPrior) continue;
+    try {
+      await operations.remove(entry.backup, { recursive: true, force: true });
+    } catch (error) {
+      cleanupFailures.push(`${entry.backup}: ${String(error)}`);
+    }
+  }
+  if (cleanupFailures.length > 0) {
+    fail(
+      `distribution installed but backup cleanup failed: ${cleanupFailures.join('; ')}`,
     );
   }
 }

@@ -76,6 +76,7 @@ task_format_paths=(
   'src/distributions.ts'
   'tests/tooling/generated-output-sync.test.ts'
   'tests/tooling/skill-packaging.test.ts'
+  'tests/tooling/vitest-config.test.ts'
   'tsconfig.json'
   'vitest.config.mjs'
 )
@@ -86,6 +87,7 @@ test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_
 
 ~~~bash
 task_format_paths=(
+  'scripts/lib/packaging.ts'
   'tests/tooling/skill-packaging.test.ts'
 )
 test "${#task_format_paths[@]}" -gt 0 && pnpm exec oxfmt --write "${task_format_paths[@]}"

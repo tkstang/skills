@@ -181,6 +181,35 @@ describe('declared skill packaging', () => {
     ]);
   });
 
+  it('rejects standalone outputs outside the installed skill directory', () => {
+    expect(() =>
+      validateDistributionDeclarations([
+        target('example', {
+          targets: [
+            { kind: 'standalone', name: 'example', output: 'package.json' },
+          ],
+        }),
+      ]),
+    ).toThrow('standalone target example must own skills/example');
+  });
+
+  it('rejects plugin identifiers that are not one safe path segment', () => {
+    expect(() =>
+      validateDistributionDeclarations([
+        target('example', {
+          targets: [
+            {
+              kind: 'plugin',
+              name: 'example',
+              plugin: '../../escape',
+              output: 'plugins/../../escape/skills/example',
+            },
+          ],
+        }),
+      ]),
+    ).toThrow('plugin identifier is invalid');
+  });
+
   it('bundles shared TypeScript into an executable installed unit', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'runner');
@@ -432,6 +461,42 @@ describe('declared skill packaging', () => {
     ).rejects.toThrow('symlinks are unsupported');
   });
 
+  it('rejects a declared source root that is a symlink', async () => {
+    const root = await fixtureRoot();
+    const external = await fixtureRoot();
+    await promptSkill(external, 'linked');
+    await mkdir(path.join(root, 'src/skills'), { recursive: true });
+    await symlink(
+      path.join(external, 'src/skills/linked'),
+      path.join(root, 'src/skills/linked'),
+    );
+
+    await expect(
+      buildDeclaredDistributions({
+        repoRoot: root,
+        declarations: [target('linked')],
+      }),
+    ).rejects.toThrow('source for linked cannot be a symlink');
+  });
+
+  it('rejects an allowed source root that is a symlink', async () => {
+    const root = await fixtureRoot();
+    const external = await fixtureRoot();
+    await promptSkill(root, 'linked');
+    await write(external, 'shared/value.ts', 'export const value = true;\n');
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await symlink(path.join(external, 'shared'), path.join(root, 'src/shared'));
+
+    await expect(
+      buildDeclaredDistributions({
+        repoRoot: root,
+        declarations: [
+          target('linked', { allowedSourceRoots: ['src/shared'] }),
+        ],
+      }),
+    ).rejects.toThrow('allowed source root cannot be a symlink');
+  });
+
   it('rejects broken installed resource links', async () => {
     const root = await fixtureRoot();
     await write(
@@ -535,7 +600,7 @@ describe('declared skill packaging', () => {
         remove: async (...args) =>
           import('node:fs/promises').then((fs) => fs.rm(...args)),
       }),
-    ).rejects.toThrow('prior output restored');
+    ).rejects.toThrow('all prior outputs restored');
     expect(
       await readFile(path.join(root, 'skills/safe/prior.md'), 'utf8'),
     ).toBe('prior');
@@ -563,6 +628,50 @@ describe('declared skill packaging', () => {
       ),
     ).toEqual([]);
     await cleanupBuiltDistributions(built);
+  });
+
+  it('restores every prior unit when a later staged installation fails', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'one');
+    await promptSkill(root, 'two');
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('one'), target('two')],
+    });
+    await write(root, 'skills/one/prior.md', 'prior one');
+    await write(root, 'skills/two/prior.md', 'prior two');
+    const priorOne = await inventoryTree(path.join(root, 'skills/one'));
+    const priorTwo = await inventoryTree(path.join(root, 'skills/two'));
+    let renameCalls = 0;
+
+    await expect(
+      writeDeclaredDistributions({
+        repoRoot: root,
+        built,
+        operations: {
+          rename: async (from, to) => {
+            renameCalls += 1;
+            if (renameCalls === 4)
+              throw new Error('controlled second installation failure');
+            await import('node:fs/promises').then((fs) => fs.rename(from, to));
+          },
+          remove: async (...args) =>
+            import('node:fs/promises').then((fs) => fs.rm(...args)),
+        },
+      }),
+    ).rejects.toThrow('all prior outputs restored');
+
+    expect(await inventoryTree(path.join(root, 'skills/one'))).toEqual(
+      priorOne,
+    );
+    expect(await inventoryTree(path.join(root, 'skills/two'))).toEqual(
+      priorTwo,
+    );
+    expect(
+      (await readdir(path.join(root, 'skills'))).some((name) =>
+        name.includes('.recovery-'),
+      ),
+    ).toBe(false);
   });
 });
 
