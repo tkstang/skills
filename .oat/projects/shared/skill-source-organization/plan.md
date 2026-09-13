@@ -281,6 +281,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
+| plan | artifact | received | 2026-09-13 | reviews/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
 Existing scaffold rows are preserved. Spec is intentionally absent in quick mode; design approval for planning does not fabricate an independent review. p04's public milestone review is distinct from project-wide final review after post-merge follow-through. All gate results require actual recorded evidence.
 
