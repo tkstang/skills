@@ -484,7 +484,7 @@ describe('declared skill packaging', () => {
         repoRoot: root,
         declarations: [target('linked')],
       }),
-    ).rejects.toThrow('source for linked cannot be a symlink');
+    ).rejects.toThrow('source for linked has a symlinked segment');
   });
 
   it('rejects an allowed source root that is a symlink', async () => {
@@ -502,7 +502,7 @@ describe('declared skill packaging', () => {
           target('linked', { allowedSourceRoots: ['src/shared'] }),
         ],
       }),
-    ).rejects.toThrow('allowed source root cannot be a symlink');
+    ).rejects.toThrow('allowed source root has a symlinked segment');
   });
 
   it('rejects broken installed resource links', async () => {
@@ -577,6 +577,72 @@ describe('declared skill packaging', () => {
       },
     );
     await cleanupBuiltDistributions(built);
+  });
+
+  it('rejects a direct declared-output symlink during freshness checks', async () => {
+    const root = await fixtureRoot();
+    const external = await fixtureRoot();
+    await promptSkill(root, 'linked-output');
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('linked-output')],
+    });
+    const externalPayload = path.join(external, 'payload');
+    await cp(built[0].stagedPath, externalPayload, { recursive: true });
+    const before = await inventoryTree(externalPayload);
+    await mkdir(path.join(root, 'skills'), { recursive: true });
+    await symlink(externalPayload, path.join(root, 'skills/linked-output'));
+
+    const failures = await checkDeclaredDistributions({
+      repoRoot: root,
+      built,
+    });
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain('symlinked segment');
+    expect(await inventoryTree(externalPayload)).toEqual(before);
+    await cleanupBuiltDistributions(built);
+  });
+
+  it('rejects a symlinked declared-output ancestor during freshness checks', async () => {
+    const root = await fixtureRoot();
+    const external = await fixtureRoot();
+    await promptSkill(root, 'linked-ancestor');
+    const built = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('linked-ancestor')],
+    });
+    const externalPayload = path.join(external, 'linked-ancestor');
+    await cp(built[0].stagedPath, externalPayload, { recursive: true });
+    const before = await inventoryTree(externalPayload);
+    await symlink(external, path.join(root, 'skills'));
+
+    const failures = await checkDeclaredDistributions({
+      repoRoot: root,
+      built,
+    });
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain('symlinked segment');
+    expect(await inventoryTree(externalPayload)).toEqual(before);
+    await cleanupBuiltDistributions(built);
+  });
+
+  it('rejects a source-root ancestor symlink', async () => {
+    const root = await fixtureRoot();
+    await write(
+      root,
+      'authored/skills/linked-source/SKILL.md',
+      "---\nname: linked-source\nmetadata:\n  version: '1.0.0'\n---\n",
+    );
+    await symlink(path.join(root, 'authored'), path.join(root, 'src'));
+
+    await expect(
+      buildDeclaredDistributions({
+        repoRoot: root,
+        declarations: [target('linked-source')],
+      }),
+    ).rejects.toThrow('source for linked-source has a symlinked segment: src');
   });
 
   it.each([

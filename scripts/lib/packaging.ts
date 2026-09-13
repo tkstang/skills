@@ -287,20 +287,32 @@ function isContainedBy(root: string, candidate: string): boolean {
   );
 }
 
-async function resolveInputRoot(
+async function resolveReadOnlyTree(
   repoRoot: string,
   relative: string,
   label: string,
 ): Promise<string> {
-  const candidate = path.resolve(repoRoot, assertRelativePath(relative, label));
-  const info = await lstat(candidate);
-  if (info.isSymbolicLink()) fail(`${label} cannot be a symlink: ${relative}`);
-  if (!info.isDirectory()) fail(`${label} is not a directory: ${relative}`);
-  const resolved = await realpath(candidate);
-  if (!isContainedBy(repoRoot, resolved)) {
-    fail(`${label} resolves outside repository: ${relative}`);
+  const normalized = assertRelativePath(relative, label);
+  let current = repoRoot;
+  for (const part of normalized.split('/')) {
+    current = path.join(current, part);
+    const info = await lstat(current);
+    if (info.isSymbolicLink()) {
+      fail(
+        `${label} has a symlinked segment: ${posixPath(path.relative(repoRoot, current))}`,
+      );
+    }
+    if (!info.isDirectory()) {
+      fail(
+        `${label} has a non-directory segment: ${posixPath(path.relative(repoRoot, current))}`,
+      );
+    }
+    const resolved = await realpath(current);
+    if (!isContainedBy(repoRoot, resolved)) {
+      fail(`${label} resolves outside repository: ${relative}`);
+    }
   }
-  return resolved;
+  return realpath(current);
 }
 
 async function resolveAllowedRoots(
@@ -308,7 +320,7 @@ async function resolveAllowedRoots(
   declaration: DistributionDeclaration,
 ): Promise<string[]> {
   const roots = [
-    await resolveInputRoot(
+    await resolveReadOnlyTree(
       repoRoot,
       declaration.source,
       `source for ${declaration.owner}`,
@@ -316,7 +328,7 @@ async function resolveAllowedRoots(
   ];
   for (const relative of declaration.allowedSourceRoots ?? []) {
     roots.push(
-      await resolveInputRoot(repoRoot, relative, 'allowed source root'),
+      await resolveReadOnlyTree(repoRoot, relative, 'allowed source root'),
     );
   }
   return [...new Set(roots)];
@@ -803,10 +815,15 @@ export async function checkDeclaredDistributions(options: {
   built: readonly BuiltDistribution[];
 }): Promise<string[]> {
   const failures: string[] = [];
+  const repoRoot = await realpath(options.repoRoot);
   for (const unit of options.built) {
     const outputRelative = declaredOutput(unit.target);
-    const output = path.resolve(options.repoRoot, outputRelative);
     try {
+      const output = await resolveReadOnlyTree(
+        repoRoot,
+        outputRelative,
+        `declared output ${outputRelative}`,
+      );
       failures.push(
         ...compareInventories(await inventoryTree(output), unit.inventory).map(
           (failure) => `${outputRelative}/${failure}`,
@@ -816,7 +833,9 @@ export async function checkDeclaredDistributions(options: {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         failures.push(`${outputRelative}: missing output`);
       } else {
-        throw error;
+        failures.push(
+          `${outputRelative}: unsafe output: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   }
