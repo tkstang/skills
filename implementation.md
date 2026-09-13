@@ -1234,6 +1234,15 @@ discovery workflow unavailable.
 - Design/spec alignment for I1 is present in the synced project. The five tasks are
   complete; a fresh standard final review is required before the second configured
   gate attempt.
+- Fresh final review request `handoff-gate-fixes-final-review-20260913-01` resumed
+  `/root/handoff_final_rereview` at exact target `oat-reviewer-gpt-5-6-sol-max`,
+  managed Frontier/max, consequential class. Nominal scope is final; narrowed repair
+  range `20e86a100832b114a8aa3a20469b849de7ec7f45..b7a8d35f06acb0a850795e54ad40ea729caac8e5`
+  inherits prior full coverage and must explicitly disposition all five gate findings.
+  Only `reviews/final-review-2026-09-13T044900Z.md` is writable. No provider operation,
+  installation, feature push, PR mutation, merge, publication, release, or cleanup is
+  authorized.
+- Review dispatch: scope=final-gate-fixes action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
