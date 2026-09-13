@@ -2,128 +2,130 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-12
+oat_last_updated: 2026-09-13
 oat_generated: true
-oat_summary_last_task: p03-t19
+oat_summary_last_task: prev1-t17
 oat_summary_revision_count: 1
 oat_summary_includes_revisions: [p-rev1]
 ---
 
 # Summary: coding-session-handoff
 
-## Current status — 2026-09-12 revision
-
-The user narrowed this project to read-only session discovery and destination-tab
-fork-and-open guidance for Codex, Claude, and Cursor. Three entry points are accepted:
-the current source session, another source-worktree session, or a fresh destination
-session supplied with the source worktree. The user performs the actual provider
-operation in the destination tab; supported in-provider switching is optional, with
-exit/relaunch in the same tab as fallback. No background child, automatic execution,
-child tracking, worktree creation, or ADE tab manipulation is in the new product.
-
-Phase p-rev1 has five pending tasks; Sol starts at prev1-t01. Discovery/spec/design
-revision sections supersede the old automation requirements. The existing code is
-implemented through p03-t19 with a passing independent re-review and 209 handoff tests;
-the last full suite had 1866 passes and one skip. Those are prior results, not new
-verification of the revised workflow. Guidance itself is not implemented or released.
-
-Old native gates remain unpassed/paused, with historical failures preserved. Old
-p05/p06 tasks are superseded/unimplemented, not complete. The experimental executor
-must remain isolated and disabled through the public guidance path. Portable
-`session-handoff` migration and research-backed evidence enrichment stay separate.
-See `revision-handoff.md` and the latest plan review event for implementation readiness.
-
-## Historical progress summary — superseded where it conflicts above
-
 ## Overview
 
-The project adds a safe way to hand off explicitly selected Codex and Claude Code
-sessions from one existing Git worktree to another. It addresses the gap between
-read-only transcript discovery and provider-native continuity while preserving the
-source session, transcript privacy, and honest reporting when a provider cannot
-complete a handoff safely.
+This project produced an experimental, read-only workflow for continuing a selected
+Codex or Claude Code session in an existing destination Git worktree. The public skill
+discovers and previews source sessions, validates the destination, and emits guarded
+commands for the user to run in the destination tab. It does not execute providers,
+create or track sessions, manipulate IDE tabs, write transcript stores, or reuse the
+separate portable `session-handoff` packet workflow.
+
+The original automated executor was retained for evidence and future work but remains
+incomplete, unverified, paused, and unreachable from the public guidance bundle.
+Historical live-provider gates remain evidence, not a release claim.
 
 ## What Was Implemented
 
-- Added bounded, quiet transcript readers and exact-all, zero-persistence discovery.
-- Added provider-qualified candidate discovery, sanitized bounded previews, explicit
-  selection, target-repository validation, immutable handoff plans, digest-confirmed
-  execution, and independent native/reporting outcomes.
-- Added provider contracts and disposable behavior-gate infrastructure, a seven-command
-  CLI, and the generated pre-activation runtime. Phases p01-p03 now cover 31/35 planned
-  implementation tasks; p03 is complete at 15/15 tasks through `9db197f`.
-- Verification through p03-t15 passed the focused phase suites, type-check, generated
-  build parity, repository validation, skill-version validation, smoke, authored
-  lint/format, bundle syntax, and diff-hygiene checks.
+- Added the public experimental `coding-session-handoff` skill and dependency-free
+  generated runtime with `discover`, `preview`, and `prepare` commands.
+- Added explicit Claude/Codex provider selection, provider-qualified session keys,
+  canonical source and destination checks, bounded sanitized previews, and shell-safe
+  destination-tab instructions.
+- Added exact-all, zero-persistence transcript discovery with 50,000-entry, 512 MiB
+  aggregate bounded-I/O, 256 KiB per-entry, and 30-second limits.
+- Preserved exact metadata and cwd attribution from continuing transcripts larger than
+  256 KiB or 128 records for guidance while strict observer and executor consumers
+  remain fail closed.
+- Scoped preview and prepare to the selected provider, isolated strict and summarize
+  cache entries, reported stable path-free failure provenance, and summarized unrelated
+  missing or stale cwd evidence without exposing paths.
+- Kept Cursor fail closed because its current store lacks independent exact cwd
+  evidence. Removed `--provider all` as the recommended workflow while documenting its
+  fail-closed behavior.
+- Regenerated all affected runtimes and advanced `coding-session-handoff` to 0.1.12,
+  `session-observer` to 1.0.33, and `export-session-transcript` to 1.0.10.
 
 ## Key Decisions
 
-- Use an ephemeral native-command handoff rather than a durable cross-provider registry
-  or direct provider-store rewriting; provider stores remain authoritative and immutable.
-- Require exact source-worktree discovery and explicit one/many/all selection. Current
-  status is marked only from direct identity evidence, never recency or inference.
-- Default to provider-native successors. Same-ID resume remains advanced and fail-closed
-  because installed providers do not expose trustworthy writer-closed evidence.
-- Keep native mutation and reporting separate, require a complete confirmation digest,
-  and return itemized retry keys so successful operations are never retried implicitly.
+- **Separate forks and handoffs.** Provider-native destination-worktree continuation
+  remains distinct from portable `session-handoff` packets. The public product emits
+  guidance for a user-controlled destination tab; the automated executor stays paused.
+  Guidance may retain internally consistent metadata from a continued bounded prefix,
+  but observer and executor defaults reject incomplete reads, and discovery never
+  presents a partial set as complete. Failures expose stable path-free provider/reason
+  codes. This is recorded in `DR-260912-separate-forks-and-handoffs`.
 
 ## Design Deltas
 
-- Provider-gate work required exact Codex 0.151.0 authentication handling on stderr,
-  null-exit launch-exception classification, and distinct redacted diagnostics for
-  missing, invalid, and multiple native identities. These changes preserve the original
-  fail-closed boundary while matching observed provider behavior.
-- The p03 phase remains an implementation progress boundary: its standard independent
-  phase re-review is not claimed as passed, and the blocked live Codex gate is not treated
-  as provider support.
+- The accepted p-rev1 revision superseded the planned automated-execution product after
+  native identity and exact-version gates remained inconclusive. The revised product is
+  destination-tab guidance, with provider execution explicitly outside the public
+  runtime.
+- Codex aggregate discovery accounting uses bounded metadata I/O rather than full file
+  stat size. The design now records the provider-specific charging rule.
+- Large continued prefixes are accepted only through the guidance summarize policy;
+  downstream Codex projection and preview use the same guidance boundary while the
+  retained exact extractor remains strict.
 
 ## Notable Challenges
 
-- Codex 0.151.0 did not support the initially probed `login status --json` shape and
-  emitted its exact authenticated status on stderr. The probe was narrowed to the exact
-  observed output rather than accepting broad capability normalization.
-- The live Codex gate repeatedly failed to produce a trustworthy native identity. The
-  implementation preserves a redacted failure stage and refuses to infer cleanup targets.
+- Repeated live-provider work showed that successful process execution was insufficient
+  proof of exact parent/child identity, lineage, cwd, cleanup ownership, or source
+  resume. The project preserved those failures rather than promoting inferred support.
+- Early bounded-reader fixes passed small fixtures but failed realistic stores because
+  projection, preview, cache reuse, and aggregate accounting had separate strict seams.
+  Final regressions therefore exercise generated bundles with transcripts over both
+  byte and record limits.
+- Multiple independent reviews found progressively deeper store-scale behavior. The
+  final standard re-review passed with zero findings, and the configured Cursor Fable
+  exit gate passed at the Important threshold.
 
 ## Tradeoffs Made
 
-- Safety and observability take precedence over a one-click experience; some confirmed
-  handoffs remain a post-turn plan or a deferred result.
-- No transcript bodies, credentials, durable lineage registry, provider-store writes,
-  push/pull, or public install path are included in this phase.
+- Exact-all discovery favors bounded, deterministic failure over partial or recent-only
+  results. This makes Codex guidance unavailable when a large flat store exhausts the
+  512 MiB aggregate budget.
+- Users perform native provider commands themselves. This gives up one-click automation
+  while avoiding unverified session mutation, cleanup, and IDE-control claims.
+- The implementation reports stable aggregate diagnostics rather than private source
+  paths or transcript content, limiting troubleshooting detail by design.
 
 ## Integration Notes
 
-- Canonical TypeScript under `src/transcript/coding-session-handoff/` generates the
-  pre-activation runtime; generated outputs and provider views must stay in parity.
-- The public skill is intentionally not activated until the exact Codex and Claude
-  behavior gates and reviewed contracts are complete.
-- Provider-qualified native IDs are untrusted until validated against the exact grammar;
-  raw provider receipts remain redacted and local.
+- Canonical TypeScript under `src/transcript/` generates committed dependency-free
+  `.mjs` runtimes. Change canonical source, run `pnpm run build`, and bump every changed
+  canonical skill version.
+- The user-level installation must continue to track `main`; this branch has not been
+  installed or globally synced.
+- Final verification at `10d901e8` passed 1,923 tests with one skip. The final reviewer
+  repeated 1,055 focused tests plus type-check, generated parity, validation, and skill
+  version checks.
+- No feature-branch push, PR refresh, installation, publication, merge, or release was
+  performed during implementation closeout.
 
 ## Autonomous Execution Learnings
 
 ### Workflow issues
 
-- Keep this project spec-driven with independent discovery, design, implementation, and
-  review boundaries because the feature combines provider mutation, privacy, Git safety,
-  and active-writer concerns. See [2026-08-31T00:53:14Z — decision — Use spec-driven review density](oat-execution-learnings.md).
-- Keep closeout local-only when the request authorizes local commits but not remote or
-  release side effects; record unperformed push, PR, and publishing actions explicitly.
-  See [2026-08-31T00:53:14Z — decision — Keep closeout local-only](oat-execution-learnings.md).
+- Preserve independent review boundaries for session tooling that combines transcript
+  privacy, Git worktree identity, provider behavior, and active-writer concerns. See
+  [2026-08-31T00:53:14Z — decision — Use spec-driven review density](oat-execution-learnings.md).
+- Keep remote, PR, install, and release actions separate from local implementation
+  authorization. See
+  [2026-08-31T00:53:14Z — decision — Keep closeout local-only](oat-execution-learnings.md).
 
 ## Follow-up Items
 
-- p04-t01 Codex 0.151.0 live behavior remains blocked after three inconclusive,
-  mutation-free attempts; no automatic retry or cleanup target was inferred.
-- p04-t02 Claude behavior verification, p05 reviewed activation, and p06 public skill,
-  documentation, and repository completion remain pending.
-- Three earlier Medium review findings remain explicitly deferred. The p03-t15 standard
-  independent review is also pending explicit authorization.
-
-## Associated Issues
-
-None.
+- Consider packaging `session-observer`, `export-session-transcript`, `session-handoff`,
+  and a renamed `session-fork-to-destination` skill as a coherent `session` plugin.
+- Improve Codex discovery for flat stores above roughly 2,048 maximum-prefix entries,
+  likely through a small first-record cwd filter before the full bounded metadata read;
+  until then, the stable byte-budget failure remains fail closed.
+- Preserve provider/reason provenance when preview's second-stage rediscovery fails.
+- Keep the four executor-only review deferrals visible until any future executor
+  activation, which requires fresh review and live-provider evidence.
+- Complete provider-path, installation, publication, and release checks separately;
+  current results do not claim marketplace availability or live native-fork support.
 
 ## Workflow Observations
 
@@ -250,3 +252,79 @@ The single authorized Codex 0.151.0 live-gate attempt returned inconclusive repo
 ### 2026-09-02 · structural · oat-project-implement · p03-t15-review-boundary
 
 p03-t15 completed at 9db197fe765e18c4c925a9792097c473437f2e84 with 88 focused tests, type-check, generated parity, exact five-file scope, and clean history; parked before the standard independent review and any p04-t01 live retry because neither is authorized.
+
+### 2026-09-05 · structural · oat-project-implement · p03
+
+Phase p03 passed after 1 bounded fix iteration; attempted review orchestration is recorded in reviews/p03-review-2026-09-05T202836Z.md and the fresh narrowed review passed at reviews/p03-review-2026-09-05T204213Z.md.
+
+### 2026-09-05 · structural · oat-project-implement · p04-t01
+
+STOP before provider mutation: the exact Codex 0.151.0 behavior-plan passed version/syntax/bounds but requires ChatGPT authentication; behavior-verify was not invoked and no receipt or provider cleanup target exists.
+
+### 2026-09-07 · structural · oat-project-implement · p04-auth-wait
+
+Authorized live-gate continuation reached provider authentication boundaries: exact Codex 0.151.0 device auth is awaiting user completion, while exact Claude Code 2.1.251 is installed temporarily but logged out; no successor session or cleanup operation ran.
+
+### 2026-09-08 · structural · oat-project-implement · p04-t01-native-identity-stop
+
+The user-authorized exact Codex 0.151.0 live gate authenticated and matched all reviewed plan bounds, then returned inconclusive at native-identity-missing; redacted receipt digest e28aa884c4239c2e73dc97f441859dd7bb7b85febd7e19144a0731f7641a43ff. Git fixture cleanup succeeded, provider cleanup could not run without an exact parent ID, and no automatic retry or inferred deletion target was used.
+
+### 2026-09-08 · structural · oat-project-implement · p04-t02-auth-stop
+
+Stopped p04-t02 before provider mutation: the isolated exact Claude Code 2.1.251 preflight reports loggedIn false with no authentication method; behavior-plan and behavior-verify were not invoked, and no Claude session, receipt, locator update, cleanup, credential capture, or quota-spending call occurred.
+
+### 2026-09-08 · structural · oat-project-implement · p04-t02-auth-recovery-stop
+
+A fresh exact Claude Code 2.1.251 subscription login opened but remained at its one-time-code prompt without persisting authentication and was cancelled cleanly; exact and system Claude still report loggedIn false. p04-t02 remains stopped before behavior-plan or provider mutation, and no token or code was captured.
+
+### 2026-09-08 · structural · oat-project-implement · p04-t02-context-stop
+
+Correction to p04-t02-auth-stop and p04-t02-auth-recovery-stop: exact Claude 2.1.251 authenticates outside the sandbox; prior file-based credential checks did not prove login persistence failure. The mutation-free plan instead lacks its execution-context fingerprint because the 197171680-byte native executable exceeds the 134217728-byte limit in providers.ts. Stopped before behavior-verify; see implementation.md Run 21.
+
+### 2026-09-08 · structural · oat-project-implement · p03-t16
+
+Phase outcome: p03-t16 passed targeted independent review with zero findings at d15fd662d1baf5ff26cc6ccd09925212a8f9ff46; review artifact reviews/archived/p03-t16-review-2026-09-08T220043Z.md; fix-loop count 0.
+
+### 2026-09-08 · structural · oat-project-implement · p04-t02-evidence-stop
+
+Stopped after the single authorized Claude 2.1.251 live attempt: inconclusive at evidence-validation because child identity and target cwd were unobserved; exact Git-fixture and provider-state cleanup passed; receipt digest 7a0fd46916f182f08aecb3bd2dbcb3cb97b7344f648bbf53709e9f057e7f869b; no retry or p05-t02 review launched.
+
+### 2026-09-08 · project · friction · Claude successor identity mismatch
+
+Observation: the exact Claude 2.1.251 successor call returned a valid session ID that differed from the pre-generated child ID, so the gate discarded it and stopped before cwd, lineage, or source-resume evidence capture. Impact: p04-t02 remains inconclusive even though authentication, resource bounds, and cleanup passed. Recommendation: revalidate the native --resume/--fork-session/--session-id contract without another live retry before changing the harness. (observed on Claude Code 2.1.251)
+
+### 2026-09-12 · structural · oat-project-implement · p03-t18-bookkeeping
+
+Recorded p03-t17 (2c3a835) and p03-t18 (42803fc) retroactively; root verified 42803fc with 204/204 handoff tests, full suite 1860/1861 (one unrelated consensus timing flake passing in isolation), type-check, build parity, validate, smoke, and diff hygiene. No review artifact exists for either task, no gate-evidence directory remains, and no live provider operation ran.
+
+### 2026-09-12 · structural · oat-project-implement · run-27
+
+run-27-pre-review aligned observed Claude identity contracts and reconciled task records after merging main; independent t17/t18 review pending, no live provider operation.
+
+### 2026-09-12 · structural · oat-project-implement · run-27
+
+run-27-review-boundary stopped after targeted t17/t18 review requested changes (I1 UUID casing, m1 formatting); aligned contracts and merged-main verification retained; formal receipt and bounded fix/re-review authorization required, no live provider operation.
+
+### 2026-09-12 · structural · oat-project-implement · run-28
+
+run-28-bounded-cycle-complete: p03-t19 fixed I1/m1 at 12cf6edf; one independent re-review passed with zero findings; aggregate 1866 passed and 1 skipped. Stopped at fresh live-provider authorization boundary; no provider operations, activation, feature push, PR mutation, or portable-packet scope expansion.
+
+### 2026-09-12 · structural · oat-pjm-decision · DR-260912-separate-forks-and-handoffs
+
+handoff-split-decision-20260912: Recorded the accepted two-skill split in .oat/repo/reference/decisions/DR-260912-separate-forks-and-handoffs.md; portable activity enrichment and migration remain future work. p04-t02 remains at fresh authorization for isolated exact Claude 2.1.251 staging and mutation-free preflight/behavior-plan, followed by separately authorized behavior-verify; no provider operation or live retry ran.
+
+### 2026-09-13 · structural · oat-project-revise · p-rev1
+
+handoff-guidance-revision-20260913: Recorded accepted destination-tab guidance scope for three entry points and Codex/Claude/Cursor; created prev1-t01 through prev1-t05, updated discovery/spec/design/state/summary and revision-handoff.md, and paused/superseded original automation work without marking its gates passed. Independent structured plan review has no blocking findings and one offered Medium verification suggestion. Stop at user-requested planning handoff to Sol; no implementation, provider operations, feature push, or PR mutation.
+
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:2 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T042209Z.md run=d0d1b97a-1990-47ce-a35f-2b985f1116ce
+
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:1 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md run=e9e2ae8f-1305-4774-bf31-775a0f24e067
+
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:2 exit=0 status=ok artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md run=40318b14-539a-49c6-ad8b-167fac333457
