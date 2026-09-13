@@ -18,6 +18,7 @@ import {
   type GuidanceCliDependencies,
   type GuidanceCliIo,
 } from '../../src/transcript/coding-session-handoff/guidance-cli.js';
+import { GuidanceDiscoveryError } from '../../src/transcript/coding-session-handoff/guidance-discovery.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -72,6 +73,43 @@ describe('experimental guidance CLI', () => {
       currentSelection: 'explicit-required',
       data: { candidates: [], unattributable: [] },
     });
+  });
+
+  it('reports path-free provider and stable discovery failure provenance', async () => {
+    const test = harness();
+    vi.mocked(test.dependencies.discover).mockRejectedValue(
+      new GuidanceDiscoveryError(
+        'discovery-incomplete',
+        'codex',
+        'DISCOVERY_BYTE_BUDGET_EXCEEDED',
+      ),
+    );
+
+    expect(
+      await runGuidanceCli(
+        [
+          'discover',
+          '--source',
+          '/private/source-worktree',
+          '--provider',
+          'codex',
+          '--json',
+        ],
+        test.dependencies,
+        test.io,
+      ),
+    ).toBe(2);
+    expect(JSON.parse(test.stdout[0])).toMatchObject({
+      ok: false,
+      error: {
+        code: 'discovery-incomplete',
+        provider: 'codex',
+        reason: 'DISCOVERY_BYTE_BUDGET_EXCEEDED',
+      },
+    });
+    expect(test.stdout.join('')).not.toContain('/private/source-worktree');
+    expect(test.stdout.join('')).not.toContain('synthetic-session-id');
+    expect(test.stdout.join('')).not.toContain('transcript content');
   });
 
   it('requires an explicit qualified source for preview and prepare', async () => {

@@ -2157,20 +2157,43 @@ var GUIDANCE_DISCOVERY_OPTIONS = Object.freeze({
   })
 });
 var GuidanceDiscoveryError = class extends Error {
-  constructor(code, provider2) {
+  constructor(code, provider2, reason) {
     super(code);
     this.code = code;
     this.provider = provider2;
+    this.reason = reason;
     this.name = "GuidanceDiscoveryError";
   }
   code;
   provider;
+  reason;
 };
 var RUNTIME_BY_PROVIDER = {
   claude: "claude-code",
   codex: "codex",
   cursor: "cursor"
 };
+var LOCATOR_FAILURE_REASONS = /* @__PURE__ */ new Set([
+  "CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED",
+  "CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED",
+  "CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED",
+  "CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED",
+  "IDENTITY_INDEX_INCOMPLETE",
+  "DISCOVERY_ENTRY_BUDGET_EXCEEDED",
+  "DISCOVERY_BYTE_BUDGET_EXCEEDED",
+  "DISCOVERY_DEADLINE_EXCEEDED",
+  "DISCOVERY_ENUMERATION_INCOMPLETE",
+  "DISCOVERY_TRANSCRIPT_INCOMPLETE"
+]);
+function locatorFailureReason(error) {
+  if (error !== null && typeof error === "object") {
+    const code = error.code;
+    if (typeof code === "string" && LOCATOR_FAILURE_REASONS.has(code)) {
+      return code;
+    }
+  }
+  return "provider-discovery-failed";
+}
 var DEFAULT_DEPENDENCIES = {
   discover,
   canonicalize: async (path) => realpath2(path).catch(() => null),
@@ -2189,7 +2212,11 @@ async function discoverGuidance(sourcePath, options = {}) {
     throw new GuidanceDiscoveryError("source-unavailable");
   const providers = [...options.providers ?? ["claude", "codex", "cursor"]];
   if (providers.length === 0 || new Set(providers).size !== providers.length || providers.some((provider2) => !(provider2 in RUNTIME_BY_PROVIDER))) {
-    throw new GuidanceDiscoveryError("discovery-incomplete");
+    throw new GuidanceDiscoveryError(
+      "discovery-incomplete",
+      void 0,
+      "invalid-provider-selection"
+    );
   }
   const projected = [];
   const unattributable = /* @__PURE__ */ new Map();
@@ -2210,16 +2237,33 @@ async function discoverGuidance(sourcePath, options = {}) {
           }
         }
       );
-    } catch {
-      throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
+    } catch (error) {
+      throw new GuidanceDiscoveryError(
+        "discovery-incomplete",
+        provider2,
+        locatorFailureReason(error)
+      );
     }
     for (const transcript of transcripts) {
       if (provider2 === "cursor" && transcript.cwdEvidenceQuality !== "independent-exact") {
-        throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
+        throw new GuidanceDiscoveryError(
+          "discovery-incomplete",
+          provider2,
+          "cwd-evidence-incomplete"
+        );
       }
-      if (transcript.runtime !== RUNTIME_BY_PROVIDER[provider2] || transcript.recordedCwd === null) {
-        throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
-      }
+      if (transcript.runtime !== RUNTIME_BY_PROVIDER[provider2])
+        throw new GuidanceDiscoveryError(
+          "discovery-incomplete",
+          provider2,
+          "candidate-invalid"
+        );
+      if (transcript.recordedCwd === null)
+        throw new GuidanceDiscoveryError(
+          "discovery-incomplete",
+          provider2,
+          "cwd-missing"
+        );
       const recordedCwd = await deps.canonicalize(transcript.recordedCwd).catch(() => null);
       if (recordedCwd === null && provider2 !== "cursor") {
         const reasons = unattributable.get(provider2) ?? /* @__PURE__ */ new Map();
@@ -2231,11 +2275,19 @@ async function discoverGuidance(sourcePath, options = {}) {
         continue;
       }
       if (recordedCwd === null)
-        throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
+        throw new GuidanceDiscoveryError(
+          "discovery-incomplete",
+          provider2,
+          "cwd-unresolvable"
+        );
       if (recordedCwd !== sourceCanonical) continue;
       const nativeId = provider2 === "codex" ? await deps.readCodexNativeId(transcript).catch(() => null) : transcript.sessionId;
       if (nativeId === null || nativeId.length === 0) {
-        throw new GuidanceDiscoveryError("discovery-incomplete", provider2);
+        throw new GuidanceDiscoveryError(
+          "discovery-incomplete",
+          provider2,
+          "native-id-missing"
+        );
       }
       const surface = surfaceForCandidate(provider2);
       projected.push({
@@ -2257,7 +2309,8 @@ async function discoverGuidance(sourcePath, options = {}) {
     if (existing !== void 0 && JSON.stringify(existing) !== JSON.stringify(candidate)) {
       throw new GuidanceDiscoveryError(
         "discovery-incomplete",
-        candidate.provider
+        candidate.provider,
+        "candidate-conflict"
       );
     }
     byKey.set(candidate.key, candidate);
@@ -3015,6 +3068,9 @@ function errorCode(error) {
   }
   return "unexpected-failure";
 }
+function errorProvenance(error) {
+  return error instanceof GuidanceDiscoveryError && error.provider !== void 0 && error.reason !== void 0 ? { provider: error.provider, reason: error.reason } : {};
+}
 function render(io, command, data, json) {
   const envelope = {
     ok: true,
@@ -3069,6 +3125,7 @@ async function runGuidanceCli(argv, dependencies = DEFAULT_DEPENDENCIES5, io = {
       ...flags ? { command: flags.command } : {},
       error: {
         code,
+        ...errorProvenance(error),
         message: "The read-only guidance request could not be completed safely."
       }
     };

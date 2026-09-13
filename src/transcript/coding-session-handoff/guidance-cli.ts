@@ -18,6 +18,7 @@ import type { GuidanceProvider } from './guidance-capabilities.js';
 import {
   discoverGuidanceCandidates,
   discoverGuidance,
+  GuidanceDiscoveryError,
   GUIDANCE_DISCOVERY_OPTIONS,
   selectGuidanceCandidate,
   type GuidanceQualifiedSessionId,
@@ -160,6 +161,14 @@ function errorCode(error: unknown): string {
   return 'unexpected-failure';
 }
 
+function errorProvenance(error: unknown) {
+  return error instanceof GuidanceDiscoveryError &&
+    error.provider !== undefined &&
+    error.reason !== undefined
+    ? { provider: error.provider, reason: error.reason }
+    : {};
+}
+
 function render(
   io: GuidanceCliIo,
   command: Flags['command'],
@@ -223,6 +232,7 @@ export async function runGuidanceCli(
       ...(flags ? { command: flags.command } : {}),
       error: {
         code,
+        ...errorProvenance(error),
         message:
           'The read-only guidance request could not be completed safely.',
       },

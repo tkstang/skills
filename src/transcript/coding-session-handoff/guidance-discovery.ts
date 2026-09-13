@@ -3,6 +3,8 @@ import { realpath } from 'node:fs/promises';
 import {
   ClassificationCache,
   discover,
+  type CursorDiscoveryFailure,
+  type SessionDiscoveryFailure,
 } from '../session-observer/lib/locate.js';
 import type {
   DiscoveryOptions,
@@ -70,6 +72,18 @@ export interface GuidanceDiscoveryResult {
   unattributable: GuidanceUnattributableSummary[];
 }
 
+export type GuidanceDiscoveryFailureReason =
+  | CursorDiscoveryFailure
+  | SessionDiscoveryFailure
+  | 'provider-discovery-failed'
+  | 'invalid-provider-selection'
+  | 'cwd-evidence-incomplete'
+  | 'candidate-invalid'
+  | 'cwd-missing'
+  | 'cwd-unresolvable'
+  | 'native-id-missing'
+  | 'candidate-conflict';
+
 export class GuidanceDiscoveryError extends Error {
   constructor(
     readonly code:
@@ -77,6 +91,7 @@ export class GuidanceDiscoveryError extends Error {
       | 'discovery-incomplete'
       | 'invalid-selection',
     readonly provider?: GuidanceProvider,
+    readonly reason?: GuidanceDiscoveryFailureReason,
   ) {
     super(code);
     this.name = 'GuidanceDiscoveryError';
@@ -88,6 +103,32 @@ const RUNTIME_BY_PROVIDER = {
   codex: 'codex',
   cursor: 'cursor',
 } as const;
+
+const LOCATOR_FAILURE_REASONS = new Set<GuidanceDiscoveryFailureReason>([
+  'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+  'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED',
+  'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED',
+  'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED',
+  'IDENTITY_INDEX_INCOMPLETE',
+  'DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+  'DISCOVERY_BYTE_BUDGET_EXCEEDED',
+  'DISCOVERY_DEADLINE_EXCEEDED',
+  'DISCOVERY_ENUMERATION_INCOMPLETE',
+  'DISCOVERY_TRANSCRIPT_INCOMPLETE',
+]);
+
+function locatorFailureReason(error: unknown): GuidanceDiscoveryFailureReason {
+  if (error !== null && typeof error === 'object') {
+    const code = (error as { code?: unknown }).code;
+    if (
+      typeof code === 'string' &&
+      LOCATOR_FAILURE_REASONS.has(code as GuidanceDiscoveryFailureReason)
+    ) {
+      return code as GuidanceDiscoveryFailureReason;
+    }
+  }
+  return 'provider-discovery-failed';
+}
 
 const DEFAULT_DEPENDENCIES: GuidanceDiscoveryDependencies = {
   discover,
@@ -121,7 +162,11 @@ export async function discoverGuidance(
     new Set(providers).size !== providers.length ||
     providers.some((provider) => !(provider in RUNTIME_BY_PROVIDER))
   ) {
-    throw new GuidanceDiscoveryError('discovery-incomplete');
+    throw new GuidanceDiscoveryError(
+      'discovery-incomplete',
+      undefined,
+      'invalid-provider-selection',
+    );
   }
 
   const projected: GuidanceSessionCandidate[] = [];
@@ -148,22 +193,36 @@ export async function discoverGuidance(
               },
             },
       );
-    } catch {
-      throw new GuidanceDiscoveryError('discovery-incomplete', provider);
+    } catch (error) {
+      throw new GuidanceDiscoveryError(
+        'discovery-incomplete',
+        provider,
+        locatorFailureReason(error),
+      );
     }
     for (const transcript of transcripts) {
       if (
         provider === 'cursor' &&
         transcript.cwdEvidenceQuality !== 'independent-exact'
       ) {
-        throw new GuidanceDiscoveryError('discovery-incomplete', provider);
+        throw new GuidanceDiscoveryError(
+          'discovery-incomplete',
+          provider,
+          'cwd-evidence-incomplete',
+        );
       }
-      if (
-        transcript.runtime !== RUNTIME_BY_PROVIDER[provider] ||
-        transcript.recordedCwd === null
-      ) {
-        throw new GuidanceDiscoveryError('discovery-incomplete', provider);
-      }
+      if (transcript.runtime !== RUNTIME_BY_PROVIDER[provider])
+        throw new GuidanceDiscoveryError(
+          'discovery-incomplete',
+          provider,
+          'candidate-invalid',
+        );
+      if (transcript.recordedCwd === null)
+        throw new GuidanceDiscoveryError(
+          'discovery-incomplete',
+          provider,
+          'cwd-missing',
+        );
       const recordedCwd = await deps
         .canonicalize(transcript.recordedCwd)
         .catch(() => null);
@@ -177,14 +236,22 @@ export async function discoverGuidance(
         continue;
       }
       if (recordedCwd === null)
-        throw new GuidanceDiscoveryError('discovery-incomplete', provider);
+        throw new GuidanceDiscoveryError(
+          'discovery-incomplete',
+          provider,
+          'cwd-unresolvable',
+        );
       if (recordedCwd !== sourceCanonical) continue;
       const nativeId =
         provider === 'codex'
           ? await deps.readCodexNativeId(transcript).catch(() => null)
           : transcript.sessionId;
       if (nativeId === null || nativeId.length === 0) {
-        throw new GuidanceDiscoveryError('discovery-incomplete', provider);
+        throw new GuidanceDiscoveryError(
+          'discovery-incomplete',
+          provider,
+          'native-id-missing',
+        );
       }
       const surface = surfaceForCandidate(provider);
       projected.push({
@@ -211,6 +278,7 @@ export async function discoverGuidance(
       throw new GuidanceDiscoveryError(
         'discovery-incomplete',
         candidate.provider,
+        'candidate-conflict',
       );
     }
     byKey.set(candidate.key, candidate);

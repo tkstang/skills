@@ -167,6 +167,7 @@ describe('guidance discovery', () => {
       name: 'GuidanceDiscoveryError',
       code: 'discovery-incomplete',
       provider: 'cursor',
+      reason: 'cwd-evidence-incomplete',
     });
   });
 
@@ -220,6 +221,7 @@ describe('guidance discovery', () => {
       name: 'GuidanceDiscoveryError',
       code: 'discovery-incomplete',
       provider: 'cursor',
+      reason: 'IDENTITY_INDEX_INCOMPLETE',
     });
   });
 
