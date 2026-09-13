@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t06
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | final review fix pending | 6 | 5/6 |
+| p-rev1 | final review fix complete; re-review pending | 6 | 6/6 |
 
-**Total:** 40 completed of 45 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented and 1 revision review-fix task pending.
+**Total:** 41 completed of 45 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 0 tasks pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -414,7 +414,8 @@ remain preserved.
 
 ## Phase p05: Reviewed behavior activation
 
-**Status:** pending
+**Status:** completed
+**Commit:** `20e86a100832b114a8aa3a20469b849de7ec7f45`
 **Started:** -
 
 ### Task p05-t03: Activate both reviewed exact-version contracts
@@ -1069,8 +1070,7 @@ independently verified before p04-t01 can safely execute.
 **Finding:** Final review I1 — Cursor's lossy project slug can cross the exact
 source-worktree boundary and expose preview content under a caller-derived cwd.
 **Disposition:** code fix required; Moderate scope.
-**Next:** Resume the original p-rev1 implementer for one append-only fix commit, then
-run a fresh final re-review.
+**Next:** Run a fresh final re-review over the corrected head.
 
 **Fix dispatch intent:** request `handoff-final-fix-20260913-01`, continuation
 `cont-handoff-final-review-fix-1`, original handle `/root/handoff_revision_phase`,
@@ -1079,6 +1079,14 @@ fix round 1 of 3. Authority is limited to prev1-t06 source/tests/generated outpu
 required skill version bumps; no provider operation, installation, publication, or
 project bookkeeping edits.
 **Dispatch:** scope=final-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+
+**Fix outcome:** completed as the single append-only commit
+`20e86a100832b114a8aa3a20469b849de7ec7f45`. Cursor candidates now carry explicit
+cwd-evidence quality; the lossy store slug is insufficient for public source matching,
+so discovery and preview fail with path-free `discovery-incomplete`. The worker
+reported 1,907 passing tests and one skipped plus all repository gates. Root repeated
+106 focused tests, generated parity, two-skill version validation against the final
+base, diff hygiene, exact path/commit checks, and clean-worktree verification.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 

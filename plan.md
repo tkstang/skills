@@ -1626,7 +1626,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
-| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T023957Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
+| final | code | fixes_completed | 2026-09-13 | reviews/archived/final-review-2026-09-13T023957Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
@@ -1883,9 +1883,9 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 6 tasks — five implemented destination-tab guidance tasks plus one final-review fix
+- p-rev1: 6 tasks — five destination-tab guidance tasks plus one completed final-review fix
 
-**Historical + active total: 45 tasks = 40 completed + 4 superseded/unimplemented + 1 pending final-review fix.**
+**Historical + active total: 45 tasks = 41 completed + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
