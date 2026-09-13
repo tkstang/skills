@@ -101,9 +101,9 @@ oat_project_explainer:
 ## Current Phase
 
 Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
-phase-review fix are implemented through `3fdfc2a1`; fresh independent re-review passed
-with zero findings. Tasks are complete; final lifecycle review and the implementation
-exit gate remain before final HiLL closeout.
+phase-review fix are implemented through `3fdfc2a1`; fresh independent phase re-review
+passed. Final lifecycle review requests one Important Cursor source-association fix;
+the implementation exit gate and final HiLL closeout remain after repair and re-review.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate

@@ -1626,7 +1626,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 | p06 | code | pending | - | - | - | - | - |
-| final | code | pending | - | - | - | - | - |
+| final | code | received | 2026-09-13 | reviews/final-review-2026-09-13T023957Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | passed | 2026-08-31 | reviews/archived/artifact-design-review-2026-08-31T023100Z.md | 0bf20952b972420fc99e8cdc850debc54fb7dd7a | auto | - |
 | plan | artifact | passed | 2026-08-31 | reviews/archived/artifact-plan-review-2026-08-31T024000Z.md | 0fbec1aa4d93ae86c64c5a11897708c79bc3df2f | manual | - |
@@ -1846,14 +1846,14 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 5 tasks — active destination-tab guidance revision
+- p-rev1: 5 tasks — implemented destination-tab guidance revision; final review fix pending
 
-**Historical + active total: 44 tasks = 35 completed + 4 superseded/unimplemented + 5 pending revision tasks.**
+**Historical + active total: 44 tasks = 40 completed + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-The active guidance revision is implementation-complete only when its five task
-commits, per-phase/final reviews, and aggregate/docs verification pass. Unsupported
+The active guidance revision's five tasks and phase review are complete. Final review
+found one Important Cursor source-association defect that must be repaired. Unsupported
 provider paths and unverified live behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.
