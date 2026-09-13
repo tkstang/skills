@@ -14,6 +14,28 @@ The desired workflows are Codex-to-Codex and Claude-to-Claude native forks into 
 
 ## Decision
 
+### Accepted refinement: destination-tab instructions (2026-09-12)
+
+Keep the two-skill split, but narrow the active `coding-session-handoff` product to
+read-only discovery, preview, destination checks, and provider-specific fork-and-open
+instructions. Cover Codex, Claude, and Cursor with explicit capability/surface limits.
+The user performs the native operation in the destination tab; the skill does not
+create a child or execute the command.
+
+Support three entry points: the exact source session (direct identity or explicit
+selection), another source-worktree session (discover/select), and a fresh destination
+session supplied with the source worktree (discover/select, then switch using supported
+provider actions or exit/relaunch in the same tab). No nested TUI, history merge,
+background/create-only fork, child-ID tracking, worktree creation, or ADE tab management.
+
+Retain the existing automated executor as experimental, incomplete, unverified, and
+paused. Its live-gate failures remain evidence, not passed gates or prerequisites for
+the revised read-only product. This refines the native-creation responsibility stated
+below; it does not combine the two skills or authorize provider operations. Revision
+phase p-rev1 in the synced coding-session-handoff project plans implementation with Sol.
+
+### Original two-skill boundary (preserved context)
+
 Keep `coding-session-handoff` and `session-handoff` as separate, composable skills:
 
 - `coding-session-handoff` owns Codex-to-Codex and Claude-to-Claude native successor creation into an explicitly selected existing destination worktree, with exact identity, lineage, cwd, and source-resume evidence.
@@ -22,6 +44,11 @@ Keep `coding-session-handoff` and `session-handoff` as separate, composable skil
 - Treat migration of `session-handoff` from personal-skills as a separately planned change.
 
 ## Consequences
+
+The accepted refinement above governs current work: preserve exact parent selection
+and instruction correctness, but pause automated execution and its live gates.
+The original consequence statement below explains that executor's retained contract;
+it does not require completing those gates to implement read-only guidance.
 
 Native identity remains required to claim and safely manage a native fork; portable handoffs do not require native successor identity and must not claim native history or runtime-state continuity. Native forks inherit provider history; the current fork readiness marker is not a full portable handoff prompt. Research-backed activity enrichment is accepted direction, not implemented capability: preserve existing safe export defaults, make additional evidence explicit and opt-in, and do not replay historical tool calls or carry forward authorization. Reuse dependency-free canonical TypeScript and generated runtime outputs rather than introducing another parser or universal session service. Finish the current native-fork reviews and exact-version live gates independently of future packet enrichment or migration; no new provider operation, automatic retry, installation, or cleanup is authorized by this decision.
 
