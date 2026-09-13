@@ -25,6 +25,9 @@ const jsonFiles = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
   'plugins/consensus/.codex-plugin/plugin.json',
+  'plugins/session/.claude-plugin/plugin.json',
+  'plugins/session/.cursor-plugin/plugin.json',
+  'plugins/session/.codex-plugin/plugin.json',
   '.claude-plugin/marketplace.json',
   '.cursor-plugin/marketplace.json',
   '.agents/plugins/marketplace.json',
@@ -49,7 +52,9 @@ const skillFiles = [
 ];
 const generatedSkillFiles = [
   'plugins/consensus/skills/refine/SKILL.md',
-  'skills/coding-session-handoff/SKILL.md',
+  'plugins/session/skills/export-transcript/SKILL.md',
+  'plugins/session/skills/fork-to-destination/SKILL.md',
+  'skills/session-fork-to-destination/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
 ];
 const sessionObserverWatchDocs = [
@@ -67,8 +72,8 @@ const collaborationDistributionFiles = [
   'skills/session-observer-collab/scripts/hooks/cursor-stop.mjs',
 ];
 const guidanceDistributionFiles = [
-  'skills/coding-session-handoff/references/provider-guidance.md',
-  'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+  'skills/session-fork-to-destination/references/provider-guidance.md',
+  'skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
 ];
 const requiredDocs = [
   'README.md',
@@ -154,14 +159,15 @@ async function globSkillMarkdownFiles(root: string) {
 }
 
 describe('release-versioning', () => {
-  it('release workflow executes the target-scoped consensus tag check', async () => {
+  it('release workflow selects the plugin from a namespaced tag', async () => {
     const workflow = await readFile(
       path.join(repoRoot, '.github/workflows/release.yml'),
       'utf8',
     );
-    expect(workflow).toContain(
-      'pnpm tsx scripts/bump-version.ts --check-tag "$GITHUB_REF_NAME" --plugin consensus',
-    );
+    expect(workflow).toContain('consensus-v*');
+    expect(workflow).toContain('session-v*');
+    expect(workflow).toContain('--plugin "$PLUGIN_NAME"');
+    expect(workflow).not.toContain('--plugin consensus');
 
     const pluginVersion = (
       await readJson(repoRoot, 'plugins/consensus/.claude-plugin/plugin.json')
@@ -182,6 +188,26 @@ describe('release-versioning', () => {
     expect(stdout).toContain(
       `tag ${releaseTag} matches consensus plugin version ${pluginVersion}`,
     );
+
+    const sessionVersion = (
+      await readJson(repoRoot, 'plugins/session/.claude-plugin/plugin.json')
+    ).version as string;
+    const sessionTag = `v${sessionVersion}`;
+    const sessionResult = await execFile(
+      'pnpm',
+      [
+        'tsx',
+        'scripts/bump-version.ts',
+        '--check-tag',
+        sessionTag,
+        '--plugin',
+        'session',
+      ],
+      { cwd: repoRoot },
+    );
+    expect(sessionResult.stdout).toContain(
+      `tag ${sessionTag} matches session plugin version ${sessionVersion}`,
+    );
   });
 
   it('isValidSemver accepts release and prerelease versions only', () => {
@@ -201,18 +227,19 @@ describe('release-versioning', () => {
       path.join(root, cursorMarketplacePath),
       `${JSON.stringify(cursorMarketplace, null, 2)}\n`,
     );
-    for (const marketplacePath of MARKETPLACE_FILES_WITH_VERSIONS) {
-      const marketplace = await readJson(root, marketplacePath);
-      marketplace.plugins.push({
-        name: 'session',
-        source: './plugins/session',
-        version: '9.0.0',
-      });
-      await writeFile(
-        path.join(root, marketplacePath),
-        `${JSON.stringify(marketplace, null, 2)}\n`,
-      );
-    }
+    const beforeSessionManifests = await Promise.all(
+      jsonFiles
+        .slice(3, 6)
+        .map((file) => readFile(path.join(root, file), 'utf8')),
+    );
+    const beforeSessionMarketplaceVersions = await Promise.all(
+      MARKETPLACE_FILES_WITH_VERSIONS.map(
+        async (marketplacePath) =>
+          (await readJson(root, marketplacePath)).plugins.find(
+            (plugin: { name: string }) => plugin.name === 'session',
+          ).version,
+      ),
+    );
 
     const beforeSkills = await Promise.all(
       skillFiles.map((file) => readFile(path.join(root, file), 'utf8')),
@@ -244,12 +271,23 @@ describe('release-versioning', () => {
     expect(
       'version' in (await readJson(root, cursorMarketplacePath)).plugins[0],
     ).toBe(false);
-    for (const marketplacePath of MARKETPLACE_FILES_WITH_VERSIONS) {
-      const session = (await readJson(root, marketplacePath)).plugins.find(
-        (plugin: { name: string }) => plugin.name === 'session',
-      );
-      expect(session.version).toBe('9.0.0');
-    }
+    await expect(
+      Promise.all(
+        jsonFiles
+          .slice(3, 6)
+          .map((file) => readFile(path.join(root, file), 'utf8')),
+      ),
+    ).resolves.toEqual(beforeSessionManifests);
+    await expect(
+      Promise.all(
+        MARKETPLACE_FILES_WITH_VERSIONS.map(
+          async (marketplacePath) =>
+            (await readJson(root, marketplacePath)).plugins.find(
+              (plugin: { name: string }) => plugin.name === 'session',
+            ).version,
+        ),
+      ),
+    ).resolves.toEqual(beforeSessionMarketplaceVersions);
     await expect(
       Promise.all(
         skillFiles.map((file) => readFile(path.join(root, file), 'utf8')),

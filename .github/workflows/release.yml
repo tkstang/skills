@@ -3,7 +3,8 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "consensus-v*"
+      - "session-v*"
 
 permissions:
   contents: write
@@ -36,4 +37,8 @@ jobs:
       - run: pnpm run test
       - run: pnpm run validate
       - run: pnpm run smoke
-      - run: pnpm tsx scripts/bump-version.ts --check-tag "$GITHUB_REF_NAME" --plugin consensus
+      - name: Verify selected plugin version
+        run: |
+          PLUGIN_NAME="${GITHUB_REF_NAME%%-v*}"
+          PLUGIN_VERSION="v${GITHUB_REF_NAME#*-v}"
+          pnpm tsx scripts/bump-version.ts --check-tag "$PLUGIN_VERSION" --plugin "$PLUGIN_NAME"

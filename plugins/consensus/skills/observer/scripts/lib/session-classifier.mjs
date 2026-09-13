@@ -1,13 +1,4 @@
-#!/usr/bin/env node
-// GENERATED skill payload for session-export-transcript.
-
-// src/skills/session-export-transcript/src/export-session-transcript.ts
-import { execFile } from "node:child_process";
-import { readdir, stat, mkdir, writeFile, readFile as readFile2 } from "node:fs/promises";
-import { homedir as homedir2 } from "node:os";
-import { dirname as dirname2, join as join2, basename as basename2 } from "node:path";
-import { parseArgs } from "node:util";
-import { promisify } from "node:util";
+// GENERATED skill payload for session-observer.
 
 // src/shared/transcript/runtimes.ts
 import { open, readFile } from "node:fs/promises";
@@ -261,27 +252,6 @@ function safeParseLine(line) {
     };
   }
 }
-function discoverPaths(runtime) {
-  const home = homedir();
-  if (runtime === "claude-code") {
-    return [join(home, ".claude", "projects")];
-  }
-  if (runtime === "codex") {
-    return [join(home, ".codex", "sessions")];
-  }
-  if (runtime === "cursor") {
-    return [join(home, ".cursor", "projects")];
-  }
-  throw new Error(`Unknown runtime: ${runtime}`);
-}
-function encodeCwdVariants(runtime, cwd) {
-  if (runtime === "codex") return [];
-  if (runtime === "cursor") {
-    return [cwd.split(/[/.]/u).filter(Boolean).join("-")];
-  }
-  const variants = [cwd.replace(/[/.]/g, "-"), cwd.replace(/\//g, "-")];
-  return [...new Set(variants)];
-}
 async function readRecords(transcriptPath) {
   const raw = await readFile(transcriptPath, "utf8");
   if (!raw) return [];
@@ -309,136 +279,6 @@ async function readRecords(transcriptPath) {
     }
   }
   return records;
-}
-function claudeSessionIdFromRecord(record) {
-  const message = isObject(record.message) ? record.message : record;
-  return asString(record.sessionId) ?? asString(record.session_id) ?? asString(record.sessionID) ?? asString(message.sessionId) ?? asString(message.session_id);
-}
-function decodeCwdDirName(dirName) {
-  if (!dirName.startsWith("-")) return null;
-  return dirName.replace(/-/g, "/");
-}
-function codexSessionIdFromRecord(record) {
-  const payload = isObject(record.payload) ? record.payload : record;
-  return asString(record.sessionId) ?? asString(record.session_id) ?? asString(payload.sessionId) ?? asString(payload.session_id);
-}
-function consistentNonEmptyString(values) {
-  let observed;
-  for (const value of values) {
-    if (typeof value !== "string" || value.length === 0) return void 0;
-    if (observed !== void 0 && observed !== value) return void 0;
-    observed = value;
-  }
-  return observed;
-}
-function codexLineageMetadata(records) {
-  const sessionMetadata = records.filter(
-    (record) => record.type === "session_meta" && isObject(record.payload)
-  );
-  const payloads = sessionMetadata.map(
-    (record) => record.payload
-  );
-  const nativeValues = payloads.filter((payload) => Object.hasOwn(payload, "id")).map((payload) => payload.id);
-  const rootValues = payloads.filter((payload) => Object.hasOwn(payload, "session_id")).map((payload) => payload.session_id);
-  const forkValues = payloads.filter((payload) => Object.hasOwn(payload, "forked_from_id")).map((payload) => payload.forked_from_id);
-  const nativeSessionId = consistentNonEmptyString(nativeValues);
-  const rootSessionId = consistentNonEmptyString(rootValues);
-  const forkedFromSessionId = consistentNonEmptyString(forkValues);
-  return {
-    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
-    ...rootSessionId === void 0 ? {} : { rootSessionId },
-    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId }
-  };
-}
-function claudeRecordLineage(records) {
-  const result = [];
-  for (const record of records) {
-    if (!Object.hasOwn(record, "uuid")) continue;
-    if (typeof record.uuid !== "string" || record.uuid.length === 0) {
-      return void 0;
-    }
-    if (Object.hasOwn(record, "parentUuid") && record.parentUuid !== null && (typeof record.parentUuid !== "string" || record.parentUuid.length === 0)) {
-      return void 0;
-    }
-    result.push({
-      uuid: record.uuid,
-      parentUuid: typeof record.parentUuid === "string" ? record.parentUuid : null
-    });
-  }
-  return result.length === 0 ? void 0 : result;
-}
-async function extractMeta(runtime, transcriptPath) {
-  const records = await readRecords(transcriptPath);
-  return extractMetaFromRecords(runtime, records, transcriptPath);
-}
-function extractClaudeRecordedCwdFromRecords(records) {
-  let recordedCwd = null;
-  for (const record of records) {
-    if (!Object.hasOwn(record, "cwd")) continue;
-    const cwd = record.cwd;
-    if (typeof cwd !== "string" || cwd.length === 0 || !isAbsolute(cwd)) {
-      return null;
-    }
-    if (recordedCwd !== null && cwd !== recordedCwd) return null;
-    recordedCwd = cwd;
-  }
-  return recordedCwd;
-}
-function extractMetaFromRecords(runtime, records, transcriptPath) {
-  if (runtime === "claude-code") {
-    let sessionId;
-    for (const record of records) {
-      const id = claudeSessionIdFromRecord(record);
-      if (id) {
-        sessionId = id;
-        break;
-      }
-    }
-    if (!sessionId) {
-      sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
-    }
-    const nativeSessionId = consistentNonEmptyString(
-      records.filter((record) => Object.hasOwn(record, "sessionId")).map((record) => record.sessionId)
-    );
-    const exactRecordedCwd = extractClaudeRecordedCwdFromRecords(records);
-    const recordLineage = claudeRecordLineage(records);
-    const parentDirName = basename(dirname(transcriptPath));
-    const recordedCwd = exactRecordedCwd ?? decodeCwdDirName(parentDirName);
-    return {
-      sessionId,
-      recordedCwd,
-      ...nativeSessionId === void 0 ? {} : { nativeSessionId },
-      ...recordLineage === void 0 ? {} : { recordLineage }
-    };
-  }
-  if (runtime === "codex") {
-    let sessionId;
-    let recordedCwd = null;
-    for (const record of records) {
-      if (!sessionId) {
-        const id = codexSessionIdFromRecord(record);
-        if (id) sessionId = id;
-      }
-      if (recordedCwd === null) {
-        const topLevelCwd = asString(record.cwd);
-        const payloadCwd = isObject(record.payload) ? asString(record.payload.cwd) : void 0;
-        const cwd = topLevelCwd ?? payloadCwd;
-        if (cwd) recordedCwd = cwd;
-      }
-      if (sessionId && recordedCwd !== null) break;
-    }
-    if (!sessionId) {
-      sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
-    }
-    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
-  }
-  if (runtime === "cursor") {
-    const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
-    const parentDirName = basename(dirname(transcriptPath));
-    const sessionId = transcriptBase && !["transcript", "conversation", "messages"].includes(transcriptBase) ? transcriptBase : parentDirName;
-    return { sessionId, recordedCwd: null };
-  }
-  throw new Error(`Unknown runtime: ${runtime}`);
 }
 function claudeAskUserQuestionEntry(role, block, recordIndex, opts) {
   const input = isObject(block.input) ? block.input : {};
@@ -884,535 +724,134 @@ function normalizeEntries(runtime, records, opts = {}) {
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
-// src/skills/session-export-transcript/src/sanitize.ts
-function lead(text) {
-  return typeof text === "string" ? text.trimStart() : "";
+// src/skills/session-observer/src/lib/session-classifier.ts
+function textStart(text) {
+  return String(text ?? "").trimStart();
 }
-var HIDDEN_PAYLOAD_MATCHERS = [
-  {
-    // Role-tagged system/developer records are never emitted.
-    id: "system-or-developer-role",
-    test: (_text, role) => role === "system" || role === "developer"
-  },
-  {
-    // Text-form system/developer instruction records.
-    id: "system-or-developer-text",
-    test: (text) => {
-      const l = lead(text);
-      if (/^(System|Developer)\b\s*[:-]/.test(l)) return true;
-      return /^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
-        l
-      );
-    }
-  },
-  {
-    id: "environment-context",
-    test: (text) => lead(text).startsWith("<environment_context>")
-  },
-  {
-    id: "subagent-notification",
-    test: (text) => lead(text).startsWith("<subagent_notification>")
-  },
-  {
-    id: "turn-aborted",
-    test: (text) => lead(text).startsWith("<turn_aborted>")
-  },
-  {
-    // XML-style skill wrappers injected as ordinary text.
-    id: "skill-wrapper",
-    test: (text) => /^<skill(\s[^>]*)?>/.test(lead(text))
-  },
-  {
-    // Claude Code's primary injected-context wrapper.
-    id: "system-reminder",
-    test: (text) => lead(text).startsWith("<system-reminder>")
-  },
-  {
-    id: "task-notification",
-    test: (text) => lead(text).startsWith("<task-notification>")
-  },
-  {
-    id: "local-command-output",
-    test: (text) => /^<local-command-(stdout|stderr|caveat)>/.test(lead(text))
-  },
-  {
-    id: "command-message",
-    test: (text) => /^<(command-message|command-name|command-args)>/.test(lead(text))
-  },
-  {
-    id: "agents-or-skill-md-heading",
-    test: (text) => /^#{1,6}\s+(AGENTS|SKILL)(\.md)?\b/i.test(lead(text))
-  },
-  {
-    id: "skill-frontmatter",
-    test: (text) => {
-      const l = lead(text);
-      if (!l.startsWith("---")) return false;
-      const firstKey = l.split(/\r?\n/, 2)[1] ?? "";
-      return /^(name|description|license|compatibility|allowed-tools|argument-hint):/.test(
-        firstKey.trim()
-      );
-    }
-  }
-];
-function sanitizeEntries(entries, { runtime } = {}) {
-  if (!Array.isArray(entries)) return [];
-  return entries.filter((entry) => {
-    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control") {
-      return false;
-    }
-    const text = entry?.text ?? "";
-    const role = entry?.role ?? "";
-    for (const matcher of HIDDEN_PAYLOAD_MATCHERS) {
-      if (matcher.test(text, role, runtime)) return false;
-    }
-    return true;
-  });
+function isTitlePrompt(text) {
+  return textStart(text).startsWith(
+    "Generate a concise tab title for this coding chat.\nRules:"
+  );
 }
-
-// src/skills/session-export-transcript/src/export-session-transcript.ts
-var execFileAsync = promisify(execFile);
-var VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
-var LOOKBACK_DAYS = 30;
-var MARKER_LINE_RE = /EXPORT_SESSION_MARKER\s*=\s*\S+/;
-function isRuntime(value) {
-  return typeof value === "string" && VALID_RUNTIMES.includes(value);
+function isHiddenBootstrapUserText(text) {
+  const normalized = textStart(text);
+  return normalized.startsWith("# AGENTS.md instructions for ") || normalized.startsWith("<environment_context>") || normalized.startsWith("<skill>\n<name>") || normalized.startsWith("<permissions instructions>") || normalized.startsWith("<apps_instructions>") || normalized.startsWith("<stoa-profile ") || isTitlePrompt(normalized);
 }
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
+function isSyntheticForEngagement(entry) {
+  if (entry.role !== "user") return false;
+  return entry.kind === "command_message" || entry.origin === "automatic-control" || isHiddenBootstrapUserText(entry.text);
 }
-function errorStackOrMessage(error) {
-  return error instanceof Error ? error.stack ?? error.message : String(error);
+function publicBootstrapIndexes(indexes) {
+  return [...indexes].toSorted((a, b) => a - b);
 }
-function parseCliArgs(argv) {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    strict: false,
-    options: {
-      runtime: { type: "string", default: "auto" },
-      match: { type: "string", default: void 0 },
-      session: { type: "string", default: void 0 },
-      all: { type: "boolean", default: false },
-      cwd: { type: "string", default: process.cwd() },
-      out: { type: "string", default: void 0 },
-      help: { type: "boolean", default: false }
-    }
-  });
-  return {
-    runtime: typeof values.runtime === "string" ? values.runtime : "auto",
-    match: typeof values.match === "string" ? values.match : void 0,
-    session: typeof values.session === "string" ? values.session : void 0,
-    all: values.all === true,
-    cwd: typeof values.cwd === "string" ? values.cwd : process.cwd(),
-    out: typeof values.out === "string" ? values.out : positionals[0] ?? void 0,
-    help: values.help === true
-  };
-}
-var HELP = `export-session-transcript \u2014 export the current conversation to sanitized Markdown
-
-Usage:
-  node export-session-transcript.mjs [output-path] [flags]
-
-Flags:
-  --runtime <claude-code|codex|cursor|auto>  default: auto
-  --match <marker>      select the current session by an announced marker
-  --session <id>        export a specific session id
-  --all                 export every session for the cwd (one file each)
-  --cwd <path>          project dir to match against (default: process.cwd())
-  --out <path>          output file or directory (also accepted positionally)
-  --help                this message
-
-Exit codes: 0 ok \xB7 1 hard error \xB7 2 no candidates \xB7 3 ambiguous`;
-function resolveRuntime(requested) {
-  if (requested && requested !== "auto") {
-    if (!isRuntime(requested)) {
-      throw new Error(
-        `Unknown runtime: ${requested}. Expected one of ${VALID_RUNTIMES.join(", ")}.`
-      );
-    }
-    return requested;
-  }
-  const hint = process.env.EXPORT_SESSION_SELF ?? process.env.SESSION_OBSERVER_SELF;
-  if (isRuntime(hint)) return hint;
-  if (process.env.CLAUDECODE || process.env.CLAUDE_CODE) return "claude-code";
-  if (process.env.CODEX_SANDBOX || process.env.CODEX_HOME) return "codex";
-  if (process.env.CURSOR_TRACE_ID || process.env.CURSOR) return "cursor";
-  return null;
-}
-async function collectJsonlFiles(dir) {
-  const results = [];
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    return results;
-  }
+function entriesByRecordIndex(entries) {
+  const byRecord = /* @__PURE__ */ new Map();
   for (const entry of entries) {
-    const full = join2(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...await collectJsonlFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
-      results.push(full);
-    }
+    const existing = byRecord.get(entry.recordIndex) ?? [];
+    existing.push(entry);
+    byRecord.set(entry.recordIndex, existing);
   }
-  return results;
+  return byRecord;
 }
-async function statCandidate(transcriptPath) {
-  try {
-    const s = await stat(transcriptPath);
-    return { mtime: Math.floor(s.mtime.getTime() / 1e3), size: s.size };
-  } catch {
-    return null;
-  }
+function visibleConversationEntries(entries) {
+  return entries.filter(
+    (entry) => entry.kind === "message" || entry.kind === "command_message" || entry.kind === "ask_user"
+  );
 }
-async function enumerateClaudeCode(targetCwd) {
-  const [root] = discoverPaths("claude-code");
-  const variants = encodeCwdVariants("claude-code", targetCwd);
-  const candidates = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const encoded of variants) {
-    const dir = join2(root, encoded);
-    let files;
-    try {
-      files = (await readdir(dir)).filter((f) => f.endsWith(".jsonl"));
-    } catch {
+function isOperatorAskUserAnswer(entry) {
+  return entry.kind === "ask_user" && entry.role === "user" && entry.origin === "human";
+}
+function classifyTranscriptRecords(runtime, records) {
+  const allEntries = normalizeEntries(runtime, records, {
+    includeToolCalls: false,
+    includeToolResults: false,
+    includeCommandMessages: true
+  });
+  const byRecord = entriesByRecordIndex(allEntries);
+  const bootstrapRecordIndexes = /* @__PURE__ */ new Set();
+  let genuineUserMessages = 0;
+  let syntheticUserMessages = 0;
+  let assistantMessages = 0;
+  let realMessageCount = 0;
+  let operatorAskUserAnswers = 0;
+  let pendingTitleAssistant = false;
+  for (let recordIndex = 0; recordIndex < records.length; recordIndex++) {
+    const entries = visibleConversationEntries(byRecord.get(recordIndex) ?? []);
+    if (entries.length === 0) continue;
+    if (pendingTitleAssistant && entries.every(
+      (entry) => entry.role === "assistant" && entry.kind === "message"
+    )) {
+      bootstrapRecordIndexes.add(recordIndex);
+      pendingTitleAssistant = false;
       continue;
     }
-    for (const file of files) {
-      const p = join2(dir, file);
-      if (seen.has(p)) continue;
-      seen.add(p);
-      const st = await statCandidate(p);
-      if (!st) continue;
-      let meta;
-      try {
-        meta = await extractMeta("claude-code", p);
-      } catch {
-        meta = null;
+    pendingTitleAssistant = false;
+    const userEntries = entries.filter((entry) => entry.role === "user");
+    const hiddenBootstrapUserRecord = userEntries.length > 0 && entries.every((entry) => entry.role === "user") && userEntries.every((entry) => isHiddenBootstrapUserText(entry.text));
+    if (hiddenBootstrapUserRecord) {
+      bootstrapRecordIndexes.add(recordIndex);
+      syntheticUserMessages += userEntries.length;
+      if (userEntries.some((entry) => isTitlePrompt(entry.text))) {
+        pendingTitleAssistant = true;
       }
-      candidates.push({
-        runtime: "claude-code",
-        transcriptPath: p,
-        sessionId: meta?.sessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
-        ...st
-      });
-    }
-  }
-  return candidates;
-}
-async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
-  const [root] = discoverPaths("codex");
-  const now = Date.now() / 1e3;
-  const cutoff = now - LOOKBACK_DAYS * 86400;
-  const files = await collectJsonlFiles(root);
-  const candidates = [];
-  for (const p of files) {
-    const st = await statCandidate(p);
-    if (!st) continue;
-    if (st.mtime < cutoff) continue;
-    let meta;
-    try {
-      meta = await extractMeta("codex", p);
-    } catch {
-      meta = null;
-    }
-    if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
-    if (requireCwd && !meta?.recordedCwd) continue;
-    candidates.push({
-      runtime: "codex",
-      transcriptPath: p,
-      sessionId: meta?.sessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
-      ...st
-    });
-  }
-  return candidates;
-}
-async function enumerateCursor(targetCwd) {
-  const [root] = discoverPaths("cursor");
-  const variants = encodeCwdVariants("cursor", targetCwd);
-  const candidates = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const encoded of variants) {
-    const transcriptsRoot = join2(root, encoded, "agent-transcripts");
-    let sessionDirs;
-    try {
-      sessionDirs = await readdir(transcriptsRoot, { withFileTypes: true });
-    } catch {
       continue;
     }
-    for (const sd of sessionDirs) {
-      if (!sd.isDirectory()) continue;
-      const sessionPath = join2(transcriptsRoot, sd.name);
-      let files;
-      try {
-        files = (await readdir(sessionPath)).filter(
-          (f) => f.endsWith(".jsonl")
-        );
-      } catch {
-        continue;
-      }
-      for (const file of files) {
-        const p = join2(sessionPath, file);
-        if (seen.has(p)) continue;
-        seen.add(p);
-        const st = await statCandidate(p);
-        if (!st) continue;
-        let meta;
-        try {
-          meta = await extractMeta("cursor", p);
-        } catch {
-          meta = null;
+    for (const entry of entries) {
+      if (entry.role === "user") {
+        if (isOperatorAskUserAnswer(entry)) {
+          operatorAskUserAnswers++;
+          realMessageCount++;
+          continue;
         }
-        candidates.push({
-          runtime: "cursor",
-          transcriptPath: p,
-          sessionId: meta?.sessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
-          ...st
-        });
+        if (isSyntheticForEngagement(entry)) {
+          syntheticUserMessages++;
+          continue;
+        }
+        if (entry.kind === "message") {
+          genuineUserMessages++;
+          realMessageCount++;
+        }
+      } else if (entry.role === "assistant" && (entry.kind === "message" || entry.kind === "ask_user")) {
+        assistantMessages++;
+        realMessageCount++;
       }
     }
   }
-  return candidates;
-}
-async function enumerateCandidates(runtime, targetCwd, { requireCwd = false } = {}) {
-  if (runtime === "claude-code") return enumerateClaudeCode(targetCwd);
-  if (runtime === "codex") return enumerateCodex(targetCwd, { requireCwd });
-  if (runtime === "cursor") return enumerateCursor(targetCwd);
-  throw new Error(`Unknown runtime: ${runtime}`);
-}
-async function candidateContainsMarker(transcriptPath, marker) {
-  try {
-    const raw = await readFile2(transcriptPath, "utf8");
-    return raw.includes(marker);
-  } catch {
-    return false;
-  }
-}
-function newest(candidates) {
-  return [...candidates].toSorted((a, b) => b.mtime - a.mtime)[0];
-}
-async function selectSessions(opts, candidates) {
-  const warnings = [];
-  if (opts.all) {
-    return { selected: candidates, warnings };
-  }
-  if (opts.session) {
-    const hit = candidates.find((c) => c.sessionId === opts.session);
-    if (!hit) {
-      return {
-        exit: 2,
-        message: `No transcript found for session id "${opts.session}" in this cwd.`
-      };
-    }
-    return { selected: [hit], warnings };
-  }
-  if (opts.match) {
-    for (const c of candidates) {
-      if (await candidateContainsMarker(c.transcriptPath, opts.match)) {
-        return { selected: [c], warnings };
-      }
-    }
-    const fallback = newest(candidates);
-    if (!fallback) {
-      return {
-        exit: 2,
-        message: `No transcript found for marker "${opts.match}" in this cwd.`
-      };
-    }
-    warnings.push(
-      `marker "${opts.match}" not found in any candidate; falling back to newest-for-cwd transcript (${fallback.sessionId}). Re-run with --session <id> if this is the wrong session.`
-    );
-    return { selected: [fallback], warnings };
-  }
-  if (candidates.length === 1) {
-    return { selected: [candidates[0]], warnings };
-  }
+  const humanInputs = genuineUserMessages + operatorAskUserAnswers;
+  const status = humanInputs > 0 ? "engaged" : "unengaged";
   return {
-    exit: 3,
-    message: `Multiple candidate sessions for this cwd and no --match/--session/--all.
-` + candidates.map((c) => `  - ${c.sessionId} (${c.transcriptPath})`).join("\n") + `
-Re-run with --match <marker>, --session <id>, or --all.`
+    status,
+    engaged: status === "engaged",
+    recordCount: records.length,
+    genuineUserMessages,
+    operatorAskUserAnswers,
+    syntheticUserMessages,
+    assistantMessages,
+    realMessageCount,
+    hasAssistantAndUser: humanInputs > 0 && assistantMessages > 0,
+    bootstrapRecordIndexes: publicBootstrapIndexes(bootstrapRecordIndexes),
+    bootstrapRecordCount: bootstrapRecordIndexes.size
   };
 }
-async function gitBranch(cwd) {
-  try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["-C", cwd, "symbolic-ref", "--short", "HEAD"],
-      {
-        timeout: 5e3
-      }
-    );
-    const branch = stdout.trim();
-    return branch || null;
-  } catch {
-    return null;
-  }
+async function classifyTranscript(runtime, transcriptPath) {
+  const records = await readRecords(transcriptPath);
+  return classifyTranscriptRecords(runtime, records);
 }
-function utcStamp() {
-  return (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+function engagementCandidateFields(classification) {
+  return {
+    engagement: classification,
+    engagementStatus: classification.status,
+    engaged: classification.engaged,
+    recordCount: classification.recordCount,
+    genuineUserMessages: classification.genuineUserMessages,
+    assistantMessages: classification.assistantMessages,
+    realMessageCount: classification.realMessageCount,
+    hasAssistantAndUser: classification.hasAssistantAndUser,
+    bootstrapRecordCount: classification.bootstrapRecordCount
+  };
 }
-function sanitizeBranchForFilename(branch) {
-  return branch.replace(/\//g, "-");
-}
-async function isDirectory(p) {
-  try {
-    return (await stat(p)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-async function resolveOutputPath(opts, branch, session, multi) {
-  const base = branch ? sanitizeBranchForFilename(branch) : `${basename2(opts.cwd)}-${utcStamp()}`;
-  const fileName = multi ? `${base}-${session.sessionId}.md` : `${base}.md`;
-  if (opts.out) {
-    if (opts.out.endsWith("/") || await isDirectory(opts.out)) {
-      return join2(opts.out, fileName);
-    }
-    if (multi) return join2(opts.out, fileName);
-    return opts.out;
-  }
-  return join2(homedir2(), "Downloads", fileName);
-}
-var SANITIZE_NOTE = "Note: Only visible conversation. Ordinary tool calls, tool outputs, developer/system instructions, environment/AGENTS.md/skill payloads, and subagent notifications are excluded. Ask-user exchanges \u2014 the questions put to you and any answers the runtime recorded \u2014 are preserved as visible conversation.";
-function stripMarkerAndEmpty(entries) {
-  const out = [];
-  for (const entry of entries) {
-    let text = entry.text ?? "";
-    text = text.split(/\r?\n/).filter((line) => !MARKER_LINE_RE.test(line)).join("\n").trim();
-    if (!text) continue;
-    out.push({ ...entry, text });
-  }
-  return out;
-}
-function renderMarkdown({
-  branch,
-  source,
-  runtime,
-  entries,
-  branchFromGit
-}) {
-  const lines = [];
-  const title = branchFromGit ? branch : `${branch} (no git branch)`;
-  lines.push(`# Conversation History: ${title}`);
-  lines.push("");
-  lines.push(`Exported: ${(/* @__PURE__ */ new Date()).toISOString()}`);
-  lines.push(`Source: ${source}`);
-  lines.push(`Runtime: ${runtime}`);
-  lines.push(SANITIZE_NOTE);
-  lines.push("");
-  if (entries.length === 0) {
-    lines.push("*No visible messages.*");
-    lines.push("");
-    return lines.join("\n");
-  }
-  let i = 0;
-  while (i < entries.length) {
-    const role = entries[i].role;
-    const header = role === "user" ? "## User" : "## Assistant";
-    lines.push(header);
-    lines.push("");
-    while (i < entries.length && entries[i].role === role) {
-      lines.push(entries[i].text);
-      lines.push("");
-      i++;
-    }
-  }
-  return lines.join("\n");
-}
-async function exportSession(opts, runtime, branch, branchFromGit, session, multi) {
-  const records = await readRecords(session.transcriptPath);
-  const normalized = normalizeEntries(runtime, records, {});
-  const sanitized = sanitizeEntries(normalized, { runtime });
-  const entries = stripMarkerAndEmpty(sanitized);
-  const md = renderMarkdown({
-    branch: branch ?? basename2(opts.cwd),
-    branchFromGit,
-    source: session.transcriptPath,
-    runtime,
-    entries
-  });
-  const outPath = await resolveOutputPath(opts, branch, session, multi);
-  await mkdir(dirname2(outPath), { recursive: true });
-  await writeFile(outPath, md, "utf8");
-  return outPath;
-}
-async function main() {
-  const opts = parseCliArgs(process.argv.slice(2));
-  if (opts.help) {
-    console.log(HELP);
-    return 0;
-  }
-  let runtime;
-  try {
-    runtime = resolveRuntime(opts.runtime);
-  } catch (err) {
-    console.error(`[export-session-transcript] ${errorMessage(err)}`);
-    return 1;
-  }
-  if (!runtime) {
-    console.error(
-      "[export-session-transcript] Could not resolve runtime. Pass --runtime <claude-code|codex|cursor>."
-    );
-    return 1;
-  }
-  const requireCwd = !opts.match && !opts.session;
-  let candidates;
-  try {
-    candidates = await enumerateCandidates(runtime, opts.cwd, { requireCwd });
-  } catch (err) {
-    console.error(`[export-session-transcript] ${errorMessage(err)}`);
-    return 1;
-  }
-  if (candidates.length === 0) {
-    const [root] = discoverPaths(runtime);
-    console.error(
-      `[export-session-transcript] No ${runtime} transcripts found for cwd ${opts.cwd}.
-Looked under: ${root}
-Try --cwd <path> or confirm ${runtime} has run in this project.`
-    );
-    return 2;
-  }
-  const selection = await selectSessions(opts, candidates);
-  if ("exit" in selection) {
-    console.error(`[export-session-transcript] ${selection.message}`);
-    return selection.exit;
-  }
-  for (const warning of selection.warnings) {
-    console.error(`[export-session-transcript] warning: ${warning}`);
-  }
-  const branch = await gitBranch(opts.cwd);
-  const branchFromGit = branch !== null;
-  const multi = opts.all;
-  const written = [];
-  try {
-    for (const session of selection.selected) {
-      written.push(
-        await exportSession(
-          opts,
-          runtime,
-          branch,
-          branchFromGit,
-          session,
-          multi
-        )
-      );
-    }
-  } catch (err) {
-    console.error(
-      `[export-session-transcript] Failed to write output: ${errorMessage(err)}`
-    );
-    return 1;
-  }
-  for (const p of written) {
-    console.log(`[export-session-transcript] wrote ${p}`);
-  }
-  return 0;
-}
-main().then((code) => {
-  process.exit(code ?? 0);
-}).catch((err) => {
-  console.error(`[export-session-transcript] ${errorStackOrMessage(err)}`);
-  process.exit(1);
-});
+export {
+  classifyTranscript,
+  classifyTranscriptRecords,
+  engagementCandidateFields
+};

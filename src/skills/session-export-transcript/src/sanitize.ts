@@ -1,5 +1,5 @@
 /**
- * Export-owned content sanitizer for export-session-transcript.
+ * Export-owned content sanitizer for session-export-transcript.
  *
  * normalizeEntries (shared transcript-core) does structural filtering only: it
  * drops tool calls/results and Claude slash-command records. It does not

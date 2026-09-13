@@ -17,7 +17,10 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import ts from 'typescript';
 
-import { distributions } from '../src/distributions.js';
+import {
+  distributions,
+  obsoleteDistributionOutputs,
+} from '../src/distributions.js';
 import {
   buildDeclaredDistributions,
   checkDeclaredDistributions,
@@ -495,6 +498,9 @@ export async function checkGenerated(
   const root = options.repoRoot ?? repoRoot;
   const mappings = options.mappings ?? generatedOutputs;
   const declarations = options.declarations ?? distributions;
+  const obsoleteOutputs = options.declarations
+    ? []
+    : obsoleteDistributionOutputs;
   const failures: string[] = [];
 
   const declared = await buildDeclaredDistributions({
@@ -507,6 +513,18 @@ export async function checkGenerated(
     );
   } finally {
     await cleanupBuiltDistributions(declared);
+  }
+
+  for (const output of obsoleteOutputs) {
+    const exists = await lstat(path.join(root, output))
+      .then(() => true)
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return false;
+        throw error;
+      });
+    if (exists) {
+      failures.push(`${output}: obsolete generated output`);
+    }
   }
 
   for (const mapping of mappings) {
@@ -556,6 +574,9 @@ export async function writeGenerated(
   const root = options.repoRoot ?? repoRoot;
   const mappings = options.mappings ?? generatedOutputs;
   const declarations = options.declarations ?? distributions;
+  const obsoleteOutputs = options.declarations
+    ? []
+    : obsoleteDistributionOutputs;
   const log = options.log ?? console.log;
   const declared = await buildDeclaredDistributions({
     repoRoot: root,
@@ -586,6 +607,7 @@ export async function writeGenerated(
     await writeStagedOutputs({
       repoRoot: root,
       replacements: [...legacy, ...declared.map(describeBuiltDistribution)],
+      obsoleteOutputs,
       operations: options.operations,
       validateBeforeMutation: async () => {
         for (const mapping of mappings) {

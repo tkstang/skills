@@ -258,14 +258,14 @@ describe('experimental guidance CLI', () => {
   it('states that current Cursor discovery cannot produce selectable candidates', async () => {
     const skill = await readFile(
       new URL(
-        '../../../../skills/coding-session-handoff/SKILL.md',
+        '../../../../skills/session-fork-to-destination/SKILL.md',
         import.meta.url,
       ),
       'utf8',
     );
     const providerGuidance = await readFile(
       new URL(
-        '../../../../skills/coding-session-handoff/references/provider-guidance.md',
+        '../../../../skills/session-fork-to-destination/references/provider-guidance.md',
         import.meta.url,
       ),
       'utf8',
@@ -291,17 +291,19 @@ describe('experimental guidance CLI', () => {
   it('resolves every shipped command from the installed skill directory', async () => {
     const skill = await readFile(
       new URL(
-        '../../../../skills/coding-session-handoff/SKILL.md',
+        '../../../../skills/session-fork-to-destination/SKILL.md',
         import.meta.url,
       ),
       'utf8',
     );
 
     expect(skill).not.toContain(
-      'node skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      'node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
     );
     expect(
-      skill.match(/node <skill-dir>\/scripts\/coding-session-handoff\.mjs/gu),
+      skill.match(
+        /node <skill-dir>\/scripts\/session-fork-to-destination\.mjs/gu,
+      ),
     ).toHaveLength(4);
   });
 
@@ -584,7 +586,7 @@ describe('experimental guidance CLI', () => {
     const sourceDir = join(claudeProjects, source.replace(/[/.]/gu, '-'));
     const staleDir = join(claudeProjects, stale.replace(/[/.]/gu, '-'));
     const bundleUrl = new URL(
-      '../../../../skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      '../../../../skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
       import.meta.url,
     );
     const records = [
@@ -786,7 +788,7 @@ describe('experimental guidance CLI', () => {
     );
 
     const bundleUrl = new URL(
-      '../../../../skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      '../../../../skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
       import.meta.url,
     );
     const bundle = await readFile(bundleUrl, 'utf8');

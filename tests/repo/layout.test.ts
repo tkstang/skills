@@ -51,9 +51,9 @@ describe('repo-layout', () => {
       .toSorted();
 
     expect(standaloneSkills).toEqual([
-      'coding-session-handoff',
       'complexity-review',
-      'export-session-transcript',
+      'session-export-transcript',
+      'session-fork-to-destination',
       'session-observer',
       'session-observer-collab',
     ]);
@@ -69,14 +69,15 @@ describe('repo-layout', () => {
     }
   });
 
-  it('repository exposes standalone and consensus plugin layout', async () => {
+  it('repository exposes standalone, consensus, and session plugin layout', async () => {
     const requiredDirectories = [
       'skills',
       path.posix.join('skills', 'session-observer-collab'),
       path.posix.join('skills', 'session-observer-collab', 'references'),
       path.posix.join('skills', 'session-observer-collab', 'scripts'),
       path.posix.join('shared', 'transcript-core'),
-      path.posix.join('skills', 'export-session-transcript'),
+      path.posix.join('skills', 'session-export-transcript'),
+      path.posix.join('skills', 'session-fork-to-destination'),
       path.posix.join('plugins', 'consensus'),
       path.posix.join('plugins', 'consensus', 'skills'),
       path.posix.join('plugins', 'consensus', 'skills', 'refine'),
@@ -95,6 +96,13 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'consensus', '.claude-plugin'),
       path.posix.join('plugins', 'consensus', '.cursor-plugin'),
       path.posix.join('plugins', 'consensus', '.codex-plugin'),
+      path.posix.join('plugins', 'session'),
+      path.posix.join('plugins', 'session', 'skills'),
+      path.posix.join('plugins', 'session', 'skills', 'export-transcript'),
+      path.posix.join('plugins', 'session', 'skills', 'fork-to-destination'),
+      path.posix.join('plugins', 'session', '.claude-plugin'),
+      path.posix.join('plugins', 'session', '.cursor-plugin'),
+      path.posix.join('plugins', 'session', '.codex-plugin'),
       path.posix.join('src', 'plugins', 'consensus', 'core'),
       path.posix.join('src', 'skills', 'refine', 'src'),
       path.posix.join('src', 'shared', 'transcript'),
@@ -117,7 +125,7 @@ describe('repo-layout', () => {
     ).toBe(true);
     expect(
       await pathExists(
-        'src/skills/session-export-transcript/src/export-session-transcript.ts',
+        'src/skills/session-export-transcript/src/session-export-transcript.ts',
       ),
       'export CLI canonical source should live under src/skills/session-export-transcript',
     ).toBe(true);
@@ -300,5 +308,18 @@ describe('repo-layout', () => {
       skillFiles.filter((file) => file.endsWith('.ts')),
       'plugin skill distribution should not include TypeScript source files',
     ).toEqual([]);
+  });
+
+  it('removes superseded session product outputs and ships no source files', async () => {
+    expect(await pathExists('skills/export-session-transcript')).toBe(false);
+    expect(await pathExists('skills/coding-session-handoff')).toBe(false);
+
+    for (const distributionRoot of [
+      'skills/session-export-transcript',
+      'plugins/session',
+    ]) {
+      const files = await listFiles(distributionRoot);
+      expect(files.filter((file) => file.endsWith('.ts'))).toEqual([]);
+    }
   });
 });

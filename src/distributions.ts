@@ -23,6 +23,19 @@ export const pluginReleaseTargets: readonly PluginReleaseTarget[] = [
       '.agents/plugins/marketplace.json',
     ],
   },
+  {
+    name: 'session',
+    providerManifests: [
+      'plugins/session/.claude-plugin/plugin.json',
+      'plugins/session/.cursor-plugin/plugin.json',
+      'plugins/session/.codex-plugin/plugin.json',
+    ],
+    marketplaceManifests: [
+      '.claude-plugin/marketplace.json',
+      '.cursor-plugin/marketplace.json',
+      '.agents/plugins/marketplace.json',
+    ],
+  },
 ];
 
 // Authored owners declare their installation targets here as they migrate
@@ -72,6 +85,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         name: 'session-observer',
         output: 'skills/session-observer',
       },
+      {
+        kind: 'plugin',
+        plugin: 'consensus',
+        name: 'observer',
+        output: 'plugins/consensus/skills/observer',
+      },
     ],
   },
   {
@@ -94,6 +113,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         name: 'session-observer-collab',
         output: 'skills/session-observer-collab',
       },
+      {
+        kind: 'plugin',
+        plugin: 'consensus',
+        name: 'observer-collab',
+        output: 'plugins/consensus/skills/observer-collab',
+      },
     ],
   },
   {
@@ -103,8 +128,14 @@ export const distributions: readonly DistributionDeclaration[] = [
     targets: [
       {
         kind: 'standalone',
-        name: 'export-session-transcript',
-        output: 'skills/export-session-transcript',
+        name: 'session-export-transcript',
+        output: 'skills/session-export-transcript',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'export-transcript',
+        output: 'plugins/session/skills/export-transcript',
       },
     ],
   },
@@ -126,8 +157,14 @@ export const distributions: readonly DistributionDeclaration[] = [
     targets: [
       {
         kind: 'standalone',
-        name: 'coding-session-handoff',
-        output: 'skills/coding-session-handoff',
+        name: 'session-fork-to-destination',
+        output: 'skills/session-fork-to-destination',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'fork-to-destination',
+        output: 'plugins/session/skills/fork-to-destination',
       },
     ],
   },
@@ -139,3 +176,7 @@ export const legacySkillOwners = {
   'export-session-transcript': 'session-export-transcript',
   'coding-session-handoff': 'session-fork-to-destination',
 } as const;
+
+export const obsoleteDistributionOutputs = Object.freeze(
+  Object.keys(legacySkillOwners).map((name) => `skills/${name}`),
+);

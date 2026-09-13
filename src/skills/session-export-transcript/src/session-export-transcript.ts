@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * export-session-transcript.mjs — CLI entrypoint for the export-session-transcript skill.
+ * session-export-transcript.mjs — CLI entrypoint for the session-export-transcript skill.
  *
  * Exports the CURRENT agent conversation to a sanitized Markdown transcript,
  * named after the current git branch, written by default to ~/Downloads.
  *
  * Usage:
- *   node export-session-transcript.mjs [output-path] [flags]
+ *   node session-export-transcript.mjs [output-path] [flags]
  *
  *   --runtime <claude-code|codex|cursor|auto>  default: auto (env hint → auto-detect)
  *   --match <marker>      grep cwd candidates for this marker (current session)
@@ -29,7 +29,7 @@
  * Dependency-free: Node standard library only.
  *
  * Script resolution: invoked by absolute path; tests resolve it via
- * fileURLToPath(new URL('./export-session-transcript.mjs', import.meta.url)).
+ * fileURLToPath(new URL('./session-export-transcript.mjs', import.meta.url)).
  */
 
 import { execFile } from 'node:child_process';
@@ -143,10 +143,10 @@ function parseCliArgs(argv: string[]): CliOptions {
   };
 }
 
-const HELP = `export-session-transcript — export the current conversation to sanitized Markdown
+const HELP = `session-export-transcript — export the current conversation to sanitized Markdown
 
 Usage:
-  node export-session-transcript.mjs [output-path] [flags]
+  node session-export-transcript.mjs [output-path] [flags]
 
 Flags:
   --runtime <claude-code|codex|cursor|auto>  default: auto
@@ -611,12 +611,12 @@ async function main(): Promise<number> {
   try {
     runtime = resolveRuntime(opts.runtime);
   } catch (err) {
-    console.error(`[export-session-transcript] ${errorMessage(err)}`);
+    console.error(`[session-export-transcript] ${errorMessage(err)}`);
     return 1;
   }
   if (!runtime) {
     console.error(
-      '[export-session-transcript] Could not resolve runtime. Pass --runtime <claude-code|codex|cursor>.',
+      '[session-export-transcript] Could not resolve runtime. Pass --runtime <claude-code|codex|cursor>.',
     );
     return 1;
   }
@@ -632,14 +632,14 @@ async function main(): Promise<number> {
   try {
     candidates = await enumerateCandidates(runtime, opts.cwd, { requireCwd });
   } catch (err) {
-    console.error(`[export-session-transcript] ${errorMessage(err)}`);
+    console.error(`[session-export-transcript] ${errorMessage(err)}`);
     return 1;
   }
 
   if (candidates.length === 0) {
     const [root] = discoverPaths(runtime);
     console.error(
-      `[export-session-transcript] No ${runtime} transcripts found for cwd ${opts.cwd}.\n` +
+      `[session-export-transcript] No ${runtime} transcripts found for cwd ${opts.cwd}.\n` +
         `Looked under: ${root}\nTry --cwd <path> or confirm ${runtime} has run in this project.`,
     );
     return 2;
@@ -647,12 +647,12 @@ async function main(): Promise<number> {
 
   const selection = await selectSessions(opts, candidates);
   if ('exit' in selection) {
-    console.error(`[export-session-transcript] ${selection.message}`);
+    console.error(`[session-export-transcript] ${selection.message}`);
     return selection.exit;
   }
 
   for (const warning of selection.warnings) {
-    console.error(`[export-session-transcript] warning: ${warning}`);
+    console.error(`[session-export-transcript] warning: ${warning}`);
   }
 
   const branch = await gitBranch(opts.cwd);
@@ -675,13 +675,13 @@ async function main(): Promise<number> {
     }
   } catch (err) {
     console.error(
-      `[export-session-transcript] Failed to write output: ${errorMessage(err)}`,
+      `[session-export-transcript] Failed to write output: ${errorMessage(err)}`,
     );
     return 1;
   }
 
   for (const p of written) {
-    console.log(`[export-session-transcript] wrote ${p}`);
+    console.log(`[session-export-transcript] wrote ${p}`);
   }
   return 0;
 }
@@ -691,6 +691,6 @@ main()
     process.exit(code ?? 0);
   })
   .catch((err) => {
-    console.error(`[export-session-transcript] ${errorStackOrMessage(err)}`);
+    console.error(`[session-export-transcript] ${errorStackOrMessage(err)}`);
     process.exit(1);
   });

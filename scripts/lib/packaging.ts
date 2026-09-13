@@ -927,6 +927,7 @@ async function validateMutationPath(
 export async function writeStagedOutputs(options: {
   repoRoot: string;
   replacements: readonly StagedReplacement[];
+  obsoleteOutputs?: readonly string[];
   operations?: PackagingOperations;
   validateBeforeMutation?: () => Promise<void>;
 }): Promise<void> {
@@ -948,11 +949,31 @@ export async function writeStagedOutputs(options: {
     outputs.push(output);
     await validateStagedReplacement(replacement);
   }
+  for (const candidate of options.obsoleteOutputs ?? []) {
+    const output = assertRelativePath(candidate, 'obsolete generated output');
+    if (
+      outputs.some(
+        (prior) =>
+          prior === output ||
+          prior.startsWith(`${output}/`) ||
+          output.startsWith(`${prior}/`),
+      )
+    ) {
+      fail(`output collision: ${output}`);
+    }
+    outputs.push(output);
+  }
 
   const entries = await Promise.all(
-    options.replacements.map(async (replacement) => {
+    [
+      ...options.replacements.map((replacement) => ({ replacement })),
+      ...(options.obsoleteOutputs ?? []).map((output) => ({
+        replacement: null,
+        output,
+      })),
+    ].map(async (candidate) => {
       const outputRelative = assertRelativePath(
-        replacement.output,
+        'output' in candidate ? candidate.output : candidate.replacement.output,
         'generated output',
       );
       const output = await validateMutationPath(
@@ -972,7 +993,7 @@ export async function writeStagedOutputs(options: {
         `backup ${outputRelative}`,
       );
       return {
-        replacement,
+        replacement: candidate.replacement,
         outputRelative,
         output,
         backupRelative,
@@ -1019,12 +1040,14 @@ export async function writeStagedOutputs(options: {
       }
     }
     for (const entry of entries) {
+      const replacement = entry.replacement;
+      if (!replacement) continue;
       await validateMutationPath(
         repoRoot,
         entry.outputRelative,
         `output ${entry.outputRelative}`,
       );
-      await operations.rename(entry.replacement.stagedPath, entry.output);
+      await operations.rename(replacement.stagedPath, entry.output);
       entry.installed = true;
     }
   } catch (error) {
@@ -1107,11 +1130,13 @@ export async function writeStagedOutputs(options: {
 export async function writeDeclaredDistributions(options: {
   repoRoot: string;
   built: readonly BuiltDistribution[];
+  obsoleteOutputs?: readonly string[];
   operations?: PackagingOperations;
 }): Promise<void> {
   await writeStagedOutputs({
     repoRoot: options.repoRoot,
     replacements: options.built.map(describeBuiltDistribution),
+    obsoleteOutputs: options.obsoleteOutputs,
     operations: options.operations,
     validateBeforeMutation: () => validateBuiltDistributions(options),
   });

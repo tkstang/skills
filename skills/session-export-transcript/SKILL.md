@@ -1,5 +1,5 @@
 ---
-name: export-session-transcript
+name: session-export-transcript
 description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized branch-named Markdown file (default ~/Downloads).
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
@@ -9,10 +9,10 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '1.0.12'
+  version: '2.0.0'
 ---
 
-# export-session-transcript
+# session-export-transcript
 
 Exports the **current** conversation (yours — Claude Code, Codex, or Cursor) to a
 sanitized Markdown transcript, named after the current git branch, written by
@@ -42,7 +42,7 @@ unrecorded.
 | --------------------------------------------------------- | ------------------------- |
 | `export this session transcript`                          | the marker workflow below |
 | `save the conversation as markdown` / `save this chat`    | the marker workflow below |
-| `download our conversation` / `export-session-transcript` | the marker workflow below |
+| `download our conversation` / `session-export-transcript` | the marker workflow below |
 | `export all my sessions in this project`                  | add `--all`               |
 | `export session <id>`                                     | add `--session <id>`      |
 
@@ -75,12 +75,12 @@ it land in the transcript store on the next flush.
 ### Step 2: Invoke the CLI with your runtime and the marker
 
 ```bash
-node <skill-dir>/scripts/export-session-transcript.mjs \
+node <skill-dir>/scripts/session-export-transcript.mjs \
   --runtime <self> --match a3f9c1e0d2b4
 ```
 
 where `<self>` is the runtime you are running as (`claude-code`, `codex`, or
-`cursor`), and `<skill-dir>` is `skills/export-session-transcript` in this repo or
+`cursor`), and `<skill-dir>` is the directory containing this installed skill or
 the installed path on the user's machine. If you cannot determine your own runtime,
 omit `--runtime` (it defaults to `auto`, using an env hint then best-effort
 auto-detect).

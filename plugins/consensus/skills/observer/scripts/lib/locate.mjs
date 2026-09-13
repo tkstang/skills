@@ -1,8 +1,21 @@
-#!/usr/bin/env node
-// GENERATED skill payload for session-fork-to-destination.
+// GENERATED skill payload for session-observer.
 
-// src/skills/session-fork-to-destination/src/guidance-cli.ts
-import { realpath as realpath4 } from "node:fs/promises";
+// src/skills/session-observer/src/lib/locate.ts
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import {
+  opendir,
+  stat,
+  mkdir,
+  readFile as readFile2,
+  realpath,
+  rename,
+  open as open2,
+  unlink
+} from "node:fs/promises";
+import { homedir as homedir2 } from "node:os";
+import { join as join2, basename as basename2, isAbsolute as isAbsolute2, relative, resolve } from "node:path";
+import { promisify } from "node:util";
 
 // src/shared/transcript/runtimes.ts
 import { open, readFile } from "node:fs/promises";
@@ -458,39 +471,6 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     incomplete: window.fileSize > window.buffer.length || parsed.incomplete,
     bytesRead: window.buffer.length,
     recordsInspected: parsed.recordsInspected
-  };
-}
-async function readTailRecordsBounded(transcriptPath, options) {
-  validateBoundedReadOptions(options);
-  const deadline = deadlineAt(options);
-  const window = await readBoundedWindow(
-    transcriptPath,
-    options,
-    "tail",
-    deadline
-  );
-  if (window === null) {
-    return {
-      records: [],
-      truncated: false,
-      bytesRead: 0,
-      recordsInspected: 0
-    };
-  }
-  const parsed = parseBoundedLines(
-    window.buffer,
-    options,
-    deadline,
-    "tail",
-    window.offset > 0,
-    false
-  );
-  return {
-    records: parsed.records,
-    truncated: window.offset > 0 || parsed.incomplete,
-    bytesRead: window.buffer.length,
-    recordsInspected: parsed.recordsInspected,
-    ...parsed.recordLimitExceeded ? { recordLimitExceeded: true } : {}
   };
 }
 async function readRecords(transcriptPath) {
@@ -1113,23 +1093,6 @@ function normalizeEntries(runtime, records, opts = {}) {
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
-// src/skills/session-observer/src/lib/locate.ts
-import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import {
-  opendir,
-  stat,
-  mkdir,
-  readFile as readFile2,
-  realpath,
-  rename,
-  open as open2,
-  unlink
-} from "node:fs/promises";
-import { homedir as homedir2 } from "node:os";
-import { join as join2, basename as basename2, isAbsolute as isAbsolute2, relative, resolve } from "node:path";
-import { promisify } from "node:util";
-
 // src/skills/session-observer/src/lib/session-classifier.ts
 function textStart(text) {
   return String(text ?? "").trimStart();
@@ -1263,6 +1226,8 @@ var EXACT_ALL_DISCOVERY_BUDGET = {
   deadlineMs: 3e4
 };
 var EXACT_ALL_METADATA_MAX_RECORDS = 128;
+var CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 2e4;
+var CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2e3;
 var CURSOR_DISCOVERY_MAX_ENTRIES = 2e4;
 var CURSOR_DISCOVERY_MAX_ELAPSED_MS = 2e3;
 var CURSOR_DISCOVERY_MAX_BYTES = 64 * 1024 * 1024;
@@ -1334,6 +1299,9 @@ var CursorDiscoveryError = class extends Error {
   }
 };
 var cursorDiscoveryTestOptions;
+function configureCursorDiscoveryForTest(options) {
+  cursorDiscoveryTestOptions = options;
+}
 var CursorDiscoveryBudget = class {
   maxEntries;
   maxElapsedMs;
@@ -1732,6 +1700,22 @@ async function discoverClaudeCode(targetCwd, cache, options) {
   }
   return candidates;
 }
+async function claudeCodeLookupDiagnostics(targetCwd) {
+  const [projectsRoot] = discoverPaths("claude-code");
+  const diagnostics = [];
+  for (const encoded of encodeCwdVariants("claude-code", targetCwd)) {
+    const path = join2(projectsRoot, encoded);
+    let exists = false;
+    try {
+      const s = await stat(path);
+      exists = s.isDirectory();
+    } catch {
+      exists = false;
+    }
+    diagnostics.push({ encoded, path, exists });
+  }
+  return diagnostics;
+}
 async function collectJsonlFiles(dir, budget = null) {
   const results = [];
   let entries;
@@ -2068,6 +2052,119 @@ async function discoverCursor(targetCwd, cache, options) {
   }
   return candidates;
 }
+async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
+  const [projectsRoot] = discoverPaths("cursor");
+  const normalizedTargetCwd = resolve(targetCwd);
+  const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants("cursor", canonicalTargetCwd)
+  );
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants("cursor", normalizedTargetCwd)
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: "direct-parent-dir"
+    })),
+    ...[...rawEncodedVariants].filter((encoded) => !canonicalEncodedVariants.has(encoded)).map((encoded) => ({
+      encoded,
+      cwdEvidence: suppliedCwdIsAlias ? "raw-cwd-alias" : "direct-parent-dir"
+    }))
+  ];
+  const directEvidence = new Map(
+    directVariants.map(({ encoded, cwdEvidence }) => [encoded, cwdEvidence])
+  );
+  const now = Date.now() / 1e3;
+  const cutoffSec = now - LOOKBACK_DAYS * 86400;
+  const candidates = [];
+  const seenTranscripts = /* @__PURE__ */ new Set();
+  const pinnedBudget = new CursorDiscoveryBudget({
+    maxEntries: cursorDiscoveryTestOptions?.maxEntries ?? CURSOR_IDENTITY_INDEX_MAX_ENTRIES,
+    maxElapsedMs: cursorDiscoveryTestOptions?.maxElapsedMs ?? CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS,
+    maxBytes: Number.MAX_SAFE_INTEGER,
+    maxRetainedCandidates: Number.MAX_SAFE_INTEGER,
+    now: cursorDiscoveryTestOptions?.now
+  });
+  let projectDirs;
+  try {
+    projectDirs = await opendir(projectsRoot);
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+    }
+    return candidates;
+  }
+  try {
+    for await (const projectDir of projectDirs) {
+      pinnedBudget.consumeEntry();
+      if (!projectDir.isDirectory()) continue;
+      const cwdEvidence = directEvidence.get(projectDir.name);
+      const transcriptsRoot = join2(
+        projectsRoot,
+        projectDir.name,
+        "agent-transcripts"
+      );
+      for await (const transcriptPath of collectCursorAgentTranscripts(
+        transcriptsRoot,
+        // Pinned lookup filters by path before classification. Its aggregate
+        // metadata walk is finite and fails visibly if uniqueness cannot be
+        // established within the same entry/time envelope as identity indexing.
+        pinnedBudget,
+        sessionId,
+        true
+      )) {
+        const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
+        if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+        seenTranscripts.add(canonicalTranscriptPath);
+        let fileStat;
+        try {
+          fileStat = await stat(transcriptPath);
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+        }
+        const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
+        if (cwdEvidence === void 0 && mtime < cutoffSec) continue;
+        const candidate = await cursorCandidate(
+          transcriptPath,
+          now,
+          {
+            recordedCwd: cwdEvidence === void 0 ? null : targetCwd,
+            cwdSlug: projectDir.name,
+            cwdEvidence: cwdEvidence ?? "project-dir-slug",
+            cwdEvidenceQuality: cwdEvidence === void 0 ? "diagnostic" : "caller-derived-lossy"
+          },
+          fileStat,
+          cache,
+          pinnedBudget
+        );
+        if (candidate?.sessionId === sessionId) candidates.push(candidate);
+      }
+    }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError) throw error;
+    throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+  }
+  return candidates;
+}
+function cursorCwdEvidence(candidate) {
+  if (candidate.cwdEvidence === "store-metadata") return "store-metadata";
+  if (candidate.cwdEvidence === "harness-environment") {
+    return "harness-environment";
+  }
+  if (candidate.cwdEvidence === "direct-parent-dir") {
+    return "direct-project-root";
+  }
+  return "fallback-slug";
+}
+function pathIsWithin(root, candidate) {
+  const relativePath = relative(root, candidate);
+  return relativePath === "" || !relativePath.startsWith(
+    `..${process.platform === "win32" ? "\\" : "/"}`
+  ) && relativePath !== ".." && !isAbsolute2(relativePath);
+}
 async function canonicalPath(path) {
   try {
     return await realpath(path);
@@ -2082,6 +2179,215 @@ function cursorSessionIdFromTranscriptPath(transcriptPath) {
   const transcriptBase = basename2(transcriptPath).replace(/\.jsonl$/u, "");
   return transcriptBase && !["transcript", "conversation", "messages"].includes(transcriptBase) ? transcriptBase : basename2(join2(transcriptPath, ".."));
 }
+async function cursorSessionCanonicalPaths(sessionId, options = {}) {
+  const [projectsRoot] = discoverPaths("cursor");
+  const canonicalPaths = /* @__PURE__ */ new Set();
+  const maxEntries = options.maxEntries ?? CURSOR_IDENTITY_INDEX_MAX_ENTRIES;
+  const maxElapsedMs = options.maxElapsedMs ?? CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  let entryCount = 0;
+  const budgetFailure = (consumeEntry = false) => {
+    if (now() - startedAt > maxElapsedMs) {
+      return "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED";
+    }
+    if (consumeEntry) {
+      entryCount += 1;
+      if (entryCount > maxEntries) {
+        return "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED";
+      }
+    }
+    return null;
+  };
+  let projects;
+  try {
+    projects = await opendir(projectsRoot);
+  } catch (error) {
+    return {
+      canonicalPaths,
+      failure: isMissingPathError(error) ? null : "IDENTITY_INDEX_INCOMPLETE"
+    };
+  }
+  try {
+    for await (const projectDir of projects) {
+      let failure = budgetFailure(true);
+      if (failure) return { canonicalPaths, failure };
+      if (!projectDir.isDirectory()) continue;
+      let sessions;
+      try {
+        sessions = await opendir(
+          join2(projectsRoot, projectDir.name, "agent-transcripts")
+        );
+      } catch (error) {
+        if (isMissingPathError(error)) continue;
+        return {
+          canonicalPaths,
+          failure: "IDENTITY_INDEX_INCOMPLETE"
+        };
+      }
+      failure = budgetFailure();
+      if (failure) return { canonicalPaths, failure };
+      for await (const sessionDir of sessions) {
+        failure = budgetFailure(true);
+        if (failure) return { canonicalPaths, failure };
+        if (!sessionDir.isDirectory()) continue;
+        let transcripts;
+        try {
+          transcripts = await opendir(
+            join2(
+              projectsRoot,
+              projectDir.name,
+              "agent-transcripts",
+              sessionDir.name
+            )
+          );
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          return {
+            canonicalPaths,
+            failure: "IDENTITY_INDEX_INCOMPLETE"
+          };
+        }
+        failure = budgetFailure();
+        if (failure) return { canonicalPaths, failure };
+        for await (const entry of transcripts) {
+          failure = budgetFailure(true);
+          if (failure) return { canonicalPaths, failure };
+          if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+          const transcriptPath = join2(
+            projectsRoot,
+            projectDir.name,
+            "agent-transcripts",
+            sessionDir.name,
+            entry.name
+          );
+          if (cursorSessionIdFromTranscriptPath(transcriptPath) !== sessionId) {
+            continue;
+          }
+          let canonicalTranscriptPath;
+          try {
+            canonicalTranscriptPath = await realpath(transcriptPath);
+          } catch (error) {
+            if (isMissingPathError(error)) continue;
+            return {
+              canonicalPaths,
+              failure: "IDENTITY_INDEX_INCOMPLETE"
+            };
+          }
+          canonicalPaths.add(canonicalTranscriptPath);
+          failure = budgetFailure();
+          if (failure) return { canonicalPaths, failure };
+        }
+      }
+    }
+  } catch {
+    return { canonicalPaths, failure: "IDENTITY_INDEX_INCOMPLETE" };
+  }
+  return { canonicalPaths, failure: null };
+}
+async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId, indexOptions) {
+  if (candidate.runtime !== "cursor") {
+    throw new TypeError("resolveCursorIdentity requires a Cursor candidate");
+  }
+  const cwdEvidence = [cursorCwdEvidence(candidate)];
+  const sessionEvidence = ["transcript-path"];
+  const reasons = [];
+  const requestedCanonicalCwd = await canonicalPath(requestedCwd);
+  const resolvedTranscriptPath = await canonicalPath(candidate.transcriptPath);
+  const storeRoot = join2(homedir2(), ".cursor", "projects");
+  const resolvedStoreRoot = await canonicalPath(storeRoot);
+  const canonicalCwd = requestedCanonicalCwd ?? requestedCwd.replace(/\/+$/u, "");
+  const canonicalTranscriptPath = resolvedTranscriptPath ?? candidate.transcriptPath;
+  const canonicalStoreRoot = resolvedStoreRoot ?? storeRoot;
+  if (requestedCanonicalCwd === null) {
+    reasons.push("CWD_CANONICALIZATION_FAILED");
+  }
+  if (resolvedTranscriptPath === null) {
+    reasons.push("TRANSCRIPT_CANONICALIZATION_FAILED");
+  }
+  if (resolvedStoreRoot === null) {
+    reasons.push("STORE_ROOT_CANONICALIZATION_FAILED");
+  }
+  if (resolvedStoreRoot !== null && resolvedTranscriptPath !== null && !pathIsWithin(canonicalStoreRoot, canonicalTranscriptPath)) {
+    reasons.push("PATH_OUTSIDE_SUPPORTED_ROOT");
+  }
+  const canonicalRecordedCwd = candidate.recordedCwd ? await canonicalPath(candidate.recordedCwd) : null;
+  if (candidate.recordedCwd && canonicalRecordedCwd === null) {
+    reasons.push("RECORDED_CWD_CANONICALIZATION_FAILED");
+  }
+  if (candidate.cwdEvidence === "raw-cwd-alias") {
+    reasons.push("RAW_CWD_ALIAS_DIAGNOSTIC_ONLY");
+  }
+  if (canonicalRecordedCwd !== null && canonicalRecordedCwd !== canonicalCwd) {
+    reasons.push("CANDIDATE_CWD_MISMATCH");
+  }
+  if (expectedSessionId !== void 0) {
+    sessionEvidence.unshift("explicit-pin");
+    if (expectedSessionId !== candidate.sessionId) {
+      reasons.push("IDENTITY_MISMATCH");
+    }
+  }
+  const harnessSessionId = process.env.CURSOR_SESSION_ID?.trim();
+  if (harnessSessionId) {
+    sessionEvidence.splice(
+      expectedSessionId === void 0 ? 0 : 1,
+      0,
+      "harness-environment"
+    );
+    cwdEvidence.push("harness-environment");
+    if (harnessSessionId !== candidate.sessionId) {
+      reasons.push("HARNESS_SESSION_MISMATCH");
+    }
+  }
+  const identityIndex = await cursorSessionCanonicalPaths(
+    candidate.sessionId,
+    indexOptions
+  );
+  const distinctPaths = identityIndex.canonicalPaths;
+  distinctPaths.add(canonicalTranscriptPath);
+  if (identityIndex.failure) reasons.push(identityIndex.failure);
+  if (distinctPaths.size > 1) {
+    reasons.push("DUPLICATE_SESSION_CANDIDATES");
+  }
+  const cwdSource = cwdEvidence[0];
+  const cwdMatches = canonicalRecordedCwd === canonicalCwd && cwdSource !== "fallback-slug";
+  const independentStoreCwd = cwdSource === "store-metadata";
+  const exactSessionSignal = expectedSessionId !== void 0 && expectedSessionId === candidate.sessionId || harnessSessionId === candidate.sessionId || independentStoreCwd;
+  const hardFailure = reasons.some(
+    (reason) => [
+      "PATH_OUTSIDE_SUPPORTED_ROOT",
+      "CANDIDATE_CWD_MISMATCH",
+      "IDENTITY_MISMATCH",
+      "HARNESS_SESSION_MISMATCH",
+      "DUPLICATE_SESSION_CANDIDATES",
+      "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_INCOMPLETE"
+    ].includes(reason)
+  );
+  const canonicalIdentityReady = requestedCanonicalCwd !== null && resolvedTranscriptPath !== null && resolvedStoreRoot !== null && (candidate.recordedCwd === null || canonicalRecordedCwd !== null);
+  let strength;
+  if (hardFailure) {
+    strength = "ambiguous";
+  } else if (canonicalIdentityReady && cwdMatches && exactSessionSignal) {
+    strength = "exact";
+  } else {
+    strength = "diagnostic";
+    if (!cwdMatches) reasons.push("WEAK_CWD_EVIDENCE");
+    if (!exactSessionSignal) reasons.push("SESSION_SIGNAL_REQUIRED");
+  }
+  return {
+    runtime: "cursor",
+    sessionId: candidate.sessionId,
+    projectCwd: canonicalCwd,
+    canonicalCwd,
+    canonicalTranscriptPath,
+    cwdEvidence,
+    sessionEvidence,
+    strength,
+    reasons
+  };
+}
 async function discover(runtime, targetCwd, cache = new ClassificationCache(), options) {
   if (runtime === "claude-code") {
     return discoverClaudeCode(targetCwd, cache, options);
@@ -2090,1158 +2396,51 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
   if (runtime === "cursor") return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
-
-// src/skills/session-fork-to-destination/src/guidance-discovery.ts
-import { realpath as realpath2 } from "node:fs/promises";
-var GUIDANCE_DISCOVERY_OPTIONS = Object.freeze({
-  persistence: "forbid",
-  recency: "exact-all",
-  budget: Object.freeze({
-    maxEntries: 5e4,
-    maxAggregateBytes: 512 * 1024 * 1024,
-    maxMetadataBytesPerEntry: 256 * 1024,
-    deadlineMs: 3e4
-  })
-});
-var GuidanceDiscoveryError = class extends Error {
-  constructor(code, provider2, reason) {
-    super(code);
-    this.code = code;
-    this.provider = provider2;
-    this.reason = reason;
-    this.name = "GuidanceDiscoveryError";
-  }
-  code;
-  provider;
-  reason;
-};
-var RUNTIME_BY_PROVIDER = {
-  claude: "claude-code",
-  codex: "codex",
-  cursor: "cursor"
-};
-var LOCATOR_FAILURE_REASONS = /* @__PURE__ */ new Set([
-  "CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED",
-  "CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED",
-  "CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED",
-  "CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED",
-  "IDENTITY_INDEX_INCOMPLETE",
-  "DISCOVERY_ENTRY_BUDGET_EXCEEDED",
-  "DISCOVERY_BYTE_BUDGET_EXCEEDED",
-  "DISCOVERY_DEADLINE_EXCEEDED",
-  "DISCOVERY_ENUMERATION_INCOMPLETE",
-  "DISCOVERY_TRANSCRIPT_INCOMPLETE"
-]);
-function locatorFailureReason(error) {
-  if (error !== null && typeof error === "object") {
-    const code = error.code;
-    if (typeof code === "string" && LOCATOR_FAILURE_REASONS.has(code)) {
-      return code;
-    }
-  }
-  return "provider-discovery-failed";
+async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
+  const cache = new ClassificationCache();
+  const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
+  const matches = candidates.filter(
+    (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
+  );
+  return matches.length === 1 ? matches[0] : null;
 }
-var DEFAULT_DEPENDENCIES = {
+async function findNewerSameCwdCandidates(runtime, targetCwd, watched, cache = new ClassificationCache()) {
+  const candidates = await discover(runtime, targetCwd, cache);
+  return candidates.filter(
+    (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId !== watched.sessionId && candidate.transcriptPath !== watched.transcriptPath && candidate.mtime > watched.mtime
+  ).toSorted(
+    (left, right) => right.mtime - left.mtime || left.transcriptPath.localeCompare(right.transcriptPath)
+  );
+}
+async function gitWorktrees(cwd) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", cwd, "worktree", "list", "--porcelain"],
+      {
+        timeout: 5e3
+      }
+    );
+    const paths = [];
+    for (const line of stdout.split("\n")) {
+      if (line.startsWith("worktree ")) {
+        paths.push(line.slice("worktree ".length).trim());
+      }
+    }
+    return paths;
+  } catch {
+    return [];
+  }
+}
+export {
+  ClassificationCache,
+  CursorDiscoveryError,
+  SessionDiscoveryError,
+  claudeCodeLookupDiagnostics,
+  configureCursorDiscoveryForTest,
   discover,
-  canonicalize: async (path) => realpath2(path).catch(() => null),
-  readCodexNativeId: readGuidanceCodexNativeId
+  findNewerSameCwdCandidates,
+  findSessionCandidate,
+  gitWorktrees,
+  resolveCursorIdentity
 };
-async function readGuidanceCodexNativeId(candidate) {
-  let sourceIssue = false;
-  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
-    maxBytes: GUIDANCE_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
-    maxRecords: 128,
-    diagnostic: () => {
-      sourceIssue = true;
-    }
-  });
-  if (sourceIssue) return null;
-  const meta = extractMetaFromRecords(
-    "codex",
-    bounded.records,
-    candidate.transcriptPath
-  );
-  if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
-    return null;
-  }
-  return meta.nativeSessionId;
-}
-function surfaceForCandidate(provider2) {
-  return provider2 === "cursor" ? { surface: "ambiguous", originEvidence: "store-origin-ambiguous" } : { surface: "cli", originEvidence: "cli-transcript" };
-}
-function compareKeys(left, right) {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-async function discoverGuidance(sourcePath, options = {}) {
-  const deps = options.deps ?? DEFAULT_DEPENDENCIES;
-  const sourceCanonical = await deps.canonicalize(sourcePath).catch(() => null);
-  if (sourceCanonical === null)
-    throw new GuidanceDiscoveryError("source-unavailable");
-  const providers = [...options.providers ?? ["claude", "codex", "cursor"]];
-  if (providers.length === 0 || new Set(providers).size !== providers.length || providers.some((provider2) => !(provider2 in RUNTIME_BY_PROVIDER))) {
-    throw new GuidanceDiscoveryError(
-      "discovery-incomplete",
-      void 0,
-      "invalid-provider-selection"
-    );
-  }
-  const projected = [];
-  const unattributable = /* @__PURE__ */ new Map();
-  for (const provider2 of providers.toSorted()) {
-    let transcripts;
-    try {
-      transcripts = await deps.discover(
-        RUNTIME_BY_PROVIDER[provider2],
-        sourceCanonical,
-        new ClassificationCache(),
-        provider2 === "cursor" ? GUIDANCE_DISCOVERY_OPTIONS : {
-          ...GUIDANCE_DISCOVERY_OPTIONS,
-          unattributablePolicy: "summarize",
-          unattributable: ({ reason }) => {
-            const reasons = unattributable.get(provider2) ?? /* @__PURE__ */ new Map();
-            reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
-            unattributable.set(provider2, reasons);
-          }
-        }
-      );
-    } catch (error) {
-      throw new GuidanceDiscoveryError(
-        "discovery-incomplete",
-        provider2,
-        locatorFailureReason(error)
-      );
-    }
-    for (const transcript of transcripts) {
-      if (provider2 === "cursor" && transcript.cwdEvidenceQuality !== "independent-exact") {
-        throw new GuidanceDiscoveryError(
-          "discovery-incomplete",
-          provider2,
-          "cwd-evidence-incomplete"
-        );
-      }
-      if (transcript.runtime !== RUNTIME_BY_PROVIDER[provider2])
-        throw new GuidanceDiscoveryError(
-          "discovery-incomplete",
-          provider2,
-          "candidate-invalid"
-        );
-      if (transcript.recordedCwd === null)
-        throw new GuidanceDiscoveryError(
-          "discovery-incomplete",
-          provider2,
-          "cwd-missing"
-        );
-      const recordedCwd = await deps.canonicalize(transcript.recordedCwd).catch(() => null);
-      if (recordedCwd === null && provider2 !== "cursor") {
-        const reasons = unattributable.get(provider2) ?? /* @__PURE__ */ new Map();
-        reasons.set(
-          "cwd-unresolvable",
-          (reasons.get("cwd-unresolvable") ?? 0) + 1
-        );
-        unattributable.set(provider2, reasons);
-        continue;
-      }
-      if (recordedCwd === null)
-        throw new GuidanceDiscoveryError(
-          "discovery-incomplete",
-          provider2,
-          "cwd-unresolvable"
-        );
-      if (recordedCwd !== sourceCanonical) continue;
-      const nativeId = provider2 === "codex" ? await deps.readCodexNativeId(transcript).catch(() => null) : transcript.sessionId;
-      if (nativeId === null || nativeId.length === 0) {
-        throw new GuidanceDiscoveryError(
-          "discovery-incomplete",
-          provider2,
-          "native-id-missing"
-        );
-      }
-      const surface = surfaceForCandidate(provider2);
-      projected.push({
-        key: `${provider2}:${surface.surface}:${nativeId}`,
-        provider: provider2,
-        surface: surface.surface,
-        nativeId,
-        recordedCwd,
-        modifiedAtMs: transcript.mtime * 1e3,
-        size: transcript.size,
-        engagement: transcript.engagementStatus,
-        originEvidence: surface.originEvidence
-      });
-    }
-  }
-  const byKey = /* @__PURE__ */ new Map();
-  for (const candidate of projected) {
-    const existing = byKey.get(candidate.key);
-    if (existing !== void 0 && JSON.stringify(existing) !== JSON.stringify(candidate)) {
-      throw new GuidanceDiscoveryError(
-        "discovery-incomplete",
-        candidate.provider,
-        "candidate-conflict"
-      );
-    }
-    byKey.set(candidate.key, candidate);
-  }
-  return {
-    candidates: [...byKey.values()].toSorted(
-      (left, right) => compareKeys(left.key, right.key)
-    ),
-    unattributable: [...unattributable.entries()].toSorted(([left], [right]) => compareKeys(left, right)).map(([provider2, reasons]) => ({
-      provider: provider2,
-      reasons: [...reasons.entries()].toSorted(([left], [right]) => compareKeys(left, right)).map(([code, count]) => ({ code, count }))
-    }))
-  };
-}
-async function discoverGuidanceCandidates(sourcePath, options = {}) {
-  return (await discoverGuidance(sourcePath, options)).candidates;
-}
-function selectGuidanceCandidate(candidates, key) {
-  const matches = candidates.filter((candidate) => candidate.key === key);
-  if (matches.length !== 1)
-    throw new GuidanceDiscoveryError("invalid-selection");
-  return matches[0];
-}
-
-// src/skills/session-fork-to-destination/src/git-target.ts
-import { execFile as nodeExecFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { realpath as nodeRealpath } from "node:fs/promises";
-import { promisify as promisify2 } from "node:util";
-var execFileAsync2 = promisify2(nodeExecFile);
-var DEFAULT_TIMEOUT_MS = 5e3;
-var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
-var GitTargetError = class extends Error {
-  code;
-  role;
-  constructor(code, role) {
-    super(code);
-    this.name = "GitTargetError";
-    this.code = code;
-    this.role = role;
-  }
-};
-var DEFAULT_DEPENDENCIES2 = {
-  realpath: nodeRealpath,
-  execFile: async (executable, argv, options) => {
-    const result = await execFileAsync2(executable, [...argv], options);
-    return { stdout: result.stdout, stderr: result.stderr };
-  }
-};
-function errorProperty(error, key) {
-  if (error === null || typeof error !== "object") return void 0;
-  return error[key];
-}
-function mapGitError(error, operation) {
-  const code = errorProperty(error, "code");
-  if (code === "ETIMEDOUT" || errorProperty(error, "killed") === true || errorProperty(error, "signal") === "SIGTERM") {
-    throw new GitTargetError("git-timeout");
-  }
-  if (code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
-    throw new GitTargetError(
-      operation === "status" ? "status-oversized" : "git-output-oversized"
-    );
-  }
-  throw new GitTargetError("not-worktree");
-}
-function resolveOptions(options) {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-    throw new TypeError("timeoutMs must be a positive safe integer");
-  }
-  if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes <= 0) {
-    throw new TypeError("maxOutputBytes must be a positive safe integer");
-  }
-  return {
-    timeoutMs,
-    maxOutputBytes,
-    deps: options.deps ?? DEFAULT_DEPENDENCIES2
-  };
-}
-async function git(cwd, argv, options, operation = "other") {
-  try {
-    const result = await options.deps.execFile("git", ["-C", cwd, ...argv], {
-      timeout: options.timeoutMs,
-      maxBuffer: options.maxOutputBytes,
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true
-    });
-    return result.stdout;
-  } catch (error) {
-    mapGitError(error, operation);
-  }
-}
-async function canonicalize(path, deps, failure) {
-  try {
-    return await deps.realpath(path);
-  } catch {
-    throw new GitTargetError(failure);
-  }
-}
-function oneLine(output) {
-  const value = output.trim();
-  if (value.length === 0 || value.includes("\n") || value.includes("\0")) {
-    throw new GitTargetError("not-worktree");
-  }
-  return value;
-}
-function pathOutputValue(output) {
-  if (!output.endsWith("\n") || output.includes("\0")) {
-    throw new GitTargetError("not-worktree");
-  }
-  const value = output.slice(0, -1);
-  if (value.length === 0) throw new GitTargetError("not-worktree");
-  return value;
-}
-function registeredWorktreePaths(output) {
-  return output.split("\0").filter((field) => field.startsWith("worktree ")).map((field) => field.slice("worktree ".length));
-}
-async function inspectWorktree(requestedPath, targetOptions = {}) {
-  const options = resolveOptions(targetOptions);
-  const canonicalPath2 = await canonicalize(
-    requestedPath,
-    options.deps,
-    "path-missing"
-  );
-  const rawWorktreeRoot = pathOutputValue(
-    await git(canonicalPath2, ["rev-parse", "--show-toplevel"], options)
-  );
-  const worktreeRoot = await canonicalize(
-    rawWorktreeRoot,
-    options.deps,
-    "not-worktree"
-  );
-  if (canonicalPath2 !== worktreeRoot) {
-    throw new GitTargetError("not-registered-worktree");
-  }
-  const rawCommonGitDir = pathOutputValue(
-    await git(
-      canonicalPath2,
-      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
-      options
-    )
-  );
-  const commonGitDir = await canonicalize(
-    rawCommonGitDir,
-    options.deps,
-    "not-worktree"
-  );
-  const worktreeList = await git(
-    canonicalPath2,
-    ["worktree", "list", "--porcelain", "-z"],
-    options
-  );
-  let matchingRegistrations = 0;
-  for (const registeredPath of registeredWorktreePaths(worktreeList)) {
-    let registeredRoot;
-    try {
-      registeredRoot = await options.deps.realpath(registeredPath);
-    } catch {
-      continue;
-    }
-    if (registeredRoot === worktreeRoot) matchingRegistrations += 1;
-  }
-  if (matchingRegistrations !== 1) {
-    throw new GitTargetError("not-registered-worktree");
-  }
-  const head = oneLine(
-    await git(canonicalPath2, ["rev-parse", "HEAD"], options)
-  );
-  if (!/^[0-9a-f]{40,64}$/u.test(head)) {
-    throw new GitTargetError("not-worktree");
-  }
-  const branchOutput = oneLine(
-    await git(canonicalPath2, ["rev-parse", "--abbrev-ref", "HEAD"], options)
-  );
-  const status = await git(
-    canonicalPath2,
-    ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-    options,
-    "status"
-  );
-  return {
-    requestedPath,
-    canonicalPath: canonicalPath2,
-    worktreeRoot,
-    commonGitDir,
-    branch: branchOutput === "HEAD" ? null : branchOutput,
-    head,
-    dirty: status.length > 0,
-    statusFingerprint: createHash("sha256").update(status).digest("hex")
-  };
-}
-async function validateHandoffTarget(sourcePath, targetPath, options = {}) {
-  let source;
-  let target;
-  try {
-    source = await inspectWorktree(sourcePath, options);
-  } catch (error) {
-    if (error instanceof GitTargetError) {
-      throw new GitTargetError(error.code, "source");
-    }
-    throw error;
-  }
-  try {
-    target = await inspectWorktree(targetPath, options);
-  } catch (error) {
-    if (error instanceof GitTargetError) {
-      throw new GitTargetError(error.code, "target");
-    }
-    throw error;
-  }
-  if (source.worktreeRoot === target.worktreeRoot) {
-    throw new GitTargetError("same-worktree", "target");
-  }
-  if (source.commonGitDir !== target.commonGitDir) {
-    throw new GitTargetError("repository-mismatch", "target");
-  }
-  if (source.dirty) throw new GitTargetError("source-dirty", "source");
-  return { source, target };
-}
-var validateGuidanceTarget = validateHandoffTarget;
-
-// src/skills/session-fork-to-destination/src/guidance-capabilities.ts
-var RETRIEVED_ON = "2026-09-12";
-var GUIDANCE_CAPABILITIES = Object.freeze([
-  {
-    provider: "claude",
-    surface: "cli",
-    origin: "cli-transcript",
-    interactiveLaunch: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["claude"],
-      preservesOriginal: true,
-      semantics: "Starts an interactive Claude Code session."
-    },
-    resume: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["claude", "--resume", "{sessionId}"],
-      preservesOriginal: false,
-      semantics: "Continues the selected session under its existing identity."
-    },
-    fork: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["claude", "--resume", "{sessionId}", "--fork-session"],
-      preservesOriginal: true,
-      semantics: "Resumes the selected history under a new session ID."
-    },
-    inProviderFork: {
-      status: "unsupported",
-      reason: "The cited Claude Code reference documents the CLI flag but no slash command that forks an arbitrary selected session."
-    },
-    destinationSwitch: {
-      status: "unsupported",
-      reason: "The cited Claude Code reference does not document replacing an already-open session with an arbitrary new fork."
-    },
-    crossWorktree: "unverified",
-    evidence: [
-      {
-        url: "https://code.claude.com/docs/en/cli-usage",
-        retrievedOn: RETRIEVED_ON,
-        context: "Public CLI reference retrieved without executing Claude Code; documents interactive launch, --resume, and --fork-session."
-      }
-    ],
-    limitations: [
-      "The public reference documents syntax but does not prove behavior in this repository or an ADE tab.",
-      "Cross-worktree fork behavior has no live proof in this project."
-    ]
-  },
-  {
-    provider: "codex",
-    surface: "cli",
-    origin: "cli-transcript",
-    interactiveLaunch: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["codex"],
-      preservesOriginal: true,
-      semantics: "Starts an interactive Codex session."
-    },
-    resume: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["codex", "resume", "{sessionId}"],
-      preservesOriginal: false,
-      semantics: "Continues the selected session."
-    },
-    fork: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["codex", "fork", "{sessionId}"],
-      preservesOriginal: true,
-      semantics: "Forks the selected interactive session and opens the new branch."
-    },
-    inProviderFork: {
-      status: "documented",
-      kind: "slash-command",
-      command: "/fork",
-      preservesOriginal: true,
-      semantics: "Branches the currently open chat into a new thread."
-    },
-    destinationSwitch: {
-      status: "unsupported",
-      reason: "The cited Codex source documents current-chat /fork, not replacing a fresh destination chat with a fork of another selected session."
-    },
-    crossWorktree: "unverified",
-    evidence: [
-      {
-        url: "https://github.com/openai/codex/blob/main/codex-rs/cli/src/main.rs",
-        retrievedOn: RETRIEVED_ON,
-        context: "Official public source retrieved without executing Codex; ForkCommand accepts an explicit session UUID and launches the interactive TUI."
-      },
-      {
-        url: "https://github.com/openai/codex/blob/main/codex-rs/tui/tooltips.txt",
-        retrievedOn: RETRIEVED_ON,
-        context: "Official public source describes /fork as branching the current chat into a new thread."
-      }
-    ],
-    limitations: [
-      "The cited main-branch source is dated evidence rather than a promise for every installed version.",
-      "Cross-worktree and ADE visibility behavior has no live proof in this project."
-    ]
-  },
-  {
-    provider: "cursor",
-    surface: "cli",
-    origin: "cli-transcript",
-    interactiveLaunch: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["cursor-agent"],
-      preservesOriginal: true,
-      semantics: "Starts an interactive Cursor CLI session."
-    },
-    resume: {
-      status: "documented",
-      kind: "terminal",
-      argv: ["cursor-agent", "--resume={sessionId}"],
-      preservesOriginal: false,
-      semantics: "Continues a specific Cursor CLI chat."
-    },
-    fork: {
-      status: "unsupported",
-      reason: "The official Cursor CLI overview documents resume but no documented Cursor CLI fork command."
-    },
-    inProviderFork: {
-      status: "unsupported",
-      reason: "No official Cursor CLI source cited by this matrix documents an interactive fork command."
-    },
-    destinationSwitch: {
-      status: "unsupported",
-      reason: "No official Cursor CLI source cited by this matrix documents switching a fresh session to an arbitrary fork."
-    },
-    crossWorktree: "unsupported",
-    evidence: [
-      {
-        url: "https://docs.cursor.com/en/cli/overview",
-        retrievedOn: RETRIEVED_ON,
-        context: "Public Cursor CLI overview retrieved without executing Cursor; documents interactive launch and explicit resume only."
-      }
-    ],
-    limitations: [
-      "CLI resume is not fork semantics and must never be substituted for a fork.",
-      "IDE transcript discovery does not establish Cursor CLI interoperability."
-    ]
-  },
-  {
-    provider: "cursor",
-    surface: "ide",
-    origin: "ide-transcript",
-    interactiveLaunch: {
-      status: "documented-manual",
-      kind: "manual",
-      steps: ["Open Cursor Agent in the IDE side pane."],
-      preservesOriginal: true,
-      semantics: "Opens the Cursor IDE Agent surface."
-    },
-    resume: {
-      status: "documented-manual",
-      kind: "manual",
-      steps: ["Open chat history.", "Select the conversation to review."],
-      preservesOriginal: false,
-      semantics: "Opens an existing chat from Cursor IDE history."
-    },
-    fork: {
-      status: "documented-manual",
-      kind: "manual",
-      steps: [
-        "Open the source chat.",
-        "Open the message menu at the desired branch point.",
-        "Select Duplicate Chat."
-      ],
-      preservesOriginal: true,
-      semantics: "Duplicates context through the selected point into a separate chat."
-    },
-    inProviderFork: {
-      status: "documented-manual",
-      kind: "manual",
-      steps: ["Use Duplicate Chat from the source message menu."],
-      preservesOriginal: true,
-      semantics: "Creates a separate IDE chat from the current chat history."
-    },
-    destinationSwitch: {
-      status: "unsupported",
-      reason: "Cursor documentation does not establish cross-worktree switching or destination-tab placement for a duplicated chat."
-    },
-    crossWorktree: "unsupported",
-    evidence: [
-      {
-        url: "https://docs.cursor.com/en/agent/chat/duplicate",
-        retrievedOn: RETRIEVED_ON,
-        context: "Public Cursor IDE documentation retrieved without executing Cursor; describes Duplicate Chat and preservation of the original."
-      },
-      {
-        url: "https://docs.cursor.com/en/agent/chat/history",
-        retrievedOn: RETRIEVED_ON,
-        context: "Public Cursor IDE documentation describes opening locally stored chat history."
-      }
-    ],
-    limitations: [
-      "Cursor IDE duplication is a manual UI flow with no documented destination-worktree guarantee.",
-      "IDE-origin identity must not be treated as a Cursor CLI session ID."
-    ]
-  }
-]);
-function getGuidanceCapability(provider2, surface) {
-  const capability = GUIDANCE_CAPABILITIES.find(
-    (candidate) => candidate.provider === provider2 && candidate.surface === surface
-  );
-  if (capability === void 0) throw new Error("unsupported-guidance-surface");
-  return capability;
-}
-
-// src/skills/session-fork-to-destination/src/guidance.ts
-var GuidancePreparationError = class extends Error {
-  constructor(code) {
-    super(code);
-    this.code = code;
-    this.name = "GuidancePreparationError";
-  }
-  code;
-};
-var DEFAULT_DEPENDENCIES3 = {
-  validateTarget: validateGuidanceTarget
-};
-var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
-function quoteShellWord(value) {
-  if (value.length === 0) return "''";
-  if (value.includes("\0") || value.includes("\n") || value.includes("\r")) {
-    throw new GuidancePreparationError("invalid-path");
-  }
-  if (/^[A-Za-z0-9_./:=+@%-]+$/u.test(value)) return value;
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-function validateCandidate(candidate) {
-  if (candidate.provider !== "cursor" && !UUID.test(candidate.nativeId)) {
-    throw new GuidancePreparationError("invalid-session-id");
-  }
-  if (candidate.key !== `${candidate.provider}:${candidate.surface}:${candidate.nativeId}`) {
-    throw new GuidancePreparationError("invalid-source-candidate");
-  }
-}
-function destinationCommand(operation, destination, nativeId) {
-  const argv = operation.argv.map(
-    (argument) => quoteShellWord(argument.replace("{sessionId}", nativeId))
-  );
-  const expected = quoteShellWord(destination);
-  return `if test "$(pwd -P)" = ${expected}; then exec ${argv.join(" ")}; else printf '%s\\n' 'Refusing: open the canonical destination worktree first.' >&2; fi`;
-}
-async function prepareForkGuidance(input, deps = DEFAULT_DEPENDENCIES3) {
-  validateCandidate(input.candidate);
-  const evidence = await deps.validateTarget(
-    input.sourcePath,
-    input.destinationPath
-  );
-  if (input.candidate.recordedCwd !== evidence.source.canonicalPath) {
-    throw new GuidancePreparationError("invalid-source-candidate");
-  }
-  if (input.candidate.surface === "ambiguous") {
-    return {
-      status: "experimental-not-released",
-      source: evidence.source.canonicalPath,
-      destination: evidence.target.canonicalPath,
-      destinationDirty: evidence.target.dirty,
-      selectedSource: input.candidate.key,
-      provider: input.candidate.provider,
-      surface: input.candidate.surface,
-      entryPoint: input.entryPoint,
-      instructions: [
-        {
-          kind: "manual",
-          action: "unsupported",
-          explanation: "Cursor transcript origin is ambiguous between IDE and CLI, so no fork or resume command is safe to suggest. Select corroborated source evidence or use Cursor documented UI manually without assuming destination placement."
-        }
-      ],
-      expectedEffect: "No fork is created by this guidance.",
-      evidenceStatus: "unsupported",
-      limitations: [
-        "Cursor IDE/CLI identity interoperability is not established.",
-        "Cross-worktree destination placement is unsupported."
-      ]
-    };
-  }
-  const capability = getGuidanceCapability(
-    input.candidate.provider,
-    input.candidate.surface
-  );
-  if (capability.fork.status !== "documented" || capability.fork.kind !== "terminal") {
-    return {
-      status: "experimental-not-released",
-      source: evidence.source.canonicalPath,
-      destination: evidence.target.canonicalPath,
-      destinationDirty: evidence.target.dirty,
-      selectedSource: input.candidate.key,
-      provider: input.candidate.provider,
-      surface: input.candidate.surface,
-      entryPoint: input.entryPoint,
-      instructions: [
-        {
-          kind: "manual",
-          action: "unsupported",
-          explanation: "No documented destination-safe terminal fork is available for this provider surface."
-        }
-      ],
-      expectedEffect: "No fork is created by this guidance.",
-      evidenceStatus: "unsupported",
-      limitations: [...capability.limitations]
-    };
-  }
-  const terminal = {
-    kind: "terminal",
-    runIn: evidence.target.canonicalPath,
-    command: destinationCommand(
-      capability.fork,
-      evidence.target.canonicalPath,
-      input.candidate.nativeId
-    )
-  };
-  const instructions = input.entryPoint === "destination-fresh" && capability.destinationSwitch.status !== "documented" ? [
-    {
-      kind: "manual",
-      action: "exit-current-session",
-      explanation: "Exit the fresh provider session, remain in this destination tab, then run the terminal command below."
-    },
-    terminal
-  ] : [terminal];
-  return {
-    status: "experimental-not-released",
-    source: evidence.source.canonicalPath,
-    destination: evidence.target.canonicalPath,
-    destinationDirty: evidence.target.dirty,
-    selectedSource: input.candidate.key,
-    provider: input.candidate.provider,
-    surface: input.candidate.surface,
-    entryPoint: input.entryPoint,
-    instructions,
-    expectedEffect: "Running the terminal command from the canonical destination should create and open a new fork while preserving the selected original session.",
-    evidenceStatus: "documented-not-live-verified",
-    limitations: [
-      ...capability.limitations,
-      "Preparing these instructions did not run a provider or create a fork.",
-      "Destination dirty state is reported; Git changes are not transferred."
-    ]
-  };
-}
-
-// src/skills/session-export-transcript/src/sanitize.ts
-function lead(text) {
-  return typeof text === "string" ? text.trimStart() : "";
-}
-var HIDDEN_PAYLOAD_MATCHERS = [
-  {
-    // Role-tagged system/developer records are never emitted.
-    id: "system-or-developer-role",
-    test: (_text, role) => role === "system" || role === "developer"
-  },
-  {
-    // Text-form system/developer instruction records.
-    id: "system-or-developer-text",
-    test: (text) => {
-      const l = lead(text);
-      if (/^(System|Developer)\b\s*[:-]/.test(l)) return true;
-      return /^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
-        l
-      );
-    }
-  },
-  {
-    id: "environment-context",
-    test: (text) => lead(text).startsWith("<environment_context>")
-  },
-  {
-    id: "subagent-notification",
-    test: (text) => lead(text).startsWith("<subagent_notification>")
-  },
-  {
-    id: "turn-aborted",
-    test: (text) => lead(text).startsWith("<turn_aborted>")
-  },
-  {
-    // XML-style skill wrappers injected as ordinary text.
-    id: "skill-wrapper",
-    test: (text) => /^<skill(\s[^>]*)?>/.test(lead(text))
-  },
-  {
-    // Claude Code's primary injected-context wrapper.
-    id: "system-reminder",
-    test: (text) => lead(text).startsWith("<system-reminder>")
-  },
-  {
-    id: "task-notification",
-    test: (text) => lead(text).startsWith("<task-notification>")
-  },
-  {
-    id: "local-command-output",
-    test: (text) => /^<local-command-(stdout|stderr|caveat)>/.test(lead(text))
-  },
-  {
-    id: "command-message",
-    test: (text) => /^<(command-message|command-name|command-args)>/.test(lead(text))
-  },
-  {
-    id: "agents-or-skill-md-heading",
-    test: (text) => /^#{1,6}\s+(AGENTS|SKILL)(\.md)?\b/i.test(lead(text))
-  },
-  {
-    id: "skill-frontmatter",
-    test: (text) => {
-      const l = lead(text);
-      if (!l.startsWith("---")) return false;
-      const firstKey = l.split(/\r?\n/, 2)[1] ?? "";
-      return /^(name|description|license|compatibility|allowed-tools|argument-hint):/.test(
-        firstKey.trim()
-      );
-    }
-  }
-];
-function sanitizeEntries(entries, { runtime } = {}) {
-  if (!Array.isArray(entries)) return [];
-  return entries.filter((entry) => {
-    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control") {
-      return false;
-    }
-    const text = entry?.text ?? "";
-    const role = entry?.role ?? "";
-    for (const matcher of HIDDEN_PAYLOAD_MATCHERS) {
-      if (matcher.test(text, role, runtime)) return false;
-    }
-    return true;
-  });
-}
-
-// src/skills/session-fork-to-destination/src/discovery.ts
-import { realpath as realpath3 } from "node:fs/promises";
-
-// src/skills/session-fork-to-destination/src/types.ts
-var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
-  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
-  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
-});
-var DEFAULT_PREVIEW_BATCH_LIMITS = Object.freeze({
-  maxCandidates: 20,
-  maxAggregateInputBytes: 33554432,
-  maxAggregateInputRecords: 1e5,
-  deadlineMs: 1e4,
-  maxAggregateRenderedCharacters: 131072
-});
-var DEFAULT_SESSION_PREVIEW_LIMITS = Object.freeze({
-  maxRounds: 3,
-  maxCharacters: 4e3
-});
-var MAX_SESSION_PREVIEW_LIMITS = Object.freeze({
-  maxRounds: 20,
-  maxCharacters: 32 * 1024
-});
-
-// src/skills/session-fork-to-destination/src/discovery.ts
-var HANDOFF_DISCOVERY_OPTIONS = Object.freeze({
-  persistence: "forbid",
-  recency: "exact-all",
-  budget: Object.freeze({
-    maxEntries: 5e4,
-    maxAggregateBytes: 512 * 1024 * 1024,
-    maxMetadataBytesPerEntry: 256 * 1024,
-    deadlineMs: 3e4
-  })
-});
-
-// src/skills/session-fork-to-destination/src/preview.ts
-var PER_TRANSCRIPT_MAX_BYTES = 2 * 1024 * 1024;
-var DEFAULT_DEPENDENCIES4 = {
-  now: Date.now,
-  readTailRecordsBounded,
-  normalizeEntries
-};
-function sanitizePreviewConversationEntries(runtime, entries) {
-  const structurallySafe = entries.filter(
-    (entry) => entry.kind === "message" && (entry.role === "user" || entry.role === "assistant") && entry.origin !== "automatic-control" && entry.displayRole !== "automatic-control"
-  );
-  return sanitizeEntries(structurallySafe, { runtime }).map((entry) => ({ role: entry.role, text: entry.text.trim() })).filter((entry) => entry.text.length > 0);
-}
-
-// src/skills/session-fork-to-destination/src/guidance-cli.ts
-var HELP = `coding-session-handoff \u2014 EXPERIMENTAL / NOT RELEASED
-
-Read-only discovery and destination-tab fork guidance. Preparing guidance does not
-run a provider, create a fork, authenticate, or modify provider session stores.
-
-Usage:
-  coding-session-handoff discover --source PATH [--provider claude|codex|cursor|all] [--json]
-  coding-session-handoff preview --source PATH --session PROVIDER:SURFACE:ID [--json]
-  coding-session-handoff prepare --source PATH --target PATH --session PROVIDER:SURFACE:ID \\
-    --entry-point source-current|source-other|destination-fresh [--json]
-`;
-var GuidanceCliArgumentError = class extends Error {
-  code = "invalid-arguments";
-};
-var VALUE_FLAGS = /* @__PURE__ */ new Set([
-  "--source",
-  "--target",
-  "--session",
-  "--provider",
-  "--entry-point"
-]);
-function parse(argv) {
-  const command = argv[0];
-  if (!["discover", "preview", "prepare"].includes(command)) {
-    throw new GuidanceCliArgumentError();
-  }
-  const values = /* @__PURE__ */ new Map();
-  let json = false;
-  for (let index = 1; index < argv.length; index += 1) {
-    const flag = argv[index];
-    if (flag === "--json") {
-      if (json) throw new GuidanceCliArgumentError();
-      json = true;
-      continue;
-    }
-    if (!VALUE_FLAGS.has(flag) || values.has(flag)) {
-      throw new GuidanceCliArgumentError();
-    }
-    const flagValue = argv[index + 1];
-    if (flagValue === void 0 || flagValue.startsWith("--") || flagValue.length === 0) {
-      throw new GuidanceCliArgumentError();
-    }
-    values.set(flag, flagValue);
-    index += 1;
-  }
-  return { command, values, json };
-}
-function required(flags, name) {
-  const result = flags.values.get(name);
-  if (result === void 0) throw new GuidanceCliArgumentError();
-  return result;
-}
-function allowOnly(flags, allowed) {
-  if ([...flags.values.keys()].some((key) => !allowed.includes(key))) {
-    throw new GuidanceCliArgumentError();
-  }
-}
-function provider(flags) {
-  const result = flags.values.get("--provider") ?? "all";
-  if (!["claude", "codex", "cursor", "all"].includes(result)) {
-    throw new GuidanceCliArgumentError();
-  }
-  return result;
-}
-function session(flags) {
-  const result = required(flags, "--session");
-  if (!/^(?:claude|codex|cursor):(?:cli|ide|ambiguous):[^:\s]+$/u.test(result) || [...result].some((character) => character.codePointAt(0) < 32)) {
-    throw new GuidanceCliArgumentError();
-  }
-  return result;
-}
-function entryPoint(flags) {
-  const result = required(flags, "--entry-point");
-  if (!["source-current", "source-other", "destination-fresh"].includes(result)) {
-    throw new GuidanceCliArgumentError();
-  }
-  return result;
-}
-function errorCode(error) {
-  if (error instanceof GuidanceCliArgumentError) return error.code;
-  if (error !== null && typeof error === "object") {
-    const code = error.code;
-    if (typeof code === "string" && /^[a-z][a-z0-9-]*$/u.test(code))
-      return code;
-  }
-  return "unexpected-failure";
-}
-function errorProvenance(error) {
-  return error instanceof GuidanceDiscoveryError && error.provider !== void 0 && error.reason !== void 0 ? { provider: error.provider, reason: error.reason } : {};
-}
-function render(io, command, data, json) {
-  const envelope = {
-    ok: true,
-    command,
-    status: "experimental-not-released",
-    currentSelection: "explicit-required",
-    noForkCreated: true,
-    data
-  };
-  io.stdout(`${JSON.stringify(envelope, null, json ? 0 : 2)}
-`);
-}
-async function runGuidanceCli(argv, dependencies = DEFAULT_DEPENDENCIES5, io = {
-  stdout: (value) => process.stdout.write(value),
-  stderr: (value) => process.stderr.write(value)
-}) {
-  if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) {
-    io.stdout(HELP);
-    return 0;
-  }
-  let flags;
-  try {
-    flags = parse(argv);
-    let data;
-    if (flags.command === "discover") {
-      allowOnly(flags, ["--source", "--provider"]);
-      data = await dependencies.discover(
-        required(flags, "--source"),
-        provider(flags)
-      );
-    } else if (flags.command === "preview") {
-      allowOnly(flags, ["--source", "--session"]);
-      data = await dependencies.preview(
-        required(flags, "--source"),
-        session(flags)
-      );
-    } else {
-      allowOnly(flags, ["--source", "--target", "--session", "--entry-point"]);
-      data = await dependencies.prepare(
-        required(flags, "--source"),
-        required(flags, "--target"),
-        session(flags),
-        entryPoint(flags)
-      );
-    }
-    render(io, flags.command, data, flags.json);
-    return 0;
-  } catch (error) {
-    const code = errorCode(error);
-    const failure = {
-      ok: false,
-      ...flags ? { command: flags.command } : {},
-      error: {
-        code,
-        ...errorProvenance(error),
-        message: "The read-only guidance request could not be completed safely."
-      }
-    };
-    if (flags?.json ?? argv.includes("--json"))
-      io.stdout(`${JSON.stringify(failure)}
-`);
-    else io.stderr(`error: ${code}
-`);
-    return code === "unexpected-failure" ? 4 : 2;
-  }
-}
-function runtimeFor(candidate) {
-  if (candidate.provider === "claude") return "claude-code";
-  return candidate.provider;
-}
-function providerForKey(key) {
-  return key.slice(0, key.indexOf(":"));
-}
-async function rawMatch(source, selected) {
-  const runtime = runtimeFor(selected);
-  let raw;
-  try {
-    raw = await discover(
-      runtime,
-      source,
-      new ClassificationCache(),
-      runtime === "cursor" ? GUIDANCE_DISCOVERY_OPTIONS : {
-        ...GUIDANCE_DISCOVERY_OPTIONS,
-        unattributablePolicy: "summarize"
-      }
-    );
-  } catch {
-    throw Object.assign(new Error("preview-incomplete"), {
-      code: "preview-incomplete"
-    });
-  }
-  const matches = [];
-  for (const candidate of raw) {
-    if (candidate.recordedCwd === null) continue;
-    const recorded = await realpath4(candidate.recordedCwd).catch(() => null);
-    if (recorded !== selected.recordedCwd) continue;
-    const nativeId = selected.provider === "codex" ? await readGuidanceCodexNativeId(candidate) : candidate.sessionId;
-    if (nativeId === selected.nativeId) matches.push(candidate);
-  }
-  if (matches.length !== 1) {
-    throw Object.assign(new Error("preview-incomplete"), {
-      code: "preview-incomplete"
-    });
-  }
-  return matches[0];
-}
-async function defaultPreview(source, key) {
-  const candidates = await discoverGuidanceCandidates(source, {
-    providers: [providerForKey(key)]
-  });
-  const selected = selectGuidanceCandidate(candidates, key);
-  const raw = await rawMatch(selected.recordedCwd, selected);
-  const diagnostics = [];
-  const bounded = await readTailRecordsBounded(raw.transcriptPath, {
-    maxBytes: 2 * 1024 * 1024,
-    maxRecords: 1e4,
-    maxInspectedRecords: 1e4,
-    deadlineMs: 1e4,
-    diagnostic: ({ code }) => diagnostics.push(code)
-  });
-  if (diagnostics.length > 0 || bounded.recordLimitExceeded === true) {
-    throw Object.assign(new Error("preview-incomplete"), {
-      code: "preview-incomplete"
-    });
-  }
-  const entries = sanitizePreviewConversationEntries(
-    runtimeFor(selected),
-    normalizeEntries(runtimeFor(selected), bounded.records, {
-      includeToolCalls: false,
-      includeToolResults: false,
-      includeCommandMessages: false
-    })
-  );
-  const retained = entries.slice(-8);
-  let remaining = 4e3;
-  let entryTextTrimmed = false;
-  const limited = retained.toReversed().flatMap((entry) => {
-    if (remaining === 0) return [];
-    const text = entry.text.slice(-remaining);
-    if (text.length < entry.text.length) entryTextTrimmed = true;
-    remaining -= text.length;
-    return [{ ...entry, text }];
-  }).toReversed();
-  return {
-    key,
-    entries: limited,
-    truncated: bounded.truncated || limited.length < entries.length || entryTextTrimmed,
-    warning: "hidden-payload-sanitized-not-secret-free"
-  };
-}
-var DEFAULT_DEPENDENCIES5 = {
-  discover: async (source, selectedProvider) => discoverGuidance(source, {
-    providers: selectedProvider === "all" ? void 0 : [selectedProvider]
-  }),
-  preview: defaultPreview,
-  prepare: async (source, target, key, selectedEntryPoint) => {
-    const candidates = await discoverGuidanceCandidates(source, {
-      providers: [providerForKey(key)]
-    });
-    const candidate = selectGuidanceCandidate(candidates, key);
-    return prepareForkGuidance({
-      sourcePath: source,
-      destinationPath: target,
-      entryPoint: selectedEntryPoint,
-      candidate
-    });
-  }
-};
-
-// src/skills/session-fork-to-destination/src/coding-session-handoff.ts
-process.exitCode = await runGuidanceCli(process.argv.slice(2));

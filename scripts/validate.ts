@@ -24,7 +24,7 @@ const REQUIRED_SKILL_FIELDS = [
   'compatibility',
 ];
 const COLLABORATION_SKILL_PATH = 'skills/session-observer-collab';
-const GUIDANCE_SKILL_PATH = 'skills/coding-session-handoff';
+const GUIDANCE_SKILL_PATH = 'skills/session-fork-to-destination';
 const COLLABORATION_REQUIRED_FILES = [
   'SKILL.md',
   'references/runtime-claude-code.md',
@@ -331,7 +331,7 @@ export async function validateGuidanceSkillDistribution(
   const required = [
     'SKILL.md',
     'references/provider-guidance.md',
-    'scripts/coding-session-handoff.mjs',
+    'scripts/session-fork-to-destination.mjs',
   ];
   for (const relativePath of required) {
     if (
@@ -357,7 +357,7 @@ export async function validateGuidanceSkillDistribution(
   const bundleFile = path.join(
     root,
     GUIDANCE_SKILL_PATH,
-    'scripts/coding-session-handoff.mjs',
+    'scripts/session-fork-to-destination.mjs',
   );
   if (await pathExists(bundleFile)) {
     const bundle = await readFile(bundleFile, 'utf8');
@@ -677,6 +677,11 @@ async function validateDirectoryLayout(root: string): Promise<string[]> {
     'plugins/consensus/.claude-plugin',
     'plugins/consensus/.cursor-plugin',
     'plugins/consensus/.codex-plugin',
+    'plugins/session/skills/export-transcript',
+    'plugins/session/skills/fork-to-destination',
+    'plugins/session/.claude-plugin',
+    'plugins/session/.cursor-plugin',
+    'plugins/session/.codex-plugin',
   ];
 
   for (const directory of directories) {

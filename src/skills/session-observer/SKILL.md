@@ -9,10 +9,10 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.36'
+  version: '1.0.37'
 ---
 
-# session-observer
+# {{distribution.name}}
 
 Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript for the current project, render a tool-free digest, and track runtime-specific read positions so follow-up checks surface only new content.
 
@@ -156,7 +156,7 @@ The CLI lives at the skill's install location. In this repository it is at:
 <skill-dir>/scripts/session-observer.mjs
 ```
 
-where `<skill-dir>` is `skills/session-observer` (repo-relative) or the installed path on the user's machine.
+where `<skill-dir>` is the directory containing this installed skill.
 
 **Basic invocation pattern:**
 
@@ -303,27 +303,27 @@ If you used `review` and want the same bookkeeping, pass `--mark-read`.
 
 ```bash
 # Check what Codex just did in this project
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime codex --cwd "$PWD"
 
 # Catch up on new Codex activity since last check
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   catch-up --runtime codex --cwd "$PWD"
 
 # Check Cursor agent transcripts for this project
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime cursor --cwd "$PWD"
 
 # Include tool calls in the digest (compact markers)
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime codex --include-tools
 
 # Full debug view (tool calls + results)
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime codex --debug
 
 # Limit output to the last 10 turn groups
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime codex --max-turns 10
 ```
 
@@ -334,7 +334,7 @@ node skills/session-observer/scripts/session-observer.mjs \
 **Agent:** I'll run a review of the Codex session for this project.
 
 ```bash
-node skills/session-observer/scripts/session-observer.mjs \
+node <skill-dir>/scripts/session-observer.mjs \
   review --runtime codex --cwd "$PWD"
 ```
 
@@ -378,7 +378,7 @@ Two or more sessions have modification times within 5 seconds of each other.
 Run:
 
 ```bash
-node skills/session-observer/scripts/session-observer.mjs locate \
+node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime claude-code --cwd "$PWD" --json --snippet "<excerpt>"
 ```
 
@@ -448,15 +448,15 @@ Use the opt-in probe helper to test against your real transcript stores:
 
 ```bash
 # Claude Code transcripts
-node skills/session-observer/scripts/probe-local.mjs \
+node <skill-dir>/scripts/probe-local.mjs \
   --runtime claude-code --cwd "$PWD"
 
 # Codex transcripts
-node skills/session-observer/scripts/probe-local.mjs \
+node <skill-dir>/scripts/probe-local.mjs \
   --runtime codex --cwd "$PWD"
 
 # Cursor agent transcripts
-node skills/session-observer/scripts/probe-local.mjs \
+node <skill-dir>/scripts/probe-local.mjs \
   --runtime cursor --cwd "$PWD"
 ```
 
@@ -466,7 +466,7 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 
 ## Success Criteria
 
-- [ ] `SKILL.md` exists, frontmatter valid, and top-level `version` matches `metadata.version`.
+- [ ] `SKILL.md` exists with valid frontmatter and a stable `metadata.version`.
 - [ ] `review`, `catch-up`, `locate`, and `state` subcommands respond correctly.
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
 - [ ] Ask-user questions render by default on every runtime, on every terminal status, and from a still-open final turn. On schema v1 the answer renders too, `--include-tools` adds option descriptions, and `accounting.rendered.askUserEntries` counts them; Cursor states that the selected option is unrecorded and supports neither of the last two.

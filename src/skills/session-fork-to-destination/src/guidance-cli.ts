@@ -48,15 +48,15 @@ export interface GuidanceCliDependencies {
   ) => Promise<unknown>;
 }
 
-const HELP = `coding-session-handoff — EXPERIMENTAL / NOT RELEASED
+const HELP = `session-fork-to-destination — EXPERIMENTAL / NOT RELEASED
 
 Read-only discovery and destination-tab fork guidance. Preparing guidance does not
 run a provider, create a fork, authenticate, or modify provider session stores.
 
 Usage:
-  coding-session-handoff discover --source PATH [--provider claude|codex|cursor|all] [--json]
-  coding-session-handoff preview --source PATH --session PROVIDER:SURFACE:ID [--json]
-  coding-session-handoff prepare --source PATH --target PATH --session PROVIDER:SURFACE:ID \\
+  session-fork-to-destination discover --source PATH [--provider claude|codex|cursor|all] [--json]
+  session-fork-to-destination preview --source PATH --session PROVIDER:SURFACE:ID [--json]
+  session-fork-to-destination prepare --source PATH --target PATH --session PROVIDER:SURFACE:ID \\
     --entry-point source-current|source-other|destination-fresh [--json]
 `;
 

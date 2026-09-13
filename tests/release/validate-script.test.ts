@@ -46,12 +46,18 @@ async function createValidTempRepository() {
     recursive: true,
   });
   await mkdir(path.join(tempRoot, 'src/skills/refine'), { recursive: true });
-  await mkdir(path.join(tempRoot, 'skills/coding-session-handoff/references'), {
-    recursive: true,
-  });
-  await mkdir(path.join(tempRoot, 'skills/coding-session-handoff/scripts'), {
-    recursive: true,
-  });
+  await mkdir(
+    path.join(tempRoot, 'skills/session-fork-to-destination/references'),
+    {
+      recursive: true,
+    },
+  );
+  await mkdir(
+    path.join(tempRoot, 'skills/session-fork-to-destination/scripts'),
+    {
+      recursive: true,
+    },
+  );
   await mkdir(path.join(tempRoot, 'plugins/consensus/skills/refine'), {
     recursive: true,
   });
@@ -65,6 +71,24 @@ async function createValidTempRepository() {
     recursive: true,
   });
   await mkdir(path.join(tempRoot, 'plugins/consensus/.codex-plugin'), {
+    recursive: true,
+  });
+  await mkdir(path.join(tempRoot, 'plugins/session/skills/export-transcript'), {
+    recursive: true,
+  });
+  await mkdir(
+    path.join(tempRoot, 'plugins/session/skills/fork-to-destination'),
+    {
+      recursive: true,
+    },
+  );
+  await mkdir(path.join(tempRoot, 'plugins/session/.claude-plugin'), {
+    recursive: true,
+  });
+  await mkdir(path.join(tempRoot, 'plugins/session/.cursor-plugin'), {
+    recursive: true,
+  });
+  await mkdir(path.join(tempRoot, 'plugins/session/.codex-plugin'), {
     recursive: true,
   });
   await mkdir(path.join(tempRoot, '.claude-plugin'), { recursive: true });
@@ -110,9 +134,9 @@ metadata:
 `,
   );
   await writeFile(
-    path.join(tempRoot, 'skills/coding-session-handoff/SKILL.md'),
+    path.join(tempRoot, 'skills/session-fork-to-destination/SKILL.md'),
     `---
-name: coding-session-handoff
+name: session-fork-to-destination
 description: Test handoff skill
 license: MIT
 compatibility: codex
@@ -125,14 +149,14 @@ metadata:
   await writeFile(
     path.join(
       tempRoot,
-      'skills/coding-session-handoff/references/provider-guidance.md',
+      'skills/session-fork-to-destination/references/provider-guidance.md',
     ),
     '# Provider guidance\n',
   );
   await writeFile(
     path.join(
       tempRoot,
-      'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      'skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
     ),
     '#!/usr/bin/env node\n',
   );
@@ -172,11 +196,31 @@ metadata:
       skills: './skills/',
     },
   );
+  const sessionProviderManifest = {
+    name: 'session',
+    version: '0.1.0',
+    author: { name: 'Thomas Stang' },
+  };
+  await writeJson(
+    path.join(tempRoot, 'plugins/session/.claude-plugin/plugin.json'),
+    sessionProviderManifest,
+  );
+  await writeJson(
+    path.join(tempRoot, 'plugins/session/.cursor-plugin/plugin.json'),
+    sessionProviderManifest,
+  );
+  await writeJson(
+    path.join(tempRoot, 'plugins/session/.codex-plugin/plugin.json'),
+    { ...sessionProviderManifest, skills: './skills/' },
+  );
 
   const claudeMarketplace = {
     name: 'skills',
     owner: { name: 'Thomas Stang' },
-    plugins: [{ name: 'consensus', source: './plugins/consensus' }],
+    plugins: [
+      { name: 'consensus', source: './plugins/consensus' },
+      { name: 'session', source: './plugins/session' },
+    ],
   };
   const codexMarketplace = {
     name: 'skills',
@@ -184,6 +228,10 @@ metadata:
       {
         name: 'consensus',
         source: { source: 'local', path: './plugins/consensus' },
+      },
+      {
+        name: 'session',
+        source: { source: 'local', path: './plugins/session' },
       },
     ],
   };

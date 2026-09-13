@@ -1,15 +1,15 @@
 ---
 name: session-observer-collab
-description: Use when two coding-agent sessions should observe each other and collaborate. Composes with session-observer for pinned review, bounded wake behavior, and explicit human-authority boundaries.
+description: Use when two coding-agent sessions should observe each other and collaborate. Composes with the declared observer workflow for pinned review, bounded wake behavior, and explicit human-authority boundaries.
 license: MIT
-compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the session-observer skill for transcript operations.
+compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the declared observer skill for transcript operations.
 argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|other>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.22'
+  version: '1.0.23'
 ---
 
 # session-observer-collab

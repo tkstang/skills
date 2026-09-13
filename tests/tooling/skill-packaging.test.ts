@@ -29,6 +29,7 @@ import {
   validateDistributionDeclarations,
   writeDeclaredDistributions,
 } from '../../scripts/lib/packaging.js';
+import { distributions } from '../../src/distributions.js';
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = path.resolve(import.meta.dirname, '..', '..');
@@ -821,6 +822,28 @@ describe('declared skill packaging', () => {
     await cleanupBuiltDistributions(built);
   });
 
+  it('removes superseded outputs in the same atomic replacement', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'renamed');
+    const [unit] = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('renamed')],
+    });
+    await write(root, 'skills/old-name/SKILL.md', 'legacy\n');
+
+    await writeDeclaredDistributions({
+      repoRoot: root,
+      built: [unit],
+      obsoleteOutputs: ['skills/old-name'],
+    });
+
+    await expect(
+      stat(path.join(root, 'skills/old-name')),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await stat(path.join(root, 'skills/renamed'))).toBeTruthy();
+    await cleanupBuiltDistributions([unit]);
+  });
+
   it('restores every prior unit when a later staged installation fails', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'one');
@@ -896,15 +919,26 @@ describe('representative real installation boundaries', () => {
       path.join(repositoryRoot, 'src/plugins/consensus'),
       path.join(root, 'src/plugins/consensus'),
     );
-    const consensusSkills = (
-      await readdir(path.join(repositoryRoot, 'plugins/consensus/skills'), {
-        withFileTypes: true,
-      })
-    )
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
+    const consensusDeclarations = distributions.filter((declaration) =>
+      declaration.targets.some(
+        (distributionTarget) =>
+          distributionTarget.kind === 'plugin' &&
+          distributionTarget.plugin === 'consensus',
+      ),
+    );
+    const consensusSkills = consensusDeclarations
+      .flatMap((declaration) =>
+        declaration.targets
+          .filter(
+            (distributionTarget) =>
+              distributionTarget.kind === 'plugin' &&
+              distributionTarget.plugin === 'consensus',
+          )
+          .map((distributionTarget) => distributionTarget.name),
+      )
       .toSorted();
-    for (const skill of consensusSkills) {
+    for (const declaration of consensusDeclarations) {
+      const skill = declaration.owner;
       await copySkillResources(
         path.join(repositoryRoot, 'src/skills', skill),
         path.join(root, 'src/skills', skill),
@@ -938,12 +972,26 @@ describe('representative real installation boundaries', () => {
       target('complexity-review'),
       target('session-export-transcript', {
         allowedSourceRoots: ['src/shared/transcript'],
+        targets: [
+          {
+            kind: 'standalone',
+            name: 'session-export-transcript',
+            output: 'skills/session-export-transcript',
+          },
+          {
+            kind: 'plugin',
+            plugin: 'session',
+            name: 'export-transcript',
+            output: 'plugins/session/skills/export-transcript',
+          },
+        ],
       }),
-      ...consensusSkills.map((skill) =>
-        target(skill, {
-          allowedSourceRoots: ['src/plugins/consensus'],
+      ...consensusDeclarations.map((declaration) =>
+        target(declaration.owner, {
+          allowedSourceRoots: declaration.allowedSourceRoots,
+          requiredSkills: declaration.requiredSkills,
           targets: [
-            ...(skill === 'create'
+            ...(declaration.owner === 'create'
               ? [
                   {
                     kind: 'standalone' as const,
@@ -952,12 +1000,10 @@ describe('representative real installation boundaries', () => {
                   },
                 ]
               : []),
-            {
-              kind: 'plugin' as const,
-              plugin: 'consensus',
-              name: skill,
-              output: `plugins/consensus/skills/${skill}`,
-            },
+            ...declaration.targets.filter(
+              (candidate) =>
+                candidate.kind === 'plugin' && candidate.plugin === 'consensus',
+            ),
           ],
         }),
       ),
@@ -983,7 +1029,7 @@ describe('representative real installation boundaries', () => {
     const exportOutput = path.join(outside, 'export.md');
     const exportRuntime = path.join(
       root,
-      'skills/session-export-transcript/scripts/export-session-transcript.mjs',
+      'plugins/session/skills/export-transcript/scripts/session-export-transcript.mjs',
     );
     const exported = await execFileAsync(
       process.execPath,
@@ -1004,6 +1050,13 @@ describe('representative real installation boundaries', () => {
     expect(await readFile(exportOutput, 'utf8')).toContain(
       'Synthetic installed-boundary response.',
     );
+    expect(
+      (
+        await inventoryTree(
+          path.join(root, 'plugins/session/skills/export-transcript'),
+        )
+      ).map((entry) => entry.path),
+    ).toContain('references/transcript-formats.md');
 
     await write(root, 'bin/codex', '#!/bin/sh\nprintf "codex 9.9.9\\n"\n');
     await chmod(path.join(bin, 'codex'), 0o755);

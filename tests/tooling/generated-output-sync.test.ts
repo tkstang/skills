@@ -268,12 +268,26 @@ describe('generated output drift guard', () => {
 
   it('includes complete standalone outputs in generated roots', () => {
     expect(generatedOutputRoots).toContain('skills/session-observer');
-    expect(generatedOutputRoots).toContain('skills/coding-session-handoff');
+    expect(generatedOutputRoots).toContain('skills/session-export-transcript');
+    expect(generatedOutputRoots).toContain(
+      'skills/session-fork-to-destination',
+    );
+    expect(generatedOutputRoots).not.toContain(
+      'skills/export-session-transcript',
+    );
+    expect(generatedOutputRoots).not.toContain('skills/coding-session-handoff');
   });
 
   it('includes complete plugin skill outputs in generated roots', () => {
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/refine');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/create');
+    expect(generatedOutputRoots).toContain('plugins/consensus/skills/observer');
+    expect(generatedOutputRoots).toContain(
+      'plugins/session/skills/export-transcript',
+    );
+    expect(generatedOutputRoots).toContain(
+      'plugins/session/skills/fork-to-destination',
+    );
   });
 
   it('covers generated roots in static lint and format configs', async () => {

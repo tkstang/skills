@@ -14,6 +14,16 @@
       },
       "category": "development",
       "source": "./plugins/consensus"
+    },
+    {
+      "name": "session",
+      "version": "0.1.0",
+      "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+      "author": {
+        "name": "Thomas Stang"
+      },
+      "category": "development",
+      "source": "./plugins/session"
     }
   ]
 }

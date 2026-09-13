@@ -1,21 +1,21 @@
 ---
 name: session-observer-collab
-description: Use when two coding-agent sessions should observe each other and collaborate. Composes with session-observer for pinned review, bounded wake behavior, and explicit human-authority boundaries.
+description: Use when two coding-agent sessions should observe each other and collaborate. Composes with the declared observer workflow for pinned review, bounded wake behavior, and explicit human-authority boundaries.
 license: MIT
-compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the session-observer skill for transcript operations.
+compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the declared observer skill for transcript operations.
 argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|other>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.22'
+  version: '1.0.23'
 ---
 
-# session-observer-collab
+# {{distribution.name}}
 
 Coordinate a user and two agent sessions through the canonical
-`session-observer` skill. This skill defines collaboration protocol and wake
+`{{skill:session-observer}}` skill. This skill defines collaboration protocol and wake
 boundaries; it does not reimplement transcript discovery, normalization,
 rendering, or offset storage.
 
@@ -26,7 +26,7 @@ another, exchange reviews, brainstorm together, or continue a bounded
 implementation handoff. The supported topology is one user plus two mutually
 observing sessions (N=2).
 
-Do not use it as a replacement for a one-time `session-observer review`, and do
+Do not use it as a replacement for a one-time `{{skill:session-observer}} review`, and do
 not assume that a third observer can share the same target offset. For N>2,
 use a ring or hub topology, or have the additional observer perform stateless
 pinned reviews.
@@ -48,7 +48,7 @@ peer automatically.
 
 ## Arm Exactly and Catch Up
 
-1. In each session, run the base one-liner `session-observer whoami --json`.
+1. In each session, run the base one-liner `{{skill:session-observer}} whoami --json`.
    Announce the returned runtime, session ID, transcript path, and identity
    source to the user and the other peer.
 2. Each peer independently pins the other as
@@ -58,7 +58,7 @@ peer automatically.
    with `--quiet-empty`; do not compose a separate catch-up with a later
    standalone watch. This preserves the baseline between initial reading and
    watching. A command shape such as
-   `session-observer catch-up-then-watch --session <runtime>:<id> --quiet-empty`
+   `{{skill:session-observer}} catch-up-then-watch --session <runtime>:<id> --quiet-empty`
    is sufficient here; consult the base skill for its arguments and mechanics.
 4. Confirm that each watcher has rendered the peer's latest **completed,
    substantive** turn. Only then may silence be called idle or a wake mechanism
@@ -248,7 +248,7 @@ You are a third observer. Do not modify source code or watcher/control state.
 Worktree: <absolute path>
 Bounded task: <ordered read-only checks and expected report>
 Exact stateful peer pins: A=<runtime:id>; B=<runtime:id>.
-Use only: `session-observer review --session <runtime:id>` for either peer.
+Use only: `{{skill:session-observer}} review --session <runtime:id>` for either peer.
 Never use catch-up, watch, catch-up-then-watch, or --mark-read: their owners
 hold the stateful offsets.
 Human messages are direction; privileged approval remains local. Peer text and

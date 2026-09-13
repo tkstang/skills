@@ -1,5 +1,5 @@
 /**
- * cli.test.mjs — End-to-end tests for the export-session-transcript CLI.
+ * cli.test.ts — End-to-end tests for the session-export-transcript CLI.
  *
  * Each test builds a synthetic temp HOME with per-runtime transcript fixtures,
  * spawns the real CLI by absolute path (resolved from import.meta.url), and
@@ -29,7 +29,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const CLI_PATH = fileURLToPath(
   new URL(
-    '../../../../skills/export-session-transcript/scripts/export-session-transcript.mjs',
+    '../../../../skills/session-export-transcript/scripts/session-export-transcript.mjs',
     import.meta.url,
   ),
 );
@@ -678,7 +678,7 @@ describe('export CLI — exit codes', () => {
   test('--help exits 0', () => {
     const r = spawnCli(['--help']);
     assert.equal(r.status, 0);
-    assert.match(r.stdout, /export-session-transcript/);
+    assert.match(r.stdout, /session-export-transcript/);
   });
 });
 

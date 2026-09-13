@@ -17,6 +17,19 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Development"
+    },
+    {
+      "name": "session",
+      "version": "0.1.0",
+      "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+      "source": {
+        "source": "local",
+        "path": "./plugins/session"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
     }
   ]
 }
