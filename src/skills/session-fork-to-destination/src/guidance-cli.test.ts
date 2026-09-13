@@ -212,7 +212,7 @@ describe('experimental guidance CLI', () => {
     );
     const userGuide = await readFile(
       new URL(
-        '../../../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        '../../../../documentation/docs/user-guide/skills/session-fork-to-destination.md',
         import.meta.url,
       ),
       'utf8',
@@ -242,7 +242,7 @@ describe('experimental guidance CLI', () => {
     );
     const userGuide = await readFile(
       new URL(
-        '../../../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        '../../../../documentation/docs/user-guide/skills/session-fork-to-destination.md',
         import.meta.url,
       ),
       'utf8',
@@ -272,7 +272,7 @@ describe('experimental guidance CLI', () => {
     );
     const userGuide = await readFile(
       new URL(
-        '../../../../documentation/docs/user-guide/skills/coding-session-handoff.md',
+        '../../../../documentation/docs/user-guide/skills/session-fork-to-destination.md',
         import.meta.url,
       ),
       'utf8',
