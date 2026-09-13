@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: prev1-t05
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | in_progress | 5 | 4/5 |
+| p-rev1 | implementation complete; review pending | 5 | 5/5 |
 
-**Total:** 39 completed of 44 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented, 1 revision task pending. p03-t19 independent review passed.
+**Total:** 40 completed of 44 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented, 0 revision tasks pending. p-rev1 independent review is pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -78,7 +78,7 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ## Phase p-rev1: Destination-tab fork guidance
 
-**Status:** pending implementation; revision planning only.
+**Status:** implementation complete; independent review pending.
 
 ### Task prev1-t01: Establish provider/surface instruction capabilities
 
@@ -106,7 +106,9 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ### Task prev1-t05: Document status and verify the revised workflow
 
-**Status:** pending
+**Status:** completed
+**Commit:** `0df47b79d55493bd213c4680752e4df45e8cc848`
+**Verification:** 1,899 tests, type-check, generated parity, repository validation, smoke, skill-version validation, docs formatting/build, and diff hygiene passed. `tests/release/validate-script.test.ts` was a mechanically derived in-phase fixture addition required by the declared full-suite check.
 
 ---
 
@@ -1042,6 +1044,9 @@ independently verified before p04-t01 can safely execute.
 - Dispatch request `handoff-prev1-impl-20260912-01`: accepted native background handle `/root/handoff_revision_phase`; exact role `oat-phase-implementer-gpt-5-6-sol-medium`; configured model `gpt-5.6-sol`, effort `medium`, priority service tier, no separate reasoning-mode selector. Tier 1, managed Frontier policy, cap `max`, candidate selection at route level 0; default-implementation task/floor, satisfied. Native catalog observed 2026-09-12; guidance 2026-07-25 is review-required and retains the available Sol incumbent requested by the handoff. Authority: p-rev1 task files and commits only; no synced-project artifacts, real provider commands, installation, publication, or release. Deadline 3600 seconds, launch retry limit 0, phase recovery limit 10, no post-acceptance fallback. Fresh context, runtime identity not reported; launch accepted and terminal outcome pending.
 - Dispatch: scope=p-rev1 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
 - Boundaries: no live provider executable, installation, feature-branch push, PR mutation, merge, cleanup, or release is authorized. Public documentation/source inspection and synthetic tests are allowed.
+- Phase implementer outcome: `DONE_WITH_CONCERNS`, validated as accepted success at `0df47b79d55493bd213c4680752e4df45e8cc848`; five ordered task commits span `30da3e20d8e62fa2fc12ae21d8778ba2f0106963..0df47b79d55493bd213c4680752e4df45e8cc848`, worktree clean, no recovery attempts, `pending_attempt: null`, and no optional children.
+- Verification: root repeated the complete 1,899-test suite, type-check, generated parity, repository validation, smoke, skill-version validation, docs formatting, and diff hygiene successfully. The corrected skill-version command omits the unsupported standalone `--` already recorded as a historical plan deviation.
+- Concerns: native provider behavior remains documentation-backed rather than live verified; the new skill remains experimental and unreleased; the old executor remains paused, incomplete, and unverified. These are intended product/evidence limits, not blocking implementation defects.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
