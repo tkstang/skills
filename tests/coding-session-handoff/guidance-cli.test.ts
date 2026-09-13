@@ -295,6 +295,84 @@ describe('experimental guidance CLI', () => {
     }
   });
 
+  it('reports previews truncated by entry count or within an entry', async () => {
+    const createdRoot = await mkdtemp(join(tmpdir(), 'handoff-preview-limit-'));
+    const root = await realpath(createdRoot);
+    const previousHome = process.env.HOME;
+    const source = join(root, 'repo', 'source');
+    const sessionId = 'preview-limit-session';
+    const transcriptDir = join(
+      root,
+      '.claude',
+      'projects',
+      source.replace(/[/.]/gu, '-'),
+    );
+    const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+    const record = (type: 'user' | 'assistant', content: string) => ({
+      type,
+      cwd: source,
+      sessionId,
+      message: {
+        role: type,
+        content:
+          type === 'assistant' ? [{ type: 'text', text: content }] : content,
+      },
+    });
+    const runPreview = async () => {
+      const test = harness();
+      expect(
+        await runGuidanceCli(
+          [
+            'preview',
+            '--source',
+            source,
+            '--session',
+            `claude:cli:${sessionId}`,
+            '--json',
+          ],
+          undefined,
+          test.io,
+        ),
+      ).toBe(0);
+      return JSON.parse(test.stdout[0]).data as {
+        entries: unknown[];
+        truncated: boolean;
+      };
+    };
+
+    await mkdir(source, { recursive: true });
+    await mkdir(transcriptDir, { recursive: true });
+    process.env.HOME = root;
+
+    try {
+      await writeFile(
+        transcriptPath,
+        `${Array.from({ length: 10 }, (_, index) =>
+          JSON.stringify(
+            record(index % 2 === 0 ? 'user' : 'assistant', `entry-${index}`),
+          ),
+        ).join('\n')}\n`,
+        'utf8',
+      );
+      const countLimited = await runPreview();
+      expect(countLimited.entries).toHaveLength(8);
+      expect(countLimited.truncated).toBe(true);
+
+      await writeFile(
+        transcriptPath,
+        `${JSON.stringify(record('user', `prefix-${'x'.repeat(4_500)}`))}\n${JSON.stringify(record('assistant', 'tail'))}\n`,
+        'utf8',
+      );
+      const textLimited = await runPreview();
+      expect(textLimited.entries).toHaveLength(2);
+      expect(textLimited.truncated).toBe(true);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it.each(['execute', 'reconcile', 'behavior-plan', 'behavior-verify'])(
     'rejects old automation command %s',
     async (command) => {

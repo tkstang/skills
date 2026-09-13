@@ -295,11 +295,13 @@ async function defaultPreview(source: string, key: GuidanceQualifiedSessionId) {
   );
   const retained = entries.slice(-8);
   let remaining = 4_000;
+  let entryTextTrimmed = false;
   const limited = retained
     .toReversed()
     .flatMap((entry) => {
       if (remaining === 0) return [];
       const text = entry.text.slice(-remaining);
+      if (text.length < entry.text.length) entryTextTrimmed = true;
       remaining -= text.length;
       return [{ ...entry, text }];
     })
@@ -307,7 +309,8 @@ async function defaultPreview(source: string, key: GuidanceQualifiedSessionId) {
   return {
     key,
     entries: limited,
-    truncated: bounded.truncated || limited.length < entries.length,
+    truncated:
+      bounded.truncated || limited.length < entries.length || entryTextTrimmed,
     warning: 'hidden-payload-sanitized-not-secret-free',
   };
 }

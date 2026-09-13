@@ -3125,16 +3125,18 @@ async function defaultPreview(source, key) {
   );
   const retained = entries.slice(-8);
   let remaining = 4e3;
+  let entryTextTrimmed = false;
   const limited = retained.toReversed().flatMap((entry) => {
     if (remaining === 0) return [];
     const text = entry.text.slice(-remaining);
+    if (text.length < entry.text.length) entryTextTrimmed = true;
     remaining -= text.length;
     return [{ ...entry, text }];
   }).toReversed();
   return {
     key,
     entries: limited,
-    truncated: bounded.truncated || limited.length < entries.length,
+    truncated: bounded.truncated || limited.length < entries.length || entryTextTrimmed,
     warning: "hidden-payload-sanitized-not-secret-free"
   };
 }
