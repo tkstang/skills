@@ -103,8 +103,10 @@ oat_project_explainer:
 Revision p-rev1 is the only active implementation phase. Its five tasks and accepted
 phase-review fix are implemented through `3fdfc2a1`; fresh independent phase re-review
 passed. Final lifecycle review requests one Important Cursor source-association fix;
-`prev1-t06` completed at `20e86a10`, and fresh final re-review is pending. The
-implementation exit gate and final HiLL closeout remain after re-review.
+`prev1-t06` completed at `20e86a10`, and fresh final re-review passed with zero
+findings. Explicit final disposition of five inherited Medium deferrals is pending
+before the review can be marked passed; the implementation exit gate and final HiLL
+closeout remain afterward.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
