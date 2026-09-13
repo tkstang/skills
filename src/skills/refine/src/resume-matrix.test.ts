@@ -15,8 +15,8 @@ import { expect, it } from 'vitest';
 import {
   hashArtifact,
   runConsensusLoop,
-} from '../../../src/consensus/core/consensus-loop.js';
-import type { LoopRecord } from '../../../src/consensus/core/consensus-loop.js';
+} from '../../../plugins/consensus/core/consensus-loop.js';
+import type { LoopRecord } from '../../../plugins/consensus/core/consensus-loop.js';
 
 type JsonRecord = Record<string, any>;
 

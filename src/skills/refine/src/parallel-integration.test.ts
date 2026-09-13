@@ -5,8 +5,8 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { extractJsonBlock } from '../../helpers/consensus.js';
+import * as consensusRefine from '../../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { extractJsonBlock } from '../../../../tests/helpers/consensus.js';
 import {
   captureWriter,
   makeProviderCliEnv,
@@ -14,7 +14,7 @@ import {
   repoRoot,
   runNodeScript,
   sampleInput,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
 
 const { runWrapperCli } = consensusRefine;
 
@@ -27,10 +27,7 @@ const loopScript = path.join(
 
 it('parallel section runner target is the generated consensus-loop runtime', async () => {
   expect(loopScript).toBe(
-    path.join(
-      repoRoot,
-      'plugins/consensus/scripts/consensus-loop.mjs',
-    ),
+    path.join(repoRoot, 'plugins/consensus/scripts/consensus-loop.mjs'),
   );
   const loopSource = await readFile(loopScript, 'utf8');
   expect(loopSource).toMatch(

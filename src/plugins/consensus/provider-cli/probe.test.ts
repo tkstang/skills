@@ -4,14 +4,14 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerRegistry } from '../provider-cli/adapters.js';
+import { runPreflight, runProviderList } from '../provider-cli/commands.js';
 import {
   nodeProbeCommandRunner,
   probeProviderReadiness,
   probeProviderRegistry,
   type ProbeCommandRunner,
-} from '../../../src/consensus/provider-cli/probe.js';
-import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
-import { runPreflight, runProviderList } from '../../../src/consensus/provider-cli/commands.js';
+} from '../provider-cli/probe.js';
 
 describe('provider readiness probes', () => {
   it('maps a missing executable to a missing provider entry', async () => {
@@ -119,11 +119,7 @@ describe('provider readiness probes', () => {
 
   it('bounds sleeping provider probes as unavailable timeouts', async () => {
     const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
-    await writeExecutableFixture(
-      binDir,
-      'claude',
-      '#!/bin/sh\n/bin/sleep 5\n',
-    );
+    await writeExecutableFixture(binDir, 'claude', '#!/bin/sh\n/bin/sleep 5\n');
 
     const startedAt = Date.now();
     try {
@@ -186,9 +182,7 @@ describe('provider readiness probes', () => {
           output_bytes: {
             max: 16,
           },
-          warnings: [
-            expect.stringContaining('PROVIDER_OUTPUT_CAP_EXCEEDED'),
-          ],
+          warnings: [expect.stringContaining('PROVIDER_OUTPUT_CAP_EXCEEDED')],
         },
       });
     } finally {

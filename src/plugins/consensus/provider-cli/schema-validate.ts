@@ -1,6 +1,4 @@
-export type ValidationResult =
-  | { ok: true }
-  | { ok: false; message: string };
+export type ValidationResult = { ok: true } | { ok: false; message: string };
 
 export function validateSchemaSubset(
   value: unknown,

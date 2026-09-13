@@ -5,14 +5,14 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  helpText,
-  runConsensusCli as runSourceConsensusCli,
-} from '../../../src/consensus/provider-cli/commands.js';
-import {
   captureWriter,
   repoRoot,
   runNodeScriptResult,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
+import {
+  helpText,
+  runConsensusCli as runSourceConsensusCli,
+} from '../provider-cli/commands.js';
 
 const consensusCli = path.join(
   repoRoot,
@@ -28,11 +28,7 @@ describe('generated consensus provider CLI process contract', () => {
     expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
       schema_version: 'v1',
       ok: true,
-      providers: [
-        { id: 'claude' },
-        { id: 'codex' },
-        { id: 'cursor' },
-      ],
+      providers: [{ id: 'claude' }, { id: 'codex' }, { id: 'cursor' }],
     });
   });
 
@@ -72,13 +68,13 @@ describe('generated consensus provider CLI process contract', () => {
       );
 
       expect(codexPreflightResult.code).toBe(0);
-      expect(parseSingleJsonDocument(codexPreflightResult.stdout)).toMatchObject(
-        {
-          ok: true,
-          usable: true,
-          providers: [{ id: 'codex', status: 'ready' }],
-        },
-      );
+      expect(
+        parseSingleJsonDocument(codexPreflightResult.stdout),
+      ).toMatchObject({
+        ok: true,
+        usable: true,
+        providers: [{ id: 'codex', status: 'ready' }],
+      });
 
       const cursorPreflightResult = await runConsensusCli(
         ['preflight', '--json', '--provider', 'cursor'],
@@ -86,13 +82,13 @@ describe('generated consensus provider CLI process contract', () => {
       );
 
       expect(cursorPreflightResult.code).toBe(0);
-      expect(parseSingleJsonDocument(cursorPreflightResult.stdout)).toMatchObject(
-        {
-          ok: true,
-          usable: false,
-          providers: [{ id: 'cursor', status: 'missing' }],
-        },
-      );
+      expect(
+        parseSingleJsonDocument(cursorPreflightResult.stdout),
+      ).toMatchObject({
+        ok: true,
+        usable: false,
+        providers: [{ id: 'cursor', status: 'missing' }],
+      });
     } finally {
       await rm(binDir, { recursive: true, force: true });
     }
@@ -358,15 +354,7 @@ describe('generated consensus provider CLI process contract', () => {
 
     try {
       const code = await runSourceConsensusCli(
-        [
-          'submit',
-          '--json',
-          '-',
-          '--schema',
-          schemaPath,
-          '--out',
-          outPath,
-        ],
+        ['submit', '--json', '-', '--schema', schemaPath, '--out', outPath],
         {
           stdout: stdout.stream,
           stderr: stderr.stream,
@@ -401,14 +389,7 @@ describe('generated consensus provider CLI process contract', () => {
 
   it('rejects request JSON mixed with conflicting flags', async () => {
     const result = await runConsensusCli(
-      [
-        'run',
-        '--request-json',
-        '-',
-        '--max-depth',
-        '2',
-        '--json',
-      ],
+      ['run', '--request-json', '-', '--max-depth', '2', '--json'],
       {
         input: JSON.stringify({
           schema_version: 'v1',

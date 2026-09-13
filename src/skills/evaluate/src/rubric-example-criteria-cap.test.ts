@@ -6,13 +6,10 @@ import { expect, it } from 'vitest';
 import {
   RUBRIC_CRITERIA_CAP,
   parseRubricCriteria,
-} from '../../../src/consensus/evaluate/consensus-evaluate.js';
+} from './consensus-evaluate.js';
 
 const examplesDir = path.resolve(
-  new URL(
-    '../../../plugins/consensus/skills/evaluate/references/examples',
-    import.meta.url,
-  ).pathname,
+  new URL('../references/examples', import.meta.url).pathname,
 );
 
 // The evaluate wrapper parses `##`–`######` headings and `-`/`*` bullets, dedupes,

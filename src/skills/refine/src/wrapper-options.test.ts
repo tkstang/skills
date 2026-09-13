@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
 import {
   detectHost,
   parseWrapperArgs,
@@ -19,8 +20,7 @@ import {
   resolveSynthesizer,
   resolveRunDir,
   runSequential,
-} from '../../../src/consensus/refine/consensus-refine.js';
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
+} from './consensus-refine.js';
 
 function inventory(ids: string[]) {
   return ids.map((id) => ({ id, available: true }));
@@ -35,7 +35,9 @@ async function withIsolatedConsensusConfig(
   fn: (context: IsolatedConfigContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
 ) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-refine-config-'));
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-refine-config-'),
+  );
   try {
     const cwd = path.join(root, 'project');
     const home = path.join(root, 'home');

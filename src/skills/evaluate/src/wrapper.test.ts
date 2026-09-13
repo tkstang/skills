@@ -11,6 +11,8 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { makeProviderCliEnv } from '../../../../tests/helpers/process.mjs';
+import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
 import {
   buildEvaluationPromptProfile,
   createEvaluationInitialArtifact,
@@ -18,9 +20,7 @@ import {
   loadEvaluationInputs,
   parseEvaluateArgs,
   runConsensusEvaluate,
-} from '../../../src/consensus/evaluate/consensus-evaluate.js';
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
-import { makeProviderCliEnv } from '../../helpers/process.mjs';
+} from './consensus-evaluate.js';
 
 interface IsolatedRunContext {
   cwd: string;
@@ -47,7 +47,9 @@ async function withIsolatedConsensusConfig(
   fn: (context: IsolatedRunContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
 ) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-evaluate-config-'));
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-evaluate-config-'),
+  );
   try {
     const cwd = path.join(root, 'project');
     const home = path.join(root, 'home');

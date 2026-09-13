@@ -4,12 +4,12 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { makeProviderCliEnv } from '../../../../tests/helpers/process.mjs';
 import {
   renderEvaluationArtifact,
   runConsensusEvaluate,
   runEvaluateCli,
-} from '../../../src/consensus/evaluate/consensus-evaluate.js';
-import { makeProviderCliEnv } from '../../helpers/process.mjs';
+} from './consensus-evaluate.js';
 
 type JsonRecord = Record<string, any>;
 
@@ -24,10 +24,7 @@ async function fixtureFiles(prefix = 'consensus-evaluate-output-') {
   const runDir = path.join(tempRoot, '.consensus/evaluate-run');
 
   await writeFile(artifactPath, '# Artifact\n\nShip candidate.\n');
-  await writeFile(
-    rubricPath,
-    '# Rubric\n\n- Correctness\n- Risk disclosure\n',
-  );
+  await writeFile(rubricPath, '# Rubric\n\n- Correctness\n- Risk disclosure\n');
 
   return { tempRoot, artifactPath, rubricPath, outputPath, runDir };
 }

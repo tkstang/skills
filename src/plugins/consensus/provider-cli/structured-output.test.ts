@@ -5,22 +5,22 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
-import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
-import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
+import { providerRegistry } from '../provider-cli/adapters.js';
+import { processExitForEnvelope } from '../provider-cli/envelope.js';
+import type { ProviderInvocation } from '../provider-cli/invocation.js';
 import {
   buildConsensusSubmitCommand,
   runProviderTurn,
   selectStructuredOutputStrategy,
-} from '../../../src/consensus/provider-cli/structured-output.js';
+} from '../provider-cli/structured-output.js';
 import type {
   ProviderProcessResult,
   RunProviderSubprocessOptions,
-} from '../../../src/consensus/provider-cli/subprocess.js';
+} from '../provider-cli/subprocess.js';
 import type {
   ConsensusCliRunRequest,
   ProviderId,
-} from '../../../src/consensus/provider-cli/types.js';
+} from '../provider-cli/types.js';
 
 describe('structured provider output coordinator', () => {
   it('selects constrained-native, provider-validated, and prompt-only strategies', () => {
@@ -150,7 +150,9 @@ describe('structured provider output coordinator', () => {
   });
 
   it('captures a verdict submitted through the advertised peer command', async () => {
-    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-test-'));
+    const tempDir = await mkdtemp(
+      path.join(tmpdir(), 'consensus-submit-test-'),
+    );
     const schemaPath = path.join(tempDir, 'schema.json');
     await writeFile(schemaPath, JSON.stringify(schema()), 'utf8');
     const submitCommand = buildConsensusSubmitCommand({
@@ -216,12 +218,8 @@ describe('structured provider output coordinator', () => {
         output_mode: 'last_message_file',
       },
     });
-    expect(subprocess.invocations[0]?.argv).toContain(
-      '--output-last-message',
-    );
-    expect(subprocess.invocations[0]?.argv).not.toContain(
-      '--output-schema',
-    );
+    expect(subprocess.invocations[0]?.argv).toContain('--output-last-message');
+    expect(subprocess.invocations[0]?.argv).not.toContain('--output-schema');
   });
 
   it('retries retryable provider exits and stops on timeout classifications', async () => {
@@ -570,21 +568,27 @@ describe('structured provider output coordinator', () => {
   });
 
   it('keeps the success envelope shape unchanged across submit and parse paths', async () => {
-    const parseEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
-      readSchema: async () => schema(),
-      runSubprocess: fakeSubprocess([
-        processSuccess('{"verdict":"final-message"}'),
-      ]).run,
-    });
-    const submitEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
-      readSchema: async () => schema(),
-      async runSubprocess(_invocation, options) {
-        const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
-        if (!submitPath) throw new Error('Missing submit capture path');
-        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
-        return processSuccess('{"verdict":"final-message"}');
+    const parseEnvelope = await runProviderTurn(
+      request({ provider: 'cursor' }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processSuccess('{"verdict":"final-message"}'),
+        ]).run,
       },
-    });
+    );
+    const submitEnvelope = await runProviderTurn(
+      request({ provider: 'cursor' }),
+      {
+        readSchema: async () => schema(),
+        async runSubprocess(_invocation, options) {
+          const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+          if (!submitPath) throw new Error('Missing submit capture path');
+          await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+          return processSuccess('{"verdict":"final-message"}');
+        },
+      },
+    );
 
     expect(parseEnvelope.ok).toBe(true);
     expect(submitEnvelope.ok).toBe(true);

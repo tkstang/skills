@@ -3,6 +3,29 @@ import type { DistributionDeclaration } from '../scripts/lib/packaging.js';
 // Authored owners declare their installation targets here as they migrate
 // under src/skills. Generated payloads remain derivative build output.
 export const distributions: readonly DistributionDeclaration[] = [
+  ...(
+    [
+      'create',
+      'decide',
+      'evaluate',
+      'panel',
+      'phone-a-friend',
+      'plan',
+      'refine',
+    ] as const
+  ).map((owner) => ({
+    owner,
+    source: `src/skills/${owner}`,
+    allowedSourceRoots: ['src/plugins/consensus'],
+    targets: [
+      {
+        kind: 'plugin' as const,
+        plugin: 'consensus',
+        name: owner,
+        output: `plugins/consensus/skills/${owner}`,
+      },
+    ],
+  })),
   {
     owner: 'complexity-review',
     source: 'src/skills/complexity-review',

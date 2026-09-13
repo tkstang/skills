@@ -4,14 +4,14 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { captureWriter } from '../../../../tests/helpers/process.mjs';
 import {
   runSubmit,
   runConsensusCli,
   runPreflight,
   runProviderList,
-} from '../../../src/consensus/provider-cli/commands.js';
-import type { ProviderInventoryEntry } from '../../../src/consensus/provider-cli/types.js';
-import { captureWriter } from '../../helpers/process.mjs';
+} from '../provider-cli/commands.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 describe('provider CLI command handlers', () => {
   it('returns provider inventory as a command envelope', async () => {
@@ -184,9 +184,7 @@ describe('provider CLI command handlers', () => {
         captured: false,
         message: 'Missing required JSON field: verdict',
       });
-      expect(stderr.value()).toContain(
-        'Missing required JSON field: verdict',
-      );
+      expect(stderr.value()).toContain('Missing required JSON field: verdict');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -378,7 +376,10 @@ describe('provider CLI command handlers', () => {
 function providerEntries(
   statuses: Array<ProviderInventoryEntry['status']> = ['ready', 'ready'],
 ) {
-  return [providerEntry('claude', statuses[0]), providerEntry('codex', statuses[1])];
+  return [
+    providerEntry('claude', statuses[0]),
+    providerEntry('codex', statuses[1]),
+  ];
 }
 
 function providerEntry(

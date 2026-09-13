@@ -145,9 +145,7 @@ export function buildChildEnvironment({
 }
 
 function providerEnvAllowlist(provider: string): readonly string[] {
-  return (
-    PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? []
-  );
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
 
 export function redactedRuntimePolicyDiagnostics(
@@ -156,9 +154,7 @@ export function redactedRuntimePolicyDiagnostics(
   const effectivePolicy = defaultRuntimePolicy(policy);
   return {
     permission_mode: effectivePolicy.permission_mode,
-    ...(effectivePolicy.sandbox
-      ? { sandbox: effectivePolicy.sandbox }
-      : {}),
+    ...(effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {}),
     ...(effectivePolicy.approval_policy
       ? { approval_policy: effectivePolicy.approval_policy }
       : {}),

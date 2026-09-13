@@ -14,13 +14,13 @@ import {
   validateProviderOptions,
 } from './runtime-policy.js';
 import { isRecord, validateSchemaSubset } from './schema-validate.js';
-import { runProviderSubprocess } from './subprocess.js';
 import {
   assertWithinSubmitCaptureLimit,
   CONSENSUS_SUBMIT_MAX_BYTES_ENV,
   submitCaptureMaxBytes,
   submitCaptureFilePath,
 } from './submit-capture.js';
+import { runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
 import type { ProviderProcessResult } from './subprocess.js';
 import type {
@@ -474,8 +474,7 @@ function promptForStrategy(input: {
   const parts = [input.prompt];
 
   if (input.submitCaptureEnabled) {
-    const submitCommand =
-      input.submitCommand ?? buildConsensusSubmitCommand();
+    const submitCommand = input.submitCommand ?? buildConsensusSubmitCommand();
     parts.push(
       'Verdict submission:',
       'Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:',
@@ -587,10 +586,12 @@ function exitClassificationDiagnostics(
     : undefined;
 }
 
-export function buildConsensusSubmitCommand(input: {
-  nodePath?: string;
-  cliPath?: string;
-} = {}) {
+export function buildConsensusSubmitCommand(
+  input: {
+    nodePath?: string;
+    cliPath?: string;
+  } = {},
+) {
   const nodePath = input.nodePath ?? process.execPath;
   const cliPath = input.cliPath ?? currentConsensusCliPath();
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;

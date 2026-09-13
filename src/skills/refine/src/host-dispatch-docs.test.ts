@@ -1,12 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
-const skillPath = path.join(
-  repoRoot,
-  'plugins/consensus/skills/refine/SKILL.md',
-);
+const repoRoot = path.resolve(new URL('../../../..', import.meta.url).pathname);
+const skillPath = path.join(repoRoot, 'src/skills/refine/SKILL.md');
 const runnerPath = path.join(
   repoRoot,
   'plugins/consensus/agents/consensus-section-runner.md',

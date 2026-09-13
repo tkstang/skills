@@ -57,14 +57,17 @@ export function consensusSharedCliPath(homeDir = os.homedir()) {
   return path.join(homeDir, CONSENSUS_SHARED_CLI_RELATIVE_PATH);
 }
 
-function defaultConsensusCliPath() {
-  return fileURLToPath(new URL('./consensus.mjs', import.meta.url));
+function defaultConsensusCliPaths() {
+  return [
+    fileURLToPath(new URL('./consensus.mjs', import.meta.url)),
+    fileURLToPath(new URL('../../../scripts/consensus.mjs', import.meta.url)),
+  ];
 }
 
 export function resolveConsensusCliPathDetails({
   consensusCliPath,
   env = process.env,
-  defaultCliPath = defaultConsensusCliPath(),
+  defaultCliPath,
 }: ConsensusCliPathOptions = {}): ConsensusCliResolution {
   if (consensusCliPath) {
     return { status: 'resolved', source: 'explicit', path: consensusCliPath };
@@ -78,11 +81,17 @@ export function resolveConsensusCliPathDetails({
     };
   }
 
+  const defaultCliPaths = defaultCliPath
+    ? [defaultCliPath]
+    : defaultConsensusCliPaths();
   const sharedCliPath = consensusSharedCliPath(env.HOME || os.homedir());
-  const attemptedPaths = [defaultCliPath, sharedCliPath];
+  const attemptedPaths = [...defaultCliPaths, sharedCliPath];
 
-  if (existsSync(defaultCliPath)) {
-    return { status: 'resolved', source: 'plugin', path: defaultCliPath };
+  const pluginCliPath = defaultCliPaths.find((candidate) =>
+    existsSync(candidate),
+  );
+  if (pluginCliPath) {
+    return { status: 'resolved', source: 'plugin', path: pluginCliPath };
   }
 
   if (existsSync(sharedCliPath)) {
@@ -492,7 +501,9 @@ function peerVerdictError(
   return null;
 }
 
-export function providerAuditFields(result: ProviderResult): Partial<LoopRecord> {
+export function providerAuditFields(
+  result: ProviderResult,
+): Partial<LoopRecord> {
   const rawResponse =
     result.raw_provider_response ??
     result.stdout ??

@@ -3,7 +3,7 @@ import {
   EXIT_CODES,
   invalidIterationModeError,
   ITERATION_MODES,
-} from '../core/consensus-loop.js';
+} from '../../../plugins/consensus/core/consensus-loop.js';
 import { isJsonRecord } from './refine-shared.js';
 import type {
   AgencyValue,

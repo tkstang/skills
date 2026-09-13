@@ -4,16 +4,16 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { runConsensusCreate } from '../../../skills/create/src/consensus-create.js';
+import { runConsensusDecide } from '../../../skills/decide/src/consensus-decide.js';
+import { runConsensusEvaluate } from '../../../skills/evaluate/src/consensus-evaluate.js';
+import { runConsensusPlan } from '../../../skills/plan/src/consensus-plan.js';
+import { runSequential } from '../../../skills/refine/src/consensus-refine.js';
 import {
   consensusProviderCliMissingError,
   consensusSharedCliPath,
   type ConsensusError,
-} from '../../../src/consensus/core/consensus-loop.js';
-import { runConsensusCreate } from '../../../src/consensus/create/consensus-create.js';
-import { runConsensusDecide } from '../../../src/consensus/decide/consensus-decide.js';
-import { runConsensusEvaluate } from '../../../src/consensus/evaluate/consensus-evaluate.js';
-import { runConsensusPlan } from '../../../src/consensus/plan/consensus-plan.js';
-import { runSequential } from '../../../src/consensus/refine/consensus-refine.js';
+} from '../core/consensus-loop.js';
 
 interface WrapperCase {
   name: string;

@@ -3,16 +3,17 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 describe('generated consensus-evaluate import', () => {
-  it('imports the shared plugin-local generated consensus-loop runtime', async () => {
+  it('bundles the shared consensus-loop runtime', async () => {
     const source = await readFile(
       new URL(
-        '../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+        '../../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
         import.meta.url,
       ),
       'utf8',
     );
 
-    expect(source).toContain("from '../../../scripts/consensus-loop.mjs';");
+    expect(source).toContain('// GENERATED skill payload for evaluate.');
+    expect(source).not.toMatch(/from\s+['"]\.\.?\//);
     expect(source).not.toContain('../core/');
   });
 });

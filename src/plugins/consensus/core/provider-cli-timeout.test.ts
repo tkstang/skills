@@ -2,11 +2,11 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { fixtureBin } from '../../../../tests/helpers/process.mjs';
 import {
   PROVIDER_CLI_KILL_GRACE_MS,
   runProviderCliCommand,
-} from '../../../src/consensus/core/consensus-loop.js';
-import { fixtureBin } from '../../helpers/process.mjs';
+} from '../core/consensus-loop.js';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 // A shell script, not a Node script: it reaches its `trap '' TERM` line

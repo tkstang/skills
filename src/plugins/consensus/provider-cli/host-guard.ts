@@ -6,9 +6,7 @@ import type {
   ProviderId,
 } from './types.js';
 
-export type HostGuardResult =
-  | HostGuardAllowedResult
-  | HostGuardBlockedResult;
+export type HostGuardResult = HostGuardAllowedResult | HostGuardBlockedResult;
 
 export interface HostGuardAllowedResult {
   allowed: true;
@@ -73,7 +71,9 @@ export function hostContextFromEnv(
   };
 }
 
-export function buildChildHostEnv(context: HostContext): Record<string, string> {
+export function buildChildHostEnv(
+  context: HostContext,
+): Record<string, string> {
   return {
     CONSENSUS_RUN_ID: context.run_id,
     CONSENSUS_PARENT_HOST: context.runtime,

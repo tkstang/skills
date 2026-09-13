@@ -205,7 +205,9 @@ export function convergenceOptionsForAgency(agency: Agency = 'moderate') {
   return { agency, hashOptions: hashOptionsForAgency(agency) };
 }
 
-export function verdictDecision(record: LoopRecord | null | undefined): string | null {
+export function verdictDecision(
+  record: LoopRecord | null | undefined,
+): string | null {
   if (typeof record?.verdict === 'string') return record.verdict;
   if (!isJsonRecord(record?.verdict)) return record?.decision ?? null;
   return (
@@ -256,22 +258,19 @@ export function required<T>(value: T | null | undefined | '', name: string): T {
   return value;
 }
 
+function refineSchemaUrl(name: string) {
+  const relative = import.meta.url.includes('/skills/refine/scripts/')
+    ? `../schemas/${name}`
+    : `../skills/refine/schemas/${name}`;
+  return new URL(relative, import.meta.url);
+}
+
 export function schemaPath() {
-  return fileURLToPath(
-    new URL(
-      '../skills/refine/schemas/verdict-alternating.schema.json',
-      import.meta.url,
-    ),
-  );
+  return fileURLToPath(refineSchemaUrl('verdict-alternating.schema.json'));
 }
 
 export function parallelSchemaPath() {
-  return fileURLToPath(
-    new URL(
-      '../skills/refine/schemas/verdict-parallel.schema.json',
-      import.meta.url,
-    ),
-  );
+  return fileURLToPath(refineSchemaUrl('verdict-parallel.schema.json'));
 }
 
 /** The output schema a peer is shown for a given iteration mode. Parallel modes
@@ -282,9 +281,7 @@ export function peerSchemaPathForMode(mode: IterationMode) {
 }
 
 export function synthesisSchemaPath() {
-  return fileURLToPath(
-    new URL('../skills/refine/schemas/synthesis.schema.json', import.meta.url),
-  );
+  return fileURLToPath(refineSchemaUrl('synthesis.schema.json'));
 }
 
 export function hardErrorMessage(error: unknown): string {

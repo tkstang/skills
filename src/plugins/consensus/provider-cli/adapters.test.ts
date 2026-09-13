@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   defaultSchemaStrategy,
   providerRegistry,
-} from '../../../src/consensus/provider-cli/adapters.js';
-import { runProviderList } from '../../../src/consensus/provider-cli/commands.js';
-import type { ProviderRunFailureInput } from '../../../src/consensus/provider-cli/adapters.js';
+} from '../provider-cli/adapters.js';
+import type { ProviderRunFailureInput } from '../provider-cli/adapters.js';
+import { runProviderList } from '../provider-cli/commands.js';
 
 describe('provider adapter registry', () => {
   it('registers the first-scope provider adapters by user-facing ID', () => {

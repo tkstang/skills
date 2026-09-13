@@ -5,13 +5,16 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 import {
+  makeProviderCliEnv,
+  readJson,
+} from '../../../../tests/helpers/process.mjs';
+import {
   buildTurnPrompt,
   EXIT_CODES,
   exitCodeForError,
   parseLoopArgs,
   runConsensusLoop,
-} from '../../../src/consensus/core/consensus-loop.js';
-import { makeProviderCliEnv, readJson } from '../../helpers/process.mjs';
+} from '../core/consensus-loop.js';
 
 type RunFiles = {
   tempRoot: string;

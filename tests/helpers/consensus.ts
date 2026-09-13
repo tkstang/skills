@@ -17,7 +17,7 @@ import type {
   ColdStartMode,
   IterationMode,
   LoopOptions,
-} from '../../src/consensus/core/consensus-loop.js';
+} from '../../src/plugins/consensus/core/consensus-loop.js';
 
 /**
  * Extract and parse a `<!-- consensus:<label>\n...\n-->` JSON block from a

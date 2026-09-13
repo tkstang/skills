@@ -1,0 +1,12 @@
+{
+  "runtime": [
+    "src/consensus-refine.ts",
+    "src/refine-args.ts",
+    "src/refine-escalation.ts",
+    "src/refine-manifest.ts",
+    "src/refine-render.ts",
+    "src/refine-resume.ts",
+    "src/refine-sections.ts",
+    "src/refine-shared.ts"
+  ]
+}

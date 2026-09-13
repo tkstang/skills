@@ -13,9 +13,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import * as consensusEvaluate from '../../../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusEvaluate from '../../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs';
+import * as consensusRefine from '../../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const runtimes = [
   {
@@ -58,7 +58,10 @@ describe.each(runtimes)(
 
     it('confineWrite accepts paths inside root and rejects escaping paths', async () => {
       const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-path-'));
-      const inside = await confineWrite(path.join(tempRoot, 'out.md'), tempRoot);
+      const inside = await confineWrite(
+        path.join(tempRoot, 'out.md'),
+        tempRoot,
+      );
       expect(inside).toBe(path.join(tempRoot, 'out.md'));
 
       await expect(
@@ -144,9 +147,9 @@ describe.each(runtimes)(
 
       expect(await readFile(outputPath, 'utf8')).toBe('final');
       expect((await stat(outputPath)).isFile()).toBe(true);
-      expect((await lstat(path.join(tempRoot, 'nested'))).isDirectory()).toEqual(
-        true,
-      );
+      expect(
+        (await lstat(path.join(tempRoot, 'nested'))).isDirectory(),
+      ).toEqual(true);
 
       const symlinkPath = path.join(tempRoot, 'linked.md');
       await symlink(outputPath, symlinkPath);

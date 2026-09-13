@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { runPreflight } from '../provider-cli/commands.js';
 import {
   buildChildHostEnv,
   detectHostRuntime,
   evaluateHostGuard,
   hostContextFromEnv,
-} from '../../../src/consensus/provider-cli/host-guard.js';
-import { runPreflight } from '../../../src/consensus/provider-cli/commands.js';
+} from '../provider-cli/host-guard.js';
 import type {
   HostContext,
   ProviderInventoryEntry,
-} from '../../../src/consensus/provider-cli/types.js';
+} from '../provider-cli/types.js';
 
 describe('provider host runtime guard', () => {
   it('detects host runtimes from Claude, Codex, and Cursor environment markers', () => {
@@ -98,7 +98,11 @@ describe('provider host runtime guard', () => {
     // evaluation takes the different_host branch. The spawned peer process
     // becomes the host for the next hop, carrying the incremented depth
     // forward via child_env — the exact path that previously reset to 0.
-    let host = hostContext({ runtime: 'claude', depth: 0, max_depth: maxDepth });
+    let host = hostContext({
+      runtime: 'claude',
+      depth: 0,
+      max_depth: maxDepth,
+    });
     const providers = ['codex', 'claude', 'codex'] as const;
     const results = [];
 
@@ -166,7 +170,9 @@ describe('provider host runtime guard', () => {
   });
 
   it('builds child host environment by incrementing depth', () => {
-    expect(buildChildHostEnv(hostContext({ runtime: 'claude', depth: 0 }))).toEqual({
+    expect(
+      buildChildHostEnv(hostContext({ runtime: 'claude', depth: 0 })),
+    ).toEqual({
       CONSENSUS_RUN_ID: 'run-123',
       CONSENSUS_PARENT_HOST: 'claude',
       CONSENSUS_DEPTH: '1',

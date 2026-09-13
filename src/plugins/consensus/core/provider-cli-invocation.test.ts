@@ -10,7 +10,7 @@ import {
   providerCliSpawnTarget,
   resolveConsensusCliPath,
   runConsensusLoop,
-} from '../../../src/consensus/core/consensus-loop.js';
+} from '../core/consensus-loop.js';
 
 describe('consensus provider CLI invocation seam', () => {
   it('spawns the default generated .mjs through Node and leaves explicit commands direct', () => {

@@ -1,3 +1,6 @@
+import { resolvePromptProfile, verdictForPrompt } from './loop-prompts.js';
+import { providerAuditFields } from './loop-provider.js';
+import { peerTurnCount } from './loop-records.js';
 import type {
   AlternatingTurnContext,
   AlternatingTurnResult,
@@ -15,9 +18,6 @@ import type {
   SynthesisResult,
   SynthesizerInvoker,
 } from './loop-types.js';
-import { resolvePromptProfile, verdictForPrompt } from './loop-prompts.js';
-import { providerAuditFields } from './loop-provider.js';
-import { peerTurnCount } from './loop-records.js';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -139,7 +139,9 @@ function lastRoundPeerRecords(
   return { [peers0]: own, [peers1]: peer };
 }
 
-export function revisionTextFor(record: LoopRecord | null | undefined): string | null {
+export function revisionTextFor(
+  record: LoopRecord | null | undefined,
+): string | null {
   if (!record) return null;
   if (typeof record.proposed_artifact === 'string')
     return record.proposed_artifact;

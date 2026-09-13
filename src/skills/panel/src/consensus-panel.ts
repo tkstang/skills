@@ -19,8 +19,8 @@ import {
   type ConsensusAgentRef,
   type ConsensusCompositionSource,
   type ConsensusDefaults,
-} from '../config/consensus-config.js';
-import type { ProviderInventoryEntry } from '../provider-cli/types.js';
+} from '../../../plugins/consensus/config/consensus-config.js';
+import type { ProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
 
 export const PANEL_QUESTION_SIZE_CAP_BYTES = 1024 * 1024;
 

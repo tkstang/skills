@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateSchemaSubset } from '../../../src/consensus/provider-cli/schema-validate.js';
+import { validateSchemaSubset } from '../provider-cli/schema-validate.js';
 
 describe('schema subset validation', () => {
   it('accepts valid objects and reports the specific failing field', () => {
@@ -27,10 +27,7 @@ describe('schema subset validation', () => {
     });
 
     expect(
-      validateSchemaSubset(
-        { verdict: 'accept', confidence: 'high' },
-        schema,
-      ),
+      validateSchemaSubset({ verdict: 'accept', confidence: 'high' }, schema),
     ).toEqual({
       ok: false,
       message: 'Field confidence must be number.',

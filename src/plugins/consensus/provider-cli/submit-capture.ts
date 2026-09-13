@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 export const DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
-export const CONSENSUS_SUBMIT_MAX_BYTES_ENV =
-  'CONSENSUS_SUBMIT_MAX_BYTES';
+export const CONSENSUS_SUBMIT_MAX_BYTES_ENV = 'CONSENSUS_SUBMIT_MAX_BYTES';
 export const CONSENSUS_SUBMIT_CAPTURE_DIR = '.consensus/submit';
 
 export class SubmitCaptureLimitError extends Error {
@@ -52,10 +51,7 @@ export function assertWithinSubmitCaptureLimit(
   }
 }
 
-export function submitCaptureLimitMessage(
-  bytes: number,
-  maxBytes: number,
-) {
+export function submitCaptureLimitMessage(bytes: number, maxBytes: number) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 
@@ -67,8 +63,5 @@ export function submitCaptureFilePath(
   cwd: string,
   id: string = randomUUID(),
 ): string {
-  return path.join(
-    submitCaptureDirectory(cwd),
-    `consensus-submit-${id}.json`,
-  );
+  return path.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }

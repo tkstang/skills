@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
+import { providerRegistry } from '../provider-cli/adapters.js';
 import {
   buildProviderInvocation,
   type ProviderInvocation,
-} from '../../../src/consensus/provider-cli/invocation.js';
-import { defaultRuntimePolicy } from '../../../src/consensus/provider-cli/runtime-policy.js';
+} from '../provider-cli/invocation.js';
+import { defaultRuntimePolicy } from '../provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
   StructuredOutputStrategy,
-} from '../../../src/consensus/provider-cli/types.js';
+} from '../provider-cli/types.js';
 
 describe('provider invocation builders', () => {
   it.each(['codex', 'cursor'] as const)(
@@ -158,11 +158,7 @@ describe('provider invocation builders', () => {
       output_mode: 'stdout_json',
       strategy: 'prompt_only',
     });
-    expect(invocation.argv).toEqual([
-      '--output-format',
-      'json',
-      '--force',
-    ]);
+    expect(invocation.argv).toEqual(['--output-format', 'json', '--force']);
     expect(invocation.argv.join(' ')).not.toContain('ignored-model');
     expect(invocation.argv.join(' ')).not.toContain('ignored-effort');
   });
@@ -184,19 +180,23 @@ function buildInvocation(
   const adapter = providerRegistry().get(id);
   if (!adapter) throw new Error(`Missing adapter fixture: ${id}`);
 
-  return buildProviderInvocation(adapter, {
-    schema_version: 'v1',
-    provider: id,
-    schema_path: 'schema.json',
-    prompt: 'Sensitive prompt text.',
-    ...overrides,
-  }, {
-    strategy,
-    inlineJsonSchema:
-      id === 'claude' && strategy === 'provider_validated'
-        ? schemaJson()
-        : undefined,
-  });
+  return buildProviderInvocation(
+    adapter,
+    {
+      schema_version: 'v1',
+      provider: id,
+      schema_path: 'schema.json',
+      prompt: 'Sensitive prompt text.',
+      ...overrides,
+    },
+    {
+      strategy,
+      inlineJsonSchema:
+        id === 'claude' && strategy === 'provider_validated'
+          ? schemaJson()
+          : undefined,
+    },
+  );
 }
 
 function argumentAfter(argv: string[], flag: string): string {

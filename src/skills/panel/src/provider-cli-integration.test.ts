@@ -11,17 +11,17 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
-import {
-  runConsensusPanel,
-  runPanelCli,
-  type PanelistInvoker,
-} from '../../../src/consensus/panel/consensus-panel.js';
 import {
   captureWriter,
   makeProviderCliEnv,
   parseJsonl,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
+import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
+import {
+  runConsensusPanel,
+  runPanelCli,
+  type PanelistInvoker,
+} from './consensus-panel.js';
 
 type JsonRecord = Record<string, any>;
 

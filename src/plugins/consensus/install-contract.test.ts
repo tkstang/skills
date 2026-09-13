@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { CONSENSUS_SHARED_CLI_RELATIVE_PATH } from '../../src/consensus/core/consensus-loop.js';
+import { CONSENSUS_SHARED_CLI_RELATIVE_PATH } from './core/consensus-loop.js';
 
-const repoRoot = path.resolve(import.meta.dirname, '..', '..');
+const repoRoot = path.resolve(import.meta.dirname, '..', '..', '..');
 
 async function repoFile(relativePath: string) {
   return readFile(path.join(repoRoot, relativePath), 'utf8');
@@ -27,9 +27,7 @@ function extractInstallShRef(installSh: string) {
 }
 
 function extractInstallTargetRelative(installSh: string) {
-  const match = installSh.match(
-    /CONSENSUS_INSTALL_TARGET_RELATIVE="([^"]+)"/u,
-  );
+  const match = installSh.match(/CONSENSUS_INSTALL_TARGET_RELATIVE="([^"]+)"/u);
   return match?.[1] ?? null;
 }
 
@@ -39,7 +37,7 @@ describe('consensus install contract', () => {
       repoFile('README.md'),
       repoFile('documentation/docs/user-guide/installation.md'),
       repoFile('install.sh'),
-      repoFile('src/consensus/core/consensus-loop.ts'),
+      repoFile('src/plugins/consensus/core/consensus-loop.ts'),
     ]);
 
     // The standalone-recovery installer is owned by the docs site. The README
@@ -66,8 +64,6 @@ describe('consensus install contract', () => {
       CONSENSUS_SHARED_CLI_RELATIVE_PATH,
     );
     expect(installGuide).toContain(`~/${CONSENSUS_SHARED_CLI_RELATIVE_PATH}`);
-    expect(installSh).toContain(
-      'plugins/consensus/scripts/consensus.mjs',
-    );
+    expect(installSh).toContain('plugins/consensus/scripts/consensus.mjs');
   });
 });

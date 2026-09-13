@@ -282,10 +282,7 @@ export function runProviderSubprocess(
         diagnostics: lastMessage.warning
           ? {
               ...diagnostics,
-              warnings: [
-                ...(diagnostics.warnings ?? []),
-                lastMessage.warning,
-              ],
+              warnings: [...(diagnostics.warnings ?? []), lastMessage.warning],
             }
           : diagnostics,
       });

@@ -1,4 +1,7 @@
-import { ConsensusError, EXIT_CODES } from '../core/consensus-loop.js';
+import {
+  ConsensusError,
+  EXIT_CODES,
+} from '../../../plugins/consensus/core/consensus-loop.js';
 import type {
   ConsensusRecord,
   JsonRecord,

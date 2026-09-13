@@ -9,7 +9,7 @@ import {
   providerCliSpawnTarget,
   resolveConsensusCliPath,
   resolveConsensusCliPathDetails,
-} from '../../../src/consensus/core/consensus-loop.js';
+} from '../core/consensus-loop.js';
 
 function scrubbedEnv(home: string): NodeJS.ProcessEnv {
   return {
@@ -37,7 +37,12 @@ describe('resolveConsensusCliPath', () => {
       vi.stubEnv('HOME', home);
       const explicit = path.join(tempRoot, 'bin', 'consensus-explicit');
       const envPath = path.join(tempRoot, 'bin', 'consensus-env');
-      const pluginPath = path.join(tempRoot, 'plugin', 'scripts', 'consensus.mjs');
+      const pluginPath = path.join(
+        tempRoot,
+        'plugin',
+        'scripts',
+        'consensus.mjs',
+      );
       await writeExecutableStub(pluginPath);
 
       expect(
@@ -71,7 +76,12 @@ describe('resolveConsensusCliPath', () => {
       const home = path.join(tempRoot, 'home');
       vi.stubEnv('HOME', home);
       const envPath = path.join(tempRoot, 'bin', 'consensus-env');
-      const pluginPath = path.join(tempRoot, 'plugin', 'scripts', 'consensus.mjs');
+      const pluginPath = path.join(
+        tempRoot,
+        'plugin',
+        'scripts',
+        'consensus.mjs',
+      );
       await writeExecutableStub(pluginPath);
 
       expect(
@@ -102,7 +112,12 @@ describe('resolveConsensusCliPath', () => {
     try {
       const home = path.join(tempRoot, 'home');
       vi.stubEnv('HOME', home);
-      const pluginPath = path.join(tempRoot, 'plugin', 'scripts', 'consensus.mjs');
+      const pluginPath = path.join(
+        tempRoot,
+        'plugin',
+        'scripts',
+        'consensus.mjs',
+      );
       await writeExecutableStub(pluginPath);
 
       expect(

@@ -10,7 +10,7 @@ import {
   submitCaptureFilePath,
   submitCaptureMaxBytes,
   submitCaptureLimitMessage,
-} from '../../../src/consensus/provider-cli/submit-capture.js';
+} from '../provider-cli/submit-capture.js';
 
 describe('submit capture helpers', () => {
   it('resolves capture files under the provider cwd instead of the process tmpdir', () => {

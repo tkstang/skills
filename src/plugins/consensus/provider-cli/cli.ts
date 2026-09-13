@@ -3,12 +3,8 @@
 import { readFile, stat } from 'node:fs/promises';
 
 import { runConsensusCli } from './commands.js';
-import {
-  byteLength,
-  SubmitCaptureLimitError,
-} from './submit-capture.js';
-
 import type { ConsensusCliIo } from './commands.js';
+import { byteLength, SubmitCaptureLimitError } from './submit-capture.js';
 
 export { helpText, runConsensusCli } from './commands.js';
 

@@ -28,8 +28,17 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p02:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p02-t02-composition-01
+        original_request_id: 12930fd1-3c42-47ad-8ff3-1e48495ad169
+        original_task_id: p02-t02
+        original_commit: 8a0ad771db3358a683cef37e1223494700d898cf
+        discovered_by: git show --stat --oneline HEAD
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 8a0ad771db3358a683cef37e1223494700d898cf
+        status: completed
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null

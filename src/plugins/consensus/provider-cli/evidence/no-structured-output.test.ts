@@ -2,9 +2,9 @@ import { writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
-import { runProviderTurn } from '../../../../src/consensus/provider-cli/structured-output.js';
-import type { ProviderProcessResult } from '../../../../src/consensus/provider-cli/subprocess.js';
-import type { ConsensusCliRunRequest } from '../../../../src/consensus/provider-cli/types.js';
+import { runProviderTurn } from '../structured-output.js';
+import type { ProviderProcessResult } from '../subprocess.js';
+import type { ConsensusCliRunRequest } from '../types.js';
 
 describe('submit evidence: no structured-output message', () => {
   it('converts a no-final-JSON turn into a captured verdict via submit', async () => {

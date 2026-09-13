@@ -163,10 +163,7 @@ function invocation(input: {
     ...(input.request.cwd ? { cwd: input.request.cwd } : {}),
     output_mode: input.outputMode,
     strategy: input.strategy,
-    redacted_command: [
-      input.executable,
-      ...(input.redactedArgv ?? input.argv),
-    ],
+    redacted_command: [input.executable, ...(input.redactedArgv ?? input.argv)],
     ...(input.lastMessageFile
       ? { last_message_file: input.lastMessageFile }
       : {}),

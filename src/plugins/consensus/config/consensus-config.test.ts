@@ -10,8 +10,8 @@ import {
   readConsensusConfig,
   resolveConsensusComposition,
   writeConsensusConfig,
-} from '../../../src/consensus/config/consensus-config.js';
-import type { ProviderInventoryEntry } from '../../../src/consensus/provider-cli/types.js';
+} from '../config/consensus-config.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 describe('consensus config schema and resolver', () => {
   it('parses valid default config and rejects invalid values', () => {

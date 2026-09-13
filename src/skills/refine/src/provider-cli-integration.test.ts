@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import * as consensusRefine from '../../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import {
   makeProviderCliEnv,
   makeStubEnv,
@@ -13,7 +13,7 @@ import {
   repoRoot,
   runNodeScript,
   sampleInput,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
 
 const { prepareParallelRun, runSequential } = consensusRefine;
 
@@ -239,10 +239,7 @@ it('runs prepared parallel section packets through the provider CLI backend', as
   expect(section.provider_env).toBeUndefined();
 
   await runNodeScript(
-    path.join(
-      repoRoot,
-      'plugins/consensus/scripts/consensus-loop.mjs',
-    ),
+    path.join(repoRoot, 'plugins/consensus/scripts/consensus-loop.mjs'),
     section.loop_argv,
     { cwd: tempRoot, env },
   );

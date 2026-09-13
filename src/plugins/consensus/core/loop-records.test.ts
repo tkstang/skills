@@ -17,7 +17,7 @@ import {
   hashArtifact,
   synthesisSchemaPath,
   writeLoopStatus,
-} from '../../../src/consensus/core/consensus-loop.js';
+} from '../core/consensus-loop.js';
 
 // `rename` is spied (delegating to the real implementation by default) so a
 // single test can inject a genuine rename() failure and verify atomicWriteFile's
@@ -184,9 +184,7 @@ it('createRecordsWriter rethrows a rename failure, cleans up the tmp file, and l
   const renameError = Object.assign(new Error('simulated rename failure'), {
     code: 'EACCES',
   });
-  vi.mocked(fsRename).mockImplementationOnce(() =>
-    Promise.reject(renameError),
-  );
+  vi.mocked(fsRename).mockImplementationOnce(() => Promise.reject(renameError));
 
   await expect(
     writer.append({ turn_index: 2, verdict: 'REVISE' }),
@@ -479,9 +477,7 @@ it('executeRound synthesized appends a synthesis record after the committed peer
   expect(synthesis.synthesized_artifact).toBe('Synthesized text\n');
   expect(synthesis.synthesis_reasoning).toBe('merged');
   expect(synthesis.unresolved_disagreements).toEqual(['point A']);
-  expect(synthesis.artifact_hash).toBe(
-    hashArtifact('Synthesized text\n'),
-  );
+  expect(synthesis.artifact_hash).toBe(hashArtifact('Synthesized text\n'));
   expect(synthesis.iteration_mode).toBe('parallel_synthesized');
   expect(synthesis.raw_provider_response).toBe('{"id":"synth"}');
   // The synthesized text becomes the next round's shared artifact.

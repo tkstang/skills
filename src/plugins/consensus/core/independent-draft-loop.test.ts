@@ -1,11 +1,11 @@
 import { expect, it } from 'vitest';
 
+import { makeLoopOptions } from '../../../../tests/helpers/consensus.js';
 import {
   runConsensusLoop,
   type PeerInvocation,
   type SynthesizerInvocation,
-} from '../../../src/consensus/core/consensus-loop.js';
-import { makeLoopOptions } from '../../helpers/consensus.js';
+} from '../core/consensus-loop.js';
 
 it('converges alternating independent_draft when peer B matches peer A draft', async () => {
   const { options } = await makeLoopOptions({
@@ -139,9 +139,11 @@ it('converges parallel_synthesized independent_draft after synthesis stability',
     synthesizedDraft,
   ]);
   expect(
-    peerCalls.slice(0, 2).every((call) =>
-      call.prompt.includes('Produce your own draft from this brief'),
-    ),
+    peerCalls
+      .slice(0, 2)
+      .every((call) =>
+        call.prompt.includes('Produce your own draft from this brief'),
+      ),
   ).toBe(true);
   expect(synthCalls).toHaveLength(2);
   expect(synthCalls[0].provider).toBe('cursor');

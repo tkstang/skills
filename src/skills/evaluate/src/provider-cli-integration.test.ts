@@ -4,8 +4,11 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { runConsensusEvaluate } from '../../../src/consensus/evaluate/consensus-evaluate.js';
-import { makeProviderCliEnv, parseJsonl } from '../../helpers/process.mjs';
+import {
+  makeProviderCliEnv,
+  parseJsonl,
+} from '../../../../tests/helpers/process.mjs';
+import { runConsensusEvaluate } from './consensus-evaluate.js';
 
 type JsonRecord = Record<string, any>;
 

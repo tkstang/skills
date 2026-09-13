@@ -4,8 +4,8 @@ import path from 'node:path';
 
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import { runProviderSubprocess } from './subprocess.js';
-import type { ProviderInventoryEntry, ProviderDiagnostics } from './types.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
+import type { ProviderInventoryEntry, ProviderDiagnostics } from './types.js';
 
 export interface ProviderProbeDefinition {
   version_args: readonly string[];
@@ -54,9 +54,9 @@ export async function probeProviderRegistry({
   runner,
 }: ProviderRegistryProbeOptions): Promise<ProviderInventoryEntry[]> {
   return Promise.all(
-    registry.list().map((adapter) =>
-      probeProviderReadiness(adapter, { runner }),
-    ),
+    registry
+      .list()
+      .map((adapter) => probeProviderReadiness(adapter, { runner })),
   );
 }
 

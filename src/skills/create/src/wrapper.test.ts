@@ -4,16 +4,16 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { makeProviderCliEnv } from '../../../../tests/helpers/process.mjs';
+import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
+import { EXIT_CODES } from '../../../plugins/consensus/core/consensus-loop.js';
 import {
   buildCreatePromptProfile,
   INPUT_SIZE_CAP_BYTES,
   loadCreateInputs,
   parseCreateArgs,
   runConsensusCreate,
-} from '../../../src/consensus/create/consensus-create.js';
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
-import { EXIT_CODES } from '../../../src/consensus/core/consensus-loop.js';
-import { makeProviderCliEnv } from '../../helpers/process.mjs';
+} from './consensus-create.js';
 
 interface IsolatedRunContext {
   cwd: string;
@@ -24,7 +24,9 @@ async function withIsolatedConsensusConfig(
   fn: (context: IsolatedRunContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
 ) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-create-config-'));
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-create-config-'),
+  );
   try {
     const cwd = path.join(root, 'project');
     const home = path.join(root, 'home');
@@ -149,11 +151,11 @@ it('uses project and user peer defaults only when --peers is absent', async () =
       },
     });
 
-    await expect(runCreateFixture(context, 'user-default')).resolves.toMatchObject(
-      {
-        peers: ['codex', 'cursor'],
-      },
-    );
+    await expect(
+      runCreateFixture(context, 'user-default'),
+    ).resolves.toMatchObject({
+      peers: ['codex', 'cursor'],
+    });
 
     await writeConsensusConfig({
       scope: 'project',
@@ -174,10 +176,7 @@ it('uses project and user peer defaults only when --peers is absent', async () =
     });
 
     await expect(
-      runCreateFixture(context, 'explicit-peers', [
-        '--peers',
-        'claude,codex',
-      ]),
+      runCreateFixture(context, 'explicit-peers', ['--peers', 'claude,codex']),
     ).resolves.toMatchObject({
       peers: ['claude', 'codex'],
     });
@@ -333,12 +332,12 @@ it('rejects empty briefs as usage errors before create runs', async () => {
     parseCreateArgs(['--brief', '   \n\t  ']),
     parseCreateArgs(['--brief-file', 'empty-brief.md']),
   ]) {
-    await expect(loadCreateInputs(parsed, { cwd: tempRoot })).rejects.toMatchObject(
-      {
-        code: 'EMPTY_BRIEF',
-        exitCode: EXIT_CODES.USAGE,
-      },
-    );
+    await expect(
+      loadCreateInputs(parsed, { cwd: tempRoot }),
+    ).rejects.toMatchObject({
+      code: 'EMPTY_BRIEF',
+      exitCode: EXIT_CODES.USAGE,
+    });
   }
 });
 

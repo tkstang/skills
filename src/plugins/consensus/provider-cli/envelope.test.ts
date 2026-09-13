@@ -5,7 +5,7 @@ import {
   processExitForEnvelope,
   successEnvelope,
   usageFailure,
-} from '../../../src/consensus/provider-cli/envelope.js';
+} from '../provider-cli/envelope.js';
 
 describe('provider CLI envelopes', () => {
   it('builds success envelopes with the stable projection surface', () => {

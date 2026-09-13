@@ -16,7 +16,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { resolveConsensusComposition } from '../config/consensus-config.js';
+import { resolveConsensusComposition } from '../../../plugins/consensus/config/consensus-config.js';
 import {
   callsPerRound,
   ConsensusError,
@@ -32,8 +32,8 @@ import {
   providerCliSpawnTarget,
   requireConsensusCliPath,
   runConsensusLoop,
-} from '../core/consensus-loop.js';
-import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../provider-cli/types.js';
+} from '../../../plugins/consensus/core/consensus-loop.js';
+import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
 import {
   isJsonRecord,
   asErrorLike,

@@ -1,11 +1,5 @@
-import type {
-  ConsensusCliRunRequest,
-  ProviderId,
-} from './types.js';
-import {
-  detectHostRuntime,
-  hostContextFromEnv,
-} from './host-guard.js';
+import { detectHostRuntime, hostContextFromEnv } from './host-guard.js';
+import type { ConsensusCliRunRequest, ProviderId } from './types.js';
 
 export class ConsensusCliUsageError extends Error {
   readonly code = 'CONSENSUS_CLI_USAGE' as const;
@@ -482,11 +476,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   };
 
   assignIfDefined(command, 'provider', singleValue(parsed.flags, '--provider'));
-  assignIfDefined(
-    command,
-    'schemaPath',
-    singleValue(parsed.flags, '--schema'),
-  );
+  assignIfDefined(command, 'schemaPath', singleValue(parsed.flags, '--schema'));
   assignIfDefined(
     command,
     'requestJson',
@@ -512,7 +502,9 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   const prompt = singleValue(parsed.flags, '--prompt');
   const promptFile = singleValue(parsed.flags, '--prompt-file');
   const stdinMarkers = parsed.positionals.filter((value) => value === '-');
-  const unknownPositionals = parsed.positionals.filter((value) => value !== '-');
+  const unknownPositionals = parsed.positionals.filter(
+    (value) => value !== '-',
+  );
   if (unknownPositionals.length > 0) {
     throw new ConsensusCliUsageError(
       `Unexpected positional argument: ${unknownPositionals[0]}`,
@@ -569,16 +561,14 @@ function parseSubmitCommand(tokens: readonly string[]): ParsedSubmitCommand {
     json: true,
   };
 
-  assignIfDefined(
-    command,
-    'schemaPath',
-    singleValue(parsed.flags, '--schema'),
-  );
+  assignIfDefined(command, 'schemaPath', singleValue(parsed.flags, '--schema'));
   assignIfDefined(command, 'outPath', singleValue(parsed.flags, '--out'));
 
   const verdictFile = singleValue(parsed.flags, '--verdict-file');
   const stdinMarkers = parsed.positionals.filter((value) => value === '-');
-  const unknownPositionals = parsed.positionals.filter((value) => value !== '-');
+  const unknownPositionals = parsed.positionals.filter(
+    (value) => value !== '-',
+  );
   if (unknownPositionals.length > 0) {
     throw new ConsensusCliUsageError(
       `Unexpected positional argument: ${unknownPositionals[0]}`,
@@ -647,10 +637,11 @@ function normalizeRuntimePolicy(command: ParsedRunCommand) {
   return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : undefined;
 }
 
-function assignIfDefined<
-  T extends object,
-  K extends keyof T,
->(target: T, key: K, value: T[K] | undefined) {
+function assignIfDefined<T extends object, K extends keyof T>(
+  target: T,
+  key: K,
+  value: T[K] | undefined,
+) {
   if (value !== undefined) target[key] = value;
 }
 
@@ -799,11 +790,7 @@ function validateHostContext(value: unknown) {
   validateRequiredStringField(value, 'runtime', 'Request JSON host.runtime');
   validateRequiredStringField(value, 'cwd', 'Request JSON host.cwd');
   validateRequiredStringField(value, 'run_id', 'Request JSON host.run_id');
-  validateRequiredNonNegativeInteger(
-    value,
-    'depth',
-    'Request JSON host.depth',
-  );
+  validateRequiredNonNegativeInteger(value, 'depth', 'Request JSON host.depth');
   validateRequiredPositiveInteger(
     value,
     'max_depth',
@@ -814,7 +801,9 @@ function validateHostContext(value: unknown) {
 function validateRedaction(value: unknown) {
   if (value === undefined) return;
   if (!isRecord(value)) {
-    throw new ConsensusCliUsageError('Request JSON redaction must be an object');
+    throw new ConsensusCliUsageError(
+      'Request JSON redaction must be an object',
+    );
   }
   validateOptionalBooleanField(
     value,
@@ -883,9 +872,7 @@ function validateRequiredNonNegativeInteger(
   label: string,
 ) {
   if (!Number.isInteger(record[key]) || Number(record[key]) < 0) {
-    throw new ConsensusCliUsageError(
-      `${label} must be a non-negative integer`,
-    );
+    throw new ConsensusCliUsageError(`${label} must be a non-negative integer`);
   }
 }
 

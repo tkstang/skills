@@ -1,7 +1,10 @@
 import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 
-import { ConsensusError, EXIT_CODES } from '../core/consensus-loop.js';
+import {
+  ConsensusError,
+  EXIT_CODES,
+} from '../../../plugins/consensus/core/consensus-loop.js';
 import { inside, nearestExistingPath } from './refine-shared.js';
 import type {
   JsonRecord,

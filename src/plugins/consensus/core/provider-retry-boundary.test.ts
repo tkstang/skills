@@ -4,7 +4,7 @@ import {
   ConsensusError,
   VERDICT_CAPS,
   invokeProviderCliWithRetry,
-} from '../../../src/consensus/core/consensus-loop.js';
+} from '../core/consensus-loop.js';
 
 function validAccept() {
   return {

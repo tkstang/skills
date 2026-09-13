@@ -893,8 +893,8 @@ describe('representative real installation boundaries', () => {
     );
 
     await copyIfPresent(
-      path.join(repositoryRoot, 'src/consensus'),
-      path.join(root, 'src/consensus'),
+      path.join(repositoryRoot, 'src/plugins/consensus'),
+      path.join(root, 'src/plugins/consensus'),
     );
     const consensusSkills = (
       await readdir(path.join(repositoryRoot, 'plugins/consensus/skills'), {
@@ -906,24 +906,32 @@ describe('representative real installation boundaries', () => {
       .toSorted();
     for (const skill of consensusSkills) {
       await copySkillResources(
-        path.join(repositoryRoot, 'plugins/consensus/skills', skill),
+        path.join(repositoryRoot, 'src/skills', skill),
         path.join(root, 'src/skills', skill),
+      );
+      await copyIfPresent(
+        path.join(repositoryRoot, 'src/skills', skill, 'build.json'),
+        path.join(root, 'src/skills', skill, 'build.json'),
+      );
+      await copyIfPresent(
+        path.join(repositoryRoot, 'src/skills', skill, 'src'),
+        path.join(root, 'src/skills', skill, 'src'),
       );
     }
     await write(
       root,
       'src/skills/create/build.json',
-      '{"runtime":["src/consensus-create.ts","src/consensus.ts"]}\n',
+      '{"runtime":["src/consensus-create-cli.ts","src/consensus.ts"]}\n',
     );
     await write(
       root,
-      'src/skills/create/src/consensus-create.ts',
-      "import { runCreateCli } from '../../../consensus/create/consensus-create.js';\nprocess.exitCode = await runCreateCli(process.argv.slice(2));\n",
+      'src/skills/create/src/consensus-create-cli.ts',
+      "import { runCreateCli } from './consensus-create.js';\nprocess.exitCode = await runCreateCli(process.argv.slice(2));\n",
     );
     await write(
       root,
       'src/skills/create/src/consensus.ts',
-      "import { readFile } from 'node:fs/promises';\nimport { runConsensusCli } from '../../../consensus/provider-cli/commands.js';\nconst io = { stdout: process.stdout, stderr: process.stderr, stdin: process.stdin, cwd: process.cwd(), env: process.env, readFile: (filePath: string) => readFile(filePath, 'utf8'), readStdin: async () => '' };\nprocess.exitCode = await runConsensusCli(process.argv.slice(2), io);\n",
+      "import { readFile } from 'node:fs/promises';\nimport { runConsensusCli } from '../../../plugins/consensus/provider-cli/commands.js';\nconst io = { stdout: process.stdout, stderr: process.stderr, stdin: process.stdin, cwd: process.cwd(), env: process.env, readFile: (filePath: string) => readFile(filePath, 'utf8'), readStdin: async () => '' };\nprocess.exitCode = await runConsensusCli(process.argv.slice(2), io);\n",
     );
 
     const declarations: DistributionDeclaration[] = [
@@ -933,7 +941,7 @@ describe('representative real installation boundaries', () => {
       }),
       ...consensusSkills.map((skill) =>
         target(skill, {
-          allowedSourceRoots: skill === 'create' ? ['src/consensus'] : [],
+          allowedSourceRoots: ['src/plugins/consensus'],
           targets: [
             ...(skill === 'create'
               ? [
@@ -1002,7 +1010,7 @@ describe('representative real installation boundaries', () => {
     const isolatedEnv = { HOME: home, PATH: bin };
     const standaloneCreate = path.join(
       root,
-      'skills/consensus-create/scripts/consensus-create.mjs',
+      'skills/consensus-create/scripts/consensus-create-cli.mjs',
     );
     const standaloneCli = path.join(
       root,

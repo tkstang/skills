@@ -2,7 +2,7 @@ import { lstat, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveConsensusComposition } from '../config/consensus-config.js';
+import { resolveConsensusComposition } from '../../../plugins/consensus/config/consensus-config.js';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -15,7 +15,7 @@ import {
   resolveConsensusCliPath,
   runConsensusLoop,
   runProviderCliCommand,
-} from '../core/consensus-loop.js';
+} from '../../../plugins/consensus/core/consensus-loop.js';
 import type {
   Agency,
   ColdStartMode,
@@ -28,9 +28,8 @@ import type {
   SynthesisPromptInput,
   SynthesizerInvoker,
   TurnPromptInput,
-} from '../core/consensus-loop.js';
-import type { ProviderInventoryEntry } from '../provider-cli/types.js';
-
+} from '../../../plugins/consensus/core/consensus-loop.js';
+import type { ProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
 import {
   requireValue,
   parsePositiveInteger,
@@ -44,7 +43,7 @@ import {
   providerCliUnavailableError,
   confineWrite,
   atomicWriteFile,
-} from '../shared/cli-helpers.js';
+} from '../../../plugins/consensus/shared/cli-helpers.js';
 export { atomicWriteFile, confineWrite };
 
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;

@@ -7,7 +7,7 @@ import {
   STRUCTURED_OUTPUT_STRATEGIES,
   type ConsensusCliRunEnvelope,
   type ProviderCapabilities,
-} from '../../../src/consensus/provider-cli/types.js';
+} from '../provider-cli/types.js';
 
 describe('provider CLI model types', () => {
   it('exposes the first-scope provider IDs', () => {

@@ -5,13 +5,10 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 import {
-  runConsensusCreate,
-  runCreateCli,
-} from '../../../src/consensus/create/consensus-create.js';
-import {
   makeProviderCliEnv,
   parseJsonl,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
+import { runConsensusCreate, runCreateCli } from './consensus-create.js';
 
 type JsonRecord = Record<string, any>;
 

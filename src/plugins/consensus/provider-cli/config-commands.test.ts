@@ -4,10 +4,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
-import { runConsensusCli } from '../../../src/consensus/provider-cli/commands.js';
-import type { ProviderInventoryEntry } from '../../../src/consensus/provider-cli/types.js';
-import { captureWriter } from '../../helpers/process.mjs';
+import { captureWriter } from '../../../../tests/helpers/process.mjs';
+import { writeConsensusConfig } from '../config/consensus-config.js';
+import { runConsensusCli } from '../provider-cli/commands.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 describe('provider CLI consensus config commands', () => {
   it('gets user, project, and effective config as JSON', async () => {

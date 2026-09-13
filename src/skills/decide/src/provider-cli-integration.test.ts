@@ -4,8 +4,8 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { runConsensusDecide } from '../../../src/consensus/decide/consensus-decide.js';
-import { makeProviderCliEnv } from '../../helpers/process.mjs';
+import { makeProviderCliEnv } from '../../../../tests/helpers/process.mjs';
+import { runConsensusDecide } from './consensus-decide.js';
 
 type JsonRecord = Record<string, any>;
 

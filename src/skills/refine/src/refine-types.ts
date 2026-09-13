@@ -1,7 +1,7 @@
 import type {
   ITERATION_MODES,
   runConsensusLoop,
-} from '../core/consensus-loop.js';
+} from '../../../plugins/consensus/core/consensus-loop.js';
 
 export type JsonRecord = Record<string, unknown>;
 export type IterationModeValue = (typeof ITERATION_MODES)[number];

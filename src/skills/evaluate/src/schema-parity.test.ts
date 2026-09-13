@@ -3,13 +3,19 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
+const repoRoot = path.resolve(new URL('../../../..', import.meta.url).pathname);
 
-const loopUsingSkills = ['create', 'decide', 'evaluate', 'plan', 'refine'] as const;
+const loopUsingSkills = [
+  'create',
+  'decide',
+  'evaluate',
+  'plan',
+  'refine',
+] as const;
 const canonicalSkill = 'refine';
 
 function schemasDir(skill: (typeof loopUsingSkills)[number]) {
-  return path.join(repoRoot, 'plugins/consensus/skills', skill, 'schemas');
+  return path.join(repoRoot, 'src/skills', skill, 'schemas');
 }
 
 const schemaFiles = [

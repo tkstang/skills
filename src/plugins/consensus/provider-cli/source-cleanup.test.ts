@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { repoRoot } from '../../helpers/process.mjs';
+import { repoRoot } from '../../../../tests/helpers/process.mjs';
 
 const scanRoots = [
   'src',
@@ -22,7 +22,8 @@ const historicalExclusions = [
   '.oat/projects/shared/consensus-peer-invocation/research',
 ] as const;
 
-const cleanupScanPath = 'tests/consensus/provider-cli/source-cleanup.test.ts';
+const cleanupScanPath =
+  'src/plugins/consensus/provider-cli/source-cleanup.test.ts';
 
 const retiredIdentifierPatterns = [
   /\bpaseo\b/i,

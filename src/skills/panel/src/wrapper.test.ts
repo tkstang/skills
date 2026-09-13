@@ -19,7 +19,7 @@ import {
   parsePanelArgs,
   renderPanelArtifact,
   resolvePanelPaths,
-} from '../../../src/consensus/panel/consensus-panel.js';
+} from './consensus-panel.js';
 
 describe('consensus panel wrapper contract', () => {
   it('parses inline questions and panel controls', () => {

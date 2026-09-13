@@ -4,6 +4,8 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { makeProviderCliEnv } from '../../../../tests/helpers/process.mjs';
+import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
 import {
   buildDecidePromptProfile,
   INPUT_SIZE_CAP_BYTES,
@@ -11,9 +13,7 @@ import {
   parseDecideArgs,
   renderDecisionArtifact,
   runConsensusDecide,
-} from '../../../src/consensus/decide/consensus-decide.js';
-import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
-import { makeProviderCliEnv } from '../../helpers/process.mjs';
+} from './consensus-decide.js';
 
 interface IsolatedRunContext {
   cwd: string;
@@ -24,7 +24,9 @@ async function withIsolatedConsensusConfig(
   fn: (context: IsolatedRunContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
 ) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-decide-config-'));
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-decide-config-'),
+  );
   try {
     const cwd = path.join(root, 'project');
     const home = path.join(root, 'home');
@@ -152,11 +154,11 @@ it('uses project and user peer defaults only when --peers is absent', async () =
       },
     });
 
-    await expect(runDecideFixture(context, 'user-default')).resolves.toMatchObject(
-      {
-        peers: ['codex', 'cursor'],
-      },
-    );
+    await expect(
+      runDecideFixture(context, 'user-default'),
+    ).resolves.toMatchObject({
+      peers: ['codex', 'cursor'],
+    });
 
     await writeConsensusConfig({
       scope: 'project',
@@ -177,10 +179,7 @@ it('uses project and user peer defaults only when --peers is absent', async () =
     });
 
     await expect(
-      runDecideFixture(context, 'explicit-peers', [
-        '--peers',
-        'claude,codex',
-      ]),
+      runDecideFixture(context, 'explicit-peers', ['--peers', 'claude,codex']),
     ).resolves.toMatchObject({
       peers: ['claude', 'codex'],
     });
@@ -387,9 +386,7 @@ it('shows the first alternating independent draft as the current decision on tur
   expect(promptText.slice(currentDecisionIndex)).toContain(
     '## Recommendation\n\nChoose option A.',
   );
-  expect(prompt).toContain(
-    "revise the first peer's current decision draft",
-  );
+  expect(prompt).toContain("revise the first peer's current decision draft");
 });
 
 it('renders unresolved disagreements under the dissent heading', () => {

@@ -2,10 +2,10 @@ import { writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerRegistry } from '../../../../src/consensus/provider-cli/adapters.js';
-import { runProviderTurn } from '../../../../src/consensus/provider-cli/structured-output.js';
-import type { ProviderProcessResult } from '../../../../src/consensus/provider-cli/subprocess.js';
-import type { ConsensusCliRunRequest } from '../../../../src/consensus/provider-cli/types.js';
+import { providerRegistry } from '../adapters.js';
+import { runProviderTurn } from '../structured-output.js';
+import type { ProviderProcessResult } from '../subprocess.js';
+import type { ConsensusCliRunRequest } from '../types.js';
 
 describe('submit evidence: strict-output rejection', () => {
   it('converts a strict-output rejection into a captured verdict via submit', async () => {

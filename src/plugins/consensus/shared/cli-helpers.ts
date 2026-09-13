@@ -23,8 +23,11 @@ const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 
-
-export function requireValue(argv: readonly string[], index: number, token: string) {
+export function requireValue(
+  argv: readonly string[],
+  index: number,
+  token: string,
+) {
   const value = argv[index + 1];
   if (value === undefined || value.startsWith('--')) {
     throw new Error(`${token} requires a value`);

@@ -3,14 +3,13 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import { panelResponseSchemaPath as generatedPanelResponseSchemaPath } from '../../../../plugins/consensus/skills/panel/scripts/consensus-panel.mjs';
+import { validateSchemaSubset } from '../../../plugins/consensus/provider-cli/schema-validate.js';
 import {
   parsePanelResponsePayload,
   panelResponseSchemaPath,
-} from '../../../src/consensus/panel/consensus-panel.js';
-import { validateSchemaSubset } from '../../../src/consensus/provider-cli/schema-validate.js';
-
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import { panelResponseSchemaPath as generatedPanelResponseSchemaPath } from '../../../plugins/consensus/skills/panel/scripts/consensus-panel.mjs';
+} from './consensus-panel.js';
 
 const schemaPath = panelResponseSchemaPath();
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
@@ -29,10 +28,7 @@ describe('panel-response.schema.json', () => {
   it('resolves to the shipped panel schema path', () => {
     expect(schemaPath).toBe(
       fileURLToPath(
-        new URL(
-          '../../../plugins/consensus/skills/panel/schemas/panel-response.schema.json',
-          import.meta.url,
-        ),
+        new URL('../schemas/panel-response.schema.json', import.meta.url),
       ),
     );
   });
@@ -40,7 +36,14 @@ describe('panel-response.schema.json', () => {
   it('resolves the generated runtime schema path to an existing shipped file', () => {
     const generatedSchemaPath = generatedPanelResponseSchemaPath();
 
-    expect(generatedSchemaPath).toBe(schemaPath);
+    expect(generatedSchemaPath).toBe(
+      fileURLToPath(
+        new URL(
+          '../../../../plugins/consensus/skills/panel/schemas/panel-response.schema.json',
+          import.meta.url,
+        ),
+      ),
+    );
     expect(existsSync(generatedSchemaPath)).toBe(true);
   });
 
@@ -56,9 +59,9 @@ describe('panel-response.schema.json', () => {
     expect(() => parsePanelResponsePayload(missingResponse)).toThrow(
       /Missing required JSON field: response/,
     );
-    expect(validateSchemaSubset({ ...valid, key_points: 'oops' }, schema).ok).toBe(
-      false,
-    );
+    expect(
+      validateSchemaSubset({ ...valid, key_points: 'oops' }, schema).ok,
+    ).toBe(false);
     expect(() =>
       parsePanelResponsePayload({ ...valid, key_points: 'oops' }),
     ).toThrow(/key_points must be an array/);
@@ -68,9 +71,9 @@ describe('panel-response.schema.json', () => {
     expect(() =>
       parsePanelResponsePayload({ ...valid, confidence: 'certain' }),
     ).toThrow(/confidence must be low, medium, or high/);
-    expect(() =>
-      parsePanelResponsePayload({ ...valid, extra: true }),
-    ).toThrow(/unknown key: extra/);
+    expect(() => parsePanelResponsePayload({ ...valid, extra: true })).toThrow(
+      /unknown key: extra/,
+    );
   });
 
   it('declares the provider-native schema contract', () => {

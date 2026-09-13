@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import {
   buildParallelTurnPrompt,
   buildTurnPrompt,
-} from '../../../src/consensus/core/consensus-loop.js';
+} from '../core/consensus-loop.js';
 
 it('keeps shared_input round-one parallel prompts framed as revision of a shared artifact', () => {
   const prompt = buildParallelTurnPrompt({

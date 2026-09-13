@@ -2,8 +2,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runProviderCliCommand } from '../../../src/consensus/panel/consensus-panel.js';
-import { fixtureBin } from '../../helpers/process.mjs';
+import { fixtureBin } from '../../../../tests/helpers/process.mjs';
+import { runProviderCliCommand } from './consensus-panel.js';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 // A shell script, not a Node script: it reaches its `trap '' TERM` line

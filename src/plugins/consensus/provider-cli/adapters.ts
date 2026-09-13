@@ -1,3 +1,11 @@
+import {
+  buildClaudeInvocation,
+  buildCodexInvocation,
+  buildCursorInvocation,
+} from './invocation.js';
+import type { ProviderInvocationBuilder } from './invocation.js';
+import type { ProviderProbeDefinition } from './probe.js';
+import { isReliableExternalInterrupt } from './subprocess.js';
 import type {
   FirstScopeProviderId,
   ProviderExitClassification,
@@ -6,14 +14,6 @@ import type {
   ProviderId,
   StructuredOutputStrategy,
 } from './types.js';
-import type { ProviderProbeDefinition } from './probe.js';
-import {
-  buildClaudeInvocation,
-  buildCodexInvocation,
-  buildCursorInvocation,
-} from './invocation.js';
-import { isReliableExternalInterrupt } from './subprocess.js';
-import type { ProviderInvocationBuilder } from './invocation.js';
 
 export interface ProviderAdapter {
   id: FirstScopeProviderId;

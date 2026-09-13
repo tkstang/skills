@@ -1,16 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
-import { validateSchemaSubset } from '../../../src/consensus/provider-cli/schema-validate.js';
+
+import { validateSchemaSubset } from '../../../plugins/consensus/provider-cli/schema-validate.js';
 
 const schema = JSON.parse(
   readFileSync(
-    fileURLToPath(
-      new URL(
-        '../../../plugins/consensus/skills/phone-a-friend/schemas/advisory.schema.json',
-        import.meta.url,
-      ),
-    ),
+    fileURLToPath(new URL('../schemas/advisory.schema.json', import.meta.url)),
     'utf8',
   ),
 );
@@ -19,7 +16,7 @@ const example = JSON.parse(
   readFileSync(
     fileURLToPath(
       new URL(
-        '../../../plugins/consensus/skills/phone-a-friend/references/examples/registry-cache.advisory.json',
+        '../references/examples/registry-cache.advisory.json',
         import.meta.url,
       ),
     ),

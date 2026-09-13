@@ -8,12 +8,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildConsensusSubmitCommand,
   runProviderTurn,
-} from '../../../../src/consensus/provider-cli/structured-output.js';
+} from '../structured-output.js';
 import type {
   ConsensusCliRunRequest,
   FirstScopeProviderId,
   ProviderRuntimePolicy,
-} from '../../../../src/consensus/provider-cli/types.js';
+} from '../types.js';
 
 // CONSENSUS_LIVE_SUBMIT_E2E=1 is an explicit opt-in request to spend real
 // provider quota. When it is unset, this suite must stay a silent skip (the

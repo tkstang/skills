@@ -5,15 +5,18 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusLoop from '../../../plugins/consensus/scripts/consensus-loop.mjs';
+import * as consensusLoop from '../../../../plugins/consensus/scripts/consensus-loop.mjs';
 import {
   consensusCliFixture,
   fixtureBin,
   makeProviderCliEnv,
   parseJsonl,
-} from '../../helpers/process.mjs';
+} from '../../../../tests/helpers/process.mjs';
 
-const providerSubprocessFixture = path.join(fixtureBin, 'consensus-provider-stub');
+const providerSubprocessFixture = path.join(
+  fixtureBin,
+  'consensus-provider-stub',
+);
 
 const {
   SUBPROCESS_OUTPUT_CAP_BYTES,

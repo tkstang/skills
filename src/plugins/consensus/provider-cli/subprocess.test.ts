@@ -4,9 +4,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
-import { runProviderSubprocess } from '../../../src/consensus/provider-cli/subprocess.js';
-import { fixtureBin, repoRoot } from '../../helpers/process.mjs';
+import { fixtureBin, repoRoot } from '../../../../tests/helpers/process.mjs';
+import type { ProviderInvocation } from '../provider-cli/invocation.js';
+import { runProviderSubprocess } from '../provider-cli/subprocess.js';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 
@@ -158,7 +158,9 @@ describe('bounded provider subprocess runner', () => {
   });
 
   it('reads and cleans last-message-file provider output', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-last-message-'));
+    const dir = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-last-message-'),
+    );
     const outputPath = path.join(dir, 'last-message.json');
 
     try {

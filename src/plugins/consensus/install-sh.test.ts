@@ -1,16 +1,23 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveConsensusCliPath } from '../../src/consensus/core/consensus-loop.js';
+import { resolveConsensusCliPath } from './core/consensus-loop.js';
 
 const execFileAsync = promisify(execFile);
-const repoRoot = path.resolve(import.meta.dirname, '..', '..');
+const repoRoot = path.resolve(import.meta.dirname, '..', '..', '..');
 const installScript = path.join(repoRoot, 'install.sh');
 const checkoutConsensusScript = path.join(
   repoRoot,
@@ -143,7 +150,8 @@ describe('install.sh', () => {
         await expect(
           runInstall(home, {
             CONSENSUS_INSTALL_FORCE_REMOTE: '1',
-            CONSENSUS_INSTALL_RAW_BASE: 'https://example.test/tkstang/skills/v-test',
+            CONSENSUS_INSTALL_RAW_BASE:
+              'https://example.test/tkstang/skills/v-test',
             CONSENSUS_INSTALL_SHA256:
               'deadbeef00000000000000000000000000000000000000000000000000000000',
             PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
@@ -161,7 +169,9 @@ describe('install.sh', () => {
     });
   });
   it('copies the in-checkout consensus CLI into ~/.consensus and is idempotent', async () => {
-    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-install-'));
+    const tempRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-install-'),
+    );
     try {
       const home = path.join(tempRoot, 'home');
       await mkdir(home, { recursive: true });
@@ -174,7 +184,11 @@ describe('install.sh', () => {
       expect(
         resolveConsensusCliPath({
           env: installEnv(home),
-          defaultCliPath: path.join(tempRoot, 'missing-plugin', 'consensus.mjs'),
+          defaultCliPath: path.join(
+            tempRoot,
+            'missing-plugin',
+            'consensus.mjs',
+          ),
         }),
       ).toBe(installedPath);
 
@@ -188,7 +202,9 @@ describe('install.sh', () => {
   });
 
   it('fails clearly when the target directory cannot be created', async () => {
-    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-install-fail-'));
+    const tempRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-install-fail-'),
+    );
     try {
       const home = path.join(tempRoot, 'home');
       await mkdir(home, { recursive: true });
@@ -226,7 +242,8 @@ describe('install.sh', () => {
 
       await runInstall(home, {
         CONSENSUS_INSTALL_FORCE_REMOTE: '1',
-        CONSENSUS_INSTALL_RAW_BASE: 'https://example.test/tkstang/skills/v-test',
+        CONSENSUS_INSTALL_RAW_BASE:
+          'https://example.test/tkstang/skills/v-test',
         CONSENSUS_CURL_LOG: logPath,
         PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
       });

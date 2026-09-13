@@ -4,12 +4,7 @@ export type FirstScopeProviderId = (typeof FIRST_SCOPE_PROVIDER_IDS)[number];
 
 export type ProviderId = FirstScopeProviderId | (string & {});
 
-export const HOST_RUNTIMES = [
-  'claude',
-  'codex',
-  'cursor',
-  'unknown',
-] as const;
+export const HOST_RUNTIMES = ['claude', 'codex', 'cursor', 'unknown'] as const;
 
 export type HostRuntime = (typeof HOST_RUNTIMES)[number];
 
@@ -75,12 +70,7 @@ export const FIRST_SCOPE_HOST_NATIVE_DISPATCH = {
 
 export interface ProviderInventoryEntry {
   id: ProviderId;
-  status:
-    | 'ready'
-    | 'missing'
-    | 'unavailable'
-    | 'auth_required'
-    | 'unsupported';
+  status: 'ready' | 'missing' | 'unavailable' | 'auth_required' | 'unsupported';
   executable?: string;
   version?: string;
   capabilities: ProviderCapabilities;

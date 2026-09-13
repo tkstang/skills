@@ -33,7 +33,9 @@ export function withRecordMetadata(
   return entry;
 }
 
-export async function readExistingRecords(recordsPath: string): Promise<LoopRecord[]> {
+export async function readExistingRecords(
+  recordsPath: string,
+): Promise<LoopRecord[]> {
   try {
     const parsed = JSON.parse(await readFile(recordsPath, 'utf8'));
     if (!Array.isArray(parsed)) {

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { providerRegistry } from '../provider-cli/adapters.js';
 import {
   buildChildEnvironment,
   defaultRuntimePolicy,
   redactedRuntimePolicyDiagnostics,
   validateProviderOptions,
-} from '../../../src/consensus/provider-cli/runtime-policy.js';
-import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
+} from '../provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
-} from '../../../src/consensus/provider-cli/types.js';
+} from '../provider-cli/types.js';
 
 describe('provider runtime policy validation', () => {
   it('accepts supported model, effort, and runtime policy options', () => {

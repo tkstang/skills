@@ -4,7 +4,7 @@ import {
   ConsensusCliUsageError,
   normalizeRunRequest,
   parseConsensusCliArgs,
-} from '../../../src/consensus/provider-cli/args.js';
+} from '../provider-cli/args.js';
 
 describe('provider CLI argument parsing', () => {
   it('parses provider inventory commands', () => {
@@ -369,10 +369,7 @@ describe('provider CLI argument parsing', () => {
       { max_output_bytes: 1.5 },
       'Request JSON max_output_bytes must be a positive integer',
     ],
-    [
-      { runtime_policy: [] },
-      'Request JSON runtime_policy must be an object',
-    ],
+    [{ runtime_policy: [] }, 'Request JSON runtime_policy must be an object'],
     [
       { runtime_policy: { sandbox: false } },
       'Request JSON runtime_policy.sandbox must be a string',
