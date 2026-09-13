@@ -31,7 +31,7 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | review changes requested; fix in progress | 5 | 5/5 |
+| p-rev1 | review fix completed; re-review pending | 5 | 5/5 |
 
 **Total:** 40 completed of 44 historical-plus-active tasks; 4 original tasks
 superseded/unimplemented, 0 revision tasks pending. p-rev1 independent review is pending.
@@ -78,7 +78,7 @@ answer was received at bookkeeping time, so existing configuration remains uncha
 
 ## Phase p-rev1: Destination-tab fork guidance
 
-**Status:** implementation complete; independent review pending.
+**Status:** implementation and accepted review fix complete; independent re-review pending.
 
 ### Task prev1-t01: Establish provider/surface instruction capabilities
 
@@ -1051,6 +1051,9 @@ independently verified before p04-t01 can safely execute.
 - Review dispatch: scope=p-rev1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
 - Review outcome: `CHANGES_REQUESTED` at `0df47b79d55493bd213c4680752e4df45e8cc848`; artifact `reviews/p-rev1-review-2026-09-13T015500Z.md`; 0 Critical, 1 Important, 0 Medium, 0 Minor. Reconnaissance was `not-attempted`, and the artifact contains no `## Review Orchestration` section.
 - I1 accepted for the bounded phase fix loop: under Cursor `recency: 'exact-all'`, propagate fail-on-incomplete behavior through direct and fallback collectors and convert unexpected root/enumeration/stat failures into typed incomplete discovery with no partial candidates. Add synthetic regressions and regenerate affected outputs/version bumps. No product, architecture, live-provider, or authorization boundary changes.
+- Fix dispatch continuation `cont-handoff-p-rev1-review-fix-1`: resumed the original `/root/handoff_revision_phase` handle with exact role `oat-phase-implementer-gpt-5-6-sol-medium`; route level 0, retry 1 of 3, no phase-recovery attempt. Scope was limited to accepted I1, focused regressions, generated outputs, and required skill version bumps.
+- Fix dispatch: scope=p-rev1-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=frontier dispatch_ceiling=max target=oat-phase-implementer-gpt-5-6-sol-medium
+- Fix outcome: completed in the single append-only commit `3fdfc2a17b0b94171871a5bf6460beac1a333bea`; exact-all Cursor discovery now fails closed on unexpected root, iterator, and stat errors and returns no partial candidates. The worker reported 1,905 passing tests and one skipped, plus all repository gates. Root independently repeated 91 focused tests, generated parity, skill-version validation against the phase base, diff hygiene, and clean-worktree checks successfully.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 

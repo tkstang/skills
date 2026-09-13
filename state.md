@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 0df47b79d55493bd213c4680752e4df45e8cc848
+oat_last_commit: 3fdfc2a17b0b94171871a5bf6460beac1a333bea
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -80,7 +80,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T01:53:30Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T02:24:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -100,14 +100,15 @@ oat_project_explainer:
 
 ## Current Phase
 
-Revision p-rev1 is the only active implementation phase; next task prev1-t01.
-Planning/docs only in this turn; user will resume with Sol. Guidance is not implemented
-or released. The old executor remains experimental, incomplete, unverified, and paused.
+Revision p-rev1 is the only active implementation phase. Its five tasks and the accepted
+phase-review fix are implemented through `3fdfc2a1`; a fresh independent re-review is
+pending. Guidance remains experimental and unreleased. The old executor remains incomplete,
+unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
 remain unresolved evidence, not blockers for read-only guidance. No cleanup targets
 are inferred; old p05 activation and p06 packaging tasks are superseded/unimplemented.
-See `revision-handoff.md`. Confirm revision HiLL before implementation because the
-preserved old setting names superseded p06. No provider operation is authorized.
+The final-only HiLL checkpoint is configured for p-rev1 with automatic review. No
+provider operation is authorized.
 
 ## Artifacts
 
@@ -115,7 +116,7 @@ preserved old setting names superseded p06. No provider operation is authorized.
 - **Spec:** `spec.md` (complete)
 - **Design:** `design.md` (accepted revision section; historical review applies only to old design)
 - **Plan:** `plan.md` (p-rev1 ready; independent artifact review has no blocking findings and one offered Medium verification suggestion)
-- **Implementation:** `implementation.md` (35 completed, 4 superseded/unimplemented, 5 pending revision tasks; prior p03-t19 review remains passed)
+- **Implementation:** `implementation.md` (40 completed, 4 superseded/unimplemented; p-rev1 fix completed and re-review pending)
 - **Handoff:** `revision-handoff.md` (Sol entrypoint and scope/authorization boundaries)
 
 ## Progress
