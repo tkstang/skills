@@ -28,8 +28,17 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p02:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: p02-t04-composition-02
+        original_request_id: 12930fd1-3c42-47ad-8ff3-1e48495ad169
+        original_task_id: p02-t04
+        original_commit: dcf1967541fe7fa362811737f0a65fc99e9eae33
+        discovered_by: full Vitest phase verification after p02-t04
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 101da5385da3b7db30e052bab6632460010dc745
+        status: completed
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null

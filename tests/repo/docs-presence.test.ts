@@ -374,7 +374,6 @@ describe('docs-presence', () => {
       'plugins/consensus/skills/panel/references/examples/design-risk-question.md',
       'plugins/consensus/skills/panel/references/examples/privacy-boundary-question.md',
       'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
-      'plugins/consensus/skills/panel/scripts/consensus-config.mjs',
       'plugins/consensus/skills/panel/schemas/panel-response.schema.json',
     ];
 

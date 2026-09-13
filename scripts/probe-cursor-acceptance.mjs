@@ -21,7 +21,7 @@ const OBSERVER_CLI = path.join(
 );
 const FIXTURE_DIRECTORY = path.join(
   REPO_ROOT,
-  'tests/session-observer/fixtures/cursor',
+  'src/skills/session-observer/src/fixtures/cursor',
 );
 const COMMAND_TIMEOUT_MS = 5_000;
 const COMMAND_TERMINATION_GRACE_MS = 250;

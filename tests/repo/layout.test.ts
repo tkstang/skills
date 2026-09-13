@@ -95,10 +95,10 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'consensus', '.claude-plugin'),
       path.posix.join('plugins', 'consensus', '.cursor-plugin'),
       path.posix.join('plugins', 'consensus', '.codex-plugin'),
-      path.posix.join('src', 'consensus', 'core'),
-      path.posix.join('src', 'consensus', 'refine'),
-      path.posix.join('src', 'transcript', 'core'),
-      path.posix.join('src', 'transcript', 'export-session'),
+      path.posix.join('src', 'plugins', 'consensus', 'core'),
+      path.posix.join('src', 'skills', 'refine', 'src'),
+      path.posix.join('src', 'shared', 'transcript'),
+      path.posix.join('src', 'skills', 'session-export-transcript', 'src'),
       'scripts',
     ];
 
@@ -112,18 +112,18 @@ describe('repo-layout', () => {
     ).toBe(false);
 
     expect(
-      await pathExists('src/transcript/core/runtimes.ts'),
-      'transcript-core canonical source should live under src/transcript/core',
+      await pathExists('src/shared/transcript/runtimes.ts'),
+      'transcript-core canonical source should live under src/shared/transcript',
     ).toBe(true);
     expect(
       await pathExists(
-        'src/transcript/export-session/export-session-transcript.ts',
+        'src/skills/session-export-transcript/src/export-session-transcript.ts',
       ),
-      'export CLI canonical source should live under src/transcript/export-session',
+      'export CLI canonical source should live under src/skills/session-export-transcript',
     ).toBe(true);
     expect(
-      await pathExists('src/transcript/export-session/sanitize.ts'),
-      'export sanitizer canonical source should live under src/transcript/export-session',
+      await pathExists('src/skills/session-export-transcript/src/sanitize.ts'),
+      'export sanitizer canonical source should live under src/skills/session-export-transcript',
     ).toBe(true);
   });
 
