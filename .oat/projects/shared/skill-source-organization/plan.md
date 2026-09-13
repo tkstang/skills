@@ -277,12 +277,26 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
-| plan | artifact | pending | - | - | - | - | - |
+| plan | artifact | received | 2026-09-13 | - | - | - | - |
 | p03 | code | pending | - | - | - | - | - |
 | p04 | code | pending | - | - | - | - | - |
 | p05 | code | pending | - | - | - | - | - |
 
 Existing scaffold rows are preserved. Spec is intentionally absent in quick mode; design approval for planning does not fabricate an independent review. p04's public milestone review is distinct from project-wide final review after post-merge follow-through. All gate results require actual recorded evidence.
+
+### Plan Self-Review: 2026-09-13
+
+Structured review completed: 0 Critical, 0 Important, 3 Medium, 0 Minor. No review artifact was written by the read-only reviewer. The Medium refinements were offered; no user selection has been received, so they remain unresolved and were not silently applied. The separately authorized gate will assess this unchanged task contract; a threshold pass alone does not settle these findings or establish readiness.
+
+- M1: Explicitly execute one real session-plugin entrypoint outside the checkout in p03-t01's existing packaging suite, closing the design's distinct-runtime-layout proof.
+- M2: Assign CHANGELOG.md to p04-t01 with the existing changelog convention, formatting and verification.
+- M3: Replace descriptive Format steps with runnable file-scoped commands; concretize inventory-dependent path lists at p01-t01 before those tasks start.
+
+Reviewer dispatch (launcher-selected/config-declared; independent runtime identity not reported):
+
+Dispatch: scope=plan action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+Parent model/effort were unavailable as launcher evidence, so the exact-ceiling exception was used. Configured quick-start gate scope is legacy-plan-only; its command is preserved unchanged.
 
 ## Implementation Complete
 

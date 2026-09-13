@@ -30,7 +30,7 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** Active planning; discovery/design accepted, 14-task plan authored, High dispatch ceiling selected, self-review and plan gate authorized and pending.
+**Status:** Active planning; self-review complete with three Medium refinements awaiting user disposition; configured plan gate authorized and pending. Implementation not started.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
@@ -54,7 +54,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Verified current public layout and personal session-handoff promotion source.
 - User confirmed bringing the newer complexity-review here and planning a separate personal-skills authored-copy removal PR after the public replacement is available; plan/discovery/design now record that sequence.
 - Activated this follow-up after its predecessor closed and merged, as explicitly requested.
-- No code, source moves, installation changes, provider calls, or external publication performed.
+- No code, source moves, installation changes, or external publication performed. The authorized read-only self-review completed on the configured High reviewer.
 
 ## Activation and Execution Prerequisites
 
@@ -75,5 +75,5 @@ Finish the quick-start self-review/exit-gate boundary using the selected High ce
 - User selected the managed High project ceiling on 2026-09-13. Reviewer preflight resolves High to oat-reviewer-gpt-5-6-sol-high with a complete ladder. The separate user-level Codex Frontier ladder update does not raise this project's ceiling.
 - A qualifying independent phase-review target exists. The optional All phases / Selected phases / Disabled question was offered; no selection has been recorded or enablement invented. The plan's p05 is post-merge follow-through; any selected phase IDs must be validated against all five final phases.
 - User-configured lifecycle gates exist for quick-start, implement, plan, and import-plan. The user explicitly authorized the current quick-start plan gate; no project overrides have been written. Lite has no configured gate.
-- Automatic plan artifact review is enabled and now has a resolved dispatch policy, but has not yet run. The quick-start configured exit gate likewise has not run. No native/CLI reviewer or provider operation was launched during the configuration update.
+- Automatic plan artifact review completed with 0 Critical, 0 Important, 3 Medium, 0 Minor findings; plan.md records the findings and exact dispatch stamp. Medium edits were offered but remain unapplied without a user selection. The configured quick-start exit gate is next; it does not by itself resolve these self-review findings.
 - The inherited empty implementation HiLL phase list was scaffold output, not a confirmed user selection, and was removed from plan.md. Implementation must confirm checkpoints at kickoff; this does not alter optional independent phase-gate settings.
