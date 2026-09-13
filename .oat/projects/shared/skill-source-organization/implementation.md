@@ -67,6 +67,37 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery commit: fa4e6256d63af58806c4ef273d7700af1af21534
 - Verification: focused 24/24 and relevant phase 49/49 passed before and after the candidate commit; type-check, build check, validation, and smoke passed after the commit
 - Reason: allowed shared source roots are included in the same pre/post staging fingerprint as the skill owner
+
+### Run 2: Phase p02
+
+- Status: four task commits complete; bounded phase recovery pending
+- Request: `12930fd1-3c42-47ad-8ff3-1e48495ad169`
+- Launch status: accepted
+- Phase base: `4c51573706198f385c6578c42a43430f89563049`
+- Interim head: `dcf1967541fe7fa362811737f0a65fc99e9eae33`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Classification: hard reasoning at preferred high effort, based on the canonical-owner migration, shared/plugin boundary changes, atomic version-authority switch, backlog closure, and infrastructure removal
+- Selection: exact hard-reasoning candidate at the managed High ceiling; candidates were `gpt-5.6-sol` medium, then `gpt-5.6-sol` high
+- Dispatch: `Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Task commits: p02-t01 `65c5368aaf377eafa97c6381d489d4f5c955cc64`; p02-t02 `8a0ad771db3358a683cef37e1223494700d898cf`; p02-t03 `f8edf1ad56984e1e5a0b23b82b0ad5ce99db7769`; p02-t04 `dcf1967541fe7fa362811737f0a65fc99e9eae33`
+- Recovery: p02-t02 required one successful phase-standing composition recovery at `b3abe82a279f70107c608632f5ba88ef984d7916`; authoritative usage is 1/10 and its completed marker is settled.
+- Verification: all task-local checks passed. Phase verification found nine deterministic stale path or banner assertions after p02-t04; the same Sol handle will continue with bounded recovery attempt 2.
+- Nested dispatches: none
+
+### Recovery Event p02-t02-composition-01
+
+- Phase/task: p02 / p02-t02
+- Original request: 12930fd1-3c42-47ad-8ff3-1e48495ad169
+- Original commit: 8a0ad771db3358a683cef37e1223494700d898cf
+- Defect class: composition
+- Discovered by: git show --stat --oneline HEAD
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: b3abe82a279f70107c608632f5ba88ef984d7916
+- Verification: focused 108 files / 1562 tests plus one skipped, type-check, build check, and smoke passed before and after the recovery commit
+- Reason: a missing pathspec stopped staging after move entries; the bounded remaining p02-t02 edits were committed append-only with terminal ledger evidence
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
