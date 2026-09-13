@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
-oat_ready_for: null
+oat_ready_for: phase_review
 oat_blockers: []
 oat_last_updated: 2026-09-13
-oat_current_task_id: p04-t01
+oat_current_task_id: p04-t02
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-Implementation continues at p04-t01. Phases p01 through p03 are complete. P03 passed independent review cycle 2 with zero findings after one bounded review fix.
+P04 implementation is complete locally and ready for the root-owned independent phase review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 
 ## Progress Overview
 
@@ -19,9 +19,9 @@ Implementation continues at p04-t01. Phases p01 through p03 are complete. P03 pa
 | p01 Packaging foundation | complete | 3 | 3 |
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
-| p04 Public docs/verification | pending | 2 | 0 |
+| p04 Public docs/verification | implementation complete; review pending | 2 | 2 |
 | p05 Post-merge private cutover | pending | 1 | 0 |
-| Total | in progress | 14 | 11 |
+| Total | in progress | 14 | 13 |
 
 p01–p04 are the public milestone. p05 intentionally follows its merge; use the progress-PR boundary in plan.md rather than requiring all tasks to complete before that public PR can merge.
 
@@ -156,11 +156,44 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery commit: 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86
 - Verification: focused docs-presence test and complete premerge gate passed before and after the committed correction
 - Reason: full-suite composition found one stale test fixture path for the intentionally removed export-session-transcript output; the correction mechanically renamed it to session-export-transcript
+
+### Run 4: Phase p04
+
+- Status: implementation complete; independent phase review pending
+- Request: `5df39234-95ce-4ba8-a894-a3ce2d4c5f15`
+- Launch status: accepted
+- Phase base: `1ab02c9f2631172935b7b0f75926704ff793d5c7`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Classification: hard reasoning at preferred high effort for the public documentation, whole-migration verification, and complexity review
+- Dispatch: `Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Task commits: p04-t01 `d989a27c5714e3fda918b29a6d56474a4fcb4e00`; p04-t02 is the commit containing this record
+- Recovery: p04-t01 required one successful phase-standing composition recovery at `9790c461a9ecf9e75060270ddb6c4870dc4de07e`; its completed marker remains pending root reconciliation
+- Follow-up p04-f01: `6b5166596a51e29c7995e41d7ca46ef16ef36d10` corrected three renamed-guide references, bumped `session-fork-to-destination` to `0.2.1`, and regenerated its standalone and session-plugin skill manifests
+- Verification: 40/40 isolated packaging tests, 21/21 focused fork-guidance tests, 1,987 complete-suite tests with one skip, 12 changed skill versions, type-check, build check, validation, smoke, internal flags, and diff checks passed
+- Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
+- Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
+- Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
+- Nested dispatches: none
+
+### Recovery Event p04-t01-composition-01
+
+- Phase/task: p04 / p04-t01
+- Original request: 5df39234-95ce-4ba8-a894-a3ce2d4c5f15
+- Original commit: d989a27c5714e3fda918b29a6d56474a4fcb4e00
+- Defect class: composition
+- Discovered by: explicit p04-t01 `git add` failed because an already-renamed old path no longer matched, leaving the remaining bounded documentation delta unstaged
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 9790c461a9ecf9e75060270ddb6c4870dc4de07e
+- Verification: 56 focused documentation tests, repository validation, formatting, and the 38-route documentation build passed before and after the candidate commit
+- Reason: rename entries had already been staged when the missing old path stopped explicit staging; the remaining bounded documentation delta was committed append-only
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
 
-On 2026-09-13, p01 implemented the migration inventory, packaging pipeline, and representative install-boundary suite in three planned commits. One phase recovery and two automatic review-fix commits followed. After review cycle 3, the user authorized one narrow post-cap fix and waived another review. Required p01 verification passes at `684d4f8d19187e197e7b54c561f179e87fd4e917`; execution advances to p02-t01.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The local milestone is ready for independent phase review.
 
 ## Deviations from Plan / Design
 
@@ -182,9 +215,11 @@ At the final p02 head, the implementer, root, and passing reviewer each verified
 
 At the final p03 head, the implementer and root passed 135 test files and 1,987 tests with one skip, plus the complete premerge and 12-skill version gates. The passing reviewer independently verified 197 focused tests, generated-output validation, repository validation, and the phase version gate.
 
+At the p04 implementation head, 135 test files and 1,987 tests pass with one file/test skipped. The 40-case isolated packaging suite, 21 focused fork-guidance tests, version gate for 12 changed skills, type-check, build check, validation, smoke, internal flags, and diff checks pass. P04-t01's unchanged documentation basis built 38 routes after 56 focused documentation checks passed.
+
 ## Final Summary (for PR/docs)
 
-Nothing shipped. The p01 foundation is complete by user-authorized direct disposition. Source migration, promotions, releases, and installation cutovers remain pending. A future public-PR milestone summary must distinguish p01–p04 results from p05's pending cross-repo work.
+Nothing shipped. The p01–p04 public milestone is implemented and locally verified, subject to independent phase review. Publication, merge, live readiness evidence, user-level installation, and the private p05 ownership cutover remain pending.
 
 ## References
 
