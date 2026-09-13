@@ -552,7 +552,7 @@ describe('docs-presence', () => {
     );
     const sharedTranscriptCore = await read('shared/transcript-core/README.md');
     const exportTranscriptFormats = await read(
-      'skills/export-session-transcript/references/transcript-formats.md',
+      'skills/session-export-transcript/references/transcript-formats.md',
     );
 
     // The generated-runtime contract now lives in the docs site

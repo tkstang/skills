@@ -31,8 +31,18 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
     p03:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p03-r01-docs-presence-clean-break
+        original_request: cda18a03-7781-4baa-8994-c572f299bbb6
+        original_task: p03-t01
+        original_commit: 845b345688058d856ad2f3c3f99aa500dd19a221
+        discovered_by: pnpm run premerge
+        exact_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 92c84d1c9a99054aa695a04598d5092d601aa33c
+        status: completed
+        verification: "pnpm exec vitest run tests/repo/docs-presence.test.ts and pnpm run premerge passed before candidate commit"
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
