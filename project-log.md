@@ -228,6 +228,10 @@ handoff-split-decision-20260912: Recorded the accepted two-skill split in .oat/r
 
 handoff-guidance-revision-20260913: Recorded accepted destination-tab guidance scope for three entry points and Codex/Claude/Cursor; created prev1-t01 through prev1-t05, updated discovery/spec/design/state/summary and revision-handoff.md, and paused/superseded original automation work without marking its gates passed. Independent structured plan review has no blocking findings and one offered Medium verification suggestion. Stop at user-requested planning handoff to Sol; no implementation, provider operations, feature push, or PR mutation.
 
+### 2026-09-13 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:2,minor:2 exit=1 status=blocked artifact=.oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T042209Z.md run=d0d1b97a-1990-47ce-a35f-2b985f1116ce
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
