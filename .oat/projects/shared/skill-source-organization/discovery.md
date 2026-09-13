@@ -23,6 +23,7 @@ Settled answers from the conversation, not outstanding questions:
 - **Individual installation:** Any plugin skill may be explicitly configured for standalone installation. Preserve descriptive standalone names while allowing short plugin-local names.
 - **Dependencies:** Materialize shared script logic into each installation unit that needs it. Genuine dependencies on another skill's workflow are allowed, declared, documented, and checked; missing dependencies stop dependent work with installation guidance. No automatic installation.
 - **Promotion example:** complexity-review already covers the simple standalone case. session-handoff is the actual new promotion.
+- **Complexity-review ownership (confirmed 2026-09-13):** Bring the newer personal-skills 1.0.2 source/resources here. After the public replacement merges and is installable, open a separate personal-skills PR removing its independently authored copy and updating affected distribution/docs. Do not merge that PR or change active installations implicitly.
 - **Process/tests:** Draft from the existing decisions. Avoid speculative frameworks, duplicated suites, arbitrary coverage targets, and tests of incidental prose. Protect stable contracts and costly regressions.
 
 ## Chosen Direction
@@ -74,6 +75,7 @@ Qualified invocation follows each host's supported namespace; this table specifi
 - Existing runtime behavior is preserved. Representative outside-checkout checks cover prompt-only, executable, shared-code, prerequisite, and complete-plugin packaging.
 - Freshness/version checks catch distribution drift, renamed-owner version resets, and missed transitive consumers. Existing suites are reused instead of cloned by skill/provider.
 - Promotion records the source revision, public-safe contents, attribution/version history, and explicit personal-skills ownership cutover. No active installation is replaced merely to prove packaging.
+- Complexity-review's newer content is owned here, and a linked personal-skills removal PR is opened with its disposition recorded. Any retained personal distribution consumes the public source; no second editable owner remains after that PR is merged.
 - Documentation distinguishes static packaging, artifact execution, and live release verification. Experimental behavior remains labeled experimental.
 
 ## Existing Evidence and Related Work

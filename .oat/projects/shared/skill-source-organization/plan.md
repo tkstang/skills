@@ -24,10 +24,21 @@ Not an executable plan. Task authoring has not started; the project is inactive 
 1. Refresh the merged baseline and record old/new owners, versions, declared outputs, and compatibility requirements.
 2. Adapt the existing builder/declarations and prove representative prompt-only, executable, shared-runtime, and complete-plugin installation boundaries before bulk migration.
 3. Migrate authored sources, version ownership, shared-consumer guards, and existing tooling/CI; preserve behavior and reuse existing tests.
-4. Apply plugin groupings/renames, promote session-handoff, reconcile complexity-review, and coordinate the separately authorized personal-skills ownership transition.
+4. Apply plugin groupings/renames, promote session-handoff, bring the newer personal-skills complexity-review content into this public repo, and coordinate the personal-skills ownership transition.
 5. Finish distribution documentation and static/artifact verification; keep live discovery/publication distinct and authorization-bound.
 
 Convert these into stable task IDs, scoped verification, and atomic commits only after design review and baseline refresh. Avoid full-suite repetition per move, snapshots of prose, and speculative test infrastructure.
+
+## Required Complexity-Review Cutover
+
+User-confirmed scope addition, 2026-09-13:
+
+1. Bring personal-skills' newer complexity-review (currently 1.0.2), including references/evidence-guide.md and its authorization/invocation improvements, into this repository's canonical skill. Preserve attribution and comply with the version policy in effect at execution; recheck the source revision before copying.
+2. Verify the prompt-only source and generated resources with existing metadata, packaging/link checks and a focused content comparison. Do not add a runtime or evaluation harness for this prose migration.
+3. After the public replacement merges and is available through the supported installation path, open a separate PR in tkstang/personal-skills removing its independently authored src/skills/complexity-review copy. Update its source declarations, regenerate derived payloads, and update docs so none still imply private ownership. If retained in the personal distribution, consume the public owner through the existing external-skill mechanism rather than maintain another authored copy.
+4. Link the removal PR to the public change and record its disposition. PR creation is planned work; merging it and changing active installations remain separate approval boundaries. Source removal must not implicitly uninstall user copies.
+
+Neither the content migration nor the removal PR is executed by this planning update. The project remains inactive.
 
 ## Parallelism
 

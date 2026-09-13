@@ -92,7 +92,7 @@ The inspected personal source is session-handoff 1.1.0 at personal-skills commit
 
 Coordinate the private repository's transition to the public source through its existing external-skill mechanism. Until that separately authorized cutover, mark any retained private source as transitional rather than inviting independent edits. Do not remove source or alter user installs as a side effect of packaging tests.
 
-Complexity-review already exists publicly at 1.0.0, but personal-skills has divergent 1.0.2 content and an evidence-guide reference. Compare and reconcile useful improvements into the intended public owner before retiring a private copy; do not treat version numbers alone as proof that either entire copy wins. This remains a prompt-only ownership reconciliation, not a second promotion project.
+Complexity-review already exists publicly at 1.0.0, but personal-skills has newer 1.0.2 content and an evidence-guide reference. On 2026-09-13 the user chose to bring that newer content here and include a separate personal-skills removal PR in this project's plan. Carry over the complete useful source/resource change, preserving attribution and satisfying the version policy at execution. Once the public replacement has merged and is installable, open the private-repo PR to remove its independently authored copy, update declarations/docs, and regenerate affected outputs. Any continued personal distribution must consume the public owner through the existing external-skill mechanism. Link both changes; do not merge the removal PR or alter active installations automatically. This remains a prompt-only ownership reconciliation, not another skill promotion or behavior-evaluation project.
 
 ### 6. Version, tooling, and CI migration
 

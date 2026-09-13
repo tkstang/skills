@@ -20,7 +20,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T14:03:05Z"
+oat_project_state_updated: "2026-09-13T14:09:56Z"
 oat_generated: false
 ---
 
@@ -48,7 +48,7 @@ Created with --no-set-active. The active project remains .oat/projects/synced/co
 
 - Captured issue #74 and the conversation's final naming/grouping/dependency decisions.
 - Verified current public layout and personal session-handoff promotion source.
-- Identified divergent private/public complexity-review ownership for reconciliation.
+- User confirmed bringing the newer complexity-review here and planning a separate personal-skills authored-copy removal PR after the public replacement is available; plan/discovery/design now record that sequence.
 - Preserved the current project's active pointer.
 - No code, source moves, installation changes, provider calls, or external publication performed.
 
