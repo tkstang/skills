@@ -43,17 +43,17 @@ oat_implement_exit_gate:
   envelope_status: blocked
   artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md
   handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T051014Z.md before treating this gate review as consumed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation: 474c2fbb-40eb-4b70-b3b5-feb4fbf670a2
+  receive_source_artifact: reviews/final-review-2026-09-13T051014Z.md
+  receive_archived_artifact: reviews/archived/final-review-2026-09-13T051014Z.md
+  receive_event_identity: 'final|code|final-review-2026-09-13T051014Z.md|e9e2ae8f-1305-4774-bf31-775a0f24e067'
+  receive_pre_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-13T05:11:00Z'
+  updated_at: '2026-09-13T05:12:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
