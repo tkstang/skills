@@ -75,6 +75,7 @@
     "skills/export-session-transcript/scripts/lib/sanitize.mjs",
     "skills/export-session-transcript/scripts/export-session-transcript.mjs",
     "tools/coding-session-handoff/coding-session-handoff.mjs",
+    "skills/coding-session-handoff/scripts/coding-session-handoff.mjs",
     "**/scripts/lib/runtimes.mjs",
     "**/fixtures/**",
     "**/*.yml",

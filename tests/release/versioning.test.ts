@@ -29,6 +29,7 @@ const jsonFiles = [
   '.agents/plugins/marketplace.json',
 ];
 const skillFiles = [
+  'skills/coding-session-handoff/SKILL.md',
   'skills/complexity-review/SKILL.md',
   'skills/session-observer/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
@@ -54,6 +55,10 @@ const collaborationDistributionFiles = [
   'skills/session-observer-collab/scripts/codex-lifecycle.mjs',
   'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
   'skills/session-observer-collab/scripts/hooks/cursor-stop.mjs',
+];
+const guidanceDistributionFiles = [
+  'skills/coding-session-handoff/references/provider-guidance.md',
+  'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
 ];
 const requiredDocs = [
   'README.md',
@@ -81,6 +86,7 @@ async function tempReleaseRoot() {
   for (const file of [
     ...sessionObserverWatchDocs,
     ...collaborationDistributionFiles,
+    ...guidanceDistributionFiles,
   ]) {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
@@ -215,6 +221,7 @@ describe('release-versioning', () => {
       'plugins/consensus/skills/phone-a-friend/SKILL.md',
       'plugins/consensus/skills/plan/SKILL.md',
       'plugins/consensus/skills/refine/SKILL.md',
+      'skills/coding-session-handoff/SKILL.md',
       'skills/complexity-review/SKILL.md',
       'skills/export-session-transcript/SKILL.md',
       'skills/session-observer-collab/SKILL.md',

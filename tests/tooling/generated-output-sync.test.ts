@@ -92,6 +92,9 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain('export-session-sanitize: in sync');
     expect(result.stdout).toContain('export-session-transcript-cli: in sync');
     expect(result.stdout).toContain('coding-session-handoff-cli: in sync');
+    expect(result.stdout).toContain(
+      'coding-session-handoff-guidance-cli: in sync',
+    );
     expect(result.stdout).not.toContain('pending');
     expect(result.code).toBe(0);
   });
@@ -208,6 +211,12 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'tools/coding-session-handoff/coding-session-handoff.mjs',
     );
+    expect(script).toContain(
+      'src/transcript/coding-session-handoff/guidance-cli.ts',
+    );
+    expect(script).toContain(
+      'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+    );
   });
 
   it('generates one bundled pre-activation handoff runtime', async () => {
@@ -237,6 +246,20 @@ describe('generated output drift guard', () => {
       '// Source: src/transcript/coding-session-handoff/cli.ts',
     );
     expect(output).not.toMatch(/from\s+['"](?:\.\.\/|\.\/).*\.js['"]/);
+  });
+
+  it('generates a separate public guidance-only handoff runtime', async () => {
+    const mapping = generatedOutputs.find(
+      (candidate: any) =>
+        candidate.id === 'coding-session-handoff-guidance-cli',
+    );
+    expect(mapping).toEqual({
+      id: 'coding-session-handoff-guidance-cli',
+      source: 'src/transcript/coding-session-handoff/guidance-cli.ts',
+      output:
+        'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+      bundle: true,
+    });
   });
 
   it('maps both Cursor framed modules into both shipped runtime trees', async () => {
