@@ -21,7 +21,7 @@ oat_dispatch_policy:
 oat_implement_exit_gate:
   status: pending
   resolution: configured
-  disposition: fixes_completed
+  disposition: null
   config_fingerprint: sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -29,9 +29,9 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 1
-  reviewed_head: 20e86a100832b114a8aa3a20469b849de7ec7f45
+  reviewed_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   implementation_base_ref: origin/main
-  implementation_fingerprint: sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047
+  implementation_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
   freshness_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
   freshness_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
   launch_state: result_persisted
@@ -53,7 +53,7 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T04:47:00Z'
+  updated_at: '2026-09-13T05:02:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
