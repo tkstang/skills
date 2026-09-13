@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-12
-oat_current_task_id: null
+oat_current_task_id: prev1-t07
 oat_generated: false
 ---
 
@@ -31,10 +31,10 @@ oat_generated: false
 | p03   | completed | 19 | 19/19     |
 | p05   | superseded (unimplemented) | 2 | 0/2 |
 | p06   | superseded (unimplemented) | 2 | 0/2 |
-| p-rev1 | final review fix complete; re-review pending | 6 | 6/6 |
+| p-rev1 | gate review fixes queued | 11 | 6/11 |
 
-**Total:** 41 completed of 45 historical-plus-active tasks; 4 original tasks
-superseded/unimplemented and 0 tasks pending.
+**Total:** 41 completed of 50 historical-plus-active tasks; 4 original tasks
+superseded/unimplemented and 5 tasks pending.
 Four original live/receipt gates remain unpassed and paused, not active prerequisites.
 
 ## Revision Received: Inline Feedback
@@ -1119,10 +1119,79 @@ review event advances to `passed`.
 maximum 2 review attempts. The fresh reviewed basis is `20e86a10` against
 `origin/main`, fingerprint
 `sha256:effective-delta-v1:2e9a3ebf8360c0fecd2b31e22bf18196b7dac2f0e2f9234242eb175d40cf8047`.
-The exact configured command is persisted with launch state `not_started`. Current
-target inventory and same-family avoidance select the available external Claude target
-`claude-fable-skip-permissions`; project handoff requires fresh user authorization
-before this external provider review is launched.
+The launch was explicitly approved and accepted as gate run
+`d0d1b97a-1990-47ce-a35f-2b985f1116ce` on the resolved cross-family target
+`cursor-fable-5-1-high`. Its structured blocked result is durably persisted before
+receive processing.
+
+### Review Received: final configured gate
+
+**Date:** 2026-09-13
+**Review artifact:** `reviews/archived/final-review-2026-09-13T042209Z.md`
+**Reviewed head:** `20e86a100832b114a8aa3a20469b849de7ec7f45`
+**Invocation:** gate, target `cursor-fable-5-1-high`, run
+`d0d1b97a-1990-47ce-a35f-2b985f1116ce`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 2
+- Minor: 2
+
+**Disposition:** Blocking-gate auto-disposition converts all five findings to ordered
+fix tasks. I1 is a Large code-and-artifact correction: guidance discovery must keep
+fully attributed source candidates available when unrelated store records are
+unattributable, while preserving strict defaults for the paused executor. M1 is a
+Minor public-contract alignment for currently unavailable Cursor discovery. M2 is a
+Minor interactive-shell safety fix. m1 and m2 are Minor bounded correctness and
+installed-path fixes. No finding is skipped or deferred.
+
+**New tasks added:** `prev1-t07`, `prev1-t08`, `prev1-t09`, `prev1-t10`,
+`prev1-t11`.
+
+**Design drift / artifact alignment notes:**
+
+- I1 found that the paused executor's store-wide exact-all failure granularity had
+  carried into the explicit-selection guidance product. The guidance product's
+  attributable-candidate behavior is authoritative after `prev1-t07`; its p-rev1
+  design/spec sections must be aligned in the same task. The executor remains strict,
+  paused, and unreachable from the public skill.
+
+**Next:** Execute the five tasks through `oat-project-implement`, run a fresh standard
+final review for the changed basis, then launch the second and final configured gate
+attempt if the standard review passes.
+
+### Task prev1-t07: Preserve attributable guidance candidates
+
+**Status:** pending
+**Finding:** Gate I1 — unrelated unreadable transcripts make the entire guidance
+discovery workflow unavailable.
+**Disposition:** code fix and artifact alignment required; Large scope.
+
+### Task prev1-t08: State the current Cursor discovery limitation
+
+**Status:** pending
+**Finding:** Gate M1 — public surfaces imply Cursor discovery is currently reachable.
+**Disposition:** documentation and contract-test fix; Minor scope.
+
+### Task prev1-t09: Preserve the destination shell on cwd mismatch
+
+**Status:** pending
+**Finding:** Gate M2 — top-level `exit 64` can close an interactive destination shell.
+**Disposition:** code and test fix; Minor scope.
+
+### Task prev1-t10: Report entry-level preview truncation
+
+**Status:** pending
+**Finding:** Gate m1 — mid-entry text trimming can report `truncated: false`.
+**Disposition:** code and test fix; Minor scope.
+
+### Task prev1-t11: Resolve the installed skill runtime path
+
+**Status:** pending
+**Finding:** Gate m2 — repository-relative examples fail from an installed skill.
+**Disposition:** skill and contract-test fix; Minor scope.
 
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 

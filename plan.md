@@ -1635,7 +1635,7 @@ the resulting lifecycle bookkeeping; no empty root-repository task commit is cre
 | p-rev1 | code | fixes_completed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T015500Z.md | 0df47b79d55493bd213c4680752e4df45e8cc848 | manual | - |
 | p-rev1 | code | passed | 2026-09-13 | reviews/p-rev1-review-2026-09-13T022511Z.md | 3fdfc2a17b0b94171871a5bf6460beac1a333bea | manual | - |
 | plan | artifact | received | 2026-09-13 | - | - | auto | oat-reviewer-gpt-5-6-sol-max |
-| final | code | received | 2026-09-13 | reviews/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
+| final | code | fixes_added | 2026-09-13 | reviews/archived/final-review-2026-09-13T042209Z.md | 20e86a100832b114a8aa3a20469b849de7ec7f45 | gate | cursor-fable-5-1-high |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1858,6 +1858,144 @@ or expose preview content; Codex/Claude and fail-closed exact-all behavior remai
 
 **Commit:** `fix(prev1-t06): require exact Cursor source association`
 
+### Task prev1-t07: (review) Preserve attributable candidates when unrelated transcripts are unreadable
+
+**Dependencies:** prev1-t06 and gate review
+`reviews/archived/final-review-2026-09-13T042209Z.md`.
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts` and shared types only
+  through a guidance-specific, opt-in read policy; preserve existing fail-closed
+  defaults for the paused executor and other consumers.
+- Modify: `src/transcript/coding-session-handoff/guidance-discovery.ts` and
+  `guidance-cli.ts`, plus focused locator and guidance tests.
+- Modify: the p-rev1 revision sections in `design.md` and `spec.md` to record the
+  guidance-only granularity.
+- Regenerate affected outputs with `pnpm run build`; bump every changed canonical
+  shipped skill version.
+
+**Step 1 — RED/GREEN:** Add realistic fixture stores where an unrelated Claude
+transcript lacks cwd metadata and an unrelated Codex transcript contains an oversized
+record. The guidance product must retain fully attributed source candidates while
+returning a path-free summary of unattributable inputs grouped by provider and stable
+reason code. It must never select by recency or expose transcript paths/content. Keep
+the paused executor's strict exact-all semantics unchanged and keep zero persistence.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for changed authored TypeScript,
+tests, and skill Markdown; never format generated output. Run `pnpm run build`.
+
+**Verify:** Focused locator and guidance discovery/CLI tests; type-check; generated
+parity; repository and skill-version validation; diff hygiene.
+
+Expected: unrelated unreadable records cannot make attributable Codex or Claude
+guidance candidates unavailable; diagnostics remain bounded, stable, and path-free.
+
+**Commit:** `fix(prev1-t07): isolate unrelated transcript discovery failures`
+
+### Task prev1-t08: (review) State the current Cursor discovery limitation
+
+**Dependencies:** prev1-t07.
+
+**Files:**
+
+- Modify: `skills/coding-session-handoff/SKILL.md` and
+  `skills/coding-session-handoff/references/provider-guidance.md`.
+- Modify: `documentation/docs/user-guide/skills/coding-session-handoff.md`.
+- Modify: focused guidance or docs contract tests; bump the changed skill version.
+
+**Step 1 — RED/GREEN:** State plainly that current Cursor transcript discovery has no
+independent exact cwd evidence and therefore reports incomplete rather than returning
+selectable candidates. Remove or qualify prose that describes an ambiguous Cursor
+candidate as reachable. Preserve Cursor capability records as future-facing evidence
+without claiming current availability.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for changed Markdown/tests; run
+`pnpm run build` if generated skill content changes.
+
+**Verify:** Focused guidance tests, generated parity, repository and skill-version
+validation, docs format check/build, and diff hygiene.
+
+Expected: every public surface reports the same honest per-provider discovery status.
+
+**Commit:** `docs(prev1-t08): clarify Cursor discovery availability`
+
+### Task prev1-t09: (review) Refuse wrong-cwd launches without closing the shell
+
+**Dependencies:** prev1-t08.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/guidance.ts`.
+- Modify: `tests/coding-session-handoff/guidance.test.ts`.
+- Regenerate affected output with `pnpm run build`; bump the changed shipped skill
+  version.
+
+**Step 1 — RED/GREEN:** Render an interactive conditional that executes the provider
+only when `pwd -P` matches the canonical destination and otherwise prints the refusal
+message without top-level `exit`. Prove a wrong cwd never invokes the mock provider
+and leaves the calling shell able to continue; preserve `exec` on the matching branch
+and shell-safe quoting.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for authored source/tests; never
+format generated output. Run `pnpm run build`.
+
+**Verify:** Focused guidance tests, type-check, generated parity, skill-version
+validation, and diff hygiene.
+
+Expected: cwd mismatch refuses the launch and preserves the interactive destination
+shell.
+
+**Commit:** `fix(prev1-t09): preserve shell on cwd mismatch`
+
+### Task prev1-t10: (review) Report entry-level preview truncation
+
+**Dependencies:** prev1-t09.
+
+**Files:**
+
+- Modify: `src/transcript/coding-session-handoff/guidance-cli.ts`.
+- Modify: `tests/coding-session-handoff/guidance-cli.test.ts`.
+- Regenerate affected output with `pnpm run build`; bump the changed shipped skill
+  version.
+
+**Step 1 — RED/GREEN:** Track whether the preview budget trims any retained entry text
+and include that condition in the public `truncated` flag. Cover both entry-count
+truncation and mid-entry text truncation.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for authored source/tests; never
+format generated output. Run `pnpm run build`.
+
+**Verify:** Focused guidance CLI tests, type-check, generated parity, skill-version
+validation, and diff hygiene.
+
+Expected: every lossy preview reports `truncated: true`.
+
+**Commit:** `fix(prev1-t10): report trimmed preview entries`
+
+### Task prev1-t11: (review) Use the installed skill-directory runtime path
+
+**Dependencies:** prev1-t10.
+
+**Files:**
+
+- Modify: `skills/coding-session-handoff/SKILL.md` and focused skill contract tests.
+- Bump the changed skill version.
+
+**Step 1 — RED/GREEN:** Replace repository-relative runtime examples and allowed-tool
+entries with the sibling `<skill-dir>/scripts/coding-session-handoff.mjs` convention
+so an installed user-level copy resolves its own runtime. Add a test that rejects
+repository-relative examples.
+
+**Format:** File-scoped `pnpm exec oxfmt --write` for changed skill Markdown/tests.
+
+**Verify:** Focused skill/guidance tests, repository validation, skill-version
+validation, and diff hygiene.
+
+Expected: documented commands resolve from an installed canonical skill directory.
+
+**Commit:** `fix(prev1-t11): resolve installed guidance runtime`
+
 ### Revision closeout (root-owned, not an implementation task)
 
 Receive independent p-rev1 code review; preserve all historical review events/caps.
@@ -1885,14 +2023,15 @@ it does not mark the experimental executor verified or its skipped work complete
 - p03: 19 tasks — the existing 18 tasks plus canonical UUID evidence and fixture-test formatting review fixes
 - p05: 2 tasks — superseded/unimplemented automation activation
 - p06: 2 tasks — superseded/unimplemented original packaging
-- p-rev1: 6 tasks — five destination-tab guidance tasks plus one completed final-review fix
+- p-rev1: 11 tasks — five destination-tab guidance tasks, one completed final-review fix, and five gate-review fixes
 
-**Historical + active total: 45 tasks = 41 completed + 4 superseded/unimplemented.**
+**Historical + active total: 50 tasks = 41 completed + 5 pending + 4 superseded/unimplemented.**
 Four historical live/receipt gates are paused, and two original reserved closeout gates
 are superseded by the revision closeout. No paused/superseded work is counted as passed.
 
-The active guidance revision's five tasks and phase review are complete. Final review
-found one Important Cursor source-association defect that must be repaired. Unsupported
-provider paths and unverified live behavior stay explicit. The old executor remains
+The active guidance revision's first six tasks and standard final review are complete.
+The configured implementation gate added five pending fixes for one Important, two
+Medium, and two Minor findings. Unsupported provider paths and unverified live
+behavior stay explicit. The old executor remains
 paused and unverified regardless of the guidance result. Release/merge/push are
 separate user-authorized boundaries, not consequences of completing these tasks.
