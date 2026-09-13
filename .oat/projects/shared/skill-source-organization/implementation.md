@@ -10,13 +10,13 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-Not started. Project is active and implementation-ready. Self-review and the configured Fable gate have run; the gate passed its Important threshold. All plan findings are dispositioned with user approval. The next task is p01-t01; the user will have Sol begin implementation in another session, including kickoff checkpoint confirmation and the source/base inventory refresh.
+Implementation started on 2026-09-13. Self-review and the configured Fable gate ran during planning; all findings are dispositioned with user approval. Phase p01 begins with p01-t01 under the managed High policy. The final-only HiLL checkpoint is p05, and automatic checkpoint review is enabled.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p01 Packaging foundation | pending | 3 | 0 |
+| p01 Packaging foundation | in progress | 3 | 0 |
 | p02 Source/tooling migration | pending | 4 | 0 |
 | p03 Products/promotions | pending | 4 | 0 |
 | p04 Public docs/verification | pending | 2 | 0 |
@@ -33,7 +33,7 @@ No implementation runs.
 
 ## Implementation Log
 
-No implementation activity. On 2026-09-13, discovery/design were prepared, the user confirmed the newer complexity-review ownership cutover, and a 14-task plan was authored. Settings and review disposition remain planning work, not completed implementation.
+On 2026-09-13, the implementation run started at p01-t01. The kickoff records the repository's final-only p05 checkpoint, automatic checkpoint review, and the default phase-recovery ledger before the phase implementer takes ownership of the worktree.
 
 ## Deviations from Plan / Design
 
