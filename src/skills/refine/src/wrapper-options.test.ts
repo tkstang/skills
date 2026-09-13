@@ -395,7 +395,9 @@ it('preflightConsensusProviderCli uses provider inventory and selected-provider 
           schema_version: 'v1',
           ok: true,
           usable: true,
-          providers: [{ id: args.at(-1), status: 'ready' }],
+          providers: [
+            { id: args[args.indexOf('--provider') + 1], status: 'ready' },
+          ],
         }),
         stderr: '',
       };
@@ -404,8 +406,14 @@ it('preflightConsensusProviderCli uses provider inventory and selected-provider 
 
   expect(calls).toEqual([
     ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
-    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
-    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
+    [
+      '/tmp/bin/consensus',
+      ['preflight', '--json', '--provider', 'claude', '--capability', 'run'],
+    ],
+    [
+      '/tmp/bin/consensus',
+      ['preflight', '--json', '--provider', 'codex', '--capability', 'run'],
+    ],
   ]);
   expect(result.peers).toEqual(['claude', 'codex']);
   expect(result.providerInventory).toEqual([
@@ -618,7 +626,7 @@ it('runSequential preflights an explicit synthesized-mode synthesizer outside th
             stderr: '',
           };
         }
-        const provider = args.at(-1);
+        const provider = args[args.indexOf('--provider') + 1];
         return {
           stdout: JSON.stringify({
             schema_version: 'v1',
@@ -644,9 +652,18 @@ it('runSequential preflights an explicit synthesized-mode synthesizer outside th
 
   expect(calls).toEqual([
     ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
-    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
-    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
-    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'cursor']],
+    [
+      '/tmp/bin/consensus',
+      ['preflight', '--json', '--provider', 'claude', '--capability', 'run'],
+    ],
+    [
+      '/tmp/bin/consensus',
+      ['preflight', '--json', '--provider', 'codex', '--capability', 'run'],
+    ],
+    [
+      '/tmp/bin/consensus',
+      ['preflight', '--json', '--provider', 'cursor', '--capability', 'run'],
+    ],
   ]);
 });
 
@@ -668,7 +685,7 @@ it('runSequential uses the provider CLI backend with CONSENSUS_CLI_PATH override
       'const readStdin = () => new Promise((resolve) => { let data = ""; process.stdin.setEncoding("utf8"); process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => resolve(data)); });',
       'async function main() {',
       '  if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "claude", status: "ready" }, { id: "codex", status: "ready" }] })); return; }',
-      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args.at(-1), status: "ready" }] })); return; }',
+      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args[args.indexOf("--provider") + 1], status: "ready" }] })); return; }',
       '  const request = JSON.parse(await readStdin());',
       '  const payload = { schema_version: "v1", verdict: "ACCEPT", reasoning: `${request.provider} accepts` };',
       '  console.log(JSON.stringify({ schema_version: "v1", ok: true, provider: request.provider, args: ["stub"], stdout: JSON.stringify(payload), json: payload, attempts: { cli_attempts: 1, terminal_reason: "success", retryable: false }, diagnostics: { strategy_used: "prompt_only" } }));',

@@ -188,7 +188,7 @@ it('reports provider CLI auth failures through Evaluate CLI JSONL', async () => 
       '#!/usr/bin/env node',
       'const args = process.argv.slice(2);',
       'if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "cursor", status: "auth_required" }, { id: "claude", status: "ready" }] })); process.exit(0); }',
-      'console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: false, providers: [{ id: args.at(-1), status: "auth_required" }] }));',
+      'console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: false, providers: [{ id: args[args.indexOf("--provider") + 1], status: "auth_required" }] }));',
       '',
     ].join('\n'),
   );

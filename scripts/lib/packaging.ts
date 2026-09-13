@@ -424,6 +424,9 @@ function renderInstruction(
   const references = new Map<string, string>([
     [declaration.owner, target.name],
   ]);
+  const identitySets = new Map<string, readonly string[]>([
+    [declaration.owner, [target.name]],
+  ]);
   const byOwner = new Map(
     declarations.map((candidate) => [candidate.owner, candidate]),
   );
@@ -432,14 +435,19 @@ function renderInstruction(
     ...(declaration.optionalSkills ?? []),
   ]) {
     const referenced = byOwner.get(reference.name);
+    if (!referenced) {
+      fail(
+        `${declaration.owner} references undeclared skill: ${reference.name}`,
+      );
+    }
     const samePlugin =
       target.kind === 'plugin'
-        ? referenced?.targets.find(
+        ? referenced.targets.find(
             (candidate) =>
               candidate.kind === 'plugin' && candidate.plugin === target.plugin,
           )
         : undefined;
-    const standalone = referenced?.targets.find(
+    const standalone = referenced.targets.find(
       (candidate) => candidate.kind === 'standalone',
     );
     const resolved = samePlugin ?? standalone;
@@ -449,10 +457,28 @@ function renderInstruction(
       );
     }
     references.set(reference.name, resolved.name);
+    identitySets.set(reference.name, [
+      ...new Set([
+        ...distributionTargetIdentities(resolved),
+        ...referenced.targets.flatMap(distributionTargetIdentities),
+      ]),
+    ]);
   }
   let rendered = lines
     .join('\n')
     .replaceAll('{{distribution.name}}', target.name);
+  rendered = rendered.replace(
+    /\{\{skill-identities:([^}]+)\}\}/g,
+    (_slot, name: string) => {
+      const identities = identitySets.get(name);
+      if (!identities) {
+        fail(
+          `${declaration.owner} contains unresolved skill identity slot: ${name}`,
+        );
+      }
+      return identities.map((identity) => `\`${identity}\``).join(' or ');
+    },
+  );
   rendered = rendered.replace(
     /\{\{skill:([^}]+)\}\}/g,
     (_slot, name: string) => {
@@ -462,10 +488,20 @@ function renderInstruction(
       return resolved;
     },
   );
-  const unresolved = rendered.match(/\{\{(?:distribution|skill):?[^}]*\}\}/);
+  const unresolved = rendered.match(
+    /\{\{(?:distribution|skill|skill-identities):?[^}]*\}\}/,
+  );
   if (unresolved)
     fail(`${declaration.owner} contains unresolved slot: ${unresolved[0]}`);
   return rendered;
+}
+
+function distributionTargetIdentities(
+  target: DistributionTarget,
+): readonly string[] {
+  return target.kind === 'plugin'
+    ? [target.name, `${target.plugin}:${target.name}`]
+    : [target.name];
 }
 
 function dependencyGuard(): Plugin {

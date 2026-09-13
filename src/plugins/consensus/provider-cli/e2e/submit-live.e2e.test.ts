@@ -32,7 +32,7 @@ describe('live provider submit E2E', () => {
         throw new Error(
           [
             `CONSENSUS_LIVE_SUBMIT_E2E=1 was set, but no usable "${provider}" provider was found.`,
-            `Checked via: node plugins/consensus/scripts/consensus.mjs preflight --json --provider ${provider}`,
+            `Checked via: node plugins/consensus/scripts/consensus.mjs preflight --json --provider ${provider} --capability run`,
             'Authenticate/install that provider CLI (or set CONSENSUS_LIVE_SUBMIT_PROVIDER to one that is ready), then re-run `pnpm run test:live-e2e`.',
           ].join('\n'),
         );
@@ -116,7 +116,15 @@ function liveProvider(): FirstScopeProviderId {
 function liveProviderIsReady(cliPath: string, provider: FirstScopeProviderId) {
   const result = spawnSync(
     process.execPath,
-    [cliPath, 'preflight', '--json', '--provider', provider],
+    [
+      cliPath,
+      'preflight',
+      '--json',
+      '--provider',
+      provider,
+      '--capability',
+      'run',
+    ],
     {
       cwd: process.cwd(),
       encoding: 'utf8',

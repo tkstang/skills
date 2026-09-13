@@ -493,7 +493,7 @@ it('runs Evaluate through the provider CLI backend with explicit peers and synth
       'const readStdin = () => new Promise((resolve) => { let data = ""; process.stdin.setEncoding("utf8"); process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => resolve(data)); });',
       'async function main() {',
       '  if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "claude", status: "ready" }, { id: "codex", status: "ready" }, { id: "cursor", status: "ready" }] })); return; }',
-      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args.at(-1), status: "ready" }] })); return; }',
+      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args[args.indexOf("--provider") + 1], status: "ready" }] })); return; }',
       '  const request = JSON.parse(await readStdin());',
       '  const isSynthesis = request.schema_path.includes("synthesis.schema.json");',
       '  const payload = isSynthesis ? { schema_version: "v1", synthesized_artifact: "# Evaluation\\n\\n## Unified Findings\\n\\n- Release readiness is medium.\\n", synthesis_reasoning: "merged", unresolved_disagreements: [] } : { schema_version: "v1", verdict: "REVISE", reasoning: `${request.provider} found release risk`, proposed_artifact: "# Evaluation\\n\\n## Unified Findings\\n\\n- Release readiness is medium.\\n" };',
@@ -541,9 +541,9 @@ it('runs Evaluate through the provider CLI backend with explicit peers and synth
   expect(calls).toEqual(
     expect.arrayContaining([
       ['provider', 'ls', '--json'],
-      ['preflight', '--json', '--provider', 'claude'],
-      ['preflight', '--json', '--provider', 'codex'],
-      ['preflight', '--json', '--provider', 'cursor'],
+      ['preflight', '--json', '--provider', 'claude', '--capability', 'run'],
+      ['preflight', '--json', '--provider', 'codex', '--capability', 'run'],
+      ['preflight', '--json', '--provider', 'cursor', '--capability', 'run'],
     ]),
   );
   expect(result.status.status).toBe('max-rounds');

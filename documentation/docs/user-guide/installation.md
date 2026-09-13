@@ -128,12 +128,12 @@ Check provider inventory and readiness before an expensive run:
 
 ```bash
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
 In an installed plugin environment, the same provider CLI may be exposed as
 `consensus` — for example `consensus provider ls --json` and
-`consensus preflight --json`.
+`consensus preflight --json --provider <selected-provider-id> --capability run`.
 
 Next: head to [Consensus](consensus/index.md) to run the consensus workflows,
 including `phone-a-friend`, or the standalone [Skills](skills/index.md).

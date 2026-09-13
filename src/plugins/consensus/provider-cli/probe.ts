@@ -6,11 +6,24 @@ import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import { buildProviderProbeEnvironment } from './runtime-policy.js';
 import { runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
-import type { ProviderInventoryEntry, ProviderDiagnostics } from './types.js';
-import type { ProviderId } from './types.js';
+import type {
+  ProviderDiagnostics,
+  ProviderId,
+  ProviderInventoryEntry,
+  ProviderPreflightCapability,
+} from './types.js';
+
+export interface ProviderCapabilityProbeDefinition {
+  args: readonly string[];
+  required_output_patterns: readonly RegExp[];
+}
 
 export interface ProviderProbeDefinition {
   version_args: readonly string[];
+  minimum_version: string;
+  capabilities: Readonly<
+    Record<ProviderPreflightCapability, ProviderCapabilityProbeDefinition>
+  >;
   auth_required_patterns?: readonly RegExp[];
   unavailable_patterns?: readonly RegExp[];
 }
@@ -39,6 +52,7 @@ export interface ProbeCommandRunner {
 
 export interface ProviderProbeOptions {
   runner: ProbeCommandRunner;
+  requiredCapabilities?: readonly ProviderPreflightCapability[];
 }
 
 export interface ProviderRegistryProbeOptions extends ProviderProbeOptions {
@@ -60,6 +74,7 @@ export async function probeProviderRegistry({
   registry,
   runner,
   provider,
+  requiredCapabilities,
 }: ProviderRegistryProbeOptions): Promise<ProviderInventoryEntry[]> {
   const adapters = provider
     ? [registry.get(provider)].filter(
@@ -67,7 +82,9 @@ export async function probeProviderRegistry({
       )
     : registry.list();
   return Promise.all(
-    adapters.map((adapter) => probeProviderReadiness(adapter, { runner })),
+    adapters.map((adapter) =>
+      probeProviderReadiness(adapter, { runner, requiredCapabilities }),
+    ),
   );
 }
 
@@ -109,6 +126,57 @@ export async function probeProviderReadiness(
       executable,
       warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine(output)}`],
     });
+  }
+
+  const detectedVersion = parseNumericVersion(output);
+  const minimumVersion = parseNumericVersion(adapter.probe.minimum_version);
+  if (!detectedVersion || !minimumVersion) {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      version: firstNonEmptyLine(output),
+      warnings: [
+        `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`,
+      ],
+    });
+  }
+  if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      version: firstNonEmptyLine(output),
+      warnings: [
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`,
+      ],
+    });
+  }
+
+  for (const capability of options.requiredCapabilities ?? []) {
+    const definition = adapter.probe.capabilities[capability];
+    const capabilityResult = await options.runner.run(
+      adapter.executable,
+      definition.args,
+      adapter.id,
+    );
+    const capabilityFailure = probeFailureEntry(
+      adapter,
+      executable,
+      capabilityResult,
+    );
+    if (capabilityFailure) return capabilityFailure;
+    const capabilityOutput = `${capabilityResult.stdout}\n${capabilityResult.stderr}`;
+    if (
+      capabilityResult.code !== 0 ||
+      !definition.required_output_patterns.every((pattern) =>
+        pattern.test(capabilityOutput),
+      )
+    ) {
+      return providerEntry(adapter, 'unavailable', {
+        executable,
+        version: firstNonEmptyLine(output),
+        warnings: [
+          `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`,
+        ],
+      });
+    }
   }
 
   return providerEntry(adapter, 'ready', {
@@ -290,4 +358,23 @@ function firstNonEmptyLine(value: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
+}
+
+function parseNumericVersion(value: string): number[] | undefined {
+  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  if (!match) return undefined;
+  return match[1].split('.').map(Number);
+}
+
+function compareNumericVersions(left: number[], right: number[]): number {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  return 0;
+}
+
+function formatNumericVersion(version: number[]): string {
+  return version.join('.');
 }

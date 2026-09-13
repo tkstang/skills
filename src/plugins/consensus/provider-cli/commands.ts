@@ -49,6 +49,7 @@ import type {
   ProviderDiagnostics,
   ProviderId,
   ProviderInventoryEntry,
+  ProviderPreflightCapability,
 } from './types.js';
 
 export interface ConsensusCliIo {
@@ -151,7 +152,8 @@ export interface ProviderCommandOptions {
 }
 
 export interface PreflightCommandOptions extends ProviderCommandOptions {
-  provider?: ProviderId;
+  provider: ProviderId;
+  capabilities: readonly ProviderPreflightCapability[];
   host?: HostContext;
 }
 
@@ -171,7 +173,7 @@ Commands:
       [--panel-size <n>] [--from-file <path>] [--cwd <path>]
   config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
   provider ls --json
-  preflight --json [--provider <id>] [--max-depth <n>]
+  preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
@@ -193,12 +195,13 @@ export async function runProviderList(
 }
 
 export async function runPreflight(
-  options: PreflightCommandOptions = {},
+  options: PreflightCommandOptions,
 ): Promise<PreflightEnvelope> {
   const registry = await resolveRegistry(
     options.registry,
     options,
     options.provider,
+    options.capabilities,
   );
   const providers = applyHostGuardToProviders(
     selectProviders(registry, options.provider),
@@ -373,6 +376,7 @@ export async function runConsensusCli(
         await runPreflight({
           ...defaultProbeOptions(options, io.env),
           provider: command.provider,
+          capabilities: command.capabilities,
           host:
             command.maxDepth === undefined
               ? undefined
@@ -808,6 +812,7 @@ async function resolveRegistry(
   registry: ProviderCommandOptions['registry'],
   options: Pick<ProviderCommandOptions, 'probeRunner'> = {},
   provider?: ProviderId,
+  requiredCapabilities?: readonly ProviderPreflightCapability[],
 ) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === 'function') return registry();
@@ -816,6 +821,7 @@ async function resolveRegistry(
       registry: providerRegistry(),
       runner: options.probeRunner,
       ...(provider ? { provider } : {}),
+      ...(requiredCapabilities ? { requiredCapabilities } : {}),
     });
   }
   return defaultProviderRegistry();

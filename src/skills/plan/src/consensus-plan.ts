@@ -321,7 +321,7 @@ async function preflightPlanProviderCli({
   for (const provider of providers) {
     const preflightResult = await runProviderCliCommand(
       command,
-      ['preflight', '--json', '--provider', provider],
+      ['preflight', '--json', '--provider', provider, '--capability', 'run'],
       { env, cwd },
     );
     const preflight = parseProviderCliEnvelope(

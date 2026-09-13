@@ -1,5 +1,10 @@
 import { detectHostRuntime, hostContextFromEnv } from './host-guard.js';
-import type { ConsensusCliRunRequest, ProviderId } from './types.js';
+import { PROVIDER_PREFLIGHT_CAPABILITIES } from './types.js';
+import type {
+  ConsensusCliRunRequest,
+  ProviderId,
+  ProviderPreflightCapability,
+} from './types.js';
 
 export class ConsensusCliUsageError extends Error {
   readonly code = 'CONSENSUS_CLI_USAGE' as const;
@@ -78,7 +83,8 @@ export interface ParsedConfigClearCommand {
 export interface ParsedPreflightCommand {
   kind: 'preflight';
   json: true;
-  provider?: ProviderId;
+  provider: ProviderId;
+  capabilities: ProviderPreflightCapability[];
   maxDepth?: number;
 }
 
@@ -408,24 +414,56 @@ function parsePreflightCommand(
   tokens: readonly string[],
 ): ParsedPreflightCommand {
   const parsed = parseOptionTokens(tokens, {
-    allowedFlags: new Set(['--json', '--provider', '--max-depth']),
-    valueFlags: new Set(['--provider', '--max-depth']),
+    allowedFlags: new Set([
+      '--json',
+      '--provider',
+      '--capability',
+      '--max-depth',
+    ]),
+    valueFlags: new Set(['--provider', '--capability', '--max-depth']),
   });
   requireJson(parsed.flags);
   requireNoPositionals(parsed.positionals);
 
+  const provider = singleValue(parsed.flags, '--provider');
+  if (!provider) {
+    throw new ConsensusCliUsageError(
+      'Preflight requires exactly one --provider.',
+    );
+  }
+  const capabilities = valuesFor(parsed.flags, '--capability').map(
+    parsePreflightCapability,
+  );
+  if (capabilities.length === 0) {
+    throw new ConsensusCliUsageError(
+      'Preflight requires at least one --capability.',
+    );
+  }
   const command: ParsedPreflightCommand = {
     kind: 'preflight',
     json: true,
+    provider,
+    capabilities: [...new Set(capabilities)],
   };
-  const provider = singleValue(parsed.flags, '--provider');
-  if (provider) command.provider = provider;
   const maxDepth = singleValue(parsed.flags, '--max-depth');
   if (maxDepth) {
     command.maxDepth = parsePositiveInteger('--max-depth', maxDepth);
   }
 
   return command;
+}
+
+function parsePreflightCapability(value: string): ProviderPreflightCapability {
+  if (
+    PROVIDER_PREFLIGHT_CAPABILITIES.includes(
+      value as ProviderPreflightCapability,
+    )
+  ) {
+    return value as ProviderPreflightCapability;
+  }
+  throw new ConsensusCliUsageError(
+    `Unsupported preflight capability: ${value}`,
+  );
 }
 
 function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {

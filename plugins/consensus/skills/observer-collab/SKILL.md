@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.24'
+  version: '1.0.25'
 ---
 
 # observer-collab
@@ -22,9 +22,11 @@ rendering, or offset storage.
 ## Required-skill preflight
 
 Before any transcript access or observer command, inspect the current host's
-effective skill inventory for `observer`. If it is unavailable,
-stop and report that the required canonical skill is `session-observer`, with its
-install source:
+effective skill inventory for any documented observer identity:
+`observer` or `consensus:observer` or `session-observer`. These names represent the same required
+workflow in its standalone and consensus plugin-local forms. Continue when either
+form is present. Only when none of these identities is available, stop and report
+that the required canonical skill is `session-observer`, with its install source:
 
 <https://github.com/tkstang/skills/tree/main/skills/session-observer>
 

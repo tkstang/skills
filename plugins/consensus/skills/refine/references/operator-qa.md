@@ -19,14 +19,14 @@ models and **costs real API spend** — see the cost note in each scenario.
 # From the repo root
 node --version            # must be >= 22
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 For an installed plugin, the same checks may be exposed as:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <id> --capability run
 ```
 
 Confirm at least two peers are `ready` (consensus needs two). Provider inventory
@@ -44,7 +44,7 @@ uses provider-neutral statuses:
 >
 > - `PROVIDER_MISSING` → install or add the named provider CLI to `PATH`.
 > - `PROVIDER_AUTH_REQUIRED` → authenticate the named provider in your normal
->   login shell, then rerun `consensus preflight --json --provider <id>`.
+>   login shell, then rerun `consensus preflight --json --provider <id> --capability run`.
 > - Cursor `auth_required` often means the macOS login keychain is locked or the
 >   Cursor CLI has not completed authentication in this user session.
 
@@ -57,7 +57,7 @@ checklist:
 - `pnpm run test`
 - `pnpm run smoke`
 - `node plugins/consensus/scripts/consensus.mjs provider ls --json`
-- `node plugins/consensus/scripts/consensus.mjs preflight --json`
+- `node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run`
 - Per-provider preflight for `claude`, `codex`, and `cursor`, noting
   `auth_required` separately from implementation failures.
 
@@ -249,7 +249,7 @@ evidence. To verify:
 ```bash
 # 1. Confirm Cursor inventory/preflight is ready. If it reports auth_required,
 #    unlock the OS keychain or authenticate the Cursor CLI, then rerun this check.
-node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor --capability run
 
 # 2. Run a real alternating deliberation with cursor as a peer.
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \

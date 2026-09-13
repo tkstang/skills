@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ConsensusCliUsageError,
   normalizeRunRequest,
   parseConsensusCliArgs,
 } from '../provider-cli/args.js';
@@ -21,6 +20,8 @@ describe('provider CLI argument parsing', () => {
         '--json',
         '--provider',
         'codex',
+        '--capability',
+        'run',
         '--max-depth',
         '2',
       ]),
@@ -28,8 +29,28 @@ describe('provider CLI argument parsing', () => {
       kind: 'preflight',
       json: true,
       provider: 'codex',
+      capabilities: ['run'],
       maxDepth: 2,
     });
+  });
+
+  it('requires a selected provider and explicit supported capability for preflight', () => {
+    expect(() =>
+      parseConsensusCliArgs(['preflight', '--json', '--capability', 'run']),
+    ).toThrow('requires exactly one --provider');
+    expect(() =>
+      parseConsensusCliArgs(['preflight', '--json', '--provider', 'codex']),
+    ).toThrow('requires at least one --capability');
+    expect(() =>
+      parseConsensusCliArgs([
+        'preflight',
+        '--json',
+        '--provider',
+        'codex',
+        '--capability',
+        'unknown',
+      ]),
+    ).toThrow('Unsupported preflight capability');
   });
 
   it('parses run commands with stdin prompt markers', () => {

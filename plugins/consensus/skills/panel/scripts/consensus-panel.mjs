@@ -1303,7 +1303,14 @@ async function preflightPanelists({
     }
     const preflightResult = await runProviderCliCommand(
       command,
-      ["preflight", "--json", "--provider", agent.provider],
+      [
+        "preflight",
+        "--json",
+        "--provider",
+        agent.provider,
+        "--capability",
+        "run"
+      ],
       { env, cwd }
     );
     const preflight = parseProviderCliEnvelope(

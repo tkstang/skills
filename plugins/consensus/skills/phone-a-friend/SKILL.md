@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: thomas.stang
-  version: '0.1.4'
+  version: '0.1.5'
 ---
 
 # Phone a Friend
@@ -35,13 +35,13 @@ Resolve the exact advisory peer this run will call from the explicit flag or
 effective configuration. Preflight that selected provider locally:
 
 ```bash
-consensus preflight --json --provider <selected-provider-id>
+consensus preflight --json --provider <selected-provider-id> --capability run
 ```
 
 From a checkout, use the same commands through the script path:
 
 ```bash
-node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id>
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
 Do not use unscoped `provider ls` or `preflight` as a prerequisite: they probe

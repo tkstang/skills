@@ -4,6 +4,11 @@ export type FirstScopeProviderId = (typeof FIRST_SCOPE_PROVIDER_IDS)[number];
 
 export type ProviderId = FirstScopeProviderId | (string & {});
 
+export const PROVIDER_PREFLIGHT_CAPABILITIES = ['run'] as const;
+
+export type ProviderPreflightCapability =
+  (typeof PROVIDER_PREFLIGHT_CAPABILITIES)[number];
+
 export const HOST_RUNTIMES = ['claude', 'codex', 'cursor', 'unknown'] as const;
 
 export type HostRuntime = (typeof HOST_RUNTIMES)[number];

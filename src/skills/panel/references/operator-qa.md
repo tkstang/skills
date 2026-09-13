@@ -11,14 +11,14 @@ Confirm the generated provider CLI and provider inventory are available:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <id> --capability run
 ```
 
 From a checkout:
 
 ```bash
 node ../../scripts/consensus.mjs provider ls --json
-node ../../scripts/consensus.mjs preflight --json
+node ../../scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 At least two providers must be ready for a passed panel. If a requested provider

@@ -149,6 +149,22 @@ function codexTranscript(sessionId: string, cwd: string): string {
     .concat('\n');
 }
 
+function documentedObserverPreflight(
+  instruction: string,
+  installedIdentities: readonly string[],
+): 'continue' | 'stop' {
+  const identityLine = instruction.match(
+    /documented observer identity:\s*\n([^\n]+)/,
+  )?.[1];
+  if (!identityLine) throw new Error('observer identity set is missing');
+  const accepted = [...identityLine.matchAll(/`([^`]+)`/g)].map(
+    (match) => match[1],
+  );
+  return installedIdentities.some((identity) => accepted.includes(identity))
+    ? 'continue'
+    : 'stop';
+}
+
 describe('declared skill packaging', () => {
   it('renders prompt-only standalone and plugin names without build machinery', async () => {
     const root = await fixtureRoot();
@@ -321,7 +337,7 @@ describe('declared skill packaging', () => {
     await write(
       root,
       'src/skills/collab/SKILL.md',
-      "---\nname: collab\nmetadata:\n  version: '1.0.0'\n---\n\nRequires {{skill:observer}}.\n",
+      "---\nname: collab\nmetadata:\n  version: '1.0.0'\n---\n\nPrefer {{skill:observer}}. Accept {{skill-identities:observer}}. Stop only when none is present.\n",
     );
     const dependency = target('observer', {
       targets: [
@@ -367,10 +383,14 @@ describe('declared skill packaging', () => {
     const plugin = built.find((unit) => unit.target.name === 'observer-collab');
     expect(
       await readFile(path.join(standalone!.stagedPath, 'SKILL.md'), 'utf8'),
-    ).toContain('Requires session-observer.');
+    ).toContain(
+      'Prefer session-observer. Accept `session-observer` or `observer` or `consensus:observer`. Stop only when none is present.',
+    );
     expect(
       await readFile(path.join(plugin!.stagedPath, 'SKILL.md'), 'utf8'),
-    ).toContain('Requires observer.');
+    ).toContain(
+      'Prefer observer. Accept `observer` or `consensus:observer` or `session-observer`. Stop only when none is present.',
+    );
   });
 
   it.each([
@@ -1055,7 +1075,10 @@ describe('representative real installation boundaries', () => {
       'utf8',
     );
     expect(standaloneCollabInstruction).toContain(
-      'effective skill inventory for `session-observer`',
+      'effective skill inventory for any documented observer identity',
+    );
+    expect(standaloneCollabInstruction).toContain(
+      '`session-observer` or `observer` or `consensus:observer`',
     );
     expect(standaloneCollabInstruction).toContain(
       'https://github.com/tkstang/skills/tree/main/skills/session-observer',
@@ -1069,11 +1092,47 @@ describe('representative real installation boundaries', () => {
       'utf8',
     );
     expect(pluginCollabInstruction).toContain(
-      'effective skill inventory for `observer`',
+      'effective skill inventory for any documented observer identity',
+    );
+    expect(pluginCollabInstruction).toContain(
+      '`observer` or `consensus:observer` or `session-observer`',
     );
     expect(pluginCollabInstruction).toContain(
       'required canonical skill is `session-observer`',
     );
+    expect(
+      documentedObserverPreflight(standaloneCollabInstruction, ['observer']),
+    ).toBe('continue');
+    expect(
+      documentedObserverPreflight(pluginCollabInstruction, [
+        'session-observer',
+      ]),
+    ).toBe('continue');
+    expect(
+      documentedObserverPreflight(standaloneCollabInstruction, [
+        'consensus:observer',
+      ]),
+    ).toBe('continue');
+    expect(
+      documentedObserverPreflight(pluginCollabInstruction, [
+        'consensus:observer',
+      ]),
+    ).toBe('continue');
+    expect(documentedObserverPreflight(standaloneCollabInstruction, [])).toBe(
+      'stop',
+    );
+    expect(documentedObserverPreflight(pluginCollabInstruction, [])).toBe(
+      'stop',
+    );
+    for (const instruction of [
+      standaloneCollabInstruction,
+      pluginCollabInstruction,
+    ]) {
+      expect(instruction).toContain(
+        'Only when none of these identities is available, stop',
+      );
+      expect(instruction).toContain('Do not fetch the URL, install the skill');
+    }
     const standaloneObserverInstruction = await readFile(
       path.join(root, 'skills/session-observer/SKILL.md'),
       'utf8',
@@ -1124,7 +1183,11 @@ describe('representative real installation boundaries', () => {
       ).map((entry) => entry.path),
     ).toContain('references/transcript-formats.md');
 
-    await write(root, 'bin/codex', '#!/bin/sh\nprintf "codex 9.9.9\\n"\n');
+    await write(
+      root,
+      'bin/codex',
+      '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema"; else exit 2; fi\n',
+    );
     await chmod(path.join(bin, 'codex'), 0o755);
     const isolatedEnv = { HOME: home, PATH: bin };
     const standaloneCreate = path.join(

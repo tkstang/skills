@@ -1,18 +1,6 @@
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import {
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  stat,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -26,8 +14,6 @@ import {
   hashArtifact,
   invokeConsensusProviderCli,
   invokeProviderCliWithRetry,
-  invalidIterationModeError,
-  ITERATION_MODES,
   peerSchemaPathForMode,
   providerCliSpawnTarget,
   requireConsensusCliPath,
@@ -38,15 +24,11 @@ import {
   isJsonRecord,
   asErrorLike,
   asConsensusRecord,
-  asConsensusRecords,
   asSectionStatus,
   inside,
-  nearestExistingPath,
-  syncPathIfAvailable,
   nowIso,
   writeJsonl,
   renderHumanError,
-  consensusBlockPattern,
   readInputFile,
   confineWrite,
   atomicWriteFile,
@@ -60,38 +42,24 @@ import {
 import type {
   JsonRecord,
   IterationModeValue,
-  AgencyValue,
-  ColdStartValue,
   HostId,
   LoopRunOptions,
   LoopInitialRecords,
   LoopEscalationTrigger,
-  JsonlWritable,
-  ErrorLike,
-  AnnotatedError,
-  TryJsonBlockResult,
   ResumeValidationError,
   ConsensusRecord,
   SectionStatus,
-  SectionPaths,
-  ParsedSection,
   SectionResult,
-  ArtifactResolution,
   WrapperRunResult,
-  ResumeLogSection,
-  ResumeState,
-  ProviderInventoryEntry,
   NormalizedProviderInventoryEntry,
   ProviderInventoryInput,
   PreflightResult,
   CommandRunnerResult,
   CommandRunner,
   WrapperOptions,
-  ParsedWrapperOptions,
   WrapperRunOptions,
   ParallelManifestEntry,
   ParallelManifest,
-  LoopInvocationPayload,
 } from './refine-types.js';
 
 export {
@@ -859,7 +827,7 @@ function providerCliUnavailableError(
     .map((entry) => `${entry.id} (${entry.status})`)
     .join(', ');
   return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
     {
       code: 'PEER_UNAVAILABLE',
       exitCode: EXIT_CODES.CONFIG,
@@ -1011,7 +979,7 @@ export async function preflightConsensusProviderCli(
   for (const peer of providersToPreflight) {
     const preflightOutput = await runCommand(
       command,
-      ['preflight', '--json', '--provider', peer],
+      ['preflight', '--json', '--provider', peer, '--capability', 'run'],
       { env, cwd },
     );
     const preflightEnvelope = parseProviderCliEnvelope(

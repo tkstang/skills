@@ -1519,7 +1519,7 @@ function providerInventoryEntries(envelope) {
 function providerCliUnavailableError(providers) {
   const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
   return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
     {
       code: "PEER_UNAVAILABLE",
       exitCode: EXIT_CODES.CONFIG,
@@ -3410,7 +3410,7 @@ async function preflightPlanProviderCli({
   for (const provider of providers) {
     const preflightResult = await runProviderCliCommand(
       command,
-      ["preflight", "--json", "--provider", provider],
+      ["preflight", "--json", "--provider", provider, "--capability", "run"],
       { env, cwd }
     );
     const preflight = parseProviderCliEnvelope(

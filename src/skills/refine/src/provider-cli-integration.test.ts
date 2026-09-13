@@ -47,12 +47,21 @@ function scrubHostEnv(env: NodeJS.ProcessEnv) {
 
 async function writeProviderExecutable(binDir: string, name: string) {
   const providerPath = path.join(binDir, name);
+  const version = name === 'claude' ? '2.1.185' : '0.142.5';
+  const help =
+    name === 'claude'
+      ? '--print --output-format'
+      : '--json --output-last-message --output-schema';
   await writeFile(
     providerPath,
     [
       '#!/usr/bin/env node',
       'if (process.argv.includes("--version")) {',
-      '  console.log("fixture provider 1.0.0");',
+      `  console.log("fixture provider ${version}");`,
+      '  process.exit(0);',
+      '}',
+      'if (process.argv.includes("--help")) {',
+      `  console.log("${help}");`,
       '  process.exit(0);',
       '}',
       'const { writeFileSync } = require("node:fs");',
@@ -162,6 +171,7 @@ it('runs Refine through the consensus CLI backend and resumes provider-neutral r
     path.join(tempRoot, 'sample.resumed.consensus.md'),
     'utf8',
   );
+  expect(resumedArtifact).toContain('# Intro');
 });
 
 it('runs the generated default provider CLI path without CONSENSUS_CLI_PATH', async () => {

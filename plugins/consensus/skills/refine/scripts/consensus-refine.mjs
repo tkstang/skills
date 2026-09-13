@@ -2,12 +2,8 @@
 
 // src/skills/refine/src/consensus-refine.ts
 import { execFile } from "node:child_process";
-import "node:crypto";
-import {
-  readFile as readFile6
-} from "node:fs/promises";
+import { readFile as readFile6 } from "node:fs/promises";
 import path11 from "node:path";
-import "node:readline/promises";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 import { promisify } from "node:util";
 
@@ -5667,7 +5663,7 @@ function providerCliUnavailableError(providers, selected) {
   });
   const summary = details.map((entry) => `${entry.id} (${entry.status})`).join(", ");
   return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
     {
       code: "PEER_UNAVAILABLE",
       exitCode: EXIT_CODES.CONFIG,
@@ -5778,7 +5774,7 @@ async function preflightConsensusProviderCli(options = {}) {
   for (const peer of providersToPreflight) {
     const preflightOutput = await runCommand(
       command,
-      ["preflight", "--json", "--provider", peer],
+      ["preflight", "--json", "--provider", peer, "--capability", "run"],
       { env, cwd }
     );
     const preflightEnvelope = parseProviderCliEnvelope(

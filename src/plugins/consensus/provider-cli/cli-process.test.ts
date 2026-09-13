@@ -37,7 +37,7 @@ describe('generated consensus provider CLI process contract', () => {
     const codexPath = await writeExecutableFixture(
       binDir,
       'codex',
-      '#!/bin/sh\nprintf "codex 9.9.9\\n"\n',
+      '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema"; else exit 2; fi\n',
     );
     const env = { ...process.env, PATH: binDir };
 
@@ -63,7 +63,7 @@ describe('generated consensus provider CLI process contract', () => {
       });
 
       const codexPreflightResult = await runConsensusCli(
-        ['preflight', '--json', '--provider', 'codex'],
+        ['preflight', '--json', '--provider', 'codex', '--capability', 'run'],
         { env },
       );
 
@@ -77,7 +77,7 @@ describe('generated consensus provider CLI process contract', () => {
       });
 
       const cursorPreflightResult = await runConsensusCli(
-        ['preflight', '--json', '--provider', 'cursor'],
+        ['preflight', '--json', '--provider', 'cursor', '--capability', 'run'],
         { env },
       );
 
@@ -171,7 +171,7 @@ describe('generated consensus provider CLI process contract', () => {
 
   it('exits zero for structured provider absence', async () => {
     const result = await runConsensusCli(
-      ['preflight', '--json', '--provider', 'cursor'],
+      ['preflight', '--json', '--provider', 'cursor', '--capability', 'run'],
       { env: { PATH: '' } },
     );
 

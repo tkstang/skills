@@ -26,7 +26,7 @@ pnpm run test
 pnpm run validate
 pnpm run smoke
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 For installed-plugin validation, the provider CLI may also be exposed as
@@ -34,7 +34,7 @@ For installed-plugin validation, the provider CLI may also be exposed as
 
 ```bash
 consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <id> --capability run
 ```
 
 Confirm the peers you plan to use report `ready`. For the first provider floor,
@@ -137,7 +137,7 @@ operator-owned. Start by clearing the common keychain blocker:
 security unlock-keychain
 cursor-agent --version
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor --capability run
 ```
 
 When testing over SSH, run `security unlock-keychain` in that SSH session before

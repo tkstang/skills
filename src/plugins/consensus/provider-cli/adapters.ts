@@ -130,6 +130,15 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     }),
     probe: {
       version_args: ['--version'],
+      // Release verification established the provider-validated run surface at
+      // Claude Code 2.1.185 (RELEASING.md).
+      minimum_version: '2.1.185',
+      capabilities: {
+        run: {
+          args: ['--help'],
+          required_output_patterns: [/--print\b/, /--output-format\b/],
+        },
+      },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
     },
@@ -165,6 +174,19 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     }),
     probe: {
       version_args: ['--version'],
+      // Release verification established the provider-validated run surface at
+      // Codex CLI 0.139.0 (RELEASING.md).
+      minimum_version: '0.139.0',
+      capabilities: {
+        run: {
+          args: ['exec', '--help'],
+          required_output_patterns: [
+            /--json\b/,
+            /--output-last-message\b/,
+            /--output-schema\b/,
+          ],
+        },
+      },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
     },
@@ -205,6 +227,15 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     }),
     probe: {
       version_args: ['--version'],
+      // Release verification established the prompt-only run surface at the
+      // 2026.06.19 Cursor agent build (RELEASING.md).
+      minimum_version: '2026.6.19',
+      capabilities: {
+        run: {
+          args: ['--help'],
+          required_output_patterns: [/--output-format\b/, /--force\b/],
+        },
+      },
       auth_required_patterns: [
         ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i,

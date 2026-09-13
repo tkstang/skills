@@ -879,6 +879,15 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     }),
     probe: {
       version_args: ["--version"],
+      // Release verification established the provider-validated run surface at
+      // Claude Code 2.1.185 (RELEASING.md).
+      minimum_version: "2.1.185",
+      capabilities: {
+        run: {
+          args: ["--help"],
+          required_output_patterns: [/--print\b/, /--output-format\b/]
+        }
+      },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
@@ -914,6 +923,19 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     }),
     probe: {
       version_args: ["--version"],
+      // Release verification established the provider-validated run surface at
+      // Codex CLI 0.139.0 (RELEASING.md).
+      minimum_version: "0.139.0",
+      capabilities: {
+        run: {
+          args: ["exec", "--help"],
+          required_output_patterns: [
+            /--json\b/,
+            /--output-last-message\b/,
+            /--output-schema\b/
+          ]
+        }
+      },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
@@ -954,6 +976,15 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     }),
     probe: {
       version_args: ["--version"],
+      // Release verification established the prompt-only run surface at the
+      // 2026.06.19 Cursor agent build (RELEASING.md).
+      minimum_version: "2026.6.19",
+      capabilities: {
+        run: {
+          args: ["--help"],
+          required_output_patterns: [/--output-format\b/, /--force\b/]
+        }
+      },
       auth_required_patterns: [
         ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i
@@ -1163,6 +1194,9 @@ function parseNonNegativeInteger(value) {
   if (value === void 0 || !/^\d+$/.test(value)) return void 0;
   return Number(value);
 }
+
+// src/plugins/consensus/provider-cli/types.ts
+var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
 
 // src/plugins/consensus/provider-cli/args.ts
 var ConsensusCliUsageError = class extends Error {
@@ -1392,22 +1426,51 @@ function parseConfigWorkflow(value) {
 }
 function parsePreflightCommand(tokens) {
   const parsed = parseOptionTokens(tokens, {
-    allowedFlags: /* @__PURE__ */ new Set(["--json", "--provider", "--max-depth"]),
-    valueFlags: /* @__PURE__ */ new Set(["--provider", "--max-depth"])
+    allowedFlags: /* @__PURE__ */ new Set([
+      "--json",
+      "--provider",
+      "--capability",
+      "--max-depth"
+    ]),
+    valueFlags: /* @__PURE__ */ new Set(["--provider", "--capability", "--max-depth"])
   });
   requireJson(parsed.flags);
   requireNoPositionals(parsed.positionals);
+  const provider = singleValue(parsed.flags, "--provider");
+  if (!provider) {
+    throw new ConsensusCliUsageError(
+      "Preflight requires exactly one --provider."
+    );
+  }
+  const capabilities = valuesFor(parsed.flags, "--capability").map(
+    parsePreflightCapability
+  );
+  if (capabilities.length === 0) {
+    throw new ConsensusCliUsageError(
+      "Preflight requires at least one --capability."
+    );
+  }
   const command = {
     kind: "preflight",
-    json: true
+    json: true,
+    provider,
+    capabilities: [...new Set(capabilities)]
   };
-  const provider = singleValue(parsed.flags, "--provider");
-  if (provider) command.provider = provider;
   const maxDepth = singleValue(parsed.flags, "--max-depth");
   if (maxDepth) {
     command.maxDepth = parsePositiveInteger("--max-depth", maxDepth);
   }
   return command;
+}
+function parsePreflightCapability(value) {
+  if (PROVIDER_PREFLIGHT_CAPABILITIES.includes(
+    value
+  )) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Unsupported preflight capability: ${value}`
+  );
 }
 function parseRunCommand(tokens) {
   const parsed = parseOptionTokens(tokens, {
@@ -2036,13 +2099,16 @@ var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
   registry,
   runner,
-  provider
+  provider,
+  requiredCapabilities
 }) {
   const adapters = provider ? [registry.get(provider)].filter(
     (adapter) => adapter !== void 0
   ) : registry.list();
   return Promise.all(
-    adapters.map((adapter) => probeProviderReadiness(adapter, { runner }))
+    adapters.map(
+      (adapter) => probeProviderReadiness(adapter, { runner, requiredCapabilities })
+    )
   );
 }
 async function probeProviderReadiness(adapter, options) {
@@ -2074,6 +2140,53 @@ ${result.stderr}`;
       executable,
       warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine2(output)}`]
     });
+  }
+  const detectedVersion = parseNumericVersion(output);
+  const minimumVersion = parseNumericVersion(adapter.probe.minimum_version);
+  if (!detectedVersion || !minimumVersion) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      version: firstNonEmptyLine2(output),
+      warnings: [
+        `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`
+      ]
+    });
+  }
+  if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      version: firstNonEmptyLine2(output),
+      warnings: [
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`
+      ]
+    });
+  }
+  for (const capability of options.requiredCapabilities ?? []) {
+    const definition = adapter.probe.capabilities[capability];
+    const capabilityResult = await options.runner.run(
+      adapter.executable,
+      definition.args,
+      adapter.id
+    );
+    const capabilityFailure = probeFailureEntry(
+      adapter,
+      executable,
+      capabilityResult
+    );
+    if (capabilityFailure) return capabilityFailure;
+    const capabilityOutput = `${capabilityResult.stdout}
+${capabilityResult.stderr}`;
+    if (capabilityResult.code !== 0 || !definition.required_output_patterns.every(
+      (pattern) => pattern.test(capabilityOutput)
+    )) {
+      return providerEntry(adapter, "unavailable", {
+        executable,
+        version: firstNonEmptyLine2(output),
+        warnings: [
+          `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`
+        ]
+      });
+    }
   }
   return providerEntry(adapter, "ready", {
     executable,
@@ -2204,6 +2317,22 @@ function matchesAny2(value, patterns) {
 }
 function firstNonEmptyLine2(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+function parseNumericVersion(value) {
+  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  if (!match) return void 0;
+  return match[1].split(".").map(Number);
+}
+function compareNumericVersions(left, right) {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  return 0;
+}
+function formatNumericVersion(version) {
+  return version.join(".");
 }
 
 // src/plugins/consensus/provider-cli/schema-validate.ts
@@ -2768,7 +2897,7 @@ Commands:
       [--panel-size <n>] [--from-file <path>] [--cwd <path>]
   config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
   provider ls --json
-  preflight --json [--provider <id>] [--max-depth <n>]
+  preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
@@ -2785,11 +2914,12 @@ async function runProviderList(options = {}) {
     providers: await resolveRegistry(options.registry, options)
   };
 }
-async function runPreflight(options = {}) {
+async function runPreflight(options) {
   const registry = await resolveRegistry(
     options.registry,
     options,
-    options.provider
+    options.provider,
+    options.capabilities
   );
   const providers = applyHostGuardToProviders(
     selectProviders(registry, options.provider),
@@ -2940,6 +3070,7 @@ async function runConsensusCli(argv, io, options = {}) {
         await runPreflight({
           ...defaultProbeOptions(options, io.env),
           provider: command.provider,
+          capabilities: command.capabilities,
           host: command.maxDepth === void 0 ? void 0 : hostContextFromEnv(io.env ?? {}, io.cwd, command.maxDepth)
         })
       );
@@ -3253,14 +3384,15 @@ function mergeDiagnostics2(current, next) {
     ...warnings.length > 0 ? { warnings } : {}
   };
 }
-async function resolveRegistry(registry, options = {}, provider) {
+async function resolveRegistry(registry, options = {}, provider, requiredCapabilities) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === "function") return registry();
   if (options.probeRunner) {
     return probeProviderRegistry({
       registry: providerRegistry(),
       runner: options.probeRunner,
-      ...provider ? { provider } : {}
+      ...provider ? { provider } : {},
+      ...requiredCapabilities ? { requiredCapabilities } : {}
     });
   }
   return defaultProviderRegistry();

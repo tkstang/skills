@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --question "<text>" | --question-file <question.md> [--panelists <provider-id,provider-id>] [--panel-size <n>]
 metadata:
   author: thomas.stang
-  version: '0.1.5'
+  version: '0.1.6'
 ---
 
 # Panel
@@ -34,13 +34,13 @@ Resolve the exact panelists this run will call from explicit flags and effective
 configuration. Preflight each unique selected provider locally:
 
 ```bash
-consensus preflight --json --provider <selected-provider-id>
+consensus preflight --json --provider <selected-provider-id> --capability run
 ```
 
 From a repository checkout:
 
 ```bash
-node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id>
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
 Do not use unscoped `provider ls` or `preflight` as a prerequisite: they probe

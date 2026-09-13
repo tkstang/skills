@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: thomas.stang
-  version: '0.1.12'
+  version: '0.1.13'
 ---
 
 # Evaluate
@@ -22,7 +22,7 @@ Resolve the exact peers and synthesizer this run will call from explicit flags a
 effective configuration. Preflight each unique selected provider locally:
 
 ```bash
-consensus preflight --json --provider <selected-provider-id>
+consensus preflight --json --provider <selected-provider-id> --capability run
 ```
 
 Do not use unscoped `provider ls` or `preflight` as a prerequisite: they probe

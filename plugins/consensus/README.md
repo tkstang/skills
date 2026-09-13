@@ -52,10 +52,10 @@ Check provider inventory and readiness from the repository root:
 
 ```bash
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
-In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
+In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json --provider <selected-provider-id> --capability run`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
 
 Provider `run` envelopes are the command contract. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; callers must parse the JSON envelope instead of treating `$?` as success. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand is different: validation or capture failures exit nonzero so the peer can self-correct during its turn.
 
@@ -267,10 +267,10 @@ Peer IDs come from provider inventory:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json --provider claude
+consensus preflight --json --provider claude --capability run
 ```
 
-The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, and `PROVIDER_UNSUPPORTED_OPTION`.
+The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`.
 
 Provider exits are classified conservatively. Unknown exits are terminal by default; reliable external interrupts can retry; timeout and output-cap failures remain terminal; provider-specific transient signatures are evidence-backed and redacted in diagnostics through `exit_classification`.
 

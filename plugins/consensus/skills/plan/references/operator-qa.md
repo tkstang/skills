@@ -36,5 +36,5 @@ The goal and constraints are framed as untrusted source material. Do not treat i
 
 - Missing `--goal` exits as a usage error before provider calls.
 - `--constraints-file` is not supported; constraints are inline-only for this version.
-- Provider inventory or preflight failures should name the unavailable provider and tell the user to run `consensus preflight --json --provider <id>`.
+- Provider inventory or preflight failures should name the unavailable provider and tell the user to run `consensus preflight --json --provider <id> --capability run`.
 - Path failures with `--allow-root` should report the confined path problem rather than retrying outside the workspace.

@@ -41,17 +41,18 @@ describe('provider CLI command handlers', () => {
     );
   });
 
-  it('reports usable preflight when selected providers are ready', async () => {
+  it('reports usable preflight when the selected provider is ready', async () => {
     await expect(
-      runPreflight({ registry: providerEntries(['ready', 'ready']) }),
+      runPreflight({
+        provider: 'claude',
+        capabilities: ['run'],
+        registry: providerEntries(['ready', 'ready']),
+      }),
     ).resolves.toMatchObject({
       schema_version: 'v1',
       ok: true,
       usable: true,
-      providers: [
-        { id: 'claude', status: 'ready' },
-        { id: 'codex', status: 'ready' },
-      ],
+      providers: [{ id: 'claude', status: 'ready' }],
     });
   });
 
@@ -59,6 +60,7 @@ describe('provider CLI command handlers', () => {
     await expect(
       runPreflight({
         provider: 'cursor',
+        capabilities: ['run'],
         registry: [providerEntry('cursor', 'auth_required')],
       }),
     ).resolves.toMatchObject({
@@ -71,6 +73,7 @@ describe('provider CLI command handlers', () => {
   it('keeps envelope-level diagnostics command-level only', async () => {
     const envelope = await runPreflight({
       provider: 'missing-provider',
+      capabilities: ['run'],
       registry: [],
     });
 

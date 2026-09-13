@@ -14,14 +14,14 @@ provider CLIs and may cost real API spend.
 # From the repo root
 node --version
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 For an installed plugin, the same checks may be exposed as:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <id> --capability run
 ```
 
 Confirm at least one peer provider is `ready`, preferably a provider different

@@ -127,22 +127,117 @@ describe('provider readiness probes', () => {
       },
       async run(command, args, provider) {
         calls.push(`run:${provider}:${command} ${args.join(' ')}`);
+        const help = args.join(' ') === 'exec --help';
         return {
           code: 0,
           signal: null,
-          stdout: 'codex 1.2.3\n',
+          stdout: help
+            ? '--json --output-last-message --output-schema\n'
+            : 'codex 1.2.3\n',
           stderr: '',
         };
       },
     };
 
     await expect(
-      runPreflight({ provider: 'codex', probeRunner: runner }),
+      runPreflight({
+        provider: 'codex',
+        capabilities: ['run'],
+        probeRunner: runner,
+      }),
     ).resolves.toMatchObject({
       usable: true,
       providers: [{ id: 'codex', status: 'ready' }],
     });
-    expect(calls).toEqual(['find:codex', 'run:codex:codex --version']);
+    expect(calls).toEqual([
+      'find:codex',
+      'run:codex:codex --version',
+      'run:codex:codex exec --help',
+    ]);
+  });
+
+  it.each([
+    ['below minimum', 'codex 0.1.0\n', 'PROVIDER_VERSION_UNSUPPORTED'],
+    [
+      'unparseable',
+      'codex development build\n',
+      'PROVIDER_VERSION_UNPARSEABLE',
+    ],
+  ])(
+    'rejects %s version output deterministically',
+    async (_case, output, code) => {
+      const entry = await probeProviderReadiness(adapter('codex'), {
+        requiredCapabilities: ['run'],
+        runner: fakeRunner({
+          executables: { codex: '/usr/local/bin/codex' },
+          results: {
+            'codex --version': { code: 0, stdout: output, stderr: '' },
+          },
+        }),
+      });
+
+      expect(entry).toMatchObject({
+        id: 'codex',
+        status: 'unavailable',
+        diagnostics: { warnings: [expect.stringContaining(code)] },
+      });
+    },
+  );
+
+  it('accepts a compatible version with the required local run capability', async () => {
+    const entry = await probeProviderReadiness(adapter('codex'), {
+      requiredCapabilities: ['run'],
+      runner: fakeRunner({
+        executables: { codex: '/usr/local/bin/codex' },
+        results: {
+          'codex --version': {
+            code: 0,
+            stdout: 'codex-cli 0.139.0\n',
+            stderr: '',
+          },
+          'codex exec --help': {
+            code: 0,
+            stdout: '--json --output-last-message --output-schema\n',
+            stderr: '',
+          },
+        },
+      }),
+    });
+
+    expect(entry).toMatchObject({
+      id: 'codex',
+      status: 'ready',
+      version: 'codex-cli 0.139.0',
+    });
+  });
+
+  it('rejects a compatible version missing a required local run capability', async () => {
+    const entry = await probeProviderReadiness(adapter('codex'), {
+      requiredCapabilities: ['run'],
+      runner: fakeRunner({
+        executables: { codex: '/usr/local/bin/codex' },
+        results: {
+          'codex --version': {
+            code: 0,
+            stdout: 'codex-cli 0.142.5\n',
+            stderr: '',
+          },
+          'codex exec --help': {
+            code: 0,
+            stdout: '--json --output-last-message\n',
+            stderr: '',
+          },
+        },
+      }),
+    });
+
+    expect(entry).toMatchObject({
+      id: 'codex',
+      status: 'unavailable',
+      diagnostics: {
+        warnings: [expect.stringContaining('PROVIDER_CAPABILITY_MISSING')],
+      },
+    });
   });
 
   it('bounds sleeping provider probes as unavailable timeouts', async () => {
@@ -222,6 +317,7 @@ describe('provider readiness probes', () => {
     await expect(
       runPreflight({
         provider: 'gemini',
+        capabilities: ['run'],
         registry: await probeProviderRegistry({
           registry: providerRegistry(),
           runner: fakeRunner({ executables: {} }),

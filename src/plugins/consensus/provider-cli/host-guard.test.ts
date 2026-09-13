@@ -203,6 +203,7 @@ describe('provider host runtime guard', () => {
     await expect(
       runPreflight({
         provider: 'codex',
+        capabilities: ['run'],
         host: hostContext({ runtime: 'codex', depth: 1, max_depth: 1 }),
         registry: [providerEntry('codex', 'ready')],
       }),

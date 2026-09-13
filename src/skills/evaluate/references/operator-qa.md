@@ -14,11 +14,11 @@ inventory:
 ```bash
 node --version            # must be >= 22
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 For an installed plugin, the same checks may be exposed as `consensus provider ls
---json` and `consensus preflight --json`. Requested peers should report `ready`.
+--json` and `consensus preflight --json --provider <id> --capability run` for each selected provider. Requested peers should report `ready`.
 If Cursor reports `auth_required`, unlock the OS keychain or authenticate the
 Cursor CLI in your normal login shell before retrying.
 
@@ -36,7 +36,7 @@ checklist:
 - Focused Evaluate provider CLI integration tests:
   `pnpm exec vitest run src/skills/evaluate/src/provider-cli-integration.test.ts src/skills/evaluate/src/wrapper.test.ts src/skills/evaluate/src/output.test.ts`
 - `node plugins/consensus/scripts/consensus.mjs provider ls --json`
-- `node plugins/consensus/scripts/consensus.mjs preflight --json`
+- `node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run`
 - Per-provider preflight for `claude`, `codex`, and `cursor`, noting
   `auth_required` separately from implementation failures.
 
