@@ -651,6 +651,9 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
     try {
       resolvedStat = await stat(transcriptPath);
     } catch {
+      if (exactBudget) {
+        throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+      }
       return null;
     }
   }
@@ -723,7 +726,9 @@ async function discoverCursor(targetCwd, cache, options) {
     const transcriptsRoot = join(projectsRoot, encoded, "agent-transcripts");
     for await (const transcriptPath of collectCursorAgentTranscripts(
       transcriptsRoot,
-      budget
+      budget,
+      void 0,
+      exactBudget !== null
     )) {
       const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
@@ -749,50 +754,68 @@ async function discoverCursor(targetCwd, cache, options) {
   let projectDirs;
   try {
     projectDirs = await opendir(projectsRoot);
-  } catch {
+  } catch (error) {
+    if (exactBudget && !isMissingPathError(error)) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+    }
     return candidates;
   }
-  for await (const projectDir of projectDirs) {
-    budget.consumeEntry();
-    if (!projectDir.isDirectory()) continue;
-    if (encodedVariants.includes(projectDir.name)) continue;
-    const transcriptsRoot = join(
-      projectsRoot,
-      projectDir.name,
-      "agent-transcripts"
-    );
-    for await (const transcriptPath of collectCursorAgentTranscripts(
-      transcriptsRoot,
-      budget
-    )) {
-      const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
-      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
-      budget.retainCandidate();
-      seenTranscripts.add(canonicalTranscriptPath);
-      let fileStat;
-      try {
-        fileStat = await stat(transcriptPath);
-      } catch {
-        continue;
-      }
-      const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
-      if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
-      const candidate = await cursorCandidate(
-        transcriptPath,
-        now,
-        {
-          recordedCwd: null,
-          cwdSlug: projectDir.name,
-          cwdEvidence: "project-dir-slug"
-        },
-        fileStat,
-        cache,
-        budget,
-        exactBudget,
-        options?.diagnostic
+  try {
+    for await (const projectDir of projectDirs) {
+      budget.consumeEntry();
+      if (!projectDir.isDirectory()) continue;
+      if (encodedVariants.includes(projectDir.name)) continue;
+      const transcriptsRoot = join(
+        projectsRoot,
+        projectDir.name,
+        "agent-transcripts"
       );
-      if (candidate) candidates.push(candidate);
+      for await (const transcriptPath of collectCursorAgentTranscripts(
+        transcriptsRoot,
+        budget,
+        void 0,
+        exactBudget !== null
+      )) {
+        const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
+        if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+        budget.retainCandidate();
+        seenTranscripts.add(canonicalTranscriptPath);
+        let fileStat;
+        try {
+          fileStat = await stat(transcriptPath);
+        } catch {
+          if (exactBudget) {
+            throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+          }
+          continue;
+        }
+        const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
+        if (options?.recency !== "exact-all" && mtime < cutoffSec) continue;
+        const candidate = await cursorCandidate(
+          transcriptPath,
+          now,
+          {
+            recordedCwd: null,
+            cwdSlug: projectDir.name,
+            cwdEvidence: "project-dir-slug"
+          },
+          fileStat,
+          cache,
+          budget,
+          exactBudget,
+          options?.diagnostic
+        );
+        if (candidate) candidates.push(candidate);
+      }
     }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError || error instanceof SessionDiscoveryError) {
+      throw error;
+    }
+    if (exactBudget) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+    }
+    throw error;
   }
   return candidates;
 }

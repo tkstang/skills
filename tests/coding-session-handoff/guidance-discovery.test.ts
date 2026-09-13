@@ -159,4 +159,34 @@ describe('guidance discovery', () => {
       { role: 'assistant', text: 'hi' },
     ]);
   });
+
+  it('returns discovery-incomplete without exposing candidates collected before a Cursor failure', async () => {
+    const deps = dependencies({
+      codex: [transcript('codex', 'would-be-partial')],
+    });
+    vi.mocked(deps.discover).mockImplementation(
+      async (runtime, _cwd, _cache, options) => {
+        expect(options).toMatchObject({
+          persistence: 'forbid',
+          recency: 'exact-all',
+        });
+        if (runtime === 'cursor') {
+          throw Object.assign(new Error('incomplete Cursor store'), {
+            code: 'IDENTITY_INDEX_INCOMPLETE',
+          });
+        }
+        return runtime === 'codex'
+          ? [transcript('codex', 'would-be-partial')]
+          : [];
+      },
+    );
+
+    await expect(
+      discoverGuidanceCandidates('/repo/source', { deps }),
+    ).rejects.toMatchObject({
+      name: 'GuidanceDiscoveryError',
+      code: 'discovery-incomplete',
+      provider: 'cursor',
+    });
+  });
 });

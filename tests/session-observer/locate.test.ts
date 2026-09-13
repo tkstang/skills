@@ -106,6 +106,33 @@ const classifyCountHarness = vi.hoisted(() => {
 
 const opendirFailureHarness = vi.hoisted(() => {
   let failedPath: string | null = null;
+  let failedIteratorPath: string | null = null;
+  return {
+    failOnceAt: (path: string) => {
+      failedPath = path;
+    },
+    failIterationOnceAt: (path: string) => {
+      failedIteratorPath = path;
+    },
+    consume: (path: string) => {
+      if (failedPath !== path) return false;
+      failedPath = null;
+      return true;
+    },
+    consumeIterator: (path: string) => {
+      if (failedIteratorPath !== path) return false;
+      failedIteratorPath = null;
+      return true;
+    },
+    reset: () => {
+      failedPath = null;
+      failedIteratorPath = null;
+    },
+  };
+});
+
+const statFailureHarness = vi.hoisted(() => {
+  let failedPath: string | null = null;
   return {
     failOnceAt: (path: string) => {
       failedPath = path;
@@ -143,8 +170,38 @@ vi.mock('node:fs/promises', async (importOriginal) => {
           code: 'EACCES',
         });
       }
-      return actual.opendir(...args);
+      const directory = await actual.opendir(...args);
+      if (
+        typeof args[0] !== 'string' ||
+        !opendirFailureHarness.consumeIterator(args[0])
+      ) {
+        return directory;
+      }
+      return {
+        [Symbol.asyncIterator]() {
+          const iterator = directory[Symbol.asyncIterator]();
+          let failed = false;
+          return {
+            async next() {
+              if (!failed) {
+                failed = true;
+                await directory.close();
+                throw Object.assign(new Error('iterator failed by test'), {
+                  code: 'EIO',
+                });
+              }
+              return iterator.next();
+            },
+          };
+        },
+      } as Awaited<ReturnType<typeof actual.opendir>>;
     }) as typeof actual.opendir,
+    stat: (async (...args: Parameters<typeof actual.stat>) => {
+      if (typeof args[0] === 'string' && statFailureHarness.consume(args[0])) {
+        throw Object.assign(new Error('stat failed by test'), { code: 'EIO' });
+      }
+      return actual.stat(...args);
+    }) as typeof actual.stat,
   };
 });
 
@@ -163,6 +220,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
   process.env.HOME = dir;
   process.env.STATE_DIR = join(dir, '.local', 'state', 'session-observer');
   opendirFailureHarness.reset();
+  statFailureHarness.reset();
   try {
     await fn(dir);
   } finally {
@@ -1760,6 +1818,116 @@ test('cursor: exact-all includes old sessions while default discovery remains re
     ).resolves.toEqual([
       expect.objectContaining({ sessionId: 'session-old-exact' }),
     ]);
+  });
+});
+
+test('cursor: exact-all fails closed when the direct transcript root is unreadable', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'unreadable-direct');
+    const transcriptsRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+    );
+    await mkdir(transcriptsRoot, { recursive: true });
+    opendirFailureHarness.failOnceAt(transcriptsRoot);
+
+    await expect(
+      discover(
+        'cursor',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'IDENTITY_INDEX_INCOMPLETE',
+    });
+  });
+});
+
+test('cursor: exact-all rejects an unreadable fallback root instead of returning direct partial candidates', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'partial-direct');
+    await writeCursorTranscriptForCwd(home, targetCwd, 'direct-session');
+    const fallbackRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      'fallback-unreadable',
+      'agent-transcripts',
+    );
+    await mkdir(join(fallbackRoot, 'fallback-session'), { recursive: true });
+    opendirFailureHarness.failOnceAt(fallbackRoot);
+
+    await expect(
+      discover(
+        'cursor',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'IDENTITY_INDEX_INCOMPLETE',
+    });
+  });
+});
+
+test.each(['open', 'iterate'] as const)(
+  'cursor: exact-all fails closed when project-root enumeration cannot %s',
+  async (failure) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'project-root-failure');
+      const projectsRoot = join(home, '.cursor', 'projects');
+      await mkdir(join(projectsRoot, 'some-project'), { recursive: true });
+      if (failure === 'open') opendirFailureHarness.failOnceAt(projectsRoot);
+      else opendirFailureHarness.failIterationOnceAt(projectsRoot);
+
+      await expect(
+        discover(
+          'cursor',
+          targetCwd,
+          new ClassificationCache(),
+          exactReadOnlyDiscovery,
+        ),
+      ).rejects.toMatchObject({
+        name: 'CursorDiscoveryError',
+        code: 'IDENTITY_INDEX_INCOMPLETE',
+      });
+    });
+  },
+);
+
+test('cursor: exact-all fails closed when a fallback transcript disappears before stat', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'stat-race-target');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      'fallback-stat-race',
+      'agent-transcripts',
+      'stat-race-session',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+    statFailureHarness.failOnceAt(transcriptPath);
+
+    await expect(
+      discover(
+        'cursor',
+        targetCwd,
+        new ClassificationCache(),
+        exactReadOnlyDiscovery,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'IDENTITY_INDEX_INCOMPLETE',
+    });
   });
 });
 
