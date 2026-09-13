@@ -11,8 +11,8 @@ oat_kind: implementation
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
-oat_phase: design
-oat_phase_status: complete
+oat_phase: plan
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -20,29 +20,29 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T14:09:56Z"
+oat_project_state_updated: "2026-09-13T14:21:44Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** Inactive follow-up; discovery complete, lightweight design draft complete, holistic user review pending.
+**Status:** Inactive follow-up; discovery/design accepted for planning, 14-task plan authored, dispatch selection and planning reviews pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Design draft complete is an authoring status, not user approval or implementation readiness. Prepared with oat-project-quick-start using draft-and-review mode, per the user's request to avoid deep back-and-forth design. Spec-driven promotion was permitted but unnecessary: discovery plus issue #74 already establish the requirements.
+The user's “proceed” on 2026-09-13 authorized plan writing from the settled design. Quick mode remains appropriate; discovery plus issue #74 already establish the requirements. The plan is authored but deliberately remains in_progress with no downstream readiness until its settings and review disposition are resolved.
 
 Created with --no-set-active. The active project remains .oat/projects/synced/coding-session-handoff. No active-project configuration was changed.
 
 ## Artifacts
 
 - [Discovery](discovery.md): complete, validated through oat project complete-discovery.
-- [Design](design.md): complete draft; author four-check self-review and complexity assessment recorded; holistic user review pending.
+- [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
-- [Plan](plan.md): not authored; non-ready planning placeholder.
-- [Implementation](implementation.md): not started.
+- [Plan](plan.md): 14 tasks across five sequential phases, authored but not review-cleared.
+- [Implementation](implementation.md): 0/14 complete; next task p01-t01, no execution started.
 
 ## Progress
 
@@ -56,7 +56,7 @@ Created with --no-set-active. The active project remains .oat/projects/synced/co
 
 1. The existing coding-session-handoff project merges.
 2. User explicitly starts this inactive follow-up from the merged baseline.
-3. Confirm the design holistically, refresh the dated source/ownership inventory, and generate the executable plan through quick-start.
+3. Refresh the dated source/ownership inventory in p01-t01; preserve the user's accepted naming, grouping and scope.
 4. Resolve planning dispatch/review settings and complete the configured plan/artifact gates before implementation.
 5. Coordinate authority for the separate personal-skills ownership cutover and any later live release verification.
 
@@ -64,4 +64,12 @@ These are intentional sequencing conditions, not failed technical checks. Do not
 
 ## Next Milestone
 
-One holistic design review, then a compact implementation plan. Suggested delivery slices are recorded in plan.md only as planning input, not runnable phases/tasks.
+Resolve project dispatch selection and finish the quick-start plan review/exit-gate boundary; then leave the project inactive until explicitly started after the current project merges.
+
+## Planning Settings and Review Status
+
+- Reviewer preflight resolved a complete reusable ladder but no project policy (unresolvedReason: policy). High was recommended; the user-choice request is pending. No configuration adoption or inferred project policy was written.
+- A qualifying independent phase-review target exists. The optional All phases / Selected phases / Disabled question was offered; no selection has been recorded or enablement invented. The plan's p05 is post-merge follow-through; any selected phase IDs must be validated against all five final phases.
+- User-configured lifecycle gates exist for quick-start, implement, plan, and import-plan. Individual Keep/Disable questions were offered; no project overrides have been written. Lite has no configured gate.
+- Automatic plan artifact review is enabled; it has not run while the dispatch policy is unresolved. The quick-start configured exit gate likewise has not run. No native/CLI reviewer or provider operation was launched for this planning update.
+- The inherited empty implementation HiLL phase list was scaffold output, not a confirmed user selection, and was removed from plan.md. Implementation must confirm checkpoints at kickoff; this does not alter optional independent phase-gate settings.

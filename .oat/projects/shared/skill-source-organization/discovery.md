@@ -113,4 +113,4 @@ Dated local baseline: skills commit 10d901e8afb3217db9855fa48c7e83f4f02c8e6c, in
 
 ## Next Steps
 
-Review design.md holistically; keep this project inactive. After the current project merges, refresh the inventory and produce a compact task plan with stable IDs, scoped verification, and configured reviews. No implementation-ready plan or passed gate is claimed yet.
+The user accepted the design as a planning basis and authorized plan authoring on 2026-09-13. The plan now has 14 tasks across five sequential phases, including a post-public-merge private-repo cutover. Keep the project inactive; finish planning settings/reviews before claiming implementation readiness, and refresh the execution inventory after the current handoff project merges.

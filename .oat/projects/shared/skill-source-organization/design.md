@@ -10,7 +10,7 @@ oat_template_name: design
 
 # Design: Skill Source Organization and Plugin Packaging
 
-Draft complete; holistic user review pending. This is a lightweight quick-mode design, not implementation approval. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants.
+Accepted as the planning basis by the user's “proceed” on 2026-09-13. This is a lightweight quick-mode design, not implementation approval. Discovery is the requirements baseline; issue #74 supplies the detailed migration invariants. The project remains inactive pending the current handoff project's merge and explicit activation.
 
 ## Overview
 
