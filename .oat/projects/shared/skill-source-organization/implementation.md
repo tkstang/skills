@@ -28,7 +28,37 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 ## Orchestration Runs
 
 <!-- orchestration-runs-start -->
-No implementation runs.
+### Run 1: Phase p01
+
+- Status: implementation complete; root review pending
+- Request: `6e50b09f-78fc-4be3-8ccd-ac9c4912962b`
+- Launch status: accepted
+- Phase base: `348d46caead591060ba00581dd6add22654120c8`
+- Implementation head: `fa4e6256d63af58806c4ef273d7700af1af21534`
+- Target: `oat-phase-implementer-gpt-5-6-sol-medium`
+- Classification: default implementation at preferred medium effort, based on the complete p01 inventory, packaging-pipeline, and installed-boundary scope
+- Selection: first exact candidate within the managed High ceiling; candidates were `gpt-5.6-sol` medium, then `gpt-5.6-sol` high
+- Dispatch: `Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- Task commits: p01-t01 `ab0a7e903c755028fe4cf92fe6d4fbf6eed18063`; p01-t02 `2ccf36cff8e2f867d9f55882683031f66ed4696a`; p01-t03 `c629e5bdb0ade80b66c6a8d1f00cc2aad319d2bd`
+- Recovery: one successful phase-standing attempt, commit `fa4e6256d63af58806c4ef273d7700af1af21534`; authoritative usage remains 1/10 with no pending attempt
+- Verification: phase implementer passed the focused suites, type-check, build check, validation, smoke, and the complete suite with four workers. Root reran 49 focused tests, type-check, build check, validation, and smoke successfully.
+- Concern: the unconstrained complete suite twice timed out only in the existing session-observer CLI help case under saturation; that file passed 49/49 alone and the complete suite passed with four workers.
+- Nested dispatches: none
+
+### Recovery Event p01-r01-input-consistency
+
+- Phase/task: p01 / p01-t02
+- Original request: 6e50b09f-78fc-4be3-8ccd-ac9c4912962b
+- Original commit: 2ccf36cff8e2f867d9f55882683031f66ed4696a
+- Defect class: composition
+- Discovered by: phase-wide self-review: declared allowedSourceRoots input consistency
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Recovery commit: fa4e6256d63af58806c4ef273d7700af1af21534
+- Verification: focused 24/24 and relevant phase 49/49 passed before and after the candidate commit; type-check, build check, validation, and smoke passed after the commit
+- Reason: allowed shared source roots are included in the same pre/post staging fingerprint as the skill owner
 <!-- orchestration-runs-end -->
 
 ## Implementation Log

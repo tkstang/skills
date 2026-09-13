@@ -26,23 +26,13 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p01-r01-input-consistency
-        original_request: 6e50b09f-78fc-4be3-8ccd-ac9c4912962b
-        original_task: p01-t02
-        original_commit: 2ccf36cff8e2f867d9f55882683031f66ed4696a
-        discovered_by: "phase-wide self-review: declared allowedSourceRoots input consistency"
-        exact_target: oat-phase-implementer-gpt-5-6-sol-medium
-        reservation_head: c629e5bdb0ade80b66c6a8d1f00cc2aad319d2bd
-        status: completed
-        verification: "focused and relevant phase checks passed before candidate commit"
+      pending_attempt: null
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T16:02:03Z"
+oat_project_state_updated: "2026-09-13T16:38:22Z"
 oat_generated: false
 ---
 
