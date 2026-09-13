@@ -1,5 +1,8 @@
-import { randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
+// GENERATED skill payload for session-observer-collab.
+
+// src/skills/session-observer-collab/src/lib/lease-state.mjs
+import { randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import {
   access,
   chmod,
@@ -10,134 +13,112 @@ import {
   readdir,
   realpath,
   rename,
-  rm,
-} from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
-
-export const LEASE_SCHEMA_VERSION = 6;
-export const LEASE_STATES = Object.freeze([
-  'armed',
-  'waiting',
-  'idle',
-  'triggered',
-  'disarmed',
+  rm
+} from "node:fs/promises";
+import { homedir } from "node:os";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+var LEASE_SCHEMA_VERSION = 6;
+var LEASE_STATES = Object.freeze([
+  "armed",
+  "waiting",
+  "idle",
+  "triggered",
+  "disarmed"
 ]);
-export const DEFAULT_WAIT_MS = 5_000;
-export const MAX_WAIT_MS = 60_000;
-export const MAX_LEASE_MS = 24 * 60 * 60 * 1_000;
-export const MAX_CONTINUATIONS = 100;
-export const MAX_LOOPS = 1_000;
-
-const ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-const OWNER_RUNTIMES = new Set(['codex', 'cursor']);
-const PEER_RUNTIMES = new Set(['claude-code', 'codex', 'cursor']);
-const RECORD_INDEX_BASE = 'zero-based-jsonl-record-index';
-const FRAME_INDEX_BASE = 'zero-based-jsonl-frame-index';
-const CURSOR_TRANSCRIPT_STORE = 'agent-transcripts';
-
-export class LeaseError extends Error {
+var DEFAULT_WAIT_MS = 5e3;
+var MAX_WAIT_MS = 6e4;
+var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
+var MAX_CONTINUATIONS = 100;
+var MAX_LOOPS = 1e3;
+var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
+var RECORD_INDEX_BASE = "zero-based-jsonl-record-index";
+var FRAME_INDEX_BASE = "zero-based-jsonl-frame-index";
+var CURSOR_TRANSCRIPT_STORE = "agent-transcripts";
+var LeaseError = class extends Error {
   constructor(code, message) {
     super(message);
-    this.name = 'LeaseError';
+    this.name = "LeaseError";
     this.code = code;
   }
-}
-
-export function stateRoot(env = process.env) {
+};
+function stateRoot(env = process.env) {
   if (env.SESSION_OBSERVER_STATE_DIR) {
     if (!isAbsolute(env.SESSION_OBSERVER_STATE_DIR))
       throw new LeaseError(
-        'invalid-state-root',
-        'SESSION_OBSERVER_STATE_DIR must be absolute',
+        "invalid-state-root",
+        "SESSION_OBSERVER_STATE_DIR must be absolute"
       );
     return resolve(env.SESSION_OBSERVER_STATE_DIR);
   }
-  const base =
-    env.XDG_STATE_HOME || join(env.HOME || homedir(), '.local', 'state');
+  const base = env.XDG_STATE_HOME || join(env.HOME || homedir(), ".local", "state");
   if (!isAbsolute(base))
     throw new LeaseError(
-      'invalid-state-root',
-      'XDG_STATE_HOME must be absolute',
+      "invalid-state-root",
+      "XDG_STATE_HOME must be absolute"
     );
-  return join(resolve(base), 'session-observer', 'collab');
+  return join(resolve(base), "session-observer", "collab");
 }
-
-export function validateId(value, label = 'session') {
-  if (
-    typeof value !== 'string' ||
-    !ID.test(value) ||
-    value === '.' ||
-    value === '..'
-  ) {
+function validateId(value, label = "session") {
+  if (typeof value !== "string" || !ID.test(value) || value === "." || value === "..") {
     throw new LeaseError(
       `invalid-${label}`,
-      `${label} must be a safe non-empty identifier`,
+      `${label} must be a safe non-empty identifier`
     );
   }
   return value;
 }
-
-export function validateOwnerRuntime(value) {
+function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
-      'invalid-owner-runtime',
-      'owner runtime must be codex or cursor',
+      "invalid-owner-runtime",
+      "owner runtime must be codex or cursor"
     );
   return value;
 }
-
-export function validatePeerRuntime(value) {
+function validatePeerRuntime(value) {
   if (!PEER_RUNTIMES.has(value))
     throw new LeaseError(
-      'invalid-peer-runtime',
-      'peer runtime must be claude-code, codex, or cursor',
+      "invalid-peer-runtime",
+      "peer runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
-
-// Backward-compatible owner adapter validator.
-export const validateRuntime = validateOwnerRuntime;
-
-export function validateAbsolutePath(value, label) {
-  if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
+var validateRuntime = validateOwnerRuntime;
+function validateAbsolutePath(value, label) {
+  if (typeof value !== "string" || !isAbsolute(value) || value.includes("\0")) {
     throw new LeaseError(
       `invalid-${label}`,
-      `${label} must be an absolute path`,
+      `${label} must be an absolute path`
     );
   }
   return resolve(value);
 }
-
-export function peerIndexBase(peerRuntime) {
+function peerIndexBase(peerRuntime) {
   validatePeerRuntime(peerRuntime);
-  return peerRuntime === 'cursor' ? FRAME_INDEX_BASE : RECORD_INDEX_BASE;
+  return peerRuntime === "cursor" ? FRAME_INDEX_BASE : RECORD_INDEX_BASE;
 }
-
-export function validatePeerIndexBase(value, peerRuntime) {
+function validatePeerIndexBase(value, peerRuntime) {
   const expected = peerIndexBase(peerRuntime);
   if (value !== expected) {
     throw new LeaseError(
-      'invalid-peer-index-base',
-      `${peerRuntime} peer index base must be ${expected}`,
+      "invalid-peer-index-base",
+      `${peerRuntime} peer index base must be ${expected}`
     );
   }
   return value;
 }
-
 function cursorTranscriptStore(transcriptPath) {
   let current = dirname(transcriptPath);
   while (dirname(current) !== current) {
     if (basename(current) === CURSOR_TRANSCRIPT_STORE) {
       const projectsRoot = dirname(dirname(current));
       const cursorRoot = dirname(projectsRoot);
-      if (
-        basename(projectsRoot) !== 'projects' ||
-        basename(cursorRoot) !== '.cursor'
-      ) {
+      if (basename(projectsRoot) !== "projects" || basename(cursorRoot) !== ".cursor") {
         throw new LeaseError(
-          'unsupported-peer-transcript-store',
-          'Cursor peer transcript must use the supported .cursor/projects store',
+          "unsupported-peer-transcript-store",
+          "Cursor peer transcript must use the supported .cursor/projects store"
         );
       }
       return current;
@@ -145,100 +126,84 @@ function cursorTranscriptStore(transcriptPath) {
     current = dirname(current);
   }
   throw new LeaseError(
-    'unsupported-peer-transcript-store',
-    'Cursor peer transcript must be inside a supported agent-transcripts store',
+    "unsupported-peer-transcript-store",
+    "Cursor peer transcript must be inside a supported agent-transcripts store"
   );
 }
-
-export async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
+async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
   validatePeerRuntime(peerRuntime);
-  const requested = validateAbsolutePath(peerTranscript, 'peer-transcript');
+  const requested = validateAbsolutePath(peerTranscript, "peer-transcript");
   let canonicalTranscript;
   try {
     canonicalTranscript = await realpath(requested);
   } catch (error) {
     throw new LeaseError(
-      'peer-transcript-unavailable',
-      `peer transcript cannot be canonicalized: ${error.message}`,
+      "peer-transcript-unavailable",
+      `peer transcript cannot be canonicalized: ${error.message}`
     );
   }
-
-  if (peerRuntime === 'cursor') {
+  if (peerRuntime === "cursor") {
     const requestedStore = cursorTranscriptStore(requested);
     let canonicalStore;
     try {
       canonicalStore = await realpath(requestedStore);
     } catch (error) {
       throw new LeaseError(
-        'unsupported-peer-transcript-store',
-        `Cursor transcript store cannot be canonicalized: ${error.message}`,
+        "unsupported-peer-transcript-store",
+        `Cursor transcript store cannot be canonicalized: ${error.message}`
       );
     }
     if (!canonicalTranscript.startsWith(`${canonicalStore}${sep}`)) {
       throw new LeaseError(
-        'peer-transcript-outside-store',
-        'canonical Cursor peer transcript escapes its supported store',
+        "peer-transcript-outside-store",
+        "canonical Cursor peer transcript escapes its supported store"
       );
     }
   }
-
   return Object.freeze({
     peerTranscript: canonicalTranscript,
     peerCanonicalTranscriptPath: canonicalTranscript,
-    peerIndexBase: peerIndexBase(peerRuntime),
+    peerIndexBase: peerIndexBase(peerRuntime)
   });
 }
-
-export function validatePeerTranscriptSession(
-  peerRuntime,
-  peerSession,
-  peerTranscript,
-) {
+function validatePeerTranscriptSession(peerRuntime, peerSession, peerTranscript) {
   validatePeerRuntime(peerRuntime);
-  validateId(peerSession, 'peer-session');
-  const transcript = validateAbsolutePath(peerTranscript, 'peer-transcript');
-  if (
-    peerRuntime === 'cursor' &&
-    (basename(dirname(transcript)) !== peerSession ||
-      basename(transcript) !== `${peerSession}.jsonl`)
-  ) {
+  validateId(peerSession, "peer-session");
+  const transcript = validateAbsolutePath(peerTranscript, "peer-transcript");
+  if (peerRuntime === "cursor" && (basename(dirname(transcript)) !== peerSession || basename(transcript) !== `${peerSession}.jsonl`)) {
     throw new LeaseError(
-      'peer-session-transcript-mismatch',
-      'Cursor peer session must match the canonical transcript directory and filename',
+      "peer-session-transcript-mismatch",
+      "Cursor peer session must match the canonical transcript directory and filename"
     );
   }
   return transcript;
 }
-
-export function leasePath(root, ownerSession) {
-  validateId(ownerSession, 'owner-session');
-  const leases = join(resolve(root), 'leases');
+function leasePath(root, ownerSession) {
+  validateId(ownerSession, "owner-session");
+  const leases = join(resolve(root), "leases");
   const candidate = join(leases, `${ownerSession}.json`);
   if (!candidate.startsWith(`${leases}${sep}`))
-    throw new LeaseError('invalid-owner-session', 'unsafe lease path');
+    throw new LeaseError("invalid-owner-session", "unsafe lease path");
   return candidate;
 }
-
 function integer(value, name, min, max) {
   if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw new LeaseError(
-      'malformed-lease',
-      `${name} must be an integer from ${min} to ${max}`,
+      "malformed-lease",
+      `${name} must be an integer from ${min} to ${max}`
     );
   }
   return value;
 }
-
 function timestamp(value, name) {
-  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
-    throw new LeaseError('malformed-lease', `${name} must be an ISO timestamp`);
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+    throw new LeaseError("malformed-lease", `${name} must be an ISO timestamp`);
   }
   return new Date(value).toISOString();
 }
-
-export function migrateLease(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    throw new LeaseError('malformed-lease', 'lease must be an object');
+function migrateLease(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new LeaseError("malformed-lease", "lease must be an object");
   if (input.schemaVersion === 1) {
     input = {
       ...input,
@@ -247,38 +212,36 @@ export function migrateLease(input) {
       continuationCap: input.triggerCap ?? input.continuationCap ?? 1,
       loopCount: input.loopCount ?? 0,
       loopCap: input.loopCap ?? 1,
-      diagnostic: input.diagnostic ?? null,
+      diagnostic: input.diagnostic ?? null
     };
     delete input.triggerCount;
     delete input.triggerCap;
   }
   if (input.schemaVersion === 2) {
-    if (input.peerRuntime === undefined) {
+    if (input.peerRuntime === void 0) {
       throw new LeaseError(
-        'peer-runtime-rearm-required',
-        'legacy lease is missing peerRuntime; re-arm required',
+        "peer-runtime-rearm-required",
+        "legacy lease is missing peerRuntime; re-arm required"
       );
     }
     input = {
       ...input,
       schemaVersion: 3,
-      leaseMs:
-        input.leaseMs ??
-        Date.parse(input.expiresAt) - Date.parse(input.armedAt),
+      leaseMs: input.leaseMs ?? Date.parse(input.expiresAt) - Date.parse(input.armedAt)
     };
   }
   if (input.schemaVersion === 3) {
-    if (input.peerRuntime === undefined) {
+    if (input.peerRuntime === void 0) {
       throw new LeaseError(
-        'peer-runtime-rearm-required',
-        'legacy lease is missing peerRuntime; re-arm required',
+        "peer-runtime-rearm-required",
+        "legacy lease is missing peerRuntime; re-arm required"
       );
     }
     input = {
       ...input,
       schemaVersion: 4,
       waitStartedAt: input.waitStartedAt ?? null,
-      waitDeadlineAt: input.waitDeadlineAt ?? null,
+      waitDeadlineAt: input.waitDeadlineAt ?? null
     };
   }
   if (input.schemaVersion === 4) {
@@ -286,14 +249,14 @@ export function migrateLease(input) {
       ...input,
       schemaVersion: 5,
       waitToken: null,
-      waitPid: null,
+      waitPid: null
     };
   }
   if (input.schemaVersion === 5) {
-    if (input.peerRuntime === 'cursor') {
+    if (input.peerRuntime === "cursor") {
       throw new LeaseError(
-        'cursor-lease-rearm-required',
-        'legacy Cursor lease uses an unverified record cursor; explicit re-arm required',
+        "cursor-lease-rearm-required",
+        "legacy Cursor lease uses an unverified record cursor; explicit re-arm required"
       );
     }
     input = {
@@ -301,240 +264,203 @@ export function migrateLease(input) {
       schemaVersion: 6,
       peerTranscript: validateAbsolutePath(
         input.peerTranscript,
-        'peer-transcript',
+        "peer-transcript"
       ),
       peerCanonicalTranscriptPath: validateAbsolutePath(
         input.peerTranscript,
-        'peer-transcript',
+        "peer-transcript"
       ),
       peerIndexBase: RECORD_INDEX_BASE,
-      peerContinuity: null,
+      peerContinuity: null
     };
   }
   if (input.schemaVersion !== LEASE_SCHEMA_VERSION) {
     throw new LeaseError(
-      'unsupported-schema',
-      `unsupported lease schema: ${String(input.schemaVersion)}`,
+      "unsupported-schema",
+      `unsupported lease schema: ${String(input.schemaVersion)}`
     );
   }
   return input;
 }
-
-export function validateLease(raw) {
+function validateLease(raw) {
   const value = migrateLease(structuredClone(raw));
-  validateId(value.leaseId, 'lease-id');
+  validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
-  validateId(value.ownerSession, 'owner-session');
-  validateId(value.peerSession, 'peer-session');
-  value.ownerCwd = validateAbsolutePath(value.ownerCwd, 'owner-cwd');
+  validateId(value.ownerSession, "owner-session");
+  validateId(value.peerSession, "peer-session");
+  value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");
   value.peerTranscript = validateAbsolutePath(
     value.peerTranscript,
-    'peer-transcript',
+    "peer-transcript"
   );
   value.peerCanonicalTranscriptPath = validateAbsolutePath(
     value.peerCanonicalTranscriptPath,
-    'peer-canonical-transcript-path',
+    "peer-canonical-transcript-path"
   );
   if (value.peerTranscript !== value.peerCanonicalTranscriptPath) {
     throw new LeaseError(
-      'malformed-lease',
-      'peer transcript must contain only its canonical path',
+      "malformed-lease",
+      "peer transcript must contain only its canonical path"
     );
   }
   validatePeerIndexBase(value.peerIndexBase, value.peerRuntime);
   if (!LEASE_STATES.includes(value.state))
-    throw new LeaseError('malformed-lease', 'invalid lease state');
-  value.armedAt = timestamp(value.armedAt, 'armedAt');
-  value.expiresAt = timestamp(value.expiresAt, 'expiresAt');
-  value.updatedAt = timestamp(value.updatedAt, 'updatedAt');
-  if ((value.waitStartedAt === null) !== (value.waitDeadlineAt === null)) {
+    throw new LeaseError("malformed-lease", "invalid lease state");
+  value.armedAt = timestamp(value.armedAt, "armedAt");
+  value.expiresAt = timestamp(value.expiresAt, "expiresAt");
+  value.updatedAt = timestamp(value.updatedAt, "updatedAt");
+  if (value.waitStartedAt === null !== (value.waitDeadlineAt === null)) {
     throw new LeaseError(
-      'malformed-lease',
-      'wait timing fields must both be timestamps or both be null',
+      "malformed-lease",
+      "wait timing fields must both be timestamps or both be null"
     );
   }
   if (value.waitStartedAt !== null) {
-    value.waitStartedAt = timestamp(value.waitStartedAt, 'waitStartedAt');
-    value.waitDeadlineAt = timestamp(value.waitDeadlineAt, 'waitDeadlineAt');
+    value.waitStartedAt = timestamp(value.waitStartedAt, "waitStartedAt");
+    value.waitDeadlineAt = timestamp(value.waitDeadlineAt, "waitDeadlineAt");
   }
   const waiterFields = [value.waitToken, value.waitPid];
   const nullWaiterFields = waiterFields.filter(
-    (field) => field === null,
+    (field) => field === null
   ).length;
   if (nullWaiterFields !== 0 && nullWaiterFields !== waiterFields.length) {
     throw new LeaseError(
-      'malformed-lease',
-      'waiter identity fields must all be populated or all be null',
+      "malformed-lease",
+      "waiter identity fields must all be populated or all be null"
     );
   }
   if (nullWaiterFields === 0) {
-    validateId(value.waitToken, 'wait-token');
-    integer(value.waitPid, 'waitPid', 1, Number.MAX_SAFE_INTEGER);
+    validateId(value.waitToken, "wait-token");
+    integer(value.waitPid, "waitPid", 1, Number.MAX_SAFE_INTEGER);
   }
-  integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
-  integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
-  integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
-  if (value.peerRuntime === 'cursor' && value.peerContinuity === null) {
+  integer(value.waitMs, "waitMs", 0, MAX_WAIT_MS);
+  integer(value.leaseMs, "leaseMs", 1, MAX_LEASE_MS);
+  integer(value.peerCursor, "peerCursor", 0, Number.MAX_SAFE_INTEGER);
+  if (value.peerRuntime === "cursor" && value.peerContinuity === null) {
     throw new LeaseError(
-      'cursor-lease-rearm-required',
-      'Cursor lease is missing a continuity checkpoint; explicit re-arm required',
+      "cursor-lease-rearm-required",
+      "Cursor lease is missing a continuity checkpoint; explicit re-arm required"
     );
   }
   if (value.peerContinuity !== null) {
     const checkpoint = value.peerContinuity;
-    if (
-      !checkpoint ||
-      typeof checkpoint !== 'object' ||
-      Array.isArray(checkpoint) ||
-      value.peerRuntime !== 'cursor' ||
-      value.peerIndexBase !== FRAME_INDEX_BASE
-    ) {
+    if (!checkpoint || typeof checkpoint !== "object" || Array.isArray(checkpoint) || value.peerRuntime !== "cursor" || value.peerIndexBase !== FRAME_INDEX_BASE) {
       throw new LeaseError(
-        'malformed-lease',
-        'peer continuity is allowed only for Cursor frame-index leases',
+        "malformed-lease",
+        "peer continuity is allowed only for Cursor frame-index leases"
       );
     }
     if (checkpoint.indexBase !== FRAME_INDEX_BASE) {
       throw new LeaseError(
-        'malformed-lease',
-        'peer continuity index base must match the lease index base',
+        "malformed-lease",
+        "peer continuity index base must match the lease index base"
       );
     }
     integer(
       checkpoint.nextFrameIndex,
-      'peerContinuity.nextFrameIndex',
+      "peerContinuity.nextFrameIndex",
       0,
-      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
     integer(
       checkpoint.prefixBytes,
-      'peerContinuity.prefixBytes',
+      "peerContinuity.prefixBytes",
       0,
-      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
     integer(
       checkpoint.observedSize,
-      'peerContinuity.observedSize',
+      "peerContinuity.observedSize",
       0,
-      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
-    if (
-      checkpoint.nextFrameIndex !== value.peerCursor ||
-      checkpoint.prefixBytes > checkpoint.observedSize
-    ) {
+    if (checkpoint.nextFrameIndex !== value.peerCursor || checkpoint.prefixBytes > checkpoint.observedSize) {
       throw new LeaseError(
-        'malformed-lease',
-        'peer cursor must match its bounded continuity checkpoint',
+        "malformed-lease",
+        "peer cursor must match its bounded continuity checkpoint"
       );
     }
-    if (
-      typeof checkpoint.prefixSha256 !== 'string' ||
-      !/^[a-f0-9]{64}$/u.test(checkpoint.prefixSha256)
-    ) {
+    if (typeof checkpoint.prefixSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(checkpoint.prefixSha256)) {
       throw new LeaseError(
-        'malformed-lease',
-        'peer continuity prefixSha256 must be a lowercase SHA-256 digest',
+        "malformed-lease",
+        "peer continuity prefixSha256 must be a lowercase SHA-256 digest"
       );
     }
-    for (const field of ['device', 'inode']) {
+    for (const field of ["device", "inode"]) {
       if (checkpoint[field] !== null) {
         integer(
           checkpoint[field],
           `peerContinuity.${field}`,
           0,
-          Number.MAX_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER
         );
       }
     }
   }
-  integer(value.continuationCount, 'continuationCount', 0, MAX_CONTINUATIONS);
-  integer(value.continuationCap, 'continuationCap', 1, MAX_CONTINUATIONS);
-  integer(value.loopCount, 'loopCount', 0, MAX_LOOPS);
-  integer(value.loopCap, 'loopCap', 1, MAX_LOOPS);
-  if (
-    value.continuationCount > value.continuationCap ||
-    value.loopCount > value.loopCap
-  ) {
-    throw new LeaseError('malformed-lease', 'lease counters exceed their caps');
+  integer(value.continuationCount, "continuationCount", 0, MAX_CONTINUATIONS);
+  integer(value.continuationCap, "continuationCap", 1, MAX_CONTINUATIONS);
+  integer(value.loopCount, "loopCount", 0, MAX_LOOPS);
+  integer(value.loopCap, "loopCap", 1, MAX_LOOPS);
+  if (value.continuationCount > value.continuationCap || value.loopCount > value.loopCap) {
+    throw new LeaseError("malformed-lease", "lease counters exceed their caps");
   }
-  if (value.state !== 'waiting' && value.waitStartedAt !== null) {
+  if (value.state !== "waiting" && value.waitStartedAt !== null) {
     throw new LeaseError(
-      'malformed-lease',
-      'only waiting leases may retain wait timing fields',
+      "malformed-lease",
+      "only waiting leases may retain wait timing fields"
     );
   }
-  if (value.state !== 'waiting' && nullWaiterFields !== waiterFields.length) {
+  if (value.state !== "waiting" && nullWaiterFields !== waiterFields.length) {
     throw new LeaseError(
-      'malformed-lease',
-      'only waiting leases may retain waiter identity',
+      "malformed-lease",
+      "only waiting leases may retain waiter identity"
     );
   }
   if (value.waitStartedAt !== null) {
     const waitStarted = Date.parse(value.waitStartedAt);
     const waitDeadline = Date.parse(value.waitDeadlineAt);
-    if (
-      waitDeadline < waitStarted ||
-      waitDeadline - waitStarted > value.waitMs ||
-      waitDeadline > Date.parse(value.expiresAt)
-    ) {
+    if (waitDeadline < waitStarted || waitDeadline - waitStarted > value.waitMs || waitDeadline > Date.parse(value.expiresAt)) {
       throw new LeaseError(
-        'malformed-lease',
-        'wait deadline must be bounded by waitMs and lease expiry',
+        "malformed-lease",
+        "wait deadline must be bounded by waitMs and lease expiry"
       );
     }
   }
-  if (
-    Date.parse(value.expiresAt) < Date.parse(value.armedAt) ||
-    Date.parse(value.expiresAt) - Date.parse(value.armedAt) !== value.leaseMs
-  ) {
+  if (Date.parse(value.expiresAt) < Date.parse(value.armedAt) || Date.parse(value.expiresAt) - Date.parse(value.armedAt) !== value.leaseMs) {
     throw new LeaseError(
-      'malformed-lease',
-      'lease expiry must match its finite lease duration',
+      "malformed-lease",
+      "lease expiry must match its finite lease duration"
     );
   }
-  if (value.diagnostic !== null && typeof value.diagnostic !== 'string')
+  if (value.diagnostic !== null && typeof value.diagnostic !== "string")
     throw new LeaseError(
-      'malformed-lease',
-      'diagnostic must be a string or null',
+      "malformed-lease",
+      "diagnostic must be a string or null"
     );
   return value;
 }
-
-export function effectiveLease(lease, now = Date.now()) {
+function effectiveLease(lease, now = Date.now()) {
   const value = validateLease(lease);
-  if (
-    (value.state === 'armed' || value.state === 'waiting') &&
-    now >= Date.parse(value.expiresAt)
-  ) {
-    value.state = 'idle';
-    value.diagnostic = 'lease-expired';
+  if ((value.state === "armed" || value.state === "waiting") && now >= Date.parse(value.expiresAt)) {
+    value.state = "idle";
+    value.diagnostic = "lease-expired";
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
     value.waitToken = null;
     value.waitPid = null;
   }
-  if (
-    (value.state === 'armed' || value.state === 'waiting') &&
-    (value.continuationCount >= value.continuationCap ||
-      value.loopCount >= value.loopCap)
-  ) {
-    value.state = 'idle';
-    value.diagnostic = 'cap-reached';
+  if ((value.state === "armed" || value.state === "waiting") && (value.continuationCount >= value.continuationCap || value.loopCount >= value.loopCap)) {
+    value.state = "idle";
+    value.diagnostic = "cap-reached";
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
     value.waitToken = null;
     value.waitPid = null;
   }
-  if (
-    value.state === 'waiting' &&
-    (value.waitDeadlineAt === null || now >= Date.parse(value.waitDeadlineAt))
-  ) {
-    value.state = 'idle';
-    value.diagnostic =
-      value.waitDeadlineAt === null
-        ? 'wait-timing-rearm-required'
-        : 'wait-timeout';
+  if (value.state === "waiting" && (value.waitDeadlineAt === null || now >= Date.parse(value.waitDeadlineAt))) {
+    value.state = "idle";
+    value.diagnostic = value.waitDeadlineAt === null ? "wait-timing-rearm-required" : "wait-timeout";
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
     value.waitToken = null;
@@ -542,80 +468,64 @@ export function effectiveLease(lease, now = Date.now()) {
   }
   return value;
 }
-
-export async function createWaiterIdentity(pid = process.pid) {
-  integer(pid, 'waitPid', 1, Number.MAX_SAFE_INTEGER);
+async function createWaiterIdentity(pid = process.pid) {
+  integer(pid, "waitPid", 1, Number.MAX_SAFE_INTEGER);
   return Object.freeze({
     token: randomUUID(),
-    pid,
+    pid
   });
 }
-
-export async function isWaiterLive(waiter) {
+async function isWaiterLive(waiter) {
   try {
     process.kill(waiter.pid, 0);
   } catch (error) {
-    if (error?.code === 'ESRCH') return false;
-    if (error?.code === 'EPERM') return true;
-    return undefined;
+    if (error?.code === "ESRCH") return false;
+    if (error?.code === "EPERM") return true;
+    return void 0;
   }
-  // A live PID is deliberately treated as non-disprovable. It may belong to
-  // the original waiter or be a reused PID; either way status must not clear
-  // the lease without stronger evidence.
   return true;
 }
-
-export async function atomicWriteJson(file, value) {
-  await mkdir(dirname(file), { recursive: true, mode: 0o700 });
-  await chmod(dirname(file), 0o700);
+async function atomicWriteJson(file, value) {
+  await mkdir(dirname(file), { recursive: true, mode: 448 });
+  await chmod(dirname(file), 448);
   const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  const handle = await open(temp, 'wx', 0o600);
+  const handle = await open(temp, "wx", 384);
   try {
-    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}
+`, "utf8");
     await handle.sync();
   } finally {
     await handle.close();
   }
   await rename(temp, file);
-  await chmod(file, 0o600);
+  await chmod(file, 384);
 }
-
-export async function readLease(
-  root,
-  ownerSession,
-  { persistMigration = true } = {},
-) {
+async function readLease(root, ownerSession, { persistMigration = true } = {}) {
   const file = leasePath(root, ownerSession);
   let raw;
   try {
     const metadata = await lstat(file);
-    const wrongOwner =
-      typeof process.getuid === 'function' && metadata.uid !== process.getuid();
-    if (
-      !metadata.isFile() ||
-      metadata.isSymbolicLink() ||
-      wrongOwner ||
-      (metadata.mode & 0o077) !== 0
-    ) {
+    const wrongOwner = typeof process.getuid === "function" && metadata.uid !== process.getuid();
+    if (!metadata.isFile() || metadata.isSymbolicLink() || wrongOwner || (metadata.mode & 63) !== 0) {
       throw new LeaseError(
-        'unsafe-lease',
-        'lease must be a regular owner-only file owned by this user',
+        "unsafe-lease",
+        "lease must be a regular owner-only file owned by this user"
       );
     }
-    raw = JSON.parse(await readFile(file, 'utf8'));
+    raw = JSON.parse(await readFile(file, "utf8"));
   } catch (error) {
-    if (error?.code === 'ENOENT') return null;
+    if (error?.code === "ENOENT") return null;
     if (error instanceof LeaseError) throw error;
     throw new LeaseError(
-      'malformed-lease',
-      `cannot read lease safely: ${error.message}`,
+      "malformed-lease",
+      `cannot read lease safely: ${error.message}`
     );
   }
   const migrated = validateLease(raw);
   if (persistMigration && raw.schemaVersion !== migrated.schemaVersion) {
     return withLeaseLock(file, async () => {
       const latest = await readLease(root, ownerSession, {
-        persistMigration: false,
+        persistMigration: false
       });
       if (latest) await atomicWriteJson(file, latest);
       return latest;
@@ -623,8 +533,7 @@ export async function readLease(
   }
   return migrated;
 }
-
-export async function writeLease(root, lease) {
+async function writeLease(root, lease) {
   const value = validateLease(lease);
   const file = leasePath(root, value.ownerSession);
   return withLeaseLock(file, async () => {
@@ -632,22 +541,21 @@ export async function writeLease(root, lease) {
     return value;
   });
 }
-
-export async function withLeaseLock(file, fn) {
+async function withLeaseLock(file, fn) {
   const lock = `${file}.lock`;
   let handle;
-  await mkdir(dirname(file), { recursive: true, mode: 0o700 });
-  await chmod(dirname(file), 0o700);
+  await mkdir(dirname(file), { recursive: true, mode: 448 });
+  await chmod(dirname(file), 448);
   for (let attempt = 0; ; attempt += 1) {
     try {
-      handle = await open(lock, 'wx', 0o600);
+      handle = await open(lock, "wx", 384);
       break;
     } catch (error) {
-      if (error?.code !== 'EEXIST') throw error;
+      if (error?.code !== "EEXIST") throw error;
       if (attempt >= 199)
         throw new LeaseError(
-          'lease-lock-timeout',
-          'lease mutation lock timed out',
+          "lease-lock-timeout",
+          "lease mutation lock timed out"
         );
       await new Promise((resolveWait) => setTimeout(resolveWait, 5));
     }
@@ -659,270 +567,197 @@ export async function withLeaseLock(file, fn) {
     await rm(lock, { force: true });
   }
 }
-
-export async function compareAndSwapTrigger(
-  root,
-  ownerSession,
-  expected,
-  update,
-  clock = Date.now,
-) {
+async function compareAndSwapTrigger(root, ownerSession, expected, update, clock = Date.now) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
-      persistMigration: false,
+      persistMigration: false
     });
-    if (!current) return { ok: false, reason: 'missing' };
-    if (
-      current.leaseId !== expected.leaseId ||
-      current.peerCursor !== expected.peerCursor ||
-      current.continuationCount !== expected.continuationCount ||
-      current.loopCount !== expected.loopCount
-    ) {
-      return { ok: false, reason: 'stale', lease: current };
+    if (!current) return { ok: false, reason: "missing" };
+    if (current.leaseId !== expected.leaseId || current.peerCursor !== expected.peerCursor || current.continuationCount !== expected.continuationCount || current.loopCount !== expected.loopCount) {
+      return { ok: false, reason: "stale", lease: current };
     }
-    // The wait for this lock may itself cross a finite wait or lease deadline.
-    // Read the supplied clock only after the current lease is loaded under the
-    // lock so an authorization made before lock contention cannot authorize a
-    // later mutation.
-    const now = typeof clock === 'function' ? clock() : clock;
+    const now = typeof clock === "function" ? clock() : clock;
     const effective = effectiveLease(current, now);
-    if (!['armed', 'waiting'].includes(effective.state))
+    if (!["armed", "waiting"].includes(effective.state))
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,
-        lease: effective,
+        lease: effective
       };
     const nextCursor = integer(
       update.peerCursor,
-      'peerCursor',
+      "peerCursor",
       current.peerCursor,
-      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
     const loopIncrement = integer(
       update.loopIncrement ?? 1,
-      'loopIncrement',
+      "loopIncrement",
       0,
-      current.loopCap - current.loopCount,
+      current.loopCap - current.loopCount
     );
     const next = validateLease({
       ...current,
       peerCursor: nextCursor,
-      ...(Object.hasOwn(update, 'peerContinuity')
-        ? { peerContinuity: update.peerContinuity }
-        : {}),
+      ...Object.hasOwn(update, "peerContinuity") ? { peerContinuity: update.peerContinuity } : {},
       continuationCount: current.continuationCount + 1,
       loopCount: current.loopCount + loopIncrement,
-      state: update.terminal === false ? 'armed' : 'triggered',
+      state: update.terminal === false ? "armed" : "triggered",
       waitStartedAt: null,
       waitDeadlineAt: null,
       waitToken: null,
       waitPid: null,
       diagnostic: update.diagnostic ?? null,
-      updatedAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString()
     });
     await atomicWriteJson(file, next);
     return { ok: true, lease: next };
   });
 }
-
-export async function compareAndSwapCursor(
-  root,
-  ownerSession,
-  expected,
-  cursorUpdate,
-  now = Date.now(),
-) {
+async function compareAndSwapCursor(root, ownerSession, expected, cursorUpdate, now = Date.now()) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
-      persistMigration: false,
+      persistMigration: false
     });
-    if (!current) return { ok: false, reason: 'missing' };
-    if (
-      current.leaseId !== expected.leaseId ||
-      current.peerCursor !== expected.peerCursor ||
-      current.continuationCount !== expected.continuationCount ||
-      current.loopCount !== expected.loopCount
-    ) {
-      return { ok: false, reason: 'stale', lease: current };
+    if (!current) return { ok: false, reason: "missing" };
+    if (current.leaseId !== expected.leaseId || current.peerCursor !== expected.peerCursor || current.continuationCount !== expected.continuationCount || current.loopCount !== expected.loopCount) {
+      return { ok: false, reason: "stale", lease: current };
     }
     const effective = effectiveLease(current, now);
-    if (effective.state !== 'waiting') {
+    if (effective.state !== "waiting") {
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,
-        lease: effective,
+        lease: effective
       };
     }
-    const update =
-      cursorUpdate &&
-      typeof cursorUpdate === 'object' &&
-      !Array.isArray(cursorUpdate)
-        ? cursorUpdate
-        : { peerCursor: cursorUpdate };
+    const update = cursorUpdate && typeof cursorUpdate === "object" && !Array.isArray(cursorUpdate) ? cursorUpdate : { peerCursor: cursorUpdate };
     const nextCursor = integer(
       update.peerCursor,
-      'peerCursor',
+      "peerCursor",
       current.peerCursor + 1,
-      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
     const next = validateLease({
       ...current,
       peerCursor: nextCursor,
-      ...(Object.hasOwn(update, 'peerContinuity')
-        ? { peerContinuity: update.peerContinuity }
-        : {}),
-      updatedAt: new Date(now).toISOString(),
+      ...Object.hasOwn(update, "peerContinuity") ? { peerContinuity: update.peerContinuity } : {},
+      updatedAt: new Date(now).toISOString()
     });
     await atomicWriteJson(file, next);
     return { ok: true, lease: next };
   });
 }
-
-export async function beginLeaseWait(
-  root,
-  ownerSession,
-  identity,
-  now = Date.now(),
-  waiter,
-) {
+async function beginLeaseWait(root, ownerSession, identity, now = Date.now(), waiter) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
-      persistMigration: false,
+      persistMigration: false
     });
-    if (!current) return { ok: false, reason: 'missing' };
-    if (
-      current.runtime !== identity.runtime ||
-      current.peerRuntime !== identity.peerRuntime ||
-      current.peerSession !== identity.peerSession ||
-      current.ownerCwd !== identity.ownerCwd ||
-      current.peerTranscript !== identity.peerTranscript
-    ) {
-      return { ok: false, reason: 'identity-mismatch', lease: current };
+    if (!current) return { ok: false, reason: "missing" };
+    if (current.runtime !== identity.runtime || current.peerRuntime !== identity.peerRuntime || current.peerSession !== identity.peerSession || current.ownerCwd !== identity.ownerCwd || current.peerTranscript !== identity.peerTranscript) {
+      return { ok: false, reason: "identity-mismatch", lease: current };
     }
     const effective = effectiveLease(current, now);
-    if (!['armed', 'waiting'].includes(effective.state)) {
+    if (!["armed", "waiting"].includes(effective.state)) {
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,
-        lease: effective,
+        lease: effective
       };
     }
-    if (effective.state === 'waiting') {
+    if (effective.state === "waiting") {
       if (waiter && effective.waitToken === waiter.token)
         return { ok: true, changed: false, lease: effective };
-      return { ok: false, reason: 'waiter-active', lease: effective };
+      return { ok: false, reason: "waiter-active", lease: effective };
     }
     if (!waiter)
       throw new LeaseError(
-        'waiter-identity-required',
-        'a generation-bound waiter identity is required',
+        "waiter-identity-required",
+        "a generation-bound waiter identity is required"
       );
     const waiting = validateLease({
       ...effective,
-      state: 'waiting',
+      state: "waiting",
       waitStartedAt: new Date(now).toISOString(),
       waitDeadlineAt: new Date(
-        Math.min(now + effective.waitMs, Date.parse(effective.expiresAt)),
+        Math.min(now + effective.waitMs, Date.parse(effective.expiresAt))
       ).toISOString(),
       waitToken: waiter.token,
       waitPid: waiter.pid,
       updatedAt: new Date(now).toISOString(),
-      diagnostic: null,
+      diagnostic: null
     });
     await atomicWriteJson(file, waiting);
     return { ok: true, changed: true, lease: waiting };
   });
 }
-
-export async function finishLeaseWait(
-  root,
-  ownerSession,
-  expected,
-  diagnostic = 'wait-timeout',
-  now = Date.now(),
-) {
+async function finishLeaseWait(root, ownerSession, expected, diagnostic = "wait-timeout", now = Date.now()) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
-      persistMigration: false,
+      persistMigration: false
     });
-    if (!current) return { ok: false, reason: 'missing' };
-    if (
-      current.leaseId !== expected.leaseId ||
-      current.peerCursor !== expected.peerCursor ||
-      current.continuationCount !== expected.continuationCount ||
-      current.loopCount !== expected.loopCount
-    ) {
-      return { ok: false, reason: 'stale', lease: current };
+    if (!current) return { ok: false, reason: "missing" };
+    if (current.leaseId !== expected.leaseId || current.peerCursor !== expected.peerCursor || current.continuationCount !== expected.continuationCount || current.loopCount !== expected.loopCount) {
+      return { ok: false, reason: "stale", lease: current };
     }
-    if (current.state !== 'waiting')
+    if (current.state !== "waiting")
       return { ok: false, reason: current.state, lease: current };
     const idle = validateLease({
       ...current,
-      state: 'idle',
+      state: "idle",
       waitStartedAt: null,
       waitDeadlineAt: null,
       waitToken: null,
       waitPid: null,
       diagnostic,
-      updatedAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString()
     });
     await atomicWriteJson(file, idle);
     return { ok: true, lease: idle };
   });
 }
-
-export async function recoverOrphanedWait(
-  root,
-  ownerSession,
-  now = Date.now(),
-  { expected, isWaiterLive: checkLiveness = isWaiterLive } = {},
-) {
+async function recoverOrphanedWait(root, ownerSession, now = Date.now(), { expected, isWaiterLive: checkLiveness = isWaiterLive } = {}) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
-      persistMigration: false,
+      persistMigration: false
     });
-    if (!current) return { recovered: false, reason: 'missing', lease: null };
-    if (
-      expected &&
-      (current.leaseId !== expected.leaseId ||
-        current.waitToken !== expected.waitToken)
-    ) {
-      return { recovered: false, reason: 'stale', lease: current };
+    if (!current) return { recovered: false, reason: "missing", lease: null };
+    if (expected && (current.leaseId !== expected.leaseId || current.waitToken !== expected.waitToken)) {
+      return { recovered: false, reason: "stale", lease: current };
     }
-    if (current.state !== 'waiting')
+    if (current.state !== "waiting")
       return { recovered: false, reason: current.state, lease: current };
     if (current.waitToken === null || current.waitPid === null) {
-      return { recovered: false, reason: 'liveness-unknown', lease: current };
+      return { recovered: false, reason: "liveness-unknown", lease: current };
     }
     const live = await checkLiveness({
       token: current.waitToken,
-      pid: current.waitPid,
+      pid: current.waitPid
     });
     if (live === true)
-      return { recovered: false, reason: 'waiter-live', lease: current };
+      return { recovered: false, reason: "waiter-live", lease: current };
     if (live !== false)
-      return { recovered: false, reason: 'liveness-unknown', lease: current };
+      return { recovered: false, reason: "liveness-unknown", lease: current };
     const idle = validateLease({
       ...current,
-      state: 'idle',
+      state: "idle",
       waitStartedAt: null,
       waitDeadlineAt: null,
       waitToken: null,
       waitPid: null,
-      diagnostic: 'waiter-terminated',
-      updatedAt: new Date(now).toISOString(),
+      diagnostic: "waiter-terminated",
+      updatedAt: new Date(now).toISOString()
     });
     await atomicWriteJson(file, idle);
-    return { recovered: true, reason: 'waiter-terminated', lease: idle };
+    return { recovered: true, reason: "waiter-terminated", lease: idle };
   });
 }
-
-export async function resourceExists(path) {
+async function resourceExists(path) {
   try {
     await access(path, constants.F_OK);
     return true;
@@ -930,27 +765,21 @@ export async function resourceExists(path) {
     return false;
   }
 }
-
-export async function pruneLeases(
-  root,
-  { now = Date.now(), ownerSession } = {},
-) {
-  const targetedSession = ownerSession
-    ? validateId(ownerSession, 'owner-session')
-    : undefined;
-  const leasesDir = join(resolve(root), 'leases');
+async function pruneLeases(root, { now = Date.now(), ownerSession } = {}) {
+  const targetedSession = ownerSession ? validateId(ownerSession, "owner-session") : void 0;
+  const leasesDir = join(resolve(root), "leases");
   let names;
   try {
     names = await readdir(leasesDir);
   } catch (error) {
-    if (error?.code === 'ENOENT') return [];
+    if (error?.code === "ENOENT") return [];
     throw error;
   }
   const removed = [];
   for (const name of names) {
-    if (!name.endsWith('.json')) continue;
+    if (!name.endsWith(".json")) continue;
     const session = name.slice(0, -5);
-    if (!ID.test(session) || (targetedSession && session !== targetedSession))
+    if (!ID.test(session) || targetedSession && session !== targetedSession)
       continue;
     const file = leasePath(root, session);
     await withLeaseLock(file, async () => {
@@ -962,14 +791,9 @@ export async function pruneLeases(
       }
       if (!lease || lease.ownerSession !== session) return;
       const expired = now >= Date.parse(lease.expiresAt);
-      const capped =
-        lease.continuationCount >= lease.continuationCap ||
-        lease.loopCount >= lease.loopCap;
-      const targetedDisarmed =
-        Boolean(targetedSession) && lease.state === 'disarmed';
-      const missing =
-        !(await resourceExists(lease.ownerCwd)) ||
-        !(await resourceExists(lease.peerTranscript));
+      const capped = lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap;
+      const targetedDisarmed = Boolean(targetedSession) && lease.state === "disarmed";
+      const missing = !await resourceExists(lease.ownerCwd) || !await resourceExists(lease.peerTranscript);
       if (expired || capped || targetedDisarmed || missing) {
         await rm(file);
         removed.push(session);
@@ -978,3 +802,40 @@ export async function pruneLeases(
   }
   return removed;
 }
+export {
+  DEFAULT_WAIT_MS,
+  LEASE_SCHEMA_VERSION,
+  LEASE_STATES,
+  LeaseError,
+  MAX_CONTINUATIONS,
+  MAX_LEASE_MS,
+  MAX_LOOPS,
+  MAX_WAIT_MS,
+  atomicWriteJson,
+  beginLeaseWait,
+  canonicalizePeerTranscript,
+  compareAndSwapCursor,
+  compareAndSwapTrigger,
+  createWaiterIdentity,
+  effectiveLease,
+  finishLeaseWait,
+  isWaiterLive,
+  leasePath,
+  migrateLease,
+  peerIndexBase,
+  pruneLeases,
+  readLease,
+  recoverOrphanedWait,
+  resourceExists,
+  stateRoot,
+  validateAbsolutePath,
+  validateId,
+  validateLease,
+  validateOwnerRuntime,
+  validatePeerIndexBase,
+  validatePeerRuntime,
+  validatePeerTranscriptSession,
+  validateRuntime,
+  withLeaseLock,
+  writeLease
+};

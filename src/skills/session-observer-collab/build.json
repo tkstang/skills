@@ -1,0 +1,13 @@
+{
+  "runtime": [
+    "src/codex-lifecycle.mjs",
+    "src/collab-control.mjs",
+    "src/hooks/codex-stop.mjs",
+    "src/hooks/cursor-stop.mjs",
+    "src/lib/codex-install.mjs",
+    "src/lib/completion-selection.mjs",
+    "src/lib/lease-state.mjs",
+    "src/lib/runtime-adapter.mjs",
+    "src/lib/selected-prefix.mjs"
+  ]
+}

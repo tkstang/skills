@@ -16,6 +16,7 @@ import {
 import path from 'node:path';
 
 import { build, type Metafile, type Plugin } from 'esbuild';
+import ts from 'typescript';
 
 export interface WorkflowReference {
   name: string;
@@ -375,21 +376,26 @@ async function readBuildEntrypoints(sourceRoot: string): Promise<string[]> {
   }
   const runtime = (parsed as { runtime: unknown[] }).runtime;
   if (runtime.length === 0) fail('build.json runtime cannot be empty');
-  const basenames = new Set<string>();
+  const outputs = new Set<string>();
   return runtime.map((value) => {
     if (typeof value !== 'string')
       fail('build.json runtime entries must be strings');
     const relative = assertRelativePath(value, 'runtime entrypoint');
-    if (!relative.startsWith('src/') || !relative.endsWith('.ts')) {
-      fail(`runtime entrypoint must be TypeScript under src/: ${relative}`);
+    const extension = path.posix.extname(relative);
+    if (
+      !relative.startsWith('src/') ||
+      (extension !== '.ts' && extension !== '.mjs')
+    ) {
+      fail(
+        `runtime entrypoint must be TypeScript or declared MJS under src/: ${relative}`,
+      );
     }
     if (/\.(?:test|spec)\.ts$/.test(relative) || relative.endsWith('.d.ts')) {
       fail(`runtime entrypoint cannot be a test or declaration: ${relative}`);
     }
-    const basename = path.posix.basename(relative, '.ts');
-    if (basenames.has(basename))
-      fail(`duplicate runtime output basename: ${basename}`);
-    basenames.add(basename);
+    const output = relative.slice('src/'.length, -extension.length) + '.mjs';
+    if (outputs.has(output)) fail(`duplicate runtime output: ${output}`);
+    outputs.add(output);
     return relative;
   });
 }
@@ -537,11 +543,22 @@ async function bundleEntrypoints(
   await mkdir(path.join(stageRoot, 'scripts'), { recursive: true });
   for (const relative of entrypoints) {
     const entrypoint = path.join(sourceRoot, relative);
-    const output = path.join(
-      stageRoot,
-      'scripts',
-      `${path.posix.basename(relative, '.ts')}.mjs`,
+    const extension = path.posix.extname(relative);
+    if (extension === '.mjs') {
+      const declarationPath = entrypoint.slice(0, -extension.length) + '.d.mts';
+      try {
+        await lstat(declarationPath);
+      } catch {
+        fail(
+          `authored MJS runtime requires an adjacent declaration: ${relative}`,
+        );
+      }
+    }
+    const runtimeRelative = posixPath(
+      path.relative('src', relative.slice(0, -extension.length) + '.mjs'),
     );
+    const output = path.join(stageRoot, 'scripts', runtimeRelative);
+    await mkdir(path.dirname(output), { recursive: true });
     try {
       await lstat(entrypoint);
     } catch {
@@ -577,14 +594,37 @@ async function bundleEntrypoints(
       inputs.add(posixPath(path.relative(sourceRoot, absolute)));
     }
   }
-  const authoredRuntime = (
+  const authoredRuntimeCandidates = (
     await walkRegularFiles(path.join(sourceRoot, 'src'))
   ).filter(
     (relative) =>
-      relative.endsWith('.ts') &&
+      (relative.endsWith('.ts') || relative.endsWith('.mjs')) &&
       !/\.(?:test|spec)\.ts$/.test(relative) &&
-      !relative.endsWith('.d.ts'),
+      !relative.startsWith('helpers/') &&
+      relative !== 'ambient-types.ts' &&
+      !relative.endsWith('.d.ts') &&
+      !relative.endsWith('.d.mts'),
   );
+  const authoredRuntime: string[] = [];
+  for (const relative of authoredRuntimeCandidates) {
+    if (relative.endsWith('.mjs')) {
+      authoredRuntime.push(relative);
+      continue;
+    }
+    const emitted = ts
+      .transpileModule(
+        await readFile(path.join(sourceRoot, 'src', relative), 'utf8'),
+        {
+          compilerOptions: {
+            module: ts.ModuleKind.ESNext,
+            removeComments: true,
+            target: ts.ScriptTarget.ES2022,
+          },
+        },
+      )
+      .outputText.trim();
+    if (emitted !== 'export {};') authoredRuntime.push(relative);
+  }
   for (const relative of authoredRuntime) {
     if (!inputs.has(posixPath(path.join('src', relative)))) {
       fail(

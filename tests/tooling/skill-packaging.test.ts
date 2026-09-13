@@ -257,6 +257,30 @@ describe('declared skill packaging', () => {
     );
   });
 
+  it('preserves runtime subdirectories under the generated scripts tree', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'runner');
+    await write(
+      root,
+      'src/skills/runner/build.json',
+      '{"runtime":["src/hooks/stop.ts","src/lib/stop.ts"]}\n',
+    );
+    await write(root, 'src/skills/runner/src/hooks/stop.ts', 'export {};\n');
+    await write(root, 'src/skills/runner/src/lib/stop.ts', 'export {};\n');
+
+    const [unit] = await buildDeclaredDistributions({
+      repoRoot: root,
+      declarations: [target('runner')],
+    });
+
+    expect(unit.inventory.map((entry) => entry.path)).toContain(
+      'scripts/hooks/stop.mjs',
+    );
+    expect(unit.inventory.map((entry) => entry.path)).toContain(
+      'scripts/lib/stop.mjs',
+    );
+  });
+
   it('includes every allowed shared source root in the input fingerprint', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'runner');
@@ -406,11 +430,9 @@ describe('declared skill packaging', () => {
   it.each([
     ['test entrypoint', '{"runtime":["src/main.test.ts"]}\n'],
     ['declaration entrypoint', '{"runtime":["src/main.d.ts"]}\n'],
+    ['unpaired MJS entrypoint', '{"runtime":["src/main.mjs"]}\n'],
     ['absolute entrypoint', '{"runtime":["/tmp/main.ts"]}\n'],
-    [
-      'duplicate output basename',
-      '{"runtime":["src/one/main.ts","src/two/main.ts"]}\n',
-    ],
+    ['duplicate output', '{"runtime":["src/main.ts","src/main.ts"]}\n'],
   ])('rejects invalid build manifests: %s', async (_name, manifest) => {
     const root = await fixtureRoot();
     await promptSkill(root, 'runner');
@@ -447,6 +469,33 @@ describe('declared skill packaging', () => {
         declarations: [target('runner')],
       }),
     ).rejects.toThrow('outside runtime closure');
+  });
+
+  it('permits type-only modules erased from the installed runtime', async () => {
+    const root = await fixtureRoot();
+    await promptSkill(root, 'runner');
+    await write(
+      root,
+      'src/skills/runner/build.json',
+      '{"runtime":["src/main.ts"]}\n',
+    );
+    await write(
+      root,
+      'src/skills/runner/src/main.ts',
+      'process.stdout.write("ok");\n',
+    );
+    await write(
+      root,
+      'src/skills/runner/src/types.ts',
+      'export interface RuntimeContract { ok: true }\n',
+    );
+
+    await expect(
+      buildDeclaredDistributions({
+        repoRoot: root,
+        declarations: [target('runner')],
+      }),
+    ).resolves.toHaveLength(1);
   });
 
   it('rejects symlinks and missing installed resources', async () => {
@@ -830,27 +879,17 @@ describe('representative real installation boundaries', () => {
     ]);
 
     await copySkillResources(
-      path.join(repositoryRoot, 'skills/complexity-review'),
+      path.join(repositoryRoot, 'src/skills/complexity-review'),
       path.join(root, 'src/skills/complexity-review'),
     );
 
-    await copySkillResources(
-      path.join(repositoryRoot, 'skills/export-session-transcript'),
+    await copyIfPresent(
+      path.join(repositoryRoot, 'src/skills/session-export-transcript'),
       path.join(root, 'src/skills/session-export-transcript'),
     );
     await copyIfPresent(
-      path.join(repositoryRoot, 'src/transcript'),
-      path.join(root, 'src/transcript'),
-    );
-    await write(
-      root,
-      'src/skills/session-export-transcript/build.json',
-      '{"runtime":["src/session-export-transcript.ts"]}\n',
-    );
-    await write(
-      root,
-      'src/skills/session-export-transcript/src/session-export-transcript.ts',
-      "import '../../../transcript/export-session/export-session-transcript.js';\n",
+      path.join(repositoryRoot, 'src/shared/transcript'),
+      path.join(root, 'src/shared/transcript'),
     );
 
     await copyIfPresent(
@@ -890,7 +929,7 @@ describe('representative real installation boundaries', () => {
     const declarations: DistributionDeclaration[] = [
       target('complexity-review'),
       target('session-export-transcript', {
-        allowedSourceRoots: ['src/transcript'],
+        allowedSourceRoots: ['src/shared/transcript'],
       }),
       ...consensusSkills.map((skill) =>
         target(skill, {
@@ -936,7 +975,7 @@ describe('representative real installation boundaries', () => {
     const exportOutput = path.join(outside, 'export.md');
     const exportRuntime = path.join(
       root,
-      'skills/session-export-transcript/scripts/session-export-transcript.mjs',
+      'skills/session-export-transcript/scripts/export-session-transcript.mjs',
     );
     const exported = await execFileAsync(
       process.execPath,

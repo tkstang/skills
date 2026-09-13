@@ -1,0 +1,9 @@
+{
+  "runtime": [
+    "src/export-session-transcript.ts",
+    "src/lib/cursor-analysis.ts",
+    "src/lib/cursor-frames.ts",
+    "src/lib/runtimes.ts",
+    "src/lib/sanitize.ts"
+  ]
+}
