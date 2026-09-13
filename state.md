@@ -37,9 +37,9 @@ oat_implement_exit_gate:
     additional_standard_rereview_authorized_at: '2026-09-13T13:27:42Z'
     additional_standard_rereviews: 1
     additional_standard_rereviews_remaining: 0
-  reviewed_head: b7a8d35f06acb0a850795e54ad40ea729caac8e5
+  reviewed_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
   implementation_base_ref: origin/main
-  implementation_fingerprint: sha256:effective-delta-v1:9b21a0bdd89f143fefd026aecd3205989fce65d49e7a27c2c6ac2bbaea06d626
+  implementation_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
   freshness_head: 10d901e8afb3217db9855fa48c7e83f4f02c8e6c
   freshness_fingerprint: sha256:effective-delta-v1:671e8941c0bf4dad40d8fbef888a7a2f03b608fb976a15a75afe20e3ce95d28a
   launch_state: result_persisted
@@ -61,7 +61,7 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-13T13:28:00Z'
+  updated_at: '2026-09-13T13:36:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -124,7 +124,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T13:28:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T13:36:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -147,11 +147,11 @@ oat_project_explainer:
 Revision p-rev1 is the only active implementation phase. Seventeen tasks are implemented
 through `10d901e8`. The authorized fresh final review's Important continued-prefix
 workflow gap, Medium shared-cache policy leak, and Minor stale-docs gap are repaired as
-`prev1-t15` through `prev1-t17`. The one additional external gate attempt remains
-unspent and cannot launch until the standard review requirement is satisfied. The five
-inherited Medium deferrals retain their prior explicit dispositions under the paused-
-executor boundary. Final review, the implementation exit gate, and final HiLL closeout
-remain.
+`prev1-t15` through `prev1-t17`. The additional standard final re-review passed with
+zero findings at `10d901e8`. The one additional external gate attempt remains unspent
+and is now eligible. The five inherited Medium deferrals retain their prior explicit
+dispositions under the paused-executor boundary. The implementation exit gate and
+final HiLL closeout remain.
 Guidance remains experimental and unreleased. The old executor remains incomplete,
 unverified, and paused.
 Historical p04 Codex native-identity-missing and Claude unpassed exact-version gate
