@@ -52,6 +52,14 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 26360de4-05a7-4c8a-ae15-cfffe34fe1f8 status=blocked review_cycle=3 fix_iterations=2 remaining=important:1 artifact=.oat/projects/shared/skill-source-organization/reviews/p01-review-2026-09-13T172248Z.md
 
+### 2026-09-13 · project · feedback · p01 post-cap disposition
+
+9e44ba12-4107-4c9e-87ab-86028e7ef2f5 The user authorized the single remaining symlink-freshness fix after the automatic review cap and explicitly waived another review cycle. Commit 684d4f8d addresses the exact finding; root verification passed 62 scoped tests plus type-check, build check, validation, and smoke, superseding the prior blocked phase outcome.
+
+### 2026-09-13 · structural · oat-project-implement · p01-post-cap
+
+bfbd17d5-b678-4351-95da-ddfecfda868b status=passed disposition=operator-verified-no-rereview fix=684d4f8d19187e197e7b54c561f179e87fd4e917 next=p02
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

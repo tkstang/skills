@@ -1,28 +1,27 @@
 ---
-oat_status: blocked
+oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p01 review cycle 3 retains one Important finding: declared-output freshness follows symlinks"
+oat_blockers: []
 oat_last_updated: 2026-09-13
-oat_current_task_id: p01-review-cycle-cap
+oat_current_task_id: p02-t01
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-Implementation stopped at the p01 review-cycle cap. All three p01 tasks and two bounded fix iterations are committed, and the required phase checks pass. The third independent review retains one Important declared-output freshness symlink finding, so p02 has not started.
+Implementation continues at p02-t01. All three p01 tasks are complete. After the third review cycle, the user authorized the single remaining symlink-freshness fix and explicitly waived another review cycle; root verification passed against the resulting commit.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p01 Packaging foundation | blocked in review | 3 | 3 |
+| p01 Packaging foundation | complete | 3 | 3 |
 | p02 Source/tooling migration | pending | 4 | 0 |
 | p03 Products/promotions | pending | 4 | 0 |
 | p04 Public docs/verification | pending | 2 | 0 |
 | p05 Post-merge private cutover | pending | 1 | 0 |
-| Total | blocked | 14 | 3 |
+| Total | in progress | 14 | 3 |
 
 p01–p04 are the public milestone. p05 intentionally follows its merge; use the progress-PR boundary in plan.md rather than requiring all tasks to complete before that public PR can merge.
 
@@ -31,7 +30,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 <!-- orchestration-runs-start -->
 ### Run 1: Phase p01
 
-- Status: blocked after review cycle 3
+- Status: complete by operator-authorized direct disposition
 - Request: `6e50b09f-78fc-4be3-8ccd-ac9c4912962b`
 - Launch status: accepted
 - Phase base: `348d46caead591060ba00581dd6add22654120c8`
@@ -50,7 +49,8 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Review cycle 2: `reviews/p01-review-2026-09-13T165921Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; fixes completed.
 - Review cycle 3: `reviews/p01-review-2026-09-13T172248Z.md`, 0 Critical, 1 Important, 0 Medium, 0 Minor; terminal at the governance cap.
 - Final review dispatch: `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
-- Outstanding item: reject direct and ancestor declared-output symlinks in the read-only freshness path, apply the same segment policy to source ancestors, and add the review's negative controls. Continuing requires explicit direction beyond the automatic review-cycle cap.
+- Post-cap fix: `684d4f8d19187e197e7b54c561f179e87fd4e917` rejects direct and ancestor declared-output symlinks in freshness checks, applies the same segment policy to source roots, and adds all three requested negative controls.
+- Disposition: the user authorized this exact narrow fix and waived another independent review cycle. Root verification passed 62 scoped tests, type-check, build check, repository validation, smoke, and range diff checks; no p01 finding remains open by user disposition.
 - Nested dispatches: none
 
 ### Recovery Event p01-r01-input-consistency
@@ -71,7 +71,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, p01 implemented the migration inventory, packaging pipeline, and representative install-boundary suite in three planned commits. One phase recovery and two bounded review-fix commits followed. Required p01 verification passes at `737e7c06041f7344bf8eeed0cfbc4b79877c72f8`; the third independent review leaves one Important finding, so execution stopped before p02.
+On 2026-09-13, p01 implemented the migration inventory, packaging pipeline, and representative install-boundary suite in three planned commits. One phase recovery and two automatic review-fix commits followed. After review cycle 3, the user authorized one narrow post-cap fix and waived another review. Required p01 verification passes at `684d4f8d19187e197e7b54c561f179e87fd4e917`; execution advances to p02-t01.
 
 ## Deviations from Plan / Design
 
@@ -87,11 +87,11 @@ Review: reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Gate M1/M2/
 
 ## Test Results
 
-At the current p01 head, 59 scoped packaging/install tests pass with four workers, along with type-check, build check, repository validation, smoke, scoped formatting/lint, and range diff checks. The extra full-suite diagnostic still has the pre-existing session-observer help timeout under saturation; its affected file passes 49/49 alone and it is outside p01's required verification.
+At the final p01 head, 62 scoped packaging/install tests pass with four workers, along with type-check, build check, repository validation, smoke, scoped formatting/lint, and range diff checks. The extra full-suite diagnostic still has the pre-existing session-observer help timeout under saturation; its affected file passes 49/49 alone and it is outside p01's required verification.
 
 ## Final Summary (for PR/docs)
 
-Nothing shipped. The p01 foundation is implemented but not review-passed. Source migration, promotions, releases, and installation cutovers remain pending. A future public-PR milestone summary must distinguish p01–p04 results from p05's pending cross-repo work.
+Nothing shipped. The p01 foundation is complete by user-authorized direct disposition. Source migration, promotions, releases, and installation cutovers remain pending. A future public-PR milestone summary must distinguish p01–p04 results from p05's pending cross-repo work.
 
 ## References
 

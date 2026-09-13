@@ -1,8 +1,7 @@
 ---
-oat_current_task: p01-review-cycle-cap
-oat_last_commit: 737e7c06041f7344bf8eeed0cfbc4b79877c72f8
-oat_blockers:
-  - "p01 review cycle 3 retains one Important finding: declared-output freshness follows symlinks"
+oat_current_task: p02-t01
+oat_last_commit: 684d4f8d19187e197e7b54c561f179e87fd4e917
+oat_blockers: []
 associated_issues:
   - type: project
     ref: "https://github.com/tkstang/skills/issues/74"
@@ -14,7 +13,7 @@ oat_hill_checkpoints:
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: blocked
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -28,24 +27,27 @@ oat_phase_recovery_policy:
     p01:
       used_attempts: 1
       pending_attempt: null
+    p02:
+      used_attempts: 0
+      pending_attempt: null
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T17:26:24Z"
+oat_project_state_updated: "2026-09-13T18:39:10Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** Implementation stopped at the p01 review-cycle cap. All three p01 tasks and two bounded fix commits are complete, but cycle 3 retains one Important finding in declared-output freshness symlink handling.
+**Status:** Implementation in progress. Phase p01 is complete by user-authorized direct disposition after the review-cycle cap, and p02-t01 is next.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Phase p01 implementation is complete at `737e7c06041f7344bf8eeed0cfbc4b79877c72f8`, and all required p01 verification passes. The third independent review found one remaining Important issue: the read-only freshness path can follow a symlinked declared output or ancestor and certify an external tree as in sync. The configured two fix iterations and three review cycles are exhausted, so p02 has not started.
+Phase p01 implementation and its final bounded fix are complete at `684d4f8d19187e197e7b54c561f179e87fd4e917`. The user authorized that exact post-cap fix and explicitly waived another independent review cycle. Root verification passed 62 scoped tests plus type-check, build check, repository validation, smoke, and range checks. Phase p02 begins with p02-t01.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -55,7 +57,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 14 tasks across five sequential phases, implementation-ready with complete review disposition and explicit no-rerun acceptance for the bounded edits.
-- [Implementation](implementation.md): 3/14 tasks implemented; p01 is blocked in review and p02 has not started.
+- [Implementation](implementation.md): 3/14 tasks complete; p02-t01 is next.
 
 ## Progress
 
@@ -65,7 +67,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Activated this follow-up after its predecessor closed and merged, as explicitly requested.
 - Completed the p01 inventory, declared distribution pipeline, representative installed-boundary tests, one phase recovery, and two bounded review fixes.
 - Required p01 tests, type-check, generated-output checks, repository validation, and smoke pass at the current head.
-- Review cycle 3 closes all earlier findings and retains one Important freshness-path symlink issue. No external publication or installation change occurred.
+- Review cycle 3 closed all earlier findings. Its final freshness-path symlink issue was fixed in the user-authorized post-cap commit and verified directly without another review cycle. No external publication or installation change occurred.
 
 ## Activation and Execution Prerequisites
 
@@ -79,7 +81,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Obtain direction for the remaining p01 Important finding. Continuing requires an explicit exception to the three-cycle review governance cap; otherwise preserve the current clean branch and review artifact. Do not start p02 while p01 remains blocked.
+Complete p02's canonical source and tooling migration in plan order, beginning with p02-t01. Keep the clean-break naming, version, publication, and global-install boundaries intact.
 
 ## Planning Settings and Review Status
 

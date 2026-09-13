@@ -303,7 +303,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T164437Z.md | fa4e6256d63af58806c4ef273d7700af1af21534 | manual | - |
 | p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
-| p01 | code | blocked | 2026-09-13 | reviews/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
 | p02 | code | pending | - | - | - | - | - |
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
@@ -359,18 +359,18 @@ No new implementation tasks or source edits have been made. Review disposition i
 
 The consumed gate artifact is archived at reviews/archived/artifact-plan-review-2026-09-13T151722Z.md. Receipt is complete; no findings are deferred or awaiting direction. Task count stays 14 and implementation remains unstarted. Planning readiness is approved; implementation kickoff must still confirm HiLL checkpoints, refresh the actual source/base inventory, and honor the public/private milestone authority boundaries.
 
-## Implementation Complete
+## Implementation Progress
 
-Not started.
+p01 is complete by user-authorized direct disposition after the review-cycle cap. Commit `684d4f8d19187e197e7b54c561f179e87fd4e917` fixes the final symlink-freshness finding, and the user explicitly waived another independent review cycle. Root verification passed before advancing to p02.
 
 | Phase | Tasks | Completed |
 | --- | --- | --- |
-| p01 Packaging foundation | 3 | 0 |
+| p01 Packaging foundation | 3 | 3 |
 | p02 Source/tooling migration | 4 | 0 |
 | p03 Products/promotions | 4 | 0 |
 | p04 Public documentation/verification | 2 | 0 |
 | p05 Post-merge private cutover | 1 | 0 |
-| Total | 14 | 0 |
+| Total | 14 | 3 |
 
 p01–p04 comprise the 13-task public milestone; p05 is one post-merge cross-repo task. Do not mark all 14 complete when the public PR is ready.
 
