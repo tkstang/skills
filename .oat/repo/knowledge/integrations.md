@@ -1,176 +1,110 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-17
-oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
-oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
-oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
+oat_generated_at: 2026-08-31
+oat_source_head_sha: ae313c5bb6e54d521b4b00d0f44993b8fdf72ecc
+oat_source_main_merge_base_sha: 467efe57bcb5e40b2cfb09c77507aa50e4c1cc44
+oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index'
 ---
 
 # External Integrations
 
-**Analysis Date:** 2026-07-17
+**Analysis Date:** 2026-08-31
 
 ## APIs & External Services
 
-**AI Model Providers:**
+**AI-provider CLI subprocesses:**
 
-- Claude (Anthropic) - Primary consensus participant provider
-  - Client: Local `claude` CLI invoked via subprocess
-  - Integration: `src/consensus/provider-cli/probe.ts` (provider discovery/health check)
-  
-- Codex - Alternative consensus participant provider
-  - Client: Local `codex` CLI invoked via subprocess
-  - Integration: `src/consensus/provider-cli/probe.ts`
-  
-- Cursor Agent - Alternative consensus participant provider
-  - Client: Local `cursor` CLI invoked via subprocess
-  - Integration: `src/consensus/provider-cli/probe.ts`
+- Claude Code CLI (`claude`) - Consensus invokes it as a peer process using `claude --print --output-format json`; its provider adapter and invocation builder are in `src/consensus/provider-cli/adapters.ts` and `src/consensus/provider-cli/invocation.ts`.
+  - SDK/Client: No HTTP SDK. `src/consensus/provider-cli/subprocess.ts` uses Node's `child_process.spawn` with `shell: false`.
+  - Auth: Parent-process credentials are selectively forwarded as `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` by `src/consensus/provider-cli/runtime-policy.ts`; the repository does not implement Claude authentication itself.
+- Codex CLI (`codex`) - Consensus invokes `codex exec --json` and reads its final message from a temporary file; the adapter and invocation are in `src/consensus/provider-cli/adapters.ts` and `src/consensus/provider-cli/invocation.ts`.
+  - SDK/Client: No HTTP SDK. Node subprocess execution and output capture are implemented in `src/consensus/provider-cli/subprocess.ts`.
+  - Auth: Parent-process `OPENAI_API_KEY` is selectively forwarded by `src/consensus/provider-cli/runtime-policy.ts`; `.github/workflows/live-e2e.yml` supplies it from a GitHub Actions secret for opt-in live tests.
+- Cursor Agent CLI (`cursor-agent`) - Consensus invokes the CLI with JSON output; registration is in `src/consensus/provider-cli/adapters.ts` and invocation is in `src/consensus/provider-cli/invocation.ts`.
+  - SDK/Client: No HTTP SDK. Node subprocess execution is implemented in `src/consensus/provider-cli/subprocess.ts`.
+  - Auth: Parent-process `CURSOR_API_KEY` is selectively forwarded by `src/consensus/provider-cli/runtime-policy.ts`; `.github/workflows/live-e2e.yml` maps the name from GitHub Actions secrets for the opt-in workflow.
 
-**Provider Runtime Invocation:**
+**Plugin hosts:**
 
-- No remote API calls; providers are invoked as local subprocesses via `execFile()` from `src/consensus/provider-cli/subprocess.ts`
-- Structured JSON request/response envelope pattern in `src/consensus/provider-cli/envelope.ts`
-- No webhooks or callbacks; all communication is synchronous subprocess-based
-
-**External Monitoring/Analytics:**
-
-- Not detected
-
-**Third-party Authentication:**
-
-- Not applicable (consensus manages peer/panelist composition internally via configuration)
+- Claude Code - The Consensus marketplace/plugin manifest is `plugins/consensus/.claude-plugin/plugin.json`; local marketplace installation is documented in `README.md`.
+- Codex - The Consensus plugin manifest is `plugins/consensus/.codex-plugin/plugin.json`, including the `./skills/` path and interactive/read/write interface metadata; local marketplace installation is documented in `README.md`.
+- Cursor - The Cursor plugin manifest is `plugins/consensus/.cursor-plugin/plugin.json`; `README.md` specifies session-scoped loading using `cursor agent --plugin-dir`.
 
 ## Data Storage
 
 **Databases:**
 
-- Not detected - No databases integrated
+- Not detected. The root `package.json` declares no database/ORM client, and canonical runtime source under `src/` imports Node standard-library filesystem modules rather than database clients.
 
 **File Storage:**
 
-- Local filesystem only - Consensus configuration stored under XDG Base Directory (`$XDG_CONFIG_HOME/consensus/` or `$HOME/.config/consensus/`)
-- Session transcripts and artifacts stored in local `.oat/repo/` and project directories
-- Implementation: `src/consensus/config/consensus-config.ts` (config persistence)
-- Implementation: `src/transcript/session-observer/session-observer.ts` (session artifact capture)
+- Local filesystem only. Consensus configuration is written as JSON to the user config path (`$XDG_CONFIG_HOME/consensus/config.json` or `~/.config/consensus/config.json`) and project `.consensus/config.json`; path resolution and atomic writes are in `src/consensus/config/consensus-config.ts`.
+- Session Observer persists read offsets and watch state in `$STATE_DIR` or `~/.local/state/session-observer`; `state.json`, `watch.json`, locks, and event logs are handled by `src/transcript/session-observer/lib/state.ts`, `src/transcript/session-observer/lib/watch-state.ts`, and `src/transcript/session-observer/lib/watch.ts`.
+- Transcript discovery reads local Claude Code, Codex, and Cursor session directories (`~/.claude/projects/`, `~/.codex/sessions/`, and `~/.cursor/projects/`) in `src/transcript/core/runtimes.ts` and `src/transcript/session-observer/probe-local.ts`.
+- Session export writes a sanitized Markdown file to the requested output path, defaulting to the user's `Downloads` directory, in `src/transcript/export-session/export-session-transcript.ts`.
 
 **Caching:**
 
-- None - No caching layer or service
+- No network cache or external cache service detected. The only retained runtime state identified in canonical source is local JSON/session-observer state under `src/transcript/session-observer/lib/`.
 
 ## Authentication & Identity
 
-**Auth Mechanism:**
+**Auth Provider:**
 
-- Custom - Provider authentication delegated to local CLI tools (claude, codex, cursor)
-- Consensus itself handles no authentication; it trusts the local provider CLIs are authenticated
-
-**Configuration Management:**
-
-- XDG Base Directory Specification - User config at `~/.config/consensus/` (or `$XDG_CONFIG_HOME`)
-- Project-level config via `consensus.json` or `consensus.yml` in project root
-- See `src/consensus/config/consensus-config.ts` for config loading strategy
-
-**Secrets:**
-
-- Provider authentication is external to this codebase (delegated to local CLI auth)
-- No secrets stored or passed through consensus code
+- Delegated to installed provider CLIs; no application-owned authentication or identity provider is detected. `src/consensus/provider-cli/probe.ts` checks executable readiness and detects authentication-required output, while `src/consensus/provider-cli/runtime-policy.ts` limits the child environment to base variables plus the selected provider's credential names.
+  - Implementation: Provider capability/credential handling is centralized in `src/consensus/provider-cli/adapters.ts` and `src/consensus/provider-cli/runtime-policy.ts`; secrets are not serialized into diagnostic output by `redactedRuntimePolicyDiagnostics` in the latter file.
 
 ## Monitoring & Observability
 
 **Error Tracking:**
 
-- Not detected - No error tracking service integrated
+- No external error-tracking service detected. Canonical runtime code in `src/` contains no HTTP client or error-tracking SDK import; provider failures are converted into structured diagnostics in `src/consensus/provider-cli/subprocess.ts` and classified in `src/consensus/provider-cli/adapters.ts`.
 
 **Logs:**
 
-- Stdout/stderr only - All output is text or JSON to standard streams
-- No centralized logging service
-- Provider CLI output (stderr from subprocess) is captured and logged
-
-**Diagnostics:**
-
-- Provider health checks via `provider preflight` and `provider ls` subcommands (in `src/consensus/provider-cli/probe.ts`)
-- No telemetry or observability backend
+- Provider subprocess stdout/stderr and execution metadata are captured locally by `src/consensus/provider-cli/subprocess.ts`.
+- Consensus artifacts include a human-readable deliberation log, as described in `README.md`; Session Observer appends local JSONL watch events in `src/transcript/session-observer/lib/watch.ts`.
 
 ## CI/CD & Deployment
 
 **Hosting:**
 
-- GitHub Pages for documentation site (`documentation/` deployed via `.github/workflows/deploy-docs.yml`)
-- Skill execution: Local (user's machine) or plugin marketplace platforms (Claude Code, Codex, Cursor)
+- GitHub Pages - `.github/workflows/deploy-docs.yml` installs and builds `documentation/`, uploads `documentation/out`, then deploys it through GitHub Pages actions. `NEXT_PUBLIC_BASE_PATH=/skills` is set for the project-site build.
+- Local provider marketplaces/plugin hosts - Consensus is distributed through the provider-specific manifests under `plugins/consensus/`, with local marketplace loading commands in `README.md`.
 
 **CI Pipeline:**
 
-- GitHub Actions (`.github/workflows/validate.yml`, `deploy-docs.yml`, `release.yml`)
-- No external CI/CD services beyond GitHub
-- Workflow jobs: validate (test/lint/build), skill-versions (enforcement), internal-flags (enforcement), commitlint, lint/format
-
-**Artifact Storage:**
-
-- GitHub (source repository)
-- GitHub Pages (docs site static export)
-- No artifact repository service
+- GitHub Actions - `.github/workflows/validate.yml` runs root dependency install, generated-output verification, build, type check, Vitest tests, validation, smoke tests, PR skill-version checks, internal-flag validation, commitlint, and changed-file lint/format checks.
+- GitHub Actions release validation - `.github/workflows/release.yml` runs the same root quality gates on `v*` tags and verifies version consistency.
+- GitHub Actions docs CI - `.github/workflows/docs-ci.yml` installs the nested docs app, builds its static export, and format-checks docs.
+- GitHub Actions optional live provider test - `.github/workflows/live-e2e.yml` is manual-dispatch only and injects selected provider credentials from Actions secrets before running `pnpm run test:live-e2e`.
 
 ## Environment Configuration
 
 **Required env vars:**
 
-- `XDG_CONFIG_HOME` - Optional; defaults to `$HOME/.config` if unset (XDG standard)
-- `HOME` - Used as fallback for config directory resolution
-- `GIT_HOOKS` - Development only; set to "0" in CI to skip git-hook setup
-
-**Optional env vars (passed through to provider invocation):**
-
-- `NODE_OPTIONS` - Node runtime flags (if using Node subprocesses)
-- Any env var passed explicitly via `runOptions.env` in consensus API calls
+- No environment variable is universally required for local repository tooling: root scripts are declared in `package.json` and CI sets Node/pnpm through `.github/workflows/validate.yml`.
+- For a provider peer, the effective credential is managed by its installed CLI; supported forwarded names are `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` (Claude), `OPENAI_API_KEY` (Codex), and `CURSOR_API_KEY` (Cursor) in `src/consensus/provider-cli/runtime-policy.ts`.
+- `XDG_CONFIG_HOME` optionally changes the user Consensus config root in `src/consensus/config/consensus-config.ts`; `STATE_DIR` optionally changes Session Observer state storage in `src/transcript/session-observer/lib/state.ts`.
+- `NEXT_PUBLIC_BASE_PATH` sets the deployed docs base path in `documentation/next.config.js` and is set to `/skills` by `.github/workflows/deploy-docs.yml`.
+- `CONSENSUS_LIVE_SUBMIT_E2E=1` and `CONSENSUS_LIVE_SUBMIT_PROVIDER` enable/select the opt-in live provider test through `package.json` and `.github/workflows/live-e2e.yml`.
 
 **Secrets location:**
 
-- Provider CLI auth handled externally (CLI tools manage their own auth tokens/credentials)
-- No secrets committed to this repository
+- Local use: provider credentials stay in the parent process/installed provider CLI environment and are only allowlisted into the child process in `src/consensus/provider-cli/runtime-policy.ts`.
+- CI live tests: `.github/workflows/live-e2e.yml` maps GitHub Actions secrets into `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `CURSOR_API_KEY` environment variables.
+- Tracked `.env*` files are not detected by the repository configuration scan. `.claude/settings.local.json` and `.mcp.json` are ignored local-only files according to Git-ignore evidence, not canonical secret stores.
 
 ## Webhooks & Callbacks
 
 **Incoming:**
 
-- Not detected - No webhook endpoints
+- No application webhook endpoint detected. The canonical runtime under `src/` has no server listener or HTTP client; CI workflow triggers in `.github/workflows/*.yml` are GitHub Actions events, not runtime webhook handlers.
 
 **Outgoing:**
 
-- Not detected - No outgoing webhooks
-
-**Async Communication:**
-
-- None - All consensus operations are synchronous subprocess-based
-
-## Plugin Marketplace Integration
-
-**Distribution Channels:**
-
-- Claude Code plugin marketplace (local installation via `claude plugin`)
-- Codex plugin marketplace (local installation via `codex plugin`)
-- Cursor Agent (direct filesystem reference via `--plugin-dir`)
-- GitHub repository (skills.sh discovery for standalone skills)
-
-**Plugin Manifests:**
-
-- Consensus: `plugins/consensus/manifest.json`
-- Session Observer skill: `skills/session-observer/SKILL.md`
-- Export Session Transcript skill: `skills/export-session-transcript/SKILL.md`
-
-## Network Requirements
-
-**For Shipped Skills/Plugins:**
-
-- No outbound network calls from consensus or session observer code
-- Provider communication is via local subprocess; any network access is the responsibility of the local provider CLI
-- Docs site build requires network access to fetch npm dependencies (dev-time only)
-
-**For Documentation:**
-
-- Docs deployment to GitHub Pages requires GitHub Actions access
-- Docs site build pulls dependencies from npm registry (dev-time)
+- No application webhook callback detected. The only external runtime boundary detected is the provider-CLI subprocess interface in `src/consensus/provider-cli/`; GitHub Pages deployment is executed by `.github/workflows/deploy-docs.yml`.
 
 ---
 
-_Integration audit: 2026-07-17_
+_Integration audit: 2026-08-31_

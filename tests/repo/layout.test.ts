@@ -51,6 +51,7 @@ describe('repo-layout', () => {
       .toSorted();
 
     expect(standaloneSkills).toEqual([
+      'coding-session-handoff',
       'complexity-review',
       'export-session-transcript',
       'session-observer',

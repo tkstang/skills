@@ -36,6 +36,13 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Verify `npx skills add <username>/skills` discovery.
 - Confirm the README install matrix matches the live provider CLIs.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
+- Keep Coding Session Handoff marked experimental and not released until its
+  capability evidence is refreshed against official provider documentation and
+  an explicitly authorized live or human verification covers each claimed
+  provider surface and entry point. Record unsupported Cursor transitions as
+  unsupported; do not infer CLI fork or cross-worktree behavior from IDE
+  Duplicate Chat or CLI resume documentation. The older paused executor and its
+  behavior gate are not release prerequisites for the guidance skill.
 - Publish the `consensus.mjs` SHA-256 checksum alongside the tag/release notes
   (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
   verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.

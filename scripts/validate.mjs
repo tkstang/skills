@@ -25,6 +25,7 @@ const REQUIRED_SKILL_FIELDS = [
   'compatibility',
 ];
 const COLLABORATION_SKILL_PATH = 'skills/session-observer-collab';
+const GUIDANCE_SKILL_PATH = 'skills/coding-session-handoff';
 const COLLABORATION_REQUIRED_FILES = [
   'SKILL.md',
   'references/runtime-claude-code.md',
@@ -276,6 +277,56 @@ export async function validateCollaborationSkillDistribution(root) {
     }
   }
 
+  return issues;
+}
+
+export async function validateGuidanceSkillDistribution(root) {
+  const issues = [];
+  const required = [
+    'SKILL.md',
+    'references/provider-guidance.md',
+    'scripts/coding-session-handoff.mjs',
+  ];
+  for (const relativePath of required) {
+    if (
+      !(await pathExists(path.join(root, GUIDANCE_SKILL_PATH, relativePath)))
+    ) {
+      issues.push(
+        `${GUIDANCE_SKILL_PATH} missing required distribution file: ${relativePath}`,
+      );
+    }
+  }
+  const skillFile = path.join(root, GUIDANCE_SKILL_PATH, 'SKILL.md');
+  if (await pathExists(skillFile)) {
+    const parsed = parseFrontmatter(
+      await readFile(skillFile, 'utf8'),
+      `${GUIDANCE_SKILL_PATH}/SKILL.md`,
+    );
+    if (parsed.metadata?.internal === 'true') {
+      issues.push(
+        `${GUIDANCE_SKILL_PATH}/SKILL.md must remain a public standalone skill`,
+      );
+    }
+  }
+  const bundleFile = path.join(
+    root,
+    GUIDANCE_SKILL_PATH,
+    'scripts/coding-session-handoff.mjs',
+  );
+  if (await pathExists(bundleFile)) {
+    const bundle = await readFile(bundleFile, 'utf8');
+    for (const forbidden of [
+      'behavior-verify',
+      'executeHandoffPlan',
+      'probeProvider',
+    ]) {
+      if (bundle.includes(forbidden)) {
+        issues.push(
+          `${GUIDANCE_SKILL_PATH} public bundle exposes old executor surface: ${forbidden}`,
+        );
+      }
+    }
+  }
   return issues;
 }
 
@@ -582,6 +633,7 @@ export async function validateRepository(options = {}) {
   errors.push(...(await validateVersionConsistency(root)));
   errors.push(...(await validateDiscoveredSkillDirectories(root)));
   errors.push(...(await validateCollaborationSkillDistribution(root)));
+  errors.push(...(await validateGuidanceSkillDistribution(root)));
 
   for (const manifest of PROVIDER_MANIFESTS) {
     errors.push(...(await validateProviderManifest(root, manifest)));

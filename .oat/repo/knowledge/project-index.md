@@ -1,134 +1,120 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-17
-oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
-oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
+oat_generated_at: 2026-08-31
+oat_source_head_sha: ae313c5bb6e54d521b4b00d0f44993b8fdf72ecc
+oat_source_main_merge_base_sha: 467efe57bcb5e40b2cfb09c77507aa50e4c1cc44
 oat_index_type: full
-oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # skills
 
 ## Overview
 
-This repository ships a **consensus deliberation engine** and a set of **standalone
-coding-agent skills**, packaged for the Claude Code, Codex, and Cursor agent
-platforms. The consensus plugin lets two or more AI "peers" (local provider CLIs)
-independently draft, critique, and converge on an artifact — a document, plan,
-decision, or evaluation — with a full JSONL audit trail. Alongside it live
-transcript skills (`session-observer`, `export-session-transcript`) that watch and
-export coding-agent session transcripts.
+This repository ships dependency-free agent skills and the Consensus plugin across
+Codex, Claude Code, and Cursor provider surfaces. Canonical authored content lives
+under `skills/`, `plugins/`, and `src/`; provider mirrors and generated runtime
+modules are derived artifacts. The documentation site is the complete user and
+engineering reference, while `.oat/` contains project-lifecycle and repository
+management records.
 
-## Purpose
+## Quick Orientation
 
-The engine exists to make multi-model deliberation a first-class, provider-agnostic
-workflow: rather than one model iterating alone, distinct peers run through a
-bounded loop (alternating turns or parallel revision with synthesis) until they
-converge or hit a documented impasse. Shipped skills run dependency-free on Node.js
-22+ with no install step; provider CLI subprocesses are the only external execution
-boundary.
+- Runtime: Node.js 22 or newer.
+- Package manager: pnpm, pinned by `packageManager` in `package.json`.
+- Tests: Vitest through `pnpm run test` or `pnpm run test:vitest`.
+- Required repository gates: `pnpm run build:check`, `npm run validate`, and
+  `npm run smoke`.
+- Canonical generated-runtime source: `src/`, mapped by
+  `scripts/build-generated.mjs` into committed `.mjs` files under public skills
+  and plugins.
+- Public standalone skills: canonical directories under `skills/`; provider
+  mirrors under `.agents/skills`, `.claude/skills`, and `.cursor/skills` are sync
+  outputs, not editing surfaces.
 
-## Technology Stack
+## Architecture at a Glance
 
-- **Language:** TypeScript 6.0.3 (canonical source in `src/`, compiled to ES2024 ESM)
-- **Runtime:** Node.js 22+ (ESM, `"type": "module"`); shipped skills use the Node
-  standard library only — zero runtime dependencies
-- **Package manager:** pnpm 10.13.1+ (dev tooling only; lockfile committed)
-- **Build:** esbuild 0.28.1 bundles TS source → committed `.mjs` runtime outputs
-- **Testing:** Vitest 4.1.9
-- **Dev tooling:** oxlint, oxfmt, commitlint (Conventional Commits), lint-staged
-- **Docs site:** Next.js 16 + React 19 + Fumadocs 16 + Tailwind 4 (`documentation/`)
+The codebase has three primary product surfaces:
 
-See [stack.md](stack.md) for full detail.
+1. Standalone skills package instructions, dependency-free runtimes, and tests.
+2. The Consensus plugin coordinates provider CLIs through a structured execution
+   and transcript-observation pipeline.
+3. Shared transcript infrastructure discovers sessions, extracts provider records,
+   normalizes entries, sanitizes content, and renders safe derived output for
+   session-observer and export-session-transcript.
 
-## Architecture
+Provider CLI subprocesses are the intentional external execution boundary. Runtime
+code otherwise uses Node standard-library APIs. Generated output must be changed at
+its TypeScript source and rebuilt; files carrying a generated banner must never be
+hand-edited.
 
-A multi-layered, provider-agnostic design: **config resolution** → **core
-deliberation loop** → **skill wrappers**, with a **provider CLI layer** abstracting
-peer communication over local subprocesses (probe-time capability discovery,
-structured-output strategies, retry logic). Three deliberation modes — *alternating*,
-*parallel_revision*, and *parallel_synthesized*. Verdict and synthesis payloads are
-schema-bound JSON; every turn is recorded as a JSONL `LoopRecord`. A separate
-**transcript core** underpins the session-observer and export skills.
+## Key Entry Points
 
-See [architecture.md](architecture.md) for layers, data flow, and abstractions.
+- `documentation/docs/index.md` — product documentation root.
+- `documentation/docs/user-guide/skills/index.md` — standalone-skill catalog.
+- `documentation/docs/engineering/architecture/index.md` — system architecture.
+- `src/consensus/provider-cli/cli.ts` — provider execution abstraction.
+- `src/transcript/core/` — shared transcript discovery and normalization.
+- `src/transcript/export-session/` — privacy-safe export and sanitization.
+- `skills/session-observer/` — public session inspection skill and generated runtime.
+- `skills/export-session-transcript/` — public transcript export skill and generated runtime.
+- `scripts/build-generated.mjs` — canonical-to-runtime generation map.
+- `scripts/validate.mjs` — repository structure and manifest validation.
+- `.oat/repo/pjm/backlog/index.md` — local product backlog.
 
-## Key Features
+## Where to Add Code
 
-- **Consensus skills:** create, decide, plan, refine, evaluate, panel, phone-a-friend
-- **Provider abstraction:** Claude / Codex / Cursor (or custom) via local CLI subprocess
-- **Deliberation modes:** alternating turns, parallel revision, parallel + synthesis
-- **Audit trail:** JSONL records with verdict, reasoning, artifact hash, and cost
-- **Session observation:** watch peer coding-agent transcripts, ranked digests
-- **Transcript export:** sanitized, canonical-format session export
-- **Bounded collaboration:** session-observer-collab (user + two mutually-observing agents)
+- New public standalone skill: `skills/<skill-name>/SKILL.md`, with any canonical
+  runtime implementation under `src/` and a generated mapping in
+  `scripts/build-generated.mjs`.
+- Shared transcript behavior: `src/transcript/core/`, with focused tests under
+  `tests/transcript-core/` and consumer tests under the relevant skill suite.
+- User documentation: `documentation/docs/user-guide/`; update the directory
+  `meta.json` and regenerate `documentation/index.md`.
+- Repository validation: `tests/repo/`, `tests/tooling/`, and `scripts/validate.mjs`.
 
-## Project Structure
+## Non-Negotiable Conventions
 
-```
-src/          Canonical TypeScript source (consensus engine + transcript tools)
-plugins/      Packaged consensus plugin (ships to providers; generated .mjs runtimes)
-skills/       Standalone skills (session-observer, -collab, export-session-transcript)
-tests/        Vitest suite, organized by domain
-scripts/      Build, validation, versioning, and test infrastructure
-documentation/  Fumadocs docs site (User Guide + Engineering trunks)
-.oat/         OAT repo state (pjm backlog/roadmap, reference/decisions, knowledge)
-```
+- Keep shipped runtime dependency-free.
+- Bump the skill version for every change beneath a canonical skill directory;
+  keep top-level `version` and `metadata.version` equal.
+- Do not edit provider mirrors or generated `.mjs` output by hand.
+- Use structured argv arrays for subprocesses and avoid shell interpolation.
+- Treat transcript content as sensitive: sanitize before rendering or export and
+  avoid recording secrets in diagnostics.
+- Preserve unrelated user changes and keep Git, publishing, and provider-store
+  mutations explicit.
 
-See [structure.md](structure.md) for the full directory map and naming conventions.
+## Testing Strategy
 
-## Getting Started
+Vitest suites are organized by feature and repository contract. Unit tests cover
+provider parsing, transcript discovery, sanitization, rendering, and state logic;
+repository tests guard public skill inventories, release versioning, generated
+output sync, documentation navigation, and internal/public visibility. Mocked smoke
+tests validate the Consensus wrapper end to end. Live-provider tests are opt-in and
+spend real quota.
 
-```bash
-# Requires Node.js 22+ and pnpm 10.13.1+
-pnpm install            # installs dev deps + git hooks
-pnpm run build          # regenerate .mjs runtime outputs from src/
-```
+For a new standalone runtime skill, add focused unit and CLI tests, extend public
+inventory and release-version fixtures, run the relevant suites while iterating,
+then run the full build, validation, test, and smoke gates before closeout.
 
-Shipped skills need no install step; the consensus workflows require the local
-provider CLIs (`claude`, `codex`, `cursor`) for whichever peers you invoke.
+## Important Risks
 
-## Development Workflow
+- Transcript discovery differs materially across providers and may include caches,
+  archived stores, and unstable metadata shapes.
+- Session recency is evidence, not proof that an active writer has stopped.
+- Provider CLI help and resume/fork contracts can drift independently of this repo.
+- Generated source and committed runtime output can silently diverge if the build
+  mapping or static-tool exclusions are incomplete.
+- Synced provider mirrors can look canonical; editing them directly creates drift.
+- Full-suite and provider-backed tests can be resource-intensive, so a timeout is
+  not equivalent to a pass.
 
-```bash
-pnpm run build          # bundle TS source → generated .mjs runtimes
-pnpm run build:check    # verify generated outputs match source
-pnpm run test           # full Vitest suite
-pnpm run validate       # repo structure, manifest, and docs invariants
-pnpm run smoke          # mocked end-to-end consensus wrapper flow
-pnpm run premerge       # build + type-check + test + validate + smoke
-pnpm lint / pnpm format # oxlint / oxfmt (incremental, changed files only)
-```
+## Detailed Knowledge Map
 
-Commits follow Conventional Commits (enforced by `commit-msg` hook + CI). Any change
-under a canonical skill directory must bump that skill's `SKILL.md` version.
-
-## Testing
-
-Vitest 4.1.9 (Node environment, 30s timeout), tests at `tests/**/*.test.ts`,
-organized by domain (consensus, session-observer, transcript-core, tooling, repo,
-release). No watch mode or coverage thresholds configured. Run with
-`pnpm run test`.
-
-See [testing.md](testing.md) for structure, fixtures, and mocking patterns.
-
-## Known Issues
-
-Notable areas: large monolithic modules (`consensus-loop.ts`, `consensus-refine.ts`,
-`session-observer.ts`), manual exact-path lint/format exclusions for generated output
-(drift risk), and N>2 multi-observer collaboration being deliberately unsupported
-(safe only for the documented N=2 topology).
-
-See [concerns.md](concerns.md) for the full tech-debt, limitations, and performance list.
-
----
-
-**Generated Knowledge Base Files:**
-
-- [stack.md](stack.md) - Technologies and dependencies
-- [architecture.md](architecture.md) - System design and patterns
-- [structure.md](structure.md) - Directory layout
-- [integrations.md](integrations.md) - External services and providers
-- [testing.md](testing.md) - Test structure and practices
-- [conventions.md](conventions.md) - Code style and patterns
-- [concerns.md](concerns.md) - Technical debt and issues
+- [stack.md](stack.md) — languages, runtime, dependencies, and configuration.
+- [architecture.md](architecture.md) — layers, data flow, abstractions, and errors.
+- [structure.md](structure.md) — directory purposes and code placement.
+- [integrations.md](integrations.md) — provider CLIs, storage, CI, and external boundaries.
+- [testing.md](testing.md) — suites, fixtures, mocking, and verification patterns.
+- [conventions.md](conventions.md) — naming, imports, functions, logging, and module design.
+- [concerns.md](concerns.md) — security, fragility, scaling limits, debt, and coverage gaps.

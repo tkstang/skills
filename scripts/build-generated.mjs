@@ -279,6 +279,18 @@ export const generatedOutputs = [
     output:
       'skills/export-session-transcript/scripts/export-session-transcript.mjs',
   },
+  {
+    id: 'coding-session-handoff-cli',
+    source: 'src/transcript/coding-session-handoff/cli.ts',
+    output: 'tools/coding-session-handoff/coding-session-handoff.mjs',
+    bundle: true,
+  },
+  {
+    id: 'coding-session-handoff-guidance-cli',
+    source: 'src/transcript/coding-session-handoff/guidance-cli.ts',
+    output: 'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+    bundle: true,
+  },
 ];
 
 function usage() {

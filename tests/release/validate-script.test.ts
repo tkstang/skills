@@ -1,10 +1,20 @@
 import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { parseFrontmatter, parseJsonFile, validateMarketplaceSource, validateReadmeInstallMatrix, validateRepository, validateSkillReference, validateVersionConsistency } from '../../scripts/validate.mjs';
+import * as validation from '../../scripts/validate.mjs';
+const {
+  parseFrontmatter,
+  parseJsonFile,
+  validateMarketplaceSource,
+  validateReadmeInstallMatrix,
+  validateRepository,
+  validateSkillReference,
+  validateVersionConsistency,
+} = validation;
 import { repoRoot } from '../helpers/process.mjs';
 const validateWorkflowPath = path.join(
   repoRoot,
@@ -20,7 +30,7 @@ async function discoverWorkflowPaths(): Promise<string[]> {
   return entries
     .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
     .map((entry) => path.join(workflowsDir, entry.name))
-    .sort();
+    .toSorted();
 }
 
 async function writeJson(filePath: string, value: unknown) {
@@ -33,6 +43,12 @@ async function createValidTempRepository() {
   );
 
   await mkdir(path.join(tempRoot, 'skills'), { recursive: true });
+  await mkdir(path.join(tempRoot, 'skills/coding-session-handoff/references'), {
+    recursive: true,
+  });
+  await mkdir(path.join(tempRoot, 'skills/coding-session-handoff/scripts'), {
+    recursive: true,
+  });
   await mkdir(path.join(tempRoot, 'plugins/consensus/skills/refine'), {
     recursive: true,
   });
@@ -77,6 +93,34 @@ async function createValidTempRepository() {
   await writeFile(path.join(tempRoot, 'RELEASING.md'), '# Releasing\n');
   await writeFile(path.join(tempRoot, 'AGENTS.md'), '# Agents\n');
   await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
+  await writeFile(
+    path.join(tempRoot, 'skills/coding-session-handoff/SKILL.md'),
+    `---
+name: coding-session-handoff
+description: Test handoff skill
+license: MIT
+compatibility: codex
+version: '0.1.0'
+metadata:
+  version: '0.1.0'
+---
+# Coding Session Handoff
+`,
+  );
+  await writeFile(
+    path.join(
+      tempRoot,
+      'skills/coding-session-handoff/references/provider-guidance.md',
+    ),
+    '# Provider guidance\n',
+  );
+  await writeFile(
+    path.join(
+      tempRoot,
+      'skills/coding-session-handoff/scripts/coding-session-handoff.mjs',
+    ),
+    '#!/usr/bin/env node\n',
+  );
 
   const skillFrontmatter = `---
 name: refine
@@ -150,7 +194,10 @@ function assertOrdered(content: string, expected: string[]) {
   for (const text of expected) {
     const index = content.indexOf(text, cursor + 1);
     expect(index, `missing expected validation step: ${text}`).not.toBe(-1);
-    expect(index > cursor, `validation step appears out of order: ${text}`).toBeTruthy();
+    expect(
+      index > cursor,
+      `validation step appears out of order: ${text}`,
+    ).toBeTruthy();
     cursor = index;
   }
 }
@@ -214,7 +261,10 @@ describe('validate-script', () => {
 
       for (const line of usesLines) {
         const match = line.match(usesLinePattern);
-        expect(match, `unparseable uses line in ${workflowPath}: ${line}`).not.toBeNull();
+        expect(
+          match,
+          `unparseable uses line in ${workflowPath}: ${line}`,
+        ).not.toBeNull();
         const [, usesValue, comment] = match!;
 
         expect(

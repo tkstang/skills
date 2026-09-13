@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-07-24 (**Cursor collaboration reliability closeout**: evidence-gated Cursor transcript observation shipped, finite wake probes retained `buffered-manual`, and the two completed Cursor backlog items moved out of the follow-on lane. The consensus-research boundary decision and loop-quality batch remain now; whole-document harmonization and the shared session-log substrate remain next.)
+**Last updated:** 2026-09-13 (Experimental destination-session fork guidance is branch-implemented and review-complete. PR closeout remains pending, followed by a coordinated session-plugin and naming migration.)
 
 ## Planning Model
 
@@ -31,9 +31,26 @@ What remains, in dependency order:
 - **BL-260627-verify-skills-sh-hosted** (verify skills.sh hosted discovery surface and listing strategy) is **done** (2026-07-05; DR-260705-skills-sh-listing-is-telemetry): the hosted index is telemetry-only, internal-flag safety is client-side pre-telemetry, and hosted visibility was seeded with owner installs of the two standalone skills. **Re-check 2026-07-07:** the seeded installs propagated — the hosted repo page is live and lists exactly those two seeded skills with no OAT/consensus leakage (the safety property is verified live). `session-observer-collab` is not included in that evidence; CLI/hosted *search* discovery still lags, and full discoverability/installability for all three remains a non-claim pending release verification.
 - Public marketplace submission (Claude/Cursor), Codex Plugin Directory, registry/hosted search, and provider-mirror propagation remain release-gated; no public claims for those external surfaces until verified.
 
-### Transcript tooling (session-observer, export-session-transcript, session-observer-collab, transcript-core)
+### Transcript tooling (session-observer, export-session-transcript, session-observer-collab, coding-session-handoff, transcript-core)
 
-Substantially shipped (see `current-state.md`). Deferred items recorded in the archived projects, promotable to backlog on demand: Cursor SQLite chat-history store, provider-hook push integration, Gemini CLI runtime adapter, opt-in notable-event memory capture, richer export rendering options.
+The existing observer, export, collaboration, and transcript-core capabilities
+are shipped (see `current-state.md`). `coding-session-handoff` is implemented on
+its feature branch and has passed standard review plus the Cursor Fable exit gate;
+PR update, user-level installation, publication, and release remain pending. Its
+current contract provides read-only Claude and Codex destination guidance, treats
+a paused executor as unreachable, and leaves Cursor unsupported because exact
+working-directory identity cannot be proven.
+
+The follow-up direction is a `session` plugin containing `session-observer`,
+`export-session-transcript`, `session-handoff`, and the renamed
+`session-fork-to-destination`. That coordinated migration must cover manifests,
+install paths, generated outputs, documentation, versions, and provider
+discovery. The same planning pass should address the large Codex-store ceiling
+and preserve provider/reason provenance through preview's second-stage failures.
+Other deferred transcript items remain recorded in archived projects and can be
+promoted to backlog on demand: Cursor SQLite chat-history store, provider-hook
+push integration, Gemini CLI runtime adapter, opt-in notable-event memory
+capture, and richer export rendering options.
 
 ### TypeScript / generated runtime tooling
 
@@ -59,6 +76,7 @@ reporting if the suite grows enough to justify it.
 
 ## Now
 
+- **Destination session fork guidance (branch implemented, PR closeout pending)** — the experimental `coding-session-handoff` source-tree skill passed its standard final review and Cursor Fable exit gate. It prepares bounded, path-free guidance for a user-controlled destination tab without provider execution, session creation, IDE/store writes, installation, publication, or release.
 - **v0.1 release verification (done 2026-06-20)** — BL-260612-complete-v0-1-release closed all gates: automated suite re-run green (72 files / 726 tests), CHANGELOG `[0.1.0]` dated + `bump-version.mjs 0.1.0` with `--check-tag v0.1.0` clean, README install-matrix re-confirmed against live CLIs, and interactive provider permission/runtime smokes passed (Claude Code + Cursor approved a `node` exec prompt; Codex sandboxed-exec, no prompt for read-only by design). Deliberation-behavior gates reused from PR #9 + suite-confirmed. **v0.1.0 is released** (2026-06-20): tag on `main` (`e4e9348`), `release.yml` green, GitHub Release published. Post-tag `npx skills add` source discovery passes. The hosted repo page is now live for the two telemetry-seeded standalone skills verified on 2026-07-07; `session-observer-collab`, hosted search, marketplace/registry listing, and provider propagation remain non-claims. Authoritative status: the `RELEASING.md` v0.1 Readiness Snapshot.
 - **Consensus family (done 2026-06-22)** — **BL-260619-implement-independent-draft** (`independent_draft` cold-start), **BL-260612-add-consensus-create-skill** (`consensus-create`), **BL-260612-add-consensus-decide-skill** (`consensus-decide`), and **BL-260612-add-consensus-plan-skill** (`consensus-plan`) are complete.
 - **Public-discovery control (shipped on PR #38, BL-260621; DR-260627)** — the in-repo internal-flag tooling now hides `.agents/skills/**` from `npx skills` discovery (`apply-internal-flags.mjs` + `validate:internal-flags` CI/pre-push gate), the consensus skills recover from a standalone install via the `~/.consensus/` fallback + `install.sh`, and the canonical `skills/` tree exposes exactly three individually-installable public standalone entries: `session-observer`, `export-session-transcript`, and `session-observer-collab` (guarded by release discovery tests). The deferred hosted check, **BL-260627-verify-skills-sh-hosted** (verify skills.sh hosted discovery surface and listing strategy), is now **done** (2026-07-05) for the two seeded skills — telemetry-only indexing confirmed, hosted visibility seeded, strategy + guardrail in DR-260705-skills-sh-listing-is-telemetry. The 2026-07-07 re-check confirmed the hosted repo page lists exactly those two seeded skills (no leakage); `session-observer-collab`, CLI/hosted *search* discovery, marketplace/registry listing, and provider propagation remain unverified and non-claims.
@@ -70,6 +88,7 @@ reporting if the suite grows enough to justify it.
 
 ## Next
 
+- **Session plugin and destination-fork naming** — plan a coordinated migration that groups the session skill family under a `session` plugin and renames `coding-session-handoff` to `session-fork-to-destination`. Include manifests, install paths, generated outputs, documentation, versions, provider discovery, the large Codex-store ceiling, and preview failure provenance in the migration scope.
 - **Whole-document harmonization** — **BL-260612-add-whole-document**: record the assembled-document context boundary, then decide whether to build the optional sequential post-fan-in pass after the current loop-quality batch.
 - **Shared session-log substrate** — **BL-260619-shared-session-log-substrate**: a design-first initiative for multi-session registration, merged observation, lifecycle, and project-scoped agent identity. It is next only with deliberate capacity for its operational surface.
 

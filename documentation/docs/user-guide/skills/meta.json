@@ -4,6 +4,7 @@
     "session-observer",
     "session-observer-collab",
     "export-session-transcript",
+    "coding-session-handoff",
     "complexity-review"
   ]
 }
