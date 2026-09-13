@@ -1,6 +1,10 @@
 import { realpath } from 'node:fs/promises';
 
 import {
+  extractMetaFromRecords,
+  readMetadataRecordsBounded,
+} from '../core/runtimes.js';
+import {
   ClassificationCache,
   discover,
   type CursorDiscoveryFailure,
@@ -11,7 +15,6 @@ import type {
   DiscoveryUnattributableReason,
   TranscriptCandidate,
 } from '../session-observer/lib/types.js';
-import { readExactCodexNativeId } from './discovery.js';
 import type {
   GuidanceProvider,
   GuidanceSurface,
@@ -133,8 +136,36 @@ function locatorFailureReason(error: unknown): GuidanceDiscoveryFailureReason {
 const DEFAULT_DEPENDENCIES: GuidanceDiscoveryDependencies = {
   discover,
   canonicalize: async (path) => realpath(path).catch(() => null),
-  readCodexNativeId: readExactCodexNativeId,
+  readCodexNativeId: readGuidanceCodexNativeId,
 };
+
+export async function readGuidanceCodexNativeId(
+  candidate: TranscriptCandidate,
+): Promise<string | null> {
+  let sourceIssue = false;
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+    maxBytes: GUIDANCE_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+    maxRecords: 128,
+    diagnostic: () => {
+      sourceIssue = true;
+    },
+  });
+  if (sourceIssue) return null;
+  const meta = extractMetaFromRecords(
+    'codex',
+    bounded.records,
+    candidate.transcriptPath,
+  );
+  if (
+    meta === null ||
+    meta.sessionId !== candidate.sessionId ||
+    meta.nativeSessionId === undefined ||
+    meta.nativeSessionId.length === 0
+  ) {
+    return null;
+  }
+  return meta.nativeSessionId;
+}
 
 function surfaceForCandidate(
   provider: GuidanceProvider,

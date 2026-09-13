@@ -544,8 +544,10 @@ describe('experimental guidance CLI', () => {
     );
     const root = await realpath(createdRoot);
     const source = join(root, 'source');
+    const target = join(root, 'target');
     const stale = join(root, 'deleted-worktree');
-    const sessionId = 'large-shipped-session';
+    const claudeId = '550e8400-e29b-41d4-a716-446655440101';
+    const codexId = '550e8400-e29b-41d4-a716-446655440102';
     const claudeProjects = join(root, '.claude', 'projects');
     const sourceDir = join(claudeProjects, source.replace(/[/.]/gu, '-'));
     const staleDir = join(claudeProjects, stale.replace(/[/.]/gu, '-'));
@@ -554,34 +556,96 @@ describe('experimental guidance CLI', () => {
       import.meta.url,
     );
     const records = [
-      { type: 'summary', cwd: source, sessionId },
+      { type: 'summary', cwd: source, sessionId: claudeId },
       {
         type: 'user',
         cwd: source,
-        sessionId,
+        sessionId: claudeId,
         message: { role: 'user', content: 'hello' },
       },
       {
         type: 'assistant',
         cwd: source,
-        sessionId,
+        sessionId: claudeId,
         message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] },
       },
       ...Array.from({ length: 140 }, (_, index) => ({
         type: 'progress',
         cwd: source,
-        sessionId,
+        sessionId: claudeId,
         index,
         padding: 'x'.repeat(2_200),
       })),
     ];
     const transcript = `${records.map((record) => JSON.stringify(record)).join('\n')}\n`;
     expect(Buffer.byteLength(transcript)).toBeGreaterThan(256 * 1024);
+    const codexRecords = [
+      {
+        type: 'session_meta',
+        sessionId: 'legacy-codex-session',
+        payload: {
+          id: codexId,
+          session_id: 'synthetic-root-session',
+          cwd: source,
+        },
+      },
+      {
+        type: 'response_item',
+        sessionId: 'legacy-codex-session',
+        payload: { type: 'message', role: 'user', content: 'hello' },
+      },
+      {
+        type: 'response_item',
+        sessionId: 'legacy-codex-session',
+        payload: { type: 'message', role: 'assistant', content: 'hi' },
+      },
+      ...Array.from({ length: 140 }, (_, index) => ({
+        type: 'progress',
+        index,
+        padding: 'x'.repeat(2_200),
+      })),
+    ];
+    const codexTranscript = `${codexRecords.map((record) => JSON.stringify(record)).join('\n')}\n`;
+    expect(Buffer.byteLength(codexTranscript)).toBeGreaterThan(256 * 1024);
 
     await mkdir(source, { recursive: true });
+    await execFileAsync('git', ['-C', source, 'init', '-q']);
+    await execFileAsync('git', [
+      '-C',
+      source,
+      'config',
+      'user.name',
+      'Synthetic Test',
+    ]);
+    await execFileAsync('git', [
+      '-C',
+      source,
+      'config',
+      'user.email',
+      'synthetic@example.invalid',
+    ]);
+    await writeFile(join(source, 'README.md'), 'fixture\n', 'utf8');
+    await execFileAsync('git', ['-C', source, 'add', 'README.md']);
+    await execFileAsync('git', ['-C', source, 'commit', '-qm', 'fixture']);
+    await execFileAsync('git', [
+      '-C',
+      source,
+      'worktree',
+      'add',
+      '-qb',
+      'realistic-target',
+      target,
+    ]);
     await mkdir(sourceDir, { recursive: true });
     await mkdir(staleDir, { recursive: true });
-    await writeFile(join(sourceDir, `${sessionId}.jsonl`), transcript, 'utf8');
+    await writeFile(join(sourceDir, `${claudeId}.jsonl`), transcript, 'utf8');
+    const codexDir = join(root, '.codex', 'sessions', '2026', '09', '13');
+    await mkdir(codexDir, { recursive: true });
+    await writeFile(
+      join(codexDir, 'legacy-codex-session.jsonl'),
+      codexTranscript,
+      'utf8',
+    );
     await writeFile(
       join(staleDir, 'stale-session.jsonl'),
       `${JSON.stringify({ type: 'summary', cwd: stale, sessionId: 'stale-session' })}\n${JSON.stringify({ type: 'user', cwd: stale, sessionId: 'stale-session', message: { role: 'user', content: 'STALE_PRIVATE_MARKER' } })}\n`,
@@ -589,24 +653,23 @@ describe('experimental guidance CLI', () => {
     );
 
     try {
-      const result = await execFileAsync(
-        process.execPath,
-        [
-          bundleUrl.pathname,
-          'discover',
-          '--source',
-          source,
-          '--provider',
-          'claude',
-          '--json',
-        ],
-        { encoding: 'utf8', env: { ...process.env, HOME: root } },
-      );
-      const output = JSON.parse(result.stdout);
-      expect(output).toMatchObject({
+      const runBundle = async (args: string[]) =>
+        execFileAsync(process.execPath, [bundleUrl.pathname, ...args], {
+          encoding: 'utf8',
+          env: { ...process.env, HOME: root },
+        });
+      const claudeDiscovery = await runBundle([
+        'discover',
+        '--source',
+        source,
+        '--provider',
+        'claude',
+        '--json',
+      ]);
+      expect(JSON.parse(claudeDiscovery.stdout)).toMatchObject({
         ok: true,
         data: {
-          candidates: [{ key: `claude:cli:${sessionId}` }],
+          candidates: [{ key: `claude:cli:${claudeId}` }],
           unattributable: [
             {
               provider: 'claude',
@@ -615,8 +678,54 @@ describe('experimental guidance CLI', () => {
           ],
         },
       });
-      expect(result.stdout).not.toContain(stale);
-      expect(result.stdout).not.toContain('STALE_PRIVATE_MARKER');
+      const codexDiscovery = await runBundle([
+        'discover',
+        '--source',
+        source,
+        '--provider',
+        'codex',
+        '--json',
+      ]);
+      expect(JSON.parse(codexDiscovery.stdout)).toMatchObject({
+        ok: true,
+        data: { candidates: [{ key: `codex:cli:${codexId}` }] },
+      });
+      for (const [provider, id] of [
+        ['claude', claudeId],
+        ['codex', codexId],
+      ] as const) {
+        const preview = await runBundle([
+          'preview',
+          '--source',
+          source,
+          '--session',
+          `${provider}:cli:${id}`,
+          '--json',
+        ]);
+        expect(JSON.parse(preview.stdout)).toMatchObject({
+          ok: true,
+          data: { key: `${provider}:cli:${id}` },
+        });
+        const prepare = await runBundle([
+          'prepare',
+          '--source',
+          source,
+          '--target',
+          target,
+          '--session',
+          `${provider}:cli:${id}`,
+          '--entry-point',
+          'source-other',
+          '--json',
+        ]);
+        expect(JSON.parse(prepare.stdout)).toMatchObject({
+          ok: true,
+          data: { provider, selectedSource: `${provider}:cli:${id}` },
+        });
+      }
+      const combinedOutput = `${claudeDiscovery.stdout}${codexDiscovery.stdout}`;
+      expect(combinedOutput).not.toContain(stale);
+      expect(combinedOutput).not.toContain('STALE_PRIVATE_MARKER');
     } finally {
       await rm(root, { recursive: true, force: true });
     }

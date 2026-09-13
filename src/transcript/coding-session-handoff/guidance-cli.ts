@@ -13,13 +13,13 @@ import {
   discover,
 } from '../session-observer/lib/locate.js';
 import type { TranscriptCandidate } from '../session-observer/lib/types.js';
-import { readExactCodexNativeId } from './discovery.js';
 import type { GuidanceProvider } from './guidance-capabilities.js';
 import {
   discoverGuidanceCandidates,
   discoverGuidance,
   GuidanceDiscoveryError,
   GUIDANCE_DISCOVERY_OPTIONS,
+  readGuidanceCodexNativeId,
   selectGuidanceCandidate,
   type GuidanceQualifiedSessionId,
   type GuidanceSessionCandidate,
@@ -258,12 +258,24 @@ async function rawMatch(
   selected: GuidanceSessionCandidate,
 ): Promise<TranscriptCandidate> {
   const runtime = runtimeFor(selected);
-  const raw = await discover(
-    runtime,
-    source,
-    new ClassificationCache(),
-    GUIDANCE_DISCOVERY_OPTIONS,
-  );
+  let raw: TranscriptCandidate[];
+  try {
+    raw = await discover(
+      runtime,
+      source,
+      new ClassificationCache(),
+      runtime === 'cursor'
+        ? GUIDANCE_DISCOVERY_OPTIONS
+        : {
+            ...GUIDANCE_DISCOVERY_OPTIONS,
+            unattributablePolicy: 'summarize',
+          },
+    );
+  } catch {
+    throw Object.assign(new Error('preview-incomplete'), {
+      code: 'preview-incomplete',
+    });
+  }
   const matches: TranscriptCandidate[] = [];
   for (const candidate of raw) {
     if (candidate.recordedCwd === null) continue;
@@ -271,7 +283,7 @@ async function rawMatch(
     if (recorded !== selected.recordedCwd) continue;
     const nativeId =
       selected.provider === 'codex'
-        ? await readExactCodexNativeId(candidate)
+        ? await readGuidanceCodexNativeId(candidate)
         : candidate.sessionId;
     if (nativeId === selected.nativeId) matches.push(candidate);
   }

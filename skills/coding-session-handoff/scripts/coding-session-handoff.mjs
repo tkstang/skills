@@ -2093,57 +2093,6 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
-// src/transcript/coding-session-handoff/types.ts
-var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
-  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
-  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
-});
-var DEFAULT_PREVIEW_BATCH_LIMITS = Object.freeze({
-  maxCandidates: 20,
-  maxAggregateInputBytes: 33554432,
-  maxAggregateInputRecords: 1e5,
-  deadlineMs: 1e4,
-  maxAggregateRenderedCharacters: 131072
-});
-var DEFAULT_SESSION_PREVIEW_LIMITS = Object.freeze({
-  maxRounds: 3,
-  maxCharacters: 4e3
-});
-var MAX_SESSION_PREVIEW_LIMITS = Object.freeze({
-  maxRounds: 20,
-  maxCharacters: 32 * 1024
-});
-
-// src/transcript/coding-session-handoff/discovery.ts
-var HANDOFF_DISCOVERY_OPTIONS = Object.freeze({
-  persistence: "forbid",
-  recency: "exact-all",
-  budget: Object.freeze({
-    maxEntries: 5e4,
-    maxAggregateBytes: 512 * 1024 * 1024,
-    maxMetadataBytesPerEntry: 256 * 1024,
-    deadlineMs: 3e4
-  })
-});
-async function readExactCodexNativeId(candidate) {
-  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
-    maxBytes: HANDOFF_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
-    maxRecords: 128,
-    diagnostic: () => {
-    }
-  });
-  if (bounded.incomplete) return null;
-  const meta = extractMetaFromRecords(
-    "codex",
-    bounded.records,
-    candidate.transcriptPath
-  );
-  if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
-    return null;
-  }
-  return meta.nativeSessionId;
-}
-
 // src/transcript/coding-session-handoff/guidance-discovery.ts
 import { realpath as realpath2 } from "node:fs/promises";
 var GUIDANCE_DISCOVERY_OPTIONS = Object.freeze({
@@ -2197,8 +2146,28 @@ function locatorFailureReason(error) {
 var DEFAULT_DEPENDENCIES = {
   discover,
   canonicalize: async (path) => realpath2(path).catch(() => null),
-  readCodexNativeId: readExactCodexNativeId
+  readCodexNativeId: readGuidanceCodexNativeId
 };
+async function readGuidanceCodexNativeId(candidate) {
+  let sourceIssue = false;
+  const bounded = await readMetadataRecordsBounded(candidate.transcriptPath, {
+    maxBytes: GUIDANCE_DISCOVERY_OPTIONS.budget.maxMetadataBytesPerEntry,
+    maxRecords: 128,
+    diagnostic: () => {
+      sourceIssue = true;
+    }
+  });
+  if (sourceIssue) return null;
+  const meta = extractMetaFromRecords(
+    "codex",
+    bounded.records,
+    candidate.transcriptPath
+  );
+  if (meta === null || meta.sessionId !== candidate.sessionId || meta.nativeSessionId === void 0 || meta.nativeSessionId.length === 0) {
+    return null;
+  }
+  return meta.nativeSessionId;
+}
 function surfaceForCandidate(provider2) {
   return provider2 === "cursor" ? { surface: "ambiguous", originEvidence: "store-origin-ambiguous" } : { surface: "cli", originEvidence: "cli-transcript" };
 }
@@ -2966,6 +2935,39 @@ function sanitizeEntries(entries, { runtime } = {}) {
   });
 }
 
+// src/transcript/coding-session-handoff/types.ts
+var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
+  codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+  claude: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
+});
+var DEFAULT_PREVIEW_BATCH_LIMITS = Object.freeze({
+  maxCandidates: 20,
+  maxAggregateInputBytes: 33554432,
+  maxAggregateInputRecords: 1e5,
+  deadlineMs: 1e4,
+  maxAggregateRenderedCharacters: 131072
+});
+var DEFAULT_SESSION_PREVIEW_LIMITS = Object.freeze({
+  maxRounds: 3,
+  maxCharacters: 4e3
+});
+var MAX_SESSION_PREVIEW_LIMITS = Object.freeze({
+  maxRounds: 20,
+  maxCharacters: 32 * 1024
+});
+
+// src/transcript/coding-session-handoff/discovery.ts
+var HANDOFF_DISCOVERY_OPTIONS = Object.freeze({
+  persistence: "forbid",
+  recency: "exact-all",
+  budget: Object.freeze({
+    maxEntries: 5e4,
+    maxAggregateBytes: 512 * 1024 * 1024,
+    maxMetadataBytesPerEntry: 256 * 1024,
+    deadlineMs: 3e4
+  })
+});
+
 // src/transcript/coding-session-handoff/preview.ts
 var PER_TRANSCRIPT_MAX_BYTES = 2 * 1024 * 1024;
 var DEFAULT_DEPENDENCIES4 = {
@@ -3146,18 +3148,28 @@ function providerForKey(key) {
 }
 async function rawMatch(source, selected) {
   const runtime = runtimeFor(selected);
-  const raw = await discover(
-    runtime,
-    source,
-    new ClassificationCache(),
-    GUIDANCE_DISCOVERY_OPTIONS
-  );
+  let raw;
+  try {
+    raw = await discover(
+      runtime,
+      source,
+      new ClassificationCache(),
+      runtime === "cursor" ? GUIDANCE_DISCOVERY_OPTIONS : {
+        ...GUIDANCE_DISCOVERY_OPTIONS,
+        unattributablePolicy: "summarize"
+      }
+    );
+  } catch {
+    throw Object.assign(new Error("preview-incomplete"), {
+      code: "preview-incomplete"
+    });
+  }
   const matches = [];
   for (const candidate of raw) {
     if (candidate.recordedCwd === null) continue;
     const recorded = await realpath3(candidate.recordedCwd).catch(() => null);
     if (recorded !== selected.recordedCwd) continue;
-    const nativeId = selected.provider === "codex" ? await readExactCodexNativeId(candidate) : candidate.sessionId;
+    const nativeId = selected.provider === "codex" ? await readGuidanceCodexNativeId(candidate) : candidate.sessionId;
     if (nativeId === selected.nativeId) matches.push(candidate);
   }
   if (matches.length !== 1) {
