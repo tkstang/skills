@@ -1088,6 +1088,14 @@ reported 1,907 passing tests and one skipped plus all repository gates. Root rep
 106 focused tests, generated parity, two-skill version validation against the final
 base, diff hygiene, exact path/commit checks, and clean-worktree verification.
 
+**Final re-review dispatch:** request `handoff-final-rereview-20260913-01`, accepted
+fresh native handle `/root/handoff_final_rereview`, exact target
+`oat-reviewer-gpt-5-6-sol-max`. Nominal scope `final`; automatic narrowed range
+`3fdfc2a17b0b94171871a5bf6460beac1a333bea..20e86a100832b114a8aa3a20469b849de7ec7f45`
+inherits prior final coverage and requires explicit I1 disposition. Review cycle 2 of
+3; only the named active review artifact is writable.
+**Dispatch:** scope=final-rereview-1 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:max dispatch_policy=frontier dispatch_ceiling=max target=oat-reviewer-gpt-5-6-sol-max
+
 ### Task p03-t19: (review) Reject noncanonical UUID identity evidence
 
 **Status:** completed
