@@ -51,17 +51,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md
   handoff: 'Run oat-project-review-receive for .oat/projects/synced/coding-session-handoff/reviews/final-review-2026-09-13T134826Z.md before marking the passing gate consumed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
+  receive_state: intent_persisted
+  receive_correlation: ac42d8a6-6a7c-4589-8b3e-ad82bbb511a8
+  receive_source_artifact: reviews/final-review-2026-09-13T134826Z.md
   receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_event_identity: 'final|code|final-review-2026-09-13T134826Z.md|40318b14-539a-49c6-ad8b-167fac333457'
+  receive_pre_head: b487ef915063f627d5f0e268e1935b27a57387f0
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-13T13:50:00Z'
+  updated_at: '2026-09-13T13:52:00Z'
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -124,7 +124,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: https://github.com/tkstang/skills/pull/70 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-08-31T00:53:14.708Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-13T13:50:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-13T13:52:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
