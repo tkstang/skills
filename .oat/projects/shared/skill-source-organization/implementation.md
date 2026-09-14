@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
-oat_ready_for: pr_progress
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-09-14
-oat_current_task_id: p04-publication
+oat_current_task_id: p05-t01
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-P04 and the 13-task public milestone are complete locally. The final independent whole-delta review passed with zero findings. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+All 14 planned implementation tasks are complete. Public PR #79 merged, and p05 opened the linked private personal-skills ownership-cutover PR with its checks passing. Formal p05 and final OAT reviews, the private PR merge, live-provider checks, and active-install changes remain pending.
 
 ## Progress Overview
 
@@ -20,10 +20,10 @@ P04 and the 13-task public milestone are complete locally. The final independent
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | complete; review passed | 2 | 2 |
-| p05 Post-merge private cutover | pending | 1 | 0 |
-| Total | in progress | 14 | 13 |
+| p05 Post-merge private cutover | implementation complete; review pending | 1 | 1 |
+| Total | implementation complete; review pending | 14 | 14 |
 
-p01–p04 are the public milestone. p05 intentionally follows its merge; use the progress-PR boundary in plan.md rather than requiring all tasks to complete before that public PR can merge.
+p01–p04 formed the merged public milestone. P05 completed the planned private-PR boundary; merging that PR or changing active installations remains outside this task.
 
 ## Orchestration Runs
 
@@ -210,11 +210,27 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery commit: 08db238e13cc614f991392e79ec2ad7739662472
 - Verification: `git show --check`, `git diff --check`, 40 isolated packaging tests, 12-skill version gate, type-check, build check, validation, 1,987 full-suite tests with one skip, smoke, and internal flags passed before and after the candidate commit; root repeated the complete gate successfully before settlement
 - Reason: removed the single trailing blank line from `validation.md`; recovery attempt 2 was reserved at `ff615c3fdd8cbba0b1c3a2532754b0a32b1c84ad` before editing
+
+### Run 5: Phase p05
+
+- Status: implementation complete; formal p05 and final OAT reviews pending
+- Public prerequisite: PR #79 merged at squash commit `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; its rendered standalone payloads under `skills/complexity-review` and `skills/session-handoff` are publicly available
+- Private execution: visible managed worktree `/Users/tstang/.codex/worktrees/4c98/personal-skills`, branch `chore/p05-public-skill-owner-cutover`, commit `8f4624114347f5b7d91a5db6bd160a0769ff1cd5`
+- Private PR: [tkstang/personal-skills#32](https://github.com/tkstang/personal-skills/pull/32) is open, non-draft, mergeable clean, and its CI `verify` check passed; it was not merged
+- Ownership cutover: removed the private authored `src/skills/complexity-review` and `src/skills/session-handoff` owners. The private repository's `src/skills` paths are authored templates; the supported public consumption boundary is the rendered standalone payload under `skills/`
+- Retained distribution: enabled byte-exact external snapshots for public `skills/complexity-review` version `1.0.2` and `skills/session-handoff` version `1.1.2`, both pinned to public commit `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; regenerated the personal plugin and advanced its bundle version from `0.9.0` to `0.10.0`
+- Verification: `pnpm package`, `pnpm check`, `pnpm check:versions --base-ref origin/main`, type-check, lint, format check, 322 passed tests with one intentional skip, 2/2 installed-runtime tests, both external-source freshness checks, temporary install inventory and byte parity, PJM doctor, and diff checks passed
+- Install boundary: active user-install fingerprints were unchanged; no global sync, install, or uninstall ran
+- Independent task review: the visible private task reported no issues. This is implementation evidence only; it does not populate the formal p05 or final OAT review rows
+- Evidence: private PR file `.oat/projects/shared/public-skill-owner-cutover/validation.md`
+- Nested dispatches: none
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
 
-On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes; fix iteration 2 completed its remaining active-reference and validation-basis findings. Cycle 3 passed with zero findings, so the local public milestone is ready for the authorization-bound progress-PR step.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes; fix iteration 2 completed its remaining active-reference and validation-basis findings. Cycle 3 passed with zero findings, and public PR #79 subsequently merged.
+
+P05 then used the personal-skills repository's supported external-source lifecycle to remove its two editable owners while retaining their generated personal-plugin distribution. The linked private PR #32 is open with CI passing; its merge and any active-install transition remain pending separate authorization.
 
 ## Deviations from Plan / Design
 
@@ -240,9 +256,11 @@ At the p04 implementation head, 135 test files and 1,987 tests pass with one fil
 
 After p04 review-fix iterations 1 and 2, 50 focused manifest/docs/generated-output tests pass. The full suite passes 135 files and 1,988 tests with one file/test skipped, plus the 12-skill version gate, type-check, build check, validation, smoke, internal flags, range whitespace check, and 38-route documentation build.
 
+For p05, private-repository packaging, complete checks, version comparison against `origin/main`, type-check, lint, formatting, 322 passing tests with one intentional skip, 2/2 installed-runtime tests, both external-source freshness checks, temporary install inventory and byte parity, PJM doctor, and diff checks passed. Active-install fingerprints remained unchanged.
+
 ## Final Summary (for PR/docs)
 
-Nothing shipped. The p01–p04 public milestone and both bounded review-fix iterations are implemented and locally verified, subject to final root review disposition. Publication, merge, live readiness evidence, user-level installation, and the private p05 ownership cutover remain pending.
+The public p01–p04 milestone shipped to `main` through PR #79. All 14 planned tasks are implemented, and private PR #32 carries the p05 owner cutover with passing checks. Formal p05 and final OAT reviews, the private PR merge, live readiness evidence, and active-install reconciliation remain pending.
 
 ## References
 

@@ -1,20 +1,19 @@
 ---
 oat_status: complete_with_concerns
-oat_phase: p04
+oat_phase: p05
 oat_last_updated: 2026-09-14
 oat_generated: false
 ---
 
-# Validation: Public Skill-Source Organization Milestone
+# Validation: Completed Skill-Source Organization Implementation
 
-This record covers the public implementation range from `origin/main` at
-`20bb893ef6bcdd30704c681e12c60702b7c89bb8` through review-fix iteration 2 in
-the commit containing this file. Its final evidence was gathered from the
-bounded diff based on reconciled review receipt
-`8e3bd863dea4ead0e780181da10f1529a7b0f2f2` and repeated against the committed
-head before handoff. Publication, merge, live provider validation, user-level
-installation, and the private p05 ownership cutover remain outside this local
-milestone.
+This record covers the completed 14-task implementation. The public p01–p04
+milestone merged through PR #79 at squash commit
+`8767bce4819a2cae1a9f257de650a5ed0ae0afc1`. P05 opened the linked private
+personal-skills PR #32 at commit
+`8f4624114347f5b7d91a5db6bd160a0769ff1cd5`. The private PR merge, active
+installation changes, fresh provider discovery, and live invocation remain
+pending or unverified.
 
 ## Static Verification
 
@@ -67,10 +66,29 @@ plugin payloads without adding a second packaging test framework.
 
 No live or paid provider gate ran. Static manifests and isolated installations
 do not prove marketplace publication, fresh provider discovery, permissions,
-or production readiness for the session plugin. The public progress PR is not
-published and merge approval has not been requested. User-level installs were
-not changed. The separate private p05 cutover remains blocked on the public
-merge and its own authorization.
+or production readiness for the session plugin. Public PR #79 is merged. The
+private ownership-cutover PR #32 remains open and unmerged. User-level install
+fingerprints were unchanged, and no global sync, install, or uninstall ran.
+
+## Post-Merge Private Cutover Evidence
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Public replacement available | pass | PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; generated standalone payloads are publicly readable under `skills/` |
+| Private authored owners removed | pass | PR #32 removes `src/skills/complexity-review` and `src/skills/session-handoff` at `8f4624114347f5b7d91a5db6bd160a0769ff1cd5` |
+| Supported source boundary | pass | private external-source tooling consumes rendered public `skills/complexity-review` and `skills/session-handoff`; public `src/skills` remains the authored-template boundary |
+| Source and version provenance | pass | byte-exact snapshots pin public commit `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`, `complexity-review` `1.0.2`, and `session-handoff` `1.1.2` |
+| Private generated distribution | pass | personal plugin regenerated and bundle version advanced from `0.9.0` to `0.10.0` |
+| Private repository gates | pass | package, complete check, version comparison, type-check, lint, format, 322/323 tests with one intentional skip, 2/2 installed-runtime tests, external freshness, temporary install inventory/byte parity, PJM doctor, and diff checks |
+| Active installations | unchanged | pre/post fingerprints match; no active install mutation ran |
+| Private PR boundary | pending | [personal-skills PR #32](https://github.com/tkstang/personal-skills/pull/32) is open, non-draft, mergeable clean, and CI `verify` passed; it was not merged |
+
+The generated-subtree correction is deliberate: public `src/skills` contains
+authored templates, while public `skills/` is the supported rendered standalone
+payload for external consumption. The private PR uses the existing external
+source lifecycle instead of introducing another editable owner. Its detailed
+evidence is recorded in
+`.oat/projects/shared/public-skill-owner-cutover/validation.md` on that branch.
 
 ## Complexity Review
 
@@ -97,9 +115,11 @@ No removable machinery or deferred simplification was identified.
 
 ## Review and Publication Disposition
 
-Independent review cycles 1 and 2 identified the bounded fixes represented by
-this record. Cycle 3 reviewed `9d9c1e8607941999b0baeed9e8d8d7749a96730f`
-and passed with zero Critical, Important, Medium, or Minor findings. The local
-public milestone is ready for the authorization-bound progress-PR step. PR
-creation, push, merge, live or paid provider validation, global installation,
-private-repository access, and p05 were not performed.
+Independent public review cycles 1 and 2 identified the bounded fixes
+represented by this record. Cycle 3 reviewed
+`9d9c1e8607941999b0baeed9e8d8d7749a96730f` and passed with zero Critical,
+Important, Medium, or Minor findings. The visible private p05 task also reported
+no issues after its checks. That task review is implementation evidence, not a
+formal p05 or final OAT review; those review rows remain pending for the root
+workflow. Private PR merge, live or paid provider validation, and active
+installation remain outside the completed implementation boundary.

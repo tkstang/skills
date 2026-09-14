@@ -22,7 +22,7 @@ oat_template: false
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** Implementation-ready. The user accepted the design, activated this project after its predecessor merged, and approved the bounded review cleanups without another gate run. All findings are dispositioned below; the prior Fable threshold pass remains evidence for its original basis, not a fresh review of these edits. Implementation has not started; Sol will pick it up in a separate session.
+**Status:** All 14 planned implementation tasks are complete. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 opened the linked private ownership-cutover PR without merging it or changing active installs. The p05 and final review rows remain pending for the root workflow.
 
 ## Execution Boundaries
 
@@ -374,10 +374,10 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | p02 Source/tooling migration | 4 | 4 |
 | p03 Products/promotions | 4 | 4 |
 | p04 Public documentation/verification | 2 | 2 |
-| p05 Post-merge private cutover | 1 | 0 |
-| Total | 14 | 13 |
+| p05 Post-merge private cutover | 1 | 1 |
+| Total | 14 | 14 |
 
-p01–p04 comprise the 13-task public milestone; p05 is one post-merge cross-repo task. Do not mark all 14 complete when the public PR is ready.
+p01–p04 comprise the merged 13-task public milestone. P05 completed its planned acceptance boundary by opening the linked private ownership-cutover PR; that PR's merge and any active-install transition remain pending separate authorization.
 
 ### P04 Review Cycle 1 Fix Register: 2026-09-14
 

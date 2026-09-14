@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-publication
-oat_last_commit: 9d9c1e8607941999b0baeed9e8d8d7749a96730f
+oat_current_task: p05-t01
+oat_last_commit: 8767bce4819a2cae1a9f257de650a5ed0ae0afc1
 oat_blockers: []
 associated_issues:
   - type: project
@@ -10,10 +10,11 @@ associated_issues:
 oat_kind: implementation
 oat_hill_checkpoints:
   - p05
-oat_hill_completed: []
+oat_hill_completed:
+  - p05
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: pr_open
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -37,23 +38,23 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_docs_updated: complete
-oat_pr_status: open
+oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/skills/pull/79
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-14T03:23:24Z"
+oat_project_state_updated: "2026-09-14T13:11:32Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** P04 and the 13-task public milestone are published in progress PR #79. The final independent review passed with zero findings. Merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** All 14 planned implementation tasks are complete. Public PR #79 merged, and p05 opened private PR #32 with CI passing. Formal p05 and final OAT reviews, the private PR merge, live-provider checks, and active-install changes remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-14
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures, and fix iteration 2 completed the remaining reference sweep plus current validation-basis attribution. Cycle 3 passed with zero findings.
+Phase p05 completed its planned implementation boundary after public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`. The visible personal-skills task removed both private authored owners, retained the personal distribution through pinned public rendered payloads, and opened private PR #32 at commit `8f4624114347f5b7d91a5db6bd160a0769ff1cd5`. Its checks and independent task review passed. The configured HiLL checkpoint is complete; formal p05 and final OAT reviews remain root-owned.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -63,8 +64,8 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 14 tasks across five sequential phases, implementation-ready with complete review disposition and explicit no-rerun acceptance for the bounded edits.
-- [Implementation](implementation.md): 13/14 tasks implemented; p04 independent review passed.
-- [Validation](validation.md): public-milestone static, isolated-artifact, behavioral, live-evidence, and complexity-review record.
+- [Implementation](implementation.md): 14/14 tasks implemented; formal p05 and final OAT reviews pending.
+- [Validation](validation.md): completed public and private-PR implementation evidence with live/install limitations preserved.
 
 ## Progress
 
@@ -78,6 +79,9 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Completed p02's standalone and consensus owner moves, metadata.version authority switch, backlog closure, and tooling/bridge cleanup. The final p02 review passed with zero findings.
 - Completed p03's product names, plugin groupings, source promotions, and prerequisite guards. The final p03 review passed with zero findings.
 - Completed p04's maintained documentation and local public-milestone verification. After review-fix iterations 1 and 2, the full suite passes 1,988 tests with one skip; 50 focused tests and the version, type, generated-output, validation, smoke, internal-flag, diff, and 38-route documentation-build checks pass.
+- Merged public PR #79 at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`, satisfying the p05 public-source prerequisite.
+- Completed p05 in the visible personal-skills worktree and opened [private PR #32](https://github.com/tkstang/personal-skills/pull/32). Private commit `8f4624114347f5b7d91a5db6bd160a0769ff1cd5` removes both editable owners, consumes byte-exact public rendered payloads through existing external-source tooling, regenerates the personal plugin at `0.10.0`, and passes its checks.
+- Verified active-install fingerprints stayed unchanged. Private PR merge, provider discovery, live invocation, and installation reconciliation remain pending.
 
 ## Activation and Execution Prerequisites
 
@@ -85,13 +89,13 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 2. Satisfied: user activated this follow-up from the merged baseline.
 3. Refresh the dated source/ownership inventory in p01-t01; preserve the user's accepted naming, grouping and scope.
 4. Satisfied: High dispatch policy resolved with a complete ladder; self-review and configured plan gate ran; all findings are dispositioned. The user accepted bounded plan edits without repeating the gate. Implementation kickoff confirms HiLL checkpoints; no optional phase gate was silently enabled.
-5. Coordinate authority for the separate personal-skills ownership cutover and any later live release verification.
+5. Satisfied: the user authorized the separate personal-skills ownership cutover through an open PR. Merging it, changing active installs, and any live release verification remain separate boundaries.
 
-The remaining inventory refresh and cross-repo authorization checks are execution sequencing conditions, not outstanding planning-review blockers. p05's public-merge prerequisite remains intentionally later than the public implementation milestone.
+All implementation sequencing prerequisites are satisfied. Formal review and project-completion lifecycle steps remain pending.
 
 ## Next Milestone
 
-Review progress PR #79 and merge only with separate authorization. Do not begin p05 before the public merge and its separate authorization.
+Run the formal p05 and final OAT reviews, then continue the already authorized project-completion and archive workflow. Do not merge private PR #32 or change active installations without separate authorization.
 
 ## Planning Settings and Review Status
 
