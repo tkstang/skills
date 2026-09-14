@@ -8,7 +8,7 @@
 // directory — so every invocation here runs against a scratch git repo that
 // also has its own `tools/git-hooks/` copy, with `cwd` set to that scratch
 // repo. Running it with cwd pointed at the real repo (even with GIT_DIR
-// scrubbed) would symlink/unlink hooks in the *real* .git/hooks — the same
+// scrubbed) would write/unlink hooks in the *real* .git/hooks — the same
 // class of mistake the prior-incident rule in tests/helpers/git-env.mjs
 // guards against. Every spawned `git` call also goes through that scrub.
 import { execFile as execFileCallback, spawn } from 'node:child_process';
@@ -21,8 +21,8 @@ import {
   mkdtemp,
   readdir,
   readFile,
-  readlink,
   rm,
+  symlink as fsSymlink,
   writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
@@ -175,7 +175,7 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     }
   });
 
-  it('enable-all symlinks every hook into the resolved hooks dir', async () => {
+  it('enable-all installs executable dispatchers in the resolved hooks dir', async () => {
     const root = await makeScratchHooksRepo();
     const gitHooksDir = gitHooksDirFor(root);
 
@@ -185,16 +185,11 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     for (const hook of hookNames) {
       const hookPath = path.join(gitHooksDir, hook);
       const linkStat = await lstat(hookPath);
-      expect(linkStat.isSymbolicLink(), `${hook} should be a symlink`).toBe(
-        true,
-      );
-
-      const target = await readlink(hookPath);
-      const expectedTarget = path.relative(
-        gitHooksDir,
-        path.join(root, 'tools/git-hooks', hook),
-      );
-      expect(target).toBe(expectedTarget);
+      expect(linkStat.isFile(), `${hook} should be a regular file`).toBe(true);
+      expect(linkStat.mode & 0o100, `${hook} should be executable`).not.toBe(0);
+      const dispatcher = await readFile(hookPath, 'utf8');
+      expect(dispatcher).toContain(`hook_name='${hook}'`);
+      expect(dispatcher).toContain('git rev-parse --show-toplevel');
     }
 
     // enable-all round trip: status now reports every hook Enabled.
@@ -205,6 +200,83 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
 
     // .disabled-hooks must not exist after a clean enable-all.
     expect(existsSync(path.join(gitHooksDir, '.disabled-hooks'))).toBe(false);
+  });
+
+  it('dispatches a linked-worktree hook to that worktree tracked body', async () => {
+    const root = await makeScratchHooksRepo();
+    await execFile('git', ['config', 'user.email', 'test@example.com'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    await execFile('git', ['config', 'user.name', 'Test'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    await execFile('git', ['add', '-A'], { cwd: root, env: gitEnv() });
+    await execFile('git', ['commit', '-qm', 'base'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+
+    const linkedRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'git-hooks-linked-'),
+    );
+    await rm(linkedRoot, { recursive: true, force: true });
+    cleanupDirs.push(linkedRoot);
+    await execFile('git', ['worktree', 'add', '-qb', 'linked', linkedRoot], {
+      cwd: root,
+      env: gitEnv(),
+    });
+
+    const primaryHook = path.join(root, 'tools/git-hooks/commit-msg');
+    const linkedHook = path.join(linkedRoot, 'tools/git-hooks/commit-msg');
+    await writeFile(
+      primaryHook,
+      '#!/bin/sh\nprintf "primary\\n" > "$HOOK_MARKER"\n',
+      { mode: 0o755 },
+    );
+    await writeFile(
+      linkedHook,
+      '#!/bin/sh\nprintf "linked\\n" > "$HOOK_MARKER"\n',
+      { mode: 0o755 },
+    );
+
+    const enabled = await runManageHooks(root, ['enable', 'commit-msg']);
+    expect(enabled.code, enabled.stderr).toBe(0);
+
+    const marker = path.join(linkedRoot, 'hook-marker.txt');
+    await writeFile(path.join(linkedRoot, 'change.txt'), 'linked worktree\n');
+    await execFile('git', ['add', 'change.txt'], {
+      cwd: linkedRoot,
+      env: gitEnv(),
+    });
+    await execFile('git', ['commit', '-qm', 'linked change'], {
+      cwd: linkedRoot,
+      env: gitEnv({ HOOK_MARKER: marker }),
+    });
+
+    expect(await readFile(marker, 'utf8')).toBe('linked\n');
+  });
+
+  it('setup replaces legacy checkout-bound managed symlinks', async () => {
+    const root = await makeScratchHooksRepo();
+    const gitHooksDir = gitHooksDirFor(root);
+    await mkdir(gitHooksDir, { recursive: true });
+
+    for (const hook of hookNames) {
+      const hookPath = path.join(gitHooksDir, hook);
+      const sourcePath = path.join(root, 'tools/git-hooks', hook);
+      await fsSymlink(path.relative(gitHooksDir, sourcePath), hookPath);
+    }
+
+    const result = await runManageHooks(root, ['setup']);
+    expect(result.code, result.stderr).toBe(0);
+
+    for (const hook of hookNames) {
+      const hookPath = path.join(gitHooksDir, hook);
+      expect((await lstat(hookPath)).isFile()).toBe(true);
+      expect(await readFile(hookPath, 'utf8')).toContain(`hook_name='${hook}'`);
+    }
   });
 
   it('disable-all removes symlinks and records intentional disablement', async () => {
@@ -313,9 +385,7 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     // The scratch repo's own .git/hooks must be the actual mutation target.
     for (const hook of hookNames) {
       const linkStat = await lstat(path.join(gitHooksDir, hook));
-      expect(linkStat.isSymbolicLink(), `${hook} should be a symlink`).toBe(
-        true,
-      );
+      expect(linkStat.isFile(), `${hook} should be a regular file`).toBe(true);
     }
   });
 });
