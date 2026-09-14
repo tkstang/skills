@@ -168,6 +168,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Dispatch: `Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
 - Task commits: p04-t01 `d989a27c5714e3fda918b29a6d56474a4fcb4e00`; p04-t02 is the commit containing this record
 - Recovery: p04-t01 required one successful phase-standing composition recovery at `9790c461a9ecf9e75060270ddb6c4870dc4de07e`; root validated the immutable history, exact target, canonical event, focused checks, repository validation, and 38-route documentation build, then settled the marker with usage preserved at 1/10
+- Recovery continuation: p04-t02 required successful phase-standing attempt 2 at `08db238e13cc614f991392e79ec2ad7739662472`; root validated the immutable reservation, exact target, one-line scope, canonical event, and complete p04 gate, then settled the marker with usage preserved at 2/10
 - Follow-up p04-f01: `6b5166596a51e29c7995e41d7ca46ef16ef36d10` corrected three renamed-guide references, bumped `session-fork-to-destination` to `0.2.1`, and regenerated its standalone and session-plugin skill manifests
 - Verification: 40/40 isolated packaging tests, 21/21 focused fork-guidance tests, 1,987 complete-suite tests with one skip, 12 changed skill versions, type-check, build check, validation, smoke, internal flags, and diff checks passed
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
@@ -189,6 +190,21 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery commit: 9790c461a9ecf9e75060270ddb6c4870dc4de07e
 - Verification: 56 focused documentation tests, repository validation, formatting, and the 38-route documentation build passed before and after the candidate commit
 - Reason: rename entries had already been staged when the missing old path stopped explicit staging; the remaining bounded documentation delta was committed append-only
+
+### Recovery Event p04-t02-whitespace-02
+
+- Phase/task: p04 / p04-t02
+- Original request: 5df39234-95ce-4ba8-a894-a3ce2d4c5f15
+- Original commit: 04a93a80c88bbda88b5bd1216cc96cfb90a53162
+- Defect class: lint
+- Discovered by: `git diff --cached --check`
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 08db238e13cc614f991392e79ec2ad7739662472
+- Verification: `git show --check`, `git diff --check`, 40 isolated packaging tests, 12-skill version gate, type-check, build check, validation, 1,987 full-suite tests with one skip, smoke, and internal flags passed before and after the candidate commit; root repeated the complete gate successfully before settlement
+- Reason: removed the single trailing blank line from `validation.md`; recovery attempt 2 was reserved at `ff615c3fdd8cbba0b1c3a2532754b0a32b1c84ad` before editing
 <!-- orchestration-runs-end -->
 
 ## Implementation Log

@@ -35,17 +35,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p04:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: p04-t02-whitespace-02
-        original_request: 5df39234-95ce-4ba8-a894-a3ce2d4c5f15
-        original_task: p04-t02
-        original_commit: 04a93a80c88bbda88b5bd1216cc96cfb90a53162
-        discovered_by: "git diff --cached --check: validation.md:95 new blank line at EOF"
-        exact_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 4ed9878092724b21c5b24a99b4adfca235d92894
-        status: completed
-        verification: "git diff --check, 40 isolated packaging tests, 12-skill version gate, type-check, build check, validation, 1,987 full-suite tests with one skip, smoke, and internal flags passed before the candidate commit"
+      pending_attempt: null
 oat_docs_updated: complete
 oat_pr_status: null
 oat_pr_url: null
@@ -63,7 +53,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. One append-only p04-t01 recovery completed the bounded documentation delta, and p04-f01 corrected three stale renamed-guide test references before the planned verification commit. Independent review remains the next lifecycle step.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Independent review remains the next lifecycle step.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
