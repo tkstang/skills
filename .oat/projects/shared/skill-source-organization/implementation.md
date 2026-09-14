@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-09-14
-oat_current_task_id: p05-t02
+oat_current_task_id: p06-t01
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-All 14 original implementation tasks are complete. Formal p05 and final review added three bounded closeout tasks; 14 of 17 total tasks are complete. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
+All 14 original implementation tasks and the p05 lifecycle-pointer fix are complete. Two final-review fixes remain; 15 of 17 total tasks are complete. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Progress Overview
 
@@ -20,9 +20,9 @@ All 14 original implementation tasks are complete. Formal p05 and final review a
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | complete; review passed | 2 | 2 |
-| p05 Post-merge private cutover | review fix pending | 2 | 1 |
+| p05 Post-merge private cutover | complete; re-review pending | 2 | 2 |
 | p06 Final review fixes | pending | 2 | 0 |
-| Total | review fixes pending | 17 | 14 |
+| Total | review fixes pending | 17 | 15 |
 
 p01–p04 formed the merged public milestone. P05 completed the planned private-PR boundary; merging that PR or changing active installations remains outside this task.
 
@@ -234,7 +234,7 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 
 **Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
 
-**New task:** `p05-t02` clears the completed-task lifecycle pointers and reconciles closeout state. The finding is accepted because stale current-task values can misroute lifecycle tooling.
+**New task:** `p05-t02` clears the completed-task lifecycle pointers and reconciles closeout state. The finding is accepted because stale current-task values can misroute lifecycle tooling. The fix is complete; the pointers now identify p06-t01 as the next incomplete task and will become `null` when p06 finishes.
 
 ### Review Received: final
 

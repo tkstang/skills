@@ -22,7 +22,7 @@ oat_template: false
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** The 14 original implementation tasks are complete. Formal p05 and final review added three bounded closeout tasks; 14 of 17 total tasks are complete. Public PR #79 remains merged, and private PR #32 remains open and unmerged with active installs unchanged.
+**Status:** The 14 original implementation tasks and p05's lifecycle-pointer fix are complete. Two final-review fixes remain; 15 of 17 total tasks are complete. Public PR #79 remains merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Execution Boundaries
 
@@ -406,9 +406,9 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | p02 Source/tooling migration | 4 | 4 |
 | p03 Products/promotions | 4 | 4 |
 | p04 Public documentation/verification | 2 | 2 |
-| p05 Post-merge private cutover | 2 | 1 |
+| p05 Post-merge private cutover | 2 | 2 |
 | p06 Final review fixes | 2 | 0 |
-| Total | 17 | 14 |
+| Total | 17 | 15 |
 
 p01–p04 comprise the merged 13-task public milestone. P05 completed its planned acceptance boundary by opening the linked private ownership-cutover PR; that PR's merge and any active-install transition remain pending separate authorization.
 
