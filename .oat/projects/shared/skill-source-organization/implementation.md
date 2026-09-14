@@ -167,7 +167,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Classification: hard reasoning at preferred high effort for the public documentation, whole-migration verification, and complexity review
 - Dispatch: `Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
 - Task commits: p04-t01 `d989a27c5714e3fda918b29a6d56474a4fcb4e00`; p04-t02 is the commit containing this record
-- Recovery: p04-t01 required one successful phase-standing composition recovery at `9790c461a9ecf9e75060270ddb6c4870dc4de07e`; its completed marker remains pending root reconciliation
+- Recovery: p04-t01 required one successful phase-standing composition recovery at `9790c461a9ecf9e75060270ddb6c4870dc4de07e`; root validated the immutable history, exact target, canonical event, focused checks, repository validation, and 38-route documentation build, then settled the marker with usage preserved at 1/10
 - Follow-up p04-f01: `6b5166596a51e29c7995e41d7ca46ef16ef36d10` corrected three renamed-guide references, bumped `session-fork-to-destination` to `0.2.1`, and regenerated its standalone and session-plugin skill manifests
 - Verification: 40/40 isolated packaging tests, 21/21 focused fork-guidance tests, 1,987 complete-suite tests with one skip, 12 changed skill versions, type-check, build check, validation, smoke, internal flags, and diff checks passed
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
