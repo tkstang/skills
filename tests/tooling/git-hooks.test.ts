@@ -258,9 +258,36 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     expect(await readFile(marker, 'utf8')).toBe('linked\n');
   });
 
-  it('setup replaces legacy checkout-bound managed symlinks', async () => {
+  it('linked setup replaces a legacy symlink bound to the primary checkout', async () => {
     const root = await makeScratchHooksRepo();
     const gitHooksDir = gitHooksDirFor(root);
+    await execFile('git', ['config', 'user.email', 'test@example.com'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    await execFile('git', ['config', 'user.name', 'Test'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    await execFile('git', ['add', '-A'], { cwd: root, env: gitEnv() });
+    await execFile('git', ['commit', '-qm', 'base'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+
+    const linkedRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'git-hooks-setup-linked-'),
+    );
+    await rm(linkedRoot, { recursive: true, force: true });
+    cleanupDirs.push(linkedRoot);
+    await execFile(
+      'git',
+      ['worktree', 'add', '-qb', 'setup-linked', linkedRoot],
+      {
+        cwd: root,
+        env: gitEnv(),
+      },
+    );
     await mkdir(gitHooksDir, { recursive: true });
 
     for (const hook of hookNames) {
@@ -269,7 +296,7 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
       await fsSymlink(path.relative(gitHooksDir, sourcePath), hookPath);
     }
 
-    const result = await runManageHooks(root, ['setup']);
+    const result = await runManageHooks(linkedRoot, ['setup']);
     expect(result.code, result.stderr).toBe(0);
 
     for (const hook of hookNames) {
@@ -277,6 +304,18 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
       expect((await lstat(hookPath)).isFile()).toBe(true);
       expect(await readFile(hookPath, 'utf8')).toContain(`hook_name='${hook}'`);
     }
+  });
+
+  it('setup preserves a custom executable regular hook', async () => {
+    const root = await makeScratchHooksRepo();
+    const hookPath = path.join(gitHooksDirFor(root), 'commit-msg');
+    const customBody = '#!/bin/sh\nexit 0\n';
+    await mkdir(path.dirname(hookPath), { recursive: true });
+    await writeFile(hookPath, customBody, { mode: 0o755 });
+
+    const result = await runManageHooks(root, ['setup']);
+    expect(result.code, result.stderr).toBe(0);
+    expect(await readFile(hookPath, 'utf8')).toBe(customBody);
   });
 
   it('disable-all removes symlinks and records intentional disablement', async () => {

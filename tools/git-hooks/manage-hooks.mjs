@@ -119,8 +119,10 @@ function isLegacyManagedHook(hookName) {
       return false;
     }
     const target = fs.readlinkSync(hookPath);
+    const targetParts = path.resolve(gitHooksDir, target).split(path.sep);
     return (
-      path.resolve(gitHooksDir, target) === path.join(hooksSourceDir, hookName)
+      targetParts.slice(-3).join(path.sep) ===
+      path.join('tools', 'git-hooks', hookName)
     );
   } catch {
     return false;
