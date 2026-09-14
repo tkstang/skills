@@ -34,8 +34,17 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p04:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: p04-t02-whitespace-02
+        original_request: 5df39234-95ce-4ba8-a894-a3ce2d4c5f15
+        original_task: p04-t02
+        original_commit: 04a93a80c88bbda88b5bd1216cc96cfb90a53162
+        discovered_by: "git diff --cached --check: validation.md:95 new blank line at EOF"
+        exact_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 4ed9878092724b21c5b24a99b4adfca235d92894
+        status: pending
 oat_docs_updated: complete
 oat_pr_status: null
 oat_pr_url: null
