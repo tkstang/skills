@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
-oat_ready_for: phase_review
+oat_ready_for: pr_progress
 oat_blockers: []
-oat_last_updated: 2026-09-13
-oat_current_task_id: p04-t02
+oat_last_updated: 2026-09-14
+oat_current_task_id: p04-publication
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-P04 review-fix iteration 2, the final automatic fix iteration, is complete locally and ready for root-owned final review disposition. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+P04 and the 13-task public milestone are complete locally. The final independent whole-delta review passed with zero findings. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 
 ## Progress Overview
 
@@ -19,7 +19,7 @@ P04 review-fix iteration 2, the final automatic fix iteration, is complete local
 | p01 Packaging foundation | complete | 3 | 3 |
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
-| p04 Public docs/verification | implementation complete; review pending | 2 | 2 |
+| p04 Public docs/verification | complete; review passed | 2 | 2 |
 | p05 Post-merge private cutover | pending | 1 | 0 |
 | Total | in progress | 14 | 13 |
 
@@ -159,7 +159,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ### Run 4: Phase p04
 
-- Status: implementation complete; independent phase review pending
+- Status: complete; final independent review passed
 - Request: `5df39234-95ce-4ba8-a894-a3ce2d4c5f15`
 - Launch status: accepted
 - Phase base: `1ab02c9f2631172935b7b0f75926704ff793d5c7`
@@ -174,9 +174,10 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
 - Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
 - Review cycle 1: `reviews/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
-- Fix iteration 1: the commit containing this record updates active maintenance/release paths and nine-skill consensus descriptions, fixes custom-root declared-output checking, and adds clean/stale/missing/orphan fixture coverage; 50 focused tests and the complete p04 gate passed
+- Fix iteration 1: `fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a` updates active maintenance/release paths and nine-skill consensus descriptions, fixes custom-root declared-output checking, and adds clean/stale/missing/orphan fixture coverage; 50 focused tests and the complete p04 gate passed
 - Review cycle 2: `reviews/p04-review-2026-09-14T004843Z.md`, 0 Critical, 1 Important, 0 Medium, 1 Minor; it confirmed cycle-one fixes and queued the remaining active-reference sweep plus validation-basis refresh for the final automatic fix iteration
-- Fix iteration 2: the commit containing this record updates the remaining internal-flag, session-observer test-owner, and public guidance-skill references; extends the maintained-path regression; and refreshes `validation.md` to the 1,988-test and 50-focused-test basis
+- Fix iteration 2: `9d9c1e8607941999b0baeed9e8d8d7749a96730f` updates the remaining internal-flag, session-observer test-owner, and public guidance-skill references; extends the maintained-path regression; and refreshes `validation.md` to the 1,988-test and 50-focused-test basis
+- Review cycle 3: `reviews/p04-review-2026-09-14T010312Z.md`, 0 findings; passed at `9d9c1e8607941999b0baeed9e8d8d7749a96730f`
 - Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
 - Nested dispatches: none
 
@@ -213,7 +214,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes; fix iteration 2 completed its remaining active-reference and validation-basis findings and now awaits final root disposition.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes; fix iteration 2 completed its remaining active-reference and validation-basis findings. Cycle 3 passed with zero findings, so the local public milestone is ready for the authorization-bound progress-PR step.
 
 ## Deviations from Plan / Design
 

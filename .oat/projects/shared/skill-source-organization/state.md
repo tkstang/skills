@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-review-f02
-oat_last_commit: 6b5166596a51e29c7995e41d7ca46ef16ef36d10
+oat_current_task: p04-publication
+oat_last_commit: 9d9c1e8607941999b0baeed9e8d8d7749a96730f
 oat_blockers: []
 associated_issues:
   - type: project
@@ -41,19 +41,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-14T00:53:50Z"
+oat_project_state_updated: "2026-09-14T01:06:39Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** P04 review-fix iteration 2, the final automatic fix iteration, is complete locally and awaits final root review disposition. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 and the 13-task public milestone are complete locally. The final independent review passed with zero findings. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
-**Last Updated:** 2026-09-13
+**Last Updated:** 2026-09-14
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures, and fix iteration 2 completed the remaining reference sweep plus current validation-basis attribution.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures, and fix iteration 2 completed the remaining reference sweep plus current validation-basis attribution. Cycle 3 passed with zero findings.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -63,7 +63,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 14 tasks across five sequential phases, implementation-ready with complete review disposition and explicit no-rerun acceptance for the bounded edits.
-- [Implementation](implementation.md): 13/14 tasks implemented; p04 independent review is pending.
+- [Implementation](implementation.md): 13/14 tasks implemented; p04 independent review passed.
 - [Validation](validation.md): public-milestone static, isolated-artifact, behavioral, live-evidence, and complexity-review record.
 
 ## Progress
@@ -91,7 +91,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Receive the final root p04 review disposition, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
+Prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
 
 ## Planning Settings and Review Status
 
