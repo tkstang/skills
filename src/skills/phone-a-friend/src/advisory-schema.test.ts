@@ -45,7 +45,7 @@ describe('advisory.schema.json', () => {
   });
 
   it('rejects a payload missing a required field', () => {
-    const { confidence, ...missing } = valid;
+    const { confidence: _confidence, ...missing } = valid;
 
     expect(validateSchemaSubset(missing, schema).ok).toBe(false);
   });

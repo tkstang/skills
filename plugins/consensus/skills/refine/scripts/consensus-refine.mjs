@@ -1258,7 +1258,7 @@ function runProviderCliCommand(command, args, options = {}) {
 }
 async function invokeConsensusProviderCli({
   provider,
-  schemaPath: schemaPath3,
+  schemaPath: schemaPath2,
   prompt,
   env = process.env,
   cwd = process.cwd(),
@@ -1269,7 +1269,7 @@ async function invokeConsensusProviderCli({
   const request = {
     schema_version: "v1",
     provider,
-    schema_path: schemaPath3,
+    schema_path: schemaPath2,
     prompt,
     cwd
   };
@@ -3109,20 +3109,20 @@ import {
 } from "node:fs/promises";
 import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord3(value) {
+function isJsonRecord2(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-function asErrorLike3(error) {
-  return isJsonRecord3(error) ? error : {};
+function asErrorLike2(error) {
+  return isJsonRecord2(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 function inside(root, target) {
   const relative = path6.relative(root, target);
@@ -3133,7 +3133,7 @@ async function pathExists(targetPath) {
     await lstat2(targetPath);
     return true;
   } catch (error) {
-    if (asErrorLike3(error).code === "ENOENT") return false;
+    if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }
@@ -3173,7 +3173,7 @@ function writeJsonl(stream, event, payload = {}, options = {}) {
   return entry;
 }
 function renderHumanError(error, env = process.env) {
-  const details = asErrorLike3(error);
+  const details = asErrorLike2(error);
   if (env.CONSENSUS_LOG === "trace" && details.stack) {
     return details.stack;
   }
@@ -3189,7 +3189,7 @@ async function readJsonIfPresent(filePath, fallback) {
   try {
     return await readJsonFile(filePath);
   } catch (error) {
-    if (asErrorLike3(error).code === "ENOENT") return fallback;
+    if (asErrorLike2(error).code === "ENOENT") return fallback;
     return fallback;
   }
 }
@@ -3197,7 +3197,7 @@ async function readTextIfPresent(filePath) {
   try {
     return await readFile4(filePath, "utf8");
   } catch (error) {
-    if (asErrorLike3(error).code === "ENOENT") return null;
+    if (asErrorLike2(error).code === "ENOENT") return null;
     return null;
   }
 }
@@ -3261,7 +3261,7 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
     try {
       await unlink3(tempPath);
     } catch (cleanupError) {
-      if (asErrorLike3(cleanupError).code !== "ENOENT") {
+      if (asErrorLike2(cleanupError).code !== "ENOENT") {
         annotatedError.cleanupError = cleanupError;
       }
     }
@@ -3302,7 +3302,7 @@ var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
 function asProviderInventoryEntry(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 function requireValue(argv, index, flag) {
   if (index + 1 >= argv.length) {
@@ -3361,7 +3361,7 @@ function providerEntryAvailable(entry) {
   return true;
 }
 function normalizeProviderInventory(providerInventory) {
-  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord3(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
+  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord2(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
   return (Array.isArray(entries) ? entries : []).map((entry) => {
     if (typeof entry === "string") {
       return {
@@ -3878,7 +3878,7 @@ function fallbackErrorStatus(error, records, peerCount) {
     termination_reason: "hard_error",
     turns,
     rounds: turns === 0 ? 0 : Math.ceil(turns / peerCount),
-    error: asErrorLike3(error).message
+    error: asErrorLike2(error).message
   };
 }
 function aggregateStatus(sections) {
@@ -4267,7 +4267,7 @@ function parseConsensusJsonBlock(label, jsonText, index) {
     return JSON.parse(jsonText);
   } catch (error) {
     throw resumeDataError(
-      `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike3(error).message}`,
+      `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike2(error).message}`,
       {
         code: "RESUME_JSON_CORRUPT",
         details: { label, index }
@@ -4283,7 +4283,7 @@ function tryParseConsensusJsonBlock(label, jsonText, index) {
       ok: false,
       error: {
         code: "RESUME_JSON_CORRUPT",
-        message: `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike3(error).message}`,
+        message: `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike2(error).message}`,
         block_label: label,
         block_index: index
       }
@@ -4394,7 +4394,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord3(state) ? state : {};
+  const stateRecord = isJsonRecord2(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -4440,7 +4440,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord3(candidate) ? candidate : {};
+      const state = isJsonRecord2(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -4467,7 +4467,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -4491,7 +4491,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord3(state) ? state : {};
+    const stateRecord = isJsonRecord2(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -4650,7 +4650,7 @@ async function readResumePathOrText(pathOrText) {
         };
       }
     } catch (error) {
-      if (!["ENOENT", "ENOTDIR"].includes(asErrorLike3(error).code ?? "")) {
+      if (!["ENOENT", "ENOTDIR"].includes(asErrorLike2(error).code ?? "")) {
         throw error;
       }
     }
@@ -4694,7 +4694,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(
@@ -5286,7 +5286,7 @@ async function runSequential(options, runOptions = {}) {
         ...persistedStatus
       };
       if (!status.error) {
-        status.error = asErrorLike3(error).message;
+        status.error = asErrorLike2(error).message;
       }
       sectionResults.push({
         ...section,
@@ -5522,7 +5522,7 @@ async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: "missing output file",
         path: entry.output_section,
-        message: asErrorLike3(error).message ?? String(error)
+        message: asErrorLike2(error).message ?? String(error)
       });
     }
     try {
@@ -5541,7 +5541,7 @@ async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: "malformed result JSON",
         path: entry.output_records,
-        message: asErrorLike3(error).message ?? String(error)
+        message: asErrorLike2(error).message ?? String(error)
       });
       records = [];
     }
@@ -5551,7 +5551,7 @@ async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: "malformed result JSON",
         path: entry.output_status,
-        message: asErrorLike3(error).message ?? String(error)
+        message: asErrorLike2(error).message ?? String(error)
       });
       status = null;
     }
@@ -5715,11 +5715,11 @@ function parseProviderCliEnvelope(stdout, label) {
     parsed = JSON.parse(stdout);
   } catch (error) {
     throw new Error(
-      `consensus ${label} output was not valid JSON: ${asErrorLike3(error).message}`,
+      `consensus ${label} output was not valid JSON: ${asErrorLike2(error).message}`,
       { cause: error }
     );
   }
-  if (!isJsonRecord3(parsed) || parsed.schema_version !== "v1") {
+  if (!isJsonRecord2(parsed) || parsed.schema_version !== "v1") {
     throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
   }
   return parsed;
@@ -5736,7 +5736,7 @@ async function preflightConsensusProviderCli(options = {}) {
       cwd
     });
   } catch (error) {
-    const details = asErrorLike3(error);
+    const details = asErrorLike2(error);
     if (details.code === "ENOENT" || /ENOENT|not found/i.test(details.message ?? "")) {
       throw consensusProviderCliMissingError({
         attemptedPaths: [command],
@@ -5869,7 +5869,7 @@ async function runWrapperCli(argv, options = {}) {
     return 0;
   } catch (error) {
     const exitCode = exitCodeForError(error);
-    const details = asErrorLike3(error);
+    const details = asErrorLike2(error);
     writeJsonl(stdout, "error", {
       code: details.code ?? "ERROR",
       exit_code: exitCode,

@@ -53,7 +53,7 @@ describe('panel-response.schema.json', () => {
   });
 
   it('rejects missing and wrong-typed fields', () => {
-    const { response, ...missingResponse } = valid;
+    const { response: _response, ...missingResponse } = valid;
 
     expect(validateSchemaSubset(missingResponse, schema).ok).toBe(false);
     expect(() => parsePanelResponsePayload(missingResponse)).toThrow(

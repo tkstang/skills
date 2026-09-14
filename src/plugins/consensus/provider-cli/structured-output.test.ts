@@ -17,10 +17,7 @@ import type {
   ProviderProcessResult,
   RunProviderSubprocessOptions,
 } from '../provider-cli/subprocess.js';
-import type {
-  ConsensusCliRunRequest,
-  ProviderId,
-} from '../provider-cli/types.js';
+import type { ConsensusCliRunRequest } from '../provider-cli/types.js';
 
 describe('structured provider output coordinator', () => {
   it('selects constrained-native, provider-validated, and prompt-only strategies', () => {

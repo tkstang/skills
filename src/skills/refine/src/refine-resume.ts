@@ -7,7 +7,6 @@ import {
   EXIT_CODES,
   hashArtifact,
 } from '../../../plugins/consensus/core/consensus-loop.js';
-import { sectionStates } from './refine-render.js';
 import {
   asConsensusRecord,
   asConsensusRecords,

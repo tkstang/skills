@@ -884,7 +884,7 @@ function runProviderCliCommand(command, args, options = {}) {
 }
 async function invokeConsensusProviderCli({
   provider,
-  schemaPath: schemaPath3,
+  schemaPath: schemaPath2,
   prompt,
   env = process.env,
   cwd = process.cwd(),
@@ -895,7 +895,7 @@ async function invokeConsensusProviderCli({
   const request = {
     schema_version: "v1",
     provider,
-    schema_path: schemaPath3,
+    schema_path: schemaPath2,
     prompt,
     cwd
   };

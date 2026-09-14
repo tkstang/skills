@@ -882,7 +882,7 @@ function runProviderCliCommand(command, args, options = {}) {
 }
 async function invokeConsensusProviderCli({
   provider,
-  schemaPath: schemaPath3,
+  schemaPath: schemaPath2,
   prompt,
   env = process.env,
   cwd = process.cwd(),
@@ -893,7 +893,7 @@ async function invokeConsensusProviderCli({
   const request = {
     schema_version: "v1",
     provider,
-    schema_path: schemaPath3,
+    schema_path: schemaPath2,
     prompt,
     cwd
   };
@@ -2733,11 +2733,11 @@ import {
 } from "node:fs/promises";
 import path5 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord3(value) {
+function isJsonRecord2(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-function asErrorLike3(error) {
-  return isJsonRecord3(error) ? error : {};
+function asErrorLike2(error) {
+  return isJsonRecord2(error) ? error : {};
 }
 function inside(root, target) {
   const relative = path5.relative(root, target);
@@ -2748,7 +2748,7 @@ async function pathExists(targetPath) {
     await lstat2(targetPath);
     return true;
   } catch (error) {
-    if (asErrorLike3(error).code === "ENOENT") return false;
+    if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }

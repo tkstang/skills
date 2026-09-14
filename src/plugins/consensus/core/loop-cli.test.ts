@@ -417,7 +417,7 @@ it('default synthesizer seam invokes the synthesis schema with the resolved prov
       '1',
     ]),
     {
-      invokePeer: async ({ provider }: { provider: string }) => ({
+      invokePeer: async ({ provider: _provider }: { provider: string }) => ({
         json: JSON.parse(converged),
         stdout: converged,
       }),

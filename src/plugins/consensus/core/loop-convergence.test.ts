@@ -81,7 +81,7 @@ function alternatingArgv(files: RunFiles, extra: string[] = []) {
 }
 
 function stripVolatile(records: JsonRecord[]) {
-  return records.map(({ timestamp, ...rest }) => rest);
+  return records.map(({ timestamp: _timestamp, ...rest }) => rest);
 }
 
 it('normalizeForHash canonicalizes line endings, trailing whitespace, and EOF newlines', () => {

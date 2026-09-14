@@ -2,7 +2,7 @@
 
 // src/skills/refine/src/refine-resume.ts
 import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
-import path7 from "node:path";
+import path6 from "node:path";
 import { createInterface } from "node:readline/promises";
 
 // src/plugins/consensus/core/consensus-loop.ts
@@ -883,7 +883,7 @@ function runProviderCliCommand(command, args, options = {}) {
 }
 async function invokeConsensusProviderCli({
   provider,
-  schemaPath: schemaPath3,
+  schemaPath: schemaPath2,
   prompt,
   env = process.env,
   cwd = process.cwd(),
@@ -894,7 +894,7 @@ async function invokeConsensusProviderCli({
   const request = {
     schema_version: "v1",
     provider,
-    schema_path: schemaPath3,
+    schema_path: schemaPath2,
     prompt,
     cwd
   };
@@ -2719,9 +2719,6 @@ if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.
   });
 }
 
-// src/skills/refine/src/refine-render.ts
-import path6 from "node:path";
-
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
@@ -2737,20 +2734,20 @@ import {
 } from "node:fs/promises";
 import path5 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord3(value) {
+function isJsonRecord2(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-function asErrorLike3(error) {
-  return isJsonRecord3(error) ? error : {};
+function asErrorLike2(error) {
+  return isJsonRecord2(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 async function syncPathIfAvailable(targetPath) {
   let handle;
@@ -2822,7 +2819,7 @@ function parseConsensusJsonBlock(label, jsonText, index) {
     return JSON.parse(jsonText);
   } catch (error) {
     throw resumeDataError(
-      `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike3(error).message}`,
+      `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike2(error).message}`,
       {
         code: "RESUME_JSON_CORRUPT",
         details: { label, index }
@@ -2838,7 +2835,7 @@ function tryParseConsensusJsonBlock(label, jsonText, index) {
       ok: false,
       error: {
         code: "RESUME_JSON_CORRUPT",
-        message: `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike3(error).message}`,
+        message: `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike2(error).message}`,
         block_label: label,
         block_index: index
       }
@@ -2949,7 +2946,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord3(state) ? state : {};
+  const stateRecord = isJsonRecord2(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -2995,7 +2992,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord3(candidate) ? candidate : {};
+      const state = isJsonRecord2(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -3022,7 +3019,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -3046,7 +3043,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord3(state) ? state : {};
+    const stateRecord = isJsonRecord2(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -3108,7 +3105,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
 }
 async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
-  const outputPath = path7.join(runDir, "resume-errors.json");
+  const outputPath = path6.join(runDir, "resume-errors.json");
   await mkdir5(runDir, { recursive: true });
   await writeFile5(
     outputPath,
@@ -3201,11 +3198,11 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile4(value, "utf8"),
-          sourcePath: path7.resolve(value)
+          sourcePath: path6.resolve(value)
         };
       }
     } catch (error) {
-      if (!["ENOENT", "ENOTDIR"].includes(asErrorLike3(error).code ?? "")) {
+      if (!["ENOENT", "ENOTDIR"].includes(asErrorLike2(error).code ?? "")) {
         throw error;
       }
     }
@@ -3249,7 +3246,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(

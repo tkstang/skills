@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { asErrorLike, consensusBlockPattern } from './refine-shared.js';
+import { asErrorLike } from './refine-shared.js';
 import type {
   ArtifactResolution,
   ConsensusRecord,

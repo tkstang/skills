@@ -878,7 +878,7 @@ function runProviderCliCommand(command, args, options = {}) {
 }
 async function invokeConsensusProviderCli({
   provider,
-  schemaPath: schemaPath3,
+  schemaPath: schemaPath2,
   prompt,
   env = process.env,
   cwd = process.cwd(),
@@ -889,7 +889,7 @@ async function invokeConsensusProviderCli({
   const request = {
     schema_version: "v1",
     provider,
-    schema_path: schemaPath3,
+    schema_path: schemaPath2,
     prompt,
     cwd
   };
@@ -2729,7 +2729,7 @@ import {
 } from "node:fs/promises";
 import path5 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord3(value) {
+function isJsonRecord2(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -2738,7 +2738,7 @@ var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
 function asProviderInventoryEntry(value) {
-  return isJsonRecord3(value) ? value : {};
+  return isJsonRecord2(value) ? value : {};
 }
 function requireValue(argv, index, flag) {
   if (index + 1 >= argv.length) {
@@ -2797,7 +2797,7 @@ function providerEntryAvailable(entry) {
   return true;
 }
 function normalizeProviderInventory(providerInventory) {
-  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord3(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
+  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord2(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
   return (Array.isArray(entries) ? entries : []).map((entry) => {
     if (typeof entry === "string") {
       return {

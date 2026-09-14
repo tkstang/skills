@@ -1,7 +1,6 @@
 import {
   mkdir,
   mkdtemp,
-  readFile,
   realpath,
   rm,
   symlink,

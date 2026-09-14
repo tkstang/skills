@@ -266,7 +266,9 @@ it('parallel_revision stubbed runs are byte-reproducible modulo timestamps and r
   // Records streams (sections) are identical modulo per-record timestamps.
   function recordsOf(result: JsonRecord) {
     return result.sections.map((section: JsonRecord) =>
-      section.records.map(({ timestamp, ...rest }: JsonRecord) => rest),
+      section.records.map(
+        ({ timestamp: _timestamp, ...rest }: JsonRecord) => rest,
+      ),
     );
   }
   expect(recordsOf(first.result)).toEqual(recordsOf(second.result));
