@@ -301,21 +301,21 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T164437Z.md | fa4e6256d63af58806c4ef273d7700af1af21534 | manual | - |
-| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
-| p01 | code | fixes_completed | 2026-09-13 | reviews/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
-| p02 | code | fixes_completed | 2026-09-13 | reviews/p02-review-2026-09-13T202600Z.md | a2014e9b8641cf0af03fe89eb634494614874260 | manual | - |
-| p02 | code | fixes_completed | 2026-09-13 | reviews/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
-| p02 | code | passed | 2026-09-13 | reviews/p02-review-2026-09-13T210441Z.md | 9104c37597c8b7fa452ef1aeadaf48e153e1a210 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/archived/p01-review-2026-09-13T164437Z.md | fa4e6256d63af58806c4ef273d7700af1af21534 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/archived/p01-review-2026-09-13T165921Z.md | c14f9d524554f49f01080f3e9502696b9b3a19a3 | manual | - |
+| p01 | code | fixes_completed | 2026-09-13 | reviews/archived/p01-review-2026-09-13T172248Z.md | 737e7c06041f7344bf8eeed0cfbc4b79877c72f8 | manual | - |
+| p02 | code | fixes_completed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T202600Z.md | a2014e9b8641cf0af03fe89eb634494614874260 | manual | - |
+| p02 | code | fixes_completed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
+| p02 | code | passed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T210441Z.md | 9104c37597c8b7fa452ef1aeadaf48e153e1a210 | manual | - |
 | final | code | pending | - | - | - | - | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
-| p03 | code | fixes_completed | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
-| p03 | code | passed | 2026-09-13 | reviews/p03-review-2026-09-13T222103Z.md | de269575225719185ac456f1e8fcac1dde8ea0b5 | manual | - |
-| p04 | code | fixes_completed | 2026-09-14 | reviews/p04-review-2026-09-14T002632Z.md | 0055176770dc0e869fa952978faf5832cba7c1c4 | manual | - |
-| p04 | code | fixes_completed | 2026-09-14 | reviews/p04-review-2026-09-14T004843Z.md | fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a | manual | - |
-| p04 | code | passed | 2026-09-14 | reviews/p04-review-2026-09-14T010312Z.md | 9d9c1e8607941999b0baeed9e8d8d7749a96730f | auto | - |
+| p03 | code | fixes_completed | 2026-09-13 | reviews/archived/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
+| p03 | code | passed | 2026-09-13 | reviews/archived/p03-review-2026-09-13T222103Z.md | de269575225719185ac456f1e8fcac1dde8ea0b5 | manual | - |
+| p04 | code | fixes_completed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T002632Z.md | 0055176770dc0e869fa952978faf5832cba7c1c4 | manual | - |
+| p04 | code | fixes_completed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T004843Z.md | fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a | manual | - |
+| p04 | code | passed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T010312Z.md | 9d9c1e8607941999b0baeed9e8d8d7749a96730f | auto | - |
 | p05 | code | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 

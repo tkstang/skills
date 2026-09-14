@@ -45,9 +45,9 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Concern: the unconstrained complete suite twice timed out only in the existing session-observer CLI help case under saturation; that file passed 49/49 alone and the complete suite passed with four workers.
 - Fix iteration 1: `c14f9d524554f49f01080f3e9502696b9b3a19a3` closed the first review's two Important findings and one Minor inventory issue.
 - Fix iteration 2: `737e7c06041f7344bf8eeed0cfbc4b79877c72f8` closed the second review's two Important findings and one Medium finding.
-- Review cycle 1: `reviews/p01-review-2026-09-13T164437Z.md`, 0 Critical, 2 Important, 0 Medium, 1 Minor; fixes completed.
-- Review cycle 2: `reviews/p01-review-2026-09-13T165921Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; fixes completed.
-- Review cycle 3: `reviews/p01-review-2026-09-13T172248Z.md`, 0 Critical, 1 Important, 0 Medium, 0 Minor; terminal at the governance cap.
+- Review cycle 1: `reviews/archived/p01-review-2026-09-13T164437Z.md`, 0 Critical, 2 Important, 0 Medium, 1 Minor; fixes completed.
+- Review cycle 2: `reviews/archived/p01-review-2026-09-13T165921Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; fixes completed.
+- Review cycle 3: `reviews/archived/p01-review-2026-09-13T172248Z.md`, 0 Critical, 1 Important, 0 Medium, 0 Minor; terminal at the governance cap.
 - Final review dispatch: `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 - Post-cap fix: `684d4f8d19187e197e7b54c561f179e87fd4e917` rejects direct and ancestor declared-output symlinks in freshness checks, applies the same segment policy to source roots, and adds all three requested negative controls.
 - Disposition: the user authorized this exact narrow fix and waived another independent review cycle. Root verification passed 62 scoped tests, type-check, build check, repository validation, smoke, and range diff checks; no p01 finding remains open by user disposition.
@@ -85,9 +85,9 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Verification: all task-local checks pass. The implementer and root each passed the complete suite with 135 files passed and one skipped, 1,974 tests passed and one skipped, plus type-check, build check, validation, internal flags, smoke, and the 12-owner version gate against `origin/main`.
 - Fix iteration 1: `1f78d3c9619d4a940acac8e61f1fcb70fe3719e8` corrected the release target, live-E2E selector, shipped canonical references, and handoff inventory split.
 - Fix iteration 2: `9104c37597c8b7fa452ef1aeadaf48e153e1a210` corrected the shipped live-E2E runbook, all formatter inventory paths, and source synchronization pointers.
-- Review cycle 1: `reviews/p02-review-2026-09-13T202600Z.md`, 0 Critical, 3 Important, 1 Medium, 0 Minor; fixes completed.
-- Review cycle 2: `reviews/p02-review-2026-09-13T204639Z.md`, 0 Critical, 1 Important, 2 Medium, 0 Minor; fixes completed.
-- Review cycle 3: `reviews/p02-review-2026-09-13T210441Z.md`, 0 findings; passed at `9104c37597c8b7fa452ef1aeadaf48e153e1a210`.
+- Review cycle 1: `reviews/archived/p02-review-2026-09-13T202600Z.md`, 0 Critical, 3 Important, 1 Medium, 0 Minor; fixes completed.
+- Review cycle 2: `reviews/archived/p02-review-2026-09-13T204639Z.md`, 0 Critical, 1 Important, 2 Medium, 0 Minor; fixes completed.
+- Review cycle 3: `reviews/archived/p02-review-2026-09-13T210441Z.md`, 0 findings; passed at `9104c37597c8b7fa452ef1aeadaf48e153e1a210`.
 - Review dispatch: `Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 - Nested dispatches: none
 
@@ -136,8 +136,8 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Recovery: one successful phase-standing attempt at `0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86`; authoritative usage is 1/10 with no pending attempt.
 - Verification: implementer and root passed the complete premerge gate with 135 test files and 1,982 tests passed, one file/test skipped, plus build, type-check, generated-output check, validation, smoke, and the 12-owner version gate.
 - Fix iteration 1: `de269575225719185ac456f1e8fcac1dde8ea0b5` added cross-form observer identities and enforced caller-required local CLI versions and operation capabilities.
-- Review cycle 1: `reviews/p03-review-2026-09-13T215053Z.md`, 0 Critical, 2 Important, 0 Medium, 0 Minor; fixes completed.
-- Review cycle 2: `reviews/p03-review-2026-09-13T222103Z.md`, 0 findings; passed at `de269575225719185ac456f1e8fcac1dde8ea0b5`.
+- Review cycle 1: `reviews/archived/p03-review-2026-09-13T215053Z.md`, 0 Critical, 2 Important, 0 Medium, 0 Minor; fixes completed.
+- Review cycle 2: `reviews/archived/p03-review-2026-09-13T222103Z.md`, 0 findings; passed at `de269575225719185ac456f1e8fcac1dde8ea0b5`.
 - Review dispatch: `Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 - Source provenance: read-only personal source commit `80a5a76de093f812776efb5c90bdc40504dbedfb`; no personal repository or user installation was mutated.
 - Nested dispatches: none
@@ -173,11 +173,11 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Verification: 40/40 isolated packaging tests, 21/21 focused fork-guidance tests, 1,987 complete-suite tests with one skip, 12 changed skill versions, type-check, build check, validation, smoke, internal flags, and diff checks passed
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
 - Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
-- Review cycle 1: `reviews/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
+- Review cycle 1: `reviews/archived/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
 - Fix iteration 1: `fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a` updates active maintenance/release paths and nine-skill consensus descriptions, fixes custom-root declared-output checking, and adds clean/stale/missing/orphan fixture coverage; 50 focused tests and the complete p04 gate passed
-- Review cycle 2: `reviews/p04-review-2026-09-14T004843Z.md`, 0 Critical, 1 Important, 0 Medium, 1 Minor; it confirmed cycle-one fixes and queued the remaining active-reference sweep plus validation-basis refresh for the final automatic fix iteration
+- Review cycle 2: `reviews/archived/p04-review-2026-09-14T004843Z.md`, 0 Critical, 1 Important, 0 Medium, 1 Minor; it confirmed cycle-one fixes and queued the remaining active-reference sweep plus validation-basis refresh for the final automatic fix iteration
 - Fix iteration 2: `9d9c1e8607941999b0baeed9e8d8d7749a96730f` updates the remaining internal-flag, session-observer test-owner, and public guidance-skill references; extends the maintained-path regression; and refreshes `validation.md` to the 1,988-test and 50-focused-test basis
-- Review cycle 3: `reviews/p04-review-2026-09-14T010312Z.md`, 0 findings; passed at `9d9c1e8607941999b0baeed9e8d8d7749a96730f`
+- Review cycle 3: `reviews/archived/p04-review-2026-09-14T010312Z.md`, 0 findings; passed at `9d9c1e8607941999b0baeed9e8d8d7749a96730f`
 - Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
 - Nested dispatches: none
 

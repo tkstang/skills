@@ -46,11 +46,11 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 ### 2026-09-13 · structural · oat-reviewer · p01-review-cycle-3
 
-7c4c38ea-f650-4f95-8fec-252278d09f90 artifact=.oat/projects/shared/skill-source-organization/reviews/p01-review-2026-09-13T172248Z.md reconnaissance=attempted waves=2 result=critical:0,important:1,medium:0,minor:0
+7c4c38ea-f650-4f95-8fec-252278d09f90 artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p01-review-2026-09-13T172248Z.md reconnaissance=attempted waves=2 result=critical:0,important:1,medium:0,minor:0
 
 ### 2026-09-13 · structural · oat-project-implement · p01
 
-26360de4-05a7-4c8a-ae15-cfffe34fe1f8 status=blocked review_cycle=3 fix_iterations=2 remaining=important:1 artifact=.oat/projects/shared/skill-source-organization/reviews/p01-review-2026-09-13T172248Z.md
+26360de4-05a7-4c8a-ae15-cfffe34fe1f8 status=blocked review_cycle=3 fix_iterations=2 remaining=important:1 artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p01-review-2026-09-13T172248Z.md
 
 ### 2026-09-13 · project · feedback · p01 post-cap disposition
 
@@ -62,15 +62,15 @@ bfbd17d5-b678-4351-95da-ddfecfda868b status=passed disposition=operator-verified
 
 ### 2026-09-13 · structural · oat-reviewer · p02-review-cycle-1
 
-c3d3ae1a-ad64-445b-8534-7faab3394017 artifact=.oat/projects/shared/skill-source-organization/reviews/p02-review-2026-09-13T202600Z.md reconnaissance=attempted waves=3 result=critical:0,important:3,medium:1,minor:0
+c3d3ae1a-ad64-445b-8534-7faab3394017 artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p02-review-2026-09-13T202600Z.md reconnaissance=attempted waves=3 result=critical:0,important:3,medium:1,minor:0
 
 ### 2026-09-13 · structural · oat-reviewer · p02-review-cycle-2
 
-543901be-9d41-4fa7-86ed-c2160493136f artifact=.oat/projects/shared/skill-source-organization/reviews/p02-review-2026-09-13T204639Z.md reconnaissance=attempted waves=2 result=critical:0,important:1,medium:2,minor:0
+543901be-9d41-4fa7-86ed-c2160493136f artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p02-review-2026-09-13T204639Z.md reconnaissance=attempted waves=2 result=critical:0,important:1,medium:2,minor:0
 
 ### 2026-09-13 · structural · oat-reviewer · p02-review-cycle-3
 
-b66fa567-aa91-45c9-8cb1-d9fb38b09680 artifact=.oat/projects/shared/skill-source-organization/reviews/p02-review-2026-09-13T210441Z.md reconnaissance=attempted waves=1 result=critical:0,important:0,medium:0,minor:0
+b66fa567-aa91-45c9-8cb1-d9fb38b09680 artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p02-review-2026-09-13T210441Z.md reconnaissance=attempted waves=1 result=critical:0,important:0,medium:0,minor:0
 
 ### 2026-09-13 · structural · oat-project-implement · p02
 
@@ -78,7 +78,7 @@ b66fa567-aa91-45c9-8cb1-d9fb38b09680 artifact=.oat/projects/shared/skill-source-
 
 ### 2026-09-13 · structural · oat-reviewer · p03-review-cycle-2
 
-a3d779e7-fe52-47cb-ae5d-9271c3fff54f artifact=.oat/projects/shared/skill-source-organization/reviews/p03-review-2026-09-13T222103Z.md reconnaissance=attempted waves=2 result=critical:0,important:0,medium:0,minor:0
+a3d779e7-fe52-47cb-ae5d-9271c3fff54f artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p03-review-2026-09-13T222103Z.md reconnaissance=attempted waves=2 result=critical:0,important:0,medium:0,minor:0
 
 ### 2026-09-13 · structural · oat-project-implement · p03
 
@@ -86,7 +86,7 @@ a3d779e7-fe52-47cb-ae5d-9271c3fff54f artifact=.oat/projects/shared/skill-source-
 
 ### 2026-09-14 · structural · oat-reviewer · p04-review-cycle-1
 
-f1432336-557b-46a0-a995-918567c5dd0e artifact=.oat/projects/shared/skill-source-organization/reviews/p04-review-2026-09-14T002632Z.md reconnaissance=attempted waves=2 result=critical:0,important:2,medium:1,minor:0
+f1432336-557b-46a0-a995-918567c5dd0e artifact=.oat/projects/shared/skill-source-organization/reviews/archived/p04-review-2026-09-14T002632Z.md reconnaissance=attempted waves=2 result=critical:0,important:2,medium:1,minor:0
 
 ### 2026-09-14 · structural · oat-project-implement · p04
 
