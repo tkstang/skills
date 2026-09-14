@@ -19,7 +19,7 @@ ships, which stay Node-stdlib-only with no install step.
 - `post-checkout`: runs `pnpm install --frozen-lockfile` when `pnpm-lock.yaml` changes between branches (skipped, not failed, if `pnpm` is not on `PATH`).
 
 `pre-commit` carries OAT's marked drift-check block verbatim, so `oat` treats the
-block as already present and leaves the symlinked hook in place. If OAT ever
+block as already present and leaves the managed hook in place. If OAT ever
 re-installs its own pre-commit, run `pnpm hooks:enable-all` to restore this one.
 
 Linting/formatting is **incremental**: `lint-staged` only touches staged files,
@@ -72,7 +72,10 @@ re-enabled by `pnpm install`.
 1. The `prepare` script in `package.json` runs `manage-hooks.mjs setup` after every `pnpm install`.
 2. The script exits immediately if `GIT_HOOKS=0`.
 3. If all hooks are already installed or intentionally disabled, it exits silently.
-4. Otherwise it symlinks missing hooks from `tools/git-hooks/` into Git's resolved hooks directory and reports what changed.
+4. Otherwise it installs executable dispatchers in Git's resolved hooks directory and reports what changed.
 
 Git's `core.hooksPath` is unset on setup so Git uses its default resolved hooks
-directory (which works correctly in linked worktrees).
+directory. That directory can be shared by linked worktrees, so each dispatcher
+asks Git for the invoking worktree and executes that worktree's tracked
+`tools/git-hooks/<hook>` file. Branch-specific hook changes therefore take effect
+in the worktree where the Git command runs.

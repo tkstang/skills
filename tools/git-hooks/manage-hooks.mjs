@@ -12,6 +12,26 @@ const hooksSourceDisplayDir = 'tools/git-hooks';
 const gitHooksDir = resolveGitHooksDir();
 const disabledHooksFile = path.join(gitHooksDir, '.disabled-hooks');
 
+function hookDispatcher(hookName) {
+  return `#!/bin/sh
+set -eu
+
+hook_name='${hookName}'
+worktree_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "error: unable to resolve the active worktree for $hook_name" >&2
+  exit 1
+}
+hook_path="$worktree_root/tools/git-hooks/$hook_name"
+
+if [ ! -x "$hook_path" ]; then
+  echo "error: tracked hook is missing or not executable: $hook_path" >&2
+  exit 1
+fi
+
+exec "$hook_path" "$@"
+`;
+}
+
 function resolveGitHooksDir() {
   const gitHooksPath = execFileSync('git', ['rev-parse', '--git-path', 'hooks'])
     .toString()
@@ -92,8 +112,31 @@ function isHookEnabled(hookName) {
   }
 }
 
+function isLegacyManagedHook(hookName) {
+  const hookPath = path.join(gitHooksDir, hookName);
+  try {
+    if (!fs.lstatSync(hookPath).isSymbolicLink()) {
+      return false;
+    }
+    const target = fs.readlinkSync(hookPath);
+    const targetParts = path.resolve(gitHooksDir, target).split(path.sep);
+    return (
+      targetParts.slice(-3).join(path.sep) ===
+      path.join('tools', 'git-hooks', hookName)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isHookReady(hookName) {
+  return isHookEnabled(hookName) && !isLegacyManagedHook(hookName);
+}
+
 /**
- * Enable a Git hook by symlinking it from tools/git-hooks into Git's hooks dir.
+ * Enable a Git hook by installing a stable dispatcher in Git's hooks dir.
+ * The dispatcher resolves the worktree from which Git invoked it, so linked
+ * worktrees execute their own tracked hook body.
  * @param {string} hookName - The name of the hook to enable.
  */
 function enableHook(hookName) {
@@ -110,8 +153,7 @@ function enableHook(hookName) {
       fs.unlinkSync(hookPath);
     }
 
-    const relativeSourcePath = path.relative(gitHooksDir, sourcePath);
-    fs.symlinkSync(relativeSourcePath, hookPath);
+    fs.writeFileSync(hookPath, hookDispatcher(hookName), { mode: 0o755 });
 
     unmarkHookAsDisabled(hookName);
     console.log(`✅ Enabled ${hookName} hook`);
@@ -179,7 +221,7 @@ switch (action) {
     }
 
     const allHooksReady = hooks.every(
-      (hook) => isHookDisabled(hook) || isHookEnabled(hook),
+      (hook) => isHookDisabled(hook) || isHookReady(hook),
     );
 
     if (allHooksReady) {
@@ -190,7 +232,7 @@ switch (action) {
     hooks.forEach((hook) => {
       if (isHookDisabled(hook)) {
         console.log(`⏭️  Skipped ${hook} hook (intentionally disabled)`);
-      } else if (!isHookEnabled(hook)) {
+      } else if (!isHookReady(hook)) {
         enableHook(hook);
       } else {
         console.log(`⏭️  Skipped ${hook} hook (already exists)`);

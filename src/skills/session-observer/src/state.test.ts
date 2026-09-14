@@ -1,5 +1,5 @@
 /**
- * state.test.ts — tests for src/transcript/session-observer/lib/state.ts
+ * state.test.ts — tests for src/skills/session-observer/src/lib/state.ts
  *
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */

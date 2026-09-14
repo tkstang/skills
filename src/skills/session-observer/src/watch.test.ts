@@ -1,5 +1,5 @@
 /**
- * watch.test.ts — tests for src/transcript/session-observer/lib/watch.ts
+ * watch.test.ts — tests for src/skills/session-observer/src/lib/watch.ts
  */
 
 import { spawn, spawnSync } from 'node:child_process';

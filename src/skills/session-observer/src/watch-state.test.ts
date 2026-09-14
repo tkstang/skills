@@ -1,5 +1,5 @@
 /**
- * watch-state.test.ts — tests for src/transcript/session-observer/lib/watch-state.ts
+ * watch-state.test.ts — tests for src/skills/session-observer/src/lib/watch-state.ts
  *
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */

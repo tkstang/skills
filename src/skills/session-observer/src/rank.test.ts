@@ -1,5 +1,5 @@
 /**
- * rank.test.ts — Tests for src/transcript/session-observer/lib/rank.ts
+ * rank.test.ts — Tests for src/skills/session-observer/src/lib/rank.ts
  *
  * Test cases:
  *   1. Tier A wins over Tier B and Tier C; non-A candidates filtered out
