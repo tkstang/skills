@@ -1,5 +1,5 @@
 /**
- * digest.test.ts — Tests for src/transcript/session-observer/lib/digest.ts
+ * digest.test.ts — Tests for src/skills/session-observer/src/lib/digest.ts
  */
 
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';

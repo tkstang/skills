@@ -1,6 +1,6 @@
 /**
  * session-classifier.test.ts — Tests for
- * src/transcript/session-observer/lib/session-classifier.ts
+ * src/skills/session-observer/src/lib/session-classifier.ts
  *
  * Focus: engagement classification for sessions whose only human input is an
  * answer to a structured ask-user prompt. Those sessions carry exactly the

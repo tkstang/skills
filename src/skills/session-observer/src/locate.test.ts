@@ -1,5 +1,5 @@
 /**
- * locate.test.ts — Tests for src/transcript/session-observer/lib/locate.ts
+ * locate.test.ts — Tests for src/skills/session-observer/src/lib/locate.ts
  *
  * Test cases:
  *   1. claude-code: direct encoded-dir lookup returns candidate with correct metadata
