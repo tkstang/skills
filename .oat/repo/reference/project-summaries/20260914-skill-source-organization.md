@@ -123,3 +123,7 @@ f1432336-557b-46a0-a995-918567c5dd0e artifact=.oat/projects/shared/skill-source-
 ### 2026-09-14 · structural · oat-project-implement · p04
 
 8f123054-e9ec-4acd-90b5-4f29252890db status=passed review_cycle=3 fix_iterations=2 recovery_attempts=2 reviewed_head=9d9c1e8607941999b0baeed9e8d8d7749a96730f next=progress-pr-authorization
+
+### 2026-09-14 · structural · oat-project-complete · retirement-sweep
+
+Retirement sweep: no absorbed projects recorded.
