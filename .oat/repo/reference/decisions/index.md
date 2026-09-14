@@ -9,6 +9,9 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260914-declared-skill-distributions | 2026-09-14 | accepted | Declared skill distributions | - |
+| DR-260914-metadata-version-is-the-sole | 2026-09-14 | accepted | Metadata version is the sole skill version | - |
+| DR-260914-session-and-consensus-plugin | 2026-09-14 | accepted | Session and consensus plugin boundaries | - |
 | DR-260912-separate-forks-and-handoffs | 2026-09-12 | accepted | Separate forks and handoffs | - |
 | DR-260724-content-availability-is-not | 2026-07-24 | accepted | Content availability is not completion | - |
 | DR-260724-gate-capability-claims | 2026-07-24 | accepted | Gate capability claims on evidence | - |
@@ -37,7 +40,7 @@
 | DR-260621-consensus-verdict-submission | 2026-06-21 | Accepted. | Consensus verdict submission uses owned submit CLI with sidecar capture | DR-024 |
 | DR-260621-fumadocs-for-the-documentation | 2026-06-21 | accepted | Fumadocs for the documentation site | DR-025 |
 | DR-260619-consensus-peer-invocation | 2026-06-19 | Accepted. | Consensus peer invocation owned by provider CLI | DR-023 |
-| DR-260619-shipped-skills-carry | 2026-06-19 | Accepted. | Shipped skills carry a validator-backed top-level `version`, kept in sync with `metadata.version` | DR-022 |
+| DR-260619-shipped-skills-carry | 2026-06-19 | Superseded by DR-260914-metadata-version-is-the-sole. | Shipped skills carry a validator-backed top-level `version`, kept in sync with `metadata.version` | DR-022 |
 | DR-260616-build-time-import-rewrites | 2026-06-16 | Accepted. | Build-time import rewrites reconcile canonical source paths with shipped runtime paths | DR-021 |
 | DR-260615-canonical-typescript-sources | 2026-06-15 | Accepted. | Canonical TypeScript sources build committed generated runtime outputs | DR-020 |
 | DR-260613-synthesis-mediation-is-two | 2026-06-13 | Accepted (implemented and merged to `main` via PR #9). | Synthesis mediation is two-tier — deterministic per-round merge plus agency-gated host/user escalation | DR-018 |
