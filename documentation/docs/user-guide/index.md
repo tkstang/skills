@@ -26,4 +26,4 @@ What ships today:
 
 - [Installation](installation.md) — Choose plugin or standalone forms, install per provider, and check prerequisites and release evidence.
 - [Consensus](consensus/index.md) — Overview, peer workflows, session observation members, and shared configuration.
-- [Skills](skills/index.md) — Canonical session skill names, standalone links, plugin-local names, and complexity review.
+- [Skills](skills/index.md) — Choose portable continuation, sanitized export, or same-provider native fork guidance, then find canonical and plugin-local skill names.

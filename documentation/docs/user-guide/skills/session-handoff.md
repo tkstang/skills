@@ -13,15 +13,19 @@ share one `metadata.version`.
 A handoff records the goal, current state, decisions, evidence, remaining work,
 and approval boundaries. It is not a verbatim transcript, retrospective,
 completion claim, or authorization to commit, push, install, publish, recover,
-or invoke a provider.
+or invoke a provider. Use [Session Fork to Destination](session-fork-to-destination.md)
+instead when the goal is to continue native history within the same provider in
+another existing worktree. A portable handoff does not preserve native provider
+history or runtime state, but it can move useful context between different
+agents and providers.
 
 ## Output destination
 
 - Use an explicit `--out <path>` or prose path when the handoff should be saved.
 - Without a path, return the handoff inline.
 - A project-local default under `.oat/projects/shared/<project>/handoff.md` is
-  used only when an existing active project is already established and the
-  handoff belongs there.
+  considered only when the user requested a saved artifact, an existing active
+  project is already established, and the handoff belongs there.
 - Do not overwrite an existing handoff unless the user explicitly asks to
   update that file.
 
@@ -40,6 +44,10 @@ If a transcript companion is created, record its path and limitations rather
 than copying the transcript into the handoff. Transcript export remains
 separately authorized because it creates another artifact.
 
+Richer sanitized tool-call and result evidence is a future direction, not a
+current handoff feature. Historical tool calls never carry forward authorization
+and are not commands for the successor to replay.
+
 ## What a good handoff contains
 
 - the concrete objective and current verified state;
@@ -56,5 +64,7 @@ payloads.
 ## Limitations
 
 - A handoff does not create, resume, fork, or move a provider session.
+- It does not inject a full continuation packet into a native fork or transfer
+  native runtime state between providers.
 - It does not prove a successor can discover or invoke every optional skill.
 - Static packaging does not establish live provider behavior.

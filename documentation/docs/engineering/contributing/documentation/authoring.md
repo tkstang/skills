@@ -11,8 +11,7 @@ states them for anyone editing the docs by hand.
 
 ## The navigation contract
 
-Navigation in this site is authored, not configured. There is no hand-rolled
-sidebar YAML and no separate table of contents to maintain. Instead:
+Three surfaces serve different readers and must stay aligned:
 
 - **Every content directory has an `index.md`.** It is the directory's map page.
 - **Every `index.md` has a `## Contents` section** — a bulleted list linking to
@@ -20,10 +19,16 @@ sidebar YAML and no separate table of contents to maintain. Instead:
   machine-readable local map.
 - **Leaf pages do not need a `## Contents`.** Only directory `index.md` files
   carry one.
+- **`meta.json` controls the rendered sidebar's ordering and grouping.** It is
+  authored alongside the local map, not generated from `## Contents`.
+- **`documentation/index.md` is a generated file-tree inventory.** It is not
+  the source of sidebar order and must not be edited by hand.
 
-If a page is not listed in some `## Contents`, it is effectively invisible to the
-navigation tooling. When you add a page, the same commit must add its link to the
-nearest `index.md`.
+A page omitted from `## Contents` is missing from the authored local map even
+if Fumadocs still resolves its route. Add its link to the nearest `index.md`
+and reconcile the directory's sidebar metadata in the same change. See
+[Sidebar order](#sidebar-order) for the supported metadata format; do not add
+a parallel navigation configuration.
 
 `overview.md` files are deprecated; use `index.md` with a `## Contents` section.
 
@@ -57,14 +62,14 @@ This runs automatically on the `predev` and `prebuild` npm scripts, so a normal
 change is clobbered on the next dev/build. It is a derived artifact, not an
 authored map.
 
-The authored maps are the per-directory `## Contents` sections. The generated
-root manifest reflects the file tree; the `## Contents` sections express intent.
-When you change structure, edit the `## Contents` sections and let the generator
-refresh the manifest — never the other way around.
+The local maps express content relationships; `meta.json` expresses sidebar
+placement. The generated root manifest reflects the file tree. When structure
+changes, update the maps and affected metadata, then regenerate the inventory.
+Regeneration does not repair missing authored links or sidebar entries.
 
 > [!WARNING]
 > If you find yourself editing `documentation/index.md` directly, stop. Edit the
-> relevant `## Contents` in `docs/**/index.md` instead, then regenerate.
+> relevant authored page/map and sidebar metadata instead, then regenerate.
 
 ## Adding a page
 
@@ -78,16 +83,16 @@ refresh the manifest — never the other way around.
    `## Contents`.
 4. If the page introduces a new subdirectory, give that subdirectory its own
    `index.md` with a `## Contents` section.
-5. Update the directory's `meta.json` if the new page should appear in a specific
-   sidebar position (see [Sidebar order](#sidebar-order)).
+5. Update the directory's `meta.json` to place the page in the intended sidebar
+   position (see [Sidebar order](#sidebar-order)).
+6. Regenerate the inventory, check the links, and preview the affected navigation.
 
 ## Restructuring navigation
 
-1. Make the change in the authored `## Contents` sections of each affected
-   `index.md`. Those are the source of truth.
+1. Make the change in each affected `index.md`'s `## Contents` and reconcile
+   its `meta.json` sidebar order/grouping.
 2. When moving a page between directories, update both the source and
-   destination `## Contents` in the **same commit** so history never contains a
-   broken intermediate state.
+   destination `## Contents` and sidebar metadata in the **same commit**.
 3. When reparenting a whole subtree, revisit the moved directory's `index.md`
    intro paragraph so its stated scope still matches its new home.
 4. Let the generator refresh `documentation/index.md`; do not edit it by hand.
@@ -119,8 +124,8 @@ pnpm dev          # live preview; runs generate-index via predev
 ```
 
 `pnpm dev` starts the Next.js dev server with hot reload. The `predev` script
-regenerates the root manifest first, so the navigation you preview matches the
-current file tree.
+refreshes the generated inventory first. The sidebar still follows the authored
+metadata, so inspect it as well as the file-tree inventory.
 
 Before you push, build the site the way CI does:
 
@@ -130,25 +135,25 @@ cd documentation && pnpm build
 
 `pnpm build` runs `prebuild` (regenerating the manifest) and then the production
 Next.js build, which surfaces MDX and rendering errors that the dev server
-tolerates. A clean `pnpm build` is the bar for a docs change. Run
-`pnpm run docs:format:check` to verify Markdown formatting, and
-`pnpm run docs:format` to apply it.
+tolerates. A clean `pnpm build` is the bar for a docs change; inspect changed
+diagrams and sidebar layout separately. Run `pnpm run docs:format:check` for
+the docs-wide formatting check. For a bounded change, use the repository's
+formatter on only the changed authored pages; do not reformat unrelated docs,
+generated inventories, or AGENTS/CLAUDE files.
 
 ## Agent-instruction surfaces
 
-Three distinct files carry agent and contributor instructions; keep them in their
-lanes:
+Agent entry points and detailed contributor references have distinct roles:
 
 - **`documentation/AGENTS.md`** — the docs-app agent runtime contract. The
-  authoritative source for how agents add pages, restructure nav, run
-  audit/apply, and avoid clobbering generated files. This section of the docs
-  defers to it.
-- **`documentation/docs/contributing.md`** — the scaffold's human-facing
-  contributing page (navigation contract summary, supported Markdown features,
-  local workflow). It is rendered in the site.
+  concise routing and safety contract for agents. It links here for the detailed
+  authoring workflow rather than duplicating this guide.
+- **[Documentation contribution guides](index.md)** — the shared human/agent
+  reference for authoring, supported Markdown features, and review.
 - **Root `AGENTS.md` `## Documentation` section** — the repo-wide pointer that
   tells any agent working anywhere in the repo that docs live at
   `documentation/`. It routes to the docs-app `AGENTS.md`.
 
-When a convention changes, update the surface that owns it and reconcile the
-others in the same change rather than letting them drift.
+When a convention changes, reconcile its concise instruction and detailed
+reference in the same change. Verify factual claims against the app's source
+and configuration; neither prose surface proves that stale guidance is correct.

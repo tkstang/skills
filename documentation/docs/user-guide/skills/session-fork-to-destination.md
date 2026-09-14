@@ -11,6 +11,12 @@ plugin. It discovers session candidates, shows a sanitized preview, and
 prepares destination-safe fork instructions. It never runs a provider itself,
 so no fork is created by discovery, preview, or preparation.
 
+Use this workflow only for native history continuation within one provider:
+Codex to Codex or Claude Code to Claude Code. For portable continuation between
+agents or providers, use [Session Handoff](session-handoff.md). A native fork
+does not receive a full handoff packet, and this skill does not transfer native
+runtime state across providers.
+
 The former `coding-session-handoff` name and script path are unsupported after
 the clean-break rename; no alias or compatibility wrapper is generated.
 
@@ -23,6 +29,14 @@ returns a path-free `discovery-incomplete` result. No Cursor candidate can be se
 or previewed.
 
 ## Choose an entry point
+
+The user creates or opens the existing destination worktree and its editor or
+terminal tab. This skill does not create a worktree or manage tabs. Its source
+discovery avoids guessing which conversation to fork, its sanitized preview
+helps distinguish plausible candidates, and its destination-safe command guard
+prevents accidentally opening the fork from the source or another directory.
+Those checks are the practical value of preparation even when the final native
+command could be run manually.
 
 Use one of three explicit entry points:
 
@@ -69,13 +83,14 @@ The terminal command refuses to run outside the canonical destination path.
 Preparing instructions does not authenticate, invoke Claude Code, Codex, or
 Cursor, mutate provider stores, or transfer uncommitted Git changes. Review the
 destination state and the prepared command before choosing whether to run it.
+Preparation also does not create a dormant or background fork for later use.
 
 ## Fork and resume are different
 
 A fork preserves the selected original session and creates a new conversation.
 A resume continues the selected session identity. This skill only emits a fork
 instruction when public evidence documents fork semantics for the exact
-provider surface.
+provider surface. It never substitutes a resume command for a fork.
 
 Claude Code CLI documents `--resume ID --fork-session`. Codex CLI documents
 `codex fork ID`. These capabilities are documentation-backed as of 2026-09-12
@@ -96,5 +111,6 @@ future-facing evidence and do not make Cursor transcript discovery available.
   provide independent exact cwd evidence; no Cursor candidate can be selected or
   previewed.
 - Dirty destination state is reported, but Git changes are not transferred.
+- Worktree creation and editor-tab management remain the user's responsibility.
 - Cursor transitions remain unsupported unless the exact surface has sufficient
   documented evidence.

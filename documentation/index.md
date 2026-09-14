@@ -12,6 +12,7 @@
     - [Contributing](engineering/contributing/index.md) — Development workflow and conventions, plus the docs authoring contract for this repo.
     - Development
       - [Development](engineering/contributing/development/index.md) — The local development workflow for this repo: Node >=22, pnpm dev dependencies, and the verification command set you run before pushing.
+      - [Adding a skill or distribution](engineering/contributing/development/adding-a-skill.md) — A practical recipe for adding canonical prompt-only or executable skills, distribution targets, workflow references, and plugin membership.
       - [Commit conventions](engineering/contributing/development/commit-conventions.md) — Conventional Commits format for commit messages and PR titles, the common types, and how the commit-msg hook (commitlint) plus CI enforce it.
       - [Conventions](engineering/contributing/development/conventions.md) — Repository conventions: canonical skill owners, generated distributions, dependency-free runtime, metadata.version bumps, and worktree checks.
       - [Hooks and safety](engineering/contributing/development/hooks-and-safety.md) — Git hooks in this repo: install on pnpm install, pre-commit lint-staged (oxlint/oxfmt over staged files), skill version-bump enforcement, and the lint/format exclusions for generated, synced, and agent-instruction files.

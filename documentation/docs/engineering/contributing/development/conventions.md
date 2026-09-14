@@ -57,6 +57,23 @@ PR-only `skill-versions` CI job and the local `pre-push` hook. Only
 `.cursor/skills/` are generated payloads or mirrors; never treat them as
 canonical sources.
 
+The guard also attributes changes through declared source roots and generated
+outputs. This fan-out is deliberately conservative rather than an exact
+per-import graph:
+
+| Changed surface                                                     | Version impact                                                                                                                         |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/skills/<owner>/`, including tests, resources, and `build.json` | Bump that canonical owner's `metadata.version`.                                                                                        |
+| A declared shared or allowed source root                            | Bump every declaration that lists that root. For example, a `src/shared/transcript/` change affects each declared transcript consumer. |
+| A declared generated output                                         | Bump its canonical owner; never fix the output directly.                                                                               |
+| Plugin-shared `scripts/`, `agents/`, or `references/` output        | Conservatively bump every owner distributed through that plugin.                                                                       |
+| Provider or marketplace release metadata only                       | Follow that plugin's independent release version; it does not by itself rewrite member skill versions.                                 |
+| Clean-break rename                                                  | The current owner is compared with the historical owner mapping; no legacy payload is emitted.                                         |
+
+Always pass an explicit resolvable base to the validation command. Missing or
+shallow history fails closed instead of fetching or silently skipping the
+comparison.
+
 ## Worktrees
 
 After `git worktree add`, run `pnpm run worktree:init` in the new worktree to copy

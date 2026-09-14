@@ -36,7 +36,10 @@ The trees under `skills/`, `plugins/*/skills/`, `.agents/`, `.claude/`, and
 skills need no empty source or build scaffolding.
 
 Shipped runtime `.mjs` lives next to its manifests under `plugins/` and
-`skills/`; it is generated from the canonical TypeScript in `src/` — see
+`skills/`. Most is generated from canonical TypeScript in `src/`; the
+collaboration owner also has authored `.mjs` entrypoints with adjacent `.d.mts`
+declarations. Both forms are bundled into generated runtime, and declarations
+are not shipped. See
 [Generated installation units](architecture/generated-runtime.md).
 
 ## Distribution and dependency rules

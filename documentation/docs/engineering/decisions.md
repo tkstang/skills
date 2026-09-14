@@ -12,14 +12,31 @@ with the generated [decision index](https://github.com/tkstang/skills/blob/main/
 as the repository-wide inventory. Create records with `oat decision new`; do
 not hand-edit the managed index section.
 
-Recent Session Observer Collaboration decisions record the sibling composition
-layer, non-human wake-envelope authority boundary, bounded lifecycle
-continuation, and acting-runtime setup selection. They preserve the N=2 scope
-and evidence-gated provider posture without promoting documented behavior to
-live validation.
+Three accepted decisions define the current source and distribution model:
 
-This page is a deliberate slot, not a duplicate ledger. As projects document
-themselves into this site (via `oat-project-document`), the rationale that's
-worth surfacing to docs readers will land here. For example, this docs site uses
-**Fumadocs** — chosen for toolchain consistency with the repo's Node/pnpm/TypeScript
-stack (no new language in dev/CI) over the Python-based MkDocs path.
+- [Declared skill distributions](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/decisions/DR-260914-declared-skill-distributions.md)
+  keeps one complete authored owner, declares each supported target, bundles
+  runtime dependencies, and leaves workflow prerequisites explicit.
+- [Session and consensus plugin boundaries](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/decisions/DR-260914-session-and-consensus-plugin.md)
+  groups products by behavior rather than shared-code location and keeps plugin
+  releases independent.
+- [Metadata version is the sole skill version](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/decisions/DR-260914-metadata-version-is-the-sole.md)
+  applies one owner version to every generated form while retaining old names
+  only for clean-break historical comparison.
+
+Together they reject manually maintained copies, mandatory whole-plugin
+installation, automatic standalone exposure without evidence, and a universal
+runtime dependency installer. Those choices preserve a source's provenance:
+one editable owner remains identifiable even when several generated consumers
+ship it.
+
+Recent Session Observer Collaboration decisions separately record the sibling
+composition layer, non-human wake-envelope authority boundary, bounded
+lifecycle continuation, and acting-runtime setup selection. They preserve the
+N=2 scope and evidence-gated provider posture without promoting documented
+behavior to live validation.
+
+This page highlights decisions that explain maintained documentation; it is not
+a duplicate ledger. For example, this docs site uses **Fumadocs** — chosen for
+toolchain consistency with the repo's Node/pnpm/TypeScript stack (no new
+language in dev/CI) over the Python-based MkDocs path.

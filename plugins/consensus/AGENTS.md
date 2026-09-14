@@ -10,12 +10,14 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 
 - **The owned provider CLI is the only sanctioned external boundary.** Shipped consensus code stays dependency-free Node stdlib — do not add other external/network dependencies.
 - **Generated runtime output is not source.** Canonical consensus plugin code lives under `src/plugins/consensus/`; canonical member-skill instructions, wrappers, and tests live under `src/skills/<name>/`. The committed files under `plugins/consensus/skills/*/` are generated installation payloads; regenerate them with `pnpm run build` and verify with `pnpm run build:check` instead of hand-editing them.
-- **All filesystem writes must go through the confinement helpers.** Use `confineWrite` / `resolveOutputPath` / `resolveRunDir` and respect the `INPUT_SIZE_CAP_BYTES` (1 MiB) read cap in the relevant canonical wrapper under `src/skills/refine/src/` or `src/skills/evaluate/src/`. Do not write to arbitrary paths or read unbounded input — bypassing these is a path-traversal / resource regression.
-- **Deliberation I/O is schema-bound.** Verdict and synthesis output conform to the contracts in `src/skills/refine/schemas/` and `src/skills/evaluate/schemas/` (parity-checked); keep changes to that output aligned with these schemas.
+- **Route source changes to the canonical owner.** Read [source instructions](../../src/AGENTS.md) before editing wrappers, CLI/core code, or colocated tests. Plugin manifests and package docs are maintained surfaces; do not replace the entire plugin root as though every file were generated.
+- **Preserve the relevant operation's filesystem safeguards.** Create, decide, plan, refine, and evaluate wrappers own confinement/path-resolution helpers and bounded input reads. Use the helper and cap in that operation's canonical source; do not write to arbitrary paths or read unbounded input.
+- **Deliberation I/O is schema-bound.** Read the relevant skill owner's `schemas/` and wrapper before changing its output; refine/evaluate schemas are not universal contracts for the other operations.
 
 ## References
 
 - `README.md` — plugin scope, install paths, iteration modes, flags.
 - `skills/*/SKILL.md` — shipped skill contracts and operation.
-- `src/skills/refine/src/consensus-refine.ts` and `src/skills/evaluate/src/consensus-evaluate.ts` — canonical wrapper sources for path-safety helpers (`confineWrite`, `resolveOutputPath`, `resolveRunDir`, `readInputFile`, `INPUT_SIZE_CAP_BYTES`).
-- `src/plugins/consensus/provider-cli/` — canonical provider CLI source and its colocated tests, including the opt-in live E2E under `e2e/`.
+- [Distribution catalog](../../src/distributions.ts) — resolves canonical member-skill owners from plugin-local names.
+- Repo-root-relative `src/skills/<name>/src/` and `src/skills/<name>/schemas/` — the relevant wrapper's path-safety and I/O contracts.
+- Repo-root-relative `src/plugins/consensus/provider-cli/` — canonical provider CLI source and its colocated tests, including the separately authorized opt-in live E2E under `e2e/`.

@@ -608,7 +608,7 @@ describe('docs-presence', () => {
     expect(liveE2eWorkflow).toMatch(
       /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
     );
-    expect(testAgents).toMatch(/src\/skills\/session-observer\/src\//);
+    expect(testAgents).toContain('../src/AGENTS.md');
     expect(hooksAndSafety).toMatch(
       /pnpm tsx scripts\/apply-internal-flags\.ts/,
     );

@@ -1,11 +1,11 @@
 {
   "pages": [
     "index",
-    "session-observer",
-    "session-observer-collab",
+    "session-handoff",
     "session-export-transcript",
     "session-fork-to-destination",
-    "session-handoff",
+    "session-observer",
+    "session-observer-collab",
     "complexity-review"
   ]
 }

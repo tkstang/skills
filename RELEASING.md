@@ -57,9 +57,14 @@ does not establish live provider discovery or permission behavior.
   (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
   verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.
 
-## v0.1 Readiness Snapshot
+## Consensus v0.1.0 historical readiness snapshot
 
 Last updated: 2026-06-20.
+
+This evidence covers the Consensus package and membership tested on that date.
+It does not establish readiness for the Session plugin, later skill additions,
+or the current generated-distribution layout. Use the current release checklist
+above for the selected plugin; static packaging is not live-provider acceptance.
 
 ### Automated checks
 

@@ -1,8 +1,8 @@
 {
   "pages": [
     "index",
+    "generated-runtime",
     "transcript-core",
-    "cursor-collaboration-reliability",
-    "generated-runtime"
+    "cursor-collaboration-reliability"
   ]
 }

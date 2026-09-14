@@ -58,7 +58,8 @@
 - When you ship a behavior or content change to a skill, bump its sole authored version field: quoted stable SemVer at `metadata.version` in `src/skills/<name>/SKILL.md`. Top-level `version` is rejected. Generated standalone and plugin forms inherit the canonical skill version; plugin release versions are independent.
 - Changed skills must bump their version. Any change under a canonical skill directory (`src/skills/<name>/`) — `SKILL.md`, runtime source, tests, references, assets, or build declaration — requires that skill's `metadata.version` to increase. This is enforced by `scripts/validate-skill-versions.ts` (run `pnpm run validate:skill-versions -- --base-ref <ref>`), wired into the PR-only `skill-versions` CI job and the local `pre-push` hook. Only `src/skills/` is authored product-skill source; `skills/`, `plugins/*/skills/`, `.agents/skills/`, `.claude/skills/`, and `.cursor/skills/` are generated installation or provider views.
 - Keep user-level installs current (start-of-work pull). The authoritative user-level install (`~/.agents/skills/<name>/` and its provider mirrors `~/.claude/skills/`, `~/.cursor/skills/`) should track `main`, not in-progress branches. Before starting work that depends on a shipped skill/plugin, check whether the user-level install's version matches `main`; if it is behind, refresh it from `main` first. Land version bumps in `main` before refreshing the global install — never push a branch's bumped version machine-wide pre-merge. (Exception: while actively dogfooding a skill change locally, sync the branch version per the dogfooding convention above, then reconcile to `main` after merge.) This check is meaningful only because version bumps are now enforced on edit — content can otherwise drift with no version change, the exact failure that motivated this convention.
-- Generated installation units come from canonical owners under `src/skills/`, shared runtime under `src/shared/`, plugin source under `src/plugins/`, and declarations in `src/distributions.ts`. Run `pnpm run build` to regenerate committed payloads under `plugins/` and `skills/`, and use `pnpm run build:check` or `tests/tooling/generated-output-sync.test.ts` to catch drift. `pnpm run sync:transcript-core` is a compatibility wrapper around the same build. Never hand-edit generated payload files, including generated `SKILL.md`, references/assets, or `.mjs` runtime with a `// GENERATED` banner. The canonical authored collaboration `.mjs`/`.d.mts` modules now live under `src/skills/session-observer-collab/src/` and are copied into each declared installation unit by the build.
+- Generated installation units come from canonical owners under `src/skills/`, shared runtime under `src/shared/`, plugin source under `src/plugins/`, and declarations in `src/distributions.ts`. Run `pnpm run build` to regenerate committed payloads under `plugins/` and `skills/`; `pnpm run build:check` checks complete inventories, content, and modes without repairing them. `pnpm run sync:transcript-core` remains a compatibility wrapper for the same build. Never hand-edit generated instructions, resources, or runtime. Collaboration's canonical `.mjs` entrypoints under `src/skills/session-observer-collab/src/` are bundled; adjacent `.d.mts` declarations are build-time inputs, not shipped files.
+- Before changing source or colocated tests, read [`src/AGENTS.md`](src/AGENTS.md). For build/packaging/validation tooling under `scripts/`, read [Generated installation units](documentation/docs/engineering/architecture/generated-runtime.md); preserve staged validation, owned-output replacement, and non-mutating freshness checks. Plugin roots also contain maintained manifests and docs: they are not wholesale disposable build directories.
 
 ## OAT Tooling Skill Internal Flag
 
@@ -111,7 +112,7 @@ symlinked product entry automatically.
 ## Verification
 
 - Run `npm test` (or `pnpm run test`) for the full Vitest suite.
-- Run `pnpm run build:check` to verify generated runtime outputs match canonical source.
+- Run `pnpm run build:check` to verify complete generated installation units match canonical inputs.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.
 - Run `pnpm run test:live-e2e` as the opt-in live-provider gate (requires an authenticated provider CLI and spends real API quota; see `RELEASING.md`).
@@ -149,7 +150,7 @@ point). It is organized into two audience trunks — start at
 [`documentation/docs/index.md`](documentation/docs/index.md):
 
 - **User Guide** (`documentation/docs/user-guide/`) — install, use, and configure
-  the consensus plugin and the standalone skills.
+  the consensus and session plugins and the standalone skills.
 - **Engineering** (`documentation/docs/engineering/`) — architecture, the
   generated-runtime build contract, repository layout, and contributing.
 

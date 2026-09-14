@@ -38,8 +38,9 @@ flowchart LR
   end
 
   BUILD["pnpm run build"]
+  RELEASE["Release-owned provider manifests<br/>and marketplace catalogs"]
   STANDALONE["Declared standalone units<br/>skills/canonical-name/"]
-  PLUGINOUT["Complete plugin units<br/>plugins/consensus and plugins/session"]
+  PLUGINOUT["Generated plugin skills and runtime<br/>plugins/consensus and plugins/session"]
   CHECK["pnpm run build:check<br/>and generated-output-sync test"]
   RUNTIME["Provider install or local-load runtime<br/>no install step"]
 
@@ -49,12 +50,18 @@ flowchart LR
   DECL --> BUILD
   BUILD --> STANDALONE --> RUNTIME
   BUILD --> PLUGINOUT --> RUNTIME
+  RELEASE --> RUNTIME
   SKILLS -.->|expected payload| CHECK
   SHARED -.->|dependency closure| CHECK
   DECL -.->|target inventory| CHECK
   STANDALONE -.->|checked output| CHECK
   PLUGINOUT -.->|checked output| CHECK
 ```
+
+The build owns declared skill payloads and generated plugin runtime. Provider
+manifests and shared marketplace catalogs remain independently maintained
+release surfaces; a generated plugin target does not register or release a
+plugin by itself.
 
 ## Canonical owner to generated forms
 
@@ -74,9 +81,33 @@ bundles that closure into each installation unit, and rejects undeclared source
 escapes, duplicate targets, or runtime package dependencies.
 
 The authored collaboration `.mjs` and `.d.mts` modules live under
-`src/skills/session-observer-collab/src/`. They are copied into each generated
-form together with the required shared runtime rather than maintained as a
-second authored tree.
+`src/skills/session-observer-collab/src/`. Their runtime is bundled into each
+generated form by the same build rather than maintained as a second authored tree. An
+authored `.mjs` entrypoint must have an adjacent `.d.mts` declaration, but the
+builder bundles the `.mjs` dependency closure and does not ship declarations.
+
+For the concrete authoring sequence, see
+[Adding a skill or distribution](../contributing/development/adding-a-skill.md).
+
+## Code and workflow relationships
+
+Bundled code and workflow prerequisites solve different problems. A runtime
+import enters the generated installation unit. A required workflow must already
+be installed, while an optional integration may be absent without blocking the
+core skill.
+
+```mermaid
+flowchart LR
+  TRANSCRIPT["Shared transcript code"] -->|bundled code| OBSERVER["session-observer"]
+  TRANSCRIPT -->|bundled code| EXPORT["session-export-transcript"]
+  COLLAB["session-observer-collab"] -.->|requires installed workflow| OBSERVER
+  HANDOFF["session-handoff"] -.->|optional integration| OBSERVER
+  HANDOFF -.->|optional integration| EXPORT
+```
+
+The distribution declaration carries required and optional workflow references
+so generated instructions can use the right standalone or plugin-local name.
+It does not install those workflows automatically.
 
 ## Target-specific names and versions
 
@@ -133,3 +164,17 @@ schemas, and executable runtime. Change the canonical owner under `src/skills/`,
 shared code under `src/shared/`, or plugin source under `src/plugins/`, then run
 `pnpm run build`. `pnpm run build:check` and the generated-output-sync test flag
 inventory, content, or executable-mode drift.
+
+## When build or check fails
+
+| Failure                                                         | What it means                                                                           | Safe response                                                                                                                                                          |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Missing, stale, or orphan generated file                        | The committed unit differs from the complete staged inventory.                          | Inspect the canonical source and declaration first. If the change is intentional, run `pnpm run build`, inspect the generated diff, then rerun `pnpm run build:check`. |
+| Source escapes its allowed roots or a runtime imports a package | The declared ownership boundary or dependency-free runtime contract was crossed.        | Fix the declaration or import. Do not repair the failure by installing a runtime dependency.                                                                           |
+| Replacement failed; prior outputs restored                      | Publication failed after staging, but the reported rollback restored the prior outputs. | Fix the reported cause and rebuild.                                                                                                                                    |
+| Replacement failed and rollback was incomplete                  | Some replacement or restoration operation failed.                                       | Treat the paths in the error's recovery details as authoritative and inspect them individually. Do not guess at cleanup targets.                                       |
+| Distribution installed but backup cleanup failed                | New outputs were installed, but one or more reported recovery backups remain.           | Verify the installed output and inspect only the exact backup paths named by the error before cleanup.                                                                 |
+
+The builder stages and validates complete units before replacing outputs. Its
+errors distinguish restoration from incomplete recovery; they are not a
+promise that every failed filesystem operation is losslessly reversible.
