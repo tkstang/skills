@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-09-14
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-All 14 original implementation tasks and the p05 lifecycle-pointer fix are complete. Two final-review fixes remain; 15 of 17 total tasks are complete. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
+All 17 implementation and review-fix tasks are complete. P05 and final review fixes await independent re-review. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Progress Overview
 
@@ -21,8 +21,8 @@ All 14 original implementation tasks and the p05 lifecycle-pointer fix are compl
 | p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | complete; review passed | 2 | 2 |
 | p05 Post-merge private cutover | complete; re-review pending | 2 | 2 |
-| p06 Final review fixes | pending | 2 | 0 |
-| Total | review fixes pending | 17 | 15 |
+| p06 Final review fixes | complete; re-review pending | 2 | 2 |
+| Total | implementation complete; re-review pending | 17 | 17 |
 
 p01–p04 formed the merged public milestone. P05 completed the planned private-PR boundary; merging that PR or changing active installations remains outside this task.
 
@@ -225,6 +225,17 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 - Independent task review: the visible private task reported no issues. This is implementation evidence only; it does not populate the formal p05 or final OAT review rows
 - Evidence: private PR file `.oat/projects/shared/public-skill-owner-cutover/validation.md`
 - Nested dispatches: none
+### Run 6: Phase p06
+
+- Status: implementation complete; p05 and final independent re-reviews pending
+- Phase base: `b5bd6f45b6d43d6429ca8ab33e6750a970ece8d4`
+- Task commits: p06-t01 `ef53b7946206bf0e8ccffcde7402d4e8daf2b02a`; bounded migration follow-up `10a6e7c9462d63d74bc84d6585c2d79a8a525c03`; p06-t02 `8354fa05ff885c4b8a668b1c3f18ceb2a475f53b`
+- Hook dispatch: managed hooks are executable shared dispatchers that resolve the invoking worktree through Git and execute that worktree's tracked hook. Setup migrates managed symlinks pointing at any checkout while preserving custom executable regular hooks.
+- Observer paths: corrected seven retired test-header paths. The required version-closure fan-out bumps `session-observer` to `1.0.39`, `session-observer-collab` to `1.0.26`, and `session-fork-to-destination` to `0.2.2`, with all generated forms rebuilt.
+- Verification: 16 focused hook tests, 582 session-observer tests, and the combined 598-test suite pass. The full suite passes 135 files and 1,991 tests with one file/test skipped. The three-skill version gate against `origin/main`, build check, type-check, repository validation, smoke, internal flags, scoped lint/format checks, and diff checks pass.
+- Install/publication boundary: no private PR mutation, active-install change, global hook mutation outside disposable test repositories, push, or publication occurred.
+- Nested dispatches: none
+
 <!-- orchestration-runs-end -->
 
 ### Review Received: p05
@@ -234,7 +245,7 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 
 **Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
 
-**New task:** `p05-t02` clears the completed-task lifecycle pointers and reconciles closeout state. The finding is accepted because stale current-task values can misroute lifecycle tooling. The fix is complete; the pointers now identify p06-t01 as the next incomplete task and will become `null` when p06 finishes.
+**Fix completed:** `p05-t02` cleared the completed-task lifecycle pointers after p06 finished. The finding was accepted because stale current-task values can misroute lifecycle tooling. Both current-task fields are now `null`; independent p05 re-review remains pending.
 
 ### Review Received: final
 
@@ -243,13 +254,13 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 
 **Findings:** 0 Critical, 0 Important, 2 Medium, 1 Minor.
 
-**New tasks:** `p06-t01` installs worktree-aware managed-hook dispatch; `p06-t02` corrects the seven retired observer test-header paths and follows the canonical skill version policy. The duplicate current-task finding is owned by `p05-t02`. All findings are converted to fixes; none are deferred.
+**Fixes completed:** `p06-t01` installs worktree-aware managed-hook dispatch and migrates checkout-bound managed symlinks; `p06-t02` corrects the seven retired observer test-header paths and applies the canonical/transitive skill version policy. The duplicate current-task finding is resolved by `p05-t02`. All findings have fixes; independent final re-review remains pending.
 
 ## Implementation Log
 
 On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes; fix iteration 2 completed its remaining active-reference and validation-basis findings. Cycle 3 passed with zero findings, and public PR #79 subsequently merged.
 
-P05 then used the personal-skills repository's supported external-source lifecycle to remove its two editable owners while retaining their generated personal-plugin distribution. The linked private PR #32 is open with CI passing; its merge and any active-install transition remain pending separate authorization.
+P05 then used the personal-skills repository's supported external-source lifecycle to remove its two editable owners while retaining their generated personal-plugin distribution. P06 completed the accepted final-review fixes for worktree-aware hook dispatch, managed-symlink migration, and moved observer test headers. The linked private PR #32 is open with CI passing; its merge and any active-install transition remain pending separate authorization.
 
 ## Deviations from Plan / Design
 
@@ -277,9 +288,11 @@ After p04 review-fix iterations 1 and 2, 50 focused manifest/docs/generated-outp
 
 For p05, private-repository packaging, complete checks, version comparison against `origin/main`, type-check, lint, formatting, 322 passing tests with one intentional skip, 2/2 installed-runtime tests, both external-source freshness checks, temporary install inventory and byte parity, PJM doctor, and diff checks passed. Active-install fingerprints remained unchanged.
 
+For p06, 16 hook-manager tests and 582 session-observer tests passed independently; the combined focused run passed 598 tests. The full suite passed 135 files and 1,991 tests with one file/test skipped. The three-skill transitive version gate, build check, type-check, repository validation, smoke, internal flags, scoped lint/format checks, and diff checks passed.
+
 ## Final Summary (for PR/docs)
 
-The public p01–p04 milestone shipped to `main` through PR #79. All 14 planned tasks are implemented, and private PR #32 carries the p05 owner cutover with passing checks. Formal p05 and final OAT reviews, the private PR merge, live readiness evidence, and active-install reconciliation remain pending.
+The public p01–p04 milestone shipped to `main` through PR #79. All 17 implementation and review-fix tasks are complete, and private PR #32 carries the p05 owner cutover with passing checks. Independent p05 and final re-reviews, the private PR merge, live readiness evidence, and active-install reconciliation remain pending.
 
 ## References
 

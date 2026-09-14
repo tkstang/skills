@@ -1,13 +1,13 @@
 ---
 oat_status: complete_with_concerns
-oat_phase: p05
+oat_phase: p06
 oat_last_updated: 2026-09-14
 oat_generated: false
 ---
 
 # Validation: Completed Skill-Source Organization Implementation
 
-This record covers the completed 14-task implementation. The public p01–p04
+This record covers all 17 completed implementation and review-fix tasks. The public p01–p04
 milestone merged through PR #79 at squash commit
 `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`. P05 opened the linked private
 personal-skills PR #32 at commit
@@ -23,7 +23,7 @@ pending or unverified.
 | TypeScript type-check | pass | `pnpm run type-check` |
 | Generated-output freshness | pass | all declared generated outputs in sync through `pnpm run build:check` |
 | Repository validation | pass | `pnpm run validate` |
-| Complete Vitest suite | pass | 135 files passed, 1 skipped; 1,988 tests passed, 1 skipped |
+| Complete Vitest suite | pass | 135 files passed, 1 skipped; 1,991 tests passed, 1 skipped at the p06 head |
 | Mocked end-to-end smoke | pass | `pnpm run smoke` |
 | OAT internal flags | pass | 72 `.agents/skills/**/SKILL.md` files carry `metadata.internal: true` |
 | Diff whitespace | pass | `git diff --check` |
@@ -38,6 +38,24 @@ regenerated both distribution copies, and passed 21 focused tests. Review-fix
 iteration 1 aligned active maintenance and nine-skill manifest descriptions
 and added the custom-root regression. Iteration 2 completed the maintained-path
 sweep and refreshed this evidence basis.
+
+## Final Review Fix Evidence
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Worktree-aware hook dispatch | pass | 16 focused hook-manager tests cover installed dispatchers, linked-worktree invocation, legacy primary-checkout symlink migration from a linked setup, custom regular hooks, status, disablement, passthrough, and exit propagation |
+| Observer source headers | pass | seven test headers now identify `src/skills/session-observer/src/lib/*`; 582 owner-colocated tests pass |
+| Combined focused suite | pass | 22 files and 598 tests pass across `tests/tooling/git-hooks.test.ts` and `src/skills/session-observer` |
+| Version closure | pass | `session-observer` `1.0.39`, `session-observer-collab` `1.0.26`, and `session-fork-to-destination` `0.2.2` verified against `origin/main` |
+| Generated outputs | pass | canonical build regenerated all affected standalone/plugin SKILL payloads; `pnpm run build:check` passes |
+| Static gates | pass | full suite (1,991 passed, 1 skipped), smoke, internal flags, type-check, repository validation, scoped lint/format, and diff checks pass |
+
+The two additional version bumps are mechanically required fan-out: both
+`session-observer-collab` and `session-fork-to-destination` declare the
+session-observer owner as an allowed source root, so the changed-skill validator
+treats edits under that canonical owner as transitive closure changes. No
+runtime behavior, private PR, active installation, or shared hook outside the
+disposable regression repositories was changed during this phase.
 
 ## Isolated Artifact Evidence
 
@@ -115,11 +133,4 @@ No removable machinery or deferred simplification was identified.
 
 ## Review and Publication Disposition
 
-Independent public review cycles 1 and 2 identified the bounded fixes
-represented by this record. Cycle 3 reviewed
-`9d9c1e8607941999b0baeed9e8d8d7749a96730f` and passed with zero Critical,
-Important, Medium, or Minor findings. The visible private p05 task also reported
-no issues after its checks. That task review is implementation evidence, not a
-formal p05 or final OAT review; those review rows remain pending for the root
-workflow. Private PR merge, live or paid provider validation, and active
-installation remain outside the completed implementation boundary.
+Independent public review cycle 3 reviewed `9d9c1e8607941999b0baeed9e8d8d7749a96730f` and passed with zero findings. The later p05 and project-final reviews identified three bounded findings; p05-t02 and p06 completed all accepted fixes. Their rows now record `fixes_completed` pending fresh independent re-review. Private PR merge, live or paid provider validation, and active installation remain outside the completed implementation boundary.

@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-14
 oat_generated: true
-oat_summary_last_task: p05-t01
+oat_summary_last_task: p06-t02
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -15,7 +15,7 @@ oat_summary_includes_revisions: []
 
 This project reorganized the public repository so each shipped skill has one authored source directory while standalone and plugin installations are generated outputs. It implements issue #74, introduces separate session and consensus plugin boundaries, and preserves dependency-free Node.js runtime packages without claiming unverified marketplace or live-provider readiness.
 
-All 14 planned tasks are implemented. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 removed the two private authored owners and opened linked personal-skills PR #32 while preserving active installations. Formal p05 and final OAT reviews remain pending.
+All 17 implementation and review-fix tasks are complete. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 removed the two private authored owners and opened linked personal-skills PR #32 while preserving active installations. P05 and final review fixes await independent re-review.
 
 ## What Was Implemented
 
@@ -27,8 +27,9 @@ All 14 planned tasks are implemented. Public PR #79 merged at `8767bce4819a2cae1
 - Removed the private personal-skills authored copies of `complexity-review` and `session-handoff` in PR #32. The personal plugin now consumes byte-exact rendered public payloads through its existing external-source lifecycle, pinned to the public merge commit.
 - Made quoted `metadata.version` the sole authored skill-version field. Version validation follows renamed owners, includes local edits and shared-source fan-out, and requires an explicit comparison base.
 - Migrated affected build, validation, internal-flag, and version tooling to TypeScript, expanded isolated installation and generated-output regressions, and updated CI, manifests, contributor and scoped agent guidance, release guidance, the docs site, and the changelog.
+- Replaced checkout-bound managed-hook symlinks with worktree-aware dispatchers, including automatic migration of legacy managed links, and corrected seven observer test headers after the source move.
 
-The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-fix tests, 40 isolated packaging tests, type-check, generated-output freshness, structural validation, smoke, internal-flag validation, the twelve-skill version gate, whitespace checks, and a 39-route documentation build. The final independent public review reported zero findings at every severity; the later documentation expansion also passed its focused 23-test docs suite, structural validation, generated-output freshness, and changed-file formatting checks. The private cutover passed packaging, complete checks, version validation, type-check, lint, formatting, 322 tests with one intentional skip, installed-runtime tests, external-source freshness, temporary-install inventory and byte parity, PJM doctor, and diff checks.
+The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-fix tests, 40 isolated packaging tests, type-check, generated-output freshness, structural validation, smoke, internal-flag validation, the twelve-skill version gate, whitespace checks, and a 39-route documentation build. P06 passed 16 hook-manager tests, 582 session-observer tests, a combined 598-test focused run, and the full 1,991-test suite with one skip, plus the three-skill version gate, build check, type-check, repository validation, smoke, internal flags, scoped lint/format checks, and diff checks. The private cutover passed packaging, complete checks, version validation, type-check, lint, formatting, 322 tests with one intentional skip, installed-runtime tests, external-source freshness, temporary-install inventory and byte parity, PJM doctor, and diff checks.
 
 ## Key Decisions
 
@@ -38,7 +39,8 @@ The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-
 
 ## Notable Challenges
 
-- Moving owners and tests exposed stale path assumptions across CI, docs, scoped agent instructions, release guidance, and generated-output tests. Two bounded review-fix iterations completed the maintained-reference sweep and added regression coverage.
+- Moving owners and tests exposed stale path assumptions across CI, docs, scoped agent instructions, release guidance, generated-output tests, and test headers. Bounded review fixes completed the maintained-reference sweep and added regression coverage.
+- Git stores default hooks in a common directory shared by linked worktrees. Stable dispatchers now resolve the invoking worktree before executing its tracked hook, and setup replaces older managed symlinks bound to another checkout.
 - Generated-output replacement needed path containment, symlink rejection, shared-input fingerprints, and atomic swaps so freshness checks cannot escape the repository or destroy the previous output on failure.
 - The p01 review reached its three-cycle cap with one narrow symlink-freshness issue. The user authorized that exact correction and waived another review; root verification passed before later phases continued.
 - The private repository originally pointed its external snapshots at public `src/skills`, which contains authored templates. P05 corrected the source to the supported rendered standalone payload under public `skills/` before removing the duplicate editable owners.
@@ -59,7 +61,7 @@ The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-
 
 ## Follow-up Items
 
-- Complete formal p05 and final OAT review and the authorized project archive workflow.
+- Complete independent p05 and final OAT re-review, then run the authorized project archive workflow.
 - Merge personal-skills PR #32 only with separate authorization, then reconcile active installations through the owning repository's normal workflow.
 - Live and paid provider checks, fresh marketplace discovery, permission behavior, and global user-install reconciliation remain outside the local public milestone.
 
