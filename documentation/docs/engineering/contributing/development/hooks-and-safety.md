@@ -53,7 +53,7 @@ to drop a skill from normal discovery (it reappears only under
 `oat tools update` / `oat sync`, the flag is re-applied by an idempotent script and
 guarded by a gate rather than hand-edited:
 
-- After refreshing tooling, re-stamp the flag: `node scripts/apply-internal-flags.mjs`,
+- After refreshing tooling, re-stamp the flag: `pnpm tsx scripts/apply-internal-flags.ts`,
   then `oat sync`. The script is idempotent and skips the symlinked
   `session-observer` mirror (a canonical standalone skill that must stay publicly
   discoverable).

@@ -74,7 +74,7 @@ by an idempotent in-repo script and guarded by a gate instead of hand-edited.
 
 1. `oat tools update` — pull the latest OAT tooling skills (regenerating
    `.agents/skills/**` can drop the flag).
-2. `node scripts/apply-internal-flags.mjs` — re-stamp `metadata.internal: true`
+2. `pnpm tsx scripts/apply-internal-flags.ts` — re-stamp `metadata.internal: true`
    on every `.agents/skills/**/SKILL.md` that lacks it. Idempotent; it skips the
    symlinked `session-observer` entry (a public product skill that must stay
    publicly discoverable).

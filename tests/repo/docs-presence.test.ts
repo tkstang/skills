@@ -554,6 +554,12 @@ describe('docs-presence', () => {
     const contributing = await read('CONTRIBUTING.md');
     const releasing = await read('RELEASING.md');
     const liveE2eWorkflow = await read('.github/workflows/live-e2e.yml');
+    const hooksAndSafety = await read(
+      'documentation/docs/engineering/contributing/development/hooks-and-safety.md',
+    );
+    const handoffToolReadme = await read(
+      'tools/coding-session-handoff/README.md',
+    );
     const exportTranscriptFormats = await read(
       'skills/session-export-transcript/references/transcript-formats.md',
     );
@@ -568,6 +574,7 @@ describe('docs-presence', () => {
     expect(rootAgents).toMatch(
       /pnpm run sync:transcript-core.*compatibility wrapper/,
     );
+    expect(rootAgents).toMatch(/pnpm tsx scripts\/apply-internal-flags\.ts/);
     expect(consensusAgents).toMatch(/src\/plugins\/consensus\//);
     expect(consensusAgents).toMatch(/src\/skills\/<name>\//);
     expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\//);
@@ -601,19 +608,35 @@ describe('docs-presence', () => {
     expect(liveE2eWorkflow).toMatch(
       /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
     );
+    expect(testAgents).toMatch(/src\/skills\/session-observer\/src\//);
+    expect(hooksAndSafety).toMatch(
+      /pnpm tsx scripts\/apply-internal-flags\.ts/,
+    );
+    expect(handoffToolReadme).toMatch(
+      /The new `session-fork-to-destination` skill/,
+    );
+    expect(handoffToolReadme).toMatch(
+      /older executor in `coding-session-handoff\.mjs`/,
+    );
     for (const maintained of [
+      rootAgents,
       contributing,
       releasing,
       liveE2eWorkflow,
       consensusAgents,
       testAgents,
       sharedTranscriptCore,
+      hooksAndSafety,
+      handoffToolReadme,
     ]) {
       expect(maintained).not.toMatch(/scripts\/validate\.mjs/);
       expect(maintained).not.toMatch(/src\/consensus\//);
       expect(maintained).not.toMatch(/src\/transcript\/core\//);
       expect(maintained).not.toMatch(/tests\/consensus\/provider-cli\/e2e/);
       expect(maintained).not.toMatch(/skills\/export-session-transcript/);
+      expect(maintained).not.toMatch(/scripts\/apply-internal-flags\.mjs/);
+      expect(maintained).not.toMatch(/tests\/session-observer\//);
+      expect(maintained).not.toMatch(/The new `coding-session-handoff` skill/);
     }
   });
 });

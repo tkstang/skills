@@ -41,19 +41,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-13T23:57:24Z"
+oat_project_state_updated: "2026-09-14T00:53:50Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** P04 review-fix iteration 1 is complete locally. Review cycle 2 queued one remaining maintained-reference fix and one validation-basis refresh for the final automatic fix iteration; publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 review-fix iteration 2, the final automatic fix iteration, is complete locally and awaits final root review disposition. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures and queued the remaining reference sweep plus current validation-basis attribution.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures, and fix iteration 2 completed the remaining reference sweep plus current validation-basis attribution.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -77,7 +77,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Review cycle 3 closed all earlier findings. Its final freshness-path symlink issue was fixed in the user-authorized post-cap commit and verified directly without another review cycle. No external publication or installation change occurred.
 - Completed p02's standalone and consensus owner moves, metadata.version authority switch, backlog closure, and tooling/bridge cleanup. The final p02 review passed with zero findings.
 - Completed p03's product names, plugin groupings, source promotions, and prerequisite guards. The final p03 review passed with zero findings.
-- Completed p04's maintained documentation and local public-milestone verification. After review-fix iteration 1, the full suite passes 1,988 tests with one skip; 50 focused tests and the version, type, generated-output, validation, smoke, internal-flag, diff, and 38-route documentation-build checks pass.
+- Completed p04's maintained documentation and local public-milestone verification. After review-fix iterations 1 and 2, the full suite passes 1,988 tests with one skip; 50 focused tests and the version, type, generated-output, validation, smoke, internal-flag, diff, and 38-route documentation-build checks pass.
 
 ## Activation and Execution Prerequisites
 
@@ -91,7 +91,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Run the fresh independent p04 re-review, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
+Receive the final root p04 review disposition, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
 
 ## Planning Settings and Review Status
 

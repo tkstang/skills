@@ -1,16 +1,20 @@
 ---
 oat_status: complete_with_concerns
 oat_phase: p04
-oat_last_updated: 2026-09-13
+oat_last_updated: 2026-09-14
 oat_generated: false
 ---
 
 # Validation: Public Skill-Source Organization Milestone
 
 This record covers the public implementation range from `origin/main` at
-`20bb893ef6bcdd30704c681e12c60702b7c89bb8` through the p04 implementation
-head. Publication, merge, live provider validation, user-level installation,
-and the private p05 ownership cutover remain outside this local milestone.
+`20bb893ef6bcdd30704c681e12c60702b7c89bb8` through review-fix iteration 2 in
+the commit containing this file. Its final evidence was gathered from the
+bounded diff based on reconciled review receipt
+`8e3bd863dea4ead0e780181da10f1529a7b0f2f2` and repeated against the committed
+head before handoff. Publication, merge, live provider validation, user-level
+installation, and the private p05 ownership cutover remain outside this local
+milestone.
 
 ## Static Verification
 
@@ -20,18 +24,21 @@ and the private p05 ownership cutover remain outside this local milestone.
 | TypeScript type-check | pass | `pnpm run type-check` |
 | Generated-output freshness | pass | all declared generated outputs in sync through `pnpm run build:check` |
 | Repository validation | pass | `pnpm run validate` |
-| Complete Vitest suite | pass | 135 files passed, 1 skipped; 1,987 tests passed, 1 skipped |
+| Complete Vitest suite | pass | 135 files passed, 1 skipped; 1,988 tests passed, 1 skipped |
 | Mocked end-to-end smoke | pass | `pnpm run smoke` |
 | OAT internal flags | pass | 72 `.agents/skills/**/SKILL.md` files carry `metadata.internal: true` |
 | Diff whitespace | pass | `git diff --check` |
-| Documentation build | pass | unchanged p04-t01 basis produced 38 static routes |
-| Focused documentation checks | pass | 56 tests across docs-presence, README scope, and layout |
+| Documentation build | pass | current review-fix basis produced 38 static routes |
+| Original focused documentation checks | pass | 56 tests across docs-presence, README scope, and layout at p04-t01 |
+| Review-fix focused suite | pass | 50 tests across generated-output, docs-presence, plugin-manifest, and marketplace-manifest suites |
 
 The complete sweep first found three stale references to the renamed
 `session-fork-to-destination.md` guide. Follow-up p04-f01 corrected those
 references, incremented the canonical skill version from `0.2.0` to `0.2.1`,
-regenerated both distribution copies, and passed 21 focused tests before the
-full green rerun.
+regenerated both distribution copies, and passed 21 focused tests. Review-fix
+iteration 1 aligned active maintenance and nine-skill manifest descriptions
+and added the custom-root regression. Iteration 2 completed the maintained-path
+sweep and refreshed this evidence basis.
 
 ## Isolated Artifact Evidence
 
@@ -44,7 +51,7 @@ plugin payloads without adding a second packaging test framework.
 
 ## Behavioral Evidence
 
-- The complete Vitest suite passed after the documentation-path correction.
+- The complete Vitest suite passed after both review-fix iterations.
 - The existing mocked consensus smoke passed.
 - Required local skill and CLI prerequisite guards, the session and consensus
   plugin manifests, and all six declared standalone distributions are covered
@@ -53,6 +60,8 @@ plugin payloads without adding a second packaging test framework.
   `export-session-transcript` compatibility skill, alias, wrapper, or redirect.
 - The transitive shared-source guard is implemented and backlog item
   `BL-260723-guard-transitive-shared` is closed and archived.
+- The custom-root declared-output regression writes a nonempty fixture, checks
+  it cleanly, and detects stale, missing, and orphaned fixture content.
 
 ## Live and Release Evidence
 
@@ -88,7 +97,8 @@ No removable machinery or deferred simplification was identified.
 
 ## Review and Publication Disposition
 
-The independent whole-delta phase review is root-owned and remains pending
-after this implementer report. Publication must wait for that review and any
-bounded finding fixes. PR creation, push, merge, live validation, and p05 are
-authorization-bound and were not performed.
+Independent review cycles 1 and 2 identified the bounded fixes now represented
+by this record. The final root-owned disposition remains pending after
+review-fix iteration 2. Publication must wait for that disposition. PR
+creation, push, merge, live or paid provider validation, global installation,
+private-repository access, and p05 were not performed.
