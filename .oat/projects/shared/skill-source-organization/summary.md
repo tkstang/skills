@@ -25,9 +25,9 @@ P01 through p04 are complete and independently reviewed. The project remains ope
 - Renamed public standalone skills to `session-export-transcript` and `session-fork-to-destination` as a clean break with no aliases, redirects, wrappers, or duplicate legacy installation paths.
 - Promoted the portable `session-handoff` source and newer `complexity-review` content into public canonical owners while preserving attribution, privacy, and authorization boundaries.
 - Made quoted `metadata.version` the sole authored skill-version field. Version validation follows renamed owners, includes local edits and shared-source fan-out, and requires an explicit comparison base.
-- Migrated affected build, validation, internal-flag, and version tooling to TypeScript, expanded isolated installation and generated-output regressions, and updated CI, manifests, contributor guidance, release guidance, the docs site, and the changelog.
+- Migrated affected build, validation, internal-flag, and version tooling to TypeScript, expanded isolated installation and generated-output regressions, and updated CI, manifests, contributor and scoped agent guidance, release guidance, the docs site, and the changelog.
 
-The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-fix tests, 40 isolated packaging tests, type-check, generated-output freshness, structural validation, smoke, internal-flag validation, the twelve-skill version gate, whitespace checks, and a 38-route documentation build. The final independent review reported zero findings at every severity.
+The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-fix tests, 40 isolated packaging tests, type-check, generated-output freshness, structural validation, smoke, internal-flag validation, the twelve-skill version gate, whitespace checks, and a 39-route documentation build. The final independent review reported zero findings at every severity; the later documentation expansion also passed its focused 23-test docs suite, structural validation, generated-output freshness, and changed-file formatting checks.
 
 ## Key Decisions
 
