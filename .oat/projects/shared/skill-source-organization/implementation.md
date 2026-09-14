@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-09-14
-oat_current_task_id: p05-t01
+oat_current_task_id: p05-t02
 oat_generated: false
 oat_template: false
 ---
 
 # Implementation: skill-source-organization
 
-All 14 planned implementation tasks are complete. Public PR #79 merged, and p05 opened the linked private personal-skills ownership-cutover PR with its checks passing. Formal p05 and final OAT reviews, the private PR merge, live-provider checks, and active-install changes remain pending.
+All 14 original implementation tasks are complete. Formal p05 and final review added three bounded closeout tasks; 14 of 17 total tasks are complete. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Progress Overview
 
@@ -20,8 +20,9 @@ All 14 planned implementation tasks are complete. Public PR #79 merged, and p05 
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | complete; review passed | 2 | 2 |
-| p05 Post-merge private cutover | implementation complete; review pending | 1 | 1 |
-| Total | implementation complete; review pending | 14 | 14 |
+| p05 Post-merge private cutover | review fix pending | 2 | 1 |
+| p06 Final review fixes | pending | 2 | 0 |
+| Total | review fixes pending | 17 | 14 |
 
 p01–p04 formed the merged public milestone. P05 completed the planned private-PR boundary; merging that PR or changing active installations remains outside this task.
 
@@ -225,6 +226,24 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 - Evidence: private PR file `.oat/projects/shared/public-skill-owner-cutover/validation.md`
 - Nested dispatches: none
 <!-- orchestration-runs-end -->
+
+### Review Received: p05
+
+**Date:** 2026-09-14
+**Review artifact:** `reviews/archived/p05-review-2026-09-14T130500Z.md`
+
+**Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
+
+**New task:** `p05-t02` clears the completed-task lifecycle pointers and reconciles closeout state. The finding is accepted because stale current-task values can misroute lifecycle tooling.
+
+### Review Received: final
+
+**Date:** 2026-09-14
+**Review artifact:** `reviews/archived/final-review-2026-09-14T130500Z.md`
+
+**Findings:** 0 Critical, 0 Important, 2 Medium, 1 Minor.
+
+**New tasks:** `p06-t01` installs worktree-aware managed-hook dispatch; `p06-t02` corrects the seven retired observer test-header paths and follows the canonical skill version policy. The duplicate current-task finding is owned by `p05-t02`. All findings are converted to fixes; none are deferred.
 
 ## Implementation Log
 

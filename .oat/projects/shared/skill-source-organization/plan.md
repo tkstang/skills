@@ -22,7 +22,7 @@ oat_template: false
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** All 14 planned implementation tasks are complete. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 opened the linked private ownership-cutover PR without merging it or changing active installs. The p05 and final review rows remain pending for the root workflow.
+**Status:** The 14 original implementation tasks are complete. Formal p05 and final review added three bounded closeout tasks; 14 of 17 total tasks are complete. Public PR #79 remains merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Execution Boundaries
 
@@ -279,7 +279,7 @@ Run the required independent review of the whole public code delta and receive i
 
 **Commit:** docs(p04-t02): record public packaging migration verification
 
-## Phase p05: Post-Merge Personal-Skills Cutover (1 task)
+## Phase p05: Post-Merge Personal-Skills Cutover (2 tasks)
 
 ### Task p05-t01: Open the private authored-copy removal PR
 
@@ -297,6 +297,38 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 
 **Commit:** chore(p05-t01): consume public session and review skill owners (private repo); docs(p05-t01): record personal skill ownership PR (public project bookkeeping)
 
+### Task p05-t02: (review) Clear completed-task lifecycle pointers
+
+**Files:** `.oat/projects/shared/skill-source-organization/implementation.md`, `.oat/projects/shared/skill-source-organization/state.md`, and affected project closeout summaries.
+
+**Implement:** Set `oat_current_task_id` and `oat_current_task` to `null` after all implementation tasks and review fixes are complete. While review-fix work remains, point both fields at the next incomplete task. Keep the project in the implementation closeout phase until the formal reviews pass and completion runs.
+
+**Verify:** Reconcile task counts and current-task fields across plan, implementation, state, summary, and validation; run `oat project status --json` and `oat pjm doctor --json`; run `git diff --check`.
+
+**Commit:** `docs(p05-t02): reconcile implementation closeout pointers`
+
+## Phase p06: Final Review Fixes (2 tasks)
+
+### Task p06-t01: (review) Make managed hooks worktree-aware
+
+**Files:** `tools/git-hooks/manage-hooks.mjs`, `tools/git-hooks/README.md`, `tests/tooling/git-hooks.test.ts`, and any narrowly required hook helper owned by the existing hook manager.
+
+**Implement:** Replace checkout-bound hook links with a stable dispatcher or equivalent mechanism that resolves the invoking worktree through Git and executes that worktree's tracked hook. Preserve existing enable, disable, status, and passthrough behavior without adding runtime dependencies.
+
+**Verify:** Add a linked-worktree regression whose primary and linked worktrees contain distinguishable hook bodies and prove invocation uses the linked worktree version. Run the focused hook suite, type-check, repository validation, and `git diff --check`.
+
+**Commit:** `fix(p06-t01): execute managed hooks from the active worktree`
+
+### Task p06-t02: (review) Correct moved observer test headers
+
+**Files:** The seven `src/skills/session-observer/src/*.test.ts` files named in the final review and the canonical session-observer skill version/generated outputs if required by repository policy.
+
+**Implement:** Update obsolete `src/transcript/session-observer/lib/*` header paths to the canonical colocated `src/skills/session-observer/src/lib/*` paths. Apply the changed-skill version policy because these files live under a canonical skill directory, then regenerate committed outputs through the canonical build.
+
+**Verify:** Run the session-observer tests, changed-skill version gate against `origin/main`, generated-output check, type-check, repository validation, and `git diff --check`.
+
+**Commit:** `docs(p06-t02): correct observer test source paths`
+
 ## Reviews
 
 | Scope | Type | Status | Date | Artifact | Reviewed Head | Invocation | Gate Target |
@@ -307,7 +339,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p02 | code | fixes_completed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T202600Z.md | a2014e9b8641cf0af03fe89eb634494614874260 | manual | - |
 | p02 | code | fixes_completed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
 | p02 | code | passed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T210441Z.md | 9104c37597c8b7fa452ef1aeadaf48e153e1a210 | manual | - |
-| final | code | pending | - | - | - | - | - |
+| final | code | fixes_added | 2026-09-14 | reviews/archived/final-review-2026-09-14T130500Z.md | 3b4e21f2ce516fd0c4382b28c9cdbf21dfae6358 | manual | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
@@ -316,7 +348,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p04 | code | fixes_completed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T002632Z.md | 0055176770dc0e869fa952978faf5832cba7c1c4 | manual | - |
 | p04 | code | fixes_completed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T004843Z.md | fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a | manual | - |
 | p04 | code | passed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T010312Z.md | 9d9c1e8607941999b0baeed9e8d8d7749a96730f | auto | - |
-| p05 | code | pending | - | - | - | - | - |
+| p05 | code | fixes_added | 2026-09-14 | reviews/archived/p05-review-2026-09-14T130500Z.md | 3b4e21f2ce516fd0c4382b28c9cdbf21dfae6358 | manual | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
 Existing scaffold rows are preserved. Spec is intentionally absent in quick mode; design approval for planning does not fabricate an independent review. p04's public milestone review is distinct from project-wide final review after post-merge follow-through. All gate results require actual recorded evidence.
@@ -374,8 +406,9 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | p02 Source/tooling migration | 4 | 4 |
 | p03 Products/promotions | 4 | 4 |
 | p04 Public documentation/verification | 2 | 2 |
-| p05 Post-merge private cutover | 1 | 1 |
-| Total | 14 | 14 |
+| p05 Post-merge private cutover | 2 | 1 |
+| p06 Final review fixes | 2 | 0 |
+| Total | 17 | 14 |
 
 p01–p04 comprise the merged 13-task public milestone. P05 completed its planned acceptance boundary by opening the linked private ownership-cutover PR; that PR's merge and any active-install transition remain pending separate authorization.
 

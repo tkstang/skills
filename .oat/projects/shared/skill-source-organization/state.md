@@ -1,5 +1,5 @@
 ---
-oat_current_task: p05-t01
+oat_current_task: p05-t02
 oat_last_commit: 8767bce4819a2cae1a9f257de650a5ed0ae0afc1
 oat_blockers: []
 associated_issues:
@@ -42,19 +42,19 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/skills/pull/79
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-14T13:11:32Z"
+oat_project_state_updated: "2026-09-14T13:32:00Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** All 14 planned implementation tasks are complete. Public PR #79 merged, and p05 opened private PR #32 with CI passing. Formal p05 and final OAT reviews, the private PR merge, live-provider checks, and active-install changes remain pending.
+**Status:** The 14 original implementation tasks are complete. Formal p05 and final review added three bounded closeout tasks; 14 of 17 total tasks are complete. Public PR #79 is merged, and private PR #32 remains open and unmerged.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-14
 
 ## Current Phase
 
-Phase p05 completed its planned implementation boundary after public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`. The visible personal-skills task removed both private authored owners, retained the personal distribution through pinned public rendered payloads, and opened private PR #32 at commit `8f4624114347f5b7d91a5db6bd160a0769ff1cd5`. Its checks and independent task review passed. The configured HiLL checkpoint is complete; formal p05 and final OAT reviews remain root-owned.
+The original p05 implementation boundary completed after public PR #79 merged. Formal review found three bounded closeout fixes. Work resumes at p05-t02 to reconcile task pointers, followed by p06's worktree-aware hook dispatch and observer test-header correction. Private PR #32 remains open, green, and unmerged.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -64,7 +64,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 14 tasks across five sequential phases, implementation-ready with complete review disposition and explicit no-rerun acceptance for the bounded edits.
-- [Implementation](implementation.md): 14/14 tasks implemented; formal p05 and final OAT reviews pending.
+- [Implementation](implementation.md): 14/17 tasks complete; three review fixes pending.
 - [Validation](validation.md): completed public and private-PR implementation evidence with live/install limitations preserved.
 
 ## Progress
@@ -95,7 +95,7 @@ All implementation sequencing prerequisites are satisfied. Formal review and pro
 
 ## Next Milestone
 
-Run the formal p05 and final OAT reviews, then continue the already authorized project-completion and archive workflow. Do not merge private PR #32 or change active installations without separate authorization.
+Execute p05-t02 and p06, rerun the failed p05 and final reviews, then continue the already authorized project-completion and archive workflow. Do not merge private PR #32 or change active installations without separate authorization.
 
 ## Planning Settings and Review Status
 
