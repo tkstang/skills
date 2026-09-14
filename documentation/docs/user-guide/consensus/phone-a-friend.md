@@ -64,7 +64,7 @@ Check inventory and readiness before spending a peer call:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json
+consensus preflight --json --provider <selected-provider-id> --capability run
 ```
 
 Prefer a ready provider whose id differs from the current host. For example,

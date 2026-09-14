@@ -44,6 +44,62 @@ async function read(relativePath: string) {
 }
 
 describe('docs-presence', () => {
+  it('canonical shipped references use executable colocated paths', async () => {
+    const resources = await Promise.all(
+      [
+        'plugins/consensus/references/live-e2e.md',
+        'src/skills/evaluate/references/operator-qa.md',
+        'src/skills/session-observer-collab/references/runtime-claude-code.md',
+        'src/skills/session-observer-collab/references/runtime-codex.md',
+        'src/skills/session-observer-collab/references/runtime-cursor.md',
+        'src/skills/session-observer/references/transcript-formats.md',
+        'src/skills/session-export-transcript/references/transcript-formats.md',
+        'src/skills/panel/src/consensus-panel.ts',
+        'src/plugins/consensus/core/loop-provider.ts',
+        'src/skills/session-observer/src/lib/state.ts',
+        'src/skills/session-observer/src/fixtures/README.md',
+      ].map(read),
+    );
+    const combined = resources.join('\n');
+    expect(combined).not.toMatch(
+      /(?:tests\/(?:consensus|session-observer|session-observer-collab|transcript-core)|src\/(?:consensus\/|transcript\/core)|scripts\/build-generated\.mjs)/u,
+    );
+    expect(resources[0]).toContain('src/plugins/consensus/');
+    expect(resources[0]).toContain('src/skills/refine/');
+    expect(resources[0]).toContain('src/skills/evaluate/');
+
+    const executablePaths = [
+      'src/skills/evaluate/src/provider-cli-integration.test.ts',
+      'src/skills/evaluate/src/wrapper.test.ts',
+      'src/skills/evaluate/src/output.test.ts',
+      'src/skills/session-observer/src/watch.test.ts',
+      'src/skills/session-observer-collab/src/codex-hook.test.ts',
+      'src/skills/session-observer-collab/src/control.test.ts',
+      'src/skills/session-observer-collab/src/cursor-hook.test.ts',
+      'src/skills/session-observer-collab/src/completion.test.ts',
+      'src/skills/session-observer-collab/src/wake-envelope-contract.test.ts',
+      'src/shared/transcript/runtimes.test.ts',
+      'src/shared/transcript/runtimes.ts',
+    ];
+    for (const executablePath of executablePaths) {
+      expect(combined).toContain(executablePath);
+      await expect(
+        lstat(new URL(executablePath, repoRoot)),
+      ).resolves.toBeTruthy();
+    }
+    expect(combined).toContain(
+      'src/skills/session-observer/src/fixtures/cursor/framed-*.jsonl',
+    );
+    await expect(
+      lstat(
+        new URL(
+          'src/skills/session-observer/src/fixtures/cursor/framed-closed.jsonl',
+          repoRoot,
+        ),
+      ),
+    ).resolves.toBeTruthy();
+  });
+
   it('generated docs manifest includes every Markdown page', async () => {
     const docsDir = new URL('documentation/docs/', repoRoot);
     const pages = (await readdir(docsDir, { recursive: true }))
@@ -374,7 +430,6 @@ describe('docs-presence', () => {
       'plugins/consensus/skills/panel/references/examples/design-risk-question.md',
       'plugins/consensus/skills/panel/references/examples/privacy-boundary-question.md',
       'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
-      'plugins/consensus/skills/panel/scripts/consensus-config.mjs',
       'plugins/consensus/skills/panel/schemas/panel-response.schema.json',
     ];
 
@@ -483,7 +538,7 @@ describe('docs-presence', () => {
     expect(config).toMatch(/consensus config/);
   });
 
-  it('documentation records the generated TypeScript runtime contract', async () => {
+  it('documentation records the generated installation-unit contract', async () => {
     const docs = await readDocsSite();
     const rootAgents = await read('AGENTS.md');
     const consensusAgents = await read('plugins/consensus/AGENTS.md');
@@ -496,33 +551,44 @@ describe('docs-presence', () => {
       '.oat/repo/reference/decisions/DR-260604-shared-transcript-knowledge.md',
     );
     const sharedTranscriptCore = await read('shared/transcript-core/README.md');
+    const contributing = await read('CONTRIBUTING.md');
+    const releasing = await read('RELEASING.md');
+    const liveE2eWorkflow = await read('.github/workflows/live-e2e.yml');
+    const hooksAndSafety = await read(
+      'documentation/docs/engineering/contributing/development/hooks-and-safety.md',
+    );
+    const handoffToolReadme = await read(
+      'tools/coding-session-handoff/README.md',
+    );
     const exportTranscriptFormats = await read(
-      'skills/export-session-transcript/references/transcript-formats.md',
+      'skills/session-export-transcript/references/transcript-formats.md',
     );
 
-    // The generated-runtime contract now lives in the docs site
+    // The generated-installation contract lives in the docs site
     // (Engineering → Architecture), not the README.
-    expect(docs).toMatch(/[Gg]enerated runtime/);
-    expect(docs).toMatch(/src\/transcript\/core\/runtimes\.ts/);
+    expect(docs).toMatch(/[Gg]enerated installation units/);
+    expect(docs).toMatch(/src\/shared\/transcript\/runtimes\.ts/);
     expect(docs).toMatch(/sync:transcript-core/);
-    expect(docs).toMatch(/scripts\/build-generated\.mjs/);
-    expect(rootAgents).toMatch(/canonical TypeScript source/);
+    expect(docs).toMatch(/scripts\/build-generated\.ts/);
+    expect(rootAgents).toMatch(/canonical owners under `src\/skills\/`/);
     expect(rootAgents).toMatch(
       /pnpm run sync:transcript-core.*compatibility wrapper/,
     );
-    expect(consensusAgents).toMatch(/src\/consensus\//);
-    expect(consensusAgents).toMatch(
-      /plugins\/consensus\/skills\/\*\/scripts\//,
-    );
+    expect(rootAgents).toMatch(/pnpm tsx scripts\/apply-internal-flags\.ts/);
+    expect(consensusAgents).toMatch(/src\/plugins\/consensus\//);
+    expect(consensusAgents).toMatch(/src\/skills\/<name>\//);
+    expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\//);
     expect(testAgents).toMatch(
       /tests\/tooling\/generated-output-sync\.test\.ts/,
     );
-    expect(sharedTranscriptCore).toMatch(/src\/transcript\/core\/runtimes\.ts/);
+    expect(sharedTranscriptCore).toMatch(
+      /src\/shared\/transcript\/runtimes\.ts/,
+    );
     expect(sharedTranscriptCore).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,
     );
     expect(exportTranscriptFormats).toMatch(
-      /src\/transcript\/core\/runtimes\.ts/,
+      /src\/shared\/transcript\/runtimes\.ts/,
     );
     expect(exportTranscriptFormats).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,
@@ -535,5 +601,42 @@ describe('docs-presence', () => {
     expect(sharedTranscriptDecision).toMatch(
       /DR-014[\s\S]+Superseded in implementation/,
     );
+    expect(contributing).toMatch(/scripts\/validate\.ts/);
+    expect(releasing).toMatch(
+      /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
+    );
+    expect(liveE2eWorkflow).toMatch(
+      /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
+    );
+    expect(testAgents).toContain('../src/AGENTS.md');
+    expect(hooksAndSafety).toMatch(
+      /pnpm tsx scripts\/apply-internal-flags\.ts/,
+    );
+    expect(handoffToolReadme).toMatch(
+      /The new `session-fork-to-destination` skill/,
+    );
+    expect(handoffToolReadme).toMatch(
+      /older executor in `coding-session-handoff\.mjs`/,
+    );
+    for (const maintained of [
+      rootAgents,
+      contributing,
+      releasing,
+      liveE2eWorkflow,
+      consensusAgents,
+      testAgents,
+      sharedTranscriptCore,
+      hooksAndSafety,
+      handoffToolReadme,
+    ]) {
+      expect(maintained).not.toMatch(/scripts\/validate\.mjs/);
+      expect(maintained).not.toMatch(/src\/consensus\//);
+      expect(maintained).not.toMatch(/src\/transcript\/core\//);
+      expect(maintained).not.toMatch(/tests\/consensus\/provider-cli\/e2e/);
+      expect(maintained).not.toMatch(/skills\/export-session-transcript/);
+      expect(maintained).not.toMatch(/scripts\/apply-internal-flags\.mjs/);
+      expect(maintained).not.toMatch(/tests\/session-observer\//);
+      expect(maintained).not.toMatch(/The new `coding-session-handoff` skill/);
+    }
   });
 });

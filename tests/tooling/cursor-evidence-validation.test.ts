@@ -67,10 +67,10 @@ describe('Cursor evidence validation', () => {
     expect(result.files).toContain(CURSOR_EVIDENCE_REFERENCE);
     expect(result.files).toContain(CURSOR_WAKE_PROBE_SCRIPT);
     expect(result.files).toContain(
-      'tests/session-observer/fixtures/cursor/framed-closed.jsonl',
+      'src/skills/session-observer/src/fixtures/cursor/framed-closed.jsonl',
     );
     expect(result.files).not.toContain(
-      'tests/session-observer/fixtures/cursor/typical.jsonl',
+      'src/skills/session-observer/src/fixtures/cursor/typical.jsonl',
     );
 
     const reference = await readFile(
@@ -147,7 +147,7 @@ describe('Cursor evidence validation', () => {
     ).toEqual([]);
     expect(
       scanCursorEvidenceText(
-        'tests/session-observer/fixtures/cursor/framed-example.jsonl',
+        'src/skills/session-observer/src/fixtures/cursor/framed-example.jsonl',
         synthetic,
       ),
     ).toEqual([]);
@@ -305,7 +305,7 @@ describe('Cursor evidence validation', () => {
     await write(root, CURSOR_EVIDENCE_REFERENCE, '# placeholder');
     await write(
       root,
-      'tests/session-observer/fixtures/cursor/framed-clean.jsonl',
+      'src/skills/session-observer/src/fixtures/cursor/framed-clean.jsonl',
       '{"type":"turn_ended","status":"success"}\n',
     );
     await write(root, 'documentation/docs/cursor.md', '# Cursor\n');
@@ -318,7 +318,7 @@ describe('Cursor evidence validation', () => {
       'documentation/docs/cursor.md',
       CURSOR_WAKE_PROBE_SCRIPT,
       CURSOR_EVIDENCE_REFERENCE,
-      'tests/session-observer/fixtures/cursor/framed-clean.jsonl',
+      'src/skills/session-observer/src/fixtures/cursor/framed-clean.jsonl',
     ]);
   });
 
@@ -330,7 +330,7 @@ describe('Cursor evidence validation', () => {
     await write(root, CURSOR_EVIDENCE_REFERENCE, '# placeholder\n');
     await write(
       root,
-      'tests/session-observer/fixtures/cursor/framed-clean.jsonl',
+      'src/skills/session-observer/src/fixtures/cursor/framed-clean.jsonl',
       '{"type":"turn_ended","status":"success"}\n',
     );
     await write(root, 'documentation/docs/cursor.md', '# Cursor\n');

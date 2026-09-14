@@ -1,16 +1,15 @@
 ---
 name: session-observer-collab
-description: Use when two coding-agent sessions should observe each other and collaborate. Composes with session-observer for pinned review, bounded wake behavior, and explicit human-authority boundaries.
+description: Use when two coding-agent sessions should observe each other and collaborate. Composes with the declared observer workflow for pinned review, bounded wake behavior, and explicit human-authority boundaries.
 license: MIT
-compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the session-observer skill for transcript operations.
+compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies. Requires the declared observer skill for transcript operations.
 argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|other>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
-version: '1.0.20'
 metadata:
   author: thomas.stang
-  version: '1.0.20'
+  version: '1.0.25'
 ---
 
 # session-observer-collab
@@ -19,6 +18,21 @@ Coordinate a user and two agent sessions through the canonical
 `session-observer` skill. This skill defines collaboration protocol and wake
 boundaries; it does not reimplement transcript discovery, normalization,
 rendering, or offset storage.
+
+## Required-skill preflight
+
+Before any transcript access or observer command, inspect the current host's
+effective skill inventory for any documented observer identity:
+`session-observer` or `observer` or `consensus:observer`. These names represent the same required
+workflow in its standalone and consensus plugin-local forms. Continue when either
+form is present. Only when none of these identities is available, stop and report
+that the required canonical skill is `session-observer`, with its install source:
+
+<https://github.com/tkstang/skills/tree/main/skills/session-observer>
+
+Do not fetch the URL, install the skill, or continue with direct transcript access.
+Installation requires a separately authorized action. This inventory check is local
+and must not inspect transcripts or probe provider authentication.
 
 ## When to Use
 

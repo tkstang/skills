@@ -10,6 +10,7 @@
 
 ## Completed Items
 
+- 2026-09-13 — BL-260723-guard-transitive-shared — Guard transitive shared-runtime skill version bumps — Canonical version validation now derives affected owners from declared authored, shared-runtime, plugin-shared, and generated-output closures; guards local edit states and ownerless outputs; and preserves renamed-owner history
 - 2026-07-24 — BL-260713-stronger-cursor-collaboration — Stronger Cursor collaboration wake surfaces — Completed version-gated live Stop and managed-subagent probes, found callback and scheduled surfaces unavailable, excluded the credentialed private worker, and retained buffered-manual as the strongest honest tier
 - 2026-07-24 — BL-260713-cursor-transcript-store — Cursor transcript-store and slug coverage — Shipped evidence-gated Cursor agent-transcript discovery with dotted-path slug handling, canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up coverage, and explicit non-claims for unsupported stores
 - 2026-07-23 — BL-260718-split-consensus-refine-into — Split consensus-refine into cohesive modules — Shipped in wave-5: consensus-refine.ts 3,890 to 1,138-line facade over 7 runtime modules; 171/171 declarations preserved; all external importers unchanged; smoke green through the facade; refine 0.1.9

@@ -1,0 +1,28 @@
+{
+  "name": "session",
+  "version": "0.1.0",
+  "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+  "author": {
+    "name": "Thomas Stang"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Session",
+    "shortDescription": "Handoff, export, and prepare destination-side session forks.",
+    "longDescription": "Session skills for transferring bounded coding context, exporting sanitized conversations, and preparing read-only destination-tab fork instructions.",
+    "developerName": "Thomas Stang",
+    "category": "Coding",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Use Session Export Transcript to save a sanitized conversation or Session Fork to Destination to prepare destination-tab instructions."
+    ]
+  },
+  "metadata": {
+    "provider": "codex",
+    "permission_declaration": "unverified",
+    "permission_verification": [
+      "Static packaging and isolated export execution are verified; live provider discovery and permission behavior remain unverified."
+    ]
+  }
+}

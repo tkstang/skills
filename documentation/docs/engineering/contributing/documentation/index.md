@@ -13,17 +13,17 @@ read the Markdown source and the navigation structure.
 
 This site is a [Fumadocs](https://fumadocs.dev/) app (Next.js + MDX). Content
 lives under `documentation/docs/`, and the app is rooted at `documentation/`.
-Every content directory is mapped by an `index.md` with a `## Contents` section,
-and the root manifest at `documentation/index.md` is generated — never
-hand-edited.
+Every content directory is mapped by an `index.md` with a `## Contents` section.
+Adjacent `meta.json` files control rendered sidebar order/grouping; the root
+manifest at `documentation/index.md` is a generated file-tree inventory, never
+hand-edited. Keep the authored maps and sidebar metadata aligned, then regenerate
+the inventory.
 
-The authoritative runtime contract for **agents** working inside the docs app is
-`documentation/AGENTS.md`. It covers the same conventions documented here from
-the agent's point of view — adding pages, restructuring navigation, the
-audit/apply flow, and what not to do. The pages below are the
-human-and-agent-shared reference; `AGENTS.md` is the agent runtime entry point.
-When the two ever disagree, `AGENTS.md` wins and these pages should be corrected
-to match.
+`documentation/AGENTS.md` is the concise routing and safety contract for agents;
+the pages below are the shared detailed reference. Update both when their
+contract changes. If a factual claim disagrees with the app's source or
+configuration, correct the stale guidance together rather than treating either
+prose surface as proof of implementation behavior.
 
 ## Contents
 

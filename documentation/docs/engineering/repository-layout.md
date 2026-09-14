@@ -1,6 +1,6 @@
 ---
 title: 'Repository Layout'
-description: 'Where everything lives — repo-wide structure and the consensus plugin package layout.'
+description: 'Where authored skills, distribution declarations, shared/plugin source, and generated standalone and plugin payloads live.'
 ---
 
 # Repository Layout
@@ -11,28 +11,56 @@ infrastructure.
 
 ## Repository structure
 
-- `skills/` — standalone personal skills.
-  - `skills/session-observer/` — standalone peer transcript review and catch-up skill.
-  - `skills/session-observer-collab/` — N=2 collaboration protocol, runtime references, and bounded lifecycle adapters. Its `.mjs` files are authored, dependency-free skill runtime; provider-visible mirrors are generated.
-  - `skills/export-session-transcript/` — standalone session transcript export skill.
-  - `skills/complexity-review/` — instruction-only complexity review skill; a single `SKILL.md`, no scripts.
-- `src/consensus/` — canonical TypeScript source for the consensus loop and each consensus wrapper (`config`, `core`, `create`, `decide`, `evaluate`, `panel`, `plan`, `provider-cli`, `refine`).
-- `src/transcript/` — canonical TypeScript source for transcript-core, session-observer, and export-session runtime code.
-- `shared/transcript-core/` — compatibility documentation pointer for the former shared transcript-core source path.
-- `plugins/consensus/` — self-contained consensus plugin package.
+- `src/skills/<canonical-name>/` — the single authored owner for each product
+  skill: instructions, references/assets, runtime source, skill-owned tests, and
+  `build.json` when it has executable entrypoints.
+- `src/distributions.ts` — standalone selection, plugin membership/local names,
+  skill prerequisites, shared-source roots, and independent plugin release
+  targets.
+- `src/plugins/consensus/` — non-skill consensus CLI, loop, configuration, and
+  plugin-owned tests.
+- `src/shared/transcript/` — genuine cross-skill transcript runtime source and
+  its owned tests.
+- `skills/<canonical-name>/` — generated complete standalone installation units
+  for explicitly declared skills only.
+- `plugins/consensus/` — generated complete consensus installation unit,
+  including peer workflows plus local `observer` and `observer-collab` skills.
+- `plugins/session/` — generated complete session installation unit with local
+  `handoff`, `export-transcript`, and `fork-to-destination` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
-The standalone skill directories under `skills/` are the canonical shipped
-sources. `.agents/`, `.claude/`, and `.cursor/` provider views are generated
-mirrors; update the canonical directory and run the repository sync workflow
-instead of editing a mirror. The collaboration skill invokes the generated
-`session-observer` CLI for transcript operations and keeps its own control and
-lease state separate from observer read offsets.
+The trees under `skills/`, `plugins/*/skills/`, `.agents/`, `.claude/`, and
+`.cursor/` are generated outputs or provider views. Edit the canonical
+`src/skills/` owner and distribution/build declarations, then rebuild. Prompt-only
+skills need no empty source or build scaffolding.
 
 Shipped runtime `.mjs` lives next to its manifests under `plugins/` and
-`skills/`; it is generated from the canonical TypeScript in `src/` — see
-[Generated runtime outputs](architecture/generated-runtime.md).
+`skills/`. Most is generated from canonical TypeScript in `src/`; the
+collaboration owner also has authored `.mjs` entrypoints with adjacent `.d.mts`
+declarations. Both forms are bundled into generated runtime, and declarations
+are not shipped. See
+[Generated installation units](architecture/generated-runtime.md).
+
+## Distribution and dependency rules
+
+Canonical identity is separate from plugin-local identity. For example,
+`session-export-transcript` becomes `export-transcript` inside the session
+plugin, while both forms inherit one authored `metadata.version`. The consensus
+and session plugin manifest versions are independent from each other and from
+member skill versions.
+
+Shared runtime code is bundled or copied into every installation unit that
+needs it; an installed standalone skill never imports another installed skill,
+the checkout, or developer dependencies. A declared workflow prerequisite is
+different. `session-observer-collab` requires the `session-observer` workflow,
+recognizes its standalone and consensus plugin-local identities, and stops with
+an install link instead of installing it automatically.
+
+The rename from `export-session-transcript` to `session-export-transcript` and
+from `coding-session-handoff` to `session-fork-to-destination` is a clean break.
+Old payloads, script entrypoints, aliases, and redirects are absent; historical
+mapping exists only for version comparison.
 
 ## Consensus plugin package layout
 
@@ -59,3 +87,18 @@ Inside `plugins/consensus/`:
 - `references/live-e2e.md` — repeatable live provider E2E release-gate runbook for refine and evaluate.
 - `references/e2e/` — small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` — task contract for host-mediated parallel section runners.
+- `skills/observer/` — plugin-local form of `session-observer`.
+- `skills/observer-collab/` — plugin-local form of
+  `session-observer-collab`, with its declared observer prerequisite.
+
+## Session plugin package layout
+
+Inside `plugins/session/`:
+
+- `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` — independently
+  versioned provider manifests.
+- `skills/handoff/` — plugin-local form of `session-handoff`.
+- `skills/export-transcript/` — plugin-local form of
+  `session-export-transcript`, including its generated dependency-free CLI.
+- `skills/fork-to-destination/` — plugin-local form of the experimental
+  `session-fork-to-destination` guidance workflow and generated CLI.

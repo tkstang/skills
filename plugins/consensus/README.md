@@ -2,11 +2,23 @@
 
 Status: v0.1.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log; `panel`, which asks multiple provider-backed panelists the same question and writes side-by-side attributed responses while the host stays a neutral moderator; and `phone-a-friend`, which asks one other provider-backed peer for a structured advisory take without a deliberation loop.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows
+and cross-provider session observation. It ships the peer workflows `create`,
+`decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend`, plus
+plugin-local `observer` and `observer-collab` forms of the canonical
+`session-observer` and `session-observer-collab` skills.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, the `--agency` flag, single-round neutral panel questions through `consensus-panel`, and one-shot advisory peer consultation through `consensus run`. Future work may add `consensus-research`, a whole-document harmonization pass, multi-round panel discussion, and deliberation metrics/cost caps.
+The peer-workflow scope is intentionally narrow: seven peer skills, three
+iteration modes selected with `--iteration`, a configurable synthesizer, an
+agency-gated escalation ladder, sequential sections by default for refine,
+opt-in host-mediated parallel section orchestration, single-round neutral panel
+questions, and one-shot advisory consultation. The two observer skills are
+grouped here because observing and collaborating across providers is consensus
+behavior; they do not invoke the peer-deliberation loop. Future work may add
+`consensus-research`, a whole-document harmonization pass, multi-round panel
+discussion, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -34,7 +46,10 @@ Cursor Agent:
 cursor agent --plugin-dir "$PWD/plugins/consensus"
 ```
 
-The Cursor CLI does not currently expose `cursor plugin marketplace` or `cursor plugin install`; local plugin loading is session-scoped through Cursor Agent's `--plugin-dir` option.
+Cursor Agent local plugin loading is session-scoped through `--plugin-dir`.
+Its marketplace command can add a Git repository URL, but it does not accept the
+local `"$PWD"` pattern used above and does not expose a CLI `plugin install`
+verb; use the interactive plugin picker for marketplace installation.
 
 Published provider marketplace install flows are not release claims yet. Re-check provider CLIs and marketplace flows before making new public install claims.
 
@@ -52,10 +67,10 @@ Check provider inventory and readiness from the repository root:
 
 ```bash
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
-In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
+In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json --provider <selected-provider-id> --capability run`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
 
 Provider `run` envelopes are the command contract. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; callers must parse the JSON envelope instead of treating `$?` as success. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand is different: validation or capture failures exit nonzero so the peer can self-correct during its turn.
 
@@ -267,10 +282,10 @@ Peer IDs come from provider inventory:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json --provider claude
+consensus preflight --json --provider claude --capability run
 ```
 
-The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, and `PROVIDER_UNSUPPORTED_OPTION`.
+The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`.
 
 Provider exits are classified conservatively. Unknown exits are terminal by default; reliable external interrupts can retry; timeout and output-cap failures remain terminal; provider-specific transient signatures are evidence-backed and redacted in diagnostics through `exit_classification`.
 
@@ -316,6 +331,11 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/phone-a-friend/schemas/advisory.schema.json` - structured advisory response contract.
 - `skills/phone-a-friend/references/operator-qa.md` - manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
 - `skills/phone-a-friend/references/examples/` - example advisory prompt and response payload.
+- `skills/observer/` - plugin-local `session-observer`, including its generated
+  dependency-free transcript CLI.
+- `skills/observer-collab/` - plugin-local
+  `session-observer-collab`; requires the observer workflow and recognizes its
+  standalone or plugin-local installed identity.
 - `references/live-e2e.md` - repeatable live provider E2E release-gate runbook for Refine and Evaluate.
 - `references/e2e/` - small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

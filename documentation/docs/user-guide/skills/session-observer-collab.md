@@ -5,18 +5,26 @@ description: 'Coordinate two mutually observing agent sessions with exact pins, 
 
 # Session Observer Collaboration
 
-`session-observer-collab` is a dependency-free companion to
-[`session-observer`](session-observer.md). It coordinates one user and two
+`session-observer-collab` is generated as a standalone skill and as the
+consensus plugin-local `observer-collab`. It coordinates one user and two
 stateful agent sessions (N=2) through exact transcript pins, private cursors,
 bounded lifecycle continuation, and an explicit closeout. It composes with the
-base observer for transcript discovery, normalization, digest rendering, and
-offsets; it does not implement a second transcript reader.
+required [`session-observer`](session-observer.md) workflow for transcript
+discovery, normalization, digest rendering, and offsets; it does not implement
+a second transcript reader.
+
+The prerequisite may be present as standalone `session-observer` or consensus
+plugin-local `observer`. The collaboration skill checks the effective local
+skill inventory before transcript access. If neither identity is present, it
+stops with the canonical
+[installation source](https://github.com/tkstang/skills/tree/main/skills/session-observer)
+and never installs the dependency automatically.
 
 ## Install and start from a checkout
 
 The standalone skills have no runtime package or third-party dependency. From
-the repository root, invoke the canonical scripts directly (or expose the
-`skills/` tree through your provider's local skill loader):
+the repository root, invoke the generated standalone scripts directly (or load
+the consensus plugin):
 
 ```bash
 OBSERVER="$PWD/skills/session-observer/scripts/session-observer.mjs"
@@ -26,11 +34,11 @@ node "$OBSERVER" whoami --json
 node "$COLLAB" status --json
 ```
 
-Provider-visible `.agents/`, `.claude/`, and `.cursor/` views are generated
-mirrors. Keep the checkout's `skills/` directory as the source of truth and do
-not edit a mirror. Use `whoami` to establish the acting/self runtime before
-loading one runtime reference; the peer runtime remains only in the observation
-pin.
+Provider-visible `.agents/`, `.claude/`, and `.cursor/` views and both
+installation forms are generated. The authored owner lives under
+`src/skills/session-observer-collab/`; do not edit a generated payload. Use
+`whoami` to establish the acting/self runtime before loading one runtime
+reference; the peer runtime remains only in the observation pin.
 
 ## N=2 handshake
 

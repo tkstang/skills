@@ -1,6 +1,9 @@
 # Releasing
 
-v0.1 is not ready to tag until the full project validation and provider smoke tests pass.
+The `consensus` and `session` plugins have independent release versions. Select
+one plugin release target, run the full automated gate, and verify the provider
+paths affected by that plugin before tagging it. A passing static package check
+does not establish live provider discovery or permission behavior.
 
 ## Checklist
 
@@ -10,12 +13,12 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Run `pnpm run test`.
 - Run `pnpm run validate`.
 - Run `pnpm run smoke`.
-- Run the live provider E2E release gate in
+- For a consensus release, run the live provider E2E release gate in
   `plugins/consensus/references/live-e2e.md` and capture Refine plus Evaluate
   evidence.
 - Run `pnpm run test:live-e2e` (or record why it was waived for this release).
   It proves the provider-CLI submit-tool boundary
-  (`tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`) end-to-end
+  (`src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts`) end-to-end
   against a real provider, as the automatable subset of the manual runbook
   above — it is not a replacement for it. Prerequisites: an authenticated
   `codex` CLI by default (`CONSENSUS_LIVE_SUBMIT_PROVIDER` selects
@@ -33,10 +36,17 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Verify Claude Code plugin install and Bash permission shape.
 - Verify Cursor plugin install and exec permission shape.
 - Verify Codex Git/local install, interface metadata, skill path syntax, and exec permission shape.
-- Verify `npx skills add <username>/skills` discovery.
+- Verify the intended standalone skills through `npx skills add <username>/skills`
+  discovery and an isolated install. Do not infer every authored skill is
+  standalone; only declarations in `src/distributions.ts` produce that form.
 - Confirm the README install matrix matches the live provider CLIs.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
-- Keep Coding Session Handoff marked experimental and not released until its
+- For a session release, verify the complete session plugin in an isolated
+  directory, execute the generated transcript exporter outside the checkout,
+  and separately record live Claude Code, Codex, and Cursor discovery/permission
+  evidence when authorized. Static and isolated checks alone leave those live
+  claims unverified.
+- Keep Session Fork to Destination marked experimental and not released until its
   capability evidence is refreshed against official provider documentation and
   an explicitly authorized live or human verification covers each claimed
   provider surface and entry point. Record unsupported Cursor transitions as
@@ -47,9 +57,14 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
   (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
   verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.
 
-## v0.1 Readiness Snapshot
+## Consensus v0.1.0 historical readiness snapshot
 
 Last updated: 2026-06-20.
+
+This evidence covers the Consensus package and membership tested on that date.
+It does not establish readiness for the Session plugin, later skill additions,
+or the current generated-distribution layout. Use the current release checklist
+above for the selected plugin; static packaging is not live-provider acceptance.
 
 ### Automated checks
 
@@ -89,20 +104,47 @@ live** (expected async lag) and stays a non-claim until it indexes.
 
 ## Versioning
 
-Update `CHANGELOG.md` and all provider manifests together.
+Update `CHANGELOG.md` and the selected plugin's provider/marketplace manifests
+together. Plugin versions and skill versions are separate release boundaries.
 
 Use:
 
 ```bash
-node scripts/bump-version.mjs 0.1.0
+pnpm tsx scripts/bump-version.ts 0.1.2 --plugin consensus
+# or
+pnpm tsx scripts/bump-version.ts 0.1.0 --plugin session
 ```
 
-The bump script updates the three provider plugin manifests, the shipped consensus skill metadata listed in `scripts/bump-version.mjs`, and any marketplace `version` fields that are already present. It does not add version fields to marketplace schemas that omit them.
+The plugin form updates that plugin's three provider manifests and any existing
+marketplace version entries. It does not rewrite member skill versions. For a
+skill behavior/content release, bump its sole authored version field instead:
+
+```bash
+pnpm tsx scripts/bump-version.ts 1.2.3 --skill session-handoff
+```
+
+Every canonical `src/skills/<name>/SKILL.md` uses one quoted stable
+`metadata.version`. Generated standalone and plugin forms inherit it; top-level
+`version` is rejected.
 
 Before pushing a release tag, verify the tag and manifests match:
 
 ```bash
-node scripts/bump-version.mjs --check-tag v0.1.0
+pnpm tsx scripts/bump-version.ts --check-tag v0.1.2 --plugin consensus
 ```
 
-The structural validator enforces provider manifest consistency during normal development; the release workflow also checks the pushed tag against provider manifests, shipped consensus skill metadata, and present marketplace version fields.
+The structural validator enforces provider manifest consistency during normal
+development. The release workflow checks the pushed tag against the selected
+plugin's manifests and present marketplace version fields. Release the other
+plugin independently rather than changing both version sets together.
+
+## Ownership cutover after the public merge
+
+This repository becomes the editable owner of `session-handoff` and the newer
+`complexity-review` content only after the public migration is merged and its
+supported source is available. Then open the separately authorized
+personal-skills PR that removes the private authored copies or changes retained
+distribution entries to consume this public source. Do not merge that private
+PR, replace active user installations, uninstall old copies, or run a global
+sync merely to prove packaging. Record the transitional owner until the
+separate PR is merged.

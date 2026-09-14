@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "consensus-plugin/v1/advisory.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "understood_question",
+    "take",
+    "recommendation",
+    "risks",
+    "follow_up_questions",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v1",
+      "type": "string"
+    },
+    "understood_question": {
+      "type": "string"
+    },
+    "take": {
+      "type": "string"
+    },
+    "recommendation": {
+      "type": "string"
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "follow_up_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "enum": ["low", "medium", "high"],
+      "type": "string"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

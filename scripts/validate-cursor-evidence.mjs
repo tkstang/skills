@@ -11,7 +11,7 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const CURSOR_EVIDENCE_REFERENCE =
   'skills/session-observer-collab/references/runtime-cursor.md';
 export const CURSOR_FRAME_FIXTURE_DIRECTORY =
-  'tests/session-observer/fixtures/cursor';
+  'src/skills/session-observer/src/fixtures/cursor';
 export const CURSOR_WAKE_PROBE_SCRIPT =
   'scripts/probe-cursor-wake-surfaces.mjs';
 

@@ -1,1 +1,9 @@
-{ "pages": ["index", "conventions", "commit-conventions", "hooks-and-safety"] }
+{
+  "pages": [
+    "index",
+    "adding-a-skill",
+    "conventions",
+    "commit-conventions",
+    "hooks-and-safety"
+  ]
+}

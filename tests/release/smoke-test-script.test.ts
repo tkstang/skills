@@ -51,7 +51,9 @@ describe('smoke-test-script', () => {
     expect(calls.length).toBe(1);
     expect(calls[0].command).toBe(process.execPath);
     expect(calls[0].args).toEqual([
-      path.join(repoRoot, 'scripts/validate.mjs'),
+      '--import',
+      'tsx',
+      path.join(repoRoot, 'scripts/validate.ts'),
     ]);
     expect(result.env.PATH.split(path.delimiter)[0]).toMatch(
       /tests\/fixtures\/bin$/,
@@ -102,9 +104,7 @@ describe('smoke-test-script', () => {
     expect(result.plan.artifact).toMatch(/## Risks/);
     expect(result.plan.artifact).toMatch(/<!-- consensus:consensus-resolution/);
     expect(result.plan.artifact).toMatch(/"cold_start": "independent_draft"/);
-    expect(result.plan.artifact).toMatch(
-      /"iteration": "parallel_synthesized"/,
-    );
+    expect(result.plan.artifact).toMatch(/"iteration": "parallel_synthesized"/);
     expect(result.plan.artifact).toMatch(/"agency": "moderate"/);
 
     // The smoke now also drives a parallel-synthesized escalation + host-direction

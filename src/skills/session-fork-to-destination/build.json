@@ -1,0 +1,3 @@
+{
+  "runtime": ["src/session-fork-to-destination.ts"]
+}

@@ -15,7 +15,7 @@ ships, which stay Node-stdlib-only with no install step.
 
 - `commit-msg`: validates the message against Conventional Commits (`commitlint`).
 - `pre-commit`: runs `lint-staged` (oxlint `--fix` + oxfmt `--write` on staged files), then the OAT drift check (`oat status --scope project --hook`). Fails closed with an actionable message if `pnpm` is not on `PATH`.
-- `pre-push`: fast pre-flight (~3s) of cheap static checks — `pnpm run validate`, `build:check`, `type-check`, and the skill-version check (`scripts/validate-skill-versions.mjs`, which requires a SKILL.md version bump for any skill whose directory changed against `main`). The full Vitest suite and `smoke` run in CI, not here, to keep the hook fast. Fails closed with an actionable message if `pnpm` is not on `PATH`.
+- `pre-push`: fast pre-flight (~3s) of cheap static checks — `pnpm run validate`, `build:check`, `type-check`, and the skill-version check (`scripts/validate-skill-versions.ts`, which requires a SKILL.md version bump for any affected authored or generated skill closure against `main`). The full Vitest suite and `smoke` run in CI, not here, to keep the hook fast. Fails closed with an actionable message if `pnpm` is not on `PATH`.
 - `post-checkout`: runs `pnpm install --frozen-lockfile` when `pnpm-lock.yaml` changes between branches (skipped, not failed, if `pnpm` is not on `PATH`).
 
 `pre-commit` carries OAT's marked drift-check block verbatim, so `oat` treats the

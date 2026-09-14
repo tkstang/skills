@@ -5,7 +5,7 @@
 // Files that must never be reformatted/linted here:
 //   - OAT project/reference artifacts (.oat) because repo formatter config
 //     ignores them and passing only ignored files makes oxfmt fail
-//   - generated runtime outputs from scripts/build-generated.mjs
+//   - generated runtime outputs from scripts/build-generated.ts
 //   - OAT-synced provider views (.agents, .claude/rules, .cursor/rules) kept
 //     byte-identical to their canonical sources by `oat sync`
 //   - agent-instruction files (AGENTS.md / CLAUDE.md) at every level: the root
@@ -14,12 +14,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { generatedOutputs } from './scripts/build-generated.mjs';
+import { tsImport } from 'tsx/esm/api';
+
+const { isGeneratedOutputPath } = await tsImport(
+  './scripts/build-generated.ts',
+  import.meta.url,
+);
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
-const generatedOutputPaths = new Set(
-  generatedOutputs.map((mapping) => mapping.output),
-);
 
 function repoRelative(file) {
   const relative = path.isAbsolute(file)
@@ -30,7 +32,7 @@ function repoRelative(file) {
 }
 
 const isExcluded = (file) =>
-  generatedOutputPaths.has(repoRelative(file)) ||
+  isGeneratedOutputPath(repoRelative(file)) ||
   /(^|\/)\.oat\//.test(file) ||
   /(^|\/)\.agents\//.test(file) ||
   /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||
@@ -39,7 +41,7 @@ const isExcluded = (file) =>
 const quote = (files) => files.map((f) => `"${f}"`).join(' ');
 
 export default {
-  '*.{mjs,js}': (files) => {
+  '*.{ts,mts,mjs,js}': (files) => {
     const filtered = files.filter((f) => !isExcluded(f));
     if (filtered.length === 0) return [];
     const list = quote(filtered);

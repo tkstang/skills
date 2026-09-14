@@ -1,0 +1,18 @@
+{
+  "runtime": [
+    "src/session-observer.ts",
+    "src/probe-local.ts",
+    "src/lib/cursor-analysis.ts",
+    "src/lib/cursor-frames.ts",
+    "src/lib/cursor-state.ts",
+    "src/lib/digest.ts",
+    "src/lib/locate.ts",
+    "src/lib/observe.ts",
+    "src/lib/rank.ts",
+    "src/lib/runtimes.ts",
+    "src/lib/session-classifier.ts",
+    "src/lib/state.ts",
+    "src/lib/watch-state.ts",
+    "src/lib/watch.ts"
+  ]
+}

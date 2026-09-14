@@ -29,20 +29,40 @@ pnpm run smoke
 
 - `pnpm run type-check` — type-checks the canonical TypeScript source.
 - `pnpm test` — the full Vitest suite, including the generated-output drift guard.
-- `pnpm run build:check` — verifies committed generated `.mjs` runtime output
-  matches its canonical TypeScript source without mutating tracked files.
+- `pnpm run build:check` — compares every declared committed installation unit
+  with a freshly staged payload, including file inventory, bytes, and executable
+  modes, without mutating tracked files.
 - `pnpm run validate` — repository structure, manifest, and docs invariants.
 - `pnpm run smoke` — the mocked end-to-end consensus wrapper flow.
 
 ## Contribution workflow
 
-For the contribution rules — where standalone skills versus plugin-bundled skills
-live, plugin-manifest constraints, additive skill frontmatter, and the
+For the contribution rules — canonical `src/skills/` ownership, distribution
+declarations, plugin-manifest constraints, sole `metadata.version`, and the
 cross-provider testing release requirement — see
 [`CONTRIBUTING.md`](https://github.com/tkstang/skills/blob/main/CONTRIBUTING.md).
 
+## Minimum sufficient testing
+
+Match proof to the boundary changed:
+
+| Change                            | Smallest useful proof                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Skill behavior                    | Colocated owner tests and a focused manual inspection or invocation for the changed behavior.                            |
+| Shared source                     | Shared-owner tests plus focused tests for affected consumers.                                                            |
+| Distribution or packaging         | Root packaging/tooling tests and `pnpm run build:check`.                                                                 |
+| Distinct installed runtime layout | A representative synthetic installation outside the checkout with isolated home/config and deterministic provider stubs. |
+
+The existing
+[`tests/tooling/skill-packaging.test.ts`](https://github.com/tkstang/skills/blob/main/tests/tooling/skill-packaging.test.ts)
+covers representative prompt-only, shared-runtime, standalone, and complete
+plugin boundaries. Extend an existing proof surface when behavior changes; do
+not create a skill × provider Cartesian matrix, prose snapshots, test quotas,
+or live provider calls for ordinary repository verification.
+
 ## Contents
 
-- [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, pnpm dev tooling, generated-runtime discipline, skill version bumps, and worktrees.
+- [Adding a skill or distribution](adding-a-skill.md) — Add prompt-only or executable owners, new targets, workflow references, or a new plugin without creating parallel sources.
+- [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, canonical owners, generated distributions, skill version bumps, and worktrees.
 - [Commit conventions](commit-conventions.md) — Conventional Commits format, common types, and how it is enforced.
 - [Hooks and safety](hooks-and-safety.md) — Git hooks, lint-staged, skill version-bump enforcement, and lint/format exclusions.

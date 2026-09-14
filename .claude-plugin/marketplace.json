@@ -7,13 +7,23 @@
   "plugins": [
     {
       "name": "consensus",
-      "version": "0.1.0",
-      "description": "Consensus create, decide, plan, refine, evaluate, panel, and phone-a-friend skills for peer deliberation, attributed panels, and advisory consultation.",
+      "version": "0.1.1",
+      "description": "Consensus create, decide, plan, refine, evaluate, panel, phone-a-friend, observer, and observer-collab skills for peer deliberation, attributed panels, advisory consultation, and session observation.",
       "author": {
         "name": "Thomas Stang"
       },
       "category": "development",
       "source": "./plugins/consensus"
+    },
+    {
+      "name": "session",
+      "version": "0.1.0",
+      "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+      "author": {
+        "name": "Thomas Stang"
+      },
+      "category": "development",
+      "source": "./plugins/session"
     }
   ]
 }

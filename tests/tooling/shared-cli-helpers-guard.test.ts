@@ -2,7 +2,7 @@
 //
 // Guard against re-forking the consolidated consensus CLI helpers. The
 // command modules (create/decide/plan/evaluate) and the core loop import their
-// shared primitives from `src/consensus/shared/cli-helpers.ts`; if a future
+// shared primitives from `src/plugins/consensus/shared/cli-helpers.ts`; if a future
 // edit re-adds a local `function <name>` that shadows a shared export, the
 // duplication this refactor removed silently returns. This source-scan fails
 // fast when that happens.
@@ -15,20 +15,21 @@
 // on purpose; see consensus-panel.ts and the plan
 // (2026-07-17-consolidate-consensus-cli-helpers.md).
 import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-const SHARED = 'src/consensus/shared/cli-helpers.ts';
+const SHARED = 'src/plugins/consensus/shared/cli-helpers.ts';
 
 // Modules that consume the shared module and must not redeclare its exports.
 const CONSUMERS = [
-  'src/consensus/create/consensus-create.ts',
-  'src/consensus/decide/consensus-decide.ts',
-  'src/consensus/plan/consensus-plan.ts',
-  'src/consensus/evaluate/consensus-evaluate.ts',
+  'src/skills/create/src/consensus-create.ts',
+  'src/skills/decide/src/consensus-decide.ts',
+  'src/skills/plan/src/consensus-plan.ts',
+  'src/skills/evaluate/src/consensus-evaluate.ts',
 ];
 
 // The loop only imports the reconciled parser pair from the shared module.
-const LOOP = 'src/consensus/core/consensus-loop.ts';
+const LOOP = 'src/plugins/consensus/core/consensus-loop.ts';
 const LOOP_SHARED_NAMES = ['parsePeers', 'parsePositiveInteger'];
 
 function sharedExportedFunctionNames(): string[] {
@@ -41,9 +42,10 @@ function sharedExportedFunctionNames(): string[] {
 }
 
 function declaresFunction(source: string, name: string): boolean {
-  return new RegExp(`^(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\b`, 'm').test(
-    source,
-  );
+  return new RegExp(
+    `^(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\b`,
+    'm',
+  ).test(source);
 }
 
 describe('shared cli-helpers re-fork guard', () => {
@@ -82,7 +84,10 @@ describe('shared cli-helpers re-fork guard', () => {
   // loop into panel's runtime. Guard both edges: panel must import neither the
   // loop nor the shared module that pulls it in.
   it('consensus-panel.ts stays decoupled from consensus-loop and the shared module', () => {
-    const source = readFileSync('src/consensus/panel/consensus-panel.ts', 'utf8');
+    const source = readFileSync(
+      'src/skills/panel/src/consensus-panel.ts',
+      'utf8',
+    );
     expect(source).not.toMatch(/from\s+['"]\.\.\/core\/consensus-loop\.js['"]/);
     expect(source).not.toMatch(/from\s+['"]\.\.\/shared\/cli-helpers\.js['"]/);
   });

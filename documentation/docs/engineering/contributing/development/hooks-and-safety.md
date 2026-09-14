@@ -33,16 +33,18 @@ PRs.
 ## Pre-push: skill version-bump enforcement
 
 Changed skills must bump their version. Any change under a canonical skill
-directory (`skills/<name>/` or `plugins/*/skills/<name>/`) requires that skill's
-`SKILL.md` version to increase. This is enforced by
-`scripts/validate-skill-versions.mjs`:
+directory (`src/skills/<name>/`) requires that skill's quoted
+`metadata.version` to increase. This is enforced by
+`scripts/validate-skill-versions.ts`:
 
 ```bash
 pnpm run validate:skill-versions -- --base-ref <ref>
 ```
 
 It is wired into the PR-only `skill-versions` CI job and the local `pre-push`
-hook.
+hook. Shared roots, generated outputs, plugin-shared areas, and rename history
+can affect more than the directly edited path; see the
+[version-impact table](conventions.md#skill-version-bump-on-edit).
 
 ## Pre-push: OAT tooling internal-flag enforcement
 
@@ -53,11 +55,11 @@ to drop a skill from normal discovery (it reappears only under
 `oat tools update` / `oat sync`, the flag is re-applied by an idempotent script and
 guarded by a gate rather than hand-edited:
 
-- After refreshing tooling, re-stamp the flag: `node scripts/apply-internal-flags.mjs`,
+- After refreshing tooling, re-stamp the flag: `pnpm tsx scripts/apply-internal-flags.ts`,
   then `oat sync`. The script is idempotent and skips the symlinked
   `session-observer` mirror (a canonical standalone skill that must stay publicly
   discoverable).
-- The detector `scripts/validate-internal-flags.mjs`:
+- The detector `scripts/validate-internal-flags.ts`:
 
   ```bash
   pnpm run validate:internal-flags
@@ -67,14 +69,14 @@ guarded by a gate rather than hand-edited:
   so a missing flag cannot merge to `main`. If it fails, run the apply script and
   re-commit the stamped files.
 
-Do not add this flag to `skills/session-observer` or
-`skills/export-session-transcript` — those are the intended public standalone
+Do not add this flag to canonical or generated product skill payloads under
+`src/skills/`, `skills/`, or `plugins/*/skills/`; those are intended public
 entries. See DR-260627 for the rationale.
 
 ## Lint/format exclusions
 
 Never lint/format generated, OAT-synced, or agent-instruction files: generated
-runtime outputs from `scripts/build-generated.mjs`, `.agents/**`,
+installation outputs from `scripts/build-generated.ts`, `.agents/**`,
 `.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every
 level.
 

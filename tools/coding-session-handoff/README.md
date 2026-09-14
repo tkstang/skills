@@ -2,7 +2,7 @@
 
 This directory contains two distinct experiments.
 
-The new `coding-session-handoff` skill provides **experimental, not released**,
+The new `session-fork-to-destination` skill provides **experimental, not released**,
 read-only discovery, sanitized preview, and destination-tab fork guidance. It
 prepares instructions only. It does not run Claude Code, Codex, or Cursor, and
 no fork is created until the operator chooses to run a suggested command.

@@ -1,0 +1,380 @@
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
+
+import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
+import { buildProviderProbeEnvironment } from './runtime-policy.js';
+import { runProviderSubprocess } from './subprocess.js';
+import type { RunProviderSubprocessOptions } from './subprocess.js';
+import type {
+  ProviderDiagnostics,
+  ProviderId,
+  ProviderInventoryEntry,
+  ProviderPreflightCapability,
+} from './types.js';
+
+export interface ProviderCapabilityProbeDefinition {
+  args: readonly string[];
+  required_output_patterns: readonly RegExp[];
+}
+
+export interface ProviderProbeDefinition {
+  version_args: readonly string[];
+  minimum_version: string;
+  capabilities: Readonly<
+    Record<ProviderPreflightCapability, ProviderCapabilityProbeDefinition>
+  >;
+  auth_required_patterns?: readonly RegExp[];
+  unavailable_patterns?: readonly RegExp[];
+}
+
+export interface ProbeCommandResult {
+  code: number | null;
+  signal: string | null;
+  stdout: string;
+  stderr: string;
+  failure_code?:
+    | 'PROVIDER_MISSING'
+    | 'PROVIDER_TIMEOUT'
+    | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_EXIT';
+  diagnostics?: ProviderDiagnostics;
+}
+
+export interface ProbeCommandRunner {
+  findExecutable(command: string): Promise<string | undefined>;
+  run(
+    command: string,
+    args: readonly string[],
+    provider: ProviderId,
+  ): Promise<ProbeCommandResult>;
+}
+
+export interface ProviderProbeOptions {
+  runner: ProbeCommandRunner;
+  requiredCapabilities?: readonly ProviderPreflightCapability[];
+}
+
+export interface ProviderRegistryProbeOptions extends ProviderProbeOptions {
+  registry: ProviderAdapterRegistry;
+  provider?: ProviderId;
+}
+
+export interface NodeProbeCommandRunnerOptions {
+  timeoutSec?: number;
+  maxOutputBytes?: number;
+  terminationGraceMs?: number;
+  finalResolutionMs?: number;
+}
+
+const DEFAULT_PROBE_TIMEOUT_SEC = 10;
+const DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
+
+export async function probeProviderRegistry({
+  registry,
+  runner,
+  provider,
+  requiredCapabilities,
+}: ProviderRegistryProbeOptions): Promise<ProviderInventoryEntry[]> {
+  const adapters = provider
+    ? [registry.get(provider)].filter(
+        (adapter): adapter is ProviderAdapter => adapter !== undefined,
+      )
+    : registry.list();
+  return Promise.all(
+    adapters.map((adapter) =>
+      probeProviderReadiness(adapter, { runner, requiredCapabilities }),
+    ),
+  );
+}
+
+export async function probeProviderReadiness(
+  adapter: ProviderAdapter,
+  options: ProviderProbeOptions,
+): Promise<ProviderInventoryEntry> {
+  const executable = await options.runner.findExecutable(adapter.executable);
+  if (!executable) {
+    return providerEntry(adapter, 'missing', {
+      warnings: [
+        `PROVIDER_MISSING: executable not found for ${adapter.id} (${adapter.executable})`,
+      ],
+    });
+  }
+
+  const result = await options.runner.run(
+    adapter.executable,
+    adapter.probe.version_args,
+    adapter.id,
+  );
+  const probeFailure = probeFailureEntry(adapter, executable, result);
+  if (probeFailure) return probeFailure;
+
+  const output = `${result.stdout}\n${result.stderr}`;
+
+  if (matchesAny(output, adapter.probe.auth_required_patterns)) {
+    return providerEntry(adapter, 'auth_required', {
+      executable,
+      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine(output)}`],
+    });
+  }
+
+  if (
+    result.code !== 0 ||
+    matchesAny(output, adapter.probe.unavailable_patterns)
+  ) {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine(output)}`],
+    });
+  }
+
+  const detectedVersion = parseNumericVersion(output);
+  const minimumVersion = parseNumericVersion(adapter.probe.minimum_version);
+  if (!detectedVersion || !minimumVersion) {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      version: firstNonEmptyLine(output),
+      warnings: [
+        `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`,
+      ],
+    });
+  }
+  if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      version: firstNonEmptyLine(output),
+      warnings: [
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`,
+      ],
+    });
+  }
+
+  for (const capability of options.requiredCapabilities ?? []) {
+    const definition = adapter.probe.capabilities[capability];
+    const capabilityResult = await options.runner.run(
+      adapter.executable,
+      definition.args,
+      adapter.id,
+    );
+    const capabilityFailure = probeFailureEntry(
+      adapter,
+      executable,
+      capabilityResult,
+    );
+    if (capabilityFailure) return capabilityFailure;
+    const capabilityOutput = `${capabilityResult.stdout}\n${capabilityResult.stderr}`;
+    if (
+      capabilityResult.code !== 0 ||
+      !definition.required_output_patterns.every((pattern) =>
+        pattern.test(capabilityOutput),
+      )
+    ) {
+      return providerEntry(adapter, 'unavailable', {
+        executable,
+        version: firstNonEmptyLine(output),
+        warnings: [
+          `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`,
+        ],
+      });
+    }
+  }
+
+  return providerEntry(adapter, 'ready', {
+    executable,
+    version: firstNonEmptyLine(output),
+  });
+}
+
+export function nodeProbeCommandRunner(
+  env: NodeJS.ProcessEnv = process.env,
+  options: NodeProbeCommandRunnerOptions = {},
+): ProbeCommandRunner {
+  return {
+    findExecutable(command) {
+      return findExecutable(command, env);
+    },
+    run(command, args, provider) {
+      return runProbeCommand(
+        command,
+        args,
+        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        options,
+      );
+    },
+  };
+}
+
+async function findExecutable(
+  command: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string | undefined> {
+  if (command.includes(path.sep)) {
+    return canExecute(command).then((ok) => (ok ? command : undefined));
+  }
+
+  const pathValue = env.PATH ?? '';
+  for (const searchPath of pathValue.split(path.delimiter)) {
+    if (!searchPath) continue;
+    const candidate = path.join(searchPath, command);
+    if (await canExecute(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+async function canExecute(filePath: string) {
+  try {
+    await access(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runProbeCommand(
+  command: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  options: NodeProbeCommandRunnerOptions,
+): Promise<ProbeCommandResult> {
+  const subprocessOptions: RunProviderSubprocessOptions = {
+    env,
+    timeoutSec: options.timeoutSec ?? DEFAULT_PROBE_TIMEOUT_SEC,
+    maxOutputBytes: options.maxOutputBytes ?? DEFAULT_PROBE_MAX_OUTPUT_BYTES,
+    ...(options.terminationGraceMs !== undefined
+      ? { terminationGraceMs: options.terminationGraceMs }
+      : {}),
+    ...(options.finalResolutionMs !== undefined
+      ? { finalResolutionMs: options.finalResolutionMs }
+      : {}),
+  };
+
+  return runProviderSubprocess(
+    {
+      executable: command,
+      argv: [...args],
+      stdin: '',
+      output_mode: 'stdout_json',
+      strategy: 'prompt_only',
+      redacted_command: [command, ...args],
+      shell: false,
+    },
+    subprocessOptions,
+  ).then((result) => ({
+    code: result.exit_code,
+    signal: result.signal,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    ...(result.ok ? {} : { failure_code: result.code }),
+    diagnostics: result.diagnostics,
+  }));
+}
+
+function probeFailureEntry(
+  adapter: ProviderAdapter,
+  executable: string,
+  result: ProbeCommandResult,
+): ProviderInventoryEntry | undefined {
+  if (!result.failure_code) return undefined;
+
+  if (result.failure_code === 'PROVIDER_MISSING') {
+    return providerEntry(adapter, 'missing', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_MISSING: executable failed to start for ${adapter.id}`,
+      ],
+    });
+  }
+
+  if (result.failure_code === 'PROVIDER_TIMEOUT') {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_TIMEOUT: readiness probe timed out after ${result.diagnostics?.timeout_sec ?? 'the configured'} seconds`,
+      ],
+    });
+  }
+
+  if (result.failure_code === 'PROVIDER_OUTPUT_CAP_EXCEEDED') {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_OUTPUT_CAP_EXCEEDED: readiness probe exceeded output cap of ${result.diagnostics?.output_bytes?.max ?? 'the configured limit'} bytes`,
+      ],
+    });
+  }
+
+  return undefined;
+}
+
+function providerEntry(
+  adapter: ProviderAdapter,
+  status: ProviderInventoryEntry['status'],
+  options: {
+    executable?: string;
+    version?: string;
+    diagnostics?: ProviderDiagnostics;
+    warnings?: string[];
+  } = {},
+): ProviderInventoryEntry {
+  const diagnostics = mergeProviderDiagnostics(
+    options.diagnostics,
+    options.warnings,
+  );
+
+  return {
+    id: adapter.id,
+    status,
+    capabilities: adapter.capabilities,
+    ...(options.executable ? { executable: options.executable } : {}),
+    ...(options.version ? { version: options.version } : {}),
+    ...(diagnostics ? { diagnostics } : {}),
+  };
+}
+
+function mergeProviderDiagnostics(
+  diagnostics: ProviderDiagnostics | undefined,
+  warnings: string[] | undefined,
+): ProviderDiagnostics | undefined {
+  if (!diagnostics && !warnings) return undefined;
+  const mergedWarnings = [
+    ...(diagnostics?.warnings ?? []),
+    ...(warnings ?? []),
+  ];
+  return {
+    ...diagnostics,
+    ...(mergedWarnings.length > 0 ? { warnings: mergedWarnings } : {}),
+  };
+}
+
+function matchesAny(value: string, patterns: readonly RegExp[] | undefined) {
+  return patterns?.some((pattern) => pattern.test(value)) ?? false;
+}
+
+function firstNonEmptyLine(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+}
+
+function parseNumericVersion(value: string): number[] | undefined {
+  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  if (!match) return undefined;
+  return match[1].split('.').map(Number);
+}
+
+function compareNumericVersions(left: number[], right: number[]): number {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  return 0;
+}
+
+function formatNumericVersion(version: number[]): string {
+  return version.join('.');
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "consensus-plugin/v1/synthesis.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "synthesized_artifact",
+    "synthesis_reasoning",
+    "unresolved_disagreements"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v1",
+      "type": "string"
+    },
+    "synthesized_artifact": {
+      "type": "string"
+    },
+    "synthesis_reasoning": {
+      "type": "string"
+    },
+    "unresolved_disagreements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "session",
+  "version": "0.1.0",
+  "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+  "author": {
+    "name": "Thomas Stang"
+  },
+  "license": "MIT",
+  "metadata": {
+    "provider": "claude",
+    "permission_declaration": "unverified",
+    "permission_verification": [
+      "Static packaging and isolated export execution are verified; live provider discovery and permission behavior remain unverified."
+    ]
+  }
+}

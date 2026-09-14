@@ -78,10 +78,10 @@ partial identity.
 Cursor uses a frame-indexed contract rather than the record-index contract used
 by Claude Code and Codex:
 
-- `src/transcript/core/cursor-frames.ts` streams physical JSONL frames and
+- `src/shared/transcript/cursor-frames.ts` streams physical JSONL frames and
   preserves closed, blank, malformed, partial, repaired, appended, and replaced
   boundaries.
-- `src/transcript/core/cursor-analysis.ts` assembles structural turns and keeps
+- `src/shared/transcript/cursor-analysis.ts` assembles structural turns and keeps
   substantive content separate from lifecycle records.
 - Cursor digest schema v2 declares
   `zero-based-jsonl-frame-index`. `fromIndex` is inclusive and `nextIndex` is the
@@ -209,19 +209,21 @@ claim autonomous Cursor wake.
 
 ## Source and shipped runtime boundaries
 
-The canonical frame, analysis, observer state, digest, locate, and watch
-implementation lives under `src/transcript/`. `pnpm run build` generates the
-committed dependency-free `.mjs` runtime under
-`skills/session-observer/scripts/`.
+Canonical frame and analysis code lives under `src/shared/transcript/`;
+observer state, digest, locate, and watch code lives under
+`src/skills/session-observer/src/`. `pnpm run build` generates complete
+dependency-free runtime into standalone `skills/session-observer/` and plugin-local
+`plugins/consensus/skills/observer/` payloads.
 
 The collaboration skill's control, completion, lease, selected-prefix, and hook
 modules are authored dependency-free `.mjs` under
-`skills/session-observer-collab/`. They consume observer-generated Cursor
-modules rather than maintaining a second transcript parser.
+`src/skills/session-observer-collab/src/`. The build copies them and their shared
+runtime closure into standalone `session-observer-collab` and consensus
+`observer-collab` payloads; they do not maintain a second transcript parser.
 
 After changing canonical TypeScript, regenerate and verify committed output.
 After changing either shipped skill, bump its skill version and reconcile the
 canonical user install and provider mirrors according to the repository
 dogfooding contract. See
-[Generated runtime outputs](generated-runtime.md) for the complete build and
+[Generated installation units](generated-runtime.md) for the complete build and
 sync rules.

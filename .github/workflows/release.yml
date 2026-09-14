@@ -3,7 +3,8 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "consensus-v*"
+      - "session-v*"
 
 permissions:
   contents: write
@@ -22,7 +23,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Capture generated output paths
-        run: node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+        run: pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
       - run: pnpm run build
       - name: Verify generated outputs are committed
         run: |
@@ -36,4 +37,8 @@ jobs:
       - run: pnpm run test
       - run: pnpm run validate
       - run: pnpm run smoke
-      - run: node scripts/bump-version.mjs --check-tag "$GITHUB_REF_NAME"
+      - name: Verify selected plugin version
+        run: |
+          PLUGIN_NAME="${GITHUB_REF_NAME%%-v*}"
+          PLUGIN_VERSION="v${GITHUB_REF_NAME#*-v}"
+          pnpm tsx scripts/bump-version.ts --check-tag "$PLUGIN_VERSION" --plugin "$PLUGIN_NAME"

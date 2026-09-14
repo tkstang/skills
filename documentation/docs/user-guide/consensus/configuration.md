@@ -91,7 +91,7 @@ and preflight before live use:
 
 ```bash
 consensus provider ls --json
-consensus preflight --json --provider claude
+consensus preflight --json --provider claude --capability run
 ```
 
 From a repository checkout the same provider CLI lives at
@@ -99,7 +99,7 @@ From a repository checkout the same provider CLI lives at
 
 ```bash
 node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
 ## Diagnostics
@@ -110,6 +110,9 @@ used:
 - `PROVIDER_MISSING`
 - `PROVIDER_AUTH_REQUIRED`
 - `PROVIDER_UNAVAILABLE`
+- `PROVIDER_VERSION_UNPARSEABLE`
+- `PROVIDER_VERSION_UNSUPPORTED`
+- `PROVIDER_CAPABILITY_MISSING`
 - `PROVIDER_UNSUPPORTED_OPTION`
 
 Provider `run` results are machine-readable envelopes. Terminal provider

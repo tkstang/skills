@@ -3,35 +3,34 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { SKILL_FILES } from '../../scripts/bump-version.mjs';
+import { SKILL_FILES } from '../../scripts/bump-version.js';
 
 const refineSkillPath = new URL(
-  '../../plugins/consensus/skills/refine/SKILL.md',
+  '../../src/skills/refine/SKILL.md',
   import.meta.url,
 );
 const evaluateSkillPath = new URL(
-  '../../plugins/consensus/skills/evaluate/SKILL.md',
+  '../../src/skills/evaluate/SKILL.md',
   import.meta.url,
 );
 const createSkillPath = new URL(
-  '../../plugins/consensus/skills/create/SKILL.md',
+  '../../src/skills/create/SKILL.md',
   import.meta.url,
 );
 const decideSkillPath = new URL(
-  '../../plugins/consensus/skills/decide/SKILL.md',
+  '../../src/skills/decide/SKILL.md',
   import.meta.url,
 );
 const planSkillPath = new URL(
-  '../../plugins/consensus/skills/plan/SKILL.md',
+  '../../src/skills/plan/SKILL.md',
   import.meta.url,
 );
 const panelSkillPath = new URL(
-  '../../plugins/consensus/skills/panel/SKILL.md',
+  '../../src/skills/panel/SKILL.md',
   import.meta.url,
 );
 const collaborationSkillPath = new URL(
-  '../../skills/session-observer-collab/SKILL.md',
+  '../../src/skills/session-observer-collab/SKILL.md',
   import.meta.url,
 );
 const skillPaths = [
@@ -55,12 +54,25 @@ function field(block: string, name: string) {
   return match![1].trim().replace(/^["']|["']$/g, '');
 }
 
+function optionalField(block: string, name: string) {
+  const match = block.match(new RegExp(`^${name}:\\s*(.+)$`, 'm'));
+  return match?.[1].trim().replace(/^["']|["']$/g, '') ?? null;
+}
+
 function metadataVersion(block: string) {
   const match = block.match(
     /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
   );
   expect(match, 'frontmatter should include metadata.version').toBeTruthy();
   return match![1].trim().replace(/^["']|["']$/g, '');
+}
+
+function expectSoleMetadataVersion(block: string) {
+  expect(optionalField(block, 'version')).toBeNull();
+  expect(metadataVersion(block)).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(block).toMatch(
+    /^metadata:\n(?:  .+\n)*?  version:\s*(["'])\d+\.\d+\.\d+\1$/m,
+  );
 }
 
 describe('skill-frontmatter', () => {
@@ -97,22 +109,15 @@ describe('skill-frontmatter', () => {
         );
       }
 
-      expect(metadataVersion(block)).toBe(field(block, 'version'));
+      expectSoleMetadataVersion(block);
     },
   );
 
-  it('refine skill has promoted top-level version matching metadata.version', async () => {
+  it('refine skill has one quoted stable metadata.version', async () => {
     const markdown = await readFile(refineSkillPath, 'utf8');
     const block = frontmatter(markdown);
 
-    const topLevelVersion = field(block, 'version');
-    const metaVersion = metadataVersion(block);
-
-    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(
-      topLevelVersion,
-      'top-level version must match metadata.version',
-    ).toBe(metaVersion);
+    expectSoleMetadataVersion(block);
   });
 
   it('refine skill has a useful argument-hint', async () => {
@@ -152,21 +157,14 @@ describe('skill-frontmatter', () => {
       );
     }
 
-    expect(metadataVersion(block)).toBe(field(block, 'version'));
+    expectSoleMetadataVersion(block);
   });
 
-  it('evaluate skill has promoted top-level version matching metadata.version', async () => {
+  it('evaluate skill has one quoted stable metadata.version', async () => {
     const markdown = await readFile(evaluateSkillPath, 'utf8');
     const block = frontmatter(markdown);
 
-    const topLevelVersion = field(block, 'version');
-    const metaVersion = metadataVersion(block);
-
-    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(
-      topLevelVersion,
-      'top-level version must match metadata.version',
-    ).toBe(metaVersion);
+    expectSoleMetadataVersion(block);
   });
 
   it('evaluate skill has a useful argument-hint', async () => {
@@ -180,18 +178,11 @@ describe('skill-frontmatter', () => {
     expect(hint, 'argument-hint should mention --rubric').toMatch(/--rubric/);
   });
 
-  it('create skill has promoted top-level version matching metadata.version', async () => {
+  it('create skill has one quoted stable metadata.version', async () => {
     const markdown = await readFile(createSkillPath, 'utf8');
     const block = frontmatter(markdown);
 
-    const topLevelVersion = field(block, 'version');
-    const metaVersion = metadataVersion(block);
-
-    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(
-      topLevelVersion,
-      'top-level version must match metadata.version',
-    ).toBe(metaVersion);
+    expectSoleMetadataVersion(block);
   });
 
   it('create skill has a useful argument-hint', async () => {
@@ -207,18 +198,11 @@ describe('skill-frontmatter', () => {
     );
   });
 
-  it('decide skill has promoted top-level version matching metadata.version', async () => {
+  it('decide skill has one quoted stable metadata.version', async () => {
     const markdown = await readFile(decideSkillPath, 'utf8');
     const block = frontmatter(markdown);
 
-    const topLevelVersion = field(block, 'version');
-    const metaVersion = metadataVersion(block);
-
-    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(
-      topLevelVersion,
-      'top-level version must match metadata.version',
-    ).toBe(metaVersion);
+    expectSoleMetadataVersion(block);
   });
 
   it('decide skill has a useful argument-hint', async () => {
@@ -234,18 +218,11 @@ describe('skill-frontmatter', () => {
     );
   });
 
-  it('plan skill has promoted top-level version matching metadata.version', async () => {
+  it('plan skill has one quoted stable metadata.version', async () => {
     const markdown = await readFile(planSkillPath, 'utf8');
     const block = frontmatter(markdown);
 
-    const topLevelVersion = field(block, 'version');
-    const metaVersion = metadataVersion(block);
-
-    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(
-      topLevelVersion,
-      'top-level version must match metadata.version',
-    ).toBe(metaVersion);
+    expectSoleMetadataVersion(block);
   });
 
   it('plan skill has a useful argument-hint', async () => {
@@ -283,7 +260,7 @@ describe('skill-frontmatter', () => {
       );
     }
 
-    expect(metadataVersion(block)).toBe(field(block, 'version'));
+    expectSoleMetadataVersion(block);
   });
 
   it('panel skill has a useful argument-hint', async () => {
@@ -324,10 +301,12 @@ describe('skill-frontmatter', () => {
   });
 
   it('standalone and plugin skills are included in version bump tooling', () => {
-    // SKILL_FILES is derived from disk (scripts/lib/discover-skills.mjs), so
+    // SKILL_FILES is derived from disk (scripts/lib/discover-skills.js), so
     // this checks the resulting set rather than grepping the script source.
-    expect(SKILL_FILES).toContain('plugins/consensus/skills/panel/SKILL.md');
-    expect(SKILL_FILES).toContain('skills/session-observer-collab/SKILL.md');
+    expect(SKILL_FILES).toContain('src/skills/panel/SKILL.md');
+    expect(SKILL_FILES).toContain(
+      'src/skills/session-observer-collab/SKILL.md',
+    );
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {
@@ -360,8 +339,7 @@ describe('skill-frontmatter', () => {
     expect(field(block, 'license')).toBe('MIT');
     expect(field(block, 'compatibility')).toMatch(/Agent Skills baseline/);
     expect(field(block, 'compatibility')).toMatch(/Node\.js 22/);
-    expect(field(block, 'version')).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(metadataVersion(block)).toBe(field(block, 'version'));
+    expectSoleMetadataVersion(block);
     expect(block).not.toMatch(/^\s*internal:\s*true\s*$/m);
     expect(block).not.toMatch(/^\s{2}internal:\s*true\s*$/m);
   });
