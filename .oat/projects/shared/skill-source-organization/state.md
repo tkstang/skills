@@ -13,7 +13,7 @@ oat_hill_checkpoints:
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -37,17 +37,17 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_docs_updated: complete
-oat_pr_status: null
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: https://github.com/tkstang/skills/pull/79
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-14T01:06:39Z"
+oat_project_state_updated: "2026-09-14T03:23:24Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** P04 and the 13-task public milestone are complete locally. The final independent review passed with zero findings. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 and the 13-task public milestone are published in progress PR #79. The final independent review passed with zero findings. Merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-14
 
@@ -91,7 +91,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
+Review progress PR #79 and merge only with separate authorization. Do not begin p05 before the public merge and its separate authorization.
 
 ## Planning Settings and Review Status
 
