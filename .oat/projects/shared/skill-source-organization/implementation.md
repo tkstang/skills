@@ -173,6 +173,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Verification: 40/40 isolated packaging tests, 21/21 focused fork-guidance tests, 1,987 complete-suite tests with one skip, 12 changed skill versions, type-check, build check, validation, smoke, internal flags, and diff checks passed
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
 - Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
+- Review cycle 1: `reviews/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
 - Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
 - Nested dispatches: none
 
@@ -209,7 +210,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The local milestone is ready for independent phase review.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. The plan row is aligned; the other two findings are queued for the bounded p04 fix loop.
 
 ## Deviations from Plan / Design
 

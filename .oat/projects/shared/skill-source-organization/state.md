@@ -1,5 +1,5 @@
 ---
-oat_current_task: p04-t02
+oat_current_task: p04-review-f01
 oat_last_commit: 6b5166596a51e29c7995e41d7ca46ef16ef36d10
 oat_blockers: []
 associated_issues:
@@ -47,13 +47,13 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** P04 implementation is complete locally and awaits the root-owned independent phase review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 implementation is complete locally. Its first independent whole-delta review found two bounded implementation fixes; publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Independent review remains the next lifecycle step.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 accepted the migration core and queued bounded fixes for stale active maintenance references and the custom-root generated-output check; the stale plan progress row was aligned during receipt.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -91,7 +91,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Dispatch and receive the independent p04 phase review. Address only bounded findings through the lifecycle, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
+Complete the bounded p04 review fixes and fresh independent re-review, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
 
 ## Planning Settings and Review Status
 

@@ -313,7 +313,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
 | p03 | code | fixes_completed | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
 | p03 | code | passed | 2026-09-13 | reviews/p03-review-2026-09-13T222103Z.md | de269575225719185ac456f1e8fcac1dde8ea0b5 | manual | - |
-| p04 | code | pending | - | - | - | - | - |
+| p04 | code | fixes_completed | 2026-09-14 | reviews/p04-review-2026-09-14T002632Z.md | 0055176770dc0e869fa952978faf5832cba7c1c4 | manual | - |
 | p05 | code | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
@@ -371,11 +371,21 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | p01 Packaging foundation | 3 | 3 |
 | p02 Source/tooling migration | 4 | 4 |
 | p03 Products/promotions | 4 | 4 |
-| p04 Public documentation/verification | 2 | 0 |
+| p04 Public documentation/verification | 2 | 2 |
 | p05 Post-merge private cutover | 1 | 0 |
-| Total | 14 | 11 |
+| Total | 14 | 13 |
 
 p01–p04 comprise the 13-task public milestone; p05 is one post-merge cross-repo task. Do not mark all 14 complete when the public PR is ready.
+
+### P04 Review Cycle 1 Fix Register: 2026-09-14
+
+Independent whole-public-delta review at `0055176770dc0e869fa952978faf5832cba7c1c4` found 0 Critical, 2 Important, 1 Medium, and 0 Minor findings. Root disposition accepts all three findings for the bounded p04 fix loop:
+
+- **I1 — active maintenance and release references:** update current contributor, scoped-agent, release, compatibility, test, and consensus manifest descriptions to the final colocated owners and nine-skill inventory. Preserve old paths only in historical records and the version baseline.
+- **I2 — plan progress ledger:** resolved in this receipt by aligning p04 to 2/2 and the project to 13/14 while p05 remains pending.
+- **M1 — custom-root generated-output check:** pass the resolved fixture root into declared-distribution checking and add a nonempty custom-root regression that proves clean plus stale, missing, and orphaned fixture behavior.
+
+I1 and M1 are code/documentation fixes owned by the p04 phase implementer. After focused and full verification, run a fresh independent p04 review against the changed head before publication.
 
 ## References
 
