@@ -15,7 +15,7 @@ oat_summary_includes_revisions: []
 
 This project reorganized the public repository so each shipped skill has one authored source directory while standalone and plugin installations are generated outputs. It implements issue #74, introduces separate session and consensus plugin boundaries, and preserves dependency-free Node.js runtime packages without claiming unverified marketplace or live-provider readiness.
 
-All 17 implementation and review-fix tasks are complete. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 removed the two private authored owners and opened linked personal-skills PR #32 while preserving active installations. P05 and final review fixes await independent re-review.
+All 17 implementation and review-fix tasks are complete. Public PR #79 merged at `8767bce4819a2cae1a9f257de650a5ed0ae0afc1`; p05 removed the two private authored owners and opened linked personal-skills PR #32 while preserving active installations. Independent p05 and final re-reviews passed with zero findings.
 
 ## What Was Implemented
 
@@ -61,7 +61,7 @@ The public milestone passed 1,988 Vitest tests with one skip, 50 focused review-
 
 ## Follow-up Items
 
-- Complete independent p05 and final OAT re-review, then run the authorized project archive workflow.
+- Complete the authorized project archive workflow and open the final bookkeeping PR.
 - Merge personal-skills PR #32 only with separate authorization, then reconcile active installations through the owning repository's normal workflow.
 - Live and paid provider checks, fresh marketplace discovery, permission behavior, and global user-install reconciliation remain outside the local public milestone.
 

@@ -42,19 +42,19 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/skills/pull/79
 oat_project_created: "2026-09-13T13:55:55.500Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-14T13:36:14Z"
+oat_project_state_updated: "2026-09-14T13:49:00Z"
 oat_generated: false
 ---
 
 # Project State: skill-source-organization
 
-**Status:** All 17 implementation and review-fix tasks are complete. P05 and final review fixes await independent re-review. Public PR #79 is merged, and private PR #32 remains open and unmerged.
+**Status:** All 17 implementation and review-fix tasks are complete. Independent p05 and final re-reviews passed with zero findings. Public PR #79 is merged, and private PR #32 remains open and unmerged.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-14
 
 ## Current Phase
 
-P06 completed the worktree-aware managed-hook dispatch, managed-symlink migration, and observer test-header correction. Current-task pointers are cleared. P05 and final independent re-reviews remain before completion; private PR #32 remains open, green, and unmerged.
+P06 completed the worktree-aware managed-hook dispatch, managed-symlink migration, and observer test-header correction. Current-task pointers are cleared. Independent p05 and final re-reviews passed with zero findings; private PR #32 remains open, green, and unmerged.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -64,7 +64,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - [Design](design.md): complete, accepted as the planning basis; author self-review and complexity assessment recorded, not an independent gate pass.
 - Spec: intentionally omitted in lightweight quick mode.
 - [Plan](plan.md): 17 tasks across six sequential phases; implementation and accepted review fixes are complete.
-- [Implementation](implementation.md): 17/17 tasks complete; p05 and final re-reviews pending.
+- [Implementation](implementation.md): 17/17 tasks complete; p05 and final reviews passed.
 - [Validation](validation.md): completed public and private-PR implementation evidence with live/install limitations preserved.
 
 ## Progress
@@ -92,11 +92,11 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 4. Satisfied: High dispatch policy resolved with a complete ladder; self-review and configured plan gate ran; all findings are dispositioned. The user accepted bounded plan edits without repeating the gate. Implementation kickoff confirms HiLL checkpoints; no optional phase gate was silently enabled.
 5. Satisfied: the user authorized the separate personal-skills ownership cutover through an open PR. Merging it, changing active installs, and any live release verification remain separate boundaries.
 
-All implementation tasks and accepted review fixes are complete. Independent p05/final re-review and project-completion lifecycle steps remain pending.
+All implementation tasks and accepted review fixes are complete. Independent p05 and final re-reviews passed. Project-completion lifecycle steps remain pending.
 
 ## Next Milestone
 
-Rerun the p05 and final reviews, then continue the already authorized project-completion and archive workflow. Do not merge private PR #32 or change active installations without separate authorization.
+Continue the already authorized project-completion and archive workflow. Do not merge private PR #32 or change active installations without separate authorization.
 
 ## Planning Settings and Review Status
 

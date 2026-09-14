@@ -22,7 +22,7 @@ oat_template: false
 
 **Architecture:** Extend the existing TypeScript/esbuild pipeline with declared installation units. Colocate authored skill content and owned tests under src/skills; keep genuine shared and plugin-level code separate. Generated payloads remain dependency-free Node ESM.
 
-**Status:** All 17 implementation and review-fix tasks are complete. P05 and final review fixes await independent re-review. Public PR #79 remains merged, and private PR #32 remains open and unmerged with active installs unchanged.
+**Status:** All 17 implementation and review-fix tasks are complete. Independent p05 and final re-reviews passed with zero findings. Public PR #79 remains merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Execution Boundaries
 
@@ -340,6 +340,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p02 | code | fixes_completed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T204639Z.md | 1f78d3c9619d4a940acac8e61f1fcb70fe3719e8 | manual | - |
 | p02 | code | passed | 2026-09-13 | reviews/archived/p02-review-2026-09-13T210441Z.md | 9104c37597c8b7fa452ef1aeadaf48e153e1a210 | manual | - |
 | final | code | fixes_completed | 2026-09-14 | reviews/archived/final-review-2026-09-14T130500Z.md | 3b4e21f2ce516fd0c4382b28c9cdbf21dfae6358 | manual | - |
+| final | code | passed | 2026-09-14 | reviews/archived/final-review-2026-09-14T134200Z.md | c391288657c40d8675b6f33edbce4ee7a10d19a4 | manual | - |
 | spec | artifact | pending | - | - | - | - | - |
 | design | artifact | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | - | - | - | - |
@@ -349,6 +350,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p04 | code | fixes_completed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T004843Z.md | fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a | manual | - |
 | p04 | code | passed | 2026-09-14 | reviews/archived/p04-review-2026-09-14T010312Z.md | 9d9c1e8607941999b0baeed9e8d8d7749a96730f | auto | - |
 | p05 | code | fixes_completed | 2026-09-14 | reviews/archived/p05-review-2026-09-14T130500Z.md | 3b4e21f2ce516fd0c4382b28c9cdbf21dfae6358 | manual | - |
+| p05 | code | passed | 2026-09-14 | reviews/archived/p05-review-2026-09-14T134200Z.md | c391288657c40d8675b6f33edbce4ee7a10d19a4 | manual | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
 Existing scaffold rows are preserved. Spec is intentionally absent in quick mode; design approval for planning does not fabricate an independent review. p04's public milestone review is distinct from project-wide final review after post-merge follow-through. All gate results require actual recorded evidence.
@@ -410,7 +412,7 @@ p01 is complete by user-authorized direct disposition after the review-cycle cap
 | p06 Final review fixes | 2 | 2 |
 | Total | 17 | 17 |
 
-p01–p04 comprise the merged 13-task public milestone. P05 completed its planned acceptance boundary by opening the linked private ownership-cutover PR. P06 completed the final-review fixes; p05 and final now await independent re-review. The private PR's merge and any active-install transition remain pending separate authorization.
+p01–p04 comprise the merged 13-task public milestone. P05 completed its planned acceptance boundary by opening the linked private ownership-cutover PR. P06 completed the final-review fixes; independent p05 and final re-reviews passed with zero findings. The private PR's merge and any active-install transition remain pending separate authorization.
 
 ### P04 Review Cycle 1 Fix Register: 2026-09-14
 

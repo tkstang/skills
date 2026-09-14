@@ -10,7 +10,7 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-All 17 implementation and review-fix tasks are complete. P05 and final review fixes await independent re-review. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
+All 17 implementation and review-fix tasks are complete. Independent p05 and final re-reviews passed with zero findings. Public PR #79 merged, and private PR #32 remains open and unmerged with active installs unchanged.
 
 ## Progress Overview
 
@@ -20,9 +20,9 @@ All 17 implementation and review-fix tasks are complete. P05 and final review fi
 | p02 Source/tooling migration | complete | 4 | 4 |
 | p03 Products/promotions | complete | 4 | 4 |
 | p04 Public docs/verification | complete; review passed | 2 | 2 |
-| p05 Post-merge private cutover | complete; re-review pending | 2 | 2 |
-| p06 Final review fixes | complete; re-review pending | 2 | 2 |
-| Total | implementation complete; re-review pending | 17 | 17 |
+| p05 Post-merge private cutover | complete; review passed | 2 | 2 |
+| p06 Final review fixes | complete; final review passed | 2 | 2 |
+| Total | implementation and reviews complete | 17 | 17 |
 
 p01–p04 formed the merged public milestone. P05 completed the planned private-PR boundary; merging that PR or changing active installations remains outside this task.
 
@@ -245,7 +245,7 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 
 **Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
 
-**Fix completed:** `p05-t02` cleared the completed-task lifecycle pointers after p06 finished. The finding was accepted because stale current-task values can misroute lifecycle tooling. Both current-task fields are now `null`; independent p05 re-review remains pending.
+**Fix completed:** `p05-t02` cleared the completed-task lifecycle pointers after p06 finished. The finding was accepted because stale current-task values can misroute lifecycle tooling. Both current-task fields are now `null`. Re-review passed with zero findings at `c391288657c40d8675b6f33edbce4ee7a10d19a4`; receipt: `reviews/archived/p05-review-2026-09-14T134200Z.md`.
 
 ### Review Received: final
 
@@ -254,7 +254,7 @@ p01–p04 formed the merged public milestone. P05 completed the planned private-
 
 **Findings:** 0 Critical, 0 Important, 2 Medium, 1 Minor.
 
-**Fixes completed:** `p06-t01` installs worktree-aware managed-hook dispatch and migrates checkout-bound managed symlinks; `p06-t02` corrects the seven retired observer test-header paths and applies the canonical/transitive skill version policy. The duplicate current-task finding is resolved by `p05-t02`. All findings have fixes; independent final re-review remains pending.
+**Fixes completed:** `p06-t01` installs worktree-aware managed-hook dispatch and migrates checkout-bound managed symlinks; `p06-t02` corrects the seven retired observer test-header paths and applies the canonical/transitive skill version policy. The duplicate current-task finding is resolved by `p05-t02`. Final re-review passed with zero findings at `c391288657c40d8675b6f33edbce4ee7a10d19a4`; receipt: `reviews/archived/final-review-2026-09-14T134200Z.md`.
 
 ## Implementation Log
 
@@ -292,7 +292,7 @@ For p06, 16 hook-manager tests and 582 session-observer tests passed independent
 
 ## Final Summary (for PR/docs)
 
-The public p01–p04 milestone shipped to `main` through PR #79. All 17 implementation and review-fix tasks are complete, and private PR #32 carries the p05 owner cutover with passing checks. Independent p05 and final re-reviews, the private PR merge, live readiness evidence, and active-install reconciliation remain pending.
+The public p01–p04 milestone shipped to `main` through PR #79. All 17 implementation and review-fix tasks are complete, independent p05 and final reviews pass with zero findings, and private PR #32 carries the p05 owner cutover with passing checks. The private PR merge, live readiness evidence, and active-install reconciliation remain pending.
 
 ## References
 
