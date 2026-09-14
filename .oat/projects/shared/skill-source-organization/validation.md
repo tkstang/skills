@@ -92,4 +92,3 @@ The independent whole-delta phase review is root-owned and remains pending
 after this implementer report. Publication must wait for that review and any
 bounded finding fixes. PR creation, push, merge, live validation, and p05 are
 authorization-bound and were not performed.
-
