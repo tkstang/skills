@@ -1,5 +1,5 @@
 ---
-oat_current_task: p04-review-f01
+oat_current_task: p04-review-f02
 oat_last_commit: 6b5166596a51e29c7995e41d7ca46ef16ef36d10
 oat_blockers: []
 associated_issues:
@@ -47,13 +47,13 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** P04 review-fix iteration 1 is complete locally and awaits independent re-review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 review-fix iteration 1 is complete locally. Review cycle 2 queued one remaining maintained-reference fix and one validation-basis refresh for the final automatic fix iteration; publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 accepted the migration core; receipt aligned the stale plan row, and fix iteration 1 corrected active maintenance paths, nine-skill consensus descriptions, and custom-root declared-output checking with regression coverage.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 queued active-reference, plan-ledger, and custom-root fixes; fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those closures and queued the remaining reference sweep plus current validation-basis attribution.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 

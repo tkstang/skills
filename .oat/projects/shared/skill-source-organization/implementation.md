@@ -175,6 +175,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
 - Review cycle 1: `reviews/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
 - Fix iteration 1: the commit containing this record updates active maintenance/release paths and nine-skill consensus descriptions, fixes custom-root declared-output checking, and adds clean/stale/missing/orphan fixture coverage; 50 focused tests and the complete p04 gate passed
+- Review cycle 2: `reviews/p04-review-2026-09-14T004843Z.md`, 0 Critical, 1 Important, 0 Medium, 1 Minor; it confirmed cycle-one fixes and queued the remaining active-reference sweep plus validation-basis refresh for the final automatic fix iteration
 - Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
 - Nested dispatches: none
 
@@ -211,7 +212,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. The plan row was aligned during receipt; fix iteration 1 corrected the remaining bounded findings and is ready for re-review.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. Fix iteration 1 closed the plan and helper findings and most maintenance drift. Cycle 2 confirmed those changes and identified four remaining active-reference surfaces plus an imprecise validation evidence basis; both are queued for the second and final automatic fix iteration.
 
 ## Deviations from Plan / Design
 

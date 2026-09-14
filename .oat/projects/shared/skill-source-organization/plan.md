@@ -314,6 +314,7 @@ Regenerate affected payloads, update registry/docs, and use the private reposito
 | p03 | code | fixes_completed | 2026-09-13 | reviews/p03-review-2026-09-13T215053Z.md | 0a8f3b9e1e8bbd92f720cefb0663f4c39928ef86 | manual | - |
 | p03 | code | passed | 2026-09-13 | reviews/p03-review-2026-09-13T222103Z.md | de269575225719185ac456f1e8fcac1dde8ea0b5 | manual | - |
 | p04 | code | fixes_completed | 2026-09-14 | reviews/p04-review-2026-09-14T002632Z.md | 0055176770dc0e869fa952978faf5832cba7c1c4 | manual | - |
+| p04 | code | fixes_completed | 2026-09-14 | reviews/p04-review-2026-09-14T004843Z.md | fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a | manual | - |
 | p05 | code | pending | - | - | - | - | - |
 | plan | artifact | fixes_completed | 2026-09-13 | reviews/archived/artifact-plan-review-2026-09-13T151722Z.md | - | - | - |
 
@@ -386,6 +387,15 @@ Independent whole-public-delta review at `0055176770dc0e869fa952978faf5832cba7c1
 - **M1 — custom-root generated-output check:** pass the resolved fixture root into declared-distribution checking and add a nonempty custom-root regression that proves clean plus stale, missing, and orphaned fixture behavior.
 
 I1 and M1 are code/documentation fixes owned by the p04 phase implementer. After focused and full verification, run a fresh independent p04 review against the changed head before publication.
+
+### P04 Review Cycle 2 Fix Register: 2026-09-14
+
+Fresh whole-public-delta review at `fb10094dcdcbe7eadefe62cc4b9973aa02a20c7a` confirmed cycle-one I2 and M1 closed, then found 0 Critical, 1 Important, 0 Medium, and 1 Minor finding. Root accepts both for the second and final automatic p04 fix iteration:
+
+- **I1 — remaining maintained-reference drift:** update the root internal-flag runbook and contributor hooks page to the runnable TypeScript command, align session-observer test ownership, rename the public guidance skill in the experimental tool README while preserving the tool command, and extend the existing maintained-path regression across these surfaces.
+- **m1 — validation basis:** refresh `validation.md` to the current post-fix head/evidence, including 1,988 tests and the 50-case review-fix suite, so publication review cannot mistake the earlier totals for the current basis.
+
+Run focused and full verification, then a third independent p04 review against the changed head. That review is the phase's final automatic review cycle.
 
 ## References
 
