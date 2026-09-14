@@ -1,6 +1,6 @@
 name: Live Provider E2E
 
-# Manual-dispatch-only gate for tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts
+# Manual-dispatch-only gate for src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts
 # — the one test that exercises a real provider CLI (claude/codex/cursor)
 # instead of the fixture stubs the rest of the suite uses. It spends real
 # provider API quota, so this workflow is intentionally opt-in:

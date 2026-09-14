@@ -18,7 +18,7 @@ does not establish live provider discovery or permission behavior.
   evidence.
 - Run `pnpm run test:live-e2e` (or record why it was waived for this release).
   It proves the provider-CLI submit-tool boundary
-  (`tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`) end-to-end
+  (`src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts`) end-to-end
   against a real provider, as the automatable subset of the manual runbook
   above — it is not a replacement for it. Prerequisites: an authenticated
   `codex` CLI by default (`CONSENSUS_LIVE_SUBMIT_PROVIDER` selects

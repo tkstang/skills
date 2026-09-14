@@ -551,6 +551,9 @@ describe('docs-presence', () => {
       '.oat/repo/reference/decisions/DR-260604-shared-transcript-knowledge.md',
     );
     const sharedTranscriptCore = await read('shared/transcript-core/README.md');
+    const contributing = await read('CONTRIBUTING.md');
+    const releasing = await read('RELEASING.md');
+    const liveE2eWorkflow = await read('.github/workflows/live-e2e.yml');
     const exportTranscriptFormats = await read(
       'skills/session-export-transcript/references/transcript-formats.md',
     );
@@ -565,14 +568,15 @@ describe('docs-presence', () => {
     expect(rootAgents).toMatch(
       /pnpm run sync:transcript-core.*compatibility wrapper/,
     );
-    expect(consensusAgents).toMatch(/src\/consensus\//);
-    expect(consensusAgents).toMatch(
-      /plugins\/consensus\/skills\/\*\/scripts\//,
-    );
+    expect(consensusAgents).toMatch(/src\/plugins\/consensus\//);
+    expect(consensusAgents).toMatch(/src\/skills\/<name>\//);
+    expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\//);
     expect(testAgents).toMatch(
       /tests\/tooling\/generated-output-sync\.test\.ts/,
     );
-    expect(sharedTranscriptCore).toMatch(/src\/transcript\/core\/runtimes\.ts/);
+    expect(sharedTranscriptCore).toMatch(
+      /src\/shared\/transcript\/runtimes\.ts/,
+    );
     expect(sharedTranscriptCore).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,
     );
@@ -590,5 +594,26 @@ describe('docs-presence', () => {
     expect(sharedTranscriptDecision).toMatch(
       /DR-014[\s\S]+Superseded in implementation/,
     );
+    expect(contributing).toMatch(/scripts\/validate\.ts/);
+    expect(releasing).toMatch(
+      /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
+    );
+    expect(liveE2eWorkflow).toMatch(
+      /src\/plugins\/consensus\/provider-cli\/e2e\/submit-live\.e2e\.test\.ts/,
+    );
+    for (const maintained of [
+      contributing,
+      releasing,
+      liveE2eWorkflow,
+      consensusAgents,
+      testAgents,
+      sharedTranscriptCore,
+    ]) {
+      expect(maintained).not.toMatch(/scripts\/validate\.mjs/);
+      expect(maintained).not.toMatch(/src\/consensus\//);
+      expect(maintained).not.toMatch(/src\/transcript\/core\//);
+      expect(maintained).not.toMatch(/tests\/consensus\/provider-cli\/e2e/);
+      expect(maintained).not.toMatch(/skills\/export-session-transcript/);
+    }
   });
 });

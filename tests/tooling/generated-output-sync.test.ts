@@ -24,6 +24,7 @@ import {
   writeGenerated,
   type GeneratedOutput,
 } from '../../scripts/build-generated.js';
+import type { DistributionDeclaration } from '../../scripts/lib/packaging.js';
 import { distributions } from '../../src/distributions.js';
 
 const repoRoot = new URL('../..', import.meta.url);
@@ -384,6 +385,46 @@ describe('generated output drift guard', () => {
       await expect(
         checkGenerated({ repoRoot: root, mappings, declarations: [] }),
       ).rejects.toThrow(/orphan generated output/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('checks nonempty declared outputs within a custom repository root', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'declared-output-'));
+    const declarations: readonly DistributionDeclaration[] = [
+      {
+        owner: 'demo',
+        source: 'src/skills/demo',
+        targets: [{ kind: 'standalone', name: 'demo', output: 'skills/demo' }],
+      },
+    ];
+    const options = { repoRoot: root, mappings: [], declarations } as const;
+    try {
+      await mkdir(path.join(root, 'src/skills/demo'), { recursive: true });
+      await writeFile(
+        path.join(root, 'src/skills/demo/SKILL.md'),
+        "---\nname: demo\nmetadata:\n  version: '1.0.0'\n---\n",
+      );
+      await writeGenerated({ ...options, log: () => {} });
+      await expect(checkGenerated(options)).resolves.toBeUndefined();
+
+      await writeFile(path.join(root, 'skills/demo/SKILL.md'), 'stale\n');
+      await expect(checkGenerated(options)).rejects.toThrow(
+        /skills\/demo\/SKILL\.md: stale/,
+      );
+      await writeGenerated({ ...options, log: () => {} });
+
+      await rm(path.join(root, 'skills/demo'), { recursive: true });
+      await expect(checkGenerated(options)).rejects.toThrow(
+        /skills\/demo: missing output/,
+      );
+      await writeGenerated({ ...options, log: () => {} });
+
+      await writeFile(path.join(root, 'skills/demo/orphan.md'), 'orphan\n');
+      await expect(checkGenerated(options)).rejects.toThrow(
+        /skills\/demo\/orphan\.md: orphan/,
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }

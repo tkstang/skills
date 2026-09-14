@@ -10,7 +10,7 @@ const plugins = [
     name: 'consensus',
     version: '0.1.1',
     description:
-      'Consensus create, decide, plan, refine, evaluate, panel, and phone-a-friend skills for peer deliberation, attributed panels, and advisory consultation.',
+      'Consensus create, decide, plan, refine, evaluate, panel, phone-a-friend, observer, and observer-collab skills for peer deliberation, attributed panels, advisory consultation, and session observation.',
     skills: [
       'create',
       'decide',
@@ -115,6 +115,7 @@ describe('plugin-manifests', () => {
     expect(consensus.interface?.displayName).toBe('Consensus');
     expect(JSON.stringify(consensus.interface)).toMatch(/decide/i);
     expect(JSON.stringify(consensus.interface)).toMatch(/phone-a-friend/i);
+    expect(JSON.stringify(consensus.interface)).toMatch(/observer-collab/i);
 
     const session = await readJson('plugins/session/.codex-plugin/plugin.json');
     expect(session.interface?.displayName).toBe('Session');

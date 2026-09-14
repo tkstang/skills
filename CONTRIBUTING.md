@@ -22,7 +22,7 @@ layouts and provider adapters.
   version field. Plugin release versions are independent from member skill
   versions.
 - Treat cross-provider testing as a release requirement: validate Claude Code, Cursor, Codex Git/local, and `npx skills add` install paths before claiming support in docs or release notes.
-- Update tests and `scripts/validate.mjs` when changing repository invariants.
+- Update tests and `scripts/validate.ts` when changing repository invariants.
 
 ## Verification
 

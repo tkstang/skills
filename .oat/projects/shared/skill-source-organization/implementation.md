@@ -10,7 +10,7 @@ oat_template: false
 
 # Implementation: skill-source-organization
 
-P04 implementation is complete locally and ready for the root-owned independent phase review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+P04 review-fix iteration 1 is complete locally and ready for root-owned independent re-review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 
 ## Progress Overview
 
@@ -174,6 +174,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 - Documentation: focused checks passed 56/56; the unchanged documentation basis built 38 static routes
 - Complexity review: deletion-rule compliant; one catalog/builder/version path and one existing installed-artifact suite remain, with generated duplication required for self-contained installations
 - Review cycle 1: `reviews/p04-review-2026-09-14T002632Z.md`, 0 Critical, 2 Important, 1 Medium, 0 Minor; I1 and M1 require bounded implementation fixes, and I2 is aligned in the review receipt
+- Fix iteration 1: the commit containing this record updates active maintenance/release paths and nine-skill consensus descriptions, fixes custom-root declared-output checking, and adds clean/stale/missing/orphan fixture coverage; 50 focused tests and the complete p04 gate passed
 - Limitations: no live/paid provider gate, push, PR publication, merge, global install mutation, or private p05 work; independent review is root-owned and pending
 - Nested dispatches: none
 
@@ -210,7 +211,7 @@ p01–p04 are the public milestone. p05 intentionally follows its merge; use the
 
 ## Implementation Log
 
-On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. The plan row is aligned; the other two findings are queued for the bounded p04 fix loop.
+On 2026-09-13, p04 documented the final public ownership and installation contract and completed the public-milestone verification. One append-only documentation recovery and one bounded pre-commit test-path follow-up were required. The first independent whole-delta review on 2026-09-14 accepted the core migration but found stale active maintenance references, a stale plan progress row, and one custom-root freshness-helper defect. The plan row was aligned during receipt; fix iteration 1 corrected the remaining bounded findings and is ready for re-review.
 
 ## Deviations from Plan / Design
 
@@ -234,9 +235,11 @@ At the final p03 head, the implementer and root passed 135 test files and 1,987 
 
 At the p04 implementation head, 135 test files and 1,987 tests pass with one file/test skipped. The 40-case isolated packaging suite, 21 focused fork-guidance tests, version gate for 12 changed skills, type-check, build check, validation, smoke, internal flags, and diff checks pass. P04-t01's unchanged documentation basis built 38 routes after 56 focused documentation checks passed.
 
+After p04 review-fix iteration 1, 50 focused manifest/docs/generated-output tests pass. The full suite passes 135 files and 1,988 tests with one file/test skipped, plus the 12-skill version gate, type-check, build check, validation, smoke, internal flags, range whitespace check, and 38-route documentation build.
+
 ## Final Summary (for PR/docs)
 
-Nothing shipped. The p01–p04 public milestone is implemented and locally verified, subject to independent phase review. Publication, merge, live readiness evidence, user-level installation, and the private p05 ownership cutover remain pending.
+Nothing shipped. The p01–p04 public milestone and its first bounded review-fix iteration are implemented and locally verified, subject to independent re-review. Publication, merge, live readiness evidence, user-level installation, and the private p05 ownership cutover remain pending.
 
 ## References
 

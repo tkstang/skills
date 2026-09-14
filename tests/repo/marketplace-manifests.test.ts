@@ -48,6 +48,10 @@ describe('marketplace-manifests', () => {
           ),
         ).toBe(true);
         expect((await stat(resolvedSourcePath)).isDirectory()).toBe(true);
+        if (pluginName === 'consensus') {
+          expect(entry.description).toMatch(/observer/);
+          expect(entry.description).toMatch(/observer-collab/);
+        }
       }
     }
   });

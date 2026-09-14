@@ -47,13 +47,13 @@ oat_generated: false
 
 # Project State: skill-source-organization
 
-**Status:** P04 implementation is complete locally. Its first independent whole-delta review found two bounded implementation fixes; publication, merge, live-provider checks, user-level installation, and p05 remain pending.
+**Status:** P04 review-fix iteration 1 is complete locally and awaits independent re-review. Publication, merge, live-provider checks, user-level installation, and p05 remain pending.
 **Started:** 2026-09-13
 **Last Updated:** 2026-09-13
 
 ## Current Phase
 
-Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 accepted the migration core and queued bounded fixes for stale active maintenance references and the custom-root generated-output check; the stale plan progress row was aligned during receipt.
+Phase p04 documented the multi-plugin and standalone ownership contract, produced the public-milestone validation record, and passed the complete local gate set. The p04-t01 recovery completed the bounded documentation delta, p04-f01 corrected three stale renamed-guide test references, and the p04-t02 recovery removed one trailing blank line. Both recovery markers are settled with usage preserved at 2/10. Review cycle 1 accepted the migration core; receipt aligned the stale plan row, and fix iteration 1 corrected active maintenance paths, nine-skill consensus descriptions, and custom-root declared-output checking with regression coverage.
 
 Initially created with --no-set-active. After coding-session-handoff closed and PR #70 merged, the user explicitly activated this project through oat project open. The active pointer now resolves to .oat/projects/shared/skill-source-organization. The planning branch feat/skill-source-organization is based on merged main at 20bb893ef6bcdd30704c681e12c60702b7c89bb8.
 
@@ -77,7 +77,7 @@ Initially created with --no-set-active. After coding-session-handoff closed and 
 - Review cycle 3 closed all earlier findings. Its final freshness-path symlink issue was fixed in the user-authorized post-cap commit and verified directly without another review cycle. No external publication or installation change occurred.
 - Completed p02's standalone and consensus owner moves, metadata.version authority switch, backlog closure, and tooling/bridge cleanup. The final p02 review passed with zero findings.
 - Completed p03's product names, plugin groupings, source promotions, and prerequisite guards. The final p03 review passed with zero findings.
-- Completed p04's maintained documentation and local public-milestone verification. The full suite passes 1,987 tests with one skip; isolated packaging passes 40/40; the version, type, generated-output, validation, smoke, internal-flag, diff, focused docs, and documentation-build checks pass.
+- Completed p04's maintained documentation and local public-milestone verification. After review-fix iteration 1, the full suite passes 1,988 tests with one skip; 50 focused tests and the version, type, generated-output, validation, smoke, internal-flag, diff, and 38-route documentation-build checks pass.
 
 ## Activation and Execution Prerequisites
 
@@ -91,7 +91,7 @@ The remaining inventory refresh and cross-repo authorization checks are executio
 
 ## Next Milestone
 
-Complete the bounded p04 review fixes and fresh independent re-review, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
+Run the fresh independent p04 re-review, then prepare the public progress PR when publication is authorized. Do not begin p05 before the public merge and its separate authorization.
 
 ## Planning Settings and Review Status
 

@@ -509,7 +509,10 @@ export async function checkGenerated(
   });
   try {
     failures.push(
-      ...(await checkDeclaredDistributions({ repoRoot, built: declared })),
+      ...(await checkDeclaredDistributions({
+        repoRoot: root,
+        built: declared,
+      })),
     );
   } finally {
     await cleanupBuiltDistributions(declared);
