@@ -116,3 +116,7 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 ### 2026-09-16 · project · feedback · lite closeout PR blocked by explicit local-only boundary
 
 lite-pr-boundary-20260916: The deterministic lite tail resolved to its required `pr` step, but the originating instruction explicitly forbids push, publication, and merge. The PR step was not dispatched; implementation code, phase/final reviews, configured exit gate, and backlog closeout remain complete and locally committed, while the lifecycle sequence stays resumable only if that authorization boundary is later changed.
+
+### 2026-09-16 · structural · oat-project-complete · retirement-sweep
+
+Retirement sweep: no absorbed projects recorded.
