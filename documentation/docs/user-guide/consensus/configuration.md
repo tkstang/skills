@@ -15,20 +15,15 @@ The config file stores default participants, not a separate settings profile for
 each skill. `peers` is shared by all five converging workflows; `panelists` and
 `panel_size` apply to Panel.
 
-| Workflow                               | Saved defaults                                | Model and effort behavior today                                                                       |
-| -------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Create, Decide, Plan, Refine, Evaluate | `defaults.peers`                              | Provider selection works. Configured `model` and `effort` are accepted but discarded before dispatch. |
-| Panel                                  | `defaults.panelists`, `defaults.panel_size`   | Configured `model` and `effort` are forwarded to the selected provider.                               |
-| [Phone a Friend](phone-a-friend.md)    | No automatic saved advisor-default resolution | The host can pass `--model` and `--effort` to `consensus run` for an individual consultation.         |
+| Workflow                               | Saved defaults                                | Model and effort behavior today                                                                  |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Create, Decide, Plan, Refine, Evaluate | `defaults.peers`                              | Provider selection works. Configured `model` and `effort` are forwarded to each peer's provider. |
+| Panel                                  | `defaults.panelists`, `defaults.panel_size`   | Configured `model` and `effort` are forwarded to the selected provider.                          |
+| [Phone a Friend](phone-a-friend.md)    | No automatic saved advisor-default resolution | The host can pass `--model` and `--effort` to `consensus run` for an individual consultation.    |
 
 There are no `plan`, `refine`, or `phone-a-friend` config sections. Settings such
 as `--agency`, `--cold-start`, and `--synthesizer` are per-run controls, not saved
 config keys. See the individual workflow guides for their flags.
-
-> [!WARNING]
-> Saving a model or effort under `defaults.peers` does not currently pin either
-> setting for converging workflows. Only the provider IDs reach those wrappers'
-> dispatch paths; Panel does preserve these settings.
 
 ## Configuration file example
 
@@ -48,12 +43,16 @@ provider and model.
       // Optional object of shared workflow defaults.
       "defaults": {
         // Exactly two distinct providers for Create/Decide/Plan/Refine/Evaluate.
-        // Model/effort fields here are accepted, but currently ignored at dispatch.
+        // Model/effort fields here are forwarded to that peer's provider.
         "peers": [
-          { "provider": "claude" }, // Required provider ID, not a model name.
-          { "provider": "codex" }
+          {
+            "provider": "claude", // Required provider ID, not a model name.
+            "model": "<claude-model-id>", // Optional nonempty string; replace this ID.
+            "effort": "high" // Optional nonempty string; check provider/model support.
+          },
+          { "provider": "codex" } // Omit both to keep the provider CLI defaults.
         ],
-        // At least two distinct providers for Panel; model/effort work here.
+        // At least two distinct providers for Panel; model/effort work here too.
         "panelists": [
           {
             "provider": "claude", // Required provider ID.
@@ -78,7 +77,14 @@ provider and model.
     {
       "schema_version": "v1",
       "defaults": {
-        "peers": [{ "provider": "claude" }, { "provider": "codex" }],
+        "peers": [
+          {
+            "provider": "claude",
+            "model": "<claude-model-id>",
+            "effort": "high"
+          },
+          { "provider": "codex" }
+        ],
         "panelists": [
           {
             "provider": "claude",
@@ -155,10 +161,10 @@ and allowed effort values depend on the provider, selected model, and account;
 successful config parsing does not prove those values are usable. Passing either
 option to this plugin's Cursor adapter yields `PROVIDER_UNSUPPORTED_OPTION`.
 
-The provider support above does **not** remove the convergence limitation:
-`defaults.peers[].model` and `.effort` are currently lost before reaching these
-adapters. `consensus config get` can show stored values without proving that a
-workflow will use them.
+A peer whose configured model or effort the selected provider cannot honor
+fails with `PROVIDER_UNSUPPORTED_OPTION` rather than running with the option
+silently dropped. `consensus config get` shows stored values; provider
+availability still decides whether a stored value is usable.
 
 ## Config paths and precedence
 
@@ -178,8 +184,8 @@ Effective composition is resolved in this order:
 4. Built-in defaults.
 
 Lists replace whole lists; entries are not merged by provider across scopes.
-For example, a project's provider-only `panelists` list replaces the user's
-entire list, including its model/effort settings. `panel_size` is resolved
+For example, a project's provider-only `peers` or `panelists` list replaces the
+user's entire list, including its model/effort settings. `panel_size` is resolved
 separately. An explicit `--panelists` list ignores lower-scope panel sizes unless
 you also supply `--panel-size` for that invocation. It also replaces saved
 model/effort settings with provider-only entries.
@@ -231,7 +237,10 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --pee
 ```
 
 Converging workflows always resolve exactly two peers. `--peers` has precedence
-over project config, user config, and built-in defaults.
+over project config, user config, and built-in defaults. It takes provider IDs
+only and replaces the whole configured list, so a run with `--peers` uses no
+saved model or effort; drop the flag to use the configured peers with their
+saved selections.
 
 ## Panelist selection
 
