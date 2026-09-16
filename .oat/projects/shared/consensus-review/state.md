@@ -13,8 +13,12 @@ oat_children: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
-oat_phase: design
-oat_phase_status: complete
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
+oat_phase: plan
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -22,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-16T22:59:15Z'
+oat_project_state_updated: '2026-09-16T23:34:29Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Lightweight design draft; awaiting holistic user and Fable review.
+**Status:** Design reconciled; five-phase plan drafted, awaiting review posture and formal checks.
 **Started:** 2026-09-16
 **Baseline:** merged planning PR #84, `08f59459`.
 **Branch:** `feat/consensus-review`.
@@ -39,10 +43,10 @@ Quick workflow, lightweight design, draft-and-review explicitly requested by the
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` — captured; final validation awaits design feedback.
-- **Design:** `design.md` — complete draft with recommendations and judgment register J1–J4.
+- **Discovery:** `discovery.md` — CLI validation completed.
+- **Design:** `design.md` — user-approved direction, Fable's four corrections reconciled, J1–J4 resolved including external state.
 - **Spec:** not used in quick mode.
-- **Plan:** `plan.md` — scaffold only, not implementation-ready.
+- **Plan:** `plan.md` — 13 tasks across five sequential phases; not implementation-ready until review checks complete.
 - **Implementation:** `implementation.md` — scaffold only, not started.
 
 ## Progress
@@ -54,13 +58,20 @@ Quick workflow, lightweight design, draft-and-review explicitly requested by the
 
 ## Next Milestone
 
-User/Fable review of the whole design. Resolve scope/check/default-output judgments, then generate the plan with dispatch policy and configured gates. No implementation readiness is asserted.
+High dispatch ceiling selected by the user; complete effective ladder verified. Confirm optional phase review and each configured lifecycle gate, then run artifact review and the quick-start exit gate. No implementation readiness is asserted.
 
 ## Draft Review
 
-Author self-review completed: no placeholders in discovery/design, internal contracts reconciled, scope remains one bounded review with no implementation, and unresolved product choices are explicitly labeled J1–J4. Bounded source audits checked runtime and OAT/packaging seams; their corrections are incorporated. This is not Fable's independent review or the configured quick-start exit gate.
+Fable reviewed design commit 40e6972e and approved direction with four corrections; those corrections and subsequent external-state/provenance/path decisions are reconciled in c1a6cc8 and its preceding design commits. The formal plan artifact review and configured quick-start exit gate have not run. PR #86 remains open at this planning check; the plan records a baseline reconciliation boundary rather than assuming its helpers are merged.
 
-Validation: repository structure check and local artifact/link/readiness checks passed. Repository oxfmt was invoked for each created file via stdin; `.oat/**` remains governed by the repository's formatting exclusion. Dashboard refreshed locally. Plan and implementation files retain scaffold content intentionally and cannot be treated as runnable tasks.
+Validation passed: `pnpm run validate`, `git diff --check`, and local artifact checks for 13 unique task IDs, required sections, per-task verification/format/commit steps, relative links, and non-ready frontmatter. `.oat/**` remains excluded from repository formatting. Semantic artifact review and gates have not run; implementation is not started. No source, generated product output, user install, or remote branch was changed by this planning pass.
+
+## Pending Review Choices
+
+- Optional additional cross-runtime phase reviews: all phases, selected phases, or disabled; user selection pending. Explicit enabled/available targets were found by the canonical probe.
+- Configured lifecycle gates from user config: quick-start, plan, lite, import-plan, and implement. Each supports Keep or project-local Disable independently; no override has been written. Only invoked workflows execute a gate.
+- The quick-start gate is configured with the existing plan-only command; preserve it unchanged and record `legacy-plan-only` scope. The parent artifact review still evaluates the plan against discovery and design.
+- High resolves to an effective Codex reviewer ceiling of Sol/high; this is a resolver result, not evidence of a launched or completed review.
 
 ## Operational Notes
 
