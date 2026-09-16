@@ -10,6 +10,7 @@
 
 ## Completed Items
 
+- 2026-09-16 — BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps — Added deterministic exact-pin re-arm coverage for clean stops, filtered and startup ranges, stdout failure, and competing consumers; documented bounded Monitor guidance and the legacy pre-stdout/CAS limits without claiming live harness delivery.
 - 2026-09-13 — BL-260723-guard-transitive-shared — Guard transitive shared-runtime skill version bumps — Canonical version validation now derives affected owners from declared authored, shared-runtime, plugin-shared, and generated-output closures; guards local edit states and ownerless outputs; and preserves renamed-owner history
 - 2026-07-24 — BL-260713-stronger-cursor-collaboration — Stronger Cursor collaboration wake surfaces — Completed version-gated live Stop and managed-subagent probes, found callback and scheduled surfaces unavailable, excluded the credentialed private worker, and retained buffered-manual as the strongest honest tier
 - 2026-07-24 — BL-260713-cursor-transcript-store — Cursor transcript-store and slug coverage — Shipped evidence-gated Cursor agent-transcript discovery with dotted-path slug handling, canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up coverage, and explicit non-claims for unsupported stores

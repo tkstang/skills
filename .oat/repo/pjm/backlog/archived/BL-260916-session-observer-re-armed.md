@@ -1,7 +1,7 @@
 ---
 id: BL-260916-session-observer-re-armed
 title: "Investigate observer re-arm catch-up and suspected unread-record gaps"
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - reliability
 assignee: null
 created: 2026-09-16T14:11:39.364Z
-updated: 2026-09-16T18:06:09Z
+updated: '2026-09-16T21:10:18Z'
 associated_issues: []
 external_plans: []
 ---
