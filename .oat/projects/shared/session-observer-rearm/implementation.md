@@ -223,6 +223,18 @@ oat_generated: false
 
 **Disposition:** I1 is fully resolved. Phase p01 passed and implementation closeout advances to final verification and final review.
 
+### Final Closeout Verification
+
+**Date:** 2026-09-16
+
+- `pnpm test`: 135 files passed, 1 skipped; 2,002 tests passed, 1 skipped.
+- Changed authored-file lint: passed for the observer watch test and Claude reference contract test.
+- `pnpm type-check`: passed.
+- `pnpm build` and `pnpm run build:check`: passed with generated payloads in sync.
+- The generic repo-wide `pnpm lint` command also scanned generated/OAT provider mirrors under `.claude/skills/**` and reported only unchanged baseline violations outside this branch's delta. Repository guidance excludes those generated mirrors and defines changed-file linting as the applicable gate; no out-of-scope baseline cleanup was made.
+
+**Next:** Mandatory final lifecycle code review.
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
@@ -245,7 +257,7 @@ oat_generated: false
 
 **Behavioral changes:** No runtime behavior changed. Operators now have a verified `catch-up-then-watch` re-arm procedure and explicit persistence/stdout/harness boundaries.
 
-**Verification performed:** Focused observer/reference suites, full premerge, type-check, generated parity, repository validation, smoke, transitive version validation, PJM doctor, and diff hygiene all passed.
+**Verification performed:** Focused observer/reference suites, full premerge, final full Vitest, changed authored-file lint, type-check, generated parity, repository validation, smoke, transitive version validation, PJM doctor, and diff hygiene all passed. Generic repo-wide lint remains red only on unchanged generated/OAT mirrors that repository instructions exclude from lint scope.
 
 **Design deltas:** None. The phase followed the characterization-first plan and stopped short of the out-of-scope acknowledgment/CAS and live-harness redesign boundaries.
 

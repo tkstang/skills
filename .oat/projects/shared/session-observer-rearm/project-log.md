@@ -48,6 +48,10 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 p01-phase-outcome-bfb7fc08 status=passed tasks=3/3 commits=74a68ee2,74240d78,7399f071 fix=bfb7fc08 review=reviews/archived/p01-review-2026-09-16T212106Z.md rereview=reviews/p01-review-2026-09-16T213252Z.md orchestration=attempted findings=critical:0,important:0,medium:0,minor:0
 
+### 2026-09-16 · project · friction · generic final lint crosses generated-provider exclusions
+
+final-lint-generated-exclusions-20260916: Generic `pnpm lint` scanned generated/OAT mirrors under `.claude/skills/**` and failed on unchanged baseline rules, while repository guidance explicitly excludes those mirrors and CI/premerge lint only the changed authored files. The bounded closeout used the passing changed authored-file lint plus the green premerge, type-check, build, and generated-parity gates rather than widening this ticket into unrelated tooling cleanup.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

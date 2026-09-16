@@ -85,19 +85,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T21:35:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T21:39:08Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-rearm
 
-**Status:** Phase review passed; awaiting final verification and review
+**Status:** Final verification complete; awaiting final review
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Phase 1 task implementation and its bounded bookkeeping correction are complete. The fresh p01 re-review passed at `bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911`; the overall project remains in `implement` / `in_progress` for final verification, final review, and the configured exit gate.
+Phase 1 and its bounded bookkeeping correction are complete, the p01 re-review passed, and final verification is complete. The overall project remains in `implement` / `in_progress` for the mandatory final lifecycle review and configured exit gate.
 
 ## Artifacts
 
@@ -124,7 +124,8 @@ Phase 1 task implementation and its bounded bookkeeping correction are complete.
 - ✓ `BL-260916-session-observer-re-armed` closed and archived
 - ✓ Review finding I1 bookkeeping alignment completed without product changes
 - ✓ Fresh p01 re-review passed with no findings
-- → Awaiting final verification and final code review
+- ✓ Final full tests, changed-file lint, type-check, build, and generated parity passed
+- → Awaiting final lifecycle code review
 
 ## Blockers
 
@@ -132,4 +133,4 @@ None
 
 ## Next Milestone
 
-Run final verification and the mandatory final code review
+Run the mandatory final lifecycle code review
