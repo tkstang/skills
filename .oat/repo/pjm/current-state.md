@@ -54,14 +54,14 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Active planning
 
-All **19 active backlog items are open and unassigned**. No acceptance-complete item was found during the September 16 review. The merged config docs satisfy only the documentation-now portion of **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows**.
+All **19 active item files remain open and unassigned on this planning branch**; the user reports Sol has started the observer investigation in a separate worktree. No acceptance-complete item was found during the September 16 review. The merged config docs satisfy only the documentation-now portion of **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows**.
 
-The proposed near-term direction is bounded observer reliability investigation and **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope**, with a separately selectable installer lane. Final kickoff order and parallel capacity await operator confirmation. The linked July alignment is historical and has not yet been refreshed; do not execute its old kickoff stack as this cycle's plan.
+The confirmed kickoff has three independent lanes: **BL-260916-session-observer-re-armed — Observer re-arm investigation** (Sol started, per user), **BL-260916-add-consensus-review-cross — Consensus Review** (Astra leads, Fable reviews), and **BL-260916-add-a-first-party-install — First-party standalone installer** (parallel lane approved, owner/start not claimed). The refreshed alignment maps all 19 items to 16 candidate projects, while later ordering remains proposed.
 
 Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session fidelity precedes the merged activity projection. Neither delivers safe N>2 consumer ownership automatically.
 
 - [Roadmap](roadmap.md) — Now / Next / Later direction.
 - [Backlog index](backlog/index.md) — active item inventory.
 - [Full review](backlog/reviews/backlog-and-roadmap-review.md) — ratings, dependencies, and evidence.
-- [Priority alignment](backlog/reviews/priority-alignment.md) — historical July sequencing; refresh and replacement handoffs await confirmation of this cycle's kickoff stack.
+- [Priority alignment](backlog/reviews/priority-alignment.md) — confirmed three-lane kickoff, candidate project groupings and explicitly proposed later sequencing.
 - [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md) — durable history; do not repeat it as active work.

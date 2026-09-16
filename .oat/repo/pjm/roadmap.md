@@ -1,7 +1,7 @@
 # Skills Repo Roadmap
 
 **Last updated:** 2026-09-16
-**Status:** Post-PR #83 roadmap proposal. Consensus Review is the user-selected high-priority feature. The immediate kickoff order and capacity await operator confirmation; the linked [July priority alignment](backlog/reviews/priority-alignment.md) is historical, pending refresh.
+**Status:** Post-PR #83 alignment: observer investigation, Consensus Review and the parallel installer are confirmed. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
 
 ## Planning model
 
@@ -13,18 +13,20 @@ Completed source colocation, Session packaging, skill promotion, docs IA/visuals
 
 ### Reliability and bounded review
 
-- **BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps.** Recommend a bounded reproduction first. Establish whether a renderable peer message is lost across termination/restart; filtered raw-index gaps alone do not prove it. Existing catch-up and Monitor guidance must be accounted for before changing runtime.
+- **BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps.** Sol has started, per the user; keep it a bounded reproduction-first investigation. Establish whether a renderable peer message is lost across termination/restart; filtered raw-index gaps alone do not prove it. Existing catch-up and Monitor guidance must be accounted for before changing runtime.
 - **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope.** Next high-priority feature: one dispatched read-only reviewer invocation with explicit scope/provenance, owned JSON output, and an OAT-compatible Markdown adapter. New reviewer defaults belong in its own config key. Different provider does not guarantee different model family. Unsupported read-only policy must not be silently weakened.
 
-The observer investigation is recommended scheduling, **not a technical prerequisite** for Review. Review does not wait on convergence settings or helper extraction.
+The observer investigation is **not a technical prerequisite** for Review. They may proceed concurrently. Review uses a quick workflow with lightweight design, Astra leading and Fable reviewing; it does not wait on convergence settings or helper extraction.
 
-### Optional independent onboarding lane
+### Confirmed independent onboarding lane
 
-- **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills.** Pinned generated payloads, project-scope destinations, integrity/error handling, and install documentation. Confirm spare capacity before opening this lane; multi-host/live acceptance is more than a copy script.
+- **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills.** Pinned generated payloads, project-scope destinations, integrity/error handling, and install documentation. The user explicitly approved parallel kickoff; multi-host/live acceptance remains part of the scope. Owner/start are not yet claimed.
 
 Release/discovery verification for already-merged distributions can proceed independently under the existing release checklist. This planning pass does not authorize installation, publication, or paid provider calls.
 
 ## Next
+
+The following order is proposed, not yet operator-confirmed: Consensus runtime maintenance, then inbox messaging, then session fidelity. Live-submit diagnosis is an independent authorization-gated slot. The maintenance project groups model propagation, atomic writes, and helper extraction into independently shippable phases; none is a prerequisite for Review.
 
 ### Consensus correctness and maintainability
 
@@ -41,6 +43,8 @@ Release/discovery verification for already-merged distributions can proceed inde
 Messaging may precede fidelity. Coordinate shared observer/collaboration files and identity/state conventions, not an invented merged-log dependency.
 
 ## Later
+
+Proposed after fidelity: the stateless merged view. Loop metrics and an evidence-gated similarity phase can share a later project; harmonization, research, and multi-round panel remain separate demand-led projects. N>2 ownership, idle integration, host-native dispatch, and 3+ peer convergence stay parked without a total rank.
 
 ### Merged evidence and stateful scale
 

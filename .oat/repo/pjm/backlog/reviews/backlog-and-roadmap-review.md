@@ -6,11 +6,11 @@
 **Roadmap:** [Now / Next / Later](../../roadmap.md)
 **Purpose:** Rate value/effort, separate real dependencies from useful sequencing, and refresh the operating picture.
 
-The linked [July priority alignment](priority-alignment.md) is historical and pending refresh; its old kickoff stack is not this cycle's approval. The current walkthrough awaits operator confirmation of kickoff order/capacity. Recommendations here do not launch projects, authorize paid calls, or establish release/install status.
+The refreshed [priority alignment](priority-alignment.md) confirms the three immediate lanes: observer investigation (Sol started, per user), Consensus Review, and the parallel installer. Later ordering remains a recommendation, not operator approval. Recommendations here do not launch projects, authorize paid calls, or establish release/install status.
 
 ## 1. Executive Summary
 
-All **19 items are open and unassigned**, with no linked issues in their frontmatter. No whole item meets its acceptance criteria yet. The peer-model item's documentation portion and the multi-round panel item's product-distinction decision are complete, but their runtime/build criteria remain open.
+All **19 item files are open and unassigned**, with no linked issues in their frontmatter. The user now reports Sol started the observer investigation; implementation status/closeout remains owned by that worktree. No whole item meets its acceptance criteria yet. The peer-model item's documentation portion and the multi-round panel item's product-distinction decision are complete, but their runtime/build criteria remain open.
 
 | Theme | Count | Finding |
 | --- | ---: | --- |
@@ -30,7 +30,7 @@ Top recommendations:
 
 1. **BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps:** reproduce a lost renderable message before prescribing a checkpoint fix.
 2. **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope:** next feature project, independent of the convergence model fix and helper extraction.
-3. **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills:** optional independent lane if capacity permits, not a hidden prerequisite for Review.
+3. **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills:** confirmed independent parallel lane, not a hidden prerequisite for Review.
 
 The small atomic-write fix remains worthwhile without displacing the user-selected feature priority. Quadrants describe investment, not an automatic execution order.
 
@@ -291,8 +291,8 @@ Design gates in the catalog are internal prerequisites, not invented backlog edg
 
 | Lane | Items | Effort / coordination |
 | --- | --- | --- |
-| Primary workflow | **BL-260916-session-observer-re-armed — Observer re-arm investigation**, then **BL-260916-add-consensus-review-cross — Consensus Review** | Low investigation then High feature; order is a recommendation awaiting kickoff confirmation, not a dependency. |
-| Optional onboarding | **BL-260916-add-a-first-party-install — First-party standalone installer** | Medium; independent source ownership, coordinate installation/release docs and packaging tests. |
+| Primary workflow | **BL-260916-session-observer-re-armed — Observer re-arm investigation**, then **BL-260916-add-consensus-review-cross — Consensus Review** | Low investigation then High feature; Sol's investigation is started and Review is confirmed next; they may proceed concurrently. |
+| Parallel onboarding | **BL-260916-add-a-first-party-install — First-party standalone installer** | Medium; independent source ownership, coordinate installation/release docs and packaging tests. |
 | Consensus integrity | **BL-260916-honor-configured-peer-models — Peer model/effort forwarding**; **BL-260723-make-remaining-consensus-loop — Atomic loop writes**; **BL-260723-split-loop-free-cli-helpers — Loop-free helper core** | Medium / Low / Medium. Serialize overlapping shared runtime/generated output edits with Review. |
 | Live-provider evidence | **BL-260723-investigate-live-submit — Live submit verdict-source investigation** | Medium, explicitly authorization-gated. Deterministic tracing can precede a paid run. |
 | Collaboration | **BL-260619-inter-agent-direct-messaging — Provider-neutral direct messaging** | Medium design/build, independent of merge; coordinate observer/collab state and bounded continuation. |
@@ -300,13 +300,36 @@ Design gates in the catalog are internal prerequisites, not invented backlog edg
 
 These are available technical lanes, not six approved simultaneous projects. Research and broader deliberation quality remain queued; N>2 and idle integration retain their own design gates.
 
+### Complete item-to-project grouping
+
+The prior review described lanes; this map makes the actual grouping explicit. **16 candidate projects cover all 19 items exactly once.** Two combinations are useful: three Consensus-maintenance tickets with separate acceptance/commits, and metrics plus an evidence-gated similarity phase. The other fourteen remain single-ticket projects. A thematic group is not permission to bundle unrelated scope into Review.
+
+| Priority / approval | Project candidate | Backlog membership | Grouping boundary |
+| --- | --- | --- | --- |
+| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../items/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
+| Now — approved | Consensus Review | [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) | Quick workflow + lightweight design; Astra leads, Fable reviews. No unrelated loop changes. |
+| Now — approved parallel | Standalone installer | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | Independent quick project; integrity, overwrite/ref semantics and host-specific destinations remain explicit. |
+| Next — proposed 1 | Consensus runtime maintenance | [BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows](../items/BL-260916-honor-configured-peer-models.md); [BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic](../items/BL-260723-make-remaining-consensus-loop.md); [BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing](../items/BL-260723-split-loop-free-cli-helpers.md) | One project, three independently verifiable phases/commits: model propagation, atomic writes, helper split. Shared runtime/output ownership justifies grouping, not a hard dependency; each can ship separately. Only helper extraction may move into Review if its design demonstrates direct need. |
+| Next — proposed 2 | Provider-neutral inbox | [BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)](../items/BL-260619-inter-agent-direct-messaging.md) | Own project. Shared identity/state contract, acknowledgments, concurrency and bounded delivery; independent of fidelity/merge. |
+| Next — proposed 3 | Session fidelity | [BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter](../items/BL-260916-session-fidelity-opt.md) | Own design/build project using the retained research packet; no daemon or warehouse. |
+| Next — authorization lane | Live-submit investigation | [BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch](../items/BL-260723-investigate-live-submit.md) | Separate bounded diagnosis; schedule when live-run authority is granted. Do not hide provider spend inside a maintenance batch. |
+| After fidelity — proposed | Stateless merged activity view | [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) | Separate project consuming the fidelity contract; not a prerequisite for inboxes. |
+| Later — proposed first | Loop measurement and convergence quality | [BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md); [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) | Potential two-phase project: ship metrics first; similarity proceeds only if evidence and a reviewed deterministic contract justify it. Grouping is not approval to implement the heuristic. |
+| Later — demand-gated | Whole-document harmonization | [BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md) | Separate context/fan-in/resume project; not an incidental Review enhancement. |
+| Later — demand-gated | Consensus Research | [BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)](../items/BL-260612-add-consensus-research-skill.md) | Separate tool-access/provenance decision, then implementation only on go. |
+| Later — demand-gated | Multi-round Panel | [BL-260701-add-multi-round-panel — Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) | Separate optional attributed discussion project; not convergence. |
+| Parked — unranked | Safe N>2 collaboration | [BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh](../items/BL-260713-per-observer-offsets-and-safe.md) | Separate stateful ownership/CAS/topology project. Inboxes and stateless merge may inform it but are not hard prerequisites. |
+| Parked — unranked | Idle-session integrations | [BL-260713-optional-idle-session — Optional idle-session application integrations](../items/BL-260713-optional-idle-session.md) | Separate opt-in host integration investigation; don't couple mesh delivery to a selected application. |
+| Parked — unranked | Host-native dispatch | [BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)](../items/BL-260619-define-host-native-dispatch.md) | Separate capability/security decision; no enabling reserved flags without reviewed contract. |
+| Parked — unranked | 3+ peer deliberation | [BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)](../items/BL-260619-multi-peer-3-deliberation.md) | Separate group-convergence decision, not the N>2 observer mesh. |
+
 ## 5. Recommended Execution Order
 
 ### Wave 1 — Current workflow
 
 1. **BL-260916-session-observer-re-armed — Observer re-arm investigation**: bounded reproduction; if only diagnostic ambiguity is found, document it rather than expanding into fidelity.
 2. **BL-260916-add-consensus-review-cross — Consensus Review**: design scope capture, supported read-only policy, reviewer preferences, and output contracts, then implement one dispatched invocation.
-3. Optionally parallel: **BL-260916-add-a-first-party-install — First-party standalone installer** after the operator selects spare capacity.
+3. Confirmed parallel lane: **BL-260916-add-a-first-party-install — First-party standalone installer**; the user selects its owner and kickoff.
 
 ### Wave 2 — Correctness and independent collaboration
 
@@ -323,7 +346,7 @@ These are available technical lanes, not six approved simultaneous projects. Res
 
 | Horizon | Covered items |
 | --- | --- |
-| Now | **BL-260916-session-observer-re-armed — Observer re-arm investigation**; **BL-260916-add-consensus-review-cross — Consensus Review**; optional **BL-260916-add-a-first-party-install — First-party standalone installer**. |
+| Now | **BL-260916-session-observer-re-armed — Observer re-arm investigation**; **BL-260916-add-consensus-review-cross — Consensus Review**; parallel **BL-260916-add-a-first-party-install — First-party standalone installer**. |
 | Next | **BL-260916-honor-configured-peer-models — Peer model/effort forwarding**; **BL-260723-make-remaining-consensus-loop — Atomic loop writes**; **BL-260723-split-loop-free-cli-helpers — Loop-free helper core**; **BL-260723-investigate-live-submit — Live submit investigation**; **BL-260619-inter-agent-direct-messaging — Direct messaging**; **BL-260916-session-fidelity-opt — Session fidelity activity view**. |
 | Later | **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge**; **BL-260713-per-observer-offsets-and-safe — Safe N>2 mesh**; **BL-260713-optional-idle-session — Idle integrations**; **BL-260612-add-consensus-research-skill — Consensus Research**; **BL-260612-add-deliberation-metrics — Deliberation metrics**; **BL-260612-add-similarity-heuristic — Similarity heuristic**; **BL-260612-add-whole-document — Whole-document harmonization**; **BL-260701-add-multi-round-panel — Multi-round panel**; **BL-260619-define-host-native-dispatch — Host-native dispatch**; **BL-260619-multi-peer-3-deliberation — Multi-peer deliberation**. |
 
@@ -364,7 +387,7 @@ Paths below are repository-relative and were checked against the review baseline
 | Inboxes create an accidental second wake mechanism | Reuse existing continuation/authority budget; queue availability is not wake capability or recipient acknowledgment. |
 | Concurrent shared-source changes cause version/output drift | Coordinate owners and regenerate from declarations; transitive version guard already exists. |
 
-No product source, global install, provider configuration, or live runtime was changed by this review. No additional decision record was finalized; implementation design gates remain explicit. Keep the research packet and backlog lineage; obsolete kickoff handoffs are retired only when the operator confirms the new stack.
+No product source, global install, provider configuration, or live runtime was changed by this review. No additional decision record was finalized; implementation design gates remain explicit. Keep the research packet and backlog lineage; the superseded July kickoff handoffs have been replaced for the confirmed three-lane stack.
 
 ### Quick wins
 
