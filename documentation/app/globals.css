@@ -515,3 +515,47 @@ body {
      'default' })` with no `themeVariables`, so diagrams keep Mermaid's stock
      purple/grey and will NOT pick up the teal accent.
    -------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   Diagrams on narrow screens. A polished SVG and a rendered Mermaid graph are
+   sized for the ~830px desktop column; on a phone they would shrink to
+   unreadable label sizes. Give them a readable minimum width inside a
+   horizontally scrollable region instead, and keep the page itself within the
+   viewport. `.diagram-scroll` is emitted by components/image.tsx for
+   /diagrams/ assets; `.mermaid` is emitted by components/mermaid.tsx.
+   -------------------------------------------------------------------------- */
+.diagram-scroll {
+  margin: 1rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.diagram-scroll img {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+.diagram-hint {
+  display: none;
+  margin: 0.4rem 0 0;
+  font-family: var(--rt-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fd-muted-foreground);
+}
+.mermaid {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 640px) {
+  .diagram-scroll img {
+    min-width: 760px;
+  }
+  .diagram-hint {
+    display: block;
+  }
+  .mermaid > svg {
+    min-width: 640px;
+    max-width: none !important; /* mermaid sets an inline max-width on the root svg */
+  }
+}
