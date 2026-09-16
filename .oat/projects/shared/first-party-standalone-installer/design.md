@@ -12,7 +12,7 @@ oat_template_name: design
 
 ## Overview
 
-Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior byte-for-byte at the contract level. Calling it with `--skill`, `--agent`, and an explicit `--ref` selects the new path: resolve an exact tag from the configured Git repository, read only the generated `skills/<name>/` payload, and install it into the selected host's project-scoped skills directory.
+Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior byte-for-byte at the contract level. Calling it with `--skill`, `--agent`, and an explicit `--ref` delegates to a dependency-free Node.js 22 helper: resolve an exact tag from the configured Git repository, read only the generated `skills/<name>/` payload, and install it into the selected host's project-scoped skills directory.
 
 The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and atomically reserves the final name with an exclusive `mkdir`. Only after acquiring that absent path does it add a reserved installer marker, populate the directory, verify the payload while ignoring only that marker, and remove the marker to publish success. Existing or concurrently created destinations are refused. A post-reservation failure leaves the marked partial directory for explicit recovery rather than recursively deleting a path that concurrent activity may have altered.
 
@@ -25,13 +25,14 @@ The verification claim is deliberately narrow. Exact-tag resolution pins the sel
 The top-level `install.sh` remains the single first-party bootstrap surface. Argument dispatch separates two contracts before any filesystem mutation:
 
 - no arguments call the existing Consensus recovery flow;
-- standalone arguments call the new generated-payload flow.
+- standalone arguments call the new generated-payload helper through Node.js 22.
 
 The standalone flow uses Git as the only external acquisition boundary. It clones an exact tag from the default repository or an explicit `--repository` override, which also enables isolated local-fixture tests. It does not execute build tooling from the checkout and does not import the TypeScript distribution catalog at runtime. Eligibility is structural and fail-closed: a safe skill name must resolve to `skills/<name>/SKILL.md`; the command never searches or falls back to `src/skills/`.
 
 **Key components:**
 
-- **Argument dispatcher:** Preserves legacy zero-argument behavior and validates the standalone flag combination.
+- **Argument dispatcher:** Preserves legacy zero-argument behavior and delegates standalone arguments to the adjacent dependency-free helper.
+- **Standalone helper:** Owns argument validation, Git acquisition, inventory, host mapping, and safe publication using Node standard-library APIs.
 - **Pinned source resolver:** Checks out and verifies an exact tag into a temporary directory.
 - **Payload validator:** Enforces confinement and regular-file/directory entry types and records a complete file inventory.
 - **Host mapper:** Maps the explicit agent to a project-relative destination and invocation display.
@@ -86,9 +87,20 @@ arguments
 **Responsibilities:**
 
 - Route zero arguments directly to the existing behavior.
+- Route standalone arguments to the adjacent helper so the cloned/tagged checkout owns both entrypoint and implementation.
+- Preserve clear errors when standalone mode is invoked from a streamed script with no adjacent helper; the documented first-party path runs from an exact-tag checkout.
+- Require Node.js 22 for both contracts and add no package dependencies.
+
+### Standalone Helper
+
+**Purpose:** Implement the standalone CLI with safe standard-library filesystem primitives.
+
+**Responsibilities:**
+
 - Parse `--skill <name>`, `--agent <codex|claude-code|cursor>`, `--ref <tag>`, optional `--repository <git-url-or-path>`, and `--help`.
 - Reject duplicates, unknown flags, missing values, unsafe skill names, and partial flag sets before installation work.
-- Require Node.js 22 only where the preserved Consensus contract or installed runtime contract already requires it; do not add package dependencies.
+- Spawn Git with argv arrays rather than shell interpolation.
+- Hold true-exclusive `wx` file descriptors across destination writes and permission changes.
 
 ### Pinned Source Resolver
 
@@ -129,7 +141,7 @@ Empty directories and directory permission modes are not part of the payload ide
 - Create a same-parent staging directory, preserve file modes during copy, and verify the stage.
 - Re-check destination ancestors immediately before publication, then atomically reserve the final path with exclusive `mkdir`; failure means a concurrent directory or symlink won and must be preserved unchanged.
 - Reject a source payload that already contains the reserved installer marker name.
-- Add the marker immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Create each payload file through Bash noclobber redirection before writing bytes and applying its declared mode; never use an overwrite-capable copy into the final directory.
+- Add the marker immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Open each payload file through Node's `wx` mode (`O_CREAT | O_EXCL`), retain that descriptor while copying bytes, apply its declared mode through the descriptor, and close it; never use an overwrite-capable copy into the final directory.
 - Verify the complete destination inventory while excluding only the marker, and remove the marker only after verification succeeds.
 - On post-reservation copy or verification failure, preserve the marked partial directory and report its exact recovery path. Never recursively delete the final path, because concurrent content or path replacement cannot be proven to belong to this invocation.
 - Remove owned staging and checkout paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
@@ -156,7 +168,7 @@ Success output includes the selected tag, final project-relative path, verificat
 
 Validation and acquisition errors exit nonzero with an `install.sh:` prefix and no destination mutation. These include incomplete flags, invalid names, unsupported agents, invalid tags, missing tags, missing generated payloads, authored-source-only fixtures, unsafe entry types, symlinked destination ancestors, and existing destinations.
 
-Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses `mkdir <destination>` as the atomic no-clobber reservation. If that fails, the installer preserves the competing directory or symlink unchanged. After reservation, the installer writes a reserved marker, creates every payload directory and file with no-clobber semantics, and verifies the payload while excluding only the marker. A competing entry at any payload path therefore fails instead of being overwritten. If population or final verification fails, the installer cleans the checkout and stage but deliberately leaves the marked partial destination with a recovery error. It never recursively removes the final path, because a concurrent writer or path replacement would make ownership ambiguous. Success removes the marker only after payload verification.
+Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses exclusive `mkdir` as the atomic final-directory reservation. If that fails, the installer preserves the competing directory or symlink unchanged. After reservation, the helper writes a reserved marker, creates every payload directory exclusively, opens every payload file with Node `wx`, and verifies the payload while excluding only the marker. Existing regular files, symlinks, FIFOs, devices, and other entries therefore fail before any write-through. If population or final verification fails, the installer cleans the checkout and stage but deliberately leaves the marked partial destination with a recovery error. It never recursively removes the final path, because a concurrent writer or path replacement would make ownership ambiguous. Success removes the marker only after payload verification.
 
 The command performs no automatic retry. Git/network failures are reported with the repository and tag context so the operator can retry deliberately.
 
@@ -177,7 +189,7 @@ Key scenarios:
 - Symlink/special-entry payloads and symlinked destination ancestors are refused.
 - Existing destinations remain byte-for-byte unchanged, including deterministic races that create a directory or symlink after preflight but before exclusive reservation.
 - A source payload using the reserved marker name is rejected.
-- Competing directories or files created after reservation are never overwritten; deterministic fixtures assert that their bytes survive.
+- Competing directories, regular files, symlinks, FIFOs, and symlink-to-FIFO entries created after reservation are never opened for write or overwritten; deterministic fixtures assert prompt failure and survival.
 - Copy or inventory mismatch after reservation leaves a clearly marked partial destination, preserves concurrent additions or a replacement path, cleans only checkout/staging paths, and causes subsequent installs to refuse the existing path.
 
 ### Documentation and Contract Tests

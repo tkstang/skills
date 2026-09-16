@@ -20,7 +20,7 @@ oat_template: true
 
 **Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host's project-scoped skills directory while preserving the existing Consensus recovery installer.
 
-**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, marked verified population, and host invocation output.
+**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and standalone flags to an adjacent dependency-free Node.js 22 helper. The helper performs qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, descriptor-held `wx` population, final verification, and host invocation output.
 
 **Tech Stack:** Bash, Git, Node.js 22 repository tooling, Vitest, temporary local Git fixtures, Fumadocs Markdown.
 
@@ -37,6 +37,7 @@ The plan is sequential (`oat_plan_parallel_groups: []`). Installer behavior, its
 **Files:**
 
 - Modify: `install.sh`
+- Create: `scripts/install-standalone.mjs`
 - Modify: `src/plugins/consensus/install-sh.test.ts`
 - Create: `tests/tooling/standalone-installer.test.ts`
 
@@ -63,7 +64,7 @@ Cover:
 - annotated-tag handling and a same-named branch/tag fixture with different bytes that must install the peeled tag commit;
 - existing destination preservation;
 - deterministic post-preflight directory and symlink collision refusal with competing content preserved;
-- post-reservation competing directory/file creation and destination replacement, proving no-clobber population and no recursive cleanup preserve foreign bytes;
+- post-reservation competing directory, regular-file, symlink, FIFO, and symlink-to-FIFO creation plus destination replacement, proving exclusive opens and no recursive cleanup preserve foreign entries without blocking or write-through;
 - reserved marker-name rejection;
 - injected post-reservation copy or inventory failure that leaves a marked partial destination, preserves concurrent additions, cleans checkout/staging state, and makes a later install refuse the existing path;
 - zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
@@ -74,8 +75,8 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 
 **Step 3: Implement the dependency-free standalone flow**
 
-- Dispatch no arguments to the existing Consensus path.
-- Validate standalone flags and safe names before installation work.
+- Dispatch no arguments to the existing Consensus path and delegate standalone arguments to `scripts/install-standalone.mjs` through Node.js 22.
+- Validate standalone flags and safe names in the dependency-free helper before installation work; invoke Git with argv arrays.
 - Fetch the fully qualified `refs/tags/<ref>` from the default repository or `--repository` override, peel it to a commit, check it out detached, and require `HEAD` equality before reading the payload.
 - Select only `skills/<name>/` and require `SKILL.md`; never search or fall back to `src/skills/`.
 - Reject symlinks and non-file/non-directory entries.
@@ -83,12 +84,12 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 - Refuse existing destinations and symlinked destination ancestors during preflight, then repeat the ancestor check immediately before publication.
 - Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; and verify inventory equality.
 - Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail.
-- Reject the reserved marker name in source payloads. Add the marker after reservation; create payload directories parent-first with exclusive `mkdir`; create payload files through Bash noclobber redirection before applying modes; never overwrite a final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
+- Reject the reserved marker name in source payloads. Add the marker after reservation; create payload directories parent-first with exclusive `mkdir`; open payload files through Node `wx`, retain the descriptor through byte copy and permission changes, and never overwrite or open an existing final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
 - On post-reservation failure, preserve the marked partial destination and any concurrent additions, report explicit recovery, and clean only owned checkout/staging paths. Print the verified path plus host invocation name only after the marker is removed.
 
 **Step 4: Format and verify**
 
-Run: `pnpm exec oxfmt --write src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts`
+Run: `pnpm exec oxfmt --write scripts/install-standalone.mjs src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts`
 
 For `install.sh`, warn once with `no format command discovered in repo instructions; skipping`, then preserve the existing shell style manually.
 
@@ -103,7 +104,7 @@ Expected: TypeScript checks pass.
 **Step 5: Commit**
 
 ```bash
-git add install.sh src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts
+git add install.sh scripts/install-standalone.mjs src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts
 git commit -m "feat(installer): add pinned standalone skill installs"
 ```
 

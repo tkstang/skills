@@ -18,9 +18,9 @@ The kickoff handoff selects quick mode with a lightweight design focused on inte
 
 ### Approach 1: Additive mode in the existing installer _(Chosen)_
 
-Keep the existing no-argument Consensus installation contract unchanged and activate standalone installation only when `--skill` is present. Resolve an exact tag into a temporary checkout, select only `skills/<name>/`, stage and verify its complete inventory, then publish it into the host's project-scoped directory.
+Keep the existing no-argument Consensus installation contract unchanged and activate standalone installation only when `--skill` is present. The shell entrypoint delegates standalone arguments to a dependency-free Node.js 22 helper, which resolves an exact tag into a temporary checkout, selects only `skills/<name>/`, stages and verifies its complete inventory, then publishes it into the host's project-scoped directory with true exclusive filesystem opens.
 
-This is the best fit because the repository already documents `install.sh`, compatibility can be mechanically tested, and the feature remains dependency-free.
+This is the best fit because the repository already documents `install.sh`, compatibility can be mechanically tested, and the feature remains dependency-free while using Node standard-library primitives for safe publication.
 
 ### Approach 2: Separate standalone installer
 
@@ -34,7 +34,7 @@ Generate a catalog with per-file hashes and install through a dedicated runtime.
 
 **Approach:** Additive mode in the existing installer.
 
-**Rationale:** It preserves the established Consensus entrypoint, meets the first-party requirement with the smallest durable surface, and can verify copy fidelity without adding runtime dependencies or a second catalog.
+**Rationale:** It preserves the established Consensus entrypoint, meets the first-party requirement with a small durable surface, and can verify copy fidelity without package dependencies or a second catalog.
 
 **User validated:** Yes — the supplied handoff explicitly chose a focused quick project and required preservation of the Consensus-wrapper contract.
 
@@ -46,7 +46,7 @@ Generate a catalog with per-file hashes and install through a dedicated runtime.
 4. **Project destinations:** Install beneath the selected project's host directory: `.agents/skills/` for Codex, `.claude/skills/` for Claude Code, and `.cursor/skills/` for Cursor.
 5. **Invocation output:** Print `$<name>` for Codex, `/<name>` for Claude Code, and the installed skill name with Cursor inventory guidance for Cursor.
 6. **Existing destination:** Refuse an existing destination. The initial feature has no force/merge mode, avoiding stale files and non-atomic replacement semantics.
-7. **Integrity semantics:** Reject symlinks and non-regular payload entries; inventory every file by relative path, mode, and SHA-256; copy into a same-parent staging directory; verify the staged inventory; atomically reserve the absent destination with exclusive directory creation; mark it; populate every directory and file with no-clobber creation; verify the result; and remove the marker only on success. A post-reservation failure leaves the marked partial directory for explicit recovery instead of overwriting or recursively deleting content whose identity may have changed.
+7. **Integrity semantics:** Reject symlinks and non-regular payload entries; inventory every file by relative path, mode, and SHA-256; copy into a same-parent staging directory; verify the staged inventory; atomically reserve the absent destination with exclusive directory creation; mark it; populate directories with exclusive creation and files through Node `wx` descriptors retained for writing and permission changes; verify the result; and remove the marker only on success. A post-reservation failure leaves the marked partial directory for explicit recovery instead of overwriting or recursively deleting content whose identity may have changed.
 8. **Authenticity wording:** An exact tag and Git transport establish which repository revision was selected. Inventory comparison proves copy fidelity. The feature does not claim signed-tag verification or independent release attestation.
 9. **Skill dependencies:** Required sibling workflows remain explicit prerequisites and are not silently installed.
 10. **Acceptance boundary:** Automated fixtures prove installer behavior and payload fidelity. Fresh host discovery and bounded invocation remain separate, explicitly authorized release checks.
