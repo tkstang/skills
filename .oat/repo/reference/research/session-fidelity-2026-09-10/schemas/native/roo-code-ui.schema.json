@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:roo-code-ui:2026-09-10",
+  "title": "roo-code: legacy ui_messages.json entries",
+  "description": "Whole UI-message array for the legacy roo-code editor task surface. Not interchangeable with API conversation history. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+  ],
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "ts": {
+        "type": "number",
+        "description": "Source numeric timestamp; validate unit with actual captured version."
+      },
+      "type": {
+        "type": "string",
+        "description": "UI event discriminator, commonly say or ask."
+      },
+      "say": {
+        "type": "string",
+        "description": "Say subtype, not a speaker role by itself."
+      },
+      "ask": {
+        "type": "string",
+        "description": "Ask subtype, not necessarily a completed human exchange."
+      },
+      "text": {
+        "type": "string",
+        "description": "UI text; may itself contain serialized structured content."
+      },
+      "reasoning": {
+        "type": "string",
+        "description": "Recorded reasoning display text."
+      },
+      "images": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Image reference or encoded string; do not assume plain text."
+        }
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Source file/reference string."
+        }
+      },
+      "partial": {
+        "type": "boolean",
+        "description": "Streaming/partial update state."
+      },
+      "modelInfo": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "description": "Model identity."
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Provider identity."
+          },
+          "mode": {
+            "type": "string",
+            "description": "Recorded agent mode."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true,
+    "required": [
+      "type"
+    ]
+  }
+}

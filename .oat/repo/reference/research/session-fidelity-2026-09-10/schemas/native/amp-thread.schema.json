@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:amp-thread:2026-09-10",
+  "title": "Amp: observed local/export thread JSON subset",
+  "description": "Overlapping documented subset of local thread JSON and amp threads export JSON. Surface-specific fields are optional; tool block semantics remain incomplete in this catalog. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/amp.ts",
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ampsessions/amp.go"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Thread ID, not a filesystem path."
+    },
+    "title": {
+      "type": "string",
+      "description": "Thread title."
+    },
+    "created": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "ISO timestamp string where accepted by export reader."
+        },
+        {
+          "type": "number",
+          "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+        }
+      ],
+      "description": "Timestamp representation varies between the local and export surfaces."
+    },
+    "updatedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "ISO timestamp string where accepted by export reader."
+        },
+        {
+          "type": "number",
+          "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+        }
+      ],
+      "description": "Timestamp representation varies between the local and export surfaces."
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "Native message role."
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Native message identity in newer exports."
+              },
+              {
+                "type": "number",
+                "description": "Numeric identity used in local threads/other exports."
+              }
+            ]
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Block discriminator; text is the only variant indexed by the reviewed ccrider path."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Visible text for a text block."
+                },
+                "provider": {
+                  "type": "string",
+                  "description": "Optional source provider label on local content blocks."
+                },
+                "startTime": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "ISO timestamp string where accepted by export reader."
+                    },
+                    {
+                      "type": "number",
+                      "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                    }
+                  ],
+                  "description": "Timestamp representation varies between the local and export surfaces."
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "sentAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "env": {
+      "type": "object",
+      "properties": {
+        "initial": {
+          "type": "object",
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "Source tag; model:... can carry an initial model label."
+              }
+            },
+            "trees": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uri": {
+                    "type": "string",
+                    "description": "Workspace URI, commonly file://. May describe a directory not present on this host."
+                  },
+                  "repository": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Remote URL."
+                      },
+                      "ref": {
+                        "type": "string",
+                        "description": "Git ref, e.g. refs/heads/main."
+                      },
+                      "sha": {
+                        "type": "string",
+                        "description": "Recorded commit SHA."
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "platform": {
+              "type": "object",
+              "properties": {
+                "clientVersion": {
+                  "type": "string",
+                  "description": "Source client version recorded in exported thread."
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "usageLedger": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Model used for this ledger event."
+              },
+              "credits": {
+                "type": "number",
+                "description": "Recorded credits; no currency conversion inferred."
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "number",
+                    "description": "Recorded input tokens."
+                  },
+                  "output": {
+                    "type": "number",
+                    "description": "Recorded output tokens."
+                  }
+                },
+                "additionalProperties": true
+              },
+              "operationType": {
+                "type": "string",
+                "description": "Operation type; continues excludes title-generation when aggregating."
+              },
+              "fromMessageId": {
+                "type": "number",
+                "description": "Message-range start in the local ledger shape."
+              },
+              "toMessageId": {
+                "type": "number",
+                "description": "Message-range end in the local ledger shape."
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "messages"
+  ]
+}

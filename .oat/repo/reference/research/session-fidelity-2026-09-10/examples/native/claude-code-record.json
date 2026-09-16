@@ -1,0 +1,25 @@
+{
+  "type": "assistant",
+  "uuid": "msg-2",
+  "parentUuid": "msg-1",
+  "sessionId": "session-demo",
+  "timestamp": "2026-09-10T12:00:00Z",
+  "cwd": "/workspace/demo",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I will run the focused test."
+      },
+      {
+        "type": "tool_use",
+        "id": "tool-1",
+        "name": "Bash",
+        "input": {
+          "command": "pnpm test parser"
+        }
+      }
+    ]
+  }
+}

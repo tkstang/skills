@@ -11,7 +11,8 @@ async function read(relativePath: string) {
 // The dense reference content was migrated out of README.md into the Fumadocs
 // docs site under documentation/docs/ (the docs-ia project). These tests assert
 // the new source of truth: README.md is a slim entry point (project description +
-// install matrix + links), and the migrated detail lives in the docs site.
+// task selection + one-skill quick start + links), and detailed install and
+// capability contracts live in the docs site.
 async function readDocsSite(): Promise<string> {
   const docsDir = new URL('documentation/docs/', repoRoot);
   const entries = await readdir(docsDir, { recursive: true });
@@ -27,21 +28,12 @@ async function readDocsSite(): Promise<string> {
 }
 
 describe('readme-scope', () => {
-  it('README keeps the v0.1 three-provider install matrix as the entry point', async () => {
+  it('README offers a standalone quick start and links to the provider install matrix', async () => {
     const readme = await read('README.md');
-
-    expect(readme).toMatch(/^## Install$/m);
     expect(readme).toMatch(
-      /claude plugin marketplace add "\$PWD" --scope user/,
+      /npx skills add https:\/\/github.com\/tkstang\/skills\/tree\/main\/skills\/next-steps --agent codex/,
     );
-    expect(readme).toMatch(
-      /claude plugin install consensus@skills --scope user/,
-    );
-    expect(readme).toMatch(/codex plugin marketplace add "\$PWD"/);
-    expect(readme).toMatch(/codex plugin add consensus --marketplace skills/);
-    expect(readme).toMatch(
-      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
-    );
+    expect(readme).toMatch(/user-guide\/installation\/#install-matrix/);
     expect(readme).toMatch(/Node\.js 22/);
     // Prerequisites and caveats stay on the docs site.
     expect(readme).toMatch(/user-guide\/installation\//);
@@ -52,6 +44,8 @@ describe('readme-scope', () => {
 
     // Links readers into the deployed site, not raw Markdown source paths.
     expect(readme).toMatch(/https:\/\/tkstang\.github\.io\/skills\//);
+    expect(readme).toMatch(/\]\(https:\/\/tkstang\.github\.io\/skills\/\)/);
+    expect(readme).toMatch(/user-guide\/getting-started\//);
     expect(readme).not.toMatch(/documentation\/docs\//);
     // The dense reference sections were moved out of the README.
     expect(readme).not.toMatch(/^## Permissions$/m);
@@ -218,8 +212,10 @@ describe('readme-scope', () => {
     expect(readme).toMatch(/whole-document harmonization/i);
   });
 
-  it('README and plugin README summarize consensus-create as shipped', async () => {
-    const readme = await read('README.md');
+  it('Consensus landing page and plugin README summarize create as shipped', async () => {
+    const readme = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const pluginReadme = await read('plugins/consensus/README.md');
 
     expect(readme).toMatch(/consensus[\s\S]*create/i);
@@ -232,8 +228,10 @@ describe('readme-scope', () => {
     );
   });
 
-  it('README and plugin README summarize consensus-decide as shipped', async () => {
-    const readme = await read('README.md');
+  it('Consensus landing page and plugin README summarize decide as shipped', async () => {
+    const readme = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const pluginReadme = await read('plugins/consensus/README.md');
 
     expect(readme).toMatch(/consensus[\s\S]*decide/i);
@@ -246,8 +244,10 @@ describe('readme-scope', () => {
     );
   });
 
-  it('README and plugin README summarize consensus-plan as shipped', async () => {
-    const readme = await read('README.md');
+  it('Consensus landing page and plugin README summarize plan as shipped', async () => {
+    const readme = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const pluginReadme = await read('plugins/consensus/README.md');
 
     expect(readme).toMatch(/consensus[\s\S]*plan/i);
@@ -261,8 +261,10 @@ describe('readme-scope', () => {
     );
   });
 
-  it('README and plugin README summarize consensus-panel as shipped', async () => {
-    const readme = await read('README.md');
+  it('Consensus landing page and plugin README summarize panel as shipped', async () => {
+    const readme = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const pluginReadme = await read('plugins/consensus/README.md');
 
     expect(readme).toMatch(/consensus[\s\S]*panel/i);

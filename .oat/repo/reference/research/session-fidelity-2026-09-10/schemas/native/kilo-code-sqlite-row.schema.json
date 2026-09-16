@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kilo-code-sqlite-row:2026-09-10",
+  "title": "Kilo Code: inspected SQLite row carrier subset",
+  "description": "Conservative row-carrier subset for the separate Kilo SQLite path. Inspect PRAGMA table_info for session/message/part/project before use; this is not a claim of complete OpenCode schema equivalence. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Row ID within the inspected table."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Owning session where applicable."
+    },
+    "message_id": {
+      "type": "string",
+      "description": "Owning message where applicable."
+    },
+    "data": {
+      "type": "string",
+      "description": "JSON payload carrier where present; complete tool-state schema not established here."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "id"
+  ]
+}

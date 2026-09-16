@@ -2,21 +2,25 @@
 name: session-fork-to-destination
 description: Use when the user wants to find a Codex or Claude Code conversation in one Git worktree and prepare safe instructions for creating and opening a fork in an existing destination worktree tab. Cursor capability evidence is reported, but current transcript discovery fails closed without independent source-worktree evidence.
 license: MIT
-compatibility: Experimental and not released. Requires Node.js 22+ and local provider transcript stores for read-only discovery. The user runs any provider command manually.
+compatibility: Alpha guidance workflow; provider coverage and end-to-end verification are incomplete. Requires Node.js 22+ and local provider transcript stores for read-only discovery. The user runs any provider command manually.
 argument-hint: '[source-worktree] [destination-worktree]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Bash(node <skill-dir>/scripts/session-fork-to-destination.mjs:*)
 metadata:
   author: thomas.stang
-  version: '0.2.2'
+  version: '0.2.3'
 ---
 
 # {{distribution.name}}
 
-> **Experimental / not released.** This skill discovers and previews local sessions
+> **Alpha.** This skill discovers and previews local sessions
 > read-only, then prepares instructions. It does not run a provider, authenticate,
 > create a fork, write a receipt, retry, reconcile a child ID, or control an IDE tab.
+
+Provider capabilities are based on documented evidence, not complete live
+verification. Review the reported provider and entry-point limitations before
+running any prepared command.
 
 Current Cursor transcript discovery is unavailable. Its store layout supplies a lossy
 project slug rather than independent exact cwd evidence, so a matching store returns a

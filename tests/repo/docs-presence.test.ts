@@ -130,7 +130,7 @@ describe('docs-presence', () => {
     const docs = await readDocsSite();
 
     // README retains an install entry point that routes to the full matrix.
-    expect(readme).toMatch(/^## Install$/m);
+    expect(readme).toMatch(/npx skills add/);
     expect(readme).toMatch(/user-guide\/installation\//);
     // The full three-provider matrix is the tag-time gate; it now lives in the
     // docs site rather than being duplicated in the README.
@@ -487,9 +487,7 @@ describe('docs-presence', () => {
       await read('documentation/docs/user-guide/skills/meta.json'),
     );
 
-    expect(collabDoc).toMatch(
-      /^title: ['"]?Session Observer Collaboration['"]?$/m,
-    );
+    expect(collabDoc).toMatch(/^title: ['"]?Collaborative Observer['"]?$/m);
     expect(collabDoc).toMatch(/N=2/);
     expect(collabDoc).toMatch(/whoami --json/);
     expect(collabDoc).toMatch(/--quiet-empty/);
@@ -518,9 +516,11 @@ describe('docs-presence', () => {
     expect(collabDoc).toMatch(/runtime-codex\.md/);
     expect(collabDoc).toMatch(/runtime-cursor\.md/);
     expect(index).toMatch(
-      /\[Session Observer Collaboration\]\(session-observer-collab\.md\)/,
+      /\[Collaborative Observer\]\(session-observer-collab\.md\)/,
     );
-    expect(meta.pages).toContain('session-observer-collab');
+    expect(meta.pages).toContain(
+      '[Collaborative Observer](/user-guide/skills/session-observer-collab)',
+    );
   });
 
   it('configuration docs cover panel defaults, paths, and precedence', async () => {

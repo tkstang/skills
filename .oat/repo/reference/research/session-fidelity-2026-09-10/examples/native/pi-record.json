@@ -1,0 +1,15 @@
+{
+  "type": "message",
+  "id": "pi-event-1",
+  "timestamp": "2026-09-10T12:00:00Z",
+  "message": {
+    "role": "toolResult",
+    "content": [
+      {
+        "type": "text",
+        "text": "All tests passed."
+      }
+    ],
+    "timestamp": 1789041600000
+  }
+}

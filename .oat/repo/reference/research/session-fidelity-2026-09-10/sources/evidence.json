@@ -1,0 +1,401 @@
+{
+  "C-README": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "README.md",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/README.md",
+    "notes": ""
+  },
+  "C-PACKAGE": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "package.json",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/package.json",
+    "notes": ""
+  },
+  "C-API": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/index.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/index.ts",
+    "notes": ""
+  },
+  "C-INDEX": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/index.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/index.ts",
+    "notes": ""
+  },
+  "C-TYPES": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/types/index.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/index.ts",
+    "notes": ""
+  },
+  "C-SCHEMAS": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/types/schemas.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "notes": ""
+  },
+  "C-CONFIG": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/config/verbosity.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/config/verbosity.ts",
+    "notes": ""
+  },
+  "C-TOOLS": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/tool-extraction.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/tool-extraction.ts",
+    "notes": ""
+  },
+  "C-SUMMARIZER": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/tool-summarizer.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/tool-summarizer.ts",
+    "notes": ""
+  },
+  "C-DIFF": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/diff.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/diff.ts",
+    "notes": ""
+  },
+  "C-MARKDOWN": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/markdown.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/markdown.ts",
+    "notes": ""
+  },
+  "C-RESUME": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/utils/resume.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/utils/resume.ts",
+    "notes": ""
+  },
+  "C-REGISTRY": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/registry.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/registry.ts",
+    "notes": ""
+  },
+  "C-DUMP": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/commands/dump.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/commands/dump.ts",
+    "notes": ""
+  },
+  "C-INSPECT": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/commands/inspect.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/commands/inspect.ts",
+    "notes": ""
+  },
+  "C-CLI": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/cli.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/cli.ts",
+    "notes": ""
+  },
+  "C-CLAUDE": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/claude.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/claude.ts",
+    "notes": ""
+  },
+  "C-CODEX": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/codex.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/codex.ts",
+    "notes": ""
+  },
+  "C-CURSOR": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/cursor.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cursor.ts",
+    "notes": ""
+  },
+  "C-COPILOT": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/copilot.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/copilot.ts",
+    "notes": ""
+  },
+  "C-GEMINI": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/gemini.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/gemini.ts",
+    "notes": ""
+  },
+  "C-OPENCODE": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/opencode.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/opencode.ts",
+    "notes": ""
+  },
+  "C-AMP": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/amp.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/amp.ts",
+    "notes": ""
+  },
+  "C-KIRO": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/kiro.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts",
+    "notes": ""
+  },
+  "C-CRUSH": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/crush.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/crush.ts",
+    "notes": ""
+  },
+  "C-CLINE": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/cline.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts",
+    "notes": ""
+  },
+  "C-KIMI": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/kimi.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kimi.ts",
+    "notes": ""
+  },
+  "C-QWEN": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/qwen-code.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/qwen-code.ts",
+    "notes": ""
+  },
+  "C-ANTIGRAVITY": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/antigravity.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/antigravity.ts",
+    "notes": ""
+  },
+  "C-AUDIT-APRIL": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "docs/parser-documentation/00-overview.md",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/docs/parser-documentation/00-overview.md",
+    "notes": ""
+  },
+  "C-FIX-AUDIT": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "agent-docs/2026-04-27-p1-parser-debug-audit.md",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/agent-docs/2026-04-27-p1-parser-debug-audit.md",
+    "notes": ""
+  },
+  "C-LICENSE": {
+    "repo": "yigitkonur/cli-continues",
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "LICENSE",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/LICENSE",
+    "notes": ""
+  },
+  "S-CORE": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "src/transcript/core/runtimes.ts",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+    "notes": ""
+  },
+  "S-OBSERVER": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "skills/session-observer/SKILL.md",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/skills/session-observer/SKILL.md",
+    "notes": ""
+  },
+  "S-OBSERVER-GUIDE": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "documentation/docs/user-guide/skills/session-observer.md",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/documentation/docs/user-guide/skills/session-observer.md",
+    "notes": ""
+  },
+  "S-DIGEST": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "src/transcript/session-observer/lib/digest.ts",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/session-observer/lib/digest.ts",
+    "notes": ""
+  },
+  "S-EXPORT": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "src/transcript/export-session/export-session-transcript.ts",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/export-session/export-session-transcript.ts",
+    "notes": ""
+  },
+  "S-EXPORT-GUIDE": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "documentation/docs/user-guide/skills/export-session-transcript.md",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/documentation/docs/user-guide/skills/export-session-transcript.md",
+    "notes": ""
+  },
+  "S-FORMATS": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "skills/session-observer/references/transcript-formats.md",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/skills/session-observer/references/transcript-formats.md",
+    "notes": ""
+  },
+  "S-BUILD": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "scripts/build-generated.mjs",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/scripts/build-generated.mjs",
+    "notes": ""
+  },
+  "S-PACKAGE": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": "package.json",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/package.json",
+    "notes": ""
+  },
+  "S-BACKLOG": {
+    "repo": "tkstang/skills",
+    "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+    "path": ".oat/repo/pjm/backlog/items/BL-260619-shared-session-log-substrate.md",
+    "url": "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/.oat/repo/pjm/backlog/items/BL-260619-shared-session-log-substrate.md",
+    "notes": ""
+  },
+  "R-README": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "README.md",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/README.md",
+    "notes": ""
+  },
+  "R-PROVIDER": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "internal/core/session/provider.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/internal/core/session/provider.go",
+    "notes": ""
+  },
+  "R-MCP": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "cmd/ccrider/mcp/server.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/cmd/ccrider/mcp/server.go",
+    "notes": ""
+  },
+  "R-TUI": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "internal/interface/cli/tui.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/internal/interface/cli/tui.go",
+    "notes": ""
+  },
+  "R-CLAUDE": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "pkg/ccsessions/parser.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ccsessions/parser.go",
+    "notes": ""
+  },
+  "R-CODEX": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "pkg/codexsessions/parser.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/codexsessions/parser.go",
+    "notes": ""
+  },
+  "R-PI": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "pkg/pisessions/parser.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/pisessions/parser.go",
+    "notes": ""
+  },
+  "R-ANTIGRAVITY": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "pkg/antigravitysessions/parser.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/antigravitysessions/parser.go",
+    "notes": ""
+  },
+  "R-AMP": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "pkg/ampsessions/amp.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ampsessions/amp.go",
+    "notes": ""
+  },
+  "R-DB": {
+    "repo": "neilberkman/ccrider",
+    "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+    "path": "internal/core/db/schema.go",
+    "url": "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/internal/core/db/schema.go",
+    "notes": ""
+  },
+  "X-README": {
+    "repo": "lingtaolf/cxresume",
+    "commit": "71225c58f1420f73f3c98f9cd44f1fa4ba690b67",
+    "path": "README.md",
+    "url": "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/README.md",
+    "notes": ""
+  },
+  "X-PARSER": {
+    "repo": "lingtaolf/cxresume",
+    "commit": "71225c58f1420f73f3c98f9cd44f1fa4ba690b67",
+    "path": "src/utils/parser.js",
+    "url": "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/src/utils/parser.js",
+    "notes": ""
+  },
+  "X-MAIN": {
+    "repo": "lingtaolf/cxresume",
+    "commit": "71225c58f1420f73f3c98f9cd44f1fa4ba690b67",
+    "path": "src/index.js",
+    "url": "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/src/index.js",
+    "notes": ""
+  },
+  "X-LAUNCH": {
+    "repo": "lingtaolf/cxresume",
+    "commit": "71225c58f1420f73f3c98f9cd44f1fa4ba690b67",
+    "path": "src/utils/launch.js",
+    "url": "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/src/utils/launch.js",
+    "notes": ""
+  },
+  "C-DROID": {
+    "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+    "path": "src/parsers/droid.ts",
+    "url": "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/droid.ts",
+    "notes": "Storage roots, settings companion and metadata extraction read in this audit.",
+    "repo": "yigitkonur/cli-continues"
+  }
+}

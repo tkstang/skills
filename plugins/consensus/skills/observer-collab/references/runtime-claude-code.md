@@ -18,7 +18,7 @@ Disclose one of these outcomes before arming:
 | Probe result                                                          | Honest wake tier                      | Disclosure                                                                        |
 | --------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
 | Monitor is callable and the complete live sequence below passes       | `event-wake`                          | Monitor task notifications deliver substantive watcher output for this exact pin. |
-| Monitor is callable but the complete live sequence has not passed     | `scheduled-poll` or `buffered-manual` | Monitor is available but event wake is unvalidated.                               |
+| Monitor is callable but the complete live sequence has not passed     | `scheduled-poll` or `buffered-manual` | Monitor is available but event wake is unvalidated for this session.              |
 | Monitor is absent, unavailable, or cannot deliver a task notification | `scheduled-poll` or `buffered-manual` | No autonomous Claude Code wake is available in this environment.                  |
 
 Do not call a Monitor output, an empty watcher heartbeat, or Monitor startup a
@@ -125,28 +125,45 @@ Both fallbacks retain the identity, authority, no-op, pause, and closeout rules
 from the main collaboration protocol. Neither permits an autonomous-wake
 claim.
 
-## Evidence status (2026-07-12)
+## Monitor lifetime and re-arming
 
-This task's capability probe found the local `claude` CLI, but no callable
-Claude Code Monitor surface was exposed to this worker. No Monitor task,
-watcher, Claude session, or live session state was created. Therefore the
-complete live sequence above was **not run** and the Claude Monitor
-acceptance-matrix row remains **unvalidated**. The current honest posture is
-`buffered-manual`; `scheduled-poll` may be selected only after a separate
-effective scheduler probe.
+A Monitor task expires after 30 minutes (harness cap) and delivers one expiry
+notice. Re-arming is routine, not a failure, but it is the point where reads
+can be lost. On every re-arm:
 
-The automated verification below checks repository/reference structure and
-base watcher behavior. It is not proof of a live Monitor harness row.
+1. Note the last consumed record from the previous digest.
+2. Run `watch-ctl stop` for the exact pin, then start one new
+   `catch-up-then-watch` with the same arguments.
+3. Compare the new `baselineRecordIndex` line with the last consumed record.
+   If the baseline is ahead of it and no catch-up digest covered the gap, read
+   that record range from the transcript before treating silence as idle, and
+   record the gap in the shared log.
+
+Until the base observer renders such gaps itself (tracked in the repo backlog
+as `BL-260916-session-observer-re-armed`), the re-arm is the observer's
+responsibility.
+
+## Evidence status (2026-09-16)
+
+One real Claude Code session ran the pinned Monitor recipe against a Codex
+peer for roughly ten hours of collaboration, across five Monitor lifetimes.
+Sanitized observations, with the acceptance area they bear on:
+
+| Acceptance area             | Evidence in that session                                                                                                                                                               | Live status               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Task notification           | Monitor was callable; every completed substantive peer turn produced one task notification carrying the exact pinned digest range, and the session acted on it once per turn.          | Observed, repeatedly.     |
+| Empty heartbeat suppression | `--quiet-empty` and `--heartbeat-sec 0` produced no notifications during quiet intervals; only `newer-session-candidate` warnings and the baseline line appeared as automatic control. | Observed.                 |
+| Substantive notification    | Peer decisions, requests, and corrections arrived as single notifications and were classified under the no-op rules before any response.                                               | Observed, repeatedly.     |
+| Same-session restart        | Not exercised: the client was not restarted. Monitor expiry and re-arm were exercised five times; two re-arms baselined past unread records (see above).                               | Not run; re-arm observed. |
+| Clean stop                  | `watch-ctl stop` plus Monitor expiry left no watcher process and no lease state; a later peer turn produced no notification.                                                           | Observed.                 |
+
+Honest posture from that evidence: `event-wake` holds for the lifetime of one
+Monitor task, with a 30-minute ceiling and a manual re-arm. Restart resilience
+remains unvalidated, so a session that loses its client must re-arm from the
+named pin and read the gap rather than claim continuity. The automated
+verification below still checks structure and base watcher behavior only:
 
 ```text
 pnpm run validate
 pnpm exec vitest run src/skills/session-observer/src/watch.test.ts
 ```
-
-| Acceptance area             | Evidence in this task                                                                            | Live status |
-| --------------------------- | ------------------------------------------------------------------------------------------------ | ----------- |
-| Task notification           | No callable Monitor surface exposed to this worker.                                              | Not run.    |
-| Empty heartbeat suppression | Documented command uses `--quiet-empty` and `--heartbeat-sec 0`; base watcher test is automated. | Not run.    |
-| Substantive notification    | No Claude peer turn or Monitor task was run.                                                     | Not run.    |
-| Same-session restart        | No same-session client restart was run.                                                          | Not run.    |
-| Clean stop                  | No Monitor task or watcher was started.                                                          | Not run.    |

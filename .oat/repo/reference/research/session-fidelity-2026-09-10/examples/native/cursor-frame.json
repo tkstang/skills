@@ -1,0 +1,15 @@
+{
+  "role": "assistant",
+  "message": {
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "cursor-call-1",
+        "name": "Read",
+        "input": {
+          "path": "/workspace/demo/src/parser.ts"
+        }
+      }
+    ]
+  }
+}

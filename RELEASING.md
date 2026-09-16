@@ -39,20 +39,27 @@ does not establish live provider discovery or permission behavior.
 - Verify the intended standalone skills through `npx skills add <username>/skills`
   discovery and an isolated install. Do not infer every authored skill is
   standalone; only declarations in `src/distributions.ts` produce that form.
-- Confirm the README install matrix matches the live provider CLIs.
+- In an isolated project, verify the README quick start:
+  `npx skills add https://github.com/tkstang/skills/tree/main/skills/next-steps --agent codex`.
+  Record installer selection, project-scoped placement, fresh-session discovery,
+  and a bounded invocation separately. Verify other advertised host paths when
+  affected; do not infer discovery from a successful file copy.
+- Confirm the [Installation guide's provider matrix](documentation/docs/user-guide/installation.md#install-matrix)
+  matches the live provider CLIs and the README still routes readers there.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
 - For a session release, verify the complete session plugin in an isolated
   directory, execute the generated transcript exporter outside the checkout,
   and separately record live Claude Code, Codex, and Cursor discovery/permission
   evidence when authorized. Static and isolated checks alone leave those live
   claims unverified.
-- Keep Session Fork to Destination marked experimental and not released until its
-  capability evidence is refreshed against official provider documentation and
+- Keep Session Fork to Destination labeled alpha while provider coverage and
+  end-to-end verification are incomplete. Before claiming a verified provider
+  path, ensure its capability evidence is current against official documentation and
   an explicitly authorized live or human verification covers each claimed
   provider surface and entry point. Record unsupported Cursor transitions as
   unsupported; do not infer CLI fork or cross-worktree behavior from IDE
   Duplicate Chat or CLI resume documentation. The older paused executor and its
-  behavior gate are not release prerequisites for the guidance skill.
+  behavior gate are not prerequisites for distributing the alpha guidance skill.
 - Publish the `consensus.mjs` SHA-256 checksum alongside the tag/release notes
   (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
   verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.

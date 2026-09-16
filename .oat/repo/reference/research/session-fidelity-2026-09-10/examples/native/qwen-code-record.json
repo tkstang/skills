@@ -1,0 +1,22 @@
+{
+  "uuid": "qwen-m2",
+  "parentUuid": "qwen-m1",
+  "sessionId": "qwen-demo",
+  "timestamp": "2026-09-10T12:00:00Z",
+  "type": "assistant",
+  "cwd": "/workspace/demo",
+  "message": {
+    "role": "model",
+    "parts": [
+      {
+        "functionCall": {
+          "name": "run_shell_command",
+          "args": {
+            "command": "pnpm test parser"
+          },
+          "id": "qwen-call-1"
+        }
+      }
+    ]
+  }
+}

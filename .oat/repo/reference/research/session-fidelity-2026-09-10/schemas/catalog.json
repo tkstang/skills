@@ -1,0 +1,287 @@
+[
+  {
+    "provider": "claude-code",
+    "schema": "schemas/native/claude-code-record.schema.json",
+    "example": "examples/native/claude-code-record.json",
+    "document": "providers/01-claude-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/claude.ts",
+      "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ccsessions/parser.go"
+    ]
+  },
+  {
+    "provider": "codex",
+    "schema": "schemas/native/codex-record.schema.json",
+    "example": "examples/native/codex-record.json",
+    "document": "providers/02-codex.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/codex.ts",
+      "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+      "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/skills/session-observer/references/transcript-formats.md",
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/codexsessions/parser.go",
+      "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/src/utils/parser.js"
+    ]
+  },
+  {
+    "provider": "cursor",
+    "schema": "schemas/native/cursor-frame.schema.json",
+    "example": "examples/native/cursor-frame.json",
+    "document": "providers/03-cursor.md",
+    "evidence": [
+      "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+      "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/documentation/docs/user-guide/skills/session-observer.md",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cursor.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts"
+    ]
+  },
+  {
+    "provider": "copilot",
+    "schema": "schemas/native/copilot-event.schema.json",
+    "example": "examples/native/copilot-event.json",
+    "document": "providers/04-copilot.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/copilot.ts"
+    ]
+  },
+  {
+    "provider": "copilot",
+    "schema": "schemas/native/copilot-workspace.schema.json",
+    "example": "examples/native/copilot-workspace.json",
+    "document": "providers/04-copilot.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/copilot.ts"
+    ]
+  },
+  {
+    "provider": "gemini",
+    "schema": "schemas/native/gemini-record.schema.json",
+    "example": "examples/native/gemini-record.json",
+    "document": "providers/05-gemini.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/gemini.ts"
+    ]
+  },
+  {
+    "provider": "gemini",
+    "schema": "schemas/native/gemini-session.schema.json",
+    "example": "examples/native/gemini-session.json",
+    "document": "providers/05-gemini.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/gemini.ts"
+    ]
+  },
+  {
+    "provider": "opencode",
+    "schema": "schemas/native/opencode-part.schema.json",
+    "example": "examples/native/opencode-part.json",
+    "document": "providers/06-opencode.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/opencode.ts"
+    ]
+  },
+  {
+    "provider": "opencode",
+    "schema": "schemas/native/opencode-sqlite-row.schema.json",
+    "example": "examples/native/opencode-sqlite-row.json",
+    "document": "providers/06-opencode.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/opencode.ts"
+    ]
+  },
+  {
+    "provider": "droid",
+    "schema": "schemas/native/droid-event.schema.json",
+    "example": "examples/native/droid-event.json",
+    "document": "providers/07-droid.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/droid.ts"
+    ]
+  },
+  {
+    "provider": "droid",
+    "schema": "schemas/native/droid-settings.schema.json",
+    "example": "examples/native/droid-settings.json",
+    "document": "providers/07-droid.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/droid.ts"
+    ]
+  },
+  {
+    "provider": "amp",
+    "schema": "schemas/native/amp-thread.schema.json",
+    "example": "examples/native/amp-thread.json",
+    "document": "providers/08-amp.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/amp.ts",
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ampsessions/amp.go"
+    ]
+  },
+  {
+    "provider": "kiro",
+    "schema": "schemas/native/kiro-ide-session.schema.json",
+    "example": "examples/native/kiro-ide-session.json",
+    "document": "providers/09-kiro.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+    ]
+  },
+  {
+    "provider": "kiro",
+    "schema": "schemas/native/kiro-persisted-record.schema.json",
+    "example": "examples/native/kiro-persisted-record.json",
+    "document": "providers/09-kiro.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+    ]
+  },
+  {
+    "provider": "kiro",
+    "schema": "schemas/native/kiro-acp-record.schema.json",
+    "example": "examples/native/kiro-acp-record.json",
+    "document": "providers/09-kiro.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+    ]
+  },
+  {
+    "provider": "crush",
+    "schema": "schemas/native/crush-parts.schema.json",
+    "example": "examples/native/crush-parts.json",
+    "document": "providers/10-crush.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/crush.ts"
+    ]
+  },
+  {
+    "provider": "crush",
+    "schema": "schemas/native/crush-sqlite-row.schema.json",
+    "example": "examples/native/crush-sqlite-row.json",
+    "document": "providers/10-crush.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/crush.ts"
+    ]
+  },
+  {
+    "provider": "cline",
+    "schema": "schemas/native/cline-ui.schema.json",
+    "example": "examples/native/cline-ui.json",
+    "document": "providers/11-cline.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "cline",
+    "schema": "schemas/native/cline-api.schema.json",
+    "example": "examples/native/cline-api.json",
+    "document": "providers/11-cline.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "roo-code",
+    "schema": "schemas/native/roo-code-ui.schema.json",
+    "example": "examples/native/roo-code-ui.json",
+    "document": "providers/12-roo-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "roo-code",
+    "schema": "schemas/native/roo-code-api.schema.json",
+    "example": "examples/native/roo-code-api.json",
+    "document": "providers/12-roo-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "kilo-code",
+    "schema": "schemas/native/kilo-code-ui.schema.json",
+    "example": "examples/native/kilo-code-ui.json",
+    "document": "providers/13-kilo-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "kilo-code",
+    "schema": "schemas/native/kilo-code-api.schema.json",
+    "example": "examples/native/kilo-code-api.json",
+    "document": "providers/13-kilo-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "kilo-code",
+    "schema": "schemas/native/kilo-code-sqlite-row.schema.json",
+    "example": "examples/native/kilo-code-sqlite-row.json",
+    "document": "providers/13-kilo-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+    ]
+  },
+  {
+    "provider": "antigravity",
+    "schema": "schemas/native/antigravity-cli-step.schema.json",
+    "example": "examples/native/antigravity-cli-step.json",
+    "document": "providers/14-antigravity.md",
+    "evidence": [
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/antigravitysessions/parser.go"
+    ]
+  },
+  {
+    "provider": "kimi",
+    "schema": "schemas/native/kimi-context-record.schema.json",
+    "example": "examples/native/kimi-context-record.json",
+    "document": "providers/15-kimi.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kimi.ts"
+    ]
+  },
+  {
+    "provider": "kimi",
+    "schema": "schemas/native/kimi-state.schema.json",
+    "example": "examples/native/kimi-state.json",
+    "document": "providers/15-kimi.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kimi.ts"
+    ]
+  },
+  {
+    "provider": "qwen-code",
+    "schema": "schemas/native/qwen-code-record.schema.json",
+    "example": "examples/native/qwen-code-record.json",
+    "document": "providers/16-qwen-code.md",
+    "evidence": [
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+      "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/qwen-code.ts"
+    ]
+  },
+  {
+    "provider": "pi",
+    "schema": "schemas/native/pi-record.schema.json",
+    "example": "examples/native/pi-record.json",
+    "document": "providers/17-pi.md",
+    "evidence": [
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/pisessions/parser.go",
+      "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/README.md"
+    ]
+  }
+]

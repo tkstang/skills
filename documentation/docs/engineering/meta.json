@@ -1,11 +1,11 @@
 {
+  "title": "Engineering",
+  "pagesIndex": "[Overview](/engineering)",
   "pages": [
-    "---Architecture---",
+    "contributing/development",
     "architecture",
-    "repository-layout",
-    "---Contributing---",
-    "contributing",
-    "---Reference---",
+    "contributing/documentation",
+    "operations",
     "decisions"
   ]
 }

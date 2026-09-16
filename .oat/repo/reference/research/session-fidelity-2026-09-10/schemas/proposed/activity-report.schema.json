@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:proposed:activity-report:1",
+  "title": "PROPOSED activity report v1",
+  "description": "Authored bounded-view contract. Not implemented by this packet and not a provider native log schema.",
+  "x-contract-status": "proposed",
+  "x-semantic-invariants": [
+    "eventsShown equals events.length",
+    "eventsAvailable equals eventsShown plus eventsOmitted",
+    "omittedChars equals originalChars minus preview text length under declared counting convention",
+    "SourceRef coordinates require the stated source/snapshot identity",
+    "Outcome evidence does not upgrade missing status to success"
+  ],
+  "type": "object",
+  "properties": {
+    "activitySchemaVersion": {
+      "const": 1
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "runtime": {
+          "type": "string",
+          "description": "Source runtime identifier."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Exact native session identity."
+        },
+        "sourcePath": {
+          "type": "string",
+          "description": "Selected source path/locator."
+        },
+        "captureMode": {
+          "type": "string",
+          "enum": [
+            "live-read",
+            "snapshot"
+          ]
+        },
+        "capturedAt": {
+          "type": "string",
+          "description": "Time the read/snapshot was made."
+        },
+        "snapshotId": {
+          "type": "string",
+          "description": "Immutable snapshot identity, only for an actual snapshot."
+        }
+      },
+      "required": [
+        "runtime",
+        "sessionId",
+        "sourcePath",
+        "captureMode",
+        "capturedAt"
+      ],
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActivityEvent"
+      }
+    },
+    "toolGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nativeToolName": {
+            "type": "string",
+            "description": "Exact native tool name, not a category label."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "shell",
+              "read",
+              "write",
+              "edit",
+              "grep",
+              "glob",
+              "search",
+              "fetch",
+              "task",
+              "ask",
+              "mcp",
+              "other"
+            ]
+          },
+          "countScope": {
+            "type": "string",
+            "enum": [
+              "captured-range",
+              "delivered-range",
+              "displayed-range"
+            ]
+          },
+          "invocationCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Invocations in the declared count scope, independent of sample count."
+          },
+          "sampleEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "References to selected activity events."
+            }
+          }
+        },
+        "required": [
+          "nativeToolName",
+          "category",
+          "countScope",
+          "invocationCount",
+          "sampleEventIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Source-specific metadata key."
+          },
+          "value": {
+            "description": "Native or explicitly interpreted metadata; do not force all providers into one token accumulator."
+          },
+          "source": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "interpretation": {
+            "type": "string",
+            "description": "Aggregation or interpretation note."
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "source"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dataClass": {
+                "type": "string",
+                "description": "E.g. tool-results, subagents, reasoning, lifecycle."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "not-recorded",
+                  "not-found",
+                  "not-read",
+                  "unsupported",
+                  "malformed",
+                  "truncated"
+                ]
+              },
+              "detail": {
+                "type": "string",
+                "description": "Precise explanation for this status."
+              }
+            },
+            "required": [
+              "dataClass",
+              "status",
+              "detail"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "display": {
+          "type": "object",
+          "properties": {
+            "eventsAvailable": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Activity events available in the declared report range."
+            },
+            "eventsShown": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of rendered activity events."
+            },
+            "eventsOmitted": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Available events omitted from this view."
+            },
+            "payloadCharsOmitted": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total omitted text-projection characters in displayed payloads."
+            }
+          },
+          "required": [
+            "eventsAvailable",
+            "eventsShown",
+            "eventsOmitted",
+            "payloadCharsOmitted"
+          ],
+          "additionalProperties": false
+        },
+        "unmatchedCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Calls without an observed matching result in the available evidence, not necessarily errors."
+        },
+        "unmatchedResults": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Results without a resolvable call in available evidence."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "Coverage, identity, or interpretation warning."
+          }
+        }
+      },
+      "required": [
+        "source",
+        "display",
+        "unmatchedCalls",
+        "unmatchedResults",
+        "warnings"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "activitySchemaVersion",
+    "scope",
+    "events",
+    "toolGroups",
+    "metadata",
+    "coverage"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "SourceRef": {
+      "type": "object",
+      "properties": {
+        "surface": {
+          "type": "string",
+          "enum": [
+            "jsonl",
+            "cursor-frame",
+            "json",
+            "sqlite-row",
+            "artifact"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Local source path or explicit source locator; not permission to read arbitrary files."
+        },
+        "physicalLine": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "One-based physical line, distinct from logical record index."
+        },
+        "byteStart": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Inclusive starting byte coordinate."
+        },
+        "byteEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exclusive ending byte coordinate."
+        },
+        "jsonPointer": {
+          "type": "string",
+          "description": "JSON Pointer within decoded source carrier."
+        },
+        "logicalRecordIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Existing logical reader coordinate, not physical line."
+        },
+        "sourceFrameIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Original Cursor content frame."
+        },
+        "deliveryFrameIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cursor frame at which delivery became safe."
+        },
+        "table": {
+          "type": "string",
+          "description": "SQLite source table."
+        },
+        "rowId": {
+          "type": "string",
+          "description": "Native primary row ID."
+        },
+        "snapshotId": {
+          "type": "string",
+          "description": "Actual immutable snapshot identity if one exists."
+        }
+      },
+      "required": [
+        "surface",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "PayloadPreview": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Bounded text projection. Native input/result is reachable via source."
+        },
+        "originalChars": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Length of complete available text projection before display truncation."
+        },
+        "omittedChars": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Characters omitted from this display, not a byte count."
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "text",
+        "originalChars",
+        "omittedChars",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "OutcomeEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "source-status",
+            "recorded-exit-code",
+            "parsed-output",
+            "none"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "description": "What supports this outcome and its limits."
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "kind",
+        "detail"
+      ],
+      "additionalProperties": false
+    },
+    "ActivityEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable session/source-scoped event key."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tool_call",
+            "tool_result",
+            "lifecycle",
+            "compaction",
+            "metadata",
+            "subagent",
+            "recorded_reasoning",
+            "unknown"
+          ]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Ordering in the captured provider stream, not a global causal clock."
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "availability": {
+          "type": "string",
+          "enum": [
+            "settled",
+            "pending-lifecycle",
+            "terminal-incomplete",
+            "unknown"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Recorded timestamp; do not substitute a guessed execution timestamp."
+        },
+        "nativeEventId": {
+          "type": "string",
+          "description": "Native record/event ID."
+        },
+        "nativeParentId": {
+          "type": "string",
+          "description": "Native parent record ID."
+        },
+        "nativeCallId": {
+          "type": "string",
+          "description": "Native call ID."
+        },
+        "nativeToolName": {
+          "type": "string",
+          "description": "Exact native tool name."
+        },
+        "nativeNamespace": {
+          "type": "string",
+          "description": "Separate source namespace."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "shell",
+            "read",
+            "write",
+            "edit",
+            "grep",
+            "glob",
+            "search",
+            "fetch",
+            "task",
+            "ask",
+            "mcp",
+            "other"
+          ]
+        },
+        "relatedCallEventId": {
+          "type": "string",
+          "description": "May refer to a call outside the displayed window."
+        },
+        "input": {
+          "$ref": "#/$defs/PayloadPreview"
+        },
+        "output": {
+          "$ref": "#/$defs/PayloadPreview"
+        },
+        "nativeStatus": {
+          "type": "string",
+          "description": "Unmodified source status spelling."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "success",
+            "error",
+            "cancelled",
+            "pending",
+            "unknown"
+          ]
+        },
+        "outcomeEvidence": {
+          "$ref": "#/$defs/OutcomeEvidence"
+        },
+        "enrichment": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Derived command display."
+            },
+            "filePaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "Source-mentioned path, not proof of modification."
+              }
+            },
+            "lineStart": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Source start line when recorded."
+            },
+            "lineEnd": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Source end line when recorded."
+            },
+            "query": {
+              "type": "string",
+              "description": "Derived query display."
+            },
+            "url": {
+              "type": "string",
+              "description": "Source URL."
+            },
+            "taskDescription": {
+              "type": "string",
+              "description": "Derived task description."
+            },
+            "recordedExitCode": {
+              "type": "integer",
+              "description": "Explicit source-recorded exit code, not a regex inference."
+            },
+            "displayDiff": {
+              "type": "string",
+              "description": "Display diff, not necessarily applyable or verified."
+            },
+            "omittedDiffLines": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Display diff lines omitted."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "sequence",
+        "source",
+        "availability"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

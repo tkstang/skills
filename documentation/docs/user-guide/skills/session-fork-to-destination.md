@@ -1,13 +1,13 @@
 ---
 title: 'Session Fork to Destination'
-description: 'Prepare experimental, read-only destination-side guidance for forking a coding-agent session into another Git worktree.'
+description: 'An alpha skill for discovering sessions, previewing their context, and preparing destination-safe fork instructions for another Git worktree.'
 ---
 
 # Session Fork to Destination
 
-`session-fork-to-destination` is an **experimental, not released** skill. It is
-generated as that standalone name and as `fork-to-destination` in the session
-plugin. It discovers session candidates, shows a sanitized preview, and
+`session-fork-to-destination` is an **alpha** skill, available as a standalone
+skill and as `fork-to-destination` in the Session plugin. It discovers session
+candidates, shows a sanitized preview, and
 prepares destination-safe fork instructions. It never runs a provider itself,
 so no fork is created by discovery, preview, or preparation.
 
@@ -17,11 +17,8 @@ agents or providers, use [Session Handoff](session-handoff.md). A native fork
 does not receive a full handoff packet, and this skill does not transfer native
 runtime state across providers.
 
-The former `coding-session-handoff` name and script path are unsupported after
-the clean-break rename; no alias or compatibility wrapper is generated.
-
-The older executor remains experimental, incomplete, unverified, and paused.
-The guidance workflow does not depend on its reconcile or behavior-gate path.
+Automatic provider execution is not part of this skill. The user reviews and
+runs the prepared native command; preparation itself remains read-only.
 
 Current Cursor transcript discovery is unavailable. Cursor's store layout supplies a
 lossy project slug rather than independent exact cwd evidence, so a matching store
@@ -52,6 +49,56 @@ Use one of three explicit entry points:
 
 Discovery is separate from qualification. A path match alone does not prove a
 current session identity, and display labels are not native provider IDs.
+
+### Qualification gates
+
+`prepare` always runs discovery whatever the entry point. Cursor candidates must carry independent exact working-directory evidence, which the current store never supplies; every candidate then passes recorded-directory equality, the ambiguous-surface refusal, documented fork semantics for that exact surface, and the destination guard.
+
+```mermaid
+flowchart TD
+  START["Destination worktree and tab exist"]
+  EP["Entry point recorded"]
+  DISC["prepare always runs discovery"]
+  CUR{"Cursor candidate?"}
+  CURQ{"cwdEvidenceQuality independent-exact?"}
+  STOP1["discovery-incomplete"]
+  SEL["Select the candidate by key"]
+  QUAL{"recordedCwd equals canonical source?"}
+  STOP2["invalid-source-candidate"]
+  AMB{"Surface ambiguous?"}
+  STOP3["unsupported instruction, no command"]
+  EV{"Fork semantics documented?"}
+  STOP4["Cursor fork unsupported"]
+  EVOK["claude --fork-session · codex fork"]
+  GUARD["pwd -P destination guard"]
+  OUT["Prepared guidance only"]
+
+  START --> EP --> DISC --> CUR
+  CUR -->|yes| CURQ
+  CUR -->|no| SEL
+  CURQ -->|no| STOP1
+  CURQ -->|yes| SEL
+  SEL --> QUAL
+  QUAL -->|no| STOP2
+  QUAL -->|yes| AMB
+  AMB -->|yes| STOP3
+  AMB -->|no| EV
+  EV -->|no| STOP4
+  EV -->|yes| EVOK --> GUARD --> OUT
+```
+
+_Mermaid updated 2026-09-16_
+
+How the checks affect the prepared guidance:
+
+- `prepare` always runs discovery, whatever the entry point.
+- The entry point does not bypass checks. For `destination-fresh`, guidance begins with an `exit-current-session` instruction unless destination switching is documented for that provider surface.
+- Cursor needs independent, exact working-directory evidence. Its current stores do not supply that evidence, so discovery fails closed with `discovery-incomplete` and reason `cwd-evidence-incomplete`. Claude and Codex do not use this Cursor-specific gate.
+- Choosing a candidate explicitly is a workflow instruction, not an additional runtime gate.
+- The recorded working directory must match the canonical source path; otherwise preparation fails with `invalid-source-candidate` before surface and capability checks.
+- An ambiguous surface produces an unsupported instruction, never a fork or resume command. Cursor's `store-origin-ambiguous` is one such surface.
+- Documented fork semantics: Claude `--resume <id> --fork-session`; Codex `codex fork <id>`; Cursor fork `status: 'unsupported'`.
+- The emitted command compares `pwd -P` against the canonical destination and otherwise refuses.
 
 ## Prepare guidance
 
@@ -103,7 +150,7 @@ future-facing evidence and do not make Cursor transcript discovery available.
 
 ## Current limitations
 
-- The skill is experimental and not released.
+- Alpha maturity: provider coverage and end-to-end verification are incomplete.
 - Provider capabilities are based on dated public documentation, not a live
   provider run.
 - Discovery reads bounded transcript data and may require explicit selection.

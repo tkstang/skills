@@ -51,6 +51,134 @@ For the deepest reference — operator-QA walkthroughs, exact commands, and exam
 inputs — see the
 [consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
 
+## Peers, not personas
+
+Consensus invokes provider CLIs as separate processes, rather than assigning
+several roles inside one conversation. The host remains responsible for acting
+on results. Disagreement is preserved in the artifact and deliberation log:
+an impasse is a valid result, `decide` includes a dissent section, and `panel`
+does not synthesize its independently attributed responses.
+
+For example, after installing the plugin in Claude Code:
+
+```text
+/consensus:refine draft.md --goal "tighten the failure-handling section"
+/consensus:panel --question "Should retries live in the client or gateway?" --panel-size 3
+```
+
+The first seeks a refined artifact with an audit trail; the second gives you
+separate perspectives to judge. Codex uses `$consensus:refine` and
+`$consensus:panel`. Cursor's local plugin load uses the local skill names;
+see [Installation](../installation.md) for the host-specific setup.
+
+The wrapper emits JSONL status events while the generated CLI returns one JSON envelope per run and spawns the other providers' CLIs as separate OS processes. `IMPASSE` is checked before convergence; a declined convergence consults the escalation triggers. Every terminal outcome writes the artifact.
+
+=== "Diagram"
+
+    ![Peers, not personas](/diagrams/consensus-host-peers-artifact.svg)
+
+    *SVG regenerated 2026-09-16*
+
+=== "Mermaid"
+
+    ```mermaid
+    flowchart TD
+      HOST["Host session<br/>Claude Code, Codex, or Cursor"]
+      WRAP["Skill wrapper (refine, decide, …)<br/>emits JSONL status events"]
+      CLI["Generated consensus CLI<br/>one JSON envelope per run"]
+      subgraph peers["Independent peer subprocesses"]
+        P1["claude --print --output-format json"]
+        P2["codex exec --json<br/>--output-last-message &lt;file&gt;"]
+        P3["cursor-agent --output-format json --force"]
+      end
+      ROUND["Structured verdict round<br/>schema-validated JSON"]
+      IMP{"Any IMPASSE verdict?"}
+      STOP["Stop and report impasse<br/>status: impasse"]
+      CONV{"Converged?"}
+      ESC{"Escalation trigger?"}
+      ESCOUT["escalation_required<br/>routed to the host or the user<br/>(an auto-routed trigger terminates as<br/>status converged and emits no event)"]
+      ART["Refine artifact<br/>&lt;input&gt;.consensus.md"]
+      A1["## Final Output"]
+      A2["consensus-resolution block<br/>plus a separate consensus-section-states block"]
+      A3["## Deliberation Log<br/>per section, per round"]
+      DEC["decide writes its own artifact<br/>consensus-decision.md"]
+      A4["## Dissent / Unresolved Disagreement<br/>a required decide heading, validated in<br/>each peer's decision text and re-rendered"]
+
+      HOST --> WRAP
+      WRAP --> CLI
+      CLI --> P1
+      CLI --> P2
+      CLI --> P3
+      P1 --> ROUND
+      P2 --> ROUND
+      P3 --> ROUND
+      ROUND --> IMP
+      IMP -->|yes| STOP
+      IMP -->|no| CONV
+      CONV -->|yes| ART
+      CONV -->|no| ESC
+      ESC -->|no| ROUND
+      ESC -->|yes| ESCOUT
+      STOP --> ART
+      ESCOUT --> ART
+      ART --> A1
+      ART --> A2
+      ART --> A3
+      WRAP --> DEC
+      DEC --> A4
+    ```
+
+    *Mermaid updated 2026-09-16*
+
+## Who decides: refine, panel, phone-a-friend
+
+The three shapes are not interchangeable. `refine` deliberates to convergence or a reported impasse, `panel` returns attributed takes and refuses to synthesize, and `phone-a-friend` returns one advisory take that the host must disposition.
+
+```mermaid
+flowchart TB
+  subgraph refine["refine · converging"]
+    direction TB
+    R0["One draft, two peers"]
+    R1["Verdict rounds"]
+    R2{"Agreement or IMPASSE?"}
+    R3["Converged artifact"]
+    R4["Reported impasse"]
+    RW["Decided by: the peers"]
+    RU["User direction required"]
+    R0 --> R1 --> R2
+    R2 -->|agreement| R3
+    R2 -->|impasse| R4
+    R3 --> RW
+    R4 --> RU
+  end
+  subgraph panel["panel · non-converging"]
+    direction TB
+    N0["One question, 2+ panelists"]
+    N1["Single independent round"]
+    N2["Attributed responses, side by side"]
+    N3["No synthesis, no vote (instruction, not code)"]
+    NW["Decided by: you"]
+    N0 --> N1 --> N2 --> N3 --> NW
+  end
+  subgraph phone["phone-a-friend · advisory"]
+    direction TB
+    F0["One question, one peer"]
+    F1["One provider turn"]
+    F2["Advisory payload"]
+    F3["Host states a disposition (instruction, not code)"]
+    FW["Decided by: the host agent"]
+    F0 --> F1 --> F2 --> F3 --> FW
+  end
+```
+
+_Mermaid updated 2026-09-16_
+
+The outcome determines who acts next:
+
+- **Refine** produces a converged artifact or reports an impasse. An impasse comes back to you; resume with `--user-direction`. Other escalation cases follow the [agency policy](configuration.md#agency).
+- **Panel** requires at least two successful responses. Panelists respond independently, and the host's instructions prohibit adding a synthesis, vote, or recommendation.
+- **Phone-a-friend** returns a take, recommendation, risks, follow-up questions, and confidence from one provider turn. The host must state whether it agrees, disagrees, applies, ignores, or follows up on that advice.
+
 ## Iteration modes
 
 The shipped consensus skills support three iteration modes, selected with
@@ -90,6 +218,71 @@ JSONL event (`calls_per_round`) and report actual `peer_calls` /
 See [Configuration](configuration.md) for peer selection, the provider floor,
 diagnostics, and permissions, and the per-skill pages for the full command set.
 
+## What is handed to a provider process
+
+This is the local process boundary, not a network boundary. The wrapper reads
+selected input and constructs a prompt payload: an argv argument for Claude,
+stdin for Codex and Cursor. It also supplies schema and submission information.
+
+Transcript, observer, and run-state files are stored locally, but selected
+contents can enter the prompt. Provider subprocesses may also access files in
+their working directory under their own permission and sandbox settings; the
+wrapper's path guards do not confine those processes. Provider CLIs may transmit
+context to their services. Review those tools' configuration before sharing
+sensitive material. Returned structured payloads are schema-validated, but
+validation does not make their advice trustworthy or authorize following it.
+
+=== "Diagram"
+
+    ![The provider process boundary](/diagrams/trust-boundary.svg)
+
+    *SVG regenerated 2026-09-16*
+
+=== "Mermaid"
+
+    ```mermaid
+    flowchart TB
+      subgraph local["Stored locally — selected contents can enter the prompt"]
+        TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
+        ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]
+        RUN[".consensus/ run state<br/>and output artifacts"]
+      end
+      HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt payload"]
+      subgraph crossing["Crosses the boundary — approval is a skill instruction, not a code gate"]
+        PR["Prompt payload<br/>argv for Claude — stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
+        SCH["Claude: the schema is ALSO passed<br/>inline in argv as --json-schema"]
+        ENV["Submit env, 4 vars — set for every provider<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA<br/>and CONSENSUS_SUBMIT_MAX_BYTES"]
+        CWD["Working directory and provider policy<br/>wrapper path guards do not sandbox the child"]
+      end
+      subgraph remote["Provider CLI subprocess"]
+        PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --output-format json --force"]
+      end
+      subgraph back["Comes back as untrusted data"]
+        OUT["Schema-validated before use —<br/>a failure is PROVIDER_SCHEMA_VALIDATION"]
+        REV["Advisory data, never instructions:<br/>never auto-apply edits, commands, or decisions"]
+      end
+      GUARD["Local guards<br/>options files capped at 1 MiB<br/>inputs, outputs, run dirs confined by --allow-root"]
+
+      TR --> HOST
+      ST --> HOST
+      RUN --> HOST
+      HOST --> PR
+      HOST --> SCH
+      HOST --> ENV
+      HOST --> CWD
+      PR --> PEER
+      SCH --> PEER
+      ENV --> PEER
+      CWD --> PEER
+      PEER --> OUT
+      OUT --> REV
+      OUT --> GUARD
+      GUARD --> RUN
+      TR -.->|"untrusted input: prompt injection<br/>is mitigated, not solved"| GUARD
+    ```
+
+    *Mermaid updated 2026-09-16*
+
 ## Limitations
 
 - The plugin ships `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`,
@@ -124,10 +317,12 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 ## Contents
 
 - [Create](create.md) - `create` usage: brief inputs, `independent_draft` defaults, output contract, and input handling.
-- [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
 - [Plan](plan.md) - `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
+- [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
-- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
 - [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
+- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
+- [Observer](../skills/session-observer.md) - Read and watch a pinned peer session; also available standalone as `session-observer`.
+- [Collaborative Observer](../skills/session-observer-collab.md) - Coordinate two sessions with explicit authority boundaries; also available standalone as `session-observer-collab`.
 - [Configuration](configuration.md) - Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.

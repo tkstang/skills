@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:crush-parts:2026-09-10",
+  "title": "Crush: decoded messages.parts array",
+  "description": "Decoded JSON array stored in the messages.parts column; unknown part fields/types remain possible. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/crush.ts"
+  ],
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "description": "text, reasoning, tool_call, tool_result, or another variant."
+      },
+      "data": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Textual part content."
+          },
+          "thinking": {
+            "type": "string",
+            "description": "Recorded reasoning content."
+          },
+          "id": {
+            "type": "string",
+            "description": "Tool-call identity in a call part."
+          },
+          "name": {
+            "type": "string",
+            "description": "Native tool name."
+          },
+          "tool_call_id": {
+            "type": "string",
+            "description": "Call/result identity field."
+          },
+          "toolCallId": {
+            "type": "string",
+            "description": "Alternative call identity spelling."
+          },
+          "input": {
+            "description": "Tool input, string or structured JSON."
+          },
+          "provider_executed": {
+            "type": "boolean",
+            "description": "Whether provider executed the call, when recorded."
+          },
+          "finished": {
+            "type": "boolean",
+            "description": "Whether the call is recorded as finished."
+          },
+          "content": {
+            "type": "string",
+            "description": "Result text carrier."
+          },
+          "output": {
+            "type": "string",
+            "description": "Alternative result text carrier."
+          },
+          "result": {
+            "type": "string",
+            "description": "Alternative result text carrier."
+          },
+          "data": {
+            "type": "string",
+            "description": "Additional result data payload, potentially encoded."
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "Result data media type."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Serialized provider/tool metadata."
+          },
+          "is_error": {
+            "type": "boolean",
+            "description": "Recorded result error flag."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Known nested part payload; some legacy variants flatten fields to the part."
+      }
+    },
+    "additionalProperties": true
+  }
+}

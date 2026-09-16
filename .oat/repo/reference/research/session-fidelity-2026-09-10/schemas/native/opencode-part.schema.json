@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:opencode-part:2026-09-10",
+  "title": "OpenCode: decoded part JSON subset",
+  "description": "Decoded part object from JSON files or a SQLite part.data column. Not a full database schema. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/opencode.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Part ID."
+    },
+    "sessionID": {
+      "type": "string",
+      "description": "Owning session ID."
+    },
+    "messageID": {
+      "type": "string",
+      "description": "Owning message ID."
+    },
+    "type": {
+      "type": "string",
+      "description": "Part variant: text, tool, patch, or other native type."
+    },
+    "text": {
+      "type": "string",
+      "description": "Text content or patch carrier on applicable variants."
+    },
+    "tool": {
+      "type": "string",
+      "description": "Exact native tool name on type=tool."
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Recorded tool state; error is recognized explicitly."
+        },
+        "input": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true,
+          "description": "Native tool arguments."
+        },
+        "output": {
+          "description": "Tool output; preserve structured values."
+        },
+        "error": {
+          "description": "Tool error carrier."
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "exit": {
+              "type": "number",
+              "description": "Recorded exit code when exposed under this spelling."
+            },
+            "exitCode": {
+              "type": "number",
+              "description": "Alternative recorded exit-code spelling."
+            },
+            "count": {
+              "type": "number",
+              "description": "Recorded result/match count."
+            },
+            "resultCount": {
+              "type": "number",
+              "description": "Alternative result-count field."
+            },
+            "matchCount": {
+              "type": "number",
+              "description": "Recorded grep match count."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Tool-specific metadata."
+        }
+      },
+      "additionalProperties": true,
+      "description": "State held on a tool part; a snapshot is not necessarily a history of transitions."
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Affected file path on patch variants."
+      }
+    },
+    "patch": {
+      "type": "string",
+      "description": "Patch-text carrier."
+    },
+    "diff": {
+      "type": "string",
+      "description": "Diff-text carrier."
+    }
+  },
+  "additionalProperties": true
+}

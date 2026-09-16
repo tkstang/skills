@@ -1,0 +1,14 @@
+{
+  "sessionId": "session-demo",
+  "projectHash": "project-demo",
+  "startTime": "2026-09-10T12:00:00Z",
+  "lastUpdated": "2026-09-10T12:00:00Z",
+  "messages": [
+    {
+      "id": "m1",
+      "timestamp": "2026-09-10T12:00:00Z",
+      "type": "user",
+      "content": "Review the parser."
+    }
+  ]
+}

@@ -219,8 +219,6 @@ describe('experimental guidance CLI', () => {
     );
 
     for (const document of [toolReadme, userGuide]) {
-      expect(document).toMatch(/experimental/i);
-      expect(document).toMatch(/not released/i);
       expect(document).toMatch(/no fork/i);
       expect(document).toMatch(/source-current/);
       expect(document).toMatch(/source-other/);
@@ -228,6 +226,10 @@ describe('experimental guidance CLI', () => {
       expect(document).toMatch(/Cursor/);
       expect(document).toMatch(/unsupported/i);
     }
+    expect(userGuide).toMatch(/alpha/i);
+    expect(userGuide).not.toMatch(/not released|unreleased/i);
+    expect(toolReadme).toMatch(/experimental/i);
+    expect(toolReadme).toMatch(/not released/i);
     expect(toolReadme).toMatch(/paused/i);
     expect(toolReadme).toMatch(/unverified/i);
   });

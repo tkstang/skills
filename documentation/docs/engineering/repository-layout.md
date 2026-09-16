@@ -26,7 +26,7 @@ infrastructure.
 - `plugins/consensus/` — generated complete consensus installation unit,
   including peer workflows plus local `observer` and `observer-collab` skills.
 - `plugins/session/` — generated complete session installation unit with local
-  `handoff`, `export-transcript`, and `fork-to-destination` skills.
+  `retro`, `handoff`, `export-transcript`, and `fork-to-destination` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -56,11 +56,6 @@ the checkout, or developer dependencies. A declared workflow prerequisite is
 different. `session-observer-collab` requires the `session-observer` workflow,
 recognizes its standalone and consensus plugin-local identities, and stops with
 an install link instead of installing it automatically.
-
-The rename from `export-session-transcript` to `session-export-transcript` and
-from `coding-session-handoff` to `session-fork-to-destination` is a clean break.
-Old payloads, script entrypoints, aliases, and redirects are absent; historical
-mapping exists only for version comparison.
 
 ## Consensus plugin package layout
 
@@ -101,5 +96,5 @@ Inside `plugins/session/`:
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/export-transcript/` — plugin-local form of
   `session-export-transcript`, including its generated dependency-free CLI.
-- `skills/fork-to-destination/` — plugin-local form of the experimental
+- `skills/fork-to-destination/` — plugin-local form of the alpha
   `session-fork-to-destination` guidance workflow and generated CLI.

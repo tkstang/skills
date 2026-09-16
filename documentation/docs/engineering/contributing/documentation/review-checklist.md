@@ -13,15 +13,18 @@ never linked, a generated file is hand-edited, or the build is left red.
 ## Frontmatter
 
 - **Does every new or changed page have `title` and `description`?**
-  Both are required. `title` drives the sidebar label and `<title>`;
-  `description` drives search previews, social cards, and `## Contents`
-  summaries. No empty descriptions.
+  Both are required by this repository's authoring convention. `title` supplies
+  the page title and default navigation label; metadata may override navigation
+  labels. `description` supplies page metadata and searchable text. Contents
+  summaries are authored separately. No empty descriptions.
 
 ## Navigation contract
 
 - **Is every new page listed in the nearest `index.md`'s `## Contents`?**
-  A page that isn't in some `## Contents` is invisible to the navigation tooling.
-  Add the link in the same commit.
+  A page without a local-map link is harder to discover in source, even if its
+  route or sidebar entry still exists. Add the link in the same commit, and
+  check sidebar metadata separately. Cross-directory sidebar references are
+  allowed; they do not remove the physical directory's mapping responsibility.
 
 - **Did you add an `index.md` for any new subdirectory?**
   Every content directory needs an `index.md` with its own `## Contents`.
@@ -52,13 +55,15 @@ never linked, a generated file is hand-edited, or the build is left red.
 
 ## Build
 
-- **Does `cd documentation && pnpm build` succeed?**
+- **Does `cd documentation && NEXT_PUBLIC_BASE_PATH=/skills pnpm build` succeed?**
   The production build catches MDX and rendering errors the dev server tolerates,
   and its `prebuild` step regenerates the manifest. A green build is the bar for a
-  docs change.
+  docs change, not proof that browser-only diagrams, images, or search work.
+  Inspect the exported site at the production base path as well as the preview.
 
 - **Does `pnpm run docs:format:check` pass?**
-  If not, run `pnpm run docs:format` and stage the result.
+  Format only the changed authored files with the repository formatter; do not
+  turn a docs edit into a repository-wide formatting change.
 
 ## Sidebar order
 
@@ -73,4 +78,5 @@ never linked, a generated file is hand-edited, or the build is left red.
   Documenting a command, path, or feature? Confirm it exists and behaves as
   written. Prefer linking to source files and real commands over paraphrasing
   from memory. Do not claim features this app doesn't render — see
-  [Markdown Features](markdown-features.md) for the supported set.
+  [Markdown & Visuals](markdown-features.md) for the supported set. Check diagrams
+  against implementing source and inspect both themes at the actual display size.

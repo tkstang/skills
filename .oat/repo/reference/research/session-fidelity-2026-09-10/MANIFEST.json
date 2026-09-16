@@ -1,0 +1,523 @@
+{
+  "title": "Session fidelity and tooling: research and implementation packet",
+  "prepared_on": "2026-09-10",
+  "content_scope": "Source-backed research and proposed design; no installed feature or upstream code changes.",
+  "file_count_excluding_manifest": 103,
+  "files": [
+    {
+      "path": "01-executive-findings.md",
+      "bytes": 8122,
+      "sha256": "9214d468b0495bd259907bec3c6ba369ea722ba7f7e0821376f6435663ff9523"
+    },
+    {
+      "path": "02-repository-comparison.md",
+      "bytes": 7761,
+      "sha256": "5a60b6997c5ee4ee36dc5f939de064b4c6d2fc55d0124516232adcef2f576103"
+    },
+    {
+      "path": "03-cli-continues-handoff-internals.md",
+      "bytes": 13378,
+      "sha256": "c0ae61c46245250a3f76a8ed90ed238100fc9d569af48c353d9b8c7529abab93"
+    },
+    {
+      "path": "04-current-skills-gap-analysis.md",
+      "bytes": 9777,
+      "sha256": "5558472a7e02d3601a719b8a903e6531e8190acf11c056b219b39e8f9931626b"
+    },
+    {
+      "path": "05-reuse-porting-map.md",
+      "bytes": 8664,
+      "sha256": "139cb75532dd88dfe24f73d6331c7c996f45fc87b9ffdc3172bae17482ee28ff"
+    },
+    {
+      "path": "06-optional-activity-flag-design.md",
+      "bytes": 8300,
+      "sha256": "fb9cee582bd53815cc88ef7aaefa054f2314159364160bbed330296a03fa7cbc"
+    },
+    {
+      "path": "07-implementation-plan-and-tests.md",
+      "bytes": 9924,
+      "sha256": "2f216c351e01b5a658cec48216cc0f48d89b2006c4a91d19cacdcda8ae3bfa77"
+    },
+    {
+      "path": "08-retros-and-skill-evaluation.md",
+      "bytes": 7819,
+      "sha256": "89796eecbf6db6ad5ac6b909db1c1f9a51ad68e880c20cc536958f0dd47a2293"
+    },
+    {
+      "path": "09-session-resume-comparison.md",
+      "bytes": 8856,
+      "sha256": "839ccffc9803911dac5f2a63d53d8dc6f0e4dc452bb0c3ac0f71f31b573891b7"
+    },
+    {
+      "path": "10-schema-guide-and-coverage.md",
+      "bytes": 5506,
+      "sha256": "44d0bab8858ccb0d17d17acae2d5e973b6a479b5dd0f5fd7b9d57e0b6b4dd0e2"
+    },
+    {
+      "path": "11-source-audit-corrections-and-limitations.md",
+      "bytes": 7230,
+      "sha256": "205840432d614090d155bf63d709e36a0afdd3623642105c028265dda3f9436e"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4680,
+      "sha256": "963273413dcfd02853b946847547d1050bdf035d5489f46e63879cf7406462cb"
+    },
+    {
+      "path": "design/README.md",
+      "bytes": 3568,
+      "sha256": "324423da45d3d901e25c43c35cbdee49b9247c8ed1a98ffeab0ea2ccb089ad1b"
+    },
+    {
+      "path": "design/activity-contract.ts",
+      "bytes": 4254,
+      "sha256": "54149eaa7f45bee3f9ceb577eeed815a6a31b44e4df219636880270889b3fa13"
+    },
+    {
+      "path": "examples/README.md",
+      "bytes": 821,
+      "sha256": "5e75cc93d40f4b75d5da6a729cad33d91af422a8992eac8b5373d1b6057dda24"
+    },
+    {
+      "path": "examples/native/amp-thread.json",
+      "bytes": 525,
+      "sha256": "1b2ca7590e7ef8a616174b98071eddba8fc8b7c56211df3b7a11a8aa26cdd58e"
+    },
+    {
+      "path": "examples/native/antigravity-cli-step.json",
+      "bytes": 177,
+      "sha256": "bfa7e175ddb9278e2e2cd7999eb47db6af633107c5305a6528ea1fd4e4ddeaad"
+    },
+    {
+      "path": "examples/native/claude-code-record.json",
+      "bytes": 485,
+      "sha256": "95500942b3bd22c1ea7fbde99afd418fe3d5a1f3e42401e81114cbd5084ffad2"
+    },
+    {
+      "path": "examples/native/cline-api.json",
+      "bytes": 400,
+      "sha256": "4c0a6b59dd48565053cd3cd7bd90f7c3b21ce596b3bdcde4972aaf96b85ed3d3"
+    },
+    {
+      "path": "examples/native/cline-ui.json",
+      "bytes": 133,
+      "sha256": "56c0f0098a139356e21106bc51d775f974f41f68c77ce550f5575a29f59cfe17"
+    },
+    {
+      "path": "examples/native/codex-record.json",
+      "bytes": 221,
+      "sha256": "aa3e6cf1d91b6057e4b30a85e17e73c1cb666e25b3388c40a4a332fee4fa36b4"
+    },
+    {
+      "path": "examples/native/copilot-event.json",
+      "bytes": 226,
+      "sha256": "f1df0d910041bc5d5a71a0182d6c7078ca18df826e5d672b04511d67f64eede6"
+    },
+    {
+      "path": "examples/native/copilot-workspace.json",
+      "bytes": 135,
+      "sha256": "f5a6b1a9444f39964f2a1f22c18a09cbdc81932865e69d9ff785ea6c4fdf771d"
+    },
+    {
+      "path": "examples/native/crush-parts.json",
+      "bytes": 346,
+      "sha256": "61072851e3d72ec6df48d2daff4fee7b495ad4e65bcd283f46ccdea8757fc3a9"
+    },
+    {
+      "path": "examples/native/crush-sqlite-row.json",
+      "bytes": 413,
+      "sha256": "7be395a821dd9980111a7e825ce4402a127e338c1c0e91c702c18e745413c23c"
+    },
+    {
+      "path": "examples/native/cursor-frame.json",
+      "bytes": 247,
+      "sha256": "32483aeb8fd34cff76c1414d8b29386d6ba5cb6152ae4972d9bc193b60d88dd1"
+    },
+    {
+      "path": "examples/native/droid-event.json",
+      "bytes": 306,
+      "sha256": "2479028e282f06c644f61d9279e0f3148d6e8eac5195f7411a1d4d2ff31311b5"
+    },
+    {
+      "path": "examples/native/droid-settings.json",
+      "bytes": 148,
+      "sha256": "d8b0852768610298241b1155f142ce8c9d4999d832a5e27cfb80e023851fa38f"
+    },
+    {
+      "path": "examples/native/gemini-record.json",
+      "bytes": 552,
+      "sha256": "c69812c3db7f34526bfc775a4bd461cbbb8743cdcb2dfa1fbb1e459ebbf8a7e7"
+    },
+    {
+      "path": "examples/native/gemini-session.json",
+      "bytes": 301,
+      "sha256": "a056ebeccc99cf81a830ca062394185015aea7c6323dcc59492895aebfb3cc97"
+    },
+    {
+      "path": "examples/native/kilo-code-api.json",
+      "bytes": 400,
+      "sha256": "4c0a6b59dd48565053cd3cd7bd90f7c3b21ce596b3bdcde4972aaf96b85ed3d3"
+    },
+    {
+      "path": "examples/native/kilo-code-sqlite-row.json",
+      "bytes": 89,
+      "sha256": "e1b8e92a28e8ef7f9b7b5e78a0346976eb6302f4c2d5ea2e5e16d27784089cc8"
+    },
+    {
+      "path": "examples/native/kilo-code-ui.json",
+      "bytes": 133,
+      "sha256": "56c0f0098a139356e21106bc51d775f974f41f68c77ce550f5575a29f59cfe17"
+    },
+    {
+      "path": "examples/native/kimi-context-record.json",
+      "bytes": 265,
+      "sha256": "1c389592460022f016be201ce81df7f9d42bfb723313e315ef1af96e20469d4a"
+    },
+    {
+      "path": "examples/native/kimi-state.json",
+      "bytes": 88,
+      "sha256": "820720b651232c995a4f06a2d3d53c8f88d2ecc85b8a4ba5613bbdd7a001cc51"
+    },
+    {
+      "path": "examples/native/kiro-acp-record.json",
+      "bytes": 262,
+      "sha256": "94ec3ed70cdeba3be8246995cae14844aa8ae75f03f73133c8172986070fb7f3"
+    },
+    {
+      "path": "examples/native/kiro-ide-session.json",
+      "bytes": 198,
+      "sha256": "2be3042d3fa0e42dafc9f4eba15ee530b8cd359bc145a8144e1d21cf461ded67"
+    },
+    {
+      "path": "examples/native/kiro-persisted-record.json",
+      "bytes": 63,
+      "sha256": "610a3e68a18d8bf7dcd263691936e71123bdec2263cea3acfc009ff595259dae"
+    },
+    {
+      "path": "examples/native/opencode-part.json",
+      "bytes": 291,
+      "sha256": "329c7eb3a2f084e755e49052b601ef64896e9612e6053cf286efb8fa21cda16a"
+    },
+    {
+      "path": "examples/native/opencode-sqlite-row.json",
+      "bytes": 398,
+      "sha256": "0e167c6e2b3449dc43d24d0d4a136274943436afc025c1478a7660cb270cafca"
+    },
+    {
+      "path": "examples/native/pi-record.json",
+      "bytes": 262,
+      "sha256": "c1354f72979ffd58ca69e90f8641a8a1788606f7858b2b611deefdbc3e2ed715"
+    },
+    {
+      "path": "examples/native/qwen-code-record.json",
+      "bytes": 427,
+      "sha256": "ee287a32071de852583989476fafeb64c46bdc6068f1c37bea24ef7a99ac32a9"
+    },
+    {
+      "path": "examples/native/roo-code-api.json",
+      "bytes": 400,
+      "sha256": "4c0a6b59dd48565053cd3cd7bd90f7c3b21ce596b3bdcde4972aaf96b85ed3d3"
+    },
+    {
+      "path": "examples/native/roo-code-ui.json",
+      "bytes": 133,
+      "sha256": "56c0f0098a139356e21106bc51d775f974f41f68c77ce550f5575a29f59cfe17"
+    },
+    {
+      "path": "examples/proposed/activity-report.json",
+      "bytes": 3498,
+      "sha256": "e263220e3eb6b55350787ec1a7e54763d5b1c2bfbe9835da20e902a8d8687210"
+    },
+    {
+      "path": "providers/00-index.md",
+      "bytes": 2499,
+      "sha256": "1bde17ff785c144089b98b7eed08e67cfe91563c1d9980c96b7efed806188fa5"
+    },
+    {
+      "path": "providers/01-claude-code.md",
+      "bytes": 10405,
+      "sha256": "4d8b21a2e29a1b13e1725375c370f24712d187790632bd83147c9d0124f47ac0"
+    },
+    {
+      "path": "providers/02-codex.md",
+      "bytes": 10902,
+      "sha256": "77259b4ed61349b3ab93837266aa192889c1c5abc041889a2717e53b859cc3d6"
+    },
+    {
+      "path": "providers/03-cursor.md",
+      "bytes": 6902,
+      "sha256": "414769014e200802708552922d56309db18e453801aabd4584b99d96fafa3057"
+    },
+    {
+      "path": "providers/04-copilot.md",
+      "bytes": 6984,
+      "sha256": "9c121f3428fdcd6fae064c181bc9c65a75935b4a521ba0a8d6a8bd475fe55521"
+    },
+    {
+      "path": "providers/05-gemini.md",
+      "bytes": 14226,
+      "sha256": "fd4ec8d37fdb9e9a0eecbe5f2bc2082b8538ceb42957a0c0e2d71d2a65694419"
+    },
+    {
+      "path": "providers/06-opencode.md",
+      "bytes": 6896,
+      "sha256": "1973106f3faac71da22b6faf45e6f0dd32b2222603100dcf64c54c59617d21e7"
+    },
+    {
+      "path": "providers/07-droid.md",
+      "bytes": 7876,
+      "sha256": "14f9cc21ba041871d48c69ac0ebc015687fd4774b083860c4e5441906944fe04"
+    },
+    {
+      "path": "providers/08-amp.md",
+      "bytes": 7511,
+      "sha256": "d5110613c2dd2425c37addb8e28f4bf95793c2b83c8c6eb92f9d73a66165a450"
+    },
+    {
+      "path": "providers/09-kiro.md",
+      "bytes": 12676,
+      "sha256": "b731087a0cbb60e782a2e73e9ac549fd6e8d2e5656432ec2dba18b795143b3bc"
+    },
+    {
+      "path": "providers/10-crush.md",
+      "bytes": 6217,
+      "sha256": "1a4d5df2529e3089824a4111b25dc3ec7dcf217301af221aef58c613384a82c9"
+    },
+    {
+      "path": "providers/11-cline.md",
+      "bytes": 7581,
+      "sha256": "fdc3bbf3a5d2d61d35669de0990b590bec1ba6aae160cde6ddfad3de6d56b435"
+    },
+    {
+      "path": "providers/12-roo-code.md",
+      "bytes": 7700,
+      "sha256": "196bef8a553a1ae4fd1b4b444e673f69bc1168b72f7c99a452a1fe0eb12c5b3a"
+    },
+    {
+      "path": "providers/13-kilo-code.md",
+      "bytes": 8521,
+      "sha256": "78dd0843f92364f92e99558af04e16f0c1a1317e7c6c69c7a6b223ec83ce2764"
+    },
+    {
+      "path": "providers/14-antigravity.md",
+      "bytes": 5069,
+      "sha256": "e41af6eaed943698c2680fab286ba82428239c3ede3233e76a892b844f046df6"
+    },
+    {
+      "path": "providers/15-kimi.md",
+      "bytes": 6213,
+      "sha256": "2c9b87e94ea8495f052bd360f84f1b51eb7527b5506af8aedfc47d37e14c1bd2"
+    },
+    {
+      "path": "providers/16-qwen-code.md",
+      "bytes": 7668,
+      "sha256": "3fc1c76ddc888bfb0bfa25963a6f022cbdf0bba1c412139aef97aff45b8c7435"
+    },
+    {
+      "path": "providers/17-pi.md",
+      "bytes": 4947,
+      "sha256": "65e7988295a25b97ec9e1db039e45d485cf8043ca4164c3edab24bf58c33931b"
+    },
+    {
+      "path": "schemas/README.md",
+      "bytes": 1813,
+      "sha256": "6ee952d0bdb404400e8ff6921207e3531d5d99c8b933f8639800e3507d3190f0"
+    },
+    {
+      "path": "schemas/catalog.json",
+      "bytes": 12600,
+      "sha256": "0e85960ce6c4c066240b6f0be79953705895307d94ec7d8534a84cb1ef634683"
+    },
+    {
+      "path": "schemas/native/amp-thread.schema.json",
+      "bytes": 8198,
+      "sha256": "fdb50d6f81fa68f13a1fbaf8513ccf0713c9088eeb9d1cb375d85a26f5ce97fd"
+    },
+    {
+      "path": "schemas/native/antigravity-cli-step.schema.json",
+      "bytes": 1554,
+      "sha256": "534642e7fac4c9698bfcf74f35347f74bb9e1b595194dfc9b6a782c259c1d717"
+    },
+    {
+      "path": "schemas/native/claude-code-record.schema.json",
+      "bytes": 9268,
+      "sha256": "783b8164d90e890d1dcaabf546f1eb9f57204897488baec0e4000d505f1488de"
+    },
+    {
+      "path": "schemas/native/cline-api.schema.json",
+      "bytes": 3948,
+      "sha256": "6b538fcd7c7165aeca93539ef7f1bf7e5f2a41c3c0b92e918b0d0c8a6e031db4"
+    },
+    {
+      "path": "schemas/native/cline-ui.schema.json",
+      "bytes": 2445,
+      "sha256": "097ec8efc310fe11e25c58ba746d1c06b172aae58ded17ae4d2031458fcf01e9"
+    },
+    {
+      "path": "schemas/native/codex-record.schema.json",
+      "bytes": 10115,
+      "sha256": "173c818741f3ba6b645f30e65178d26ce99c141db4a0b2084ad84e91a89480e7"
+    },
+    {
+      "path": "schemas/native/copilot-event.schema.json",
+      "bytes": 4679,
+      "sha256": "61524f3eaf9bf8c027fcec30a791f98f716e9d82edb20a529815d9ee85944dd5"
+    },
+    {
+      "path": "schemas/native/copilot-workspace.schema.json",
+      "bytes": 1840,
+      "sha256": "76832dbb1eeb69425df76af5dc256994fcb439d5a8de3c53cd1c7120afd4580b"
+    },
+    {
+      "path": "schemas/native/crush-parts.schema.json",
+      "bytes": 3070,
+      "sha256": "8387892d691a2aa317d9e1fd5506dc9865edf866bb6fc01747d2fe9bff253262"
+    },
+    {
+      "path": "schemas/native/crush-sqlite-row.schema.json",
+      "bytes": 2567,
+      "sha256": "4451c5fb90e9546f99adab901c87b2a72a50559ec8b3746de44697a7245126f2"
+    },
+    {
+      "path": "schemas/native/cursor-frame.schema.json",
+      "bytes": 5148,
+      "sha256": "e3a3f5cf0c08e213d231adfaedae101c0ba6469f05228ac2ebd3e3fe23c6da38"
+    },
+    {
+      "path": "schemas/native/droid-event.schema.json",
+      "bytes": 5391,
+      "sha256": "59ab74690b97dfd25a30ffb21168591fc7acd97bb1d099514179f67f2f65caf3"
+    },
+    {
+      "path": "schemas/native/droid-settings.schema.json",
+      "bytes": 2686,
+      "sha256": "33e02f317e035b4d874f36778589c732274d94253fadb235b4937d13de2348b7"
+    },
+    {
+      "path": "schemas/native/gemini-record.schema.json",
+      "bytes": 10285,
+      "sha256": "f05587714b21cdde2b02ba974f526ea6463cd6bbfcd5209ef237ac0ea92f0eb7"
+    },
+    {
+      "path": "schemas/native/gemini-session.schema.json",
+      "bytes": 10592,
+      "sha256": "cc34e92b50afb6f043d293615be2513163f2a49070125397fb016215d1278998"
+    },
+    {
+      "path": "schemas/native/kilo-code-api.schema.json",
+      "bytes": 3960,
+      "sha256": "f1cd5a1f49e8d3824824a78c9a6a67581886099840f053a4cd6e7b958b4ffc73"
+    },
+    {
+      "path": "schemas/native/kilo-code-sqlite-row.schema.json",
+      "bytes": 1258,
+      "sha256": "ebeae34bcdfa5915c5a060ff7def95d734c40878b43afaad62655c97950fc501"
+    },
+    {
+      "path": "schemas/native/kilo-code-ui.schema.json",
+      "bytes": 2457,
+      "sha256": "653ed40a6184fbade71aa2bf700122f961d8fe4b0f8bd055368118fabc13803a"
+    },
+    {
+      "path": "schemas/native/kimi-context-record.schema.json",
+      "bytes": 4155,
+      "sha256": "ff4ccda3a1288b19bdddabc5a164ee97f9e989a837a76bb60b8c5cce8e74bf9d"
+    },
+    {
+      "path": "schemas/native/kimi-state.schema.json",
+      "bytes": 1946,
+      "sha256": "5fecd5a6eb46bda6a6040d6aefccc698156c22e5ab63a7a11721619ba969a334"
+    },
+    {
+      "path": "schemas/native/kiro-acp-record.schema.json",
+      "bytes": 6400,
+      "sha256": "6d8b721e123993c66454fe79986eafe58b7549d94647fc4e4a76afc2dff83edd"
+    },
+    {
+      "path": "schemas/native/kiro-ide-session.schema.json",
+      "bytes": 8311,
+      "sha256": "a20db6b8f92cfc8290062036d5597a3effe11c2c8f30a786f00331a588eaa3c8"
+    },
+    {
+      "path": "schemas/native/kiro-persisted-record.schema.json",
+      "bytes": 6328,
+      "sha256": "14fb0dba5695cbba485e85c9a4a8baca0dd7334f9e3af25ff0ab9b9344f69444"
+    },
+    {
+      "path": "schemas/native/opencode-part.schema.json",
+      "bytes": 3300,
+      "sha256": "bad8ae944c76b8cbd84de7d908df9b2e74dbf331538e84400a38c867da18c8f2"
+    },
+    {
+      "path": "schemas/native/opencode-sqlite-row.schema.json",
+      "bytes": 2925,
+      "sha256": "21930bb726d92f72d4681a4b78597e4161019f241442d4f853dca0139222ca1d"
+    },
+    {
+      "path": "schemas/native/pi-record.schema.json",
+      "bytes": 2835,
+      "sha256": "b8511d7dae896f717b02a624befd357fe91399790d81cd6aabf81206a9ad702b"
+    },
+    {
+      "path": "schemas/native/qwen-code-record.schema.json",
+      "bytes": 7859,
+      "sha256": "71817bb18ec3f98ba8dbec089653c5b71df74cb43697f6ba9a62c1f1cbaa8a4e"
+    },
+    {
+      "path": "schemas/native/roo-code-api.schema.json",
+      "bytes": 3957,
+      "sha256": "d21bd6fdb621ef7524e0411e0ca57945e7907fbfb6cc04c3412ac64d7c244dc3"
+    },
+    {
+      "path": "schemas/native/roo-code-ui.schema.json",
+      "bytes": 2454,
+      "sha256": "7d2a6dfa7934d397d9ab6484aac35270b81cb9f4e59e096cd041f05f03bf8958"
+    },
+    {
+      "path": "schemas/proposed/activity-report.schema.json",
+      "bytes": 15246,
+      "sha256": "c3cb4c1869d2f986ed1b447dfd241cd8f13e15e40db067ae4bd7638e035d76a2"
+    },
+    {
+      "path": "sources/README.md",
+      "bytes": 13051,
+      "sha256": "141ba1a2cc6532fa487ad83cc007d5714d458e15f17f559239e2422c2ed73c59"
+    },
+    {
+      "path": "sources/cli-continues-LICENSE.txt",
+      "bytes": 1073,
+      "sha256": "d8acec26021eff91f0245800de8f2cb965742022a105745748145777c5c5c2e2"
+    },
+    {
+      "path": "sources/evidence.json",
+      "bytes": 17229,
+      "sha256": "65d54de93383955deefcc1d23d2764e6bc256bf192155d623121fe456b407a20"
+    },
+    {
+      "path": "sources/provider-coverage.json",
+      "bytes": 4126,
+      "sha256": "ed67d5ab82600d79bda01491da22608cbd4dec829c3edf5a07f10347dd39ba2c"
+    },
+    {
+      "path": "sources/repositories.json",
+      "bytes": 706,
+      "sha256": "ce891b0ac69635198f6e36946335019ad52f455cbb52367ffc952144c1dc07f4"
+    },
+    {
+      "path": "validation/REPORT.md",
+      "bytes": 2489,
+      "sha256": "bdb6785b61f53a58a46964dce4fdc56851d0396d660cb5dcff12ef4034f3bc2c"
+    },
+    {
+      "path": "validation/results.json",
+      "bytes": 377,
+      "sha256": "5c5e2301a19a1e2f567c5fc379180f20cf807b5d16cc281889082d52b14ed7a5"
+    },
+    {
+      "path": "validation/validate_packet.py",
+      "bytes": 6888,
+      "sha256": "837bb0d0d7b1c48ddae6a254f4ffe29a38573ce558bbb528690f5b702642e42d"
+    }
+  ]
+}

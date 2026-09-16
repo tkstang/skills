@@ -17,12 +17,87 @@ pnpm hooks:disable-all
 Bypass a single commit with `git commit --no-verify`. Set `GIT_HOOKS=0` to skip
 hook setup entirely (CI/Docker).
 
+### Where each gate runs
+
+The checks are six independent triggers, not a pipeline: no CI job declares `needs`, the pull-request-only jobs run in parallel with `validate`, and the docs deployment and live-provider workflows are separate.
+
+```mermaid
+flowchart TB
+  subgraph commit["git commit"]
+    direction TB
+    C1["pre-commit: lint-staged"]
+    C2["pre-commit: oat status"]
+    C3["commit-msg: commitlint"]
+    C1 --> C2 --> C3
+  end
+  subgraph push["git push"]
+    direction TB
+    P1["validate"]
+    P2["build:check"]
+    P3["type-check"]
+    P4["validate:skill-versions"]
+    P5["validate:internal-flags"]
+    P6["No tests, no smoke"]
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
+  end
+  subgraph pr["pull_request"]
+    direction TB
+    V["validate job"]
+    J1["skill-versions"]
+    J2["internal-flags"]
+    J3["commitlint"]
+    J4["lint: changed files only"]
+    J5["Docs CI, documentation paths"]
+    V --- J1
+    V --- J2
+    V --- J3
+    V --- J4
+    V --- J5
+  end
+  subgraph main["push to main"]
+    direction TB
+    M1["validate job only"]
+    M2["Deploy Docs workflow"]
+    M1 --- M2
+  end
+  subgraph dispatch["workflow_dispatch"]
+    direction TB
+    D1["Live E2E, dispatch-only"]
+    D2["Deploy Docs, also dispatchable"]
+    D1 --- D2
+  end
+  subgraph tag["tag consensus-v* / session-v*"]
+    direction TB
+    T1["build, then diff generated outputs"]
+    T2["type-check, build:check, test"]
+    T3["validate, smoke"]
+    T4["Verify selected plugin version"]
+    T1 --> T2 --> T3 --> T4
+  end
+
+  C3 ~~~ M1
+  P6 ~~~ D1
+  J5 ~~~ T1
+```
+
+_Mermaid updated 2026-09-16_
+
+Scope of each trigger:
+
+- These are independent triggers, not a pipeline. No job declares `needs:` in the [Validate workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml), so its four PR-only jobs run in parallel with `validate`, not downstream of it.
+- The `validate` job itself runs on both `pull_request` and pushes to `main`.
+- The pre-push hook runs validate, build:check, type-check and the two gates, and deliberately skips the test suite and smoke to stay fast.
+- `oat status --scope project --hook` in pre-commit is non-blocking.
+- Docs CI is PR-only and path-scoped.
+- Deploy Docs is an independent workflow, **also** dispatchable on top of its push-to-`main` trigger. Live Provider E2E is the dispatch-**only** workflow, and nothing invokes it.
+- The [Release workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml) fires on `consensus-v*` / `session-v*` tags. It builds, asserts generated outputs are committed, reruns the static suite, and verifies the tag against the already-written manifests.
+
 ## Pre-commit: lint-staged
 
-The `pre-commit` hook runs `lint-staged` over staged files only. JS and Markdown
-are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt**
-(`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`,
-`.oxfmtrc.json`.
+The `pre-commit` hook runs `lint-staged` over staged files only. JavaScript,
+TypeScript, JSON, and Markdown are formatted with **oxfmt**; JavaScript and
+TypeScript are also linted with **oxlint**. Config: `.oxlintrc.json`,
+`.oxfmtrc.json`, and `.lintstagedrc.mjs`.
 
 Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged
 files only, and CI lints/format-checks only the files a PR changes. The repo has
@@ -31,6 +106,10 @@ follow-up. Until then, do not run `pnpm format` across the whole tree in unrelat
 PRs.
 
 ## Pre-push: skill version-bump enforcement
+
+The pre-push hook runs `validate`, `build:check`, `type-check`, skill-version
+validation, and internal-flag validation. Tests and smoke are intentionally
+left to the full local check set and CI, not duplicated in this fast hook.
 
 Changed skills must bump their version. Any change under a canonical skill
 directory (`src/skills/<name>/`) requires that skill's quoted

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:roo-code-api:2026-09-10",
+  "title": "roo-code: legacy api_conversation_history.json",
+  "description": "Whole API-history array for the legacy roo-code task surface; keep alongside, not blindly concatenate with, UI messages. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cline.ts"
+  ],
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Native message identifier when recorded."
+      },
+      "role": {
+        "type": "string",
+        "description": "API conversation carrier role."
+      },
+      "content": {
+        "anyOf": [
+          {
+            "type": "string",
+            "description": "Plain message text."
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Content-block discriminator; unknown variants must remain reachable."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Text content when this block is textual."
+                },
+                "thinking": {
+                  "type": "string",
+                  "description": "Recorded thinking text, when present; not a guarantee of all model reasoning."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Tool-call/block identifier when present."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Exact tool name, including namespace when encoded here."
+                },
+                "input": {
+                  "description": "Native tool input, commonly an object; preserve original value."
+                },
+                "tool_use_id": {
+                  "type": "string",
+                  "description": "Identifier linking a result block to a tool_use block."
+                },
+                "content": {
+                  "description": "Result payload, either string, nested blocks, or another source-specific value."
+                },
+                "is_error": {
+                  "type": "boolean",
+                  "description": "Provider-recorded tool-result error flag; absence is unknown, not success."
+                }
+              },
+              "additionalProperties": true,
+              "description": "Permissive Anthropic-style content-block subset.",
+              "required": [
+                "type"
+              ]
+            },
+            "description": "Ordered native content blocks."
+          }
+        ],
+        "description": "Native content carrier; inspect block discriminators before flattening."
+      },
+      "ts": {
+        "type": "number",
+        "description": "Source numeric timestamp, where present."
+      },
+      "modelInfo": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "description": "Model identity."
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Provider identity."
+          },
+          "mode": {
+            "type": "string",
+            "description": "Recorded agent mode."
+          }
+        },
+        "additionalProperties": true
+      },
+      "metrics": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true,
+        "description": "Source metrics object; not fully specified by inspected type."
+      }
+    },
+    "additionalProperties": true
+  }
+}

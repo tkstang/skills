@@ -1,0 +1,32 @@
+{
+  "id": "T-demo",
+  "title": "Parser review",
+  "created": 1789041600000,
+  "messages": [
+    {
+      "role": "user",
+      "messageId": 1,
+      "content": [
+        {
+          "type": "text",
+          "text": "Review the parser."
+        }
+      ],
+      "meta": {
+        "sentAt": 1789041600000
+      }
+    }
+  ],
+  "env": {
+    "initial": {
+      "trees": [
+        {
+          "uri": "file:///workspace/demo",
+          "repository": {
+            "ref": "refs/heads/main"
+          }
+        }
+      ]
+    }
+  }
+}

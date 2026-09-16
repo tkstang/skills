@@ -1,0 +1,8 @@
+{
+  "model": "model-recorded-by-client",
+  "assistantActiveTimeMs": 12000,
+  "tokenUsage": {
+    "inputTokens": 1000,
+    "outputTokens": 200
+  }
+}

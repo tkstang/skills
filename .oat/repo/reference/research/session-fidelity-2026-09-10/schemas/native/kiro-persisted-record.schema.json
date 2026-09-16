@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kiro-persisted-record:2026-09-10",
+  "title": "Kiro: observed persisted JSONL envelopes",
+  "description": "One persisted envelope recognized under ~/.kiro/sessions/cli; the alternative wrapper names are reader-supported variants, not a universal schema claim. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "AssistantMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    },
+    "UserMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    },
+    "ToolResults": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    },
+    "assistantMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    },
+    "userMessage": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    },
+    "toolResults": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Persisted message/result carrier; full native payload is not established."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text fallback."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "ISO timestamp string where accepted by export reader."
+            },
+            {
+              "type": "number",
+              "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+            }
+          ],
+          "description": "Timestamp representation varies between the local and export surfaces."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

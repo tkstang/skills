@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:copilot-workspace:2026-09-10",
+  "title": "Copilot CLI: parsed workspace.yaml",
+  "description": "The decoded object from workspace.yaml. This JSON Schema does not parse YAML itself. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/copilot.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Native session ID."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Recorded project cwd."
+    },
+    "git_root": {
+      "type": "string",
+      "description": "Recorded repository root."
+    },
+    "repository": {
+      "type": "string",
+      "description": "Repository identity."
+    },
+    "branch": {
+      "type": "string",
+      "description": "Recorded branch."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Workspace summary text, not a substitute for actual message records."
+    },
+    "summary_count": {
+      "type": "number",
+      "description": "Source summary counter; exact production semantics are not established."
+    },
+    "created_at": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "updated_at": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "id"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-09-10T12:00:00Z",
+  "type": "response_item",
+  "payload": {
+    "type": "function_call",
+    "name": "exec_command",
+    "call_id": "call-1",
+    "arguments": "{\"cmd\":\"pnpm test parser\"}"
+  }
+}

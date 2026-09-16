@@ -161,6 +161,23 @@ automatic/replayed, and `[no-op]` peer output never spends that budget. On a
 no-hit timeout the hook writes `idle`; it must not describe the lease as still
 watching.
 
+## Handing the worktree turn back
+
+When peers share one worktree, release the mutation turn only in one of two
+states, and say which in the handoff message:
+
+- **Committed:** one bounded commit per batch, verified, with the commit hash.
+  This is the default.
+- **Explicitly uncommitted:** list every modified and untracked path and say
+  why they are not committed. Never hand back a mixed tree silently; the other
+  peer must stage by path to avoid absorbing your hunks, and a later formatter
+  or build can change files you did not name.
+
+Exclude local tool side effects (tracking files, generated indexes from a
+local run) from the batch unless they are part of the change. A handoff that
+says "the turn is yours" while sixteen files sit uncommitted is a protocol
+violation, not a convenience.
+
 ## Restart, closeout, and cleanup
 
 The static hook survives client restarts, but an `idle`, terminal, or disarmed

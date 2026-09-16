@@ -121,6 +121,53 @@ budget exhaustion, or near-done drift — the wrapper emits an
   attributed orchestrator round. Always disclose a host-decided round to the user
   — host-decided rounds are not silent.
 
+### Verdict precedence
+
+The order is load-bearing: an explicit `IMPASSE` short-circuits, convergence is tested next, and only a declined convergence consults the escalation triggers, which are then routed by agency.
+
+```mermaid
+flowchart TD
+  ROUND["Round complete<br/>two peer records appended"]
+  IMP{"Either verdict is IMPASSE?"}
+  STOP["status: impasse<br/>reason: explicit_impasse"]
+  CONV{"Converged?<br/>parallel_synthesized: synthesis stability<br/>otherwise: parallel convergence"}
+  DONE["status: converged"]
+  ESC["Escalation triggers consulted<br/>only after impasse and convergence decline"]
+  T1{"persistent_disagreement<br/>parallel_synthesized only:<br/>same unresolved set in 3 syntheses"}
+  T2{"oscillation"}
+  T3{"near_done_drift<br/>both declared agreement,<br/>hashes differ"}
+  T4{"budget_exhausted<br/>supplied when the round budget is spent"}
+  NEXT["No trigger: run another round"]
+  ROUTE["routeEscalation(trigger, agency, records)"]
+  AUTO["decide_via: auto<br/>terminates deterministically<br/>declare_done or near_match"]
+  HOST["decide_via: host<br/>resume with --host-direction"]
+  USER["decide_via: user<br/>resume with --user-direction"]
+  PROMO["Repeat-fire after a HOST_DECISION,<br/>or decision_kind defer_to_user<br/>promotes host to user"]
+
+  ROUND --> IMP
+  IMP -->|yes| STOP
+  IMP -->|no| CONV
+  CONV -->|yes| DONE
+  CONV -->|no| ESC
+  ESC --> T1
+  T1 -->|no| T2
+  T2 -->|no| T3
+  T3 -->|no| T4
+  T4 -->|no| NEXT
+  NEXT --> ROUND
+  T1 -->|yes| ROUTE
+  T2 -->|yes| ROUTE
+  T3 -->|yes| ROUTE
+  T4 -->|yes| ROUTE
+  ROUTE --> AUTO
+  ROUTE --> HOST
+  ROUTE --> USER
+  HOST -.-> PROMO
+  PROMO -.-> USER
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Host-mediated parallel sections
 
 Parallel section orchestration is host mediated: the wrapper prepares packets and

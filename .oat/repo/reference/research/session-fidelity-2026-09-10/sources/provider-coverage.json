@@ -1,0 +1,230 @@
+[
+  {
+    "provider": "claude-code",
+    "title": "Claude Code",
+    "document": "providers/01-claude-code.md",
+    "schemas": [
+      "claude-code-record"
+    ],
+    "evidence": [
+      "S-CORE",
+      "S-FORMATS",
+      "C-SCHEMAS",
+      "C-CLAUDE",
+      "C-TOOLS",
+      "R-CLAUDE"
+    ]
+  },
+  {
+    "provider": "codex",
+    "title": "Codex",
+    "document": "providers/02-codex.md",
+    "schemas": [
+      "codex-record"
+    ],
+    "evidence": [
+      "S-CORE",
+      "S-FORMATS",
+      "C-SCHEMAS",
+      "C-CODEX",
+      "R-CODEX",
+      "X-PARSER"
+    ]
+  },
+  {
+    "provider": "cursor",
+    "title": "Cursor agent transcripts",
+    "document": "providers/03-cursor.md",
+    "schemas": [
+      "cursor-frame"
+    ],
+    "evidence": [
+      "S-CORE",
+      "S-OBSERVER-GUIDE",
+      "C-CURSOR",
+      "C-SCHEMAS"
+    ]
+  },
+  {
+    "provider": "copilot",
+    "title": "GitHub Copilot CLI",
+    "document": "providers/04-copilot.md",
+    "schemas": [
+      "copilot-event",
+      "copilot-workspace"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-COPILOT"
+    ]
+  },
+  {
+    "provider": "gemini",
+    "title": "Gemini CLI",
+    "document": "providers/05-gemini.md",
+    "schemas": [
+      "gemini-record",
+      "gemini-session"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-GEMINI"
+    ]
+  },
+  {
+    "provider": "opencode",
+    "title": "OpenCode",
+    "document": "providers/06-opencode.md",
+    "schemas": [
+      "opencode-part",
+      "opencode-sqlite-row"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-OPENCODE",
+      "R-README"
+    ]
+  },
+  {
+    "provider": "droid",
+    "title": "Factory Droid",
+    "document": "providers/07-droid.md",
+    "schemas": [
+      "droid-event",
+      "droid-settings"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-DROID",
+      "C-TOOLS"
+    ]
+  },
+  {
+    "provider": "amp",
+    "title": "Amp",
+    "document": "providers/08-amp.md",
+    "schemas": [
+      "amp-thread"
+    ],
+    "evidence": [
+      "C-AMP",
+      "R-AMP",
+      "R-README"
+    ]
+  },
+  {
+    "provider": "kiro",
+    "title": "Kiro IDE, persisted logs, and ACP",
+    "document": "providers/09-kiro.md",
+    "schemas": [
+      "kiro-ide-session",
+      "kiro-persisted-record",
+      "kiro-acp-record"
+    ],
+    "evidence": [
+      "C-KIRO"
+    ]
+  },
+  {
+    "provider": "crush",
+    "title": "Crush",
+    "document": "providers/10-crush.md",
+    "schemas": [
+      "crush-parts",
+      "crush-sqlite-row"
+    ],
+    "evidence": [
+      "C-CRUSH"
+    ]
+  },
+  {
+    "provider": "cline",
+    "title": "Cline",
+    "document": "providers/11-cline.md",
+    "schemas": [
+      "cline-ui",
+      "cline-api"
+    ],
+    "evidence": [
+      "C-CLINE",
+      "C-REGISTRY"
+    ]
+  },
+  {
+    "provider": "roo-code",
+    "title": "Roo Code",
+    "document": "providers/12-roo-code.md",
+    "schemas": [
+      "roo-code-ui",
+      "roo-code-api"
+    ],
+    "evidence": [
+      "C-CLINE",
+      "C-REGISTRY"
+    ]
+  },
+  {
+    "provider": "kilo-code",
+    "title": "Kilo Code",
+    "document": "providers/13-kilo-code.md",
+    "schemas": [
+      "kilo-code-ui",
+      "kilo-code-api",
+      "kilo-code-sqlite-row"
+    ],
+    "evidence": [
+      "C-CLINE",
+      "C-REGISTRY"
+    ]
+  },
+  {
+    "provider": "antigravity",
+    "title": "Antigravity: CLI and IDE surfaces",
+    "document": "providers/14-antigravity.md",
+    "schemas": [
+      "antigravity-cli-step"
+    ],
+    "evidence": [
+      "R-ANTIGRAVITY",
+      "C-ANTIGRAVITY"
+    ]
+  },
+  {
+    "provider": "kimi",
+    "title": "Kimi",
+    "document": "providers/15-kimi.md",
+    "schemas": [
+      "kimi-context-record",
+      "kimi-state"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-KIMI"
+    ]
+  },
+  {
+    "provider": "qwen-code",
+    "title": "Qwen Code",
+    "document": "providers/16-qwen-code.md",
+    "schemas": [
+      "qwen-code-record"
+    ],
+    "evidence": [
+      "C-SCHEMAS",
+      "C-QWEN"
+    ]
+  },
+  {
+    "provider": "pi",
+    "title": "Pi",
+    "document": "providers/17-pi.md",
+    "schemas": [
+      "pi-record"
+    ],
+    "evidence": [
+      "R-PI",
+      "R-README",
+      "R-PROVIDER"
+    ]
+  }
+]

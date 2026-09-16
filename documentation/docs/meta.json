@@ -1,9 +1,3 @@
 {
-  "pages": [
-    "index",
-    "---User Guide---",
-    "user-guide",
-    "---Engineering---",
-    "engineering"
-  ]
+  "pages": ["[Home](/)", "user-guide", "engineering"]
 }

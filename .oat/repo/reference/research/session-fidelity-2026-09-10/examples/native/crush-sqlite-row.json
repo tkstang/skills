@@ -1,0 +1,7 @@
+{
+  "id": "msg-demo",
+  "session_id": "session-demo",
+  "role": "assistant",
+  "parts": "[{\"type\": \"tool_call\", \"data\": {\"id\": \"c1\", \"name\": \"bash\", \"input\": {\"command\": \"pnpm test parser\"}, \"finished\": true}}, {\"type\": \"tool_result\", \"data\": {\"tool_call_id\": \"c1\", \"name\": \"bash\", \"content\": \"Test failed.\", \"is_error\": true}}]",
+  "model": "model-recorded-by-client"
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:antigravity-cli-step:2026-09-10",
+  "title": "Antigravity CLI: observed canonical transcript step",
+  "description": "One step in Antigravity CLI canonical transcript.jsonl. Not the diagnostic transcript_full.jsonl or IDE conversation protobuf. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/antigravitysessions/parser.go"
+  ],
+  "type": "object",
+  "properties": {
+    "step_index": {
+      "type": "number",
+      "description": "Native step index used to derive indexed message identity."
+    },
+    "source": {
+      "type": "string",
+      "description": "Recorded source; USER_EXPLICIT and MODEL are recognized for conversation."
+    },
+    "type": {
+      "type": "string",
+      "description": "Step kind; USER_INPUT and PLANNER_RESPONSE are indexed."
+    },
+    "status": {
+      "type": "string",
+      "description": "Recorded step status; reviewed importer includes only DONE."
+    },
+    "created_at": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "content": {
+      "description": "Step content. The reviewed importer only accepts string-valued conversation content."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

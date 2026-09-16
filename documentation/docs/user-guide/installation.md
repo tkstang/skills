@@ -105,7 +105,31 @@ installed-skill prerequisite. The build materializes each skill's shared runtime
 closure into its standalone or plugin installation unit, so installed payloads
 do not import a sibling skill, this checkout, or developer dependencies.
 
-## Optional standalone skills
+## Install one standalone skill
+
+Run this from the project where you want the skill available. This example
+installs the generated Next Steps payload for Codex:
+
+```bash
+npx skills add https://github.com/tkstang/skills/tree/main/skills/next-steps --agent codex
+```
+
+Use `--agent claude-code` or `--agent cursor` for those hosts. The
+[Skills CLI](https://github.com/vercel-labs/skills#install-a-skill) defaults to
+project scope; review the installer confirmation and avoid `--global` unless
+you want a user-wide install. This direct source URL does not depend on a
+skills.sh search listing.
+
+For a local checkout, replace the URL with the absolute path to the generated
+payload, such as `/path/to/skills/skills/next-steps`. Do not install from
+`src/skills/`: executable owners need their generated runtime and resources.
+
+Verify the installer lists the intended skill and target agent, then start a
+fresh agent session and check its skill inventory. Try the bounded request in
+[Getting Started](getting-started/index.md). A successful file install alone
+does not establish fresh-session discovery or live workflow behavior.
+
+## Standalone catalog
 
 Only skills explicitly declared for standalone output have a generated directory
 under `skills/`:
@@ -121,11 +145,6 @@ under `skills/`:
 | `session-export-transcript`   | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
 | `session-fork-to-destination` | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
 | `complexity-review`           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
-
-The two renamed skills use a clean break: `export-session-transcript` and
-`coding-session-handoff` are no longer generated install names or script paths.
-There are no compatibility aliases, redirects, or wrappers. Update invocations
-to `session-export-transcript` and `session-fork-to-destination`.
 
 Qualified invocation syntax depends on the host. Claude Code and Codex include
 the plugin namespace; Cursor's local `--plugin-dir` load exposes the local name

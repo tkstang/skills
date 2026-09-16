@@ -12,7 +12,12 @@ with the generated [decision index](https://github.com/tkstang/skills/blob/main/
 as the repository-wide inventory. Create records with `oat decision new`; do
 not hand-edit the managed index section.
 
-Three accepted decisions define the current source and distribution model:
+These accepted decisions explain the source and distribution model:
+
+- [Canonical TypeScript sources](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/decisions/DR-260615-canonical-typescript-sources.md)
+  separates contributor feedback from dependency-free, committed runtime.
+  Its original path examples are historical; use [Repository Layout](repository-layout.md)
+  and [Build & Distribution](architecture/generated-runtime.md) for the current structure.
 
 - [Declared skill distributions](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/decisions/DR-260914-declared-skill-distributions.md)
   keeps one complete authored owner, declares each supported target, bundles
@@ -30,7 +35,7 @@ runtime dependency installer. Those choices preserve a source's provenance:
 one editable owner remains identifiable even when several generated consumers
 ship it.
 
-Recent Session Observer Collaboration decisions separately record the sibling
+Recent Collaborative Observer decisions separately record the sibling
 composition layer, non-human wake-envelope authority boundary, bounded
 lifecycle continuation, and acting-runtime setup selection. They preserve the
 N=2 scope and evidence-gated provider posture without promoting documented

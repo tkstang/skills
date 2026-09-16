@@ -15,6 +15,58 @@ pnpm-managed dev dependencies.
 - pnpm for developer dependencies. Install with `pnpm install`. Git hooks install
   automatically on `pnpm install`.
 
+## Change, generate, verify, release
+
+Edit the canonical owner and its distribution declaration, bump `metadata.version`, run `pnpm run build`, then verify. The live-provider check is an independent manual gate: no workflow invokes it and the release workflow does not require it.
+
+```mermaid
+flowchart TD
+  subgraph change["1 · Change canonical source"]
+    OWN["src/skills/&lt;name&gt;/<br/>SKILL.md, runtime, build.json"]
+    SH["src/shared/ · src/plugins/"]
+    DECL["src/distributions.ts<br/>declare every supported target"]
+    VER["Bump metadata.version<br/>in the canonical SKILL.md"]
+  end
+  BUILD["2 · pnpm run build<br/>writes skills/ and plugins/ payloads"]
+  subgraph static["3 · Static verification · no provider calls"]
+    TC["pnpm run type-check"]
+    TEST["pnpm test<br/>incl. generated-output drift guard"]
+    BC["pnpm run build:check<br/>inventory, bytes, exec modes"]
+    VAL["pnpm run validate<br/>structure, manifests, docs"]
+    SMOKE["pnpm run smoke<br/>mocked consensus wrapper flow"]
+    SV["pre-push: validate:skill-versions<br/>changed skill must bump"]
+  end
+  subgraph release["4 · Release · outside the build"]
+    BUMP["scripts/bump-version.ts<br/>writes the new plugin version"]
+    MAN["Provider manifests and<br/>marketplace catalogs<br/>updated before tagging"]
+    PRT["pluginReleaseTargets<br/>independent plugin versions"]
+    TAG["Tag consensus-v* / session-v*"]
+    VERIFY["Release workflow reruns the static suite<br/>and checkTagVersion verifies the tag<br/>against the already-written manifests"]
+  end
+  LIVE["Independent manual gate<br/>pnpm run test:live-e2e, or the Live Provider E2E<br/>workflow_dispatch — no workflow invokes it,<br/>and the Release workflow does not require it"]
+
+  OWN --> BUILD
+  SH --> BUILD
+  DECL --> BUILD
+  VER --> BUILD
+  BUILD --> TC
+  BUILD --> TEST
+  BUILD --> BC
+  BUILD --> VAL
+  BUILD --> SMOKE
+  BUILD --> SV
+  BC -.->|"drift: fix source, rebuild"| BUILD
+  SMOKE --> BUMP
+  SV --> BUMP
+  BUMP --> MAN
+  BUMP --> PRT
+  MAN --> TAG
+  PRT --> TAG
+  TAG --> VERIFY
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Verification command set
 
 Run:
@@ -27,7 +79,7 @@ pnpm run validate
 pnpm run smoke
 ```
 
-- `pnpm run type-check` — type-checks the canonical TypeScript source.
+- `pnpm run type-check` — checks canonical TypeScript, development scripts, and tests without emitting runtime files.
 - `pnpm test` — the full Vitest suite, including the generated-output drift guard.
 - `pnpm run build:check` — compares every declared committed installation unit
   with a freshly staged payload, including file inventory, bytes, and executable
@@ -44,25 +96,17 @@ cross-provider testing release requirement — see
 
 ## Minimum sufficient testing
 
-Match proof to the boundary changed:
-
-| Change                            | Smallest useful proof                                                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Skill behavior                    | Colocated owner tests and a focused manual inspection or invocation for the changed behavior.                            |
-| Shared source                     | Shared-owner tests plus focused tests for affected consumers.                                                            |
-| Distribution or packaging         | Root packaging/tooling tests and `pnpm run build:check`.                                                                 |
-| Distinct installed runtime layout | A representative synthetic installation outside the checkout with isolated home/config and deterministic provider stubs. |
-
-The existing
-[`tests/tooling/skill-packaging.test.ts`](https://github.com/tkstang/skills/blob/main/tests/tooling/skill-packaging.test.ts)
-covers representative prompt-only, shared-runtime, standalone, and complete
-plugin boundaries. Extend an existing proof surface when behavior changes; do
-not create a skill × provider Cartesian matrix, prose snapshots, test quotas,
-or live provider calls for ordinary repository verification.
+Match proof to the boundary changed: owner behavior, shared code, packaging,
+or installed execution. [Testing](testing.md) provides the selection table,
+focused commands, and the distinction between deterministic checks and live
+acceptance. [TypeScript & Build Tooling](typescript-and-build-tooling.md)
+explains why type checking and runtime generation are separate steps.
 
 ## Contents
 
+- [TypeScript & Build Tooling](typescript-and-build-tooling.md) — Understand the compiler, script runner, bundler, imports, and authored JavaScript exception.
 - [Adding a skill or distribution](adding-a-skill.md) — Add prompt-only or executable owners, new targets, workflow references, or a new plugin without creating parallel sources.
+- [Testing](testing.md) — Choose focused tests, verify installed artifacts, and distinguish mocked checks from live acceptance.
 - [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, canonical owners, generated distributions, skill version bumps, and worktrees.
 - [Commit conventions](commit-conventions.md) — Conventional Commits format, common types, and how it is enforced.
 - [Hooks and safety](hooks-and-safety.md) — Git hooks, lint-staged, skill version-bump enforcement, and lint/format exclusions.
