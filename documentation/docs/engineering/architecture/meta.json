@@ -4,6 +4,7 @@
   "pages": [
     "../repository-layout",
     "generated-runtime",
+    "consensus-runtime",
     "transcript-core",
     "cursor-collaboration-reliability"
   ]

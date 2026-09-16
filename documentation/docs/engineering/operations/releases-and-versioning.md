@@ -21,7 +21,8 @@ version, including instructions, runtime, tests, references, assets, and build
 declarations. Never edit generated skill versions directly. See
 [Repository Conventions](../contributing/development/conventions.md).
 
-The version tool keeps the selected boundary together. For example, after
+The [version tool](https://github.com/tkstang/skills/blob/main/scripts/bump-version.ts)
+keeps the selected boundary together. For example, after
 choosing the appropriate new version:
 
 ```bash

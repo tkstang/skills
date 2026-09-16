@@ -1,9 +1,9 @@
 ---
-title: 'Generated installation units'
+title: 'Build & Distribution'
 description: 'The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.'
 ---
 
-# Generated installation units
+# Build & Distribution
 
 Every product skill is authored once under `src/skills/`. The distribution
 catalog renders complete committed installation units under `skills/` and
@@ -124,11 +124,6 @@ Plugin releases are separate: `plugins/consensus/` and `plugins/session/` each
 have their own provider and marketplace manifest version. Bumping a plugin does
 not rewrite its member skill versions; bumping a skill does not rewrite either
 plugin release version.
-
-The historical mapping for `export-session-transcript` and
-`coding-session-handoff` exists only so the version guard can compare renamed
-owners. The builder emits no legacy payload, alias, redirect, wrapper, or old
-script entrypoint.
 
 ## Consensus plugin-local runtime layout
 

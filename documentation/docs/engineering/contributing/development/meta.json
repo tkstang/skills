@@ -2,7 +2,9 @@
   "title": "Development",
   "pagesIndex": "[Setup & Workflow](/engineering/contributing/development)",
   "pages": [
+    "typescript-and-build-tooling",
     "adding-a-skill",
+    "testing",
     "conventions",
     "commit-conventions",
     "hooks-and-safety"

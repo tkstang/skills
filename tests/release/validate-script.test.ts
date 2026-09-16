@@ -94,13 +94,20 @@ async function createValidTempRepository() {
   await mkdir(path.join(tempRoot, '.claude-plugin'), { recursive: true });
   await mkdir(path.join(tempRoot, '.cursor-plugin'), { recursive: true });
   await mkdir(path.join(tempRoot, '.agents/plugins'), { recursive: true });
+  await mkdir(path.join(tempRoot, 'documentation/docs/user-guide'), {
+    recursive: true,
+  });
 
   await writeFile(
     path.join(tempRoot, 'README.md'),
+    '# Test\n\nhttps://tkstang.github.io/skills/user-guide/installation/\n',
+  );
+  await writeFile(
+    path.join(tempRoot, 'documentation/docs/user-guide/installation.md'),
     [
-      '# Test',
+      '# Installation',
       '',
-      '## Install',
+      '## Install matrix',
       '',
       '```bash',
       'claude plugin marketplace add "$PWD" --scope user',
@@ -372,11 +379,11 @@ describe('validate-script', () => {
     expect(skillIssues.length).toBe(1);
     expect(skillIssues[0]).toMatch(/escape/i);
 
-    // This fixture README is intentionally bare, so every install-entry-point
-    // check fires: the heading, all five matrix commands, and the docs link.
+    // The README is bare and the installation page is missing: the matrix
+    // heading, all five commands, and the entry-point link checks fire.
     const readmeIssues = await validateReadmeInstallMatrix(tempRoot);
     expect(readmeIssues.length).toBe(7);
-    expect(readmeIssues[0]).toMatch(/Install section/);
+    expect(readmeIssues[0]).toMatch(/Install matrix section/);
     expect(readmeIssues).toContainEqual(
       expect.stringMatching(/Codex marketplace command/),
     );
@@ -384,6 +391,32 @@ describe('validate-script', () => {
       expect.stringMatching(/Cursor plugin-dir command/),
     );
     expect(readmeIssues.at(-1)).toMatch(/Installation docs page/);
+  });
+
+  it('keeps provider commands on the installation page, with a README entry link', async () => {
+    const tempRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'docs-install-matrix-'),
+    );
+    const docsDir = path.join(tempRoot, 'documentation/docs/user-guide');
+    await mkdir(docsDir, { recursive: true });
+    const installation = await readFile(
+      path.join(repoRoot, 'documentation/docs/user-guide/installation.md'),
+      'utf8',
+    );
+    await writeFile(path.join(docsDir, 'installation.md'), installation);
+    await writeFile(
+      path.join(tempRoot, 'README.md'),
+      '# Skills\n\n[Install](https://tkstang.github.io/skills/user-guide/installation/)\n',
+    );
+    expect(await validateReadmeInstallMatrix(tempRoot)).toEqual([]);
+
+    await writeFile(
+      path.join(docsDir, 'installation.md'),
+      installation.replace('codex plugin marketplace add "$PWD"', 'omitted'),
+    );
+    expect(await validateReadmeInstallMatrix(tempRoot)).toEqual([
+      'Installation docs missing Codex marketplace command',
+    ]);
   });
 
   it('version consistency and full repository validation pass', async () => {

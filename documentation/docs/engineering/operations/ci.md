@@ -37,6 +37,8 @@ run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 [Generated installation units](../architecture/generated-runtime.md).
 
 PR-only policies are additional gates, not implied by the command set above.
+The local pre-push hook runs validate, build freshness, type checking, skill
+versions, and internal flags; it deliberately does not run tests or smoke.
 For their local behavior, see [Hooks & Safety](../contributing/development/hooks-and-safety.md)
 and [Commit Conventions](../contributing/development/commit-conventions.md).
 Repository lint/format checks are changed-file scoped; do not format the entire

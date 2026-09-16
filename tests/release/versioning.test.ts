@@ -86,6 +86,7 @@ const guidanceDistributionFiles = [
 ];
 const requiredDocs = [
   'README.md',
+  'documentation/docs/user-guide/installation.md',
   'LICENSE',
   'CHANGELOG.md',
   'CONTRIBUTING.md',
@@ -120,6 +121,7 @@ async function tempReleaseRoot() {
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
   for (const file of requiredDocs) {
+    await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
   await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');

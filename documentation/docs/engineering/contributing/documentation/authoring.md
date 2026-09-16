@@ -21,6 +21,12 @@ Three surfaces serve different readers and must stay aligned:
   carry one.
 - **`meta.json` controls the rendered sidebar's ordering and grouping.** It is
   authored alongside the local map, not generated from `## Contents`.
+- **Sidebar groups may borrow canonical pages from elsewhere.** Use native
+  relative folder references or link entries rather than copying a guide or
+  moving it only to match the sidebar. Local maps still cover their immediate
+  physical children and may include additional cross-directory destinations.
+- **Capability headings inside `## Contents` are allowed.** They organize the
+  authored map; `meta.json` separators independently define sidebar groups.
 - **`documentation/index.md` is a generated file-tree inventory.** It is not
   the source of sidebar order and must not be edited by hand.
 
@@ -105,13 +111,22 @@ dashes act as section separators:
 
 ```json
 {
-  "pages": ["index", "authoring", "markdown-features", "review-checklist"]
+  "title": "Documentation",
+  "pagesIndex": "[Overview](/engineering/contributing/documentation)",
+  "pages": ["authoring", "markdown-features", "review-checklist"]
 }
 ```
 
-Pages not listed still resolve, but their sidebar position is left to the
-default. When you add a page that needs a specific slot, add its slug to the
-parent `meta.json`.
+With an explicit `pages` list, unlisted pages may still resolve without appearing
+in that sidebar group. Add each intended entry explicitly. `pagesIndex` makes
+the folder label link to its landing page; it does not add a second visible
+Overview row.
+
+For cross-directory grouping, `"../consensus"` borrows a sibling folder and
+`"[Collaborative Observer](/user-guide/skills/session-observer-collab)"` links to
+an existing page with a navigation-specific label. These are sidebar references,
+not redirects or duplicate documents. Use relative `.md` links in the authored
+Contents map even when the sidebar uses route-based links.
 
 ## Local workflow
 
@@ -130,7 +145,7 @@ metadata, so inspect it as well as the file-tree inventory.
 Before you push, build the site the way CI does:
 
 ```bash
-cd documentation && pnpm build
+cd documentation && NEXT_PUBLIC_BASE_PATH=/skills pnpm build
 ```
 
 `pnpm build` runs `prebuild` (regenerating the manifest) and then the production

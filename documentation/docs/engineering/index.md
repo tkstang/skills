@@ -24,5 +24,5 @@ produce committed standalone and plugin installation units under `skills/` and
 - [Documentation](contributing/documentation/index.md) — Authoring, supported Markdown, navigation, and review guidance.
 - [Operations](operations/index.md) — CI, docs deployment, release evidence, and independent skill/plugin versioning.
 - [Decisions](decisions.md) — Where durable architecture/product decisions are recorded.
-- [Repository Layout](repository-layout.md) — The canonical source and generated-package map, grouped under Architecture in the sidebar.
-- [Contributing](contributing/index.md) — The existing source-directory map for Development and Documentation; both are directly accessible in the sidebar.
+- [Repository Layout](repository-layout.md) — Find canonical source, generated packages, and developer tooling.
+- [Contributing](contributing/index.md) — Browse development and documentation contribution guidance.

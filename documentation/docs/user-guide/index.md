@@ -32,5 +32,5 @@ installation names for the form you have installed.
 - [Getting Started](getting-started/index.md) — Choose an installation form and try a bounded request.
 - [Plugins](plugins/index.md) — Compare Consensus and Session, then explore their members.
 - [Standalone Skills](skills/index.md) — Find every independently installable skill by capability.
-- [Installation](installation.md) — The canonical provider setup and update reference, also under Getting Started in the sidebar.
-- [Consensus](consensus/index.md) — The canonical Consensus guides, grouped under Plugins in the sidebar.
+- [Installation](installation.md) — Provider setup, standalone installation, prerequisites, and updates.
+- [Consensus](consensus/index.md) — Peer workflows, observation, collaboration, and configuration.

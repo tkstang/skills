@@ -27,7 +27,7 @@ pnpm run validate
 pnpm run smoke
 ```
 
-- `pnpm run type-check` — type-checks the canonical TypeScript source.
+- `pnpm run type-check` — checks canonical TypeScript, development scripts, and tests without emitting runtime files.
 - `pnpm test` — the full Vitest suite, including the generated-output drift guard.
 - `pnpm run build:check` — compares every declared committed installation unit
   with a freshly staged payload, including file inventory, bytes, and executable
@@ -44,25 +44,17 @@ cross-provider testing release requirement — see
 
 ## Minimum sufficient testing
 
-Match proof to the boundary changed:
-
-| Change                            | Smallest useful proof                                                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Skill behavior                    | Colocated owner tests and a focused manual inspection or invocation for the changed behavior.                            |
-| Shared source                     | Shared-owner tests plus focused tests for affected consumers.                                                            |
-| Distribution or packaging         | Root packaging/tooling tests and `pnpm run build:check`.                                                                 |
-| Distinct installed runtime layout | A representative synthetic installation outside the checkout with isolated home/config and deterministic provider stubs. |
-
-The existing
-[`tests/tooling/skill-packaging.test.ts`](https://github.com/tkstang/skills/blob/main/tests/tooling/skill-packaging.test.ts)
-covers representative prompt-only, shared-runtime, standalone, and complete
-plugin boundaries. Extend an existing proof surface when behavior changes; do
-not create a skill × provider Cartesian matrix, prose snapshots, test quotas,
-or live provider calls for ordinary repository verification.
+Match proof to the boundary changed: owner behavior, shared code, packaging,
+or installed execution. [Testing](testing.md) provides the selection table,
+focused commands, and the distinction between deterministic checks and live
+acceptance. [TypeScript & Build Tooling](typescript-and-build-tooling.md)
+explains why type checking and runtime generation are separate steps.
 
 ## Contents
 
+- [TypeScript & Build Tooling](typescript-and-build-tooling.md) — Understand the compiler, script runner, bundler, imports, and authored JavaScript exception.
 - [Adding a skill or distribution](adding-a-skill.md) — Add prompt-only or executable owners, new targets, workflow references, or a new plugin without creating parallel sources.
+- [Testing](testing.md) — Choose focused tests, verify installed artifacts, and distinguish mocked checks from live acceptance.
 - [Conventions](conventions.md) — Repository conventions: dependency-free shipped skills, canonical owners, generated distributions, skill version bumps, and worktrees.
 - [Commit conventions](commit-conventions.md) — Conventional Commits format, common types, and how it is enforced.
 - [Hooks and safety](hooks-and-safety.md) — Git hooks, lint-staged, skill version-bump enforcement, and lint/format exclusions.

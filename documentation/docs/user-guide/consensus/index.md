@@ -51,6 +51,26 @@ For the deepest reference — operator-QA walkthroughs, exact commands, and exam
 inputs — see the
 [consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
 
+## Peers, not personas
+
+Consensus invokes provider CLIs as separate processes, rather than assigning
+several roles inside one conversation. The host remains responsible for acting
+on results. Disagreement is preserved in the artifact and deliberation log:
+an impasse is a valid result, `decide` includes a dissent section, and `panel`
+does not synthesize its independently attributed responses.
+
+For example, after installing the plugin in Claude Code:
+
+```text
+/consensus:refine draft.md --goal "tighten the failure-handling section"
+/consensus:panel --question "Should retries live in the client or gateway?" --panel-size 3
+```
+
+The first seeks a refined artifact with an audit trail; the second gives you
+separate perspectives to judge. Codex uses `$consensus:refine` and
+`$consensus:panel`. Cursor's local plugin load uses the local skill names;
+see [Installation](../installation.md) for the host-specific setup.
+
 ## Iteration modes
 
 The shipped consensus skills support three iteration modes, selected with

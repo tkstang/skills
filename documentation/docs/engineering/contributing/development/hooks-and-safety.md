@@ -19,10 +19,10 @@ hook setup entirely (CI/Docker).
 
 ## Pre-commit: lint-staged
 
-The `pre-commit` hook runs `lint-staged` over staged files only. JS and Markdown
-are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt**
-(`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`,
-`.oxfmtrc.json`.
+The `pre-commit` hook runs `lint-staged` over staged files only. JavaScript,
+TypeScript, JSON, and Markdown are formatted with **oxfmt**; JavaScript and
+TypeScript are also linted with **oxlint**. Config: `.oxlintrc.json`,
+`.oxfmtrc.json`, and `.lintstagedrc.mjs`.
 
 Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged
 files only, and CI lints/format-checks only the files a PR changes. The repo has
@@ -31,6 +31,10 @@ follow-up. Until then, do not run `pnpm format` across the whole tree in unrelat
 PRs.
 
 ## Pre-push: skill version-bump enforcement
+
+The pre-push hook runs `validate`, `build:check`, `type-check`, skill-version
+validation, and internal-flag validation. Tests and smoke are intentionally
+left to the full local check set and CI, not duplicated in this fast hook.
 
 Changed skills must bump their version. Any change under a canonical skill
 directory (`src/skills/<name>/`) requires that skill's quoted

@@ -5,8 +5,9 @@
   - [Engineering](engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Architecture
     - [Architecture](engineering/architecture/index.md) — The single-owner and generated-installation-unit architecture behind dependency-free shipped skills.
+    - [Consensus Runtime](engineering/architecture/consensus-runtime.md) — How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.
     - [Cursor Collaboration Reliability](engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.
-    - [Generated installation units](engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
+    - [Build & Distribution](engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
     - [Shared transcript-core](engineering/architecture/transcript-core.md) — How per-provider transcript knowledge has one shared source under src/shared/transcript, with a complete generated copy shipped per installation unit.
   - Contributing
     - [Contributing](engineering/contributing/index.md) — Development workflow and conventions, plus the docs authoring contract for this repo.
@@ -16,6 +17,8 @@
       - [Commit conventions](engineering/contributing/development/commit-conventions.md) — Conventional Commits format for commit messages and PR titles, the common types, and how the commit-msg hook (commitlint) plus CI enforce it.
       - [Conventions](engineering/contributing/development/conventions.md) — Repository conventions: canonical skill owners, generated distributions, dependency-free runtime, metadata.version bumps, and worktree checks.
       - [Hooks and safety](engineering/contributing/development/hooks-and-safety.md) — Git hooks in this repo: install on pnpm install, pre-commit lint-staged (oxlint/oxfmt over staged files), skill version-bump enforcement, and the lint/format exclusions for generated, synced, and agent-instruction files.
+      - [Testing](engineering/contributing/development/testing.md) — Choose tests for behavior, shared code, generated installation units, and mocked provider flows without confusing them with live acceptance.
+      - [TypeScript & Build Tooling](engineering/contributing/development/typescript-and-build-tooling.md) — How canonical TypeScript, NodeNext checking, tsx, esbuild, and generated Node 22 ESM installation units fit together.
     - Documentation
       - [Documentation](engineering/contributing/documentation/index.md) — The docs authoring contract for this Fumadocs site: navigation rules, supported Markdown, and the review checklist agents and humans follow.
       - [Authoring](engineering/contributing/documentation/authoring.md) — How to author and restructure pages in this Fumadocs site: the index.md + ## Contents navigation contract, the .md-link convention, the generated-index discipline, and the local workflow.

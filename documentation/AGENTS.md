@@ -15,6 +15,13 @@ This file scopes work in `documentation/` and inherits the root instructions. Th
 2. **Rendered sidebar:** adjacent `meta.json` files control page order and grouping. Keep them aligned with the local maps when adding, moving, removing, or reordering pages.
 3. **Generated inventory:** app-root `documentation/index.md` lists the file tree. Regenerate it; never hand-edit it or treat its order as sidebar order.
 
+Sidebar groups may borrow pages or folders from other directories through native
+Fumadocs relative references or link entries. Preserve canonical URLs rather
+than copying guides to match navigation. Local `## Contents` maps must still
+cover their immediate physical pages/child directories; they may also link
+cross-directory reader destinations. Capability subheadings inside Contents are
+allowed, but only `meta.json` separators define rendered sidebar groups.
+
 Use relative `.md` links, including `subdir/index.md`; the rendering transform normalizes them. Update both source and destination maps/sidebar metadata in the same change when moving a page. Do not introduce `overview.md` entrypoints or another navigation framework.
 
 ## Commands and verification

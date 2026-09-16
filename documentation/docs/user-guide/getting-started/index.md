@@ -21,8 +21,9 @@ need both plugins or every standalone skill.
 
 ## Install the form you chose
 
-Use the [Installation guide](../installation.md) for your host's plugin setup,
-standalone payload links, prerequisites, and current verification limits.
+For Next Steps, follow [Install one standalone skill](../installation.md#install-one-standalone-skill)
+for a copyable command targeting Codex, Claude Code, or Cursor. For a plugin,
+use the [installation matrix](../installation.md#install-matrix).
 Plugin-local names and standalone names differ; each skill guide identifies
 the available forms. Avoid installing both forms of the same skill unless you
 intend to manage duplicate host entries.
@@ -30,7 +31,9 @@ intend to manage duplicate host entries.
 ## Try a bounded request
 
 Once Next Steps is available in your agent, invoke `$next-steps` in Codex or
-`/next-steps` in Claude Code, followed by a small example:
+`/next-steps` in Claude Code. In Cursor, select the installed skill in the host's
+skill interface or ask it to use Next Steps; check that it loads the skill
+before relying on the response. Use a small example:
 
 > The feature is implemented. Review found one empty-input bug and no other
 > blockers. What should we do next, and why? Recommend a path; do not change

@@ -417,13 +417,18 @@ export async function validateReadmeInstallMatrix(
   const readme = await readFile(readmePath, 'utf8');
   const issues: string[] = [];
 
-  if (!/^## Install$/m.test(readme)) {
-    issues.push('README.md missing Install section');
+  // The README is an entry point; the docs site owns the complete matrix.
+  // Preserve the release gate without requiring two copies of each command.
+  const installationPath = path.join(
+    root,
+    'documentation/docs/user-guide/installation.md',
+  );
+  const installation = (await pathExists(installationPath))
+    ? await readFile(installationPath, 'utf8')
+    : '';
+  if (!/^## Install matrix$/m.test(installation)) {
+    issues.push('Installation docs missing Install matrix section');
   }
-
-  // The README carries the three-provider install matrix: it is the tag-time
-  // gate, re-verified against live provider CLIs at release, and the entry
-  // point claims cross-provider support in its first sentence.
   const matrixCommands: Array<[string, RegExp]> = [
     [
       'Claude Code marketplace',
@@ -442,13 +447,13 @@ export async function validateReadmeInstallMatrix(
   ];
 
   for (const [label, pattern] of matrixCommands) {
-    if (!pattern.test(readme)) {
-      issues.push(`README.md missing ${label} command`);
+    if (!pattern.test(installation)) {
+      issues.push(`Installation docs missing ${label} command`);
     }
   }
 
-  // Prerequisites and caveats stay on the docs site, so the matrix must route
-  // readers there rather than growing a second copy of that prose.
+  // Readers must be able to reach prerequisites, commands, and caveats from
+  // the repository entry point.
   if (!/user-guide\/installation\//.test(readme)) {
     issues.push('README.md missing link to the Installation docs page');
   }
