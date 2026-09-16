@@ -258,7 +258,8 @@ oat_generated: false
 **Gate run:** `5d81d0bd-08cf-4353-be4c-1fba7b9c14f6`; target `claude-fable-skip-permissions`; reviewer family `claude`, different from the OpenAI implementation family.
 **Envelope:** `ok`, receive eligible, 0 Critical, 0 Important, 0 Medium, 0 Minor; artifact `reviews/final-review-2026-09-16T220057Z.md` committed at `fadae61e`.
 **Reconciliation:** The configured gate completed and wrote a valid receipt before the local zsh wrapper attempted to assign its exit code to the read-only `status` variable. The durable receipt, artifact, run ID, and gate marker event corroborate the terminal result; no relaunch occurred.
-**Status:** Result persisted; eligible receive is pending.
+**Receive intent:** Bound to run `5d81d0bd-08cf-4353-be4c-1fba7b9c14f6`, source `reviews/final-review-2026-09-16T220057Z.md`, collision-free archive `reviews/archived/final-review-2026-09-16T220057Z.md`, and pre-receive head `198b87378fe97135d4bc4157cdf15787b76de164`.
+**Status:** Result persisted; eligible receive intent is durable.
 
 ## Deviations from Plan / Design
 
