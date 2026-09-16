@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -138,12 +138,12 @@ export {
 };
 
 import {
+  atomicWriteFile,
   createRecordsWriter,
   peerRecords,
   peerTurnCount,
   readExistingRecords,
   synthesisRecordCount,
-  syncFileIfAvailable,
   withRecordMetadata,
   writeLoopStatus,
 } from './loop-records.js';
@@ -200,8 +200,7 @@ async function writeSectionOutput(
   artifact: string,
 ): Promise<void> {
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 
 async function writeTerminalArtifacts(
@@ -260,11 +259,10 @@ async function seedRecordsFile(
     withRecordMetadata(record as LoopRecord, options),
   );
   await mkdir(path.dirname(recordsPath), { recursive: true });
-  await writeFile(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}\n`,
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 

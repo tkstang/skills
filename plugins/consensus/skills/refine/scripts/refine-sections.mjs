@@ -3,15 +3,8 @@
 // src/skills/refine/src/refine-sections.ts
 import path6 from "node:path";
 
-// src/plugins/consensus/shared/cli-helpers.ts
-import {
-  lstat,
-  mkdir as mkdir3,
-  realpath,
-  rename as rename2,
-  unlink as unlink2,
-  writeFile as writeFile3
-} from "node:fs/promises";
+// src/plugins/consensus/core/consensus-loop.ts
+import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
 import path4 from "node:path";
 
 // src/plugins/consensus/core/consensus-loop.ts
@@ -2082,9 +2075,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir2(path3.dirname(outputPath), { recursive: true });
-  await writeFile2(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir3(path4.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2123,13 +2115,12 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir2(path3.dirname(recordsPath), { recursive: true });
-  await writeFile2(
+  await mkdir3(path4.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2771,7 +2762,7 @@ import {
   rename as rename3,
   stat,
   unlink as unlink3,
-  writeFile as writeFile4
+  writeFile as writeFile3
 } from "node:fs/promises";
 import path5 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;

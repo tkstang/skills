@@ -376,7 +376,7 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
 import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -2524,8 +2524,7 @@ function detectEscalation(records, {
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
   await mkdir4(path5.dirname(outputPath), { recursive: true });
-  await writeFile4(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2565,12 +2564,11 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
     (record) => withRecordMetadata(record, options)
   );
   await mkdir4(path5.dirname(recordsPath), { recursive: true });
-  await writeFile4(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -3156,7 +3154,7 @@ import {
   rename as rename4,
   stat,
   unlink as unlink3,
-  writeFile as writeFile5
+  writeFile as writeFile4
 } from "node:fs/promises";
 import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
@@ -3303,7 +3301,7 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
     `.${path6.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
   );
   try {
-    await writeFile5(tempPath, contents);
+    await writeFile4(tempPath, contents);
     await syncPathIfAvailable(tempPath);
     await rename4(tempPath, writePath);
     await syncPathIfAvailable(path6.dirname(writePath));
@@ -4262,7 +4260,7 @@ function renderDeliberationArtifact(runResult) {
 }
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile6 } from "node:fs/promises";
+import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
 import path9 from "node:path";
 import { createInterface } from "node:readline/promises";
 var STRICT_RESUME_HASH_OPTIONS = Object.freeze({
@@ -4606,7 +4604,7 @@ async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
   const outputPath = path9.join(runDir, "resume-errors.json");
   await mkdir6(runDir, { recursive: true });
-  await writeFile6(
+  await writeFile5(
     outputPath,
     `${JSON.stringify(
       {

@@ -2,7 +2,7 @@
 // Source: src/plugins/consensus/core/consensus-loop.ts
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir2, readFile as readFile2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile as readFile2 } from "node:fs/promises";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -2175,8 +2175,7 @@ function detectEscalation(records, {
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
   await mkdir2(path3.dirname(outputPath), { recursive: true });
-  await writeFile2(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2216,12 +2215,11 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
     (record) => withRecordMetadata(record, options)
   );
   await mkdir2(path3.dirname(recordsPath), { recursive: true });
-  await writeFile2(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
