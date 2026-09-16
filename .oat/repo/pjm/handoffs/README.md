@@ -22,9 +22,8 @@ Conventions:
 
 ## Current handoffs
 
-The September 16 confirmed stack replaces the July research/loop-quality kickoff. The former handoffs were removed, not their backlog items; they remain recoverable in Git history.
+The September 16 confirmed stack replaces the July research/loop-quality kickoff. The former handoffs and the consumed observer handoff were removed; they remain recoverable in Git history.
 
-- [Observer re-arm investigation — BL-260916-session-observer-re-armed](BL-260916-session-observer-re-armed.md): Sol already started; reference for that assignment, not a duplicate kickoff.
 - [Consensus Review — BL-260916-add-consensus-review-cross](BL-260916-add-consensus-review-cross.md): quick workflow with lightweight design; Astra leads, Fable reviews.
 - [First-party standalone installer — BL-260916-add-a-first-party-install](BL-260916-add-a-first-party-install.md): approved independent parallel lane; user selects owner.
 

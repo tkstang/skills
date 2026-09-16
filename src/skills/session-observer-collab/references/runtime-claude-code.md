@@ -127,21 +127,54 @@ claim.
 
 ## Monitor lifetime and re-arming
 
-A Monitor task expires after 30 minutes (harness cap) and delivers one expiry
-notice. Re-arming is routine, not a failure, but it is the point where reads
-can be lost. On every re-arm:
+Monitor lifetimes are controlled by the active harness. One observed Claude
+Code session produced expiry notices after approximately 30 minutes in that
+session, but that is not a universal Monitor duration or a portable harness
+contract. Treat an expiry, cancellation, disconnect, or uncertain task state
+as a reason to re-check both the Monitor and watcher rather than as proof that
+either is still live.
 
-1. Note the last consumed record from the previous digest.
-2. Run `watch-ctl stop` for the exact pin, then start one new
-   `catch-up-then-watch` with the same arguments.
-3. Compare the new `baselineRecordIndex` line with the last consumed record.
-   If the baseline is ahead of it and no catch-up digest covered the gap, read
-   that record range from the transcript before treating silence as idle, and
-   record the gap in the shared log.
+Use this bounded exact-pin re-arm procedure:
 
-Until the base observer renders such gaps itself (tracked in the repo backlog
-as `BL-260916-session-observer-re-armed`), the re-arm is the observer's
-responsibility.
+1. Freeze automatic collaboration responses and retain the exact
+   `<peer-runtime>:<peer-session-id>` pin. Record the previous digest's raw
+   `nextIndex` and rendered range when one exists.
+2. Stop the old watcher cleanly. Prefer `watch-ctl stop` for the exact active
+   watcher and confirm it no longer appears in `watch-ctl status`. A clean
+   SIGTERM requests orderly shutdown but does not force a pending delta flush;
+   normal max-runtime expiry performs a final poll/flush before it exits.
+3. Start exactly one replacement with `catch-up-then-watch`, the same exact
+   `--session` pin, and the quiet/no-heartbeat arguments above. Do not restart
+   with plain `watch`: it intentionally consumes the unread baseline and emits
+   a `baseline-gap` warning instead of rendering that range.
+4. Inspect the catch-up evidence before resuming automatic responses. The raw
+   range is `[fromIndex, nextIndex)` and the persisted legacy
+   `lastRecordIndex` should equal `nextIndex`. `renderedFromIndex` and
+   `renderedToIndex` identify the rendered subset. Tool-, reasoning-, or
+   metadata-only records can advance the raw range and persisted offset while
+   leaving both rendered indexes null; that is filtered activity, not by
+   itself evidence of a lost peer message.
+5. Resume only after the replacement owns the exact pin and any substantive
+   delta has been handled once. If a competing watcher is reported, keep the
+   established owner and do not start another consumer.
+
+Deterministic synthetic coverage verifies that a renderable message appended
+while stopped is emitted once after clean SIGTERM, `watch-ctl stop`, and normal
+max-runtime lifetimes. It also covers filtered-only advancement, an append
+during replacement startup, and the contender-first same-target interleaving.
+The alternate owner-polls-before-contender-rollback ordering remains a shared
+legacy-offset/compare-and-set limitation: use one watcher per exact target and
+do not treat concurrent consumers as supported.
+
+Two delivery boundaries remain explicit. Legacy Claude/Codex
+`observeCatchUp()` persists `lastRecordIndex = nextIndex` before the watcher
+writes stdout. A rejected stdout write therefore leaves the range consumed,
+and another exact-pin re-arm does not replay it. Separately, even a completed
+stdout write proves only process output; it does not prove the Claude Code
+Monitor delivered those bytes into the observing agent. No synthetic test can
+establish observing-agent delivery. A safe change to either boundary requires
+delivery reservations, compare-and-set checkpoints, or live harness evidence,
+not offset rollback by another consumer.
 
 ## Evidence status (2026-09-16)
 
@@ -149,19 +182,22 @@ One real Claude Code session ran the pinned Monitor recipe against a Codex
 peer for roughly ten hours of collaboration, across five Monitor lifetimes.
 Sanitized observations, with the acceptance area they bear on:
 
-| Acceptance area             | Evidence in that session                                                                                                                                                               | Live status               |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Task notification           | Monitor was callable; every completed substantive peer turn produced one task notification carrying the exact pinned digest range, and the session acted on it once per turn.          | Observed, repeatedly.     |
-| Empty heartbeat suppression | `--quiet-empty` and `--heartbeat-sec 0` produced no notifications during quiet intervals; only `newer-session-candidate` warnings and the baseline line appeared as automatic control. | Observed.                 |
-| Substantive notification    | Peer decisions, requests, and corrections arrived as single notifications and were classified under the no-op rules before any response.                                               | Observed, repeatedly.     |
-| Same-session restart        | Not exercised: the client was not restarted. Monitor expiry and re-arm were exercised five times; two re-arms baselined past unread records (see above).                               | Not run; re-arm observed. |
-| Clean stop                  | `watch-ctl stop` plus Monitor expiry left no watcher process and no lease state; a later peer turn produced no notification.                                                           | Observed.                 |
+| Acceptance area             | Evidence in that session                                                                                                                                                                                              | Live status               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Task notification           | Monitor was callable; every completed substantive peer turn produced one task notification carrying the exact pinned digest range, and the session acted on it once per turn.                                         | Observed, repeatedly.     |
+| Empty heartbeat suppression | `--quiet-empty` and `--heartbeat-sec 0` produced no notifications during quiet intervals; only `newer-session-candidate` warnings and the baseline line appeared as automatic control.                                | Observed.                 |
+| Substantive notification    | Peer decisions, requests, and corrections arrived as single notifications and were classified under the no-op rules before any response.                                                                              | Observed, repeatedly.     |
+| Same-session restart        | Not exercised: the client was not restarted. Monitor expiry and re-arm were exercised five times; two re-arms showed raw gaps later found to contain filtered tool/reasoning activity, not confirmed renderable loss. | Not run; re-arm observed. |
+| Clean stop                  | `watch-ctl stop` plus Monitor expiry left no watcher process and no lease state; a later peer turn produced no notification.                                                                                          | Observed.                 |
+| Task lifetime               | Expiry notices arrived after approximately 30 minutes in that session. No cross-version or cross-harness duration guarantee was established.                                                                          | Session-specific only.    |
 
-Honest posture from that evidence: `event-wake` holds for the lifetime of one
-Monitor task, with a 30-minute ceiling and a manual re-arm. Restart resilience
-remains unvalidated, so a session that loses its client must re-arm from the
-named pin and read the gap rather than claim continuity. The automated
-verification below still checks structure and base watcher behavior only:
+Honest posture from that evidence: `event-wake` was observed repeatedly during
+each tested Monitor task lifetime in that session. Neither one task lifetime
+nor the observed duration is a universal guarantee. Restart resilience remains
+unvalidated, so a session that loses its client must re-arm from the named pin
+and inspect the raw and rendered ranges rather than claim continuity. The
+automated verification below checks persisted state, rendered digests, and
+captured stdout only; it does not verify live Monitor-to-agent delivery:
 
 ```text
 pnpm run validate

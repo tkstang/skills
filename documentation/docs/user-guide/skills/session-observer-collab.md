@@ -118,6 +118,14 @@ delivered no same-parent follow-up, and no existing scheduled callback was
 available. Re-probe after a relevant provider change before selecting a
 stronger tier. Do not describe either lower tier as autonomous wake.
 
+If a Monitor or watcher expires, retain the exact peer pin and follow the base
+observer's [exact-pin re-arm procedure](session-observer.md#re-arm-an-exact-pinned-watcher).
+Raw-index gaps may contain only filtered tool or reasoning activity; they do not
+establish lost conversation. The synthetic re-arm coverage verifies persisted
+state and stdout behavior, not live Monitor-to-agent delivery. The acting Claude
+Code session must still use its runtime reference and complete live sequence
+before claiming `event-wake`.
+
 ## Load one runtime reference
 
 Choose one setup reference from the acting/self runtime established by `whoami`.

@@ -32,7 +32,7 @@ Exact behavior: [Consensus guide](../../../documentation/docs/user-guide/consens
 - Export produces sanitized conversation Markdown by default. General correlated tool/result activity is not yet implemented; the optional `--include-activity` contract remains backlog work.
 - Handoff captures portable continuation context; Retro reviews session evidence. Neither requires native provider-session forking.
 - **Session Fork to Destination is available as an alpha**, canonical version `0.2.3`. It discovers, previews, and prepares instructions for user-controlled Claude Code or Codex destinations; it does not invoke a provider, create a session, or write provider stores. Cursor lacks exact cwd evidence and fails closed. Use explicit supported-provider selection while `--provider all` encounters that incomplete surface.
-- The September 16 re-arm report is **unconfirmed message loss**. Existing catch-up already consumes unread ranges; raw-index gaps can reflect filtering. A reproduction must distinguish persisted offset, emitted digest, and harness delivery.
+- The September 16 re-arm investigation is complete in PR #85. Deterministic fixtures found no lost renderable message across supported clean exact-pin `catch-up-then-watch` restarts, including SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, and competing-consumer interleavings. Raw-index gaps can reflect filtered activity. The legacy offset is persisted before stdout completion, so failed output can consume a range without replay; synthetic coverage verifies state and process stdout, not live harness delivery.
 
 See the [standalone catalog](../../../documentation/docs/user-guide/skills/index.md) and [Session plugin guide](../../../documentation/docs/user-guide/plugins/session/index.md) for usage and supported boundaries.
 
@@ -54,9 +54,9 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Active planning
 
-All **19 active item files remain open and unassigned on this planning branch**; the user reports Sol has started the observer investigation in a separate worktree. No acceptance-complete item was found during the September 16 review. The merged config docs satisfy only the documentation-now portion of **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows**.
+All **18 active item files remain open and unassigned** after closing and archiving the completed observer re-arm investigation. The merged config docs satisfy only the documentation-now portion of **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows**.
 
-The confirmed kickoff has three independent lanes: **BL-260916-session-observer-re-armed — Observer re-arm investigation** (Sol started, per user), **BL-260916-add-consensus-review-cross — Consensus Review** (Astra leads, Fable reviews), and **BL-260916-add-a-first-party-install — First-party standalone installer** (parallel lane approved, owner/start not claimed). The refreshed alignment maps all 19 items to 16 candidate projects, while later ordering remains proposed.
+The confirmed kickoff now has two active independent lanes after the observer investigation completed: **BL-260916-add-consensus-review-cross — Consensus Review** (Astra leads, Fable reviews) and **BL-260916-add-a-first-party-install — First-party standalone installer** (parallel lane approved, owner/start not claimed). The refreshed alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
 Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session fidelity precedes the merged activity projection. Neither delivers safe N>2 consumer ownership automatically.
 

@@ -227,6 +227,34 @@ async function appendCodexMessage(
   );
 }
 
+async function appendCodexRecord(
+  transcriptPath: string,
+  sessionId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await appendFile(
+    transcriptPath,
+    JSON.stringify({ sessionId, payload }) + '\n',
+    'utf8',
+  );
+}
+
+function parseJsonLines(output: string): any[] {
+  return output
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
+async function legacySessionState(
+  stateDir: string,
+  sessionId: string,
+): Promise<any> {
+  const state = await readJsonIfExists(join(stateDir, 'state.json'));
+  return state?.sessions?.[`codex:${sessionId}`] ?? null;
+}
+
 async function readJsonIfExists(path: string): Promise<any> {
   try {
     return JSON.parse(await readFile(path, 'utf8'));
@@ -497,6 +525,524 @@ describe('runWatchLoop', () => {
       expect(
         state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex,
       ).toBe(1);
+    });
+  });
+
+  test.each([
+    { stop: 'watch-ctl', expectedReason: 'control-stop' },
+    { stop: 'max-runtime', expectedReason: 'max-runtime' },
+  ])(
+    're-arms an exact Codex pin after a clean $stop lifetime',
+    async ({ stop, expectedReason }) => {
+      await withTempSessionHome(async (home, stateDir) => {
+        const cwd = '/test/codex-rearm-clean-stop';
+        const sessionId = `codex-rearm-${stop}`;
+        const transcriptPath = await writeCodexTranscript(
+          home,
+          cwd,
+          sessionId,
+          [{ role: 'assistant', content: 'first lifetime baseline' }],
+        );
+        const firstStdout: string[] = [];
+        let firstNow = Date.UTC(2026, 8, 16, 12, 0, 0);
+        let stopIssued = false;
+
+        const first = await runWatchLoop(
+          {
+            runtime: 'codex',
+            cwd,
+            session: `codex:${sessionId}`,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+          },
+          {
+            writeStdout: (chunk: string) => firstStdout.push(chunk),
+            now: () => firstNow,
+            sleep: async (ms: number) => {
+              firstNow += ms;
+              if (stop !== 'watch-ctl' || stopIssued) return;
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
+              if (
+                state?.watchers?.some((watcher: any) =>
+                  watcher.targets?.some(
+                    (target: any) => target.key === `codex:${sessionId}`,
+                  ),
+                )
+              ) {
+                stopIssued = true;
+                await watchState.writeControlDirective('stop');
+              }
+            },
+          },
+        );
+
+        expect(first.reason).toBe(expectedReason);
+        expect(first.eventCount).toBe(0);
+        expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+          lastRecordIndex: 2,
+          lastTotalRecords: 2,
+        });
+        expect(
+          parseJsonLines(firstStdout.join('')).some(
+            (event) => event.type === 'delta',
+          ),
+        ).toBe(false);
+
+        const rearmMessage = `renderable message after ${stop}`;
+        await appendCodexMessage(transcriptPath, sessionId, rearmMessage);
+        const secondStdout: string[] = [];
+        let secondNow = Date.UTC(2026, 8, 16, 12, 5, 0);
+        const second = await runWatchLoop(
+          {
+            runtime: 'codex',
+            cwd,
+            session: `codex:${sessionId}`,
+            catchUpFirst: true,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+          },
+          {
+            writeStdout: (chunk: string) => secondStdout.push(chunk),
+            now: () => secondNow,
+            sleep: async (ms: number) => {
+              secondNow += ms;
+            },
+          },
+        );
+
+        const deltas = parseJsonLines(secondStdout.join('')).filter(
+          (event) => event.type === 'delta',
+        );
+        expect(second).toEqual({ reason: 'max-runtime', eventCount: 1 });
+        expect(deltas).toHaveLength(1);
+        expect(deltas[0]).toMatchObject({
+          runtime: 'codex',
+          sessionId,
+          newRecords: 1,
+          ranges: {
+            fromIndex: 2,
+            toIndex: 2,
+            nextIndex: 3,
+            renderedFromIndex: 2,
+            renderedToIndex: 2,
+          },
+          digest: {
+            accounting: { rendered: { count: 1 } },
+            entries: [expect.objectContaining({ text: rearmMessage })],
+          },
+        });
+        expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+          lastRecordIndex: 3,
+          lastTotalRecords: 3,
+        });
+      });
+    },
+  );
+
+  test('re-arms an exact Codex pin after clean SIGTERM shutdown', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-sigterm';
+      const sessionId = 'codex-rearm-sigterm';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'SIGTERM lifetime baseline' },
+      ]);
+      const env = { ...process.env, HOME: home, STATE_DIR: stateDir };
+      const child = spawn(
+        'node',
+        [
+          CLI_PATH,
+          'watch',
+          '--runtime',
+          'codex',
+          '--session',
+          `codex:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--poll-sec',
+          '0.02',
+          '--debounce-sec',
+          '0.02',
+          '--max-runtime-min',
+          '0',
+          '--json',
+        ],
+        { env, stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      let firstStdout = '';
+      let firstStderr = '';
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', (chunk) => {
+        firstStdout += chunk;
+      });
+      child.stderr.on('data', (chunk) => {
+        firstStderr += chunk;
+      });
+
+      try {
+        await waitFor(async () => {
+          const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+          return state?.active?.targets?.some(
+            (target: any) => target.key === `codex:${sessionId}`,
+          );
+        });
+        child.kill('SIGTERM');
+        const [code, signal] = await once(child, 'exit');
+        expect(signal, firstStderr).toBe(null);
+        expect(code, firstStderr).toBe(0);
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL');
+        }
+      }
+
+      const firstEvents = parseJsonLines(firstStdout);
+      expect(firstEvents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'stopped',
+            reason: 'signal',
+          }),
+        ]),
+      );
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 2,
+      });
+
+      const rearmMessage = 'renderable message after SIGTERM';
+      await appendCodexMessage(transcriptPath, sessionId, rearmMessage);
+      const second = await runCli(
+        [
+          'catch-up-then-watch',
+          '--runtime',
+          'codex',
+          '--session',
+          `codex:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--poll-sec',
+          '0.02',
+          '--debounce-sec',
+          '0.02',
+          '--max-runtime-min',
+          '0.002',
+          '--json',
+        ],
+        env,
+      );
+      expect(
+        second.status,
+        `re-arm failed\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      ).toBe(0);
+      const deltas = parseJsonLines(second.stdout).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        ranges: {
+          fromIndex: 2,
+          nextIndex: 3,
+          renderedFromIndex: 2,
+          renderedToIndex: 2,
+        },
+        digest: {
+          entries: [expect.objectContaining({ text: rearmMessage })],
+        },
+      });
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+      });
+    });
+  });
+
+  test('advances filtered-only raw ranges without hiding the next renderable Codex message', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-filtered';
+      const sessionId = 'codex-rearm-filtered';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'filtered-range baseline' },
+      ]);
+      let nowMs = Date.UTC(2026, 8, 16, 13, 0, 0);
+      await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+
+      await appendCodexRecord(transcriptPath, sessionId, {
+        type: 'function_call',
+        name: 'read_file',
+        arguments: JSON.stringify({ path: '/sanitized/example.md' }),
+      });
+      const filteredStdout: string[] = [];
+      let filteredNow = Date.UTC(2026, 8, 16, 13, 5, 0);
+      const filtered = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => filteredNow,
+          sleep: async (ms: number) => {
+            filteredNow += ms;
+          },
+          writeStdout: (chunk: string) => filteredStdout.push(chunk),
+        },
+      );
+
+      expect(filtered).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(
+        parseJsonLines(filteredStdout.join('')).some(
+          (event) => event.type === 'delta',
+        ),
+      ).toBe(false);
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+
+      const visibleMessage = 'renderable message after filtered-only range';
+      await appendCodexMessage(transcriptPath, sessionId, visibleMessage);
+      const visibleStdout: string[] = [];
+      let visibleNow = Date.UTC(2026, 8, 16, 13, 10, 0);
+      await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => visibleNow,
+          sleep: async (ms: number) => {
+            visibleNow += ms;
+          },
+          writeStdout: (chunk: string) => visibleStdout.push(chunk),
+        },
+      );
+      const visibleDeltas = parseJsonLines(visibleStdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(visibleDeltas).toHaveLength(1);
+      expect(visibleDeltas[0]).toMatchObject({
+        ranges: {
+          fromIndex: 3,
+          nextIndex: 4,
+          renderedFromIndex: 3,
+          renderedToIndex: 3,
+        },
+        digest: {
+          accounting: { rendered: { count: 1 } },
+          entries: [expect.objectContaining({ text: visibleMessage })],
+        },
+      });
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 4,
+        lastTotalRecords: 4,
+      });
+    });
+  });
+
+  test('captures an exact-pin append during catch-up-then-watch startup', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-startup-append';
+      const sessionId = 'codex-rearm-startup-append';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'startup append baseline' },
+      ]);
+      let firstNow = Date.UTC(2026, 8, 16, 14, 0, 0);
+      await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => firstNow,
+          sleep: async (ms: number) => {
+            firstNow += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+
+      const startupMessage = 'message appended during re-arm startup';
+      const stdout: string[] = [];
+      let appended = false;
+      let secondNow = Date.UTC(2026, 8, 16, 14, 5, 0);
+      const result = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => secondNow,
+          sleep: async (ms: number) => {
+            secondNow += ms;
+          },
+          stat: async (path: string) => {
+            if (!appended && path === transcriptPath) {
+              appended = true;
+              await appendCodexMessage(
+                transcriptPath,
+                sessionId,
+                startupMessage,
+              );
+            }
+            return fsStat(path);
+          },
+          writeStdout: (chunk: string) => stdout.push(chunk),
+        },
+      );
+
+      const deltas = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(appended).toBe(true);
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 1 });
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        ranges: {
+          fromIndex: 2,
+          nextIndex: 3,
+          renderedFromIndex: 2,
+          renderedToIndex: 2,
+        },
+        digest: {
+          entries: [expect.objectContaining({ text: startupMessage })],
+        },
+      });
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+      });
+    });
+  });
+
+  test('characterizes legacy persisted consumption before a failed stdout write', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-stdout-failure';
+      const sessionId = 'codex-rearm-stdout-failure';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'stdout failure baseline' },
+      ]);
+      let firstNow = Date.UTC(2026, 8, 16, 15, 0, 0);
+      await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => firstNow,
+          sleep: async (ms: number) => {
+            firstNow += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+
+      const undeliveredMessage = 'legacy message before rejected stdout';
+      await appendCodexMessage(transcriptPath, sessionId, undeliveredMessage);
+      const attemptedChunks: string[] = [];
+      let failedNow = Date.UTC(2026, 8, 16, 15, 5, 0);
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'codex',
+            cwd,
+            session: `codex:${sessionId}`,
+            catchUpFirst: true,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.002,
+          },
+          {
+            now: () => failedNow,
+            sleep: async (ms: number) => {
+              failedNow += ms;
+            },
+            writeStdout: (chunk: string) => {
+              if (!chunk.includes('"type":"delta"')) return;
+              attemptedChunks.push(chunk);
+              return Promise.reject(
+                new Error('synthetic legacy stdout rejection'),
+              );
+            },
+          },
+        ),
+      ).rejects.toThrow('synthetic legacy stdout rejection');
+      expect(attemptedChunks).toHaveLength(1);
+      expect(attemptedChunks[0]).toContain(undeliveredMessage);
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+
+      const replayStdout: string[] = [];
+      let replayNow = Date.UTC(2026, 8, 16, 15, 10, 0);
+      const replay = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => replayNow,
+          sleep: async (ms: number) => {
+            replayNow += ms;
+          },
+          writeStdout: (chunk: string) => replayStdout.push(chunk),
+        },
+      );
+      expect(replay).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(
+        parseJsonLines(replayStdout.join('')).some(
+          (event) => event.type === 'delta',
+        ),
+      ).toBe(false);
+      expect(replayStdout.join('')).not.toContain(undeliveredMessage);
     });
   });
 
@@ -2154,6 +2700,276 @@ describe('runWatchLoop', () => {
       expect(
         stdoutB.join('').includes('baseline codex:same-cwd-codex'),
       ).toBeTruthy();
+    });
+  });
+
+  test('restores the shared Codex offset when a contender loses before the owner polls', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-contender-first';
+      const sessionId = 'codex-rearm-contender-first';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'contender-first baseline' },
+      ]);
+      vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+      let ownerNow = Date.UTC(2026, 8, 16, 16, 0, 0);
+      let ownerSleepCount = 0;
+      let ownerSleepingResolve: (() => void) | undefined;
+      const ownerSleeping = new Promise<void>((resolve) => {
+        ownerSleepingResolve = resolve;
+      });
+      let releaseOwnerResolve: (() => void) | undefined;
+      const releaseOwner = new Promise<void>((resolve) => {
+        releaseOwnerResolve = resolve;
+      });
+      const ownerStdout: string[] = [];
+      const owner = runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          pid: 4111,
+          handleSignals: false,
+          now: () => ownerNow,
+          sleep: async (ms: number) => {
+            ownerNow += ms;
+            ownerSleepCount += 1;
+            if (ownerSleepCount === 1) {
+              ownerSleepingResolve?.();
+              await releaseOwner;
+            }
+          },
+          writeStdout: (chunk: string) => ownerStdout.push(chunk),
+        },
+      );
+
+      await ownerSleeping;
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 2,
+      });
+      const contenderMessage = 'owner receives contender-first append';
+      await appendCodexMessage(transcriptPath, sessionId, contenderMessage);
+
+      let contenderNow = Date.UTC(2026, 8, 16, 16, 1, 0);
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'codex',
+            cwd,
+            session: `codex:${sessionId}`,
+            catchUpFirst: true,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.002,
+          },
+          {
+            pid: 4222,
+            handleSignals: false,
+            now: () => contenderNow,
+            sleep: async (ms: number) => {
+              contenderNow += ms;
+            },
+            writeStdout: () => {},
+          },
+        ),
+      ).rejects.toThrow(
+        'watcher pid 4111 is already watching codex:codex-rearm-contender-first',
+      );
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 2,
+        lastTotalRecords: 3,
+      });
+
+      releaseOwnerResolve?.();
+      const ownerResult = await owner;
+      const ownerDeltas = parseJsonLines(ownerStdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(ownerResult).toEqual({ reason: 'max-runtime', eventCount: 1 });
+      expect(ownerDeltas).toHaveLength(1);
+      expect(ownerDeltas[0]).toMatchObject({
+        ranges: { fromIndex: 2, nextIndex: 3 },
+        digest: {
+          entries: [expect.objectContaining({ text: contenderMessage })],
+        },
+      });
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+    });
+  });
+
+  test('characterizes the shared-offset race when the owner polls before contender rollback', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/codex-rearm-owner-polls-first';
+      const sessionId = 'codex-rearm-owner-polls-first';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'owner-polls-first baseline' },
+      ]);
+      vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+      let ownerNow = Date.UTC(2026, 8, 16, 17, 0, 0);
+      let ownerSleepCount = 0;
+      let ownerSleepingResolve: (() => void) | undefined;
+      const ownerSleeping = new Promise<void>((resolve) => {
+        ownerSleepingResolve = resolve;
+      });
+      let releaseOwnerResolve: (() => void) | undefined;
+      const releaseOwner = new Promise<void>((resolve) => {
+        releaseOwnerResolve = resolve;
+      });
+      let ownerPolledResolve: (() => void) | undefined;
+      const ownerPolled = new Promise<void>((resolve) => {
+        ownerPolledResolve = resolve;
+      });
+      let continueOwnerResolve: (() => void) | undefined;
+      const continueOwner = new Promise<void>((resolve) => {
+        continueOwnerResolve = resolve;
+      });
+      const ownerStdout: string[] = [];
+      const owner = runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          pid: 5111,
+          handleSignals: false,
+          now: () => ownerNow,
+          sleep: async (ms: number) => {
+            ownerNow += ms;
+            ownerSleepCount += 1;
+            if (ownerSleepCount === 1) {
+              ownerSleepingResolve?.();
+              await releaseOwner;
+            } else if (ownerSleepCount === 2) {
+              ownerPolledResolve?.();
+              await continueOwner;
+            }
+          },
+          writeStdout: (chunk: string) => ownerStdout.push(chunk),
+        },
+      );
+
+      await ownerSleeping;
+      const interleavedMessage = 'message in owner-before-rollback window';
+      await appendCodexMessage(transcriptPath, sessionId, interleavedMessage);
+
+      const findLiveWatcherForTarget = watchState.findLiveWatcherForTarget;
+      let contenderAtConflictResolve: (() => void) | undefined;
+      const contenderAtConflict = new Promise<void>((resolve) => {
+        contenderAtConflictResolve = resolve;
+      });
+      let releaseConflictResolve: (() => void) | undefined;
+      const releaseConflict = new Promise<void>((resolve) => {
+        releaseConflictResolve = resolve;
+      });
+      vi.spyOn(watchState, 'findLiveWatcherForTarget').mockImplementation(
+        async (args = {}) => {
+          if (args.excludePid === 5222) {
+            contenderAtConflictResolve?.();
+            await releaseConflict;
+          }
+          return findLiveWatcherForTarget(args);
+        },
+      );
+
+      let contenderNow = Date.UTC(2026, 8, 16, 17, 1, 0);
+      const contender = runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          pid: 5222,
+          handleSignals: false,
+          now: () => contenderNow,
+          sleep: async (ms: number) => {
+            contenderNow += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+
+      await contenderAtConflict;
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+      await watchState.writeControlDirective('flush', { pid: 5111 });
+      releaseOwnerResolve?.();
+      await ownerPolled;
+      expect(
+        parseJsonLines(ownerStdout.join('')).some(
+          (event) => event.type === 'delta',
+        ),
+      ).toBe(false);
+
+      releaseConflictResolve?.();
+      await expect(contender).rejects.toThrow(
+        'watcher pid 5111 is already watching codex:codex-rearm-owner-polls-first',
+      );
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 2,
+        lastTotalRecords: 3,
+      });
+
+      continueOwnerResolve?.();
+      const ownerResult = await owner;
+      expect(ownerResult).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(ownerStdout.join('')).not.toContain(interleavedMessage);
+
+      const recoveryStdout: string[] = [];
+      let recoveryNow = Date.UTC(2026, 8, 16, 17, 5, 0);
+      const recovery = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => recoveryNow,
+          sleep: async (ms: number) => {
+            recoveryNow += ms;
+          },
+          writeStdout: (chunk: string) => recoveryStdout.push(chunk),
+        },
+      );
+      const recoveryDeltas = parseJsonLines(recoveryStdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(recovery).toEqual({ reason: 'max-runtime', eventCount: 1 });
+      expect(recoveryDeltas).toHaveLength(1);
+      expect(recoveryDeltas[0]).toMatchObject({
+        ranges: { fromIndex: 2, nextIndex: 3 },
+        digest: {
+          entries: [expect.objectContaining({ text: interleavedMessage })],
+        },
+      });
     });
   });
 

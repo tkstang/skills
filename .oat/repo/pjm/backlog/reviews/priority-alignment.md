@@ -3,6 +3,8 @@
 **Date:** 2026-09-16
 **Status:** Active — three immediate lanes confirmed; later project grouping and order proposed, not operator-approved.
 
+> **Closeout update (2026-09-16):** The observer re-arm lane subsequently completed in PR #85 and its item moved to `backlog/archived/`. Statements below that describe it as open or in flight preserve the planning snapshot taken before that closeout; the current roadmap and backlog index are authoritative for active work.
+
 The July kickoff stack is superseded. This is the operator execution view; see the [full review](backlog-and-roadmap-review.md) for ratings/evidence, [roadmap](../../roadmap.md) for horizons, [current state](../../current-state.md) for merged capability, and [item index](../index.md) for canonical records.
 
 ## Operator context and approval boundary
@@ -13,11 +15,11 @@ These are **three approved independent lanes**, not a dependency chain. The rema
 
 ## Finishing / in flight
 
-[BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../items/BL-260916-session-observer-re-armed.md) is **started with Sol, per the user**. Its canonical item remains open on this planning branch; Sol owns implementation tracking and acceptance-based closeout in its worktree. The handoff is a reference for that existing assignment, not a second dispatch.
+[BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) is **started with Sol, per the user**. Its canonical item remains open on this planning branch; Sol owns implementation tracking and acceptance-based closeout in its worktree. The handoff is a reference for that existing assignment, not a second dispatch.
 
 ## Confirmed kickoff stack
 
-1. **Continue:** [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../items/BL-260916-session-observer-re-armed.md) — Sol; bounded reproduction first.
+1. **Continue:** [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) — Sol; bounded reproduction first.
 2. **Kick off:** [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) — Astra leads a quick workflow with lightweight design; Fable observes and reviews. The design must settle reviewer config/selection, scope capture, read-only policy/capture writes, owned schema and OAT rendering. This alignment does not claim the project has already been scaffolded.
 3. **Parallel kickoff:** [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) — independent implementation worktree; owner selected by the user. Approved as a parallel lane, not claimed started.
 
@@ -29,7 +31,7 @@ There are **16 project candidates covering 19 items**: one three-ticket maintena
 
 | Priority / approval | Project candidate | Backlog membership | Grouping boundary |
 | --- | --- | --- | --- |
-| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../items/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
+| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
 | Now — approved | Consensus Review | [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) | Quick workflow + lightweight design; Astra leads, Fable reviews. No unrelated loop changes. |
 | Now — approved parallel | Standalone installer | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | Independent quick project; integrity, overwrite/ref semantics and host-specific destinations remain explicit. |
 | Next — proposed 1 | Consensus runtime maintenance | [BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows](../items/BL-260916-honor-configured-peer-models.md); [BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic](../items/BL-260723-make-remaining-consensus-loop.md); [BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing](../items/BL-260723-split-loop-free-cli-helpers.md) | One project, three independently verifiable phases/commits: model propagation, atomic writes, helper split. Shared runtime/output ownership justifies grouping, not a hard dependency; each can ship separately. Only helper extraction may move into Review if its design demonstrates direct need. |
