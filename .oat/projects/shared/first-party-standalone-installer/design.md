@@ -14,7 +14,7 @@ oat_template_name: design
 
 Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior byte-for-byte at the contract level. Calling it with `--skill`, `--agent`, and an explicit `--ref` selects the new path: resolve an exact tag from the configured Git repository, read only the generated `skills/<name>/` payload, and install it into the selected host's project-scoped skills directory.
 
-The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and atomically reserves the final name with an exclusive `mkdir`. Only after acquiring that absent path does it populate and verify the owned destination. Existing or concurrently created destinations are refused, and a failed population removes only the reservation created by this process.
+The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and atomically reserves the final name with an exclusive `mkdir`. Only after acquiring that absent path does it add a reserved installer marker, populate the directory, verify the payload while ignoring only that marker, and remove the marker to publish success. Existing or concurrently created destinations are refused. A post-reservation failure leaves the marked partial directory for explicit recovery rather than recursively deleting a path that concurrent activity may have altered.
 
 The verification claim is deliberately narrow. Exact-tag resolution pins the selected repository revision, and the inventory comparison proves that the installed payload matches that selected source. The command does not claim cryptographic authorship of the tag, independent release attestation, fresh-session discovery, or live provider behavior. Those live checks remain explicit release gates.
 
@@ -35,7 +35,7 @@ The standalone flow uses Git as the only external acquisition boundary. It clone
 - **Pinned source resolver:** Checks out and verifies an exact tag into a temporary directory.
 - **Payload validator:** Enforces confinement and regular-file/directory entry types and records a complete file inventory.
 - **Host mapper:** Maps the explicit agent to a project-relative destination and invocation display.
-- **Staged publisher:** Copies, re-inventories, compares, and renames an absent destination into place.
+- **Staged publisher:** Copies, re-inventories, compares, exclusively reserves the absent destination, and publishes only after marked population verifies.
 
 ### Data Flow
 
@@ -68,7 +68,10 @@ arguments
    atomically mkdir absent destination
           |
           v
-   populate + verify owned destination
+   add marker + populate + verify destination
+          |
+          v
+   remove marker and report success
           |
           v
    print installed path + host invocation name
@@ -125,8 +128,11 @@ Empty directories and directory permission modes are not part of the payload ide
 - Refuse any existing destination, including a dangling symlink, during preflight.
 - Create a same-parent staging directory, preserve file modes during copy, and verify the stage.
 - Re-check destination ancestors immediately before publication, then atomically reserve the final path with exclusive `mkdir`; failure means a concurrent directory or symlink won and must be preserved unchanged.
-- Populate only the owned reservation, verify its complete inventory, and remove that exact reservation on copy or verification failure.
-- Remove only owned temporary paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
+- Reject a source payload that already contains the reserved installer marker name.
+- Add the marker immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Create each payload file through Bash noclobber redirection before writing bytes and applying its declared mode; never use an overwrite-capable copy into the final directory.
+- Verify the complete destination inventory while excluding only the marker, and remove the marker only after verification succeeds.
+- On post-reservation copy or verification failure, preserve the marked partial directory and report its exact recovery path. Never recursively delete the final path, because concurrent content or path replacement cannot be proven to belong to this invocation.
+- Remove owned staging and checkout paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
 
 ## API Design
 
@@ -150,7 +156,7 @@ Success output includes the selected tag, final project-relative path, verificat
 
 Validation and acquisition errors exit nonzero with an `install.sh:` prefix and no destination mutation. These include incomplete flags, invalid names, unsupported agents, invalid tags, missing tags, missing generated payloads, authored-source-only fixtures, unsafe entry types, symlinked destination ancestors, and existing destinations.
 
-Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses `mkdir <destination>` as the atomic no-clobber operation. If that exclusive reservation fails, the installer preserves the competing directory or symlink unchanged. If population or final verification fails after reservation, the installer removes only the destination it successfully reserved, identified by invocation-owned state, plus its staging directory. This intentionally avoids claiming atomic directory rename semantics that portable shell tools cannot provide.
+Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses `mkdir <destination>` as the atomic no-clobber reservation. If that fails, the installer preserves the competing directory or symlink unchanged. After reservation, the installer writes a reserved marker, creates every payload directory and file with no-clobber semantics, and verifies the payload while excluding only the marker. A competing entry at any payload path therefore fails instead of being overwritten. If population or final verification fails, the installer cleans the checkout and stage but deliberately leaves the marked partial destination with a recovery error. It never recursively removes the final path, because a concurrent writer or path replacement would make ownership ambiguous. Success removes the marker only after payload verification.
 
 The command performs no automatic retry. Git/network failures are reported with the repository and tag context so the operator can retry deliberately.
 
@@ -170,7 +176,9 @@ Key scenarios:
 - Annotated tags work, and a same-named branch/tag fixture with different payload bytes installs the peeled tag commit's bytes.
 - Symlink/special-entry payloads and symlinked destination ancestors are refused.
 - Existing destinations remain byte-for-byte unchanged, including deterministic races that create a directory or symlink after preflight but before exclusive reservation.
-- Copy or inventory mismatch failure leaves no final destination and cleans the owned staging path.
+- A source payload using the reserved marker name is rejected.
+- Competing directories or files created after reservation are never overwritten; deterministic fixtures assert that their bytes survive.
+- Copy or inventory mismatch after reservation leaves a clearly marked partial destination, preserves concurrent additions or a replacement path, cleans only checkout/staging paths, and causes subsequent installs to refuse the existing path.
 
 ### Documentation and Contract Tests
 

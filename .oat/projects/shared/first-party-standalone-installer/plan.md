@@ -20,7 +20,7 @@ oat_template: true
 
 **Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host's project-scoped skills directory while preserving the existing Consensus recovery installer.
 
-**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, verified population, and host invocation output.
+**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, marked verified population, and host invocation output.
 
 **Tech Stack:** Bash, Git, Node.js 22 repository tooling, Vitest, temporary local Git fixtures, Fumadocs Markdown.
 
@@ -63,7 +63,9 @@ Cover:
 - annotated-tag handling and a same-named branch/tag fixture with different bytes that must install the peeled tag commit;
 - existing destination preservation;
 - deterministic post-preflight directory and symlink collision refusal with competing content preserved;
-- injected copy or inventory failure with no published destination and cleaned staging/reservation state;
+- post-reservation competing directory/file creation and destination replacement, proving no-clobber population and no recursive cleanup preserve foreign bytes;
+- reserved marker-name rejection;
+- injected post-reservation copy or inventory failure that leaves a marked partial destination, preserves concurrent additions, cleans checkout/staging state, and makes a later install refuse the existing path;
 - zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
 
 Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
@@ -80,8 +82,9 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 - Map hosts to `.agents/skills`, `.claude/skills`, or `.cursor/skills` beneath the physical current project.
 - Refuse existing destinations and symlinked destination ancestors during preflight, then repeat the ancestor check immediately before publication.
 - Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; and verify inventory equality.
-- Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail. Populate and verify only the owned reservation, and remove that exact reservation on failure.
-- Clean only owned temporary paths and print the verified path plus host invocation name.
+- Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail.
+- Reject the reserved marker name in source payloads. Add the marker after reservation; create payload directories parent-first with exclusive `mkdir`; create payload files through Bash noclobber redirection before applying modes; never overwrite a final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
+- On post-reservation failure, preserve the marked partial destination and any concurrent additions, report explicit recovery, and clean only owned checkout/staging paths. Print the verified path plus host invocation name only after the marker is removed.
 
 **Step 4: Format and verify**
 
