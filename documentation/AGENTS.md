@@ -51,7 +51,7 @@ Mermaid is the source of truth for diagrams. Inline fenced `mermaid` blocks rend
 
 When a polished SVG counterpart exists in `public/diagrams/`, wrap the SVG and the Mermaid source in a `===` tab group, SVG first, with an italic date caption on each tab so drift is visible. See [Markdown features](docs/engineering/contributing/documentation/markdown-features.md) for the exact syntax and the SVG authoring rules.
 
-- Every node and labelled edge must be verifiable against source code, not only prose. The per-node evidence lives in `.oat/repo/reference/evidence/diagrams/`; update that record when you add or change a diagram. Draw the code, not the docs, when they disagree, and fix the docs.
+- Every node and labelled edge must be verifiable against source code, not only prose. Verify affected claims against their canonical source when you add or change a diagram. Draw the code, not the docs, when they disagree, and fix the docs.
 - Bump the Mermaid date caption when you edit Mermaid for a behaviour change.
 - Do not regenerate or restyle an SVG unless you know the diagram workflow.
 - When a diagram, the theme (`app/globals.css`), or the diagram wrappers (`components/mermaid.tsx`, `components/image.tsx`) change, view the affected pages in a browser at desktop and phone widths in both themes, including Mermaid inside tabs. The static export cannot prove Mermaid parse errors, tab content, hydration validity, or label legibility. Prose-only edits need only the build and link checks.
