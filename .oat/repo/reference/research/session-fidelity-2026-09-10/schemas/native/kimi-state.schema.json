@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kimi-state:2026-09-10",
+  "title": "Kimi: observed state/metadata JSON subset",
+  "description": "Decoded state.json or legacy metadata.json companion; current reader gives state fields precedence when explicitly present. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kimi.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Native session ID."
+    },
+    "title": {
+      "type": "string",
+      "description": "Generated/default title."
+    },
+    "custom_title": {
+      "type": "string",
+      "description": "Explicit title preferred by the inspected state reader."
+    },
+    "title_generated": {
+      "type": "boolean",
+      "description": "Whether title was generated."
+    },
+    "archived": {
+      "type": "boolean",
+      "description": "Whether session is marked archived."
+    },
+    "archived_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+        },
+        {
+          "type": "number",
+          "description": "Native numeric archive time."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wire_mtime": {
+      "anyOf": [
+        {
+          "type": "number",
+          "description": "Wire-log modification indicator as stored by source; not itself a conversation event."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:droid-event:2026-09-10",
+  "title": "Factory Droid: observed session JSONL event",
+  "description": "One event under the Factory session/project transcript roots. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/droid.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "session_start, message, todo_state, compaction_state, or an unmodeled event."
+    },
+    "id": {
+      "type": "string",
+      "description": "session_start: session ID; other records: event ID."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "parentId": {
+      "type": "string",
+      "description": "Native parent event/message ID."
+    },
+    "title": {
+      "type": "string",
+      "description": "Session title field."
+    },
+    "sessionTitle": {
+      "type": "string",
+      "description": "User-facing session title."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Recorded owner metadata."
+    },
+    "version": {
+      "type": "number",
+      "description": "Recorded session data version."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Recorded working directory."
+    },
+    "isSessionTitleManuallySet": {
+      "type": "boolean",
+      "description": "Whether title was set manually."
+    },
+    "sessionTitleAutoStage": {
+      "type": "string",
+      "description": "Provider auto-title stage."
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Native user/assistant carrier role; results can use user role."
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Content-block discriminator; unknown variants must remain reachable."
+              },
+              "text": {
+                "type": "string",
+                "description": "Text content when this block is textual."
+              },
+              "thinking": {
+                "type": "string",
+                "description": "Recorded thinking text, when present; not a guarantee of all model reasoning."
+              },
+              "id": {
+                "type": "string",
+                "description": "Tool-call/block identifier when present."
+              },
+              "name": {
+                "type": "string",
+                "description": "Exact tool name, including namespace when encoded here."
+              },
+              "input": {
+                "description": "Native tool input, commonly an object; preserve original value."
+              },
+              "tool_use_id": {
+                "type": "string",
+                "description": "Identifier linking a result block to a tool_use block."
+              },
+              "content": {
+                "description": "Result payload, either string, nested blocks, or another source-specific value."
+              },
+              "is_error": {
+                "type": "boolean",
+                "description": "Provider-recorded tool-result error flag; absence is unknown, not success."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Permissive Anthropic-style content-block subset.",
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "todos": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Serialized/source todo text."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "todos": {
+              "type": "string",
+              "description": "Nested serialized/source todo text."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "messageIndex": {
+      "type": "number",
+      "description": "Provider message index associated with todo state, not our normalized sequence."
+    },
+    "summaryText": {
+      "type": "string",
+      "description": "Compaction summary text."
+    },
+    "summaryTokens": {
+      "type": "number",
+      "description": "Recorded token count associated with summary."
+    },
+    "summaryKind": {
+      "type": "string",
+      "description": "Source compaction/summary kind."
+    },
+    "anchorMessage": {
+      "type": "string",
+      "description": "Source anchor message reference."
+    },
+    "removedCount": {
+      "type": "number",
+      "description": "Number of removed records/messages as reported by source."
+    },
+    "systemInfo": {
+      "description": "Opaque provider-specific payload. Preserve it; the inspected sources do not establish its complete schema."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

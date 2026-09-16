@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kiro-acp-record:2026-09-10",
+  "title": "Kiro: reader-supported ACP JSON-RPC subset",
+  "description": "Reader-supported subset of ACP replay logs. It must not be mistaken for a complete vendor protocol schema or a decoded CLI SQLite row. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "jsonrpc": {
+      "type": "string",
+      "description": "JSON-RPC protocol label on wire captures."
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Request/response identity."
+        },
+        {
+          "type": "number",
+          "description": "Numeric request/response identity."
+        }
+      ]
+    },
+    "method": {
+      "type": "string",
+      "description": "Method, including session/prompt or session/update."
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "Session identity when supplied."
+        },
+        "prompt": {
+          "description": "Native prompt payload. Confirm exact prompt shape against a captured client version."
+        },
+        "content": {
+          "description": "Alternate content carrier."
+        },
+        "update": {
+          "type": "object",
+          "properties": {
+            "sessionUpdate": {
+              "type": "string",
+              "description": "ACP update discriminator, such as agent_message_chunk or tool_call_update."
+            },
+            "type": {
+              "type": "string",
+              "description": "Compatibility discriminator accepted by parser."
+            },
+            "kind": {
+              "type": "string",
+              "description": "Compatibility discriminator accepted by parser."
+            },
+            "updateType": {
+              "type": "string",
+              "description": "Compatibility discriminator accepted by parser."
+            },
+            "eventType": {
+              "type": "string",
+              "description": "Compatibility discriminator accepted by parser."
+            },
+            "content": {
+              "description": "Text/content chunk or tool-specific carrier."
+            },
+            "text": {
+              "type": "string",
+              "description": "Alternative text chunk."
+            },
+            "message": {
+              "description": "Alternative nested message carrier."
+            },
+            "delta": {
+              "description": "Alternative delta carrier."
+            },
+            "chunk": {
+              "description": "Alternative chunk carrier."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "stopReason": {
+          "type": "string",
+          "description": "Recorded terminal reason, such as end_turn, max_tokens, or cancelled."
+        }
+      },
+      "additionalProperties": true
+    },
+    "timestamp": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "ISO timestamp string where accepted by export reader."
+        },
+        {
+          "type": "number",
+          "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+        }
+      ],
+      "description": "Timestamp representation varies between the local and export surfaces."
+    },
+    "update": {
+      "type": "object",
+      "properties": {
+        "sessionUpdate": {
+          "type": "string",
+          "description": "ACP update discriminator, such as agent_message_chunk or tool_call_update."
+        },
+        "type": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "updateType": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "content": {
+          "description": "Text/content chunk or tool-specific carrier."
+        },
+        "text": {
+          "type": "string",
+          "description": "Alternative text chunk."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "delta": {
+          "description": "Alternative delta carrier."
+        },
+        "chunk": {
+          "description": "Alternative chunk carrier."
+        }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "sessionUpdate": {
+          "type": "string",
+          "description": "ACP update discriminator, such as agent_message_chunk or tool_call_update."
+        },
+        "type": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "updateType": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Compatibility discriminator accepted by parser."
+        },
+        "content": {
+          "description": "Text/content chunk or tool-specific carrier."
+        },
+        "text": {
+          "type": "string",
+          "description": "Alternative text chunk."
+        },
+        "message": {
+          "description": "Alternative nested message carrier."
+        },
+        "delta": {
+          "description": "Alternative delta carrier."
+        },
+        "chunk": {
+          "description": "Alternative chunk carrier."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

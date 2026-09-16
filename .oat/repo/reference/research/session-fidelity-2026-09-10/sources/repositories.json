@@ -1,0 +1,26 @@
+{
+  "accessed_on": "2026-09-10",
+  "verification": "Default-branch refs read through GitHub connector; source audit, not live client verification",
+  "repositories": [
+    {
+      "name": "yigitkonur/cli-continues",
+      "commit": "e486cd22a592d89d890cff056624647fbe9cbe80",
+      "branch": "main"
+    },
+    {
+      "name": "tkstang/skills",
+      "commit": "f5395a3568fd1b605501f550ea6ad78ee2f773ad",
+      "branch": "main"
+    },
+    {
+      "name": "neilberkman/ccrider",
+      "commit": "6f384a6343998cb6e8354ed9fffd6b1f6ecdc025",
+      "branch": "main"
+    },
+    {
+      "name": "lingtaolf/cxresume",
+      "commit": "71225c58f1420f73f3c98f9cd44f1fa4ba690b67",
+      "branch": "master"
+    }
+  ]
+}

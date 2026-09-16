@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:gemini-record:2026-09-10",
+  "title": "Gemini CLI: observed JSONL metadata/message/mutation record",
+  "description": "One decoded record in the newer append/mutation stream; not just an append-only sequence of immutable messages. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/gemini.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Native session ID."
+    },
+    "projectHash": {
+      "type": "string",
+      "description": "Provider project key; resolve through metadata/mapping instead of reversing hash."
+    },
+    "startTime": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "directories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Recorded workspace directory."
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Recorded summary text."
+    },
+    "id": {
+      "type": "string",
+      "description": "Message identity; repeated IDs can replace an earlier message in JSONL reconstruction."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "type": {
+      "type": "string",
+      "description": "Message role/type as stored by Gemini."
+    },
+    "content": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Message text."
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Content variant."
+              },
+              "text": {
+                "type": "string",
+                "description": "Text block."
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      ]
+    },
+    "toolCalls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Tool-call identity when present."
+          },
+          "name": {
+            "type": "string",
+            "description": "Exact native function name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Human-facing tool label; retain native name separately."
+          },
+          "description": {
+            "type": "string",
+            "description": "Tool description recorded by client."
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+          },
+          "args": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true,
+            "description": "Native argument object."
+          },
+          "result": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "functionResponse": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Function response/call identity."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Function name in response."
+                    },
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "output": {
+                          "type": "string",
+                          "description": "Textual output."
+                        },
+                        "error": {
+                          "type": "string",
+                          "description": "Textual error."
+                        }
+                      },
+                      "additionalProperties": true,
+                      "description": "Response payload; preserve other fields."
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            },
+            "description": "Recorded tool results; preserve every response block."
+          },
+          "status": {
+            "type": "string",
+            "description": "Recorded tool lifecycle/result status."
+          },
+          "resultDisplay": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Human-facing result."
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "description": "Display filename."
+                  },
+                  "filePath": {
+                    "type": "string",
+                    "description": "Native file path."
+                  },
+                  "fileDiff": {
+                    "type": "string",
+                    "description": "Provider-supplied diff display."
+                  },
+                  "originalContent": {
+                    "type": "string",
+                    "description": "Recorded before-content."
+                  },
+                  "newContent": {
+                    "type": "string",
+                    "description": "Recorded after-content."
+                  },
+                  "renderOutputAsMarkdown": {
+                    "type": "boolean",
+                    "description": "Display hint, not executable content."
+                  },
+                  "diffStat": {
+                    "type": "object",
+                    "properties": {
+                      "model_added_lines": {
+                        "type": "number",
+                        "description": "Provider-reported added lines."
+                      },
+                      "model_removed_lines": {
+                        "type": "number",
+                        "description": "Provider-reported removed lines."
+                      }
+                    },
+                    "additionalProperties": true
+                  },
+                  "isNewFile": {
+                    "type": "boolean",
+                    "description": "Recorded new-file indication."
+                  }
+                },
+                "additionalProperties": true
+              }
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "thoughts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "Recorded thought subject."
+          },
+          "description": {
+            "type": "string",
+            "description": "Recorded thought description."
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "model": {
+      "type": "string",
+      "description": "Recorded model for this message."
+    },
+    "tokens": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "number",
+          "description": "Provider-recorded input token count; preserve category semantics."
+        },
+        "output": {
+          "type": "number",
+          "description": "Provider-recorded output token count; preserve category semantics."
+        },
+        "cached": {
+          "type": "number",
+          "description": "Provider-recorded cached token count; preserve category semantics."
+        },
+        "thoughts": {
+          "type": "number",
+          "description": "Provider-recorded thoughts token count; preserve category semantics."
+        },
+        "tool": {
+          "type": "number",
+          "description": "Provider-recorded tool token count; preserve category semantics."
+        },
+        "total": {
+          "type": "number",
+          "description": "Provider-recorded total token count; preserve category semantics."
+        }
+      },
+      "additionalProperties": true
+    },
+    "$set": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "Native session ID."
+        },
+        "projectHash": {
+          "type": "string",
+          "description": "Provider project key; resolve through metadata/mapping instead of reversing hash."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "Recorded workspace directory."
+          }
+        },
+        "summary": {
+          "type": "string",
+          "description": "Recorded summary text."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Partial session-state update."
+    },
+    "$rewindTo": {
+      "type": "string",
+      "description": "Message ID at which the inspected adapter truncates the active message list, excluding the target."
+    }
+  },
+  "additionalProperties": true
+}

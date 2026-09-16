@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:codex-record:2026-09-10",
+  "title": "Codex: observed rollout JSONL record",
+  "description": "Applies to one decoded rollout record, not the whole JSONL file. Modern and legacy fields are distinguished by outer/inner discriminators. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/codex.ts",
+    "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+    "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/skills/session-observer/references/transcript-formats.md",
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/codexsessions/parser.go",
+    "https://github.com/lingtaolf/cxresume/blob/71225c58f1420f73f3c98f9cd44f1fa4ba690b67/src/utils/parser.js"
+  ],
+  "type": "object",
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "type": {
+      "type": "string",
+      "description": "Outer type: session_meta, response_item, event_msg, turn_context, compacted; legacy shapes also exist."
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Inner discriminator; meaning depends on outer type."
+        },
+        "id": {
+          "type": "string",
+          "description": "session_meta: session ID. response_item/message: message ID. Interpret in context."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Legacy/compatibility session identity, not a replacement for discriminator-aware id handling."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Recorded working directory or turn-context directory."
+        },
+        "git": {
+          "type": "object",
+          "properties": {
+            "branch": {
+              "type": "string",
+              "description": "Recorded Git branch."
+            },
+            "repository_url": {
+              "type": "string",
+              "description": "Recorded remote URL."
+            },
+            "commit_hash": {
+              "type": "string",
+              "description": "Recorded commit hash."
+            },
+            "sha": {
+              "type": "string",
+              "description": "Compatibility commit-hash field."
+            }
+          },
+          "additionalProperties": true
+        },
+        "source": {
+          "description": "Client/source provenance when supplied; preserve non-string variants."
+        },
+        "originator": {
+          "type": "string",
+          "description": "Client originator label."
+        },
+        "cli_version": {
+          "type": "string",
+          "description": "Recorded Codex CLI version."
+        },
+        "model_provider": {
+          "type": "string",
+          "description": "Configured provider label, not necessarily a model name."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model recorded in turn_context."
+        },
+        "role": {
+          "type": "string",
+          "description": "message role, including user, assistant, or developer."
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Legacy plain content."
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "input_text/output_text/text or another content variant."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Text for known textual content."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Compatibility text carrier."
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Exact function/custom tool name."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Separate namespace component when present; retain separately from name."
+        },
+        "arguments": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "JSON-encoded function arguments; retain raw string when decoding fails."
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true,
+              "description": "Compatibility object-form arguments accepted by the user reader."
+            }
+          ]
+        },
+        "call_id": {
+          "type": "string",
+          "description": "Native tool invocation identity used to join call/output."
+        },
+        "input": {
+          "type": "string",
+          "description": "Custom tool input, for example apply_patch patch text; not necessarily JSON."
+        },
+        "output": {
+          "description": "Tool output, potentially string or structured object; separate from arguments."
+        },
+        "action": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Web-search query when recorded."
+            },
+            "queries": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "One search query."
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "message": {
+          "type": "string",
+          "description": "Human/agent event text, lifecycle note, or compacted summary depending on type."
+        },
+        "replacement_history": {
+          "description": "Compacted replacement history. The inspected continues notes path does not reconstruct its full semantics."
+        },
+        "info": {
+          "type": "object",
+          "properties": {
+            "total_token_usage": {
+              "type": "object",
+              "properties": {
+                "input_tokens": {
+                  "type": "number",
+                  "description": "Recorded input tokens."
+                },
+                "output_tokens": {
+                  "type": "number",
+                  "description": "Recorded output tokens."
+                },
+                "cached_input_tokens": {
+                  "type": "number",
+                  "description": "Recorded cached input tokens."
+                },
+                "reasoning_output_tokens": {
+                  "type": "number",
+                  "description": "Recorded reasoning-output token count."
+                }
+              },
+              "additionalProperties": true
+            },
+            "last_token_usage": {
+              "type": "object",
+              "properties": {
+                "input_tokens": {
+                  "type": "number",
+                  "description": "Recorded input tokens."
+                },
+                "output_tokens": {
+                  "type": "number",
+                  "description": "Recorded output tokens."
+                },
+                "cached_input_tokens": {
+                  "type": "number",
+                  "description": "Recorded cached input tokens."
+                },
+                "reasoning_output_tokens": {
+                  "type": "number",
+                  "description": "Recorded reasoning-output token count."
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "input_tokens": {
+          "type": "number",
+          "description": "Compatibility top-level event usage field."
+        },
+        "output_tokens": {
+          "type": "number",
+          "description": "Compatibility top-level event usage field."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn identity on lifecycle events when available."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Recorded interruption/completion reason."
+        },
+        "model_context_window": {
+          "type": "number",
+          "description": "Recorded context-window size."
+        },
+        "collaboration_mode_kind": {
+          "type": "string",
+          "description": "Recorded collaboration-mode metadata."
+        },
+        "started_at": {
+          "description": "Recorded lifecycle start time; retain native representation."
+        },
+        "completed_at": {
+          "description": "Recorded lifecycle completion time; retain native representation."
+        },
+        "duration_ms": {
+          "type": "number",
+          "description": "Recorded lifecycle duration in milliseconds."
+        }
+      },
+      "additionalProperties": true
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Legacy top-level session identity."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Legacy top-level working directory."
+    },
+    "message": {
+      "type": "string",
+      "description": "Legacy event text fallback."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

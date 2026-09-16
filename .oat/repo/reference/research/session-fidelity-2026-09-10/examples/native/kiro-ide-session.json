@@ -1,0 +1,13 @@
+{
+  "sessionId": "kiro-demo",
+  "history": [
+    {
+      "role": "human",
+      "content": "Review the parser."
+    },
+    {
+      "role": "ai",
+      "content": "I found an edge case."
+    }
+  ]
+}

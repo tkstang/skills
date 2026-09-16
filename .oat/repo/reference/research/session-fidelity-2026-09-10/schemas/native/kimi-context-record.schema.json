@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kimi-context-record:2026-09-10",
+  "title": "Kimi: observed context.jsonl record subset",
+  "description": "One decoded context record. The separate wire log can contain event classes not modeled by this context schema. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kimi.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Native conversation role, including tool result carriers."
+    },
+    "content": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Plain message text."
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Content-block discriminator; unknown variants must remain reachable."
+              },
+              "text": {
+                "type": "string",
+                "description": "Text content when this block is textual."
+              },
+              "thinking": {
+                "type": "string",
+                "description": "Recorded thinking text, when present; not a guarantee of all model reasoning."
+              },
+              "id": {
+                "type": "string",
+                "description": "Tool-call/block identifier when present."
+              },
+              "name": {
+                "type": "string",
+                "description": "Exact tool name, including namespace when encoded here."
+              },
+              "input": {
+                "description": "Native tool input, commonly an object; preserve original value."
+              },
+              "tool_use_id": {
+                "type": "string",
+                "description": "Identifier linking a result block to a tool_use block."
+              },
+              "content": {
+                "description": "Result payload, either string, nested blocks, or another source-specific value."
+              },
+              "is_error": {
+                "type": "boolean",
+                "description": "Provider-recorded tool-result error flag; absence is unknown, not success."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Permissive Anthropic-style content-block subset.",
+            "required": [
+              "type"
+            ]
+          },
+          "description": "Ordered native content blocks."
+        }
+      ],
+      "description": "Native content carrier; inspect block discriminators before flattening."
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "function",
+            "description": "Function-call variant."
+          },
+          "id": {
+            "type": "string",
+            "description": "Native invocation ID."
+          },
+          "function": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Exact function name."
+              },
+              "arguments": {
+                "type": "string",
+                "description": "JSON-encoded argument string; retain raw when undecodable."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "tool_call_id": {
+      "type": "string",
+      "description": "Result-to-call identity on tool messages."
+    },
+    "id": {
+      "type": "number",
+      "description": "Numeric record/control identifier in the declared subset; do not assume it is a session ID."
+    }
+  },
+  "additionalProperties": true
+}

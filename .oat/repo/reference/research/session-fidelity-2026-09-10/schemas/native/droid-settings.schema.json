@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:droid-settings:2026-09-10",
+  "title": "Factory Droid: observed settings companion",
+  "description": "Decoded <session-id>.settings.json companion object, not a JSONL event. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/droid.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "assistantActiveTimeMs": {
+      "type": "number",
+      "description": "Recorded assistant-active wall time in milliseconds."
+    },
+    "model": {
+      "type": "string",
+      "description": "Recorded model."
+    },
+    "reasoningEffort": {
+      "type": "string",
+      "description": "Configured reasoning effort."
+    },
+    "interactionMode": {
+      "type": "string",
+      "description": "Recorded interaction mode."
+    },
+    "autonomyMode": {
+      "type": "string",
+      "description": "Recorded autonomy mode."
+    },
+    "providerLock": {
+      "type": "string",
+      "description": "Provider-lock metadata."
+    },
+    "providerLockTimestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "apiProviderLock": {
+      "type": "string",
+      "description": "API provider-lock metadata."
+    },
+    "specModeReasoningEffort": {
+      "type": "string",
+      "description": "Reasoning effort for spec mode."
+    },
+    "tokenUsage": {
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "type": "number",
+          "description": "Recorded inputTokens total; retain source category semantics."
+        },
+        "outputTokens": {
+          "type": "number",
+          "description": "Recorded outputTokens total; retain source category semantics."
+        },
+        "cacheCreationTokens": {
+          "type": "number",
+          "description": "Recorded cacheCreationTokens total; retain source category semantics."
+        },
+        "cacheReadTokens": {
+          "type": "number",
+          "description": "Recorded cacheReadTokens total; retain source category semantics."
+        },
+        "thinkingTokens": {
+          "type": "number",
+          "description": "Recorded thinkingTokens total; retain source category semantics."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:claude-code-record:2026-09-10",
+  "title": "Claude Code: observed JSONL record",
+  "description": "Applies to one decoded Claude session record; metadata variants may omit message/uuid/timestamp. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/claude.ts",
+    "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/ccsessions/parser.go"
+  ],
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "Record type: conversation, summary, queue-operation, attachment, file-history-snapshot, and others."
+    },
+    "uuid": {
+      "type": "string",
+      "description": "Native record/message UUID, when recorded."
+    },
+    "parentUuid": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Parent message/record UUID; not the session ID."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Native session identity used by the current Claude reader."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Compatibility spelling accepted by the user's metadata reader."
+    },
+    "sessionID": {
+      "type": "string",
+      "description": "Additional compatibility spelling accepted by the user's metadata reader."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Recorded working directory. Stronger identity evidence than reverse-decoding a slug."
+    },
+    "gitBranch": {
+      "type": "string",
+      "description": "Recorded branch name, not proof of current checkout state."
+    },
+    "slug": {
+      "type": "string",
+      "description": "Optional provider display/session slug."
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional top-level model label; message.model can also carry it."
+    },
+    "isMeta": {
+      "type": "boolean",
+      "description": "Marks non-conversational provider metadata."
+    },
+    "isCompactSummary": {
+      "type": "boolean",
+      "description": "Marks a compaction-summary carrier, not an ordinary human message."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Provider-supplied session summary on summary records."
+    },
+    "leafUuid": {
+      "type": "string",
+      "description": "Summary-associated leaf message UUID when recorded, read by ccrider."
+    },
+    "version": {
+      "type": "string",
+      "description": "Recorded client version string when supplied."
+    },
+    "permissionMode": {
+      "type": "string",
+      "description": "Permission-mode metadata when recorded."
+    },
+    "entrypoint": {
+      "type": "string",
+      "description": "Recorded client entrypoint metadata."
+    },
+    "userType": {
+      "type": "string",
+      "description": "Recorded user-type metadata; do not infer identity beyond source."
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Provider role. A user-role tool_result carrier is not necessarily human input."
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Plain message text."
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Content-block discriminator; unknown variants must remain reachable."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Text content when this block is textual."
+                  },
+                  "thinking": {
+                    "type": "string",
+                    "description": "Recorded thinking text, when present; not a guarantee of all model reasoning."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Tool-call/block identifier when present."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Exact tool name, including namespace when encoded here."
+                  },
+                  "input": {
+                    "description": "Native tool input, commonly an object; preserve original value."
+                  },
+                  "tool_use_id": {
+                    "type": "string",
+                    "description": "Identifier linking a result block to a tool_use block."
+                  },
+                  "content": {
+                    "description": "Result payload, either string, nested blocks, or another source-specific value."
+                  },
+                  "is_error": {
+                    "type": "boolean",
+                    "description": "Provider-recorded tool-result error flag; absence is unknown, not success."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Permissive Anthropic-style content-block subset.",
+                "required": [
+                  "type"
+                ]
+              },
+              "description": "Ordered native content blocks."
+            }
+          ],
+          "description": "Native content carrier; inspect block discriminators before flattening."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model recorded on the assistant message."
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "input_tokens": {
+              "type": "number",
+              "description": "Recorded input token count; aggregation must respect provider usage semantics."
+            },
+            "output_tokens": {
+              "type": "number",
+              "description": "Recorded output token count."
+            },
+            "cache_creation_input_tokens": {
+              "type": "number",
+              "description": "Recorded cache-creation input tokens."
+            },
+            "cache_read_input_tokens": {
+              "type": "number",
+              "description": "Recorded cached input tokens."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Assistant usage fields consumed by continues."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Conversation and tool content carrier."
+    },
+    "toolUseResult": {
+      "type": "object",
+      "properties": {
+        "questions": {
+          "type": "array",
+          "items": {
+            "description": "Opaque provider-specific payload. Preserve it; the inspected sources do not establish its complete schema."
+          },
+          "description": "Original ask-user questions or source-specific tool result metadata."
+        },
+        "answers": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true,
+          "description": "Ask-user answers keyed by full question text; values may be strings or arrays."
+        },
+        "annotations": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true,
+          "description": "Question-keyed operator annotations; nested notes may contain human-authored text."
+        },
+        "agentId": {
+          "type": "string",
+          "description": "Subagent identity used by the Claude sidecar extraction path."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Top-level result metadata; do not discard merely because it lies outside message.content."
+    },
+    "operation": {
+      "type": "string",
+      "description": "Queue operation, e.g. enqueue or remove."
+    },
+    "content": {
+      "type": "string",
+      "description": "Queued prompt text on queue-operation records."
+    },
+    "attachment": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Attachment discriminator, including queued_command."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Delivered queued prompt text."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Attachment carrier for queued input."
+    },
+    "snapshot": {
+      "description": "File-history snapshot metadata and backup references; not a verified Git diff."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

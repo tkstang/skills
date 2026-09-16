@@ -1,0 +1,14 @@
+{
+  "role": "assistant",
+  "content": "I will inspect the parser.",
+  "tool_calls": [
+    {
+      "type": "function",
+      "id": "kimi-call-1",
+      "function": {
+        "name": "ReadFile",
+        "arguments": "{\"path\":\"src/parser.ts\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:kiro-ide-session:2026-09-10",
+  "title": "Kiro IDE: observed workspace JSON subset",
+  "description": "Permissive subset of the IDE workspace-session objects accepted by continues. This is not the ordinary Kiro CLI SQLite store. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/kiro.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Session identity used by index/metadata variants."
+    },
+    "id": {
+      "type": "string",
+      "description": "Alternative session identity."
+    },
+    "conversationId": {
+      "type": "string",
+      "description": "Alternative conversation identity."
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "user/human or assistant/ai aliases accepted by adapter."
+          },
+          "content": {
+            "description": "Text or content-block carrier."
+          },
+          "text": {
+            "type": "string",
+            "description": "Alternative text carrier."
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "ISO timestamp string where accepted by export reader."
+              },
+              {
+                "type": "number",
+                "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+              }
+            ],
+            "description": "Timestamp representation varies between the local and export surfaces."
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "ISO timestamp string where accepted by export reader."
+              },
+              {
+                "type": "number",
+                "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+              }
+            ],
+            "description": "Timestamp representation varies between the local and export surfaces."
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "Nested role alias."
+              },
+              "content": {
+                "description": "Nested content carrier."
+              },
+              "timestamp": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              },
+              "createdAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              },
+              "dateCreated": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "user/human or assistant/ai aliases accepted by adapter."
+          },
+          "content": {
+            "description": "Text or content-block carrier."
+          },
+          "text": {
+            "type": "string",
+            "description": "Alternative text carrier."
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "ISO timestamp string where accepted by export reader."
+              },
+              {
+                "type": "number",
+                "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+              }
+            ],
+            "description": "Timestamp representation varies between the local and export surfaces."
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "ISO timestamp string where accepted by export reader."
+              },
+              {
+                "type": "number",
+                "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+              }
+            ],
+            "description": "Timestamp representation varies between the local and export surfaces."
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "Nested role alias."
+              },
+              "content": {
+                "description": "Nested content carrier."
+              },
+              "timestamp": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              },
+              "createdAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              },
+              "dateCreated": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "ISO timestamp string where accepted by export reader."
+                  },
+                  {
+                    "type": "number",
+                    "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+                  }
+                ],
+                "description": "Timestamp representation varies between the local and export surfaces."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

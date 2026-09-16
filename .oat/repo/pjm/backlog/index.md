@@ -20,6 +20,7 @@
 
 - **Session-observer reliability (seeded 2026-09-16):** **BL-260916-session-observer-re-armed** — a Monitor-driven re-arm can baseline at the transcript end and skip unread records; found during the docs/visuals collaboration with a Codex peer. Small fix (persist offset on signal, render + announce the gap) plus a reference-doc update.
 - **Cross-model review + install path (seeded 2026-09-16):** **BL-260916-add-consensus-review-cross** (high) adds a one-turn cross-provider reviewer with OAT-compatible artifacts; it depends on BL-260916-honor-configured-peer-models and BL-260723-split-loop-free-cli-helpers, which together make a natural "consensus runtime fidelity + review" project. **BL-260916-add-a-first-party-install** gives standalone skills an install path that does not depend on the third-party Skills CLI.
+- **Session fidelity (research 2026-09-10; seeded 2026-09-16):** **BL-260916-session-fidelity-opt** adds the opt-in activity view (tool calls/results with coverage states) to observer and exporter from the research packet now filed under `reference/research/session-fidelity-2026-09-10/`. Sequence: re-arm fix → session fidelity → shared-session-log substrate → messaging / N>2.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -29,6 +30,7 @@
 | BL-260916-honor-configured-peer-models | Honor configured peer models and effort in convergence workflows | open | medium | task | M |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
+| BL-260916-session-fidelity-opt | Session fidelity: opt-in --include-activity for observer and exporter | open | medium | feature | L |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
 | BL-260916-session-observer-re-armed | session-observer: re-armed watcher can skip unread records | open | medium | task | S |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |

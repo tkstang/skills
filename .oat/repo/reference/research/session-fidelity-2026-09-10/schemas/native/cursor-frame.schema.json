@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:cursor-frame:2026-09-10",
+  "title": "Cursor: observed agent-transcript JSONL frame",
+  "description": "One decoded physical frame from the documented local agent-transcript surface. A frame can mutate while its turn is open; this is not the observer digest schema. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/src/transcript/core/runtimes.ts",
+    "https://github.com/tkstang/skills/blob/f5395a3568fd1b605501f550ea6ad78ee2f773ad/documentation/docs/user-guide/skills/session-observer.md",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/cursor.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Top-level role on content frames."
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Plain message text."
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Content-block discriminator; unknown variants must remain reachable."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Text content when this block is textual."
+                  },
+                  "thinking": {
+                    "type": "string",
+                    "description": "Recorded thinking text, when present; not a guarantee of all model reasoning."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Tool-call/block identifier when present."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Exact tool name, including namespace when encoded here."
+                  },
+                  "input": {
+                    "description": "Native tool input, commonly an object; preserve original value."
+                  },
+                  "tool_use_id": {
+                    "type": "string",
+                    "description": "Identifier linking a result block to a tool_use block."
+                  },
+                  "content": {
+                    "description": "Result payload, either string, nested blocks, or another source-specific value."
+                  },
+                  "is_error": {
+                    "type": "boolean",
+                    "description": "Provider-recorded tool-result error flag; absence is unknown, not success."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Permissive Anthropic-style content-block subset.",
+                "required": [
+                  "type"
+                ]
+              },
+              "description": "Ordered native content blocks."
+            }
+          ],
+          "description": "Native content carrier; inspect block discriminators before flattening."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Alternative message timestamp read by continues."
+        },
+        "model": {
+          "type": "string",
+          "description": "Optional recorded model."
+        },
+        "usage": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true,
+          "description": "Recorded usage object; availability depends on source surface."
+        }
+      },
+      "additionalProperties": true
+    },
+    "type": {
+      "type": "string",
+      "description": "Frame discriminator, including turn_ended for terminal frames."
+    },
+    "status": {
+      "type": "string",
+      "description": "Terminal status: success, aborted, error, cancelled, or unknown/new values."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "Alternative top-level timestamp read by continues."
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional top-level recorded model."
+    },
+    "usage": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": true,
+      "description": "Optional source usage fields; do not synthesize from absent data."
+    }
+  },
+  "additionalProperties": true
+}

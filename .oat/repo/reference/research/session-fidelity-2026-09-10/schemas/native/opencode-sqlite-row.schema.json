@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:opencode-sqlite-row:2026-09-10",
+  "title": "OpenCode: inspected SQLite row columns",
+  "description": "Union of known columns from singular session/project/message/part tables; fields apply only to their documented table. This is not DDL or a native database binary validator. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/opencode.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Row primary identifier."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Session-to-project foreign key."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Owning session foreign key on message/part rows."
+    },
+    "message_id": {
+      "type": "string",
+      "description": "Owning message foreign key on part rows."
+    },
+    "slug": {
+      "type": "string",
+      "description": "Session display slug."
+    },
+    "directory": {
+      "type": "string",
+      "description": "Session working directory."
+    },
+    "worktree": {
+      "type": "string",
+      "description": "Project worktree/root directory."
+    },
+    "title": {
+      "type": "string",
+      "description": "Session title."
+    },
+    "version": {
+      "type": "string",
+      "description": "Recorded client/data version."
+    },
+    "summary_additions": {
+      "anyOf": [
+        {
+          "type": "number",
+          "description": "Provider summary additions count."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "summary_deletions": {
+      "anyOf": [
+        {
+          "type": "number",
+          "description": "Provider summary deletions count."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "summary_files": {
+      "anyOf": [
+        {
+          "type": "number",
+          "description": "Provider summary file count."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "time_created": {
+      "type": "number",
+      "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+    },
+    "time_updated": {
+      "type": "number",
+      "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+    },
+    "data": {
+      "type": "string",
+      "description": "JSON-encoded message/part object. Decode separately; do not flatten without preserving the original row."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "id"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "id": "msg-demo",
+  "session_id": "ses-demo",
+  "data": "{\"role\":\"assistant\"}"
+}

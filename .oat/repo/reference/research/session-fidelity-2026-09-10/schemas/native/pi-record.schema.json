@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:pi-record:2026-09-10",
+  "title": "Pi: ccrider-observed session/message JSONL subset",
+  "description": "Observed importer subset only. Tool-call argument fields, call/result linkage, branching and compaction payloads are not established by this reader; unknown fields are retained by this reference schema. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/pkg/pisessions/parser.go",
+    "https://github.com/neilberkman/ccrider/blob/6f384a6343998cb6e8354ed9fffd6b1f6ecdc025/README.md"
+  ],
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "session header or message in the inspected importer; other native variants are not modeled."
+    },
+    "id": {
+      "type": "string",
+      "description": "Session ID on header; event ID on message record."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Working directory from session header."
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "user, assistant, or toolResult are recognized by the importer."
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Text content where accepted by shared text decoder."
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "Content variant; only text is indexed by this importer."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Text content."
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "description": "Recorded model provider."
+        },
+        "model": {
+          "type": "string",
+          "description": "Recorded model."
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Numeric timestamp interpreted as milliseconds since Unix epoch by the inspected reader."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

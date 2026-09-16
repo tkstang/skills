@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:qwen-code-record:2026-09-10",
+  "title": "Qwen Code: observed chat JSONL record",
+  "description": "One observed chat record under the Qwen runtime project root. Function IDs are read from passthrough aliases; not every version records them. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/qwen-code.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "uuid": {
+      "type": "string",
+      "description": "Native record UUID."
+    },
+    "parentUuid": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Parent record UUID, useful for association when direct call IDs are missing."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Native session ID."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "type": {
+      "type": "string",
+      "description": "Record type: user, assistant, tool_result, system, or future variant."
+    },
+    "subtype": {
+      "type": "string",
+      "description": "System or other record subtype."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Recorded working directory."
+    },
+    "version": {
+      "type": "string",
+      "description": "Recorded client version."
+    },
+    "gitBranch": {
+      "type": "string",
+      "description": "Recorded Git branch."
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Native content role."
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "description": "Text content."
+              },
+              "thought": {
+                "type": "boolean",
+                "description": "Whether textual part is recorded as thought content."
+              },
+              "functionCall": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Exact function name."
+                  },
+                  "args": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true,
+                    "description": "Native arguments."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Call identity when supplied in passthrough fields."
+                  }
+                },
+                "additionalProperties": true
+              },
+              "functionResponse": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Function name."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Matching call identity when present."
+                  },
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "output": {
+                        "type": "string",
+                        "description": "Recorded output."
+                      },
+                      "status": {
+                        "type": "string",
+                        "description": "Recorded status string."
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "usageMetadata": {
+      "type": "object",
+      "properties": {
+        "promptTokenCount": {
+          "type": "number",
+          "description": "Provider-recorded promptTokenCount; preserve cumulative/per-message distinction."
+        },
+        "candidatesTokenCount": {
+          "type": "number",
+          "description": "Provider-recorded candidatesTokenCount; preserve cumulative/per-message distinction."
+        },
+        "totalTokenCount": {
+          "type": "number",
+          "description": "Provider-recorded totalTokenCount; preserve cumulative/per-message distinction."
+        },
+        "cachedContentTokenCount": {
+          "type": "number",
+          "description": "Provider-recorded cachedContentTokenCount; preserve cumulative/per-message distinction."
+        },
+        "thoughtsTokenCount": {
+          "type": "number",
+          "description": "Provider-recorded thoughtsTokenCount; preserve cumulative/per-message distinction."
+        }
+      },
+      "additionalProperties": true
+    },
+    "model": {
+      "type": "string",
+      "description": "Recorded model."
+    },
+    "toolCallResult": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "Human-facing tool name."
+        },
+        "status": {
+          "type": "string",
+          "description": "Recorded tool status."
+        },
+        "resultDisplay": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Textual display result."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fileName": {
+                  "type": "string",
+                  "description": "File path/name for displayed diff."
+                },
+                "fileDiff": {
+                  "type": "string",
+                  "description": "Provider diff display."
+                },
+                "originalContent": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Original content, if included."
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "diffStat": {
+                  "type": "object",
+                  "properties": {
+                    "model_added_lines": {
+                      "type": "number",
+                      "description": "Reported added lines."
+                    },
+                    "model_removed_lines": {
+                      "type": "number",
+                      "description": "Reported removed lines."
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Result-display subtype."
+                }
+              },
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true,
+              "description": "Other structured display value."
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "systemPayload": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": true,
+      "description": "Source-specific system metadata."
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}

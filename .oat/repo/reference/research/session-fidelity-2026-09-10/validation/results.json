@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": 652,
+  "failed_checks": [],
+  "native_schema_example_pairs": 29,
+  "proposed_schema_example_pairs": 1,
+  "provider_guides": 17,
+  "local_markdown_links_checked": 149,
+  "typescript_contract": "passed",
+  "scope": "Authored packet checks only. No live provider sessions, native CLI launches, upstream parsers or upstream test suites were run."
+}

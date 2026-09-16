@@ -1,0 +1,27 @@
+{
+  "id": "gem-msg-1",
+  "timestamp": "2026-09-10T12:00:00Z",
+  "type": "gemini",
+  "content": "Checking the parser.",
+  "toolCalls": [
+    {
+      "id": "gem-call-1",
+      "name": "run_shell_command",
+      "args": {
+        "command": "pnpm test parser"
+      },
+      "status": "success",
+      "result": [
+        {
+          "functionResponse": {
+            "id": "gem-call-1",
+            "name": "run_shell_command",
+            "response": {
+              "output": "All tests passed."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

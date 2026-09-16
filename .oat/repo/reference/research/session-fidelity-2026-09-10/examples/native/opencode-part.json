@@ -1,0 +1,17 @@
+{
+  "id": "prt_demo",
+  "sessionID": "ses_demo",
+  "messageID": "msg_demo",
+  "type": "tool",
+  "tool": "bash",
+  "state": {
+    "status": "completed",
+    "input": {
+      "command": "pnpm test parser"
+    },
+    "output": "All tests passed.",
+    "metadata": {
+      "exit": 0
+    }
+  }
+}

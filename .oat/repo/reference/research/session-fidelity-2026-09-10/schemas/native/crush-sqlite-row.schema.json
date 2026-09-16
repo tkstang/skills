@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:crush-sqlite-row:2026-09-10",
+  "title": "Crush: inspected sessions/messages row subset",
+  "description": "Known exported columns of plural sessions/messages tables, not a complete DDL specification. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/crush.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Native row ID."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Owning session of a message row."
+    },
+    "parent_session_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Parent session; top-level session discovery can filter this to NULL."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Session title."
+    },
+    "prompt_tokens": {
+      "type": "number",
+      "description": "Recorded session prompt tokens."
+    },
+    "completion_tokens": {
+      "type": "number",
+      "description": "Recorded session completion tokens."
+    },
+    "cost": {
+      "type": "number",
+      "description": "Source cost value; unit and aggregation must be verified before financial interpretation."
+    },
+    "created_at": {
+      "type": "number",
+      "description": "Source numeric creation time; normalize units according to actual schema/version."
+    },
+    "updated_at": {
+      "type": "number",
+      "description": "Source numeric update time."
+    },
+    "role": {
+      "type": "string",
+      "description": "Message role: user, assistant, system, tool, or unknown."
+    },
+    "parts": {
+      "type": "string",
+      "description": "JSON-encoded part array; decode using the parts reference."
+    },
+    "model": {
+      "type": "string",
+      "description": "Message model label."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Message provider label."
+    },
+    "is_summary_message": {
+      "anyOf": [
+        {
+          "type": "boolean",
+          "description": "Whether this message is a summary."
+        },
+        {
+          "type": "number",
+          "description": "SQLite integer Boolean representation."
+        }
+      ]
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "id"
+  ]
+}

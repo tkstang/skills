@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:session-fidelity:observed:copilot-event:2026-09-10",
+  "title": "Copilot CLI: observed events.jsonl record",
+  "description": "One event from a Copilot session directory. This is a partial observational reference, not a vendor-certified or lossless ingestion schema. Unknown properties are allowed.",
+  "x-evidence": [
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/types/schemas.ts",
+    "https://github.com/yigitkonur/cli-continues/blob/e486cd22a592d89d890cff056624647fbe9cbe80/src/parsers/copilot.ts"
+  ],
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "Event type, including user.message, assistant.message, tool.execution_start, tool.execution_complete."
+    },
+    "id": {
+      "type": "string",
+      "description": "Native event ID."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Recorded timestamp string; preserve original representation, parse only when valid."
+    },
+    "parentId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Parent event ID; completion can parent its start, and start can parent its message."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "Native session ID on lifecycle metadata."
+        },
+        "selectedModel": {
+          "type": "string",
+          "description": "Selected model, typically start metadata."
+        },
+        "currentModel": {
+          "type": "string",
+          "description": "Current model, including shutdown metadata."
+        },
+        "content": {
+          "type": "string",
+          "description": "Visible message text when available."
+        },
+        "transformedContent": {
+          "type": "string",
+          "description": "Provider-transformed user text fallback."
+        },
+        "messageId": {
+          "type": "string",
+          "description": "Provider message identifier when supplied."
+        },
+        "toolRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Native request ID if present; do not confuse synthetic fallback IDs with native ones."
+              },
+              "name": {
+                "type": "string",
+                "description": "Exact requested tool name."
+              },
+              "arguments": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true,
+                "description": "Arguments object."
+              },
+              "args": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true,
+                "description": "Alternative argument object spelling."
+              }
+            },
+            "additionalProperties": true
+          },
+          "description": "Requested calls on an assistant message; actual execution can have separate events."
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "cwd": {
+              "type": "string",
+              "description": "Working directory."
+            },
+            "gitRoot": {
+              "type": "string",
+              "description": "Repository root."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Recorded branch."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Repository identity."
+            }
+          },
+          "additionalProperties": true
+        },
+        "toolName": {
+          "type": "string",
+          "description": "Tool name on execution start."
+        },
+        "toolCallId": {
+          "type": "string",
+          "description": "Invocation identity linking start and completion."
+        },
+        "arguments": {
+          "description": "Execution argument carrier; keep original object/string representation."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Provider-recorded completion success."
+        },
+        "result": {
+          "description": "Execution result carrier. Full nested schema is not established in this catalog."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "type"
+  ]
+}
