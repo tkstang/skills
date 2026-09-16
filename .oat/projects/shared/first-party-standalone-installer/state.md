@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -21,7 +21,11 @@ oat_phase_status: complete # Status: in_progress | complete | pr_open
 #     pNN:
 #       used_attempts: 0
 #       pending_attempt: null # null or {attempt, event_id, original_request_id, original_task_id, original_commit, discovered_by, dispatch_target, reservation_head, status}
-# oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
+oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
+  mode: managed
+  policy: frontier
+  source: project-state
+# oat_dispatch_policy example fields:
 #   mode: managed # managed | inherit
 #   policy: balanced # economy | balanced | high | frontier | uncapped; omit when mode: inherit
 #   providers: # present for capped managed policies; omitted for uncapped/inherit
@@ -79,26 +83,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T22:55:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T23:05:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: first-party-standalone-installer
 
-**Status:** Lightweight design complete
+**Status:** Planning
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Design - Complete; ready for quick plan generation
+Plan - Drafted and awaiting configured artifact review
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
-- **Plan:** `plan.md` (scaffolded template — not started)
+- **Plan:** `plan.md` (in progress; pre-review)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -106,6 +110,7 @@ Design - Complete; ready for quick plan generation
 - ✓ Discovery complete
 - ✓ Execution artifacts scaffolded
 - ✓ Lightweight design complete
+- ⧗ Plan artifact review pending
 
 ## Blockers
 
@@ -113,4 +118,4 @@ None
 
 ## Next Milestone
 
-Generate and review the quick implementation plan
+Pass the configured plan review and begin implementation

@@ -5,208 +5,247 @@ oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported | lite
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_plan_parallel_groups: []
+oat_plan_source: quick
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
+oat_template: true
 ---
 
 # Implementation Plan: first-party-standalone-installer
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host's project-scoped skills directory while preserving the existing Consensus recovery installer.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: exact-tag checkout, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, verified absent-destination rename, and host invocation output.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Bash, Git, Node.js 22 repository tooling, Vitest, temporary local Git fixtures, Fumadocs Markdown.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
-
-## Planning Checklist
-
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+**Commit Convention:** `{type}({scope}): {description}`
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+The plan is sequential (`oat_plan_parallel_groups: []`). Installer behavior, its compatibility contract, and the user/release documentation describe one shared CLI boundary. The documentation task depends on the finalized command and output, while final verification and backlog disposition depend on both prior tasks. Parallel worktrees would create avoidable overlap in the install contract and integration checks.
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+## Phase 1: Implement and verify the first-party installer
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model                     | Codex effort                   | Rationale                     |
-| ----- | -------------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|fable\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them when a capped managed dispatch policy exists, selects them directly under managed `Uncapped`, and maps selected efforts to pinned implementer variants when available. Codex provider default effort is informational only for explicit inherit/default behavior or base/unpinned fallback paths.
-
----
-
-RED/GREEN/Refactor is the recommended default where work is testable, not a validator requirement. Other task-body shapes, including non-TDD shapes, are allowed when appropriate, provided the plan preserves stable `pNN-tNN` IDs, per-task verification, and atomic commits.
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add the standalone installer path and behavior tests
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Modify: `install.sh`
+- Modify: `src/plugins/consensus/install-sh.test.ts`
+- Create: `tests/tooling/standalone-installer.test.ts`
 
-**Step 1: Write test (RED)**
+**Step 1: Establish the baseline**
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+Run: `pnpm run build:check`
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+Expected: Generated installation units are in sync before source work begins.
 
-**Step 2: Implement (GREEN)**
+Run: `pnpm run test:vitest src/plugins/consensus/install-sh.test.ts src/plugins/consensus/install-contract.test.ts`
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
+Expected: Existing Consensus installer behavior is green before the additive change.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
+**Step 2: Write failing standalone behavior tests**
 
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
+Use temporary project roots and temporary local Git repositories with lightweight tags. Exercise the real `install.sh` process with isolated environment variables and working directories.
 
-**Step 3: Refactor**
+Cover:
 
-{Any cleanup or improvements while tests stay green}
+- required `--skill`, `--agent`, and `--ref` parsing plus `--help`;
+- Codex, Claude Code, and Cursor project destinations and invocation output;
+- complete payload bytes and executable-mode preservation;
+- missing tag, missing generated skill, authored-source-only fixture, malformed name, unsupported host, unsafe entry, and symlinked ancestor refusal;
+- existing destination preservation;
+- injected copy or inventory failure with no published destination and cleaned staging state;
+- zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
 
-**Step 4: Verify**
+Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
 
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
+Expected: New standalone cases fail for the missing behavior while legacy cases remain green.
+
+**Step 3: Implement the dependency-free standalone flow**
+
+- Dispatch no arguments to the existing Consensus path.
+- Validate standalone flags and safe names before installation work.
+- Resolve the default repository or `--repository` override at an exact tag and verify the tag ref after clone.
+- Select only `skills/<name>/` and require `SKILL.md`; never search or fall back to `src/skills/`.
+- Reject symlinks and non-file/non-directory entries.
+- Map hosts to `.agents/skills`, `.claude/skills`, or `.cursor/skills` beneath the physical current project.
+- Refuse existing destinations and symlinked destination ancestors.
+- Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; verify inventory equality; rename into the absent destination.
+- Clean only owned temporary paths and print the verified path plus host invocation name.
+
+**Step 4: Format and verify**
+
+Run: `pnpm exec oxfmt --write src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts`
+
+For `install.sh`, warn once with `no format command discovered in repo instructions; skipping`, then preserve the existing shell style manually.
+
+Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts src/plugins/consensus/install-contract.test.ts`
+
+Expected: All standalone and legacy installer cases pass.
+
+Run: `pnpm run type-check`
+
+Expected: TypeScript checks pass.
 
 **Step 5: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+git add install.sh src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts
+git commit -m "feat(installer): add pinned standalone skill installs"
 ```
 
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Document the first-party path and release acceptance
 
 **Files:**
 
-- {File list}
+- Modify: `documentation/docs/user-guide/installation.md`
+- Modify: `RELEASING.md`
+- Modify: `src/plugins/consensus/install-contract.test.ts`
+- Create or modify if needed: `tests/release/standalone-install-contract.test.ts`
 
-**Step 1: Write test (RED)**
+**Step 1: Add contract assertions**
 
-{Test code}
+Protect the documented command shape, explicit pinned tag, supported hosts, generated `skills/<name>/` boundary, project-scope default, verification wording, and printed invocation guidance. Preserve the separate Consensus recovery test's immutable raw URL pin and shared runtime path instead of weakening it globally.
 
-**Step 2: Implement (GREEN)**
+Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts tests/repo/readme-scope.test.ts`
 
-{Implementation code or signatures}
+Expected: New documentation assertions fail before the guide is updated; README and Consensus recovery invariants remain green.
 
-**Step 3: Refactor**
+**Step 2: Update canonical documentation**
 
-{Optional cleanup}
+- Add the first-party procedure beside the existing Skills CLI path.
+- Show a pinned-tag checkout/install workflow and all three host values.
+- State the generated-payload-only boundary and refusal of `src/skills/`.
+- Explain absent-destination refusal and how to choose a different project or remove an installation deliberately.
+- Distinguish exact-tag resolution and copy-fidelity verification from signed provenance, fresh-session discovery, and live behavior.
+- Add release checklist evidence for each advertised host: pinned tag, selected skill, project placement, payload verification, printed invocation, fresh-session discovery, and bounded invocation/permission behavior.
+- Mark live host evidence as a separate authority-gated release step, not something static tests prove.
 
-**Step 4: Verify**
+**Step 3: Format and verify**
 
-Run: `{verification command}`
-Expected: {output}
+Run: `pnpm exec oxfmt --write documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts`
 
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+If the optional release test file is not created, omit it from the formatter invocation.
 
-**Step 5: Commit**
+Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts tests/repo/readme-scope.test.ts`
+
+Expected: Documentation and compatibility contracts pass.
+
+Run: `pnpm --dir documentation build`
+
+Expected: The production documentation build and generated navigation complete successfully.
+
+**Step 4: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+git add documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts
+git commit -m "docs(installer): add first-party standalone procedure"
 ```
 
----
+Omit any path that was not created or changed.
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Run the full gate and record the pending live boundary
 
-### Task p02-t01: {Task Name}
+**Files:**
 
-{Continue TDD pattern...}
+- Modify: `.oat/repo/pjm/backlog/items/BL-260916-add-a-first-party-install.md`
+- Modify through lifecycle tooling: `.oat/projects/shared/first-party-standalone-installer/implementation.md`
+- Conditionally close only after authorized live acceptance: `.oat/repo/pjm/backlog/completed.md`, `.oat/repo/pjm/backlog/index.md`, `.oat/repo/pjm/current-state.md`, `.oat/repo/pjm/roadmap.md`, `.oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md`
 
----
+**Step 1: Run complete static verification**
+
+Run: `pnpm run build:check`
+
+Expected: Generated payloads remain fresh without repair.
+
+Run: `pnpm run validate:skill-versions -- --base-ref origin/main`
+
+Expected: The installer-only change requires no canonical skill version bump.
+
+Run: `pnpm run premerge`
+
+Expected: Build, type-check, build freshness, full Vitest suite, repository validation, and smoke tests pass.
+
+Run: `pnpm --dir documentation build`
+
+Expected: Documentation builds successfully after the full repository gate.
+
+Run: `git diff --check`
+
+Expected: No whitespace errors.
+
+**Step 2: Record acceptance honestly**
+
+Update the backlog item with automated evidence and the explicit status of Claude Code, Codex, and Cursor live install/discovery/invocation checks. Without separate authorization, keep those live checks pending, leave the item active, do not archive it, and do not delete the kickoff handoff.
+
+Only if the agreed live verification boundary has been explicitly authorized and all host evidence passes:
+
+```bash
+oat backlog archive BL-260916-add-a-first-party-install --summary "Added and verified the first-party pinned-tag standalone skill installer"
+oat backlog regenerate-index
+git rm .oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md
+```
+
+Then refresh `current-state.md` and `roadmap.md` if the operating picture changed.
+
+**Step 3: Format and verify project-management artifacts**
+
+Warn once with `no format command discovered in repo instructions; skipping`, then keep generated/index-managed regions owned by their OAT commands and run:
+
+Run: `oat pjm doctor --json`
+
+Expected: PJM adoption and backlog lifecycle checks pass with either an active pending-live item or a fully archived item.
+
+**Step 4: Commit**
+
+If live acceptance remains pending:
+
+```bash
+git add .oat/repo/pjm/backlog/items/BL-260916-add-a-first-party-install.md
+git commit -m "chore(installer): record pending live acceptance"
+```
+
+If all acceptance is authorized and complete, commit the full archive/index/handoff closeout instead:
+
+```bash
+git add .oat/repo/pjm
+git commit -m "chore(installer): close first-party install backlog item"
+```
 
 ## Reviews
-
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
 | p01    | code     | pending | -    | -        | -             | -          | -           |
-| p02    | code     | pending | -    | -        | -             | -          | -           |
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
-
-For code-review events, `Reviewed Head` is the full 40-character SHA at the
-head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
-`Gate Target` is populated only for gate events. Legacy five-column rows remain
-valid. Writers must preserve every existing row and every unknown trailing
-cell; never truncate a widened row back to five columns.
-
-**Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
-
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
+| plan   | artifact | pending | -    | -        | -             | -          | -           |
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 3 tasks — installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
 
-**Total: {N} tasks**
+**Total: 3 tasks**
 
-Ready for code review and merge.
-
----
+Implementation is complete when all three tasks and configured reviews pass. The backlog item remains active if authority-gated live host evidence is still pending.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Design: `design.md`
+- Backlog item: `.oat/repo/pjm/backlog/items/BL-260916-add-a-first-party-install.md`
+- Kickoff handoff: `.oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md`
+- Distribution catalog: `src/distributions.ts`
+- Packaging contract: `scripts/lib/packaging.ts`
+- Installation guide: `documentation/docs/user-guide/installation.md`
+- Release checklist: `RELEASING.md`
