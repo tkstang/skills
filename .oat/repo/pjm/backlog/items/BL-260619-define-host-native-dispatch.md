@@ -12,7 +12,7 @@ labels:
   - reserved
 assignee: null
 created: 2026-06-19T23:41:44Z
-updated: 2026-07-11T23:41:32Z
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 legacy_id: bl-3ca6
 ---
@@ -20,7 +20,7 @@ legacy_id: bl-3ca6
 ## Description
 
 The shipped provider-CLI capability contract in
-`src/consensus/provider-cli/types.ts` reserves **host-native dispatch** for a
+`src/plugins/consensus/provider-cli/types.ts` reserves **host-native dispatch** for a
 future project. The shipped first-scope provider CLI deliberately does **not**
 implement it:
 

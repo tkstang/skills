@@ -12,7 +12,7 @@ labels:
   - documentation
 assignee: null
 created: 2026-09-16T14:01:45.868Z
-updated: 2026-09-16T14:01:45.868Z
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 external_plans: []
 ---
@@ -32,6 +32,8 @@ The config schema accepts provider, model, and effort on defaults.peers, but Cre
 - Follow the repository's canonical-source, affected skill version-bump, generated-output regeneration, and verification requirements when implementing the runtime fix.
 
 ## Implementation evidence
+
+- Documentation portion completed in merged PR #83 (`49b4baf3`): annotated JSONC, strict JSON, schema types, support matrix, and the current model/effort limitation are present. The runtime criteria remain open; this is not a completed item.
 
 - `src/plugins/consensus/config/consensus-config.ts`: `ConsensusAgentRef` and `resolveConvergenceComposition` retain model/effort.
 - `src/skills/{create,decide,plan,refine,evaluate}/src/consensus-*.ts`: configured composition is reduced with `composition.agents.map((agent) => agent.provider)` before peer dispatch.

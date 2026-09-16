@@ -11,14 +11,14 @@ labels:
   - nice-to-have
 assignee: null
 created: 2026-06-12T23:38:35Z
-updated: 2026-07-11T23:41:32Z
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 legacy_id: bl-ef38
 ---
 
 ## Description
 
-The consensus-loop convergence engine is strictly deterministic: normalized-hash rules per iteration mode plus explicit verdicts (decided in consensus-iteration-modes discovery, 2026-06-12). "Nearly stable but not hash-identical" states escalate through the agency ladder (host or user decides) rather than being scored in code.
+The consensus-loop convergence engine uses deterministic hash, verdict, and agency rules, not a numerical similarity score. Unequal hashes do not always escalate: maximum agency can accept two ACCEPT verdicts on unequal hashes (`src/plugins/consensus/core/loop-escalation.ts`). That existing near-match label is not a measured similarity threshold. This item adds an explicit scoring contract only if usage evidence justifies it.
 
 This item tracks the deferred nice-to-have from architecture v3: a similarity heuristic (e.g. normalized edit distance over the DR-004 normalization) that lets the loop self-confirm almost-converged states — triggering one extra confirmation round or counting a near-match toward convergence — without escalating. Would reduce escalation frequency on long documents where peers settle into trivially-different phrasings.
 
