@@ -85,19 +85,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T21:39:08Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T21:52:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-rearm
 
-**Status:** Final verification complete; awaiting final review
+**Status:** Final review passed; awaiting configured exit gate
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Phase 1 and its bounded bookkeeping correction are complete, the p01 re-review passed, and final verification is complete. The overall project remains in `implement` / `in_progress` for the mandatory final lifecycle review and configured exit gate.
+Phase 1, its bounded bookkeeping correction, final verification, and the mandatory final lifecycle review are complete. The overall project remains in `implement` / `in_progress` for the configured implementation exit gate and lite closeout sequence.
 
 ## Artifacts
 
@@ -125,7 +125,8 @@ Phase 1 and its bounded bookkeeping correction are complete, the p01 re-review p
 - ✓ Review finding I1 bookkeeping alignment completed without product changes
 - ✓ Fresh p01 re-review passed with no findings
 - ✓ Final full tests, changed-file lint, type-check, build, and generated parity passed
-- → Awaiting final lifecycle code review
+- ✓ Final lifecycle code review passed with no findings
+- → Awaiting configured implementation exit gate
 
 ## Blockers
 
@@ -133,4 +134,4 @@ None
 
 ## Next Milestone
 
-Run the mandatory final lifecycle code review
+Run the configured implementation exit gate
