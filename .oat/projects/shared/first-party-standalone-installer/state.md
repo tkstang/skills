@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -79,25 +79,25 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T22:48:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T22:55:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: first-party-standalone-installer
 
-**Status:** Lightweight design
+**Status:** Lightweight design complete
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Design - Defining installer boundaries for integrity, destinations, refusal, and partial failure
+Design - Complete; ready for quick plan generation
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
-- **Design:** `design.md` (in progress)
+- **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -105,7 +105,7 @@ Design - Defining installer boundaries for integrity, destinations, refusal, and
 
 - ✓ Discovery complete
 - ✓ Execution artifacts scaffolded
-- ⧗ Lightweight design in progress
+- ✓ Lightweight design complete
 
 ## Blockers
 
@@ -113,4 +113,4 @@ None
 
 ## Next Milestone
 
-Complete the lightweight design and generate a quick implementation plan
+Generate and review the quick implementation plan
