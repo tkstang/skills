@@ -33,6 +33,7 @@ If a failing case is confined to the current watcher/observer boundary and can b
 - Record raw `fromIndex`/`nextIndex`, rendered ranges/content, persisted `lastRecordIndex`, and captured stdout separately. Synthetic tests stop at stdout and make no live harness-delivery claim.
 - Do not add speculative signal handlers, blanket raw-gap alarms, or unsafe rollback of shared legacy state. A broader acknowledgment/checkpoint redesign requires a separate decision.
 - Close and archive `BL-260916-session-observer-re-armed` only if the bounded evidence and shipping guidance satisfy every acceptance criterion; otherwise retain it as open with precise remaining work.
+- **Lite fit:** The evidence, regression matrix, guidance, generated payloads, and conditional backlog disposition form one sequential implementation sitting; the broader legacy acknowledgment/CAS redesign is an explicit stop boundary, not an unresolved decision inside this plan.
 
 ## Product Behavior
 
