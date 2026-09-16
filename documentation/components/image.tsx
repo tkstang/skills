@@ -30,7 +30,7 @@ export function Image(props: ComponentProps<typeof BaseImage>) {
   const img = <img {...(rest as ComponentProps<'img'>)} src={prefixed} alt={alt ?? ''} loading="lazy" className="rounded-lg" />;
   if (!isDiagram) return img;
   return (
-    <figure className="diagram-scroll">
+    <figure className="diagram-scroll" role="region" aria-label={alt ?? 'Diagram'} tabIndex={0}>
       {img}
       <figcaption className="diagram-hint">Scroll sideways to see the whole diagram.</figcaption>
     </figure>

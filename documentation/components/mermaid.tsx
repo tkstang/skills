@@ -97,6 +97,11 @@ export function Mermaid({ chart }: { chart: string }) {
         startOnLoad: false,
         theme: 'base',
         themeVariables: resolvedTheme === 'dark' ? dark : light,
+        // Render at intrinsic size instead of shrinking to the column; the
+        // container scrolls horizontally (see .mermaid in app/globals.css).
+        flowchart: { useMaxWidth: false },
+        sequence: { useMaxWidth: false },
+        state: { useMaxWidth: false },
       });
       const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
       const { svg: rendered } = await mermaid.render(id, chart);
@@ -112,6 +117,9 @@ export function Mermaid({ chart }: { chart: string }) {
   return (
     <div
       className="mermaid"
+      role="region"
+      aria-label="Diagram; scroll sideways if it is wider than the page"
+      tabIndex={0}
       // oxlint-disable-next-line react/no-danger -- mermaid renders SVG from trusted chart definitions
       dangerouslySetInnerHTML={{ __html: svg }}
     />
