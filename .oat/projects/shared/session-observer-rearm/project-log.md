@@ -56,6 +56,10 @@ final-lint-generated-exclusions-20260916: Generic `pnpm lint` scanned generated/
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:0 exit=0 status=ok artifact=.oat/projects/shared/session-observer-rearm/reviews/final-review-2026-09-16T220057Z.md run=5d81d0bd-08cf-4353-be4c-1fba7b9c14f6
 
+### 2026-09-16 · project · feedback · lite closeout PR blocked by explicit local-only boundary
+
+lite-pr-boundary-20260916: The deterministic lite tail resolved to its required `pr` step, but the originating instruction explicitly forbids push, publication, and merge. The PR step was not dispatched; implementation code, phase/final reviews, configured exit gate, and backlog closeout remain complete and locally committed, while the lifecycle sequence stays resumable only if that authorization boundary is later changed.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

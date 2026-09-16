@@ -84,6 +84,23 @@ oat_implement_exit_gate:
   receive_completed: true
   failure: null
   updated_at: '2026-09-16T22:08:35Z'
+oat_post_implement_sequence:
+  status: failed
+  source: configured
+  final_phase: p01
+  pre_approval:
+    - pr
+  pre_approval_completed: []
+  approval: not_required
+  approval_source: null
+  post_approval: []
+  post_approval_completed: []
+  failure:
+    boundary: pre_approval
+    step: pr
+    dispatched: false
+    reason: 'The originating instruction explicitly forbids push, publication, and merge.'
+    resume_command: oat-project-implement
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -127,19 +144,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T22:08:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T22:09:54Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-rearm
 
-**Status:** Final review passed; awaiting configured exit gate
+**Status:** Local implementation accepted; PR tail not authorized
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Phase 1, its bounded bookkeeping correction, final verification, and the mandatory final lifecycle review are complete. The overall project remains in `implement` / `in_progress` for the configured implementation exit gate and lite closeout sequence.
+Phase 1, its bounded bookkeeping correction, final verification, phase/final reviews, and the configured implementation exit gate are complete. The project remains in `implement` / `in_progress` because lite closeout resolves to a PR step and the originating instruction explicitly forbids push, publication, and merge; that step was not dispatched.
 
 ## Artifacts
 
@@ -168,7 +185,9 @@ Phase 1, its bounded bookkeeping correction, final verification, and the mandato
 - ✓ Fresh p01 re-review passed with no findings
 - ✓ Final full tests, changed-file lint, type-check, build, and generated parity passed
 - ✓ Final lifecycle code review passed with no findings
-- → Awaiting configured implementation exit gate
+- ✓ Configured different-family implementation exit gate passed with no findings
+- ✓ Gate review received and correlated to commit `29dc6003b02d9819cd7aeb7017e756f7e57adff0`
+- ⏸ PR closeout step not dispatched because publication is explicitly out of scope
 
 ## Blockers
 
@@ -176,4 +195,4 @@ None
 
 ## Next Milestone
 
-Run the configured implementation exit gate
+No local implementation work remains. Resume `oat-project-implement` only if PR publication is later authorized.
