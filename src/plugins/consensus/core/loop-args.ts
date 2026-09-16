@@ -1,9 +1,13 @@
-import { parsePeers, parsePositiveInteger } from '../shared/cli-helpers.js';
+import {
+  parsePeerAgents,
+  parsePositiveInteger,
+} from '../shared/cli-helpers.js';
 import type {
   Agency,
   ColdStartMode,
   IterationMode,
   LoopOptions,
+  PeerAgent,
 } from './loop-types.js';
 import {
   COLD_START_MODES,
@@ -18,7 +22,7 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
     outputRecords?: string;
     outputSection?: string;
     outputStatus?: string;
-    peers?: string[];
+    peers?: PeerAgent[];
     goal: string;
     maxRounds: number;
     iteration: string;
@@ -52,7 +56,7 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
         parsed.goal = next();
         break;
       case '--peers':
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
         break;
       case '--max-rounds':
         parsed.maxRounds = parsePositiveInteger(next(), '--max-rounds');
@@ -96,7 +100,7 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
   }
 
   required(parsed.sectionFile, '--section-file');
-  required(parsed.peers, '--peers');
+  const peerAgents = required(parsed.peers, '--peers');
   required(parsed.outputRecords, '--output-records');
   required(parsed.outputSection, '--output-section');
   required(parsed.outputStatus, '--output-status');
@@ -104,7 +108,8 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration as IterationMode,
     coldStart: parsed.coldStart as ColdStartMode,

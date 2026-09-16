@@ -196,6 +196,9 @@ it('invokeConsensusProviderCli shells out with request JSON for provider, schema
       event: 'run',
       provider: 'codex',
       schema_path: '/schema/verdict.json',
+      // No peer model/effort was selected, so the request carried neither.
+      model: null,
+      effort: null,
     },
   ]);
 });

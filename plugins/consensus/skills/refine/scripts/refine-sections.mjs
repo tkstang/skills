@@ -3,9 +3,20 @@
 // src/skills/refine/src/refine-sections.ts
 import path6 from "node:path";
 
-// src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+// src/plugins/consensus/shared/cli-helpers.ts
+import {
+  lstat,
+  mkdir as mkdir3,
+  realpath,
+  rename as rename2,
+  unlink as unlink2,
+  writeFile as writeFile3
+} from "node:fs/promises";
 import path4 from "node:path";
+
+// src/plugins/consensus/core/consensus-loop.ts
+import { mkdir as mkdir2, readFile as readFile2, writeFile as writeFile2 } from "node:fs/promises";
+import path3 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -883,6 +894,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -894,7 +907,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1043,45 +1058,6 @@ function providerAuditFields(result) {
   };
 }
 
-// src/plugins/consensus/shared/cli-helpers.ts
-import {
-  lstat,
-  mkdir as mkdir2,
-  realpath,
-  rename as rename2,
-  unlink as unlink2,
-  writeFile as writeFile2
-} from "node:fs/promises";
-import path3 from "node:path";
-var MAX_ROUNDS_MIN = 1;
-var MAX_ROUNDS_MAX = 100;
-var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
-function parsePositiveInteger(value, flag, min = MAX_ROUNDS_MIN, max = MAX_ROUNDS_MAX) {
-  if (!/^\d+$/u.test(value)) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  return parsed;
-}
-function validateProviderId(value, flag) {
-  if (!PROVIDER_ID_PATTERN.test(value)) {
-    throw new Error(
-      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
-    );
-  }
-  return value;
-}
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
-    throw new Error("--peers must list exactly two peers");
-  }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
-}
-
 // src/plugins/consensus/core/loop-args.ts
 function parseLoopArgs(argv) {
   const parsed = {
@@ -1109,7 +1085,7 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1151,14 +1127,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = required(parsed.peers, "--peers");
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1463,6 +1440,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1492,7 +1477,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -1630,7 +1616,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2095,8 +2082,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await writeFile3(outputPath, artifact);
+  await mkdir2(path3.dirname(outputPath), { recursive: true });
+  await writeFile2(outputPath, artifact);
   await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
@@ -2136,8 +2123,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await writeFile3(
+  await mkdir2(path3.dirname(recordsPath), { recursive: true });
+  await writeFile2(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2709,12 +2696,68 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path3.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
     process.exitCode = exitCodeForError(error);
   });
+}
+
+// src/plugins/consensus/shared/cli-helpers.ts
+var MAX_ROUNDS_MIN = 1;
+var MAX_ROUNDS_MAX = 100;
+var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
+function parsePositiveInteger(value, flag, min = MAX_ROUNDS_MIN, max = MAX_ROUNDS_MAX) {
+  if (!/^\d+$/u.test(value)) {
+    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+}
+function validateProviderId(value, flag) {
+  if (!PROVIDER_ID_PATTERN.test(value)) {
+    throw new Error(
+      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
+    );
+  }
+  return value;
+}
+function parsePeerAgents(value) {
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
+    throw new Error("--peers must list exactly two peers");
+  }
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error("--peers entries must use provider[:model[:effort]]");
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+function normalizePeerAgent(peer) {
+  return typeof peer === "string" ? { provider: peer } : peer;
+}
+function formatPeerAgents(peers) {
+  return peers.map((peer) => formatPeerAgent(peer)).join(",");
+}
+function formatPeerAgent(peer) {
+  const agent = normalizePeerAgent(peer);
+  if (agent.effort) {
+    return `${agent.provider}:${agent.model ?? ""}:${agent.effort}`;
+  }
+  if (agent.model) return `${agent.provider}:${agent.model}`;
+  return agent.provider;
 }
 
 // src/skills/refine/src/refine-shared.ts
@@ -2750,7 +2793,7 @@ function parsePositiveInteger2(value, label, min = 1, max = Number.MAX_SAFE_INTE
   }
   return parsed;
 }
-function parsePeers2(value) {
+function parsePeers(value) {
   const peers = String(value).split(",").map((peer) => peer.trim()).filter(Boolean);
   if (peers.length !== 2) {
     throw new Error("--peers must contain exactly two peers");
@@ -2804,7 +2847,7 @@ function parseWrapperArgs(argv) {
         index += 1;
         break;
       case "--peers":
-        parsed.peers = parsePeers2(requireValue(argv, index, token));
+        parsed.peers = parsePeers(requireValue(argv, index, token));
         index += 1;
         break;
       case "--max-rounds":
@@ -3073,7 +3116,7 @@ function loopArgvForSection({
     "--goal",
     options.goal ?? "",
     "--peers",
-    peers.join(","),
+    formatPeerAgents(peers),
     "--max-rounds",
     String(options.maxRounds),
     "--agency",

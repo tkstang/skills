@@ -35,6 +35,23 @@ import {
   validationMetadata,
 } from './loop-validation.js';
 
+/**
+ * The model/effort selected for a peer, if any. `options.peerAgents` is
+ * index-aligned with `options.peers`; the provider guard keeps a stale or
+ * hand-built misaligned array from pinning another peer's model.
+ */
+function peerModelOptions(
+  options: LoopOptions,
+  peerIndex: number,
+): { model?: string; effort?: string } {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...(agent.model ? { model: agent.model } : {}),
+    ...(agent.effort ? { effort: agent.effort } : {}),
+  };
+}
+
 export async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -65,6 +82,7 @@ export async function executeAlternatingTurn({
     turn,
     prompt,
     artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex),
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -236,6 +254,7 @@ export async function executeParallelRound(
         turn: baseTurn + peerIndex + 1,
         prompt,
         artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex),
       }),
     );
   });

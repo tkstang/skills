@@ -102,10 +102,32 @@ export interface HashOptions extends NormalizeOptions {
   hashOptions?: NormalizeOptions;
 }
 
+/**
+ * A resolved peer: the provider id plus the optional model/effort selected for
+ * it (from consensus config or a `provider[:model[:effort]]` peer spec).
+ */
+export interface PeerAgent {
+  provider: string;
+  model?: string;
+  effort?: string;
+}
+
+/**
+ * A peer as supplied by a caller: a bare provider id (compatibility path) or a
+ * fully resolved agent reference.
+ */
+export type PeerSpec = string | PeerAgent;
+
 export interface LoopOptions {
   sectionFile: string;
   goal: string;
   peers: string[];
+  /**
+   * Optional per-peer model/effort selections, index-aligned with `peers`. A
+   * missing entry (or a whole missing array) means the provider CLI picks its
+   * own defaults, which is the pre-existing behavior.
+   */
+  peerAgents?: PeerAgent[];
   maxRounds: number;
   iteration: IterationMode;
   coldStart: ColdStartMode;
@@ -172,6 +194,8 @@ export interface ProviderInvocationArgs {
   provider: string;
   schemaPath: string;
   prompt: string;
+  model?: string;
+  effort?: string;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   consensusCliPath?: string;
@@ -252,6 +276,8 @@ export interface PeerInvocation {
   provider: string;
   schemaPath?: string;
   prompt: string;
+  model?: string;
+  effort?: string;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   peerIndex?: number;

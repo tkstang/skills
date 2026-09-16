@@ -1253,6 +1253,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -1264,7 +1266,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1458,6 +1462,49 @@ function parsePeers(value) {
   }
   return peers.map((peer) => validateProviderId(peer, "--peers"));
 }
+function parsePeerAgents(value) {
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
+    throw new Error("--peers must list exactly two peers");
+  }
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error("--peers entries must use provider[:model[:effort]]");
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+function peerAgentsFromComposition(agents) {
+  return agents.map((agent) => {
+    const normalized = normalizePeerAgent(agent);
+    return {
+      provider: normalized.provider,
+      ...normalized.model ? { model: normalized.model } : {},
+      ...normalized.effort ? { effort: normalized.effort } : {}
+    };
+  });
+}
+function normalizePeerAgent(peer) {
+  return typeof peer === "string" ? { provider: peer } : peer;
+}
+function formatPeerAgents(peers) {
+  return peers.map((peer) => formatPeerAgent(peer)).join(",");
+}
+function formatPeerAgent(peer) {
+  const agent = normalizePeerAgent(peer);
+  if (agent.effort) {
+    return `${agent.provider}:${agent.model ?? ""}:${agent.effort}`;
+  }
+  if (agent.model) return `${agent.provider}:${agent.model}`;
+  return agent.provider;
+}
 function inside(root, target) {
   const relative = path4.relative(root, target);
   return relative === "" || !relative.startsWith("..") && !path4.isAbsolute(relative);
@@ -1632,7 +1679,7 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1674,14 +1721,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = required(parsed.peers, "--peers");
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1986,6 +2034,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -2015,7 +2071,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -2153,7 +2210,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -3313,6 +3371,10 @@ function providerCliLoopInvokers({
         provider: turn.provider,
         schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
         prompt: turn.prompt,
+        // Configured peer model/effort ride along to `consensus run`; they
+        // are omitted when unselected so the provider CLI keeps its defaults.
+        ...turn.model ? { model: turn.model } : {},
+        ...turn.effort ? { effort: turn.effort } : {},
         env,
         cwd
       },
@@ -3703,7 +3765,7 @@ function loopArgvForEvaluation({
     "--goal",
     options.goal,
     "--peers",
-    peers.join(","),
+    formatPeerAgents(peers),
     "--max-rounds",
     String(options.maxRounds),
     "--agency",
@@ -3903,12 +3965,15 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const writeRoot = path6.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
   const inventory = normalized.peers === null ? await loadEvaluateProviderInventory({ env, cwd }) : void 0;
-  const peers = normalized.peers ?? (await resolveConsensusComposition({
-    workflow: "convergence",
-    cwd,
-    env,
-    inventory
-  })).agents.map((agent) => agent.provider);
+  const peerAgents = peerAgentsFromComposition(
+    normalized.peers ?? (await resolveConsensusComposition({
+      workflow: "convergence",
+      cwd,
+      env,
+      inventory
+    })).agents
+  );
+  const peers = peerAgents.map((agent) => agent.provider);
   const synthesizer = normalized.iteration === "parallel_synthesized" ? normalized.synthesizer ?? peers[0] : null;
   const providerCliInvokers = providerCliLoopInvokers({
     env,
@@ -3926,7 +3991,7 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const loopArgv = loopArgvForEvaluation({
     paths,
     options: normalized,
-    peers,
+    peers: peerAgents,
     synthesizer
   });
   await Promise.all([

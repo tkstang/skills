@@ -56,6 +56,8 @@ export type {
   ConsensusCliResolutionSource,
   ConsensusCliResolution,
   ConsensusCliPathOptions,
+  PeerAgent,
+  PeerSpec,
   PeerInvocation,
   PeerInvoker,
   SynthesizerInvocation,

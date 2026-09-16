@@ -886,6 +886,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -897,7 +899,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1096,12 +1100,24 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
+function parsePeerAgents(value) {
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
   }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error("--peers entries must use provider[:model[:effort]]");
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1131,7 +1147,7 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1173,14 +1189,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = required(parsed.peers, "--peers");
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1485,6 +1502,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1514,7 +1539,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -1652,7 +1678,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
