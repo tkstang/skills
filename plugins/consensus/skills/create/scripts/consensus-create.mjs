@@ -374,7 +374,7 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -1466,49 +1466,6 @@ function parsePeers(value) {
   }
   return peers.map((peer) => validateProviderId(peer, "--peers"));
 }
-function parsePeerAgents(value) {
-  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (specs.length !== 2) {
-    throw new Error("--peers must list exactly two peers");
-  }
-  return specs.map((spec) => parsePeerAgentSpec(spec));
-}
-function parsePeerAgentSpec(spec) {
-  const [provider, model, effort, ...extra] = spec.split(":");
-  if (extra.length > 0) {
-    throw new Error("--peers entries must use provider[:model[:effort]]");
-  }
-  const agent = {
-    provider: validateProviderId(provider ?? "", "--peers")
-  };
-  if (model !== void 0 && model.length > 0) agent.model = model;
-  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
-  return agent;
-}
-function peerAgentsFromComposition(agents) {
-  return agents.map((agent) => {
-    const normalized = normalizePeerAgent(agent);
-    return {
-      provider: normalized.provider,
-      ...normalized.model ? { model: normalized.model } : {},
-      ...normalized.effort ? { effort: normalized.effort } : {}
-    };
-  });
-}
-function normalizePeerAgent(peer) {
-  return typeof peer === "string" ? { provider: peer } : peer;
-}
-function formatPeerAgents(peers) {
-  return peers.map((peer) => formatPeerAgent(peer)).join(",");
-}
-function formatPeerAgent(peer) {
-  const agent = normalizePeerAgent(peer);
-  if (agent.effort) {
-    return `${agent.provider}:${agent.model ?? ""}:${agent.effort}`;
-  }
-  if (agent.model) return `${agent.provider}:${agent.model}`;
-  return agent.provider;
-}
 function inside(root, target) {
   const relative = path4.relative(root, target);
   return relative === "" || !relative.startsWith("..") && !path4.isAbsolute(relative);
@@ -1656,6 +1613,49 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
     throw error;
   }
   return writePath;
+}
+function parsePeerAgents(value) {
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
+    throw new Error("--peers must list exactly two peers");
+  }
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error("--peers entries must use provider[:model[:effort]]");
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+function peerAgentsFromComposition(agents) {
+  return agents.map((agent) => {
+    const normalized = normalizePeerAgent(agent);
+    return {
+      provider: normalized.provider,
+      ...normalized.model ? { model: normalized.model } : {},
+      ...normalized.effort ? { effort: normalized.effort } : {}
+    };
+  });
+}
+function normalizePeerAgent(peer) {
+  return typeof peer === "string" ? { provider: peer } : peer;
+}
+function formatPeerAgents(peers) {
+  return peers.map((peer) => formatPeerAgent(peer)).join(",");
+}
+function formatPeerAgent(peer) {
+  const agent = normalizePeerAgent(peer);
+  if (agent.effort) {
+    return `${agent.provider}:${agent.model ?? ""}:${agent.effort}`;
+  }
+  if (agent.model) return `${agent.provider}:${agent.model}`;
+  return agent.provider;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -2683,8 +2683,7 @@ function detectEscalation(records, {
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
   await mkdir4(path6.dirname(outputPath), { recursive: true });
-  await writeFile4(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2724,7 +2723,7 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
     (record) => withRecordMetadata(record, options)
   );
   await mkdir4(path6.dirname(recordsPath), { recursive: true });
-  await writeFile4(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `

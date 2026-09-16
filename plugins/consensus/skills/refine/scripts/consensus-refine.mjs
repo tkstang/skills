@@ -376,7 +376,7 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -1459,6 +1459,8 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
+
+// src/plugins/consensus/shared/cli-helpers.ts
 function parsePeerAgents(value) {
   const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
   if (specs.length !== 2) {
@@ -2528,8 +2530,7 @@ function detectEscalation(records, {
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
   await mkdir4(path6.dirname(outputPath), { recursive: true });
-  await writeFile4(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2569,7 +2570,7 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
     (record) => withRecordMetadata(record, options)
   );
   await mkdir4(path6.dirname(recordsPath), { recursive: true });
-  await writeFile4(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -3371,7 +3372,7 @@ function parsePositiveInteger2(value, label, min = 1, max = Number.MAX_SAFE_INTE
   }
   return parsed;
 }
-function parsePeers(value) {
+function parsePeers2(value) {
   const peers = String(value).split(",").map((peer) => peer.trim()).filter(Boolean);
   if (peers.length !== 2) {
     throw new Error("--peers must contain exactly two peers");
@@ -4265,7 +4266,7 @@ function renderDeliberationArtifact(runResult) {
 }
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile6 } from "node:fs/promises";
+import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
 import path10 from "node:path";
 import { createInterface } from "node:readline/promises";
 var STRICT_RESUME_HASH_OPTIONS = Object.freeze({

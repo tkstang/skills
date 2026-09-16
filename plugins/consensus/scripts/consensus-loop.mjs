@@ -1100,6 +1100,8 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
+
+// src/plugins/consensus/shared/cli-helpers.ts
 function parsePeerAgents(value) {
   const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
   if (specs.length !== 2) {

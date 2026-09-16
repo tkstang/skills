@@ -3,9 +3,20 @@
 // src/skills/refine/src/refine-sections.ts
 import path7 from "node:path";
 
-// src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+// src/plugins/consensus/shared/cli-helpers.ts
+import {
+  lstat as lstat2,
+  mkdir as mkdir3,
+  realpath,
+  rename as rename2,
+  unlink as unlink2,
+  writeFile as writeFile2
+} from "node:fs/promises";
 import path5 from "node:path";
+
+// src/plugins/consensus/core/consensus-loop.ts
+import { mkdir as mkdir2, readFile as readFile2 } from "node:fs/promises";
+import path3 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1047,49 +1058,6 @@ function providerAuditFields(result) {
   };
 }
 
-// src/plugins/consensus/shared/cli-helpers.ts
-import {
-  lstat as lstat2,
-  mkdir as mkdir2,
-  realpath,
-  rename as rename2,
-  unlink as unlink2,
-  writeFile as writeFile2
-} from "node:fs/promises";
-import path4 from "node:path";
-
-// src/plugins/consensus/shared/cli-helpers-core.ts
-import { lstat } from "node:fs/promises";
-import path3 from "node:path";
-var MAX_ROUNDS_MIN = 1;
-var MAX_ROUNDS_MAX = 100;
-var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
-function parsePositiveInteger(value, flag, min = MAX_ROUNDS_MIN, max = MAX_ROUNDS_MAX) {
-  if (!/^\d+$/u.test(value)) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  return parsed;
-}
-function validateProviderId(value, flag) {
-  if (!PROVIDER_ID_PATTERN.test(value)) {
-    throw new Error(
-      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
-    );
-  }
-  return value;
-}
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
-    throw new Error("--peers must list exactly two peers");
-  }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
-}
-
 // src/plugins/consensus/core/loop-args.ts
 function parseLoopArgs(argv) {
   const parsed = {
@@ -2114,9 +2082,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path5.dirname(outputPath), { recursive: true });
-  await writeFile3(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir2(path3.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2155,8 +2122,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path5.dirname(recordsPath), { recursive: true });
-  await writeFile3(
+  await mkdir2(path3.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2727,7 +2694,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path3.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2735,7 +2702,9 @@ if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.
   });
 }
 
-// src/plugins/consensus/shared/cli-helpers.ts
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
+import path4 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
 var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
@@ -2757,6 +2726,8 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
+
+// src/plugins/consensus/shared/cli-helpers.ts
 function parsePeerAgents(value) {
   const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
   if (specs.length !== 2) {
@@ -2824,7 +2795,7 @@ function parsePositiveInteger2(value, label, min = 1, max = Number.MAX_SAFE_INTE
   }
   return parsed;
 }
-function parsePeers(value) {
+function parsePeers2(value) {
   const peers = String(value).split(",").map((peer) => peer.trim()).filter(Boolean);
   if (peers.length !== 2) {
     throw new Error("--peers must contain exactly two peers");

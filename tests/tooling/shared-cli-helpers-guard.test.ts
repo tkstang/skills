@@ -61,11 +61,16 @@ const EXPECTED_CORE_NAMES = [
   'validateProviderId',
 ];
 
-// The helpers that must stay in the loop-coupled layer because they raise
-// ConsensusError / reference EXIT_CODES.
+// The helpers that must stay in the loop-coupled layer: the ConsensusError /
+// EXIT_CODES trio, plus the peer-spec helpers that type against the loop's
+// PeerAgent/PeerSpec (pure, but not loop-free at the type level).
 const EXPECTED_COUPLED_NAMES = [
   'atomicWriteFile',
   'confineWrite',
+  'formatPeerAgents',
+  'normalizePeerAgent',
+  'parsePeerAgents',
+  'peerAgentsFromComposition',
   'providerCliUnavailableError',
 ];
 
