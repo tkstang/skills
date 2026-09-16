@@ -50,7 +50,8 @@ status or provider-specific response syntax as a consensus decision.
 
 ## Guardrails, not isolation
 
-When host context is available, the guard tracks the host, run id, and recursion
+When host context is available, the [host guard](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/host-guard.ts)
+tracks the host, run id, and recursion
 depth. It blocks
 same- or cross-provider spawning beyond the configured maximum depth and adds
 child host metadata to allowed calls. Unknown or absent host context cannot
@@ -80,7 +81,8 @@ or caps can be retried within the configured provider attempt budget.
 ## Durable records and resume
 
 Each accepted peer or synthesis result is appended to `records.json` with a
-schema version and timestamp. The writer rewrites that array through a
+schema version and timestamp. The [records writer](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/core/loop-records.ts)
+rewrites that array through a
 same-directory temporary file, sync, and rename. Terminal status is normalized
 and written separately with turn, round, hash, and available cost data.
 

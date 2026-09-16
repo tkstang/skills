@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 1000" role="img" aria-labelledby="tbTitle tbDesc" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
-  <title id="tbTitle">Trust boundary: what leaves the machine</title>
-  <desc id="tbDesc">Peer transcripts under the provider home directories, observer state and collaboration leases under ~/.local/state/session-observer, and .consensus run state are not handed to the provider process. The skill reads the input artifact locally and compacts it into the prompt payload; no artifact file is handed to the child process. What crosses the boundary is the prompt payload, passed on argv for Claude and on stdin for Codex and Cursor, plus a schema passed inline in argv for Claude or a schema path with the CONSENSUS_SUBMIT environment variables for Codex, and the child inherits a working directory with no filesystem confinement. The peers are claude, codex and cursor-agent, run as separate processes. What comes back is untrusted data: it is schema-validated, never auto-applied, and treated as advice rather than instructions. Local guards cap option files at one mebibyte and confine inputs, outputs and run directories with --allow-root. Asking for approval before sending sensitive context is a skill instruction, not a code gate.</desc>
+  <title id="tbTitle">The provider process boundary</title>
+  <desc id="tbDesc">Transcripts, observer state, and run artifacts are stored locally, but selected contents can enter the prompt. Claude receives the prompt through argv; Codex and Cursor receive it through stdin. Schema and submission information also reach the child. Provider CLIs run as separate local processes under their own permissions and may transmit context to provider services. The wrapper's path guards do not sandbox the child. Returned structured payloads are validated but remain untrusted advice. This is a process I/O diagram, not a guarantee of network isolation or data retention.</desc>
   <style>
     .card{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-line,#757575);stroke-width:1.2}
     .band{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.2;stroke-dasharray:5 5;opacity:.5}
@@ -27,10 +27,10 @@
 
   <!-- local -->
   <rect x="24" y="82" width="782" height="230" rx="8" class="band"/>
-  <text x="40" y="104" class="h">NOT HANDED TO THE PROVIDER PROCESS</text>
+  <text x="40" y="104" class="h">STORED LOCALLY — SELECTED CONTENTS CAN ENTER THE PROMPT</text>
   <rect x="40" y="114" width="750" height="58" rx="6" class="card"/>
   <text x="58" y="140" class="m">~/.claude/projects · ~/.codex/sessions · ~/.cursor/projects</text>
-  <text x="58" y="162" class="s">peer transcripts — read, never written</text>
+  <text x="58" y="162" class="s">peer transcripts — read-only for the observer</text>
   <rect x="40" y="182" width="750" height="58" rx="6" class="card"/>
   <text x="58" y="208" class="m">~/.local/state/session-observer/ · collab/leases/</text>
   <text x="58" y="230" class="s">read offsets, watcher and control state, collaboration leases</text>
@@ -42,7 +42,7 @@
   <!-- compaction -->
   <rect x="120" y="346" width="590" height="76" rx="6" class="card"/>
   <rect x="120" y="346" width="6" height="76" rx="3" class="acc1"/>
-  <text x="142" y="374" class="t">No artifact file crosses</text>
+  <text x="142" y="374" class="t">Selected context becomes a prompt</text>
   <text x="142" y="400" class="s">the skill reads it locally and compacts it into the prompt</text>
   <path class="e" d="M415,424 L415,456"/>
 
@@ -57,7 +57,7 @@
   <rect x="40" y="530" width="750" height="62" rx="6" class="card"/>
   <rect x="40" y="530" width="6" height="62" rx="3" class="acc1"/>
   <text x="62" y="553" class="t">Prompt payload</text>
-  <text x="62" y="577" class="s">argv for Claude · stdin for Codex and Cursor · facts, constraints, and the compacted artifact text</text>
+  <text x="62" y="577" class="s">Claude: argv · Codex/Cursor: stdin · selected facts, constraints, and artifact text</text>
   <rect x="40" y="598" width="366" height="84" rx="6" class="card"/>
   <rect x="40" y="598" width="6" height="84" rx="3" class="acc2"/>
   <text x="62" y="624" class="s">Claude: the schema is ALSO</text>
@@ -77,7 +77,7 @@
   <text x="58" y="786" class="m">claude --print --output-format json</text>
   <text x="58" y="810" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
   <text x="58" y="834" class="m">cursor-agent --output-format json --force</text>
-  <text x="58" y="864" class="s">separate OS processes; the child inherits a cwd with no filesystem confinement</text>
+  <text x="58" y="864" class="s">separate OS processes — wrapper path guards do not sandbox the child</text>
   <path class="e" d="M415,890 L415,916"/>
 
   <!-- return -->

@@ -44,6 +44,8 @@ describe('readme-scope', () => {
 
     // Links readers into the deployed site, not raw Markdown source paths.
     expect(readme).toMatch(/https:\/\/tkstang\.github\.io\/skills\//);
+    expect(readme).toMatch(/\]\(https:\/\/tkstang\.github\.io\/skills\/\)/);
+    expect(readme).toMatch(/user-guide\/getting-started\//);
     expect(readme).not.toMatch(/documentation\/docs\//);
     // The dense reference sections were moved out of the README.
     expect(readme).not.toMatch(/^## Permissions$/m);

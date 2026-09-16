@@ -89,14 +89,14 @@ flowchart TD
 
 _Mermaid updated 2026-09-16_
 
-What the diagram compresses:
+How the checks affect the prepared guidance:
 
 - `prepare` always runs discovery, whatever the entry point.
-- The entry point is recorded on the output rather than branching the gates, but `destination-fresh` prepends an `exit-current-session` instruction when `destinationSwitch.status !== 'documented'`.
-- The `cwdEvidenceQuality` gate is Cursor-only: `provider === 'cursor' && transcript.cwdEvidenceQuality !== 'independent-exact'`. Claude and Codex candidates never enter it. Cursor stores never qualify today, so Cursor always stops at `discovery-incomplete` with reason `cwd-evidence-incomplete`.
-- Choosing a candidate explicitly is instruction-level, not a code gate.
-- `recordedCwd` must equal the canonical source path or `prepareForkGuidance` throws `invalid-source-candidate`. This runs **before** the ambiguous-surface refusal at `:123` and before any capability lookup.
-- An ambiguous surface (Cursor, `store-origin-ambiguous`.
+- The entry point does not bypass checks. For `destination-fresh`, guidance begins with an `exit-current-session` instruction unless destination switching is documented for that provider surface.
+- Cursor needs independent, exact working-directory evidence. Its current stores do not supply that evidence, so discovery fails closed with `discovery-incomplete` and reason `cwd-evidence-incomplete`. Claude and Codex do not use this Cursor-specific gate.
+- Choosing a candidate explicitly is a workflow instruction, not an additional runtime gate.
+- The recorded working directory must match the canonical source path; otherwise preparation fails with `invalid-source-candidate` before surface and capability checks.
+- An ambiguous surface produces an unsupported instruction, never a fork or resume command. Cursor's `store-origin-ambiguous` is one such surface.
 - Documented fork semantics: Claude `--resume <id> --fork-session`; Codex `codex fork <id>`; Cursor fork `status: 'unsupported'`.
 - The emitted command compares `pwd -P` against the canonical destination and otherwise refuses.
 

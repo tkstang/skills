@@ -144,11 +144,12 @@ flowchart TB
     R3["Converged artifact"]
     R4["Reported impasse"]
     RW["Decided by: the peers"]
+    RU["User direction required"]
     R0 --> R1 --> R2
     R2 -->|agreement| R3
     R2 -->|impasse| R4
     R3 --> RW
-    R4 --> RW
+    R4 --> RU
   end
   subgraph panel["panel · non-converging"]
     direction TB
@@ -172,11 +173,11 @@ flowchart TB
 
 _Mermaid updated 2026-09-16_
 
-What the diagram compresses:
+The outcome determines who acts next:
 
-- **refine** deliberates over verdict rounds to convergence or to a reported impasse; an impasse is handed back to you with `--user-direction`; `consensus-refine.ts:442-449`.
-- **panel** requires at least two panelists and passes only with two or more successful responses. It is single-round and independent: panelists never see each other. The host adds no synthesis, vote, or recommendation(instruction-level).
-- **phone-a-friend** is one provider turn under `--max-depth 1` returning `take`, `recommendation`, `risks`, `follow_up_questions`, and `confidence`; `src/skills/phone-a-friend/SKILL.md:61`, `:70`, `:94`. The host must state a disposition of agree, disagree, apply, ignore, or follow-up (instruction-level).
+- **Refine** produces a converged artifact or reports an impasse. An impasse comes back to you; resume with `--user-direction`. Other escalation cases follow the [agency policy](configuration.md#agency).
+- **Panel** requires at least two successful responses. Panelists respond independently, and the host's instructions prohibit adding a synthesis, vote, or recommendation.
+- **Phone-a-friend** returns a take, recommendation, risks, follow-up questions, and confidence from one provider turn. The host must state whether it agrees, disagrees, applies, ignores, or follows up on that advice.
 
 ## Iteration modes
 
@@ -219,7 +220,17 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 
 ## What is handed to a provider process
 
-This is the local process boundary, not a network boundary. Transcripts, observer and collaboration state, and `.consensus/` run state are never handed to a provider subprocess. No artifact file crosses either: the skill reads it locally and compacts it into the prompt payload, passed on argv for Claude and on stdin for Codex and Cursor, alongside a schema and a few submit environment variables. The provider CLI then sends its input to that provider's service, which this repository does not control. Everything that comes back is schema-validated and treated as untrusted data.
+This is the local process boundary, not a network boundary. The wrapper reads
+selected input and constructs a prompt payload: an argv argument for Claude,
+stdin for Codex and Cursor. It also supplies schema and submission information.
+
+Transcript, observer, and run-state files are stored locally, but selected
+contents can enter the prompt. Provider subprocesses may also access files in
+their working directory under their own permission and sandbox settings; the
+wrapper's path guards do not confine those processes. Provider CLIs may transmit
+context to their services. Review those tools' configuration before sharing
+sensitive material. Returned structured payloads are schema-validated, but
+validation does not make their advice trustworthy or authorize following it.
 
 === "Diagram"
 
@@ -231,7 +242,7 @@ This is the local process boundary, not a network boundary. Transcripts, observe
 
     ```mermaid
     flowchart TB
-      subgraph local["Not handed to the provider process"]
+      subgraph local["Stored locally — selected contents can enter the prompt"]
         TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
         ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]
         RUN[".consensus/ run state<br/>and output artifacts"]
@@ -241,7 +252,7 @@ This is the local process boundary, not a network boundary. Transcripts, observe
         PR["Prompt payload<br/>argv for Claude — stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
         SCH["Claude: the schema is ALSO passed<br/>inline in argv as --json-schema"]
         ENV["Submit env, 4 vars — set for every provider<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA<br/>and CONSENSUS_SUBMIT_MAX_BYTES"]
-        CWD["The child inherits a cwd<br/>with no filesystem confinement"]
+        CWD["Working directory and provider policy<br/>wrapper path guards do not sandbox the child"]
       end
       subgraph remote["Provider CLI subprocess"]
         PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --output-format json --force"]

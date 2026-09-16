@@ -82,15 +82,15 @@ flowchart TB
 
 _Mermaid updated 2026-09-16_
 
-What the diagram compresses:
+Scope of each trigger:
 
-- These are independent triggers, not a pipeline. **No job declares `needs:`** anywhere in `.github/workflows/validate.yml`, so the four PR-only jobs run in parallel with `validate`, not downstream of it — job keys at `:43`, `:73`, `:94`, `:126`, guards at `:47`, `:80`, `:96`, `:130`.
+- These are independent triggers, not a pipeline. No job declares `needs:` in the [Validate workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml), so its four PR-only jobs run in parallel with `validate`, not downstream of it.
 - The `validate` job itself runs on both `pull_request` and pushes to `main`.
 - The pre-push hook runs validate, build:check, type-check and the two gates, and deliberately skips the test suite and smoke to stay fast.
 - `oat status --scope project --hook` in pre-commit is non-blocking.
 - Docs CI is PR-only and path-scoped.
 - Deploy Docs is an independent workflow, **also** dispatchable on top of its push-to-`main` trigger. Live Provider E2E is the dispatch-**only** workflow, and nothing invokes it.
-- The Release workflow fires on `consensus-v*` / `session-v*` tags; it builds then asserts generated outputs are committed `:27-32`, reruns the static suite `:33-39`, and verifies the tag against the already-written manifests `:40-44`.
+- The [Release workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml) fires on `consensus-v*` / `session-v*` tags. It builds, asserts generated outputs are committed, reruns the static suite, and verifies the tag against the already-written manifests.
 
 ## Pre-commit: lint-staged
 

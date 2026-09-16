@@ -39,7 +39,13 @@ does not establish live provider discovery or permission behavior.
 - Verify the intended standalone skills through `npx skills add <username>/skills`
   discovery and an isolated install. Do not infer every authored skill is
   standalone; only declarations in `src/distributions.ts` produce that form.
-- Confirm the README install matrix matches the live provider CLIs.
+- In an isolated project, verify the README quick start:
+  `npx skills add https://github.com/tkstang/skills/tree/main/skills/next-steps --agent codex`.
+  Record installer selection, project-scoped placement, fresh-session discovery,
+  and a bounded invocation separately. Verify other advertised host paths when
+  affected; do not infer discovery from a successful file copy.
+- Confirm the [Installation guide's provider matrix](documentation/docs/user-guide/installation.md#install-matrix)
+  matches the live provider CLIs and the README still routes readers there.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
 - For a session release, verify the complete session plugin in an isolated
   directory, execute the generated transcript exporter outside the checkout,
