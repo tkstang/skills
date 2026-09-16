@@ -86,6 +86,32 @@ oat_generated: false
 
 **Blockers:** None for the bounded investigation.
 
+### Review Received: plan
+
+**Date:** 2026-09-16
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-09-16T204720Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 3
+- Minor: 4
+
+**Artifact corrections applied:**
+
+- M1 `resolve_in_artifact`: replaced the unusable `.oat/**` formatter step with scoped `git diff --check`.
+- M2 `resolve_in_artifact`: added a deterministic `watch-ctl stop` lifetime so shipped procedure and proof use the same stop path.
+- M3 `resolve_in_artifact`: specified spawned-CLI SIGTERM evidence separately from in-process virtual-clock cases.
+- m1 `resolve_in_artifact`: normalized the earlier structured plan-review ledger row.
+- m2 `resolve_in_artifact`: pinned the contender-first interleaving and bounded the alternate interleaving under the acknowledgment/CAS limitation.
+- m3 `resolve_in_artifact`: switched to atomic `oat backlog archive` closeout and added the operating-picture check.
+- m4 `resolve_in_artifact`: labeled both `SKILL.md` edits as version-only.
+
+**New tasks added:** None; artifact reviews modify the reviewed plan directly.
+
+**Next:** Complete the lite plan gate receipt, then proceed to `oat-project-implement`.
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |

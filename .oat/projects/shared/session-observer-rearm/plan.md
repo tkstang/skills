@@ -40,7 +40,7 @@ If a failing case is confined to the current watcher/observer boundary and can b
 
 1. **Exact-pin clean re-arm** — A renderable peer message appended while the watcher is stopped is emitted once by the next `catch-up-then-watch`, after either clean SIGTERM shutdown or normal max-runtime expiry.
 2. **Honest range accounting** — Tool/reasoning-only records may advance the persisted raw index while producing no rendered delta; the next renderable message remains observable and its digest exposes raw and rendered ranges distinctly.
-3. **Startup and contention safety** — A message appended during re-arm startup is not silently baselined away, and a second live watcher for the same exact target is rejected without consuming the first watcher's unread content.
+3. **Startup and contention safety** — A message appended during re-arm startup is not silently baselined away. In the deterministic contender-first interleaving, a second live watcher for the same exact target is rejected and restores the shared offset before the owner polls; the owner-polls-between-advance-and-restore interleaving is characterized separately under the existing acknowledgment/CAS limitation.
 4. **Bounded delivery claim** — Documentation describes verified persisted-state and stdout behavior, identifies the legacy pre-stdout checkpoint window, and states that delivery into the observing agent needs live harness evidence.
 5. **Portable evidence** — Tests and the canonical Claude Code runtime reference contain sanitized evidence that does not depend on local transcript paths, session IDs, or the ignored collaboration log.
 
@@ -68,7 +68,7 @@ If a failing case is confined to the current watcher/observer boundary and can b
 
 ## Validation Criteria
 
-- [ ] Exact `codex:<session-id>` restart tests prove a known renderable message is emitted after clean SIGTERM and normal max-runtime stop, with captured `fromIndex`/`nextIndex`, persisted state, digest content, and stdout evidence — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts`
+- [ ] Exact `codex:<session-id>` restart tests prove a known renderable message is emitted after clean SIGTERM, `watch-ctl stop`, and normal max-runtime stop, with captured `fromIndex`/`nextIndex`, persisted state, digest content, and stdout evidence — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts`
 - [ ] A deterministic negative control injects legacy stdout failure after persisted consumption, restarts the exact pin, and proves whether replay occurs; filtered-only advancement, startup appends, and same-target competing-consumer behavior are covered separately without timing sleeps — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
 - [ ] Canonical Claude Code guidance states the bounded re-arm procedure, corrects the duration claim, and distinguishes process output from live agent delivery — Check: `pnpm run test:vitest src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts`
 - [ ] Affected skill versions are bumped and generated standalone/plugin payloads match canonical sources — Check: `pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run build:check`
@@ -91,19 +91,19 @@ This plan has one phase and executes sequentially.
 - Modify if required by a demonstrated bounded defect: `src/skills/session-observer/src/lib/state.ts`
 - Modify if needed for checkpoint characterization: `src/skills/session-observer/src/observe.test.ts`
 - Modify if needed for process-level failure characterization: `src/skills/session-observer/src/integration.test.ts`
-- Modify: `src/skills/session-observer/SKILL.md`
-- Modify: `src/skills/session-observer-collab/SKILL.md`
+- Modify version only: `src/skills/session-observer/SKILL.md`
+- Modify version only: `src/skills/session-observer-collab/SKILL.md`
 - Regenerate: declared `skills/` and `plugins/consensus/skills/` outputs for both affected owners
 
 **Implementation and Proof Strategy:**
 
 - **Strategy:** Characterization-first, followed by a focused regression or bounded fix.
 - **Observable risk:** A renderable peer message appended across watcher termination/restart is consumed in persisted state without appearing in the re-armed watcher's stdout, or startup/contention behavior makes the test falsely pass.
-- **Why proportionate:** Two deterministic watcher lifetimes using existing virtual-clock, injected stdout, transcript, and state helpers directly exercise the suspected boundary without a live provider or timing race; explicit boundary assertions prevent raw-index movement from being mistaken for rendered content or agent delivery.
+- **Why proportionate:** The max-runtime, control-stop, startup, contention, and negative controls use the existing virtual clock, injected stdout, transcript, state, and control-directive helpers. The SIGTERM lifetime uses the existing spawned-CLI pattern, waits on observable `watch.json.active`, sends SIGTERM, and reads JSON stdout plus `STATE_DIR` files. No fixed-delay sleep decides success, and explicit boundary assertions prevent raw-index movement from being mistaken for rendered content or agent delivery.
 
 **Step 1: Implement**
 
-Add reusable deterministic fixture helpers only where they reduce duplication. First preserve SIGTERM and max-runtime two-lifetime reproductions using an exact `codex:<session-id>` pin and a known assistant message appended while stopped. Add a negative control that injects a rejecting or incomplete legacy stdout sink after `observeCatchUp()` advances state, asserts the write failure and persisted `lastRecordIndex`, restarts the exact pin, and records whether the digest replays; this characterizes the broader acknowledgment/CAS stop boundary rather than authorizing speculative rollback. Add separate cases for filtered-only records, an append during re-arm startup, and a same-target competing consumer. Assert raw ranges, rendered ranges/content, saved offset, stdout chunks, and single-consumer ownership independently. If a supported clean path loses content, fix the smallest safe watcher/observer boundary and keep the pre-fix test. Bump both affected skill versions, run the canonical build, and include generated observer/collaboration payloads in this independently valid commit.
+Add reusable deterministic fixture helpers only where they reduce duplication. First preserve three two-lifetime reproductions using an exact `codex:<session-id>` pin and a known assistant message appended while stopped: (a) spawn the CLI with JSON output, wait for `watch.json.active`, send SIGTERM, and read range/state evidence from stdout plus `STATE_DIR`; (b) issue `writeControlDirective({ directive: 'stop' })` through the deterministic control seam; and (c) expire through virtual max-runtime. Add a negative control that injects a rejecting or incomplete legacy stdout sink after `observeCatchUp()` advances state, asserts the write failure and persisted `lastRecordIndex`, restarts the exact pin, and records whether the digest replays; this characterizes the broader acknowledgment/CAS stop boundary rather than authorizing speculative rollback. Add separate cases for filtered-only records and an append during re-arm startup. For competing consumers, pin the contender-first interleaving in which rejection restores the shared offset before the owner polls, and characterize the owner-polls-between-advance-and-restore interleaving under the same broader stop boundary. Assert raw ranges, rendered ranges/content, saved offset, stdout chunks, and single-consumer ownership independently. If a supported clean path loses content, fix the smallest safe watcher/observer boundary and keep the pre-fix test. Bump both affected skill versions, run the canonical build, and include generated observer/collaboration payloads in this independently valid commit.
 
 **Step 2: Prove**
 
@@ -186,16 +186,16 @@ git commit -m "docs(session-observer): clarify re-arm delivery bounds"
 
 **Step 1: Implement**
 
-Run the normal premerge gates and review the final evidence against every ticket acceptance criterion. If all are satisfied, set the item to `closed`, add the newest-first completion summary, move it to `archived/`, and regenerate the backlog index. If the broader acknowledgment/harness boundary leaves an acceptance criterion unmet, keep the item open and record only precise remaining work supported by the evidence.
+Run the normal premerge gates and review the final evidence against every ticket acceptance criterion. If all are satisfied, run `oat backlog archive BL-260916-session-observer-re-armed` for the atomic status/completed-entry/archive/index transition, then check whether the completion changes the operating picture and refresh `current-state.md` plus the curated backlog overview only when warranted. If the broader acknowledgment/harness boundary leaves an acceptance criterion unmet, keep the item open and record only precise remaining work supported by the evidence.
 
 **Step 2: Prove**
 
-Run: `pnpm run premerge && oat backlog regenerate-index && oat pjm doctor --json`
+Run: `pnpm run premerge && oat pjm doctor --json`
 Expected: All non-live gates pass; the backlog is either fully archived with a completed entry or remains consistently open, never partially closed.
 
 **Step 3: Refactor and format**
 
-Run `pnpm exec oxfmt --write .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/archived/BL-260916-session-observer-re-armed.md` on changed authored Markdown only; do not hand-format the generated backlog index.
+The repository formatter excludes `.oat/**`; do not invoke it on PJM artifacts. Run `git diff --check -- .oat/repo/pjm/backlog .oat/repo/pjm/current-state.md` after the bounded closeout edits instead, and do not hand-format the generated backlog index.
 
 **Step 4: Verify**
 
@@ -219,8 +219,8 @@ git commit -m "chore(pjm): disposition observer re-arm investigation"
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | passed  | 2026-09-16 | plan.md  | working-tree@46f49d3 | oat-reviewer-gpt-5-6-sol-high (retry 1) | managed high |
-| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T204720Z.md | - | - | - |
+| plan   | artifact | passed  | 2026-09-16 | - | - | - | - |
+| plan   | artifact | passed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T204720Z.md | - | - | - |
 
 ## Implementation Complete
 

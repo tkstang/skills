@@ -111,7 +111,9 @@ Plan - Authoring a single-phase lite plan
 - ✓ Single-phase plan authored and validated
 - ✓ Plan approved from the explicit user instruction
 - ✓ Structured plan artifact review passed after one fix cycle
-- ⧗ Awaiting the configured lite exit gate
+- ✓ Configured lite exit gate passed with no Critical or Important findings
+- ✓ Seven sub-threshold artifact findings resolved in the plan
+- ⧗ Archiving and committing gate-receive bookkeeping
 
 ## Blockers
 
