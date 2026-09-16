@@ -14,7 +14,7 @@ oat_template_name: design
 
 Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior byte-for-byte at the contract level. Calling it with `--skill`, `--agent`, and an explicit `--ref` selects the new path: resolve an exact tag from the configured Git repository, read only the generated `skills/<name>/` payload, and install it into the selected host's project-scoped skills directory.
 
-The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and publishes the installation by renaming the stage into a destination that was confirmed absent. Existing destinations are refused, which keeps failure recovery simple and prevents stale-file merges.
+The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and atomically reserves the final name with an exclusive `mkdir`. Only after acquiring that absent path does it populate and verify the owned destination. Existing or concurrently created destinations are refused, and a failed population removes only the reservation created by this process.
 
 The verification claim is deliberately narrow. Exact-tag resolution pins the selected repository revision, and the inventory comparison proves that the installed payload matches that selected source. The command does not claim cryptographic authorship of the tag, independent release attestation, fresh-session discovery, or live provider behavior. Those live checks remain explicit release gates.
 
@@ -50,7 +50,7 @@ arguments
    validate flags and destination absence
           |
           v
-   clone + verify exact tag
+   fetch qualified tag + detach at peeled commit
           |
           v
    select skills/<name>/ only
@@ -65,7 +65,10 @@ arguments
    inventory stage == source inventory
           |
           v
-   rename stage to absent destination
+   atomically mkdir absent destination
+          |
+          v
+   populate + verify owned destination
           |
           v
    print installed path + host invocation name
@@ -91,8 +94,8 @@ arguments
 **Responsibilities:**
 
 - Validate the tag with Git ref rules and reject option-like or revision-expression inputs.
-- Clone the exact requested tag into a private temporary directory.
-- Verify `refs/tags/<ref>^{commit}` exists after clone so a same-named branch is not accepted.
+- Fetch only the fully qualified `refs/tags/<ref>` into a private temporary repository.
+- Peel the fetched tag to a commit, check out that commit detached, and require `HEAD` to equal the peeled commit before reading payload bytes.
 - Clean only the exact temporary directory created by this invocation.
 
 ### Payload Validator and Inventory
@@ -119,9 +122,11 @@ Empty directories and directory permission modes are not part of the payload ide
 - Map Claude Code to `.claude/skills/<name>` and `/<name>`.
 - Map Cursor to `.cursor/skills/<name>` and the unqualified installed name shown with inventory-selection guidance.
 - Resolve the current working directory as the physical project root and reject symlinked destination ancestors.
-- Refuse any existing destination, including a dangling symlink.
-- Create a same-parent staging directory, preserve file modes during copy, verify the stage, and rename it into the absent destination.
-- Remove only owned temporary paths on failure.
+- Refuse any existing destination, including a dangling symlink, during preflight.
+- Create a same-parent staging directory, preserve file modes during copy, and verify the stage.
+- Re-check destination ancestors immediately before publication, then atomically reserve the final path with exclusive `mkdir`; failure means a concurrent directory or symlink won and must be preserved unchanged.
+- Populate only the owned reservation, verify its complete inventory, and remove that exact reservation on copy or verification failure.
+- Remove only owned temporary paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
 
 ## API Design
 
@@ -145,7 +150,7 @@ Success output includes the selected tag, final project-relative path, verificat
 
 Validation and acquisition errors exit nonzero with an `install.sh:` prefix and no destination mutation. These include incomplete flags, invalid names, unsupported agents, invalid tags, missing tags, missing generated payloads, authored-source-only fixtures, unsafe entry types, symlinked destination ancestors, and existing destinations.
 
-Copy and verification errors remove the owned staging directory and leave the final destination absent. Because the initial design refuses an existing destination before acquisition or staging, a failed run cannot modify a prior installation. This intentionally avoids claiming atomic overwrite semantics that portable rename cannot provide for a nonempty directory.
+Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses `mkdir <destination>` as the atomic no-clobber operation. If that exclusive reservation fails, the installer preserves the competing directory or symlink unchanged. If population or final verification fails after reservation, the installer removes only the destination it successfully reserved, identified by invocation-owned state, plus its staging directory. This intentionally avoids claiming atomic directory rename semantics that portable shell tools cannot provide.
 
 The command performs no automatic retry. Git/network failures are reported with the repository and tag context so the operator can retry deliberately.
 
@@ -161,9 +166,10 @@ Key scenarios:
 - Help, unknown flags, missing values, invalid skill names, unsupported agents, and partial standalone inputs do not create host directories.
 - Each host mapping installs a small generated fixture and prints the expected invocation form.
 - A generated executable fixture preserves its executable mode and runs outside the source checkout.
-- Missing tag, missing generated skill, and a fixture containing only `src/skills/<name>` fail clearly.
+- Missing tag, branch-only ref, missing generated skill, and a fixture containing only `src/skills/<name>` fail clearly.
+- Annotated tags work, and a same-named branch/tag fixture with different payload bytes installs the peeled tag commit's bytes.
 - Symlink/special-entry payloads and symlinked destination ancestors are refused.
-- An existing destination remains byte-for-byte unchanged.
+- Existing destinations remain byte-for-byte unchanged, including deterministic races that create a directory or symlink after preflight but before exclusive reservation.
 - Copy or inventory mismatch failure leaves no final destination and cleans the owned staging path.
 
 ### Documentation and Contract Tests

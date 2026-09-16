@@ -46,7 +46,7 @@ Generate a catalog with per-file hashes and install through a dedicated runtime.
 4. **Project destinations:** Install beneath the selected project's host directory: `.agents/skills/` for Codex, `.claude/skills/` for Claude Code, and `.cursor/skills/` for Cursor.
 5. **Invocation output:** Print `$<name>` for Codex, `/<name>` for Claude Code, and the installed skill name with Cursor inventory guidance for Cursor.
 6. **Existing destination:** Refuse an existing destination. The initial feature has no force/merge mode, avoiding stale files and non-atomic replacement semantics.
-7. **Integrity semantics:** Reject symlinks and non-regular payload entries; inventory every file by relative path, mode, and SHA-256; copy into a same-parent staging directory; verify the staged inventory equals the selected source; then rename into the previously absent destination.
+7. **Integrity semantics:** Reject symlinks and non-regular payload entries; inventory every file by relative path, mode, and SHA-256; copy into a same-parent staging directory; verify the staged inventory; atomically reserve the absent destination with exclusive directory creation; populate and verify only that owned reservation; and remove it on failure.
 8. **Authenticity wording:** An exact tag and Git transport establish which repository revision was selected. Inventory comparison proves copy fidelity. The feature does not claim signed-tag verification or independent release attestation.
 9. **Skill dependencies:** Required sibling workflows remain explicit prerequisites and are not silently installed.
 10. **Acceptance boundary:** Automated fixtures prove installer behavior and payload fidelity. Fresh host discovery and bounded invocation remain separate, explicitly authorized release checks.
@@ -101,10 +101,10 @@ None blocking. The lightweight design will pin the exact staging and error-handl
   - **Likelihood:** High
   - **Impact:** Medium
   - **Mitigation:** Keep the first-party example checkout-based or deliberately scope the legacy assertion to the Consensus recovery section while retaining its immutable-pin check.
-- **Partial copy or traversal:** A malformed payload could escape or leave a partial destination.
+- **Partial copy or traversal:** A malformed payload or racing destination could escape, overwrite competing content, or leave a partial destination.
   - **Likelihood:** Low
   - **Impact:** High
-  - **Mitigation:** Validate names and entry types, stage beside the destination, compare complete inventories, and publish only by final rename into an absent path.
+  - **Mitigation:** Validate names and entry types, stage beside the destination, compare complete inventories, acquire the final path only through atomic exclusive directory creation, and clean only a reservation owned by this process.
 - **Overstated verification:** Copy hashes could be described as proof of upstream authenticity.
   - **Likelihood:** Medium
   - **Impact:** Medium

@@ -20,7 +20,7 @@ oat_template: true
 
 **Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host's project-scoped skills directory while preserving the existing Consensus recovery installer.
 
-**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: exact-tag checkout, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, verified absent-destination rename, and host invocation output.
+**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and explicit standalone flags to a refusal-first pipeline: qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, verified population, and host invocation output.
 
 **Tech Stack:** Bash, Git, Node.js 22 repository tooling, Vitest, temporary local Git fixtures, Fumadocs Markdown.
 
@@ -59,9 +59,11 @@ Cover:
 - required `--skill`, `--agent`, and `--ref` parsing plus `--help`;
 - Codex, Claude Code, and Cursor project destinations and invocation output;
 - complete payload bytes and executable-mode preservation;
-- missing tag, missing generated skill, authored-source-only fixture, malformed name, unsupported host, unsafe entry, and symlinked ancestor refusal;
+- missing tag, branch-only ref, missing generated skill, authored-source-only fixture, malformed name, unsupported host, unsafe entry, and symlinked ancestor refusal;
+- annotated-tag handling and a same-named branch/tag fixture with different bytes that must install the peeled tag commit;
 - existing destination preservation;
-- injected copy or inventory failure with no published destination and cleaned staging state;
+- deterministic post-preflight directory and symlink collision refusal with competing content preserved;
+- injected copy or inventory failure with no published destination and cleaned staging/reservation state;
 - zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
 
 Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
@@ -72,12 +74,13 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 
 - Dispatch no arguments to the existing Consensus path.
 - Validate standalone flags and safe names before installation work.
-- Resolve the default repository or `--repository` override at an exact tag and verify the tag ref after clone.
+- Fetch the fully qualified `refs/tags/<ref>` from the default repository or `--repository` override, peel it to a commit, check it out detached, and require `HEAD` equality before reading the payload.
 - Select only `skills/<name>/` and require `SKILL.md`; never search or fall back to `src/skills/`.
 - Reject symlinks and non-file/non-directory entries.
 - Map hosts to `.agents/skills`, `.claude/skills`, or `.cursor/skills` beneath the physical current project.
-- Refuse existing destinations and symlinked destination ancestors.
-- Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; verify inventory equality; rename into the absent destination.
+- Refuse existing destinations and symlinked destination ancestors during preflight, then repeat the ancestor check immediately before publication.
+- Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; and verify inventory equality.
+- Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail. Populate and verify only the owned reservation, and remove that exact reservation on failure.
 - Clean only owned temporary paths and print the verified path plus host invocation name.
 
 **Step 4: Format and verify**
