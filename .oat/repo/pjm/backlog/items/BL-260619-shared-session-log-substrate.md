@@ -56,14 +56,8 @@ design pass before implementation.
 
 ## Acceptance Criteria
 
-- A design pass resolves the open questions: adopt-vs-build on `cass`, packaging
-  (consensus plugin vs standalone), and the merged-log filter/schema.
-- Become-observable registration + central daemon collect and merge registered
-  sessions into one timestamp-ordered, noise-filtered shared log.
-- Any participating agent can tail the merged log via the existing cursor /
-  high-water-mark mechanism (reuses `session-observer` state pattern).
-- Lifecycle handled: idle watch-timeout, heartbeat-based crash detection +
-  cleanup, and reactivation/auto-reregister on session resume.
-- Shared `.consensus/` project-scoped state directory and agent identity/naming
-  convention defined as the primitive that [[inter-agent-direct-messaging]] builds on.
-- Decision (DR) recorded for adopt-vs-build and packaging if durable.
+- A design pass records (DR) the adopt-vs-build decision on `cass` and the packaging choice (consensus plugin vs standalone), and confirms the merged log is a projection over the session-fidelity activity contract (BL-260916-session-fidelity-opt), not a bespoke noise filter.
+- `session-observer merge --session <runtime:id> ...` produces one timestamp-ordered view over two or more exact pins, statelessly: no registration, no daemon, no heartbeat or crash cleanup. Each rendered record keeps its source pin and record/frame index; ties are broken deterministically; the output states that ordering is by recorded timestamp and does not establish causal order across machines.
+- The merge reuses the existing identity (`whoami`) and per-pin offset conventions and never takes ownership of another observer's stateful cursor.
+- The shared project-scoped state directory and the identity/alias convention are defined as primitives that BL-260619-inter-agent-direct-messaging also uses; neither item depends on the other.
+- A daemon is explicitly deferred; the item records the trigger that would justify one (a measured workflow where stateless merging over pinned transcripts is too slow or incomplete).

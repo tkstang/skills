@@ -45,13 +45,9 @@ ready to implement after the substrate lands.
 
 ## Acceptance Criteria
 
-- Build-vs-adopt decision recorded (Agent Mail / `cass` wrapper vs lightweight
-  file-or-SQLite queue-with-cursor), with rationale.
-- Agents can send addressable direct messages using the substrate's identity
-  layer; recipients read new messages via cursor polling.
-- Priority-over-log semantics: direct messages are checked before shared-log
-  catch-up.
-- Message scope + lifecycle bound to the project/work-tree and cleaned up with
-  the shared log.
-- Reuses [[shared-session-log-substrate]] identity/state primitives (no separate
-  identity system).
+- Build-vs-adopt decision recorded: a provider-neutral append-only JSONL inbox per recipient under the shared project-scoped state directory (gitignored); no harness-native transport (Claude-to-Claude, Orca) and no daemon.
+- Addressing uses the `whoami` identity (`runtime:sessionId`) plus a user-assigned alias; any harness that can write a file can send, any that can read one can receive.
+- Every message carries an ID; recipients acknowledge, deduplicate against transcript-observed copies, and fail closed on malformed or replayed envelopes.
+- Delivery rides the recipient's own watcher and the collab skill's bounded continuation with the same budget (inbox checked before peer catch-up); it introduces no second wake path and does not claim to wake an idle session past the harness wait window.
+- Authority rules unchanged: a message is peer text, never instruction or authorization.
+- Lifecycle is bound to the project/worktree and cleaned up on explicit closeout or expiry, independently of any merged-log feature; N>2 delivery remains separate work.
