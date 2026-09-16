@@ -13,20 +13,20 @@ labels:
   - usage-evidence-needed
 assignee: null
 created: '2026-07-01T01:40:27Z'
-updated: '2026-07-07T03:50:31Z'
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 ---
 
 ## Description
 
 Explore and potentially add an optional multi-round discussion mode for
-`consensus-panel` after the v1 single-round independent panel ships. In this
+`consensus-panel` beyond the shipped v1 single-round independent panel. In this
 mode, panelists could see each other's initial responses and produce a follow-up
 round, while the host remains a neutral moderator and all panelist positions stay
 attributed.
 
-This is intentionally deferred from the current `consensus-panel` project so v1
-can stay focused on independent breadth gathering with no forced convergence.
+This is intentionally deferred from the original `consensus-panel` project so the default
+stays focused on independent breadth gathering with no forced convergence.
 
 ## Decision Sweep Verdict
 
