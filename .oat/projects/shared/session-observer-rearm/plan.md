@@ -17,125 +17,193 @@ oat_generated: false
 
 # Lite Plan: session-observer-rearm
 
-**Goal:** [State the outcome this single-sitting change must achieve.]
+**Goal:** Determine the exact-pin re-arm guarantees for legacy Claude/Codex observers, preserve a portable reproduction, fix only a demonstrated bounded defect, and publish guidance that separates persisted consumption, stdout completion, and observing-agent delivery.
 
 ## Summary
 
-[Summarize the requested behavior and the smallest coherent implementation.]
+Use the existing virtual-clock and transcript helpers to exercise two watcher lifetimes around a known renderable peer message. Cover clean signal shutdown, normal max-runtime expiry, filtered-only ranges, appends during startup, and competing consumers. If those supported shutdown paths retain and emit the message, preserve the result as regression coverage and explain why raw-index gaps can represent filtered activity rather than lost conversation. Separately characterize the known legacy boundary where `observeCatchUp()` persists `nextIndex` before the caller writes stdout; do not claim that synthetic stdout capture proves delivery into Claude Code or Codex.
+
+If a failing case is confined to the current watcher/observer boundary and can be repaired without weakening competing-consumer safety, fix it test-first. If safe resolution requires legacy delivery reservations, compare-and-set checkpoints, or harness receipts, keep that redesign out of this task, leave the backlog item open, and report the evidence for operator direction.
 
 ## Decisions
 
-- **Content shape:** `[minimal | product | technical | both]` — [One-line rationale tied to the observable shape triggers.]
-- [Record the other decisions made during the critical interview.]
+- **Content shape:** `both` — the work changes operator-facing re-arm guidance and crosses watcher, observation, persisted-state, stdout, and harness-delivery boundaries.
+- Treat `catch-up-then-watch` as the supported re-arm command; plain `watch` intentionally consumes an unread baseline and emits a `baseline-gap` warning rather than rendering it.
+- Test clean termination mechanisms independently: SIGTERM requests orderly stop without forced flush; max-runtime performs a final poll/flush before exit.
+- Record raw `fromIndex`/`nextIndex`, rendered ranges/content, persisted `lastRecordIndex`, and captured stdout separately. Synthetic tests stop at stdout and make no live harness-delivery claim.
+- Do not add speculative signal handlers, blanket raw-gap alarms, or unsafe rollback of shared legacy state. A broader acknowledgment/checkpoint redesign requires a separate decision.
+- Close and archive `BL-260916-session-observer-re-armed` only if the bounded evidence and shipping guidance satisfy every acceptance criterion; otherwise retain it as open with precise remaining work.
 
 ## Product Behavior
 
-<!-- Include for product or both; omit this section for minimal or technical. -->
-
-1. **[Observable behavior]** — [State the testable user-visible outcome.]
+1. **Exact-pin clean re-arm** — A renderable peer message appended while the watcher is stopped is emitted once by the next `catch-up-then-watch`, after either clean SIGTERM shutdown or normal max-runtime expiry.
+2. **Honest range accounting** — Tool/reasoning-only records may advance the persisted raw index while producing no rendered delta; the next renderable message remains observable and its digest exposes raw and rendered ranges distinctly.
+3. **Startup and contention safety** — A message appended during re-arm startup is not silently baselined away, and a second live watcher for the same exact target is rejected without consuming the first watcher's unread content.
+4. **Bounded delivery claim** — Documentation describes verified persisted-state and stdout behavior, identifies the legacy pre-stdout checkpoint window, and states that delivery into the observing agent needs live harness evidence.
+5. **Portable evidence** — Tests and the canonical Claude Code runtime reference contain sanitized evidence that does not depend on local transcript paths, session IDs, or the ignored collaboration log.
 
 ## Technical Design
 
-<!-- Include for technical or both; omit this section for minimal or product. -->
-
-- **Current operation:** [Describe how the affected modules and contracts work now.]
-- **Proposed changes:** [Describe the change with file-and-symbol references, not line numbers.]
-- **Data flow:** [When state or data crosses a boundary, describe its path and transformations. Omit this item otherwise.]
+- **Current operation:** `runWatchLoop()` establishes each legacy target through `observeCatchUp()`. `catch-up-then-watch` emits that result before taking the new signature/baseline, while ordinary `watch` warns about a consumed baseline gap. `observeCatchUp()` currently writes legacy `lastRecordIndex = digest.range.nextIndex` before returning the digest to the caller; `writeStdoutChunk()` can confirm only stream-write completion, not observing-agent receipt. Cursor's separate delivery reservation/commit path is not shared by legacy Claude/Codex.
+- **Proposed changes:** Extend `src/skills/session-observer/src/watch.test.ts` with deterministic two-lifetime fixtures covering the ticket matrix and explicit state/stdout/range assertions. Add or refine focused observation/integration coverage only where required to preserve a demonstrated boundary. Modify `watch.ts`, `observe.ts`, or `state.ts` only if a failing regression has a bounded concurrency-safe repair. Reconcile `src/skills/session-observer-collab/references/runtime-claude-code.md` and its contract test with the verified procedure and limitations; bump affected canonical skill versions and regenerate declared distributions.
+- **Data flow:** Transcript append → `observeCatchUp()` selects the exact pin and builds a digest from persisted `lastRecordIndex` → legacy state advances to raw `nextIndex` → watcher renders/writes stdout → the external Monitor or host may deliver those bytes to an agent. Tests can observe the first four boundaries; the final harness hop remains unverified without a live provider run.
 
 ## Assumptions
 
-- [Record assumptions the implementation and validation depend on.]
+- The user's supplied brief is the completed critical interview and authorizes synthetic fixtures, canonical source/tests/docs, generated payload refresh, PJM closeout when warranted, and local commits.
+- `origin/main` at `49b4baf3` is the requested base; the visible `observer-rearm` worktree is isolated from the planning worktree.
+- SIGTERM means the watcher's installed handler runs and the process exits normally; SIGKILL, host crash, broken pipes, and harness cancellation are separate failure classes.
+- A test-injected stdout sink is evidence of attempted/completed process output only, not proof that Claude Code Monitor or another observing agent received it.
+- Existing shared legacy offsets allow warnings and serialized writes but do not provide per-consumer acknowledgments or a compare-and-set delivery checkpoint.
 
 ## Out of Scope
 
-- [Name adjacent work intentionally excluded from this change.]
+- Activity-view or `--include-activity` work, messaging, N>2/per-observer redesign, Consensus cleanup, or unrelated observer features.
+- Live Claude/Codex/Monitor calls, live harness acceptance, user-level installs, global sync, and changes to active peer watchers.
+- A wholesale legacy delivery reservation/acknowledgment protocol unless the regression exposes a small concurrency-safe repair inside the current contract.
+- Treating the observed Monitor duration as a universal harness guarantee.
+- Pushing, publishing a PR, merging, or modifying Astra/Fable's planning worktree.
 
 ## Validation Criteria
 
-- [ ] [Observable criterion] — Check: `[exact verification command]`
-- [ ] [Observable criterion] — Check: `[exact verification command]`
+- [ ] Exact-pin restart tests prove a known renderable message is emitted after clean SIGTERM and normal max-runtime stop, with captured `fromIndex`/`nextIndex`, persisted state, digest content, and stdout evidence — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts`
+- [ ] Deterministic coverage separately proves filtered-only advancement, startup appends, and same-target competing-consumer behavior without timing sleeps — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts`
+- [ ] Canonical Claude Code guidance states the bounded re-arm procedure, corrects the duration claim, and distinguishes process output from live agent delivery — Check: `pnpm run test:vitest src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts`
+- [ ] Affected skill versions are bumped and generated standalone/plugin payloads match canonical sources — Check: `pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run build:check`
+- [ ] Normal repository gates pass without live-provider execution — Check: `pnpm run premerge`
+- [ ] The backlog item is archived only if all acceptance criteria are met; PJM invariants remain valid either way — Check: `oat pjm doctor --json`
 
 ## Parallelism
 
 This plan has one phase and executes sequentially.
 
-## Phase 1: [Phase Name]
+## Phase 1: Diagnose, Prove, and Reconcile Observer Re-arm
 
-### Task p01-t01: [Task Name]
+### Task p01-t01: Reproduce exact-pin re-arm boundaries
 
 **Files:**
 
-- Create: `[path/to/file.ts]`
-- Modify: `[path/to/existing.ts]`
+- Modify: `src/skills/session-observer/src/watch.test.ts`
+- Modify if required by a demonstrated bounded defect: `src/skills/session-observer/src/lib/watch.ts`
+- Modify if required by a demonstrated bounded defect: `src/skills/session-observer/src/lib/observe.ts`
+- Modify if required by a demonstrated bounded defect: `src/skills/session-observer/src/lib/state.ts`
+- Modify if needed for checkpoint characterization: `src/skills/session-observer/src/observe.test.ts`
+- Modify if needed for process-level failure characterization: `src/skills/session-observer/src/integration.test.ts`
 
 **Implementation and Proof Strategy:**
 
-- **Strategy:** `[test-first | characterization-first | implementation-then-regression | static-or-build | manual-or-visual]`
-- **Observable risk:** [Name the behavior, contract, or invariant this evidence covers.]
-- **Why proportionate:** [Explain why this is the smallest proof capable of detecting the relevant failure.]
+- **Strategy:** Characterization-first, followed by a focused regression or bounded fix.
+- **Observable risk:** A renderable peer message appended across watcher termination/restart is consumed in persisted state without appearing in the re-armed watcher's stdout, or startup/contention behavior makes the test falsely pass.
+- **Why proportionate:** Two deterministic watcher lifetimes using existing virtual-clock, injected stdout, transcript, and state helpers directly exercise the suspected boundary without a live provider or timing race; explicit boundary assertions prevent raw-index movement from being mistaken for rendered content or agent delivery.
 
 **Step 1: Implement**
 
-[Describe the bounded implementation in the order required by the selected strategy.]
+Add reusable deterministic fixture helpers only where they reduce duplication. First preserve a failing or characterization reproduction for SIGTERM and max-runtime re-arm with a known assistant message appended while stopped. Add separate cases for filtered-only records, an append during re-arm startup, and a same-target competing consumer. Assert raw ranges, rendered ranges/content, saved offset, stdout chunks, and single-consumer ownership independently. If a supported clean path loses content, fix the smallest safe watcher/observer boundary and keep the pre-fix test. If the only unsafe path needs cross-consumer acknowledgment/CAS, record it as an explicit limitation rather than implementing a partial rollback.
 
 **Step 2: Prove**
 
-Run: `[exact proof command or manual: instruction]`
-Expected: [State the observable passing result and, for behavior changes, how this proof fails without the change.]
+Run: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
+Expected: All deterministic cases pass; removing catch-up-first emission/startup reconciliation or any bounded defect fix makes the corresponding regression fail. Output evidence proves only persistence and stdout boundaries.
 
 **Step 3: Refactor and format**
 
-[Describe bounded cleanup and name the exact write-mode formatting command.]
+Keep helpers colocated, avoid timing sleeps, and run `pnpm exec oxfmt --write src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts src/skills/session-observer/src/lib/watch.ts src/skills/session-observer/src/lib/observe.ts src/skills/session-observer/src/lib/state.ts` on files actually changed.
 
 **Step 4: Verify**
 
-Run: `[exact task verification command]`
-Expected: No errors
+Run: `pnpm run type-check && pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
+Expected: No errors; the evidence explicitly separates persisted consumption, stdout emission, and unverified harness delivery.
 
 **Step 5: Commit**
 
 ```bash
-git add [task files]
-git commit -m "feat(p01-t01): [description]"
+git add src/skills/session-observer/src
+git commit -m "test(session-observer): cover exact-pin re-arm boundaries"
 ```
 
 ---
 
-### Task p01-t02: [Task Name]
+### Task p01-t02: Reconcile Monitor guidance and generated payloads
 
 **Files:**
 
-- Modify: `[path/to/existing.ts]`
+- Modify: `src/skills/session-observer-collab/references/runtime-claude-code.md`
+- Modify: `src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts`
+- Modify: `src/skills/session-observer/SKILL.md`
+- Modify: `src/skills/session-observer-collab/SKILL.md`
+- Regenerate: declared `skills/` and `plugins/consensus/skills/` outputs for the affected owners
 
 **Implementation and Proof Strategy:**
 
-- **Strategy:** `[test-first | characterization-first | implementation-then-regression | static-or-build | manual-or-visual]`
-- **Observable risk:** [Name the behavior, contract, or invariant this evidence covers.]
-- **Why proportionate:** [Explain why this is the smallest proof capable of detecting the relevant failure.]
+- **Strategy:** Implementation followed by focused contract regression and generated-output checks.
+- **Observable risk:** Operators re-arm with plain `watch`, interpret filtered raw ranges as lost messages, assume an observed duration is universal, or treat synthetic stdout evidence as live Monitor delivery.
+- **Why proportionate:** The existing reference contract test fails if the critical procedure or limitation language is removed, while the canonical build and version gates prove authored-to-generated parity without touching global installs.
 
 **Step 1: Implement**
 
-[Describe the bounded implementation in the order required by the selected strategy.]
+Replace the stale re-arm section with the verified exact-pin `catch-up-then-watch` sequence, range/state interpretation, clean-stop behavior, and explicit pre-stdout/harness-delivery limits. Reword the observed Monitor duration as session-specific evidence rather than a cap. Update the focused contract test, bump every affected canonical skill's patch version according to the transitive source rules, and run the canonical build.
 
 **Step 2: Prove**
 
-Run: `[exact proof command or manual: instruction]`
-Expected: [State the observable passing result and, for behavior changes, how this proof fails without the change.]
+Run: `pnpm run test:vitest src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run build:check`
+Expected: The procedure/limitation assertions, version impact, and all declared generated payloads pass; removing the bounded re-arm guidance fails the contract test.
 
 **Step 3: Refactor and format**
 
-[Describe bounded cleanup and name the exact write-mode formatting command.]
+Run `pnpm exec oxfmt --write src/skills/session-observer-collab/references/runtime-claude-code.md src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts src/skills/session-observer/SKILL.md src/skills/session-observer-collab/SKILL.md` before `pnpm run build`; do not format generated outputs separately.
 
 **Step 4: Verify**
 
-Run: `[exact task verification command]`
-Expected: No errors
+Run: `pnpm run build && pnpm run build:check && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main`
+Expected: No errors and only declared generated output changes.
 
 **Step 5: Commit**
 
 ```bash
-git add [task files]
-git commit -m "feat(p01-t02): [description]"
+git add src/skills/session-observer src/skills/session-observer-collab skills/session-observer skills/session-observer-collab plugins/consensus/skills/observer plugins/consensus/skills/observer-collab
+git commit -m "docs(session-observer): clarify re-arm delivery bounds"
+```
+
+---
+
+### Task p01-t03: Run premerge gates and disposition the backlog item
+
+**Files:**
+
+- Modify when acceptance is satisfied: `.oat/repo/pjm/backlog/completed.md`
+- Move when acceptance is satisfied: `.oat/repo/pjm/backlog/items/BL-260916-session-observer-re-armed.md` to `.oat/repo/pjm/backlog/archived/BL-260916-session-observer-re-armed.md`
+- Regenerate when acceptance is satisfied: `.oat/repo/pjm/backlog/index.md`
+- Otherwise modify: `.oat/repo/pjm/backlog/items/BL-260916-session-observer-re-armed.md` only if precise remaining work must be recorded
+
+**Implementation and Proof Strategy:**
+
+- **Strategy:** Full static/build/test gates followed by conditional PJM closeout.
+- **Observable risk:** The bounded result is declared complete despite unmet acceptance, stale generated payloads, a versioning miss, or a regression elsewhere in the repository.
+- **Why proportionate:** The repository's aggregate premerge command covers build, type-check, complete generated parity, full Vitest, structural validation, and smoke; PJM doctor detects partial or invalid closeout state.
+
+**Step 1: Implement**
+
+Run the normal premerge gates and review the final evidence against every ticket acceptance criterion. If all are satisfied, set the item to `closed`, add the newest-first completion summary, move it to `archived/`, and regenerate the backlog index. If the broader acknowledgment/harness boundary leaves an acceptance criterion unmet, keep the item open and record only precise remaining work supported by the evidence.
+
+**Step 2: Prove**
+
+Run: `pnpm run premerge && oat backlog regenerate-index && oat pjm doctor --json`
+Expected: All non-live gates pass; the backlog is either fully archived with a completed entry or remains consistently open, never partially closed.
+
+**Step 3: Refactor and format**
+
+Run `pnpm exec oxfmt --write .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/archived/BL-260916-session-observer-re-armed.md` on changed authored Markdown only; do not hand-format the generated backlog index.
+
+**Step 4: Verify**
+
+Run: `git diff --check && pnpm run build:check && oat pjm doctor --json`
+Expected: No errors, generated payloads remain fresh, and backlog lifecycle invariants hold.
+
+**Step 5: Commit**
+
+```bash
+git add .oat/repo/pjm/backlog
+git commit -m "chore(pjm): disposition observer re-arm investigation"
 ```
 
 ---
@@ -148,17 +216,19 @@ git commit -m "feat(p01-t02): [description]"
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
+| plan   | artifact | pending | -    | -        | -             | -          | -           |
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: [N] tasks — [Description]
+- Phase 1: 3 tasks — deterministic diagnosis, bounded guidance/generated payloads, and verified backlog disposition.
 
-**Total: [N] tasks**
+**Total: 3 tasks**
 
-Ready for final code review and PR preparation.
+Ready for final code review and local closeout after implementation.
 
 ## References
 
-- Imported Source: `references/imported-plan.md` (when imported provenance applies)
+- Backlog item: `.oat/repo/pjm/backlog/items/BL-260916-session-observer-re-armed.md`
+- Canonical Claude Code runtime reference: `src/skills/session-observer-collab/references/runtime-claude-code.md`

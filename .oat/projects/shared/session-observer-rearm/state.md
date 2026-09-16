@@ -1,8 +1,10 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
-associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
+associated_issues:
+  - type: backlog
+    ref: BL-260916-session-observer-re-armed
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
@@ -85,7 +87,7 @@ oat_generated: false
 
 # Project State: session-observer-rearm
 
-**Status:** Plan
+**Status:** Plan in progress
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
@@ -95,14 +97,15 @@ Plan - Authoring a single-phase lite plan
 
 ## Artifacts
 
-- **Plan:** `plan.md` (scaffolded lite template — not started)
-- **Implementation:** `implementation.md` (scaffolded template — not started)
+- **Plan:** `plan.md` (single-phase lite plan authored; awaiting approval/review)
+- **Implementation:** `implementation.md` (points to `p01-t01`)
 
 ## Progress
 
 - ✓ Lite project scaffolded
-- ✓ Plan and implementation artifacts scaffolded
-- ⧗ Awaiting critical interview and plan authoring
+- ✓ User brief recorded as the critical interview
+- ✓ Single-phase plan authored and validated
+- ⧗ Awaiting approval, artifact review, and configured exit gate
 
 ## Blockers
 
@@ -110,4 +113,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-lite` to author and approve the plan
+Approve and review the lite plan, then hand off to `oat-project-implement`

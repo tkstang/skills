@@ -14,158 +14,79 @@ oat_generated: false
 
 > This document is used to resume interrupted implementation sessions.
 >
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+> `oat_current_task_id` points to the next plan task to do. Reviews remain tracked in `plan.md`.
 
 ## Progress Overview
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | in_progress | 3     | 0/3       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/3 tasks completed
 
----
-
-## Phase 1: {Phase Name}
+## Phase 1: Diagnose, Prove, and Reconcile Observer Re-arm
 
 **Status:** in_progress
 **Started:** 2026-09-16
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
-**Outcome (what changed):**
+**Outcome:** Pending implementation.
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+**Key files:**
 
-**Key files touched:**
+- `src/skills/session-observer/src/watch.test.ts` — deterministic restart evidence
+- `src/skills/session-observer-collab/references/runtime-claude-code.md` — bounded operator guidance
+- `.oat/repo/pjm/backlog/items/BL-260916-session-observer-re-armed.md` — acceptance and closeout decision
 
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+**Verification:** Pending.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- Synthetic tests prove persisted state and captured stdout, not live Monitor-to-agent delivery.
+- A safe legacy acknowledgment/CAS redesign remains outside the bounded task unless a smaller repair is demonstrated.
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Reproduce exact-pin re-arm boundaries
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** in_progress
+**Commit:** -
 
-**Outcome (required when completed):**
+**Notes:** Characterization-first; preserve the pre-fix reproduction for any bounded defect.
 
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Reconcile Monitor guidance and generated payloads
 
 **Status:** pending
 **Commit:** -
 
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
+### Task p01-t03: Run premerge gates and disposition the backlog item
 
 **Status:** pending
 **Commit:** -
-
----
 
 ## Orchestration Runs
 
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
 <!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
 
----
-
 ## Implementation Log
-
-Chronological log of implementation progress.
 
 ### 2026-09-16
 
-**Session Start:** {time}
+**Session Start:** planning handoff
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
+- [ ] p01-t01: Reproduce exact-pin re-arm boundaries — in progress
+- [ ] p01-t02: Reconcile Monitor guidance and generated payloads — pending
+- [ ] p01-t03: Run premerge gates and disposition the backlog item — pending
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Keep clean re-arm proof separate from the known legacy pre-stdout checkpoint limitation.
+- Do not claim live harness delivery from synthetic evidence.
 
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-09-16
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
+**Blockers:** None for the bounded investigation.
 
 ## Deviations from Plan / Design
-
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
@@ -173,38 +94,20 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 ## Test Results
 
-Track test execution during implementation.
-
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| 1     | -         | -      | -      | pending  |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
+**What shipped:** Pending.
 
-- {capability 1}
-- {capability 2}
+**Behavioral changes:** Pending.
 
-**Behavioral changes (user-facing):**
+**Verification performed:** Pending.
 
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
+**Design deltas:** Pending.
 
 ## References
 
 - Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
