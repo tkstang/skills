@@ -15,6 +15,58 @@ pnpm-managed dev dependencies.
 - pnpm for developer dependencies. Install with `pnpm install`. Git hooks install
   automatically on `pnpm install`.
 
+## Change, generate, verify, release
+
+Edit the canonical owner and its distribution declaration, bump `metadata.version`, run `pnpm run build`, then verify. The live-provider check is an independent manual gate: no workflow invokes it and the release workflow does not require it.
+
+```mermaid
+flowchart TD
+  subgraph change["1 · Change canonical source"]
+    OWN["src/skills/&lt;name&gt;/<br/>SKILL.md, runtime, build.json"]
+    SH["src/shared/ · src/plugins/"]
+    DECL["src/distributions.ts<br/>declare every supported target"]
+    VER["Bump metadata.version<br/>in the canonical SKILL.md"]
+  end
+  BUILD["2 · pnpm run build<br/>writes skills/ and plugins/ payloads"]
+  subgraph static["3 · Static verification · no provider calls"]
+    TC["pnpm run type-check"]
+    TEST["pnpm test<br/>incl. generated-output drift guard"]
+    BC["pnpm run build:check<br/>inventory, bytes, exec modes"]
+    VAL["pnpm run validate<br/>structure, manifests, docs"]
+    SMOKE["pnpm run smoke<br/>mocked consensus wrapper flow"]
+    SV["pre-push: validate:skill-versions<br/>changed skill must bump"]
+  end
+  subgraph release["4 · Release · outside the build"]
+    BUMP["scripts/bump-version.ts<br/>writes the new plugin version"]
+    MAN["Provider manifests and<br/>marketplace catalogs<br/>updated before tagging"]
+    PRT["pluginReleaseTargets<br/>independent plugin versions"]
+    TAG["Tag consensus-v* / session-v*"]
+    VERIFY["Release workflow reruns the static suite<br/>and checkTagVersion verifies the tag<br/>against the already-written manifests"]
+  end
+  LIVE["Independent manual gate<br/>pnpm run test:live-e2e, or the Live Provider E2E<br/>workflow_dispatch — no workflow invokes it,<br/>and the Release workflow does not require it"]
+
+  OWN --> BUILD
+  SH --> BUILD
+  DECL --> BUILD
+  VER --> BUILD
+  BUILD --> TC
+  BUILD --> TEST
+  BUILD --> BC
+  BUILD --> VAL
+  BUILD --> SMOKE
+  BUILD --> SV
+  BC -.->|"drift: fix source, rebuild"| BUILD
+  SMOKE --> BUMP
+  SV --> BUMP
+  BUMP --> MAN
+  BUMP --> PRT
+  MAN --> TAG
+  PRT --> TAG
+  TAG --> VERIFY
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Verification command set
 
 Run:

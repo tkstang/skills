@@ -178,3 +178,53 @@ inventory, content, or executable-mode drift.
 The builder stages and validates complete units before replacing outputs. Its
 errors distinguish restoration from incomplete recovery; they are not a
 promise that every failed filesystem operation is losslessly reversible.
+
+### The build as a staged transaction
+
+The failure table above describes one transaction. The builder stages and validates the complete unit before touching anything, moves prior outputs aside, then installs; validation failure aborts before any mutation, and the three replacement outcomes need three different responses.
+
+```mermaid
+stateDiagram-v2
+  [*] --> staged: build each declared unit into a staging root
+  staged: paths asserted repo-relative and collision-free
+  staged --> checked: staged replacements validated
+  checked: validateBeforeMutation runs the complete-unit check
+  checked: nothing on disk has been touched yet
+  checked --> failed_validation: a unit fails validation
+  failed_validation: Outcome 0 — build aborts before any mutation
+  failed_validation: committed outputs are untouched
+  checked --> backed_up: validation passed
+  backed_up: each existing output is renamed to
+  backed_up: .&lt;name&gt;.recovery-&lt;uuid&gt; beside itself; ENOENT is fine
+  backed_up --> installed: rename each staged unit onto its output path
+  installed: staged unit renamed into place
+
+  backed_up --> rolling_back: a rename throws
+  installed --> rolling_back: a rename throws
+  rolling_back: reverse order — remove installed, restore backups
+  rolling_back --> restored: every recovery step succeeded
+  rolling_back --> incomplete: any recovery step failed
+  restored: Outcome 1 — replacement failed, all prior outputs restored
+  restored: fix the reported cause and rebuild
+  incomplete: Outcome 2 — replacement failed and rollback was incomplete
+  incomplete: the error's recovery details are authoritative
+
+  installed --> cleanup: remove the recovery backup of every entry that had one
+  cleanup --> done: all backups removed
+  cleanup --> backups_left: a backup could not be removed
+  done: Outcome 3a — build succeeded; orphan outputs removed
+  backups_left: Outcome 3b — installed, but backup cleanup failed
+  backups_left: inspect only the exact backup paths named by the error
+
+  failed_validation --> [*]
+  restored --> [*]
+  incomplete --> [*]
+  done --> [*]
+  backups_left --> [*]
+  note right of staged
+    The staging root is removed in a finally block,
+    so it is cleaned up on success and on failure.
+  end note
+```
+
+_Mermaid updated 2026-09-16_

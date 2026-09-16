@@ -26,6 +26,52 @@ dependencies are bundled into an installation unit; workflow prerequisites stay
 explicit instead of growing into a universal installer. See
 [Decisions](../decisions.md) for the accepted rationale.
 
+## One skill, every installation form
+
+A skill is authored once under `src/skills/`; the build emits every declared installation form, and provider manifests and marketplace catalogs are release-owned rather than generated. `session-retro` is the worked example: standalone `session-retro`, Session plugin member `retro`.
+
+=== "Diagram"
+
+    ![One skill, every installation form](/diagrams/one-skill-many-forms.svg)
+
+    *SVG regenerated 2026-09-16*
+
+=== "Mermaid"
+
+    ```mermaid
+    flowchart LR
+      subgraph author["Authored once · src/"]
+        SRC["src/skills/session-retro/<br/>SKILL.md + assets"]
+        DECL["src/distributions.ts<br/>declares the forms"]
+      end
+      BUILD["pnpm run build"]
+      subgraph forms["Generated forms · committed"]
+        STANDALONE["skills/session-retro/<br/>standalone"]
+        PLUGIN["plugins/session/skills/retro/<br/>Session plugin member"]
+      end
+      INSTALL["Declared install targets<br/>no install step"]
+      subgraph install["Install targets · declared"]
+        CC["Claude Code"]
+        CX["Codex"]
+        CU["Cursor"]
+      end
+      RELEASE["Provider manifests and marketplace catalogs<br/>release-owned, not generated"]
+      SRC --> BUILD
+      DECL --> BUILD
+      BUILD --> STANDALONE
+      BUILD --> PLUGIN
+      STANDALONE --> INSTALL
+      PLUGIN --> INSTALL
+      INSTALL --> CC
+      INSTALL --> CX
+      INSTALL --> CU
+      RELEASE -.-> INSTALL
+      STANDALONE -.->|"pnpm run build:check"| BUILD
+      PLUGIN -.->|"pnpm run build:check"| BUILD
+    ```
+
+    *Mermaid updated 2026-09-16*
+
 ## Why this strategy
 
 The source tree is organized by ownership, not by installation layout:

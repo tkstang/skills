@@ -17,6 +17,65 @@ pnpm hooks:disable-all
 Bypass a single commit with `git commit --no-verify`. Set `GIT_HOOKS=0` to skip
 hook setup entirely (CI/Docker).
 
+### Where each gate runs
+
+The checks are six independent triggers, not a pipeline: no CI job declares `needs`, the pull-request-only jobs run in parallel with `validate`, and the docs deployment and live-provider workflows are separate.
+
+```mermaid
+flowchart TB
+  NOTE["Six independent triggers, not a pipeline.<br/>Nothing below is gated on anything else:<br/>the PR jobs run in parallel and no job declares needs."]
+
+  subgraph commit["Trigger: git commit · local hooks"]
+    C1["pre-commit: lint-staged<br/>oxlint + oxfmt on staged files only"]
+    C2["pre-commit: oat status --scope project --hook<br/>non-blocking"]
+    C3["commit-msg: commitlint<br/>Conventional Commits"]
+  end
+
+  subgraph push["Trigger: git push · pre-push hook"]
+    P1["pnpm run validate"]
+    P2["pnpm run build:check"]
+    P3["pnpm run type-check"]
+    P4["validate:skill-versions against the merge base"]
+    P5["validate:internal-flags"]
+    PN["No tests, no smoke — the hook stays fast"]
+  end
+
+  subgraph pr["Trigger: pull_request · Validate workflow"]
+    V["validate job<br/>build:check, type-check, test, validate, smoke"]
+    J1["skill-versions"]
+    J2["internal-flags"]
+    J3["commitlint"]
+    J4["lint: oxlint + oxfmt --check on changed files"]
+    JN["These four run in parallel with validate —<br/>no job declares needs"]
+  end
+
+  subgraph prdocs["Trigger: pull_request touching documentation/**"]
+    D1["Docs CI workflow<br/>builds the docs app; does not publish"]
+  end
+
+  subgraph main["Trigger: push to main"]
+    M1["Validate workflow: validate job only<br/>the PR-only jobs are skipped"]
+    M2["Deploy Docs workflow — independent<br/>paths: documentation/** and its own workflow file"]
+  end
+
+  subgraph tag["Trigger: tag consensus-v* / session-v*"]
+    T1["Release workflow: build, then<br/>git diff --exit-code on generated outputs"]
+    T2["type-check, build:check, test, validate, smoke"]
+    T3["Verify selected plugin version"]
+  end
+
+  subgraph manual["Trigger: workflow_dispatch"]
+    MAN["Live Provider E2E — dispatch-ONLY<br/>real CLIs, real quota; no workflow invokes it"]
+    MAN2["Deploy Docs — also dispatchable,<br/>in addition to its push-to-main trigger"]
+  end
+
+  C1 --> C2 --> C3
+  P1 --> P2 --> P3 --> P4 --> P5
+  T1 --> T2 --> T3
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Pre-commit: lint-staged
 
 The `pre-commit` hook runs `lint-staged` over staged files only. JavaScript,
