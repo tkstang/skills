@@ -234,7 +234,7 @@ git commit -m "chore(installer): close first-party install backlog item"
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
+| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
 
 ## Implementation Complete
 
