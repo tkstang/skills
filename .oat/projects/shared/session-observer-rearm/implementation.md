@@ -247,6 +247,15 @@ oat_generated: false
 
 **Disposition:** Passed. The review accepted the bounded no-runtime-fix diagnosis, deterministic evidence, guidance, version/generated closure, PJM disposition, and repository-specific lint evidence. Closeout advances to the configured implementation exit gate.
 
+### Configured Exit Gate Generation
+
+**Started:** 2026-09-16T21:54:50Z
+**Resolution:** Configured; `onFailure: block`; maximum two remediation attempts.
+**Reviewed basis:** `8fe69831d9fb0c24245d2ca4c3d25633b7d4099c` against logical base `origin/main`.
+**Implementation fingerprint:** `sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da`.
+**Configuration fingerprint:** `sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324`.
+**Status:** Pending launch; the configured command will be executed unchanged after launch intent is durably recorded.
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
