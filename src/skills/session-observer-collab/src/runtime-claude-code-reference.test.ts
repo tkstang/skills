@@ -26,17 +26,44 @@ describe('Claude Code Monitor reference', () => {
     );
   });
 
-  test('bounds observed event wake to a Monitor lifetime without claiming restart resilience', async () => {
+  test('bounds observed event wake without claiming a universal duration or restart resilience', async () => {
     const content = (await reference()).replace(/\s+/g, ' ');
 
     expect(content).toContain(
-      '`event-wake` holds for the lifetime of one Monitor task',
+      '`event-wake` was observed repeatedly during each tested Monitor task lifetime in that session',
     );
-    expect(content).toContain('30-minute ceiling and a manual re-arm');
+    expect(content).toContain('approximately 30 minutes in that session');
+    expect(content).toContain('not a universal Monitor duration');
     expect(content).toContain('Not exercised: the client was not restarted.');
     expect(content).toContain('Restart resilience remains unvalidated');
+    expect(content).not.toContain('30-minute ceiling');
+  });
+
+  test('specifies exact-pin re-arm accounting and keeps delivery claims bounded', async () => {
+    const content = (await reference()).replace(/\s+/g, ' ');
+
+    expect(content).toContain('Use this bounded exact-pin re-arm procedure');
     expect(content).toContain(
-      'must re-arm from the named pin and read the gap rather than claim continuity',
+      'Prefer `watch-ctl stop` for the exact active watcher',
+    );
+    expect(content).toContain('clean SIGTERM');
+    expect(content).toContain('normal max-runtime expiry');
+    expect(content).toContain('Do not restart with plain `watch`');
+    expect(content).toContain('emits a `baseline-gap` warning');
+    expect(content).toContain('The raw range is `[fromIndex, nextIndex)`');
+    expect(content).toContain('`lastRecordIndex` should equal `nextIndex`');
+    expect(content).toContain('`renderedFromIndex` and `renderedToIndex`');
+    expect(content).toContain(
+      'A rejected stdout write therefore leaves the range consumed',
+    );
+    expect(content).toContain(
+      'even a completed stdout write proves only process output',
+    );
+    expect(content).toContain(
+      'No synthetic test can establish observing-agent delivery',
+    );
+    expect(content).toContain(
+      'alternate owner-polls-before-contender-rollback ordering remains a shared legacy-offset/compare-and-set limitation',
     );
   });
 
