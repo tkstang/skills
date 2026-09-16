@@ -14,7 +14,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -85,22 +85,18 @@ oat_implement_exit_gate:
   failure: null
   updated_at: '2026-09-16T22:10:43Z'
 oat_post_implement_sequence:
-  status: failed
+  status: complete
   source: configured
   final_phase: p01
   pre_approval:
     - pr
-  pre_approval_completed: []
+  pre_approval_completed:
+    - pr
   approval: not_required
   approval_source: null
   post_approval: []
   post_approval_completed: []
-  failure:
-    boundary: pre_approval
-    step: pr
-    dispatched: false
-    reason: 'The originating instruction explicitly forbids push, publication, and merge.'
-    resume_command: oat-project-implement
+  failure: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -140,23 +136,23 @@ oat_post_implement_sequence:
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
 oat_docs_updated: null # null | skipped | complete — documentation sync status
-oat_pr_status: ready # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/85" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T22:17:08Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T22:18:37Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-rearm
 
-**Status:** Local implementation accepted; PR tail not authorized
+**Status:** PR open; awaiting human review
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Phase 1, its bounded bookkeeping correction, final verification, phase/final reviews, and the configured implementation exit gate are complete. The project remains in `implement` / `in_progress` because lite closeout resolves to a PR step and the originating instruction explicitly forbids push, publication, and merge; that step was not dispatched.
+Implementation — PR open; completion may run before or after merge.
 
 ## Artifacts
 
@@ -187,7 +183,8 @@ Phase 1, its bounded bookkeeping correction, final verification, phase/final rev
 - ✓ Final lifecycle code review passed with no findings
 - ✓ Configured different-family implementation exit gate passed with no findings
 - ✓ Gate review received and correlated to commit `29dc6003b02d9819cd7aeb7017e756f7e57adff0`
-- ⏸ PR closeout step not dispatched because publication is explicitly out of scope
+- ✓ PR created
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -195,4 +192,8 @@ None
 
 ## Next Milestone
 
-No local implementation work remains. Resume `oat-project-implement` only if PR publication is later authorized.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- Complete before merge: run `oat-project-complete` now, then merge the PR.
+- Merge before completion: merge the PR, then run `oat-project-complete`.
