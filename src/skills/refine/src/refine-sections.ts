@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { formatPeerAgents } from '../../../plugins/consensus/shared/cli-helpers.js';
+import { peerAgentsArgv } from '../../../plugins/consensus/shared/cli-helpers.js';
 import { parseWrapperArgs } from './refine-args.js';
 import type {
   IterationModeValue,
@@ -182,8 +182,7 @@ export function loopArgvForSection({
     paths.input,
     '--goal',
     options.goal ?? '',
-    '--peers',
-    formatPeerAgents(peers),
+    ...peerAgentsArgv(peers),
     '--max-rounds',
     String(options.maxRounds),
     '--agency',

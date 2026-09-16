@@ -12,6 +12,7 @@ import { ConsensusError, EXIT_CODES } from '../core/consensus-loop.js';
 import type { PeerAgent, PeerSpec } from '../core/loop-types.js';
 import {
   inside,
+  isJsonRecord,
   nearestExistingPath,
   pathExists,
   validateProviderId,
@@ -160,15 +161,35 @@ export async function atomicWriteFile(
   return writePath;
 }
 
-// Peer-spec helpers for `--peers provider[:model[:effort]]`. Kept in this
-// layer because they type against the loop's PeerAgent/PeerSpec.
+// Peer-spec helpers. Kept in this layer because they type against the loop's
+// PeerAgent/PeerSpec.
+//
+// Two transports exist, deliberately:
+//
+// - `--peer-agents '<json array>'` is the LOSSLESS transport and the only form
+//   the wrappers emit. Model ids are arbitrary non-empty strings (config accepts
+//   e.g. the Bedrock-style `anthropic.claude-...-v2:0`, or an id containing a
+//   comma), so a delimiter-based encoding cannot round-trip them.
+// - `--peers claude[:model[:effort]],codex[...]` stays as a human-friendly form
+//   for direct CLI use. It is LOSSY: `:` and `,` are the delimiters, so a model
+//   id containing either cannot be expressed. Wrappers must never emit it with
+//   a model or effort attached — use `peerAgentsArgv` instead.
+export const PEER_AGENTS_OPTION = '--peer-agents';
+
 /**
- * Parse a `--peers` value that may carry per-peer model/effort selections:
- * `claude,codex` (compatibility path, provider ids only) or
+ * Parse a `--peers` value. Accepts the JSON array form (anything starting with
+ * `[`, delegated to {@link parsePeerAgentsJson}) and the human-friendly
+ * colon/comma form: `claude,codex` (compatibility path, provider ids only) or
  * `claude:opus:high,codex:gpt-5:medium`. Trailing segments are optional, so
  * `claude:opus` selects a model and leaves effort to the provider CLI.
+ *
+ * The colon form cannot express a model id containing `:` or `,`; pass those
+ * through `--peer-agents` instead.
  */
 export function parsePeerAgents(value: string): PeerAgent[] {
+  if (value.trimStart().startsWith('[')) {
+    return parsePeerAgentsJson(value, '--peers');
+  }
   const specs = value
     .split(',')
     .map((peer) => peer.trim())
@@ -182,7 +203,9 @@ export function parsePeerAgents(value: string): PeerAgent[] {
 function parsePeerAgentSpec(spec: string): PeerAgent {
   const [provider, model, effort, ...extra] = spec.split(':');
   if (extra.length > 0) {
-    throw new Error('--peers entries must use provider[:model[:effort]]');
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents',
+    );
   }
   const agent: PeerAgent = {
     provider: validateProviderId(provider ?? '', '--peers'),
@@ -192,6 +215,88 @@ function parsePeerAgentSpec(spec: string): PeerAgent {
   if (model !== undefined && model.length > 0) agent.model = model;
   if (effort !== undefined && effort.length > 0) agent.effort = effort;
   return agent;
+}
+
+const PEER_AGENT_JSON_SHAPE =
+  'a JSON array of two {provider, model?, effort?} objects';
+const PEER_AGENT_KEYS = new Set(['provider', 'model', 'effort']);
+
+/**
+ * Parse the lossless `--peer-agents` transport: a JSON array of exactly two
+ * `{provider, model?, effort?}` objects. Model and effort are arbitrary
+ * non-empty strings, so nothing about their contents is reserved.
+ */
+export function parsePeerAgentsJson(
+  value: string,
+  option: string = PEER_AGENTS_OPTION,
+): PeerAgent[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${(error as Error).message}`,
+      { cause: error },
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+
+function parsePeerAgentObject(entry: unknown, option: string): PeerAgent {
+  if (!isJsonRecord(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`,
+      );
+    }
+  }
+  const agent: PeerAgent = {
+    provider: validateProviderId(
+      typeof entry.provider === 'string' ? entry.provider : '',
+      option,
+    ),
+  };
+  // `undefined`/absent means "provider CLI default". Anything else present must
+  // be a non-empty string; an empty or non-string value is a caller bug, not a
+  // silent fallback.
+  for (const key of ['model', 'effort'] as const) {
+    const field = entry[key];
+    if (field === undefined || field === null) continue;
+    if (typeof field !== 'string' || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
+}
+
+/** Render peers into the lossless `--peer-agents` JSON value. */
+export function formatPeerAgentsJson(peers: readonly PeerSpec[]): string {
+  return JSON.stringify(peerAgentsFromComposition(peers));
+}
+
+/**
+ * Build the peer argv the wrappers emit. `--peers` stays provider-ids-only, so
+ * argv is byte-identical to the pre-model-forwarding behavior whenever no model
+ * or effort is selected; the lossless `--peer-agents` JSON is appended only when
+ * at least one peer carries a selection.
+ */
+export function peerAgentsArgv(peers: readonly PeerSpec[]): string[] {
+  const agents = peerAgentsFromComposition(peers);
+  const argv = ['--peers', agents.map((agent) => agent.provider).join(',')];
+  if (agents.some((agent) => agent.model || agent.effort)) {
+    argv.push(PEER_AGENTS_OPTION, JSON.stringify(agents));
+  }
+  return argv;
 }
 
 /**
@@ -218,9 +323,14 @@ export function normalizePeerAgent(peer: PeerSpec): PeerAgent {
 }
 
 /**
- * Render peers back into a `--peers` value. Provider-only peers render exactly
- * as before (`claude,codex`), so argv stays byte-identical when no model or
- * effort is selected.
+ * Render peers back into a human-friendly `--peers` value. Provider-only peers
+ * render exactly as before (`claude,codex`), so argv stays byte-identical when
+ * no model or effort is selected.
+ *
+ * LOSSY when a model or effort is attached: `:` and `,` are the delimiters, so a
+ * model id containing either does not round-trip. Wrappers must use
+ * {@link peerAgentsArgv} — this stays for the human-facing `--peers` surface and
+ * for rendering provider-only lists.
  */
 export function formatPeerAgents(peers: readonly PeerSpec[]): string {
   return peers.map((peer) => formatPeerAgent(peer)).join(',');

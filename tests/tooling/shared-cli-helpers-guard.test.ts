@@ -68,8 +68,11 @@ const EXPECTED_COUPLED_NAMES = [
   'atomicWriteFile',
   'confineWrite',
   'formatPeerAgents',
+  'formatPeerAgentsJson',
   'normalizePeerAgent',
   'parsePeerAgents',
+  'parsePeerAgentsJson',
+  'peerAgentsArgv',
   'peerAgentsFromComposition',
   'providerCliUnavailableError',
 ];

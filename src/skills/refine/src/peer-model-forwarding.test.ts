@@ -11,12 +11,22 @@ import { expect, it } from 'vitest';
 import {
   makeProviderCliEnv,
   parseJsonl,
+  repoRoot,
+  runNodeScript,
 } from '../../../../tests/helpers/process.mjs';
 import { writeConsensusConfig } from '../../../plugins/consensus/config/consensus-config.js';
 import type { ConsensusConfigScope } from '../../../plugins/consensus/config/consensus-config.js';
 import { prepareParallelRun, runSequential } from './consensus-refine.js';
 
 type JsonRecord = Record<string, any>;
+
+// The parallel section path hands `loop_argv` to the host, which executes this
+// generated standalone runtime; exercising it is what proves the argv transport
+// and the loop's default peer invoker agree.
+const loopScript = path.join(
+  repoRoot,
+  'plugins/consensus/scripts/consensus-loop.mjs',
+);
 
 interface PeerModelContext {
   cwd: string;
@@ -252,7 +262,19 @@ it('keeps configured selections on the turns a resumed run re-issues', async () 
   });
 });
 
-it('records peer specs in the parallel manifest loop argv', async () => {
+async function manifestLoopArgv(manifestPath: string, index = 0) {
+  const manifest = JSON.parse(
+    await readFile(manifestPath, 'utf8'),
+  ) as JsonRecord;
+  return manifest.sections[index].loop_argv as string[];
+}
+
+function argvValue(loopArgv: string[], option: string) {
+  const index = loopArgv.indexOf(option);
+  return index === -1 ? null : loopArgv[index + 1];
+}
+
+it('records peer agents in the parallel manifest loop argv', async () => {
   await withPeerModelContext(async (context) => {
     await writePeerDefaults(context, 'project', [
       { provider: 'claude', model: 'claude-model-x', effort: 'high' },
@@ -263,12 +285,62 @@ it('records peer specs in the parallel manifest loop argv', async () => {
       refineOptions(context, 'parallel'),
     );
 
-    const manifest = JSON.parse(
-      await readFile(prepared.manifestPath, 'utf8'),
-    ) as JsonRecord;
-    const loopArgv = manifest.sections[0].loop_argv as string[];
-    const peersIndex = loopArgv.indexOf('--peers');
-    expect(peersIndex).toBeGreaterThanOrEqual(0);
-    expect(loopArgv[peersIndex + 1]).toBe('claude:claude-model-x:high,codex');
+    // `--peers` stays provider-ids-only; selections ride the lossless JSON
+    // transport so a model id may contain the `:`/`,` peer-spec delimiters.
+    const loopArgv = await manifestLoopArgv(prepared.manifestPath);
+    expect(argvValue(loopArgv, '--peers')).toBe('claude,codex');
+    expect(JSON.parse(argvValue(loopArgv, '--peer-agents') as string)).toEqual([
+      { provider: 'claude', model: 'claude-model-x', effort: 'high' },
+      { provider: 'codex' },
+    ]);
+  });
+});
+
+it('omits the peer-agents transport when no model or effort is configured', async () => {
+  await withPeerModelContext(async (context) => {
+    const prepared = await prepareParallelRun(
+      refineOptions(context, 'parallel-bare'),
+    );
+
+    const loopArgv = await manifestLoopArgv(prepared.manifestPath);
+    expect(argvValue(loopArgv, '--peers')).toBe('claude,codex');
+    expect(loopArgv).not.toContain('--peer-agents');
+  });
+});
+
+it('carries model ids containing peer-spec delimiters end-to-end through a parallel section', async () => {
+  // BL-260916 follow-up: a Bedrock-style id ending in `:0`, and an id with a
+  // comma, both broke the colon-delimited `--peers` encoding. Drive the whole
+  // path — wrapper -> loop argv -> generated standalone loop -> outgoing
+  // `consensus run` request.
+  await withPeerModelContext(async (context) => {
+    await writePeerDefaults(context, 'project', [
+      {
+        provider: 'claude',
+        model: 'us.anthropic.claude-sonnet-4-5-v1:0',
+        effort: 'high',
+      },
+      { provider: 'codex', model: 'gpt-x,fallback' },
+    ]);
+
+    const prepared = await prepareParallelRun(
+      refineOptions(context, 'parallel-delimiters'),
+    );
+    const loopArgv = await manifestLoopArgv(prepared.manifestPath);
+    await runNodeScript(loopScript, loopArgv, {
+      cwd: context.cwd,
+      env: context.env,
+    });
+
+    const runs = await runCalls(context);
+    expect(runs.length).toBeGreaterThan(0);
+    expect(runs.find((call) => call.provider === 'claude')).toMatchObject({
+      model: 'us.anthropic.claude-sonnet-4-5-v1:0',
+      effort: 'high',
+    });
+    expect(runs.find((call) => call.provider === 'codex')).toMatchObject({
+      model: 'gpt-x,fallback',
+      effort: null,
+    });
   });
 });

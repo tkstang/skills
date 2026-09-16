@@ -135,4 +135,35 @@ describe('standalone loop default peer invoker', () => {
       { CONSENSUS_STUB_VERDICT: 'CONVERGED' },
     );
   });
+
+  it('carries a model id containing the peer-spec delimiters through --peer-agents', async () => {
+    await withDispatchContext(async (context) => {
+      await runConsensusLoop(
+        context.argvFor([
+          '--peers',
+          'claude,codex',
+          '--peer-agents',
+          JSON.stringify([
+            {
+              provider: 'claude',
+              model: 'us.anthropic.claude-sonnet-4-5-v1:0',
+              effort: 'high',
+            },
+            { provider: 'codex', model: 'gpt-x,fallback' },
+          ]),
+        ]),
+        { env: context.env },
+      );
+
+      const runs = await context.runCalls();
+      expect(runs.find((call) => call.provider === 'claude')).toMatchObject({
+        model: 'us.anthropic.claude-sonnet-4-5-v1:0',
+        effort: 'high',
+      });
+      expect(runs.find((call) => call.provider === 'codex')).toMatchObject({
+        model: 'gpt-x,fallback',
+        effort: null,
+      });
+    });
+  });
 });

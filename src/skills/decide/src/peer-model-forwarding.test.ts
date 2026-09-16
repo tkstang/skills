@@ -118,10 +118,17 @@ it('forwards configured peer model and effort to the provider requests', async (
     const result = await runFixture(context, 'configured');
 
     expect(result.peers).toEqual(['claude', 'codex']);
+    // `--peers` stays provider-ids-only; the selections ride the lossless JSON
+    // `--peer-agents` transport, so a model id may contain `:` or `,`.
     expect(result.loopArgv).toEqual(
       expect.arrayContaining([
         '--peers',
-        'claude:claude-model-x:high,codex:codex-model-x',
+        'claude,codex',
+        '--peer-agents',
+        JSON.stringify([
+          { provider: 'claude', model: 'claude-model-x', effort: 'high' },
+          { provider: 'codex', model: 'codex-model-x' },
+        ]),
       ]),
     );
     const runs = await peerRunCalls(context);

@@ -10,7 +10,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   formatPeerAgents,
+  formatPeerAgentsJson,
   parsePeerAgents,
+  parsePeerAgentsJson,
+  peerAgentsArgv,
   peerAgentsFromComposition,
 } from '../shared/cli-helpers.js';
 import {
@@ -117,6 +120,105 @@ describe('peer spec parsing', () => {
   });
 });
 
+describe('lossless peer-agent transport', () => {
+  // A configured model id is any non-empty string, so `:` (a Bedrock-style id
+  // ending in `:0`) and `,` must survive transport. The colon-delimited
+  // `--peers` form cannot express them; the JSON form must.
+  const DELIMITER_AGENTS = [
+    { provider: 'claude', model: 'us.anthropic.claude-sonnet-4-5-v1:0' },
+    { provider: 'codex', model: 'gpt-x,fallback', effort: 'high' },
+  ];
+
+  it('round-trips model ids containing the colon and comma delimiters', () => {
+    expect(parsePeerAgentsJson(formatPeerAgentsJson(DELIMITER_AGENTS))).toEqual(
+      DELIMITER_AGENTS,
+    );
+  });
+
+  it('shows why the colon form cannot carry these ids', () => {
+    // Proof the JSON transport is load-bearing rather than belt-and-braces.
+    // A comma in a model id fabricates a third peer:
+    expect(() => parsePeerAgents('claude:gpt-x,fallback:high,codex')).toThrow(
+      /exactly two peers/,
+    );
+    // A trailing `:0` (Bedrock-style id) is silently re-read as the effort,
+    // truncating the model — the corruption that motivated --peer-agents.
+    expect(
+      parsePeerAgents('claude:us.anthropic.claude-sonnet-4-5-v1:0,codex'),
+    ).toEqual([
+      {
+        provider: 'claude',
+        model: 'us.anthropic.claude-sonnet-4-5-v1',
+        effort: '0',
+      },
+      { provider: 'codex' },
+    ]);
+    // And with an effort attached it overflows into an extra field outright.
+    expect(() =>
+      parsePeerAgents(
+        formatPeerAgents([
+          {
+            provider: 'claude',
+            model: 'us.anthropic.claude-sonnet-4-5-v1:0',
+            effort: 'high',
+          },
+          'codex',
+        ]),
+      ),
+    ).toThrow(/provider\[:model\[:effort\]\]/);
+  });
+
+  it('accepts the JSON form through --peers as well', () => {
+    expect(parsePeerAgents(formatPeerAgentsJson(DELIMITER_AGENTS))).toEqual(
+      DELIMITER_AGENTS,
+    );
+  });
+
+  it('validates the JSON payload instead of silently dropping fields', () => {
+    expect(() => parsePeerAgentsJson('not json')).toThrow(
+      /must be a JSON array/,
+    );
+    expect(() => parsePeerAgentsJson('{"provider":"claude"}')).toThrow(
+      /must be a JSON array/,
+    );
+    expect(() => parsePeerAgentsJson('[{"provider":"claude"}]')).toThrow(
+      /exactly two peers/,
+    );
+    expect(() =>
+      parsePeerAgentsJson('[{"provider":"Claude"},{"provider":"codex"}]'),
+    ).toThrow(/provider ids must match/);
+    expect(() =>
+      parsePeerAgentsJson(
+        '[{"provider":"claude","model":""},{"provider":"codex"}]',
+      ),
+    ).toThrow(/model must be a non-empty string/);
+    expect(() =>
+      parsePeerAgentsJson(
+        '[{"provider":"claude","mdoel":"x"},{"provider":"codex"}]',
+      ),
+    ).toThrow(/unknown key: mdoel/);
+  });
+
+  it('keeps wrapper argv byte-identical when no model or effort is selected', () => {
+    expect(peerAgentsArgv(['claude', 'codex'])).toEqual([
+      '--peers',
+      'claude,codex',
+    ]);
+    expect(
+      peerAgentsArgv([{ provider: 'claude' }, { provider: 'codex' }]),
+    ).toEqual(['--peers', 'claude,codex']);
+  });
+
+  it('appends the JSON transport and keeps --peers provider-ids-only', () => {
+    expect(peerAgentsArgv(DELIMITER_AGENTS)).toEqual([
+      '--peers',
+      'claude,codex',
+      '--peer-agents',
+      JSON.stringify(DELIMITER_AGENTS),
+    ]);
+  });
+});
+
 describe('loop option parsing', () => {
   it('splits peer specs into provider ids and index-aligned peer agents', () => {
     const parsed = parseLoopArgs([
@@ -137,6 +239,49 @@ describe('loop option parsing', () => {
       { provider: 'claude', model: 'sonnet-x', effort: 'high' },
       { provider: 'codex' },
     ]);
+  });
+
+  it('takes peer agents from the lossless --peer-agents transport', () => {
+    const agents = [
+      { provider: 'claude', model: 'us.anthropic.claude-sonnet-4-5-v1:0' },
+      { provider: 'codex', model: 'gpt-x,fallback', effort: 'high' },
+    ];
+    const parsed = parseLoopArgs([
+      '--section-file',
+      'section.md',
+      '--peers',
+      'claude,codex',
+      '--peer-agents',
+      JSON.stringify(agents),
+      '--output-records',
+      'records.json',
+      '--output-section',
+      'output.md',
+      '--output-status',
+      'status.json',
+    ]);
+
+    expect(parsed.peers).toEqual(['claude', 'codex']);
+    expect(parsed.peerAgents).toEqual(agents);
+  });
+
+  it('rejects a --peers list that disagrees with --peer-agents', () => {
+    expect(() =>
+      parseLoopArgs([
+        '--section-file',
+        'section.md',
+        '--peers',
+        'claude,cursor',
+        '--peer-agents',
+        '[{"provider":"claude"},{"provider":"codex"}]',
+        '--output-records',
+        'records.json',
+        '--output-section',
+        'output.md',
+        '--output-status',
+        'status.json',
+      ]),
+    ).toThrow(/must list the same providers in the same order/);
   });
 
   it('leaves peer agents provider-only for a bare provider list', () => {

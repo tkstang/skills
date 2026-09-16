@@ -1087,6 +1087,12 @@ function parseLoopArgs(argv) {
       case "--peers":
         parsed.peers = parsePeerAgents(next());
         break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
+        break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
         break;
@@ -1127,7 +1133,7 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  const peerAgents = required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
@@ -1145,6 +1151,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -2734,9 +2753,16 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
+function isJsonRecord2(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
 // src/plugins/consensus/shared/cli-helpers.ts
+var PEER_AGENTS_OPTION = "--peer-agents";
 function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
   const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
   if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
@@ -2746,7 +2772,9 @@ function parsePeerAgents(value) {
 function parsePeerAgentSpec(spec) {
   const [provider, model, effort, ...extra] = spec.split(":");
   if (extra.length > 0) {
-    throw new Error("--peers entries must use provider[:model[:effort]]");
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
   }
   const agent = {
     provider: validateProviderId(provider ?? "", "--peers")
@@ -2755,19 +2783,73 @@ function parsePeerAgentSpec(spec) {
   if (effort !== void 0 && effort.length > 0) agent.effort = effort;
   return agent;
 }
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
+}
+function peerAgentsArgv(peers) {
+  const agents = peerAgentsFromComposition(peers);
+  const argv = ["--peers", agents.map((agent) => agent.provider).join(",")];
+  if (agents.some((agent) => agent.model || agent.effort)) {
+    argv.push(PEER_AGENTS_OPTION, JSON.stringify(agents));
+  }
+  return argv;
+}
+function peerAgentsFromComposition(agents) {
+  return agents.map((agent) => {
+    const normalized = normalizePeerAgent(agent);
+    return {
+      provider: normalized.provider,
+      ...normalized.model ? { model: normalized.model } : {},
+      ...normalized.effort ? { effort: normalized.effort } : {}
+    };
+  });
+}
 function normalizePeerAgent(peer) {
   return typeof peer === "string" ? { provider: peer } : peer;
-}
-function formatPeerAgents(peers) {
-  return peers.map((peer) => formatPeerAgent(peer)).join(",");
-}
-function formatPeerAgent(peer) {
-  const agent = normalizePeerAgent(peer);
-  if (agent.effort) {
-    return `${agent.provider}:${agent.model ?? ""}:${agent.effort}`;
-  }
-  if (agent.model) return `${agent.provider}:${agent.model}`;
-  return agent.provider;
 }
 
 // src/skills/refine/src/refine-shared.ts
@@ -3125,8 +3207,7 @@ function loopArgvForSection({
     paths.input,
     "--goal",
     options.goal ?? "",
-    "--peers",
-    formatPeerAgents(peers),
+    ...peerAgentsArgv(peers),
     "--max-rounds",
     String(options.maxRounds),
     "--agency",
