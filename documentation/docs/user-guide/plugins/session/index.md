@@ -13,7 +13,7 @@ flowchart TD
   Q{"What do you need<br/>from this session?"}
   H["handoff · session-handoff<br/>Portable continuation brief:<br/>goal, state, decisions, evidence,<br/>remaining work, approval boundaries"]
   E["export-transcript · session-export-transcript<br/>Sanitized, branch-named Markdown archive<br/>written to ~/Downloads by default"]
-  F["fork-to-destination · session-fork-to-destination<br/>Experimental same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
+  F["fork-to-destination · session-fork-to-destination<br/>Alpha same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
   R["retro · session-retro<br/>Evidence-backed findings and<br/>improvement proposals, not applied"]
   OBS["session-observer<br/>optional integration"]
 

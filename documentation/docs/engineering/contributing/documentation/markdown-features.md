@@ -216,9 +216,34 @@ recipe:
 
     ```mermaid
     flowchart LR
-      SRC["src/skills/session-retro/"] --> BUILD["pnpm run build"]
-      BUILD --> STANDALONE["skills/session-retro/"]
-      BUILD --> PLUGIN["plugins/session/skills/retro/"]
+      subgraph author["Authored once · src/"]
+        SRC["src/skills/session-retro/<br/>SKILL.md + assets"]
+        DECL["src/distributions.ts<br/>declares the forms"]
+      end
+      BUILD["pnpm run build"]
+      subgraph forms["Generated forms · committed"]
+        STANDALONE["skills/session-retro/<br/>standalone"]
+        PLUGIN["plugins/session/skills/retro/<br/>Session plugin member"]
+      end
+      INSTALL["Declared install targets<br/>no install step"]
+      subgraph install["Install targets · declared"]
+        CC["Claude Code"]
+        CX["Codex"]
+        CU["Cursor"]
+      end
+      RELEASE["Provider manifests and marketplace catalogs<br/>release-owned, not generated"]
+      SRC --> BUILD
+      DECL --> BUILD
+      BUILD --> STANDALONE
+      BUILD --> PLUGIN
+      STANDALONE --> INSTALL
+      PLUGIN --> INSTALL
+      INSTALL --> CC
+      INSTALL --> CX
+      INSTALL --> CU
+      RELEASE -.-> INSTALL
+      STANDALONE -.->|"pnpm run build:check"| BUILD
+      PLUGIN -.->|"pnpm run build:check"| BUILD
     ```
 
     *Mermaid updated 2026-09-16*
