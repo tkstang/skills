@@ -29,10 +29,12 @@ export function Image(props: ComponentProps<typeof BaseImage>) {
   // oxlint-disable-next-line nextjs/no-img-element -- static export with unoptimized images; plain img avoids next/image's width requirement for root-relative assets
   const img = <img {...(rest as ComponentProps<'img'>)} src={prefixed} alt={alt ?? ''} loading="lazy" className="rounded-lg" />;
   if (!isDiagram) return img;
+  // Markdown images sit inside a <p>, so the wrapper must be phrasing content;
+  // app/globals.css turns these spans into block-level scroll regions.
   return (
-    <figure className="diagram-scroll" role="region" aria-label={alt ?? 'Diagram'} tabIndex={0}>
+    <span className="diagram-scroll" role="region" aria-label={alt ?? 'Diagram'} tabIndex={0}>
       {img}
-      <figcaption className="diagram-hint">Scroll sideways to see the whole diagram.</figcaption>
-    </figure>
+      <span className="diagram-hint">Scroll sideways to see the whole diagram.</span>
+    </span>
   );
 }

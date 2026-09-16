@@ -525,6 +525,7 @@ body {
    /diagrams/ assets; `.mermaid` is emitted by components/mermaid.tsx.
    -------------------------------------------------------------------------- */
 .diagram-scroll {
+  display: block;
   margin: 1rem 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -536,6 +537,7 @@ body {
 }
 .diagram-hint {
   display: none;
+  /* becomes display:block under 640px; it is a span so it may live inside <p> */
   margin: 0.4rem 0 0;
   font-family: var(--rt-mono, ui-monospace, monospace);
   font-size: 0.72rem;
