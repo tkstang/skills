@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-09-13 (Experimental destination-session fork guidance is implemented on its feature branch and has passed standard review plus the Cursor Fable exit gate. PR update, user-level installation, publication, and release remain pending.)
+**Last updated:** 2026-09-16 (Exact-pin observer re-arm behavior is now covered across clean stop/restart paths. No supported-path message loss was reproduced; synthetic evidence stops at stdout, and the legacy pre-stdout checkpoint window remains a broader acknowledgment/CAS limitation.)
 
 ## Overview
 
@@ -47,6 +47,7 @@ Standalone skill for reviewing what a peer coding agent did in the same project.
 - **One-shot:** `review` (tool-free digest of the most relevant peer session), `catch-up` (only records since the per-session high-water mark), `locate` (ranked candidates as JSON), `state get/reset/clear`.
 - **Selection:** deterministic tier ranking (exact cwd → bidirectional ancestor/descendant → explicit no-match widening), tie surfacing, `--session <runtime:id>` pinning.
 - **Watch mode (shipped 2026-06-04, PRs #4/#5/#7):** foreground stat-polling watcher with debounce coalescing; emits catch-up digests to stdout for the active agent; `watch-ctl status|pause|resume|flush|stop`; lock-protected state with stale-PID cleanup; multi-watcher and duplicate-target safety; metadata-only `--event-log` hardened to the state directory; `--runtime both` (Claude Code + Codex).
+- **Exact-pin re-arm characterization (2026-09-16, PR #85 open):** deterministic Codex fixtures cover SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, stdout failure, and competing-consumer interleavings. Supported clean `catch-up-then-watch` restarts retain and emit known renderable messages without a runtime change. Raw-index movement through filtered tool/reasoning records is not proof of conversational loss. The shared legacy offset is still persisted before stdout completion, so output failure can consume a range without replay; synthetic tests verify state and process output, not delivery into a live observing agent.
 - **TypeScript/generated runtime slice (2026-06-18):** canonical implementation source now lives under `src/transcript/session-observer/`, including typed state, candidate/ranking, digest/observe, watch, CLI/probe, and transcript-core interaction boundaries. The shipped dependency-free CLI, probe, and library `.mjs` files remain generated and committed under `skills/session-observer/scripts/`; session-observer tests now run as Vitest TypeScript while generated-entrypoint coverage still executes the shipped `.mjs` paths.
 - **State:** `~/.local/state/session-observer/` (XDG), keyed `runtime:sessionId`, locked atomic writes.
 - **Digests:** natural-language-only by default; `--include-tools` / `--debug` opt-ins; filter header always present.

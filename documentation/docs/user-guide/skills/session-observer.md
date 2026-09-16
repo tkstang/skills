@@ -115,6 +115,44 @@ not permission to switch pins. A filtered or empty digest is not evidence that
 the peer was idle; inspect the digest's declared schema, index base, and
 accounting or run a pinned review.
 
+## Re-arm an exact pinned watcher
+
+When a watcher expires or stops, keep the exact `<runtime>:<session-id>` pin.
+Stop the old watcher, confirm it is gone, then start one replacement with
+`catch-up-then-watch`:
+
+```bash
+node skills/session-observer/scripts/session-observer.mjs watch-ctl stop \
+  --session codex:<peer-session-id> --json
+
+node skills/session-observer/scripts/session-observer.mjs catch-up-then-watch \
+  --session codex:<peer-session-id> --quiet-empty
+```
+
+Do not use plain `watch` for this recovery. A plain watch intentionally advances
+past an unread startup baseline and emits `baseline-gap`; it does not render that
+backlog first. A clean SIGTERM requests an orderly stop but does not force a
+pending delta flush. Normal max-runtime expiry performs a final poll and flush.
+
+Interpret the replacement's evidence in three separate layers:
+
+1. **Persisted consumption:** the raw range is `[fromIndex, nextIndex)`, and the
+   legacy Claude Code/Codex offset advances to `nextIndex`.
+2. **Process output:** `renderedFromIndex` and `renderedToIndex` identify the
+   records represented in the digest written to stdout. Tool-, reasoning-, and
+   metadata-only records can advance the raw range while rendering nothing.
+3. **Agent delivery:** successful stdout does not prove that Monitor or another
+   harness delivered those bytes into an observing agent.
+
+Deterministic tests cover known renderable messages across clean SIGTERM,
+`watch-ctl stop`, and max-runtime restarts, plus filtered-only ranges, startup
+appends, and competing consumers. They found no supported clean-path message
+loss. One legacy boundary remains: Claude Code/Codex state is persisted before
+stdout completes, so a failed output write consumes that range and a later
+exact-pin restart does not replay it. Avoid competing stateful consumers for the
+same target; stronger replay guarantees require an acknowledgment/checkpoint
+design rather than offset rollback.
+
 For the two-peer handshake, wake tiers, authority rules, and lifecycle setup,
 see [Collaborative Observer](session-observer-collab.md).
 
