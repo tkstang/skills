@@ -261,6 +261,15 @@ oat_generated: false
 **Receive intent:** Bound to run `5d81d0bd-08cf-4353-be4c-1fba7b9c14f6`, source `reviews/final-review-2026-09-16T220057Z.md`, collision-free archive `reviews/archived/final-review-2026-09-16T220057Z.md`, and pre-receive head `198b87378fe97135d4bc4157cdf15787b76de164`.
 **Status:** Result persisted; eligible receive intent is durable.
 
+### Configured Exit Gate Review Received
+
+**Run:** `5d81d0bd-08cf-4353-be4c-1fba7b9c14f6`
+**Target:** `claude-fable-skip-permissions` (different-family Claude review)
+**Artifact:** `reviews/archived/final-review-2026-09-16T220057Z.md`
+**Reviewed head:** `ef7d8a08d0954c0bd2b223533fdd18cf9eacbfa3`
+**Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor.
+**Disposition:** Passing-gate judgment sweep completed with no sub-threshold findings to defer, address, or reject. The exact gate review event is passed; root reconciliation will bind the receive commit before closeout continues.
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
