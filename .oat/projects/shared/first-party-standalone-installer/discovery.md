@@ -1,6 +1,6 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-quick-start
 oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_generated: false
@@ -8,135 +8,108 @@ oat_generated: false
 
 # Discovery: first-party-standalone-installer
 
-## Phase Guardrails (Discovery)
-
-Discovery is for requirements and decisions, not implementation details.
-
-- Prefer outcomes and constraints over concrete deliverables (no specific scripts, file paths, or function names).
-- If an implementation detail comes up, capture it as an **Open Question** for design (or a constraint), not as a deliverable list.
-
 ## Initial Request
 
-{Copy of user's initial request}
+Add a first-party command that installs any declared generated standalone skill from an explicit pinned release tag into the selected host's project-scoped skills directory. Preserve the existing zero-argument Consensus recovery installer, verify the complete copied payload, print the host invocation name, and document both this path and the existing third-party Skills CLI path.
 
-## Clarifying Questions
-
-### Question 1: {Topic}
-
-**Q:** {Question}
-**A:** {User's answer}
-**Decision:** {What this means for the project}
+The kickoff handoff selects quick mode with a lightweight design focused on integrity, destination, refusal, and partial-failure boundaries.
 
 ## Solution Space
 
-_Include this section only when the request is exploratory or multiple viable approaches exist. For well-understood requests with an obvious approach, omit or replace with a single sentence stating the chosen direction._
+### Approach 1: Additive mode in the existing installer _(Chosen)_
 
-{Divergent exploration of the problem space before converging on an approach. Capture genuinely distinct strategies, not minor variations. Include 2-3 approaches as needed.}
+Keep the existing no-argument Consensus installation contract unchanged and activate standalone installation only when `--skill` is present. Resolve an exact tag into a temporary checkout, select only `skills/<name>/`, stage and verify its complete inventory, then publish it into the host's project-scoped directory.
 
-### Approach 1: {Strategy Name} _(Recommended)_
+This is the best fit because the repository already documents `install.sh`, compatibility can be mechanically tested, and the feature remains dependency-free.
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+### Approach 2: Separate standalone installer
 
-### Approach 2: {Strategy Name}
+Create a second top-level command dedicated to standalone skills. This gives the new contract a clean surface, but duplicates bootstrap documentation and leaves users to distinguish two first-party installers.
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+### Approach 3: Commit a release manifest and installer runtime
+
+Generate a catalog with per-file hashes and install through a dedicated runtime. This gives stronger release metadata but expands the generated-output contract and build pipeline beyond the small backlog item. It remains a possible follow-up if independently attested release manifests are needed.
 
 ### Chosen Direction
 
-**Approach:** {Which approach was selected}
-**Rationale:** {Why this approach over the alternatives}
-**User validated:** {Yes/No — explicit buy-in before proceeding}
+**Approach:** Additive mode in the existing installer.
 
-## Options Considered
+**Rationale:** It preserves the established Consensus entrypoint, meets the first-party requirement with the smallest durable surface, and can verify copy fidelity without adding runtime dependencies or a second catalog.
 
-{Specific implementation options within the chosen approach. More granular than Solution Space — captures decisions about libraries, patterns, data formats, etc.}
-
-### Option A: {Option Name}
-
-**Description:** {What this option involves}
-
-**Pros:**
-
-- {Benefit 1}
-- {Benefit 2}
-
-**Cons:**
-
-- {Drawback 1}
-- {Drawback 2}
-
-**Chosen:** {A/B/Neither}
-
-**Summary:** {1-2 sentence summary of the chosen option and why}
+**User validated:** Yes — the supplied handoff explicitly chose a focused quick project and required preservation of the Consensus-wrapper contract.
 
 ## Key Decisions
 
-1. **{Decision Category}:** {Decision made and why}
-2. **{Decision Category}:** {Decision made and why}
+1. **CLI activation:** Zero arguments continue to install the Consensus provider CLI exactly as today. Standalone mode requires explicit `--skill`, `--agent`, and `--ref`; malformed or mixed inputs fail before modifying a destination.
+2. **Pinned source:** `--ref` must resolve to an exact tag in the configured repository. Tests may point the same mechanism at a temporary local Git repository; production networking is not required by the unit suite.
+3. **Payload boundary:** Only the generated `skills/<name>/` directory is eligible. The installer never falls back to `src/skills/`, recursive skill discovery, plugin payloads, or historical compatibility names.
+4. **Project destinations:** Install beneath the selected project's host directory: `.agents/skills/` for Codex, `.claude/skills/` for Claude Code, and `.cursor/skills/` for Cursor.
+5. **Invocation output:** Print `$<name>` for Codex, `/<name>` for Claude Code, and the installed skill name with Cursor inventory guidance for Cursor.
+6. **Existing destination:** Refuse an existing destination. The initial feature has no force/merge mode, avoiding stale files and non-atomic replacement semantics.
+7. **Integrity semantics:** Reject symlinks and non-regular payload entries; inventory every file by relative path, mode, and SHA-256; copy into a same-parent staging directory; verify the staged inventory equals the selected source; then rename into the previously absent destination.
+8. **Authenticity wording:** An exact tag and Git transport establish which repository revision was selected. Inventory comparison proves copy fidelity. The feature does not claim signed-tag verification or independent release attestation.
+9. **Skill dependencies:** Required sibling workflows remain explicit prerequisites and are not silently installed.
+10. **Acceptance boundary:** Automated fixtures prove installer behavior and payload fidelity. Fresh host discovery and bounded invocation remain separate, explicitly authorized release checks.
 
 ## Constraints
 
-- {Constraint 1}
-- {Constraint 2}
+- Keep shipped runtime dependency-free and compatible with Node.js 22 or newer.
+- Preserve all current Consensus installer environment overrides, target path, default `v0.1.2` pin, optional checksum behavior, and local-checkout preference for the zero-argument path.
+- Use temporary directories and local Git fixtures for deterministic tests; do not require production networking or paid/live provider calls.
+- Keep the canonical installation guide and release checklist accurate without changing the plugin install matrix.
+- Do not install globally, publish a release, push a branch, open a PR, or run live provider acceptance without separate authority.
+- Do not edit generated skill payloads or canonical skill owners for installer fixtures; therefore no skill version bump is expected.
 
 ## Success Criteria
 
-- {Criterion 1}
-- {Criterion 2}
+- An explicit pinned tag and declared generated standalone skill install into the selected host's project-scoped directory.
+- The complete payload's paths, bytes, and executable modes are verified before publication.
+- Missing tags, missing skills, unsupported hosts, malformed names, source-tree attempts, symlinks, special files, and existing destinations fail clearly without damaging an installation.
+- The existing zero-argument Consensus installation behavior and contract tests remain green.
+- The installation guide presents the first-party procedure beside the Skills CLI procedure and distinguishes static copy verification from live host acceptance.
+- The release checklist calls for live first-party install, discovery, and bounded invocation evidence for every advertised host.
+- Scoped tests use temporary local fixtures and require no network.
 
 ## Out of Scope
 
-- {Thing we explicitly decided not to do}
-- {Thing we explicitly decided not to include in this phase}
+- Global/user-scope installation.
+- In-place updates, force replacement, merging, or automatic rollback of an overwritten installation.
+- Automatic installation of required or optional sibling skills.
+- Signed-tag enforcement or a new independently attested release manifest.
+- Plugin installation or changes to the provider plugin matrix.
+- Live provider discovery/invocation, publishing, tagging, pushing, or PR creation in this work session.
 
 ## Deferred Ideas
 
-{Ideas that came up during discovery but are intentionally out of scope for now}
-
-- {Idea 1} - {Why deferred}
-- {Idea 2} - {Why deferred}
+- **Release manifest:** Generate per-file release attestations if independent source authenticity becomes a release requirement.
+- **Safe update mode:** Add an explicit replacement workflow only with a separately designed backup/rollback contract.
+- **Catalog command:** Expose declared standalone names directly if users need discovery rather than an install of a known skill.
 
 ## Open Questions
 
-{Questions that need resolution before or during specification (and later design)}
-
-- **{Question Category}:** {Question that needs answering}
-- **{Question Category}:** {Question that needs answering}
+None blocking. The lightweight design will pin the exact staging and error-handling sequence and the tests that exercise it.
 
 ## Assumptions
 
-{Assumptions we're making that need validation}
-
-- {Assumption 1}
-- {Assumption 2}
+- The project-scoped host directories already used by this repository are the intended first-party destinations.
+- Release tags contain build-validated committed `skills/<name>/` payloads.
+- Git is an acceptable external boundary for resolving and checking out an exact tag; no package installation is required.
 
 ## Risks
 
-{Potential risks identified during discovery}
-
-- **{Risk Name}:** {Description}
-  - **Likelihood:** Low / Medium / High
-  - **Impact:** Low / Medium / High
-  - **Mitigation Ideas:** {How to address}
+- **Docs contract collision:** The existing Consensus test assumes exactly one raw `install.sh` URL in the installation guide.
+  - **Likelihood:** High
+  - **Impact:** Medium
+  - **Mitigation:** Keep the first-party example checkout-based or deliberately scope the legacy assertion to the Consensus recovery section while retaining its immutable-pin check.
+- **Partial copy or traversal:** A malformed payload could escape or leave a partial destination.
+  - **Likelihood:** Low
+  - **Impact:** High
+  - **Mitigation:** Validate names and entry types, stage beside the destination, compare complete inventories, and publish only by final rename into an absent path.
+- **Overstated verification:** Copy hashes could be described as proof of upstream authenticity.
+  - **Likelihood:** Medium
+  - **Impact:** Medium
+  - **Mitigation:** Document exact-tag resolution, transport trust, and copy-fidelity guarantees separately.
 
 ## Next Steps
 
-Use this discovery artifact to drive the next workflow step:
-
-- **Spec-driven mode:** continue to `oat-project-design` (which confirms
-  requirements and produces both `spec.md` and `design.md`).
-- **Spec-driven mode → formalize-only:** use `oat-project-spec` standalone
-  if you want a formalized requirements artifact but aren't ready to
-  design yet.
-- **Quick mode → straight to plan:** proceed directly to `plan.md` when
-  scope is clear and no architecture decisions remain.
-- **Quick mode → optional lightweight design:** produce a focused
-  `design.md` (architecture, components, data flow, testing) before
-  planning. Choose this when discovery surfaced architecture choices
-  or component boundaries.
-- **Quick mode → promote:** escalate to spec-driven if discovery revealed
-  the scope is larger or more complex than expected.
+Produce the handoff-selected lightweight design, generate and review the executable plan, then continue through `oat-project-implement` without pausing at ordinary task or phase boundaries.
