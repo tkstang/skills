@@ -50,12 +50,14 @@ Generate a catalog with per-file hashes and install through a dedicated runtime.
 8. **Authenticity wording:** An exact tag and Git transport establish which repository revision was selected. Inventory comparison proves copy fidelity. The feature does not claim signed-tag verification or independent release attestation.
 9. **Skill dependencies:** Required sibling workflows remain explicit prerequisites and are not silently installed.
 10. **Acceptance boundary:** Automated fixtures prove installer behavior and payload fidelity. Fresh host discovery and bounded invocation remain separate, explicitly authorized release checks.
+11. **Deterministic test seam:** Real-process race tests use an explicitly opt-in, bounded filesystem handshake enabled only by `STANDALONE_INSTALL_TEST_MODE=1`. The hook directory variable alone is inert, and normal help/user behavior does not expose an active failure-injection mode.
 
 ## Constraints
 
 - Keep shipped runtime dependency-free and compatible with Node.js 22 or newer.
 - Preserve all current Consensus installer environment overrides, target path, default `v0.1.2` pin, optional checksum behavior, and local-checkout preference for the zero-argument path.
 - Use temporary directories and local Git fixtures for deterministic tests; do not require production networking or paid/live provider calls.
+- Keep the shipped race/failure test seam inert by default, bounded when enabled, confined to a test-owned directory, and named in source comments plus process tests.
 - Keep the canonical installation guide and release checklist accurate without changing the plugin install matrix.
 - Do not install globally, publish a release, push a branch, open a PR, or run live provider acceptance without separate authority.
 - Do not edit generated skill payloads or canonical skill owners for installer fixtures; therefore no skill version bump is expected.

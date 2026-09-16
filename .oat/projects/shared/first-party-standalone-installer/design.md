@@ -101,6 +101,7 @@ arguments
 - Reject duplicates, unknown flags, missing values, unsafe skill names, and partial flag sets before installation work.
 - Spawn Git with argv arrays rather than shell interpolation.
 - Hold true-exclusive `wx` file descriptors across destination writes and permission changes.
+- Keep deterministic race/failure checkpoints disabled unless `STANDALONE_INSTALL_TEST_MODE=1` and a validated `STANDALONE_INSTALL_TEST_HOOK_DIR` are both present. In test mode, write phase-ready files and wait for bounded continue/fail signals at `after-preflight`, `after-reservation`, and `before-final-verify`. Source comments identify this as a test-only seam; the hook-directory variable alone has no effect.
 
 ### Pinned Source Resolver
 
@@ -140,8 +141,8 @@ Empty directories and directory permission modes are not part of the payload ide
 - Refuse any existing destination, including a dangling symlink, during preflight.
 - Create a same-parent staging directory, preserve file modes during copy, and verify the stage.
 - Re-check destination ancestors immediately before publication, then atomically reserve the final path with exclusive `mkdir`; failure means a concurrent directory or symlink won and must be preserved unchanged.
-- Reject a source payload that already contains the reserved installer marker name.
-- Add the marker immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Open each payload file through Node's `wx` mode (`O_CREAT | O_EXCL`), retain that descriptor while copying bytes, apply its declared mode through the descriptor, and close it; never use an overwrite-capable copy into the final directory.
+- Reject a source payload that already contains the reserved installer marker `.standalone-install-incomplete`.
+- Add `.standalone-install-incomplete` immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Open each payload file through Node's `wx` mode (`O_CREAT | O_EXCL`), retain that descriptor while copying bytes, apply its declared mode through the descriptor, and close it; never use an overwrite-capable copy into the final directory.
 - Verify the complete destination inventory while excluding only the marker, and remove the marker only after verification succeeds.
 - On post-reservation copy or verification failure, preserve the marked partial directory and report its exact recovery path. Never recursively delete the final path, because concurrent content or path replacement cannot be proven to belong to this invocation.
 - Remove owned staging and checkout paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
@@ -159,6 +160,8 @@ bash install.sh \
 ```
 
 `bash install.sh` remains the Consensus recovery command. Standalone installation requires all three primary flags; there is no implicit host, mutable branch default, global flag, source-directory flag, or force flag.
+
+Standalone mode requires the adjacent `scripts/install-standalone.mjs`. If the shell script is streamed or copied without that helper, it fails before creating host directories and directs the user to run the first-party procedure from an exact-tag checkout.
 
 The default repository is the canonical Git repository. `--repository` changes only the Git origin used to resolve the exact tag; it does not allow a direct payload path and therefore cannot select `src/skills/`.
 
@@ -182,15 +185,18 @@ Key scenarios:
 
 - Zero arguments preserve Consensus checkout, remote, checksum, permission, and repeated-install behavior.
 - Help, unknown flags, missing values, invalid skill names, unsupported agents, and partial standalone inputs do not create host directories.
+- Unknown, duplicate, partial, and missing-value flags are each covered explicitly.
 - Each host mapping installs a small generated fixture and prints the expected invocation form.
 - A generated executable fixture preserves its executable mode and runs outside the source checkout.
 - Missing tag, branch-only ref, missing generated skill, and a fixture containing only `src/skills/<name>` fail clearly.
 - Annotated tags work, and a same-named branch/tag fixture with different payload bytes installs the peeled tag commit's bytes.
 - Symlink/special-entry payloads and symlinked destination ancestors are refused.
 - Existing destinations remain byte-for-byte unchanged, including deterministic races that create a directory or symlink after preflight but before exclusive reservation.
-- A source payload using the reserved marker name is rejected.
+- A source payload using `.standalone-install-incomplete` is rejected.
 - Competing directories, regular files, symlinks, FIFOs, and symlink-to-FIFO entries created after reservation are never opened for write or overwritten; deterministic fixtures assert prompt failure and survival.
 - Copy or inventory mismatch after reservation leaves a clearly marked partial destination, preserves concurrent additions or a replacement path, cleans only checkout/staging paths, and causes subsequent installs to refuse the existing path.
+- Real-process races and injected failures use the explicitly opted-in bounded hook checkpoints. A separate test sets the hook directory without `STANDALONE_INSTALL_TEST_MODE=1` and proves the seam is inert by default.
+- Running `install.sh` with standalone flags but without the adjacent helper fails with checkout guidance and no host-directory mutation.
 
 ### Documentation and Contract Tests
 

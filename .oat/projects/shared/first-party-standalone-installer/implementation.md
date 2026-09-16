@@ -124,6 +124,33 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 ---
 
+## Review Received: plan artifact gate
+
+**Date:** 2026-09-16
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-09-16T231057Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 3
+- Minor: 4
+
+**Disposition:** No implementation tasks were created because this was an artifact review. All findings were resolved directly in `discovery.md`, `design.md`, and `plan.md`:
+
+- `I1` (`resolve_in_artifact`): declared the opt-in, bounded real-process test seam and its inert-by-default proof.
+- `M1` (`resolve_in_artifact`): selected the planned `v0.1.2` pin with an explicit unreleased/current-payload caveat.
+- `M2` (`resolve_in_artifact`): added streamed/isolated-script refusal behavior and a no-mutation test.
+- `M3` (`resolve_in_artifact`): finalized `oat_template: false`.
+- `m1` (`resolve_in_artifact`): enumerated unknown, duplicate, partial, and missing-value flag tests.
+- `m2` (`resolve_in_artifact`): named `.standalone-install-incomplete` consistently.
+- `m3` (`resolve_in_artifact`): added changed-file oxlint commands.
+- `m4` (`resolve_in_artifact`): retained and explained the quick-mode `spec` ledger placeholder.
+
+**Next:** Re-run the configured quick-start plan gate. Implementation may begin only after the plan review event reaches `passed`.
+
+---
+
 ## Implementation Log
 
 Chronological log of implementation progress.

@@ -11,7 +11,7 @@ oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: first-party-standalone-installer
@@ -57,7 +57,7 @@ Use temporary project roots and temporary local Git repositories with lightweigh
 
 Cover:
 
-- required `--skill`, `--agent`, and `--ref` parsing plus `--help`;
+- required `--skill`, `--agent`, and `--ref` parsing plus `--help`, unknown flags, duplicate flags, missing values, and partial flag sets;
 - Codex, Claude Code, and Cursor project destinations and invocation output;
 - complete payload bytes and executable-mode preservation;
 - missing tag, branch-only ref, missing generated skill, authored-source-only fixture, malformed name, unsupported host, unsafe entry, and symlinked ancestor refusal;
@@ -65,8 +65,10 @@ Cover:
 - existing destination preservation;
 - deterministic post-preflight directory and symlink collision refusal with competing content preserved;
 - post-reservation competing directory, regular-file, symlink, FIFO, and symlink-to-FIFO creation plus destination replacement, proving exclusive opens and no recursive cleanup preserve foreign entries without blocking or write-through;
-- reserved marker-name rejection;
+- `.standalone-install-incomplete` reserved marker-name rejection;
 - injected post-reservation copy or inventory failure that leaves a marked partial destination, preserves concurrent additions, cleans checkout/staging state, and makes a later install refuse the existing path;
+- real-process checkpoint control using `STANDALONE_INSTALL_TEST_MODE=1` with a test-owned hook directory, plus a test proving the hook-directory variable alone is inert;
+- standalone flags applied to an isolated/streamed `install.sh` with no adjacent helper, requiring checkout guidance and no host-directory mutation;
 - zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
 
 Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
@@ -77,6 +79,7 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 
 - Dispatch no arguments to the existing Consensus path and delegate standalone arguments to `scripts/install-standalone.mjs` through Node.js 22.
 - Validate standalone flags and safe names in the dependency-free helper before installation work; invoke Git with argv arrays.
+- When standalone flags are present but the adjacent helper is missing, fail with `install.sh:` checkout-based guidance before creating host directories.
 - Fetch the fully qualified `refs/tags/<ref>` from the default repository or `--repository` override, peel it to a commit, check it out detached, and require `HEAD` equality before reading the payload.
 - Select only `skills/<name>/` and require `SKILL.md`; never search or fall back to `src/skills/`.
 - Reject symlinks and non-file/non-directory entries.
@@ -84,7 +87,8 @@ Expected: New standalone cases fail for the missing behavior while legacy cases 
 - Refuse existing destinations and symlinked destination ancestors during preflight, then repeat the ancestor check immediately before publication.
 - Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; and verify inventory equality.
 - Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail.
-- Reject the reserved marker name in source payloads. Add the marker after reservation; create payload directories parent-first with exclusive `mkdir`; open payload files through Node `wx`, retain the descriptor through byte copy and permission changes, and never overwrite or open an existing final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
+- Reject `.standalone-install-incomplete` in source payloads. Add that marker after reservation; create payload directories parent-first with exclusive `mkdir`; open payload files through Node `wx`, retain the descriptor through byte copy and permission changes, and never overwrite or open an existing final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
+- Add source-commented, test-only checkpoints at `after-preflight`, `after-reservation`, and `before-final-verify`. Activate them only when `STANDALONE_INSTALL_TEST_MODE=1` and a confined hook directory are both present; use bounded waits and continue/fail signals. Without the opt-in, the hook directory variable is inert.
 - On post-reservation failure, preserve the marked partial destination and any concurrent additions, report explicit recovery, and clean only owned checkout/staging paths. Print the verified path plus host invocation name only after the marker is removed.
 
 **Step 4: Format and verify**
@@ -100,6 +104,10 @@ Expected: All standalone and legacy installer cases pass.
 Run: `pnpm run type-check`
 
 Expected: TypeScript checks pass.
+
+Run: `pnpm exec oxlint scripts/install-standalone.mjs tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
+
+Expected: Changed JavaScript/TypeScript files pass static lint.
 
 **Step 5: Commit**
 
@@ -128,9 +136,10 @@ Expected: New documentation assertions fail before the guide is updated; README 
 **Step 2: Update canonical documentation**
 
 - Add the first-party procedure beside the existing Skills CLI path.
-- Show a pinned-tag checkout/install workflow and all three host values.
+- Show `v0.1.2` as the pinned checkout/install ref, matching the existing Consensus installer pin, with the same explicit caveat that the command becomes usable only once that release contains the first-party helper and current generated payloads. Reject placeholder or mutable refs in the documentation contract.
 - State the generated-payload-only boundary and refusal of `src/skills/`.
 - Explain absent-destination refusal and how to choose a different project or remove an installation deliberately.
+- Name `.standalone-install-incomplete` and explain that a post-reservation failure leaves the marked directory for deliberate inspection/removal rather than unsafe automatic cleanup.
 - Distinguish exact-tag resolution and copy-fidelity verification from signed provenance, fresh-session discovery, and live behavior.
 - Add release checklist evidence for each advertised host: pinned tag, selected skill, project placement, payload verification, printed invocation, fresh-session discovery, and bounded invocation/permission behavior.
 - Mark live host evidence as a separate authority-gated release step, not something static tests prove.
@@ -148,6 +157,12 @@ Expected: Documentation and compatibility contracts pass.
 Run: `pnpm --dir documentation build`
 
 Expected: The production documentation build and generated navigation complete successfully.
+
+Run: `pnpm exec oxlint src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts`
+
+If the optional release test file is not created, omit it from the lint invocation.
+
+Expected: Changed TypeScript contract tests pass static lint.
 
 **Step 4: Commit**
 
@@ -234,7 +249,11 @@ git commit -m "chore(installer): close first-party install backlog item"
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
+| plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
+
+The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
+
+Plan gate review `8526c3ae-9e24-42fd-b0c2-bf22639824df` was received and all findings were resolved directly in the lifecycle artifacts. The row remains `fixes_completed` until a clean re-gate records `passed`.
 
 ## Implementation Complete
 
