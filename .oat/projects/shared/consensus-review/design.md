@@ -167,6 +167,8 @@ The generic runner's current shallow schema check is insufficient. Review owns d
 
 Host validation also checks verdict consistency: `pass` requires no actionable findings and no declared coverage-blocking gap; `changes_requested` carries findings; `inconclusive` cannot become a clean receipt. An omitted check does not alone invalidate an inspection-only review, provided the limitation is explicit. Findings need evidence and a suggestion, and either a file location or a stable document/artifact anchor. Suspicious paths/anchors cannot become executable commands or unsanitized output links.
 
+**Finding location contract:** Record the canonical absolute `worktree_root` once in the artifact header. File findings use the complete repository-relative path from that root and a one-based inclusive line range in the stated source version, for example `src/plugins/consensus/provider-cli/invocation.ts:108-110`. A basename is sufficient only for a file actually at the worktree root. The renderer must reject absolute finding paths, traversal, and paths whose existing symlink/ancestor resolution escapes the reviewed root; never render an unsafe finding link or silently discard the finding. Validate historical/deleted-file locations against the captured scope and version rather than requiring the current file to exist. Anchor-only document/artifact findings remain supported without invented line numbers. Consumers can compose absolute locations from the header while findings stay portable across machines.
+
 Render completed reviews with `oat_generated_at` metadata, scope/request/provenance, a summary/verdict, all four severity headings, questions/limitations, and separate "Checks run" and "Suggested verification" sections. Assign deterministic `C1`, `I1`, `M1`, `m1` IDs within severity while preserving provider order. Escape peer-controlled Markdown, headings, fences and link targets so quoted source cannot inject fake findings or instructions into the receiving workflow.
 
 OAT receive is an instruction-driven skill: there is no repository-shipped parser API to import. Fixture assertions/test-only extraction can verify the current documented conventions; a separate bounded receipt exercise with Fable must verify that the artifact yields the same register, including anchors and no-finding cases. Do not label a homemade extractor an official OAT parser. Never auto-run receipt, triage, task creation, archive, or fixes as a side effect of Review.
@@ -183,9 +185,9 @@ interface Finding {
   severity: Severity;
   title: string;
   location: {
-    path: string | null;
-    line_start: number | null;
-    line_end: number | null;
+    path: string | null; // complete worktree-root-relative path, never an abbreviated basename
+    line_start: number | null; // one-based; null only for anchor-only locations
+    line_end: number | null; // inclusive, >= line_start; same source version
     anchor: string | null;
     version: 'captured_before' | 'captured_after' | 'live_context';
   };
@@ -222,14 +224,19 @@ interface ReviewReply {
 The host-owned `ReviewArtifact` wraps the validated reply (or null on failure) with:
 
 - `schema_version`, run ID, UTC timestamps, status (`complete`, `incomplete`, `defective`, `failed`) and error code;
+- canonical absolute `worktree_root`, recorded once in the header; finding paths are complete root-relative paths;
 - verbatim request and hash, raw selector and resolved requested scope, commit/index/blob identities, captured diff/file hashes, scope token, declared limits;
 - host runtime/model with evidence source (`detected`, `declared`, `unknown`);
+- `authored_by`, separate from the calling host: contributors' provider/model/family when known, each with `evidence_source: detected | declared | unknown`, an evidence reference, and the scope that evidence covers; disclose partial or unknown authorship coverage;
 - selected provider, config source/index, skips, requested model/effort, passed model/effort, independently observed identity when available, otherwise null;
+- achieved author/reviewer diversity (`different-family`, `same-family`, or `unknown`), with its evidence basis and any incomplete coverage; do not equate a different calling runtime with a different author model family;
 - effective runtime policy, local preflight/version evidence, output transport/source, host invocation count and provider-internal attempts (`unknown` unless observed);
 - before/after coverage and drift, exact host/runtime write allowances, response validation disposition;
 - reviewer-reported inspected context/checks separately labeled from host-observed evidence.
 
 The peer cannot set `status`, selected identity, observed model, capture hashes, or mutation disposition. Validate this aggregate before saving. Never promote a self-reported model into an independently verified model. Store raw failure content only when bounded and intentionally retained; default diagnostics redact credentials and omit environment dumps/raw command arguments.
+
+The host owns `authored_by`. Its current session model is authorship evidence only for work that session actually produced, not every file it asks someone to review. Commit trailers and human/agent statements are declared attribution; runtime/dispatch records can supply detected evidence for their recorded scope. Keep the evidence reference, do not promote a trailer to independently detected identity, and leave missing or conflicting attribution unknown. Compare reviewer identity with the authors of the reviewed scope; claim different-family diversity only when the relevant authorship coverage and reviewer identity support it. These fields report evidence and do not silently broaden v1's agreed selection/fallback rules.
 
 ## API Design
 
@@ -272,9 +279,9 @@ Use colocated Vitest tests and deterministic provider fixtures; no live calls in
 - **Scopes:** staged versus working-tree divergence, unborn HEAD, base merge-point plus dirty changes, immutable ranges, untracked opt-in, deletions/renames, empty scope, malicious ref/path arguments, symlink escapes, binary/submodule rejection, concurrent scope changes, and every bound.
 - **Selection/config:** each precedence layer, whole-list replacement, invalid empty/duplicate entries, pinned overrides and conflicts, unknown/contradictory host, actual consent requirement, scoped preflight order, option rejection, model/effort forwarding, and no second dispatch after terminal failure.
 - **Transport/policy:** declared Claude/Codex policy tuples; Cursor ineligibility; identical preflight/dispatch depth; terminal-response-only request explicitly chooses prompt-only and does not inject/write/read/clean a submit sidecar; existing callers keep current behavior; bounded Codex last-message reads (including concurrent growth) remain an explicit capture allowance.
-- **Validation/provenance:** malformed nested findings, enum/range/key errors, false scope echo, verdict inconsistencies, invalid paths/anchors, self-reported identity, unknown internal attempts, and fake test claims never upgraded to observed evidence.
+- **Validation/provenance:** malformed nested findings, enum/range/key errors, false scope echo, verdict inconsistencies, invalid paths/anchors, self-reported identity, unknown internal attempts, and fake test claims never upgraded to observed evidence. Cover known/declared/unknown authorship, a host reviewing another model's work, partial/mixed authorship, untrusted trailers, conflicting attribution, and honest unknown diversity.
 - **Drift:** tracked/untracked changes, input/output alias protection, failed-run comparison, host outputs not mistaken for peer changes, unattributed concurrency, bounded coverage, and documented inability to detect transient/outside-coverage writes.
-- **Rendering:** one fixture per severity plus mixed/empty findings, document anchors, exact request preservation, Markdown-injection payloads, stable IDs, escaping, and separation of checks run from proposed checks. Assert absolute artifact paths in human/JSON output for default storage, relative `--output` arguments, paths with spaces, and failure diagnostics; never claim a nonexistent artifact. Run the independent OAT receipt exercise before claiming that acceptance criterion complete.
+- **Rendering:** one fixture per severity plus mixed/empty findings, document anchors, exact request preservation, Markdown-injection payloads, stable IDs, escaping, and separation of checks run from proposed checks. Test nested paths with duplicate basenames, legitimate root-level filenames, line ranges tied to captured versions, deleted/historical files, traversal and symlink escapes, and portability using the recorded absolute worktree root. Assert absolute artifact paths in human/JSON output for default storage, relative `--output` arguments, paths with spaces, and failure diagnostics; never claim a nonexistent artifact. Run the independent OAT receipt exercise before claiming that acceptance criterion complete.
 - **Packaging:** both generated entry points outside the checkout, bundled schema/assets and provider runtime, no OAT/runtime package dependency, exact generated inventories and consumer version fan-out.
 
 During implementation, use `pnpm run test:vitest <exact-test-path>` for scoped tests, then type-check, build/freshness, structure validation, changed-file lint/format, version validation against the selected main baseline, and full `pnpm run premerge` before handoff. Test commands in the eventual plan must name actual files; this draft does not invent a passing suite.
