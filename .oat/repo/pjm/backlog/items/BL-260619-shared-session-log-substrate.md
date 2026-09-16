@@ -52,6 +52,8 @@ schema). The index note sequences this **after** TypeScript/test foundation
 hardening — "this substrate is the next build-out once that is solid." Needs a
 design pass before implementation.
 
+**Design update (2026-09-16, Fable + Astra):** the first merged view is a **stateless multi-pin merge** over exact pins (e.g. `session-observer merge --session a --session b`), retaining source provenance and deterministic tie-breaking, and not implying that cross-machine timestamps establish causal order. No become-observable daemon or registration in v1; add one only if a real workflow shows stateless merging is insufficient. The merged log should be a projection over the session-fidelity activity contract (BL-260916-session-fidelity-opt) rather than a bespoke noise filter, so this sequences after fidelity. It shares the identity convention with inbox messaging (BL-260619-inter-agent-direct-messaging) but neither depends on the other.
+
 ## Acceptance Criteria
 
 - A design pass resolves the open questions: adopt-vs-build on `cass`, packaging

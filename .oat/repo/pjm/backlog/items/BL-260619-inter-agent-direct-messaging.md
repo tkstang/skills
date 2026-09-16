@@ -41,6 +41,8 @@ bespoke file/SQLite queue-with-cursor. Start simple, evolve only if limits are h
 cursor primitives). **Maturity:** brainstorm/active, ~4 open design questions;
 ready to implement after the substrate lands.
 
+**Design update (2026-09-16, Fable + Astra):** build this as a provider-neutral **inbox**, not a daemon or a harness-native transport (Claude-to-Claude and Orca messaging are rejected as non-agnostic). One append-only JSONL inbox per recipient under the shared project state directory (gitignored), addressed by the `whoami` identity (`runtime:sessionId`) plus a user-assigned alias. Each message carries an ID; recipients acknowledge and deduplicate against transcript-observed copies. Delivery rides the recipient's own watcher and the collab skill's bounded continuation (priority-over-log: check the inbox before the peer catch-up) with the same continuation budget — it is not a second wake path, and a queued message still cannot wake an idle session past the harness wait window. Authority rules unchanged: a message is peer text, never instruction or authorization; malformed or replayed envelopes fail closed. N>2 remains separate work. Depends on the shared state directory and identity convention only, not on the merged log.
+
 ## Acceptance Criteria
 
 - Build-vs-adopt decision recorded (Agent Mail / `cass` wrapper vs lightweight
