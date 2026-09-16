@@ -1,6 +1,6 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-quick-start
 oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_generated: false
@@ -28,7 +28,7 @@ Use a distinct ordered `defaults.reviewers` list with provider and optional mode
 
 ### How should planning proceed?
 
-Quick workflow with lightweight design. The latest user instruction selects draft-and-review over the configured selective/collaborative preference. Draft all sections together, highlight judgments, commit, and wait for holistic feedback before generating a runnable plan.
+Quick workflow with lightweight design. The user selected draft-and-review, then approved proceeding after the holistic review. Reconcile Fable's corrections and generate the plan; resolve execution policy and review gates before marking it runnable.
 
 ## Solution Space
 
@@ -45,6 +45,8 @@ Quick workflow with lightweight design. The latest user instruction selects draf
 5. Distinguish requested scope, reviewer-reported inspected context, and reported/observed checks. Unknown evidence is not success.
 6. Own the JSON schema and deterministic OAT Markdown adapter. OAT is an optional consumer, not a shipped dependency.
 7. Runtime maintenance stays independent. Reconcile Fable's shared-source changes before implementation; do not duplicate them.
+8. Review state persists outside the worktree under the XDG state root (home fallback), keyed by canonical worktree path. Only explicit `--output` exports a finished review into the repository after drift checking. No in-worktree runtime allowance list or automatic cleanup promise.
+9. Host-owned author provenance distinguishes detected, declared, and unknown identity and partial coverage. Findings carry complete repository-relative paths and source-version line ranges; artifact handoffs always name full absolute paths.
 
 ## Constraints
 
@@ -70,14 +72,9 @@ Convergence, multi-reviewer synthesis, repairs, packet-only mode, universal isol
 
 ## Open Questions
 
-The complete [design](design.md) makes recommendations for user judgment:
+Product judgments J1–J4 are resolved in the [design](design.md), including the revised external-state choice. Planning still needs the project's dispatch policy and review-gate posture. Runtime-maintenance PR #86 is still open at this planning check; its helper extraction is not yet a merged dependency.
 
-- J1: base-branch scope semantics and untracked files.
-- J2: no test/build execution by default under read-only review.
-- J3: ordered selection, pinned overrides, and unknown host identity.
-- J4: default persistence of request/provenance/JSON/Markdown in an ignored local directory.
-
-Technical peer review also covers terminal-response transport, deep validation, packaging, and the strength of OAT compatibility evidence.
+Fable's four source-backed corrections are incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and standalone packaging as the first phase. Formal plan review and the eventual independent OAT receipt exercise remain outstanding.
 
 ## Assumptions
 
@@ -92,7 +89,7 @@ Merged planning commit `08f59459` is the baseline. No Review implementation exis
 
 ## Next Steps
 
-User and Fable review the complete draft. Resolve judgments, complete discovery through the CLI, then generate/review the quick plan. Implementation remains blocked until that plan is ready.
+Complete discovery through the CLI, then generate/review the quick plan and resolve its policy/gates. Implementation remains blocked until that plan is ready and the user starts execution.
 
 ## References
 

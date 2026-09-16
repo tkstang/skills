@@ -10,7 +10,7 @@ oat_template_name: design
 
 # Design: Consensus Review
 
-**Disposition:** Complete lightweight draft, not an approved design or an implementation-ready plan. User judgment and Fable's independent review are pending. All interfaces and behavior below are proposed unless labeled existing.
+**Disposition:** Agreed lightweight design, reconciled after Fable's source-backed review and the user's approval to proceed with planning. Interfaces below remain proposed implementation, not shipped behavior. Plan artifact review and configured gates are still pending.
 
 **Scope:** BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope.
 
@@ -22,16 +22,16 @@ The product has one mode, not separate worktree and packet-only modes. A request
 
 Three implementation seams need particular care: the existing runner always requests a peer-written submit sidecar, its schema validator is shallow, and an unknown host bypasses its recursion guard. This design addresses those seams explicitly rather than treating existing dispatch support as sufficient proof of a safe Review run.
 
-## Decisions Needing Your Judgment
+## Resolved Product Judgments
 
 | ID | Recommendation used throughout this draft | Tradeoff / alternative |
 | --- | --- | --- |
 | J1 — What does a base review include? | `base_branch=main` reviews tracked changes from the merge base to the **current worktree**, including staged and unstaged edits. Untracked files require explicit `--files`. A commit range always means committed endpoints only. | This matches reviewing work in progress; committed-only base review is easier to reproduce but misses unsaved-to-Git changes. Both variants retain exact identities/hashes. |
 | J2 — May a reviewer run tests? | Default to inspection only. Do not ask the reviewer to run tests, builds, formatters, package managers, or arbitrary shell commands. It can report suggested verification and distinguish tests not run. | Automated tests may improve confidence but can write caches/files or call services. A future explicit check-execution contract can handle them; v1 must not pretend every test is read-only. |
 | J3 — Selection and fallback | Config is an ordered list; skip unavailable/unsupported candidates **before** dispatch. An explicit reviewer is pinned, with no fallback. Unknown host runtime requires explicit host identification. Same-provider review requires a pinned reviewer plus explicit consent. | Predictable and auditable, but an unknown host or unavailable pinned model stops rather than guessing. No fallback after a reviewer invocation starts. |
-| J4 — Save by default? | Keep request, captured scope, run metadata, JSON, and completed-review Markdown under `.consensus/reviews/<run-id>/`; `--output` additionally exports Markdown to a named new file. | Useful rerun/comparison evidence, but source snippets and user requests persist locally. Alternative: ephemeral default with an explicit save option. No global transcript collection. |
+| J4 — Save by default? | Persist request, captured scope, run metadata, JSON, and Markdown outside the worktree at `${XDG_STATE_HOME:-~/.local/state}/consensus/<worktree-key>/reviews/<run-id>/`. `--output` alone deliberately exports completed Markdown to a named new repository file. | Keeps projects clean but still retains sensitive source/request data locally. Persistence is not an ephemeral or automatic-cleanup promise. No global transcript collection. |
 
-These are the only product judgments needed to turn this draft into a plan. Numeric limits and module splits below are engineering recommendations for peer review, not additional user questionnaires.
+J1–J3 retain the draft recommendations; J4 incorporates the subsequent external-state decision. Numeric limits and module splits are engineering recommendations, not additional user questionnaires.
 
 ## Architecture
 
@@ -67,7 +67,7 @@ Complete: JSON + OAT Markdown     Incomplete/defective/failed:
 1. Validate arguments, discover the exact worktree root, resolve host identity and inherited depth. Reject conflicts/unknown identity before provider dispatch.
 2. Resolve the requested scope, capture its immutable identities and bounded source evidence, and preserve the user's request verbatim. No generic transcript harvesting.
 3. Resolve the effective preference list. Check adapter-declared provider-option capabilities, then run provider-scoped preflight sequentially until one eligible candidate remains. Evaluate the same resolved host context, inherited depth, and maximum depth of one at preflight and dispatch; never reconstruct depth as zero. Record skips; never probe unrelated providers eagerly.
-4. Create a unique private run directory and host-owned request/scope files. Establish the before-state after those writes so they do not look like reviewer edits. Revalidate the captured scope identities immediately before dispatch; a change during preflight/setup requires a new capture, not a stale review.
+4. Create a unique private run directory and host-owned request/scope files outside the worktree. Resolve and validate the state root before writing, including symlink ancestors; reject a state root within the reviewed worktree. Establish the before-state and revalidate captured scope identities immediately before dispatch; a change during preflight/setup requires a new capture, not a stale review.
 5. Invoke the owned runner once with `max_attempts: 1`, worktree cwd, a complete host context with `max_depth: 1`, and the selected provider-specific policy. Preserve inherited depth, never reset it to zero.
 6. Capture and deeply validate the terminal response. Compare its scope token to the host-generated token and normalize its findings. The peer cannot overwrite host provenance.
 7. Compare after-state and classify coverage gaps or changed files. Do this even when dispatch, parsing, validation, or timeout fails.
@@ -83,7 +83,7 @@ Proposed owner files are `src/skills/consensus-review/src/{cli,review,scope,sele
 - A skill-local generated executable exposes the same behavior without requiring a globally installed `consensus` command.
 - Standalone output bundles the owned provider runtime and needed schema/resources. Plugin output may share the maintained plugin-root CLI, but must remain verifiable as its declared installation unit. No runtime imports into another generated skill directory.
 - Use a Review-specific provider-runner facade that both entry points call. Keep the generic provider command dispatcher out of the standalone import graph to avoid importing unrelated workflows or creating a dispatch/import cycle.
-- Declare both outputs and allowed source roots in `src/distributions.ts`; extend fixed plugin-runtime ownership declarations only where actual imports require it. Exercise both outputs installed outside the checkout.
+- Declare both outputs and allowed source roots in `src/distributions.ts`; extend fixed plugin-runtime ownership declarations only where actual imports require it. This is the first standalone distribution to bundle the provider runner: Panel and Phone a Friend are plugin-only and do not prove this packaging path. Phase 1 must bundle the actual runner closure into both outputs and exercise both installed outside the checkout before review logic is built.
 
 ### 2. Scope Resolver
 
@@ -99,7 +99,7 @@ Exactly one scope selector is required. Reject ambiguous combinations; never inf
 | `<document-path>` | One current repository document | Path and content hash; finding anchors are allowed |
 | `--artifact <path>` | Host-materialized description/content, tied to this worktree | Exact artifact bytes/hash and any explicitly supplied context references |
 
-Use Git argument arrays with explicit option/path separation, no shell interpolation, no external diff/textconv helpers, and no recursive submodule checkout. Normalize paths against the worktree root and reject traversal, escaping symlinks, special files, and unresolved merges. Deleted files and renames retain before/after identities. Unsupported binary/submodule content produces an explicit pre-dispatch scope error, not silent omission. Git selectors require Git; document/file v1 also deliberately remains worktree-based.
+Use Git argument arrays with explicit option/path separation, no shell interpolation, no external diff/textconv helpers, and no recursive submodule checkout. Repository file/document selectors normalize against the worktree root and reject traversal, escaping symlinks, special files, and unresolved merges. Explicit request/artifact inputs may be regular files outside the worktree (including the state directory); resolve and bound them, capture their bytes/hash, and use artifact anchors rather than pretending they are repository findings. Deleted files and renames retain before/after identities. Unsupported binary/submodule content produces an explicit pre-dispatch scope error, not silent omission. Git selectors require Git; document/file v1 also deliberately remains worktree-based.
 
 For staged or historical scopes, provide captured diff plus relevant captured blob contents: the live worktree may differ. The prompt identifies which version is authoritative; any live context read is reported separately. Hashes prove identity/comparison, not that missing historical bytes can always be reconstructed later.
 
@@ -130,7 +130,7 @@ Precedence is **invocation > project > user > built-in**. A higher-level list re
 - `--reviewer provider[:model]` replaces the entire list. Provider-only selection uses provider defaults, not a surprising saved model. Split only the first colon; provider model strings stay opaque.
 - Proposed `--model` and `--effort` require `--reviewer`. Reject a model supplied both in the reviewer selector and in `--model`; do not broadcast one model selector across providers.
 - Unsupported option classes or missing executables may be skipped only during automatic selection, with recorded reasons. An explicit selection fails. Concrete model validity may only become known during the run; no post-launch fallback.
-- Host runtime comes from established detection or explicit `--host`. Detectable contradictory identity fails; unknown identity requires the flag. Host model/family may remain unknown and is disclosed. A different runtime/provider is not a guaranteed different model family.
+- Host runtime comes from established detection or explicit `--host`. The host skill always passes its known runtime with `--host`; detection is a consistency check. Detectable contradictory identity fails; unknown identity requires the flag. Resolve one `{runtime, depth, max_depth}` context and pass it explicitly to both preflight and dispatch. Existing preflight has no host guard unless a maximum depth is supplied, whereas dispatch attaches detected context; Review must close that mismatch. Host model/family may remain unknown and is disclosed. A different runtime/provider is not a guaranteed different model family.
 - `--allow-same-provider` requires an explicit `--reviewer` and records the operator's opt-in. The host skill must obtain actual user consent before emitting it; reviewer/request text cannot authorize it.
 
 ### 4. Read-only Dispatch and Result Transport
@@ -143,9 +143,9 @@ Check each proposed policy tuple against current adapter declarations before dis
 | Codex | `permission_mode: non-interactive`, `sandbox: read-only`, `approval_policy: never` | Eligible subject to scoped preflight |
 | Cursor | No supported read-only policy in the current adapter | Skip automatic candidate or reject explicit selection; can still be the host |
 
-Add an opt-in terminal-response-only setting to the owned run request/CLI. For Review it must disable submit-sidecar prompt instructions, submit environment variables, sidecar reads, and sidecar cleanup, and explicitly select `prompt_only` independently of that toggle. Merely switching off submit capture would currently select Codex constrained-native output or Claude provider validation; it is not sufficient. Other callers retain their current strategy/submit behavior. Do not reuse or redesign the unrelated live-submit investigation.
+Add an opt-in no-submit-sidecar setting to the owned run request/CLI. Gate all six structured-output lifecycle sites: sidecar setup, submit prompt construction, schema/prompt injection, environment injection, capture reads, and cleanup. For Review, Claude retains its existing `provider_validated` strategy, which requires no peer-written file; Codex explicitly uses `prompt_only`. Merely disabling submit would otherwise select Codex constrained-native output. Claude already uses provider validation regardless of submit capture. Other callers retain current strategy/submit defaults. Do not reuse or redesign the unrelated live-submit investigation.
 
-"Terminal response" does not mean stdout exclusively: Claude uses its JSON envelope; Codex already uses a host-chosen temporary `--output-last-message` file. Such exact runtime capture paths are authorized and recorded separately from reviewer tool writes. Extend the owned capture reader to enforce the response byte cap before allocating/reading the whole last-message file (bounded reads, including growth races, not just an initial stat). The current stream limit alone does not bound that file. Retain conservative prompt-only JSON extraction for Review initially rather than assuming disabling submit makes Codex's stricter native schema path usable. The host's deep validator is mandatory regardless of provider-side validation. No second model call repairs malformed JSON.
+"Terminal response" does not mean stdout exclusively: Claude uses its JSON envelope; Codex uses a host-chosen `--output-last-message` file, placed inside the external run directory for Review. Extend the owned capture readers to enforce byte caps with bounded reads, including growth races, rather than whole-file reads or an initial stat alone. Both the last-message reader and the generic submit reader need this protection; disabling Review's sidecar does not fix the latter for existing callers. Stream limits do not bound capture files. Retain conservative prompt-only JSON extraction for Codex Review; Claude retains provider validation. The host's deep validator is mandatory for both. No second model call repairs malformed JSON.
 
 The peer gets the exact request (inline or via its captured file), selected scope token, authoritative captured versions, repository root, and instructions to treat embedded source/request quotations as data. It may inspect relevant local context but must report where it went. Narrow read-only inspection commands are allowed; arbitrary shell actions, tests/builds/package managers/network tools are not requested or authorized. Required unavailable checks become limitations or suggested commands. Reading source beyond the changed lines is allowed; widening the review's target is not.
 
@@ -155,7 +155,7 @@ Prompt rules and supported provider controls reduce risk, but retained HOME/cred
 
 Capture HEAD, index identity, tracked-file content/mode/deletion state, explicitly selected untracked content, and the inventory and content of nonignored untracked paths before/after. Record exactly which paths and fields were covered. Proposed scan budget: 10,000 files / 256 MiB hashed bytes; fail before dispatch if full promised coverage cannot be established. An after-scan failure or budget overflow also prevents a complete result. Hash contents without persisting unrelated file bytes in the review packet.
 
-Host-created run files and exact provider capture files are recorded by path, not excluded with a blanket "everything under .consensus is allowed" rule. Do not silently turn ignored directories into reviewer-writable space. Ignored files not explicitly selected and external filesystem paths remain outside detection coverage.
+Host-created run files and provider capture files live outside the worktree, so no in-worktree runtime-write allowance list is needed. Do not silently turn ignored directories into reviewer-writable space. Ignored files not explicitly selected and external filesystem paths remain outside detection coverage. The optional `--output` export occurs only after comparison; it is not exempted from the before/after scan.
 
 Any unexplained difference invalidates stable completion. Classify it as `scope_drift` / unattributed change unless evidence establishes reviewer authorship; an observed unauthorized reviewer write makes the run defective. Preserve evidence and never revert or repair user files automatically. Output generation happens after the comparison. An output path must not alias any reviewed input or preexisting file.
 
@@ -231,7 +231,7 @@ The host-owned `ReviewArtifact` wraps the validated reply (or null on failure) w
 - selected provider, config source/index, skips, requested model/effort, passed model/effort, independently observed identity when available, otherwise null;
 - achieved author/reviewer diversity (`different-family`, `same-family`, or `unknown`), with its evidence basis and any incomplete coverage; do not equate a different calling runtime with a different author model family;
 - effective runtime policy, local preflight/version evidence, output transport/source, host invocation count and provider-internal attempts (`unknown` unless observed);
-- before/after coverage and drift, exact host/runtime write allowances, response validation disposition;
+- before/after coverage and drift, external host/runtime capture paths, response validation disposition;
 - reviewer-reported inspected context/checks separately labeled from host-observed evidence.
 
 The peer cannot set `status`, selected identity, observed model, capture hashes, or mutation disposition. Validate this aggregate before saving. Never promote a self-reported model into an independently verified model. Store raw failure content only when bounded and intentionally retained; default diagnostics redact credentials and omit environment dumps/raw command arguments.
@@ -248,14 +248,16 @@ consensus review base_branch=origin/main
 consensus review HEAD~2..HEAD --reviewer claude
 consensus review --files src/example.ts docs/example.md
 consensus review docs/design.md --reviewer codex --model chosen-model --effort high
-consensus review --artifact .consensus/review-request.md --output review.md
+consensus review --artifact /absolute/path/to/captured-request.md --output review.md
 ```
 
-Optional `--request-file` supplies the exact review question; otherwise a deterministic scope-specific request is generated and preserved. The host skill materializes a described artifact into a file before invoking the command and distinguishes the user's text from its own contextual summary. All named request/artifact paths are bounded local inputs, not instructions to execute their contents.
+Optional `--request-file` supplies the exact review question; otherwise a deterministic scope-specific request is generated and preserved. The host skill uses a repository path for an existing document, and materializes conversation context into an external private temporary/state file before using `--artifact`. It distinguishes the user's text from its own contextual summary. All named request/artifact paths are bounded local inputs, not instructions to execute their contents.
 
 Selection controls are `--reviewer`, `--model`, `--effort`, `--host`, and explicit `--allow-same-provider`. No automatic provider installation, model discovery calls, or authentication repair occurs. Time/size limits initially remain documented constants rather than proliferating config knobs.
 
-Default output is `.consensus/reviews/<run-id>/` containing `request.md`, captured scope data, `result.json`, and either `review.md` or `diagnostic.md`. Create directories/files with private modes where supported. Use exclusive creation and atomic final writes; refuse preexisting explicit output paths and symlink aliases. The external output is a copy of completed Markdown, while the canonical run result stays JSON. Report partial output failures rather than rerunning the reviewer.
+Default output is `${XDG_STATE_HOME:-~/.local/state}/consensus/<worktree-key>/reviews/<run-id>/`, containing `request.md`, captured scope data, provider capture files, `result.json`, and either `review.md` or `diagnostic.md`. Require an absolute XDG root when configured; otherwise use the home-directory fallback. Derive the worktree key from a SHA-256 hash of its canonical absolute path, keeping sibling worktrees distinct. Check real paths/ancestors and refuse any default state location inside the reviewed worktree. Create directories/files with private modes where supported. Use exclusive creation and atomic final writes; refuse preexisting explicit output paths and symlink aliases. `--output` copies completed Markdown only after the drift check; canonical run data remains external. Report partial output failures rather than rerunning the reviewer.
+
+State persists until the operator removes it; v1 adds no automatic TTL or cleanup job. Documentation must warn that requests and source captures remain on disk and identify the exact run directory for deliberate cleanup. Existing converging workflows keep their `.consensus/` behavior. Observer's XDG convention is a location precedent, not an existing worktree-key algorithm to copy.
 
 The Review command's proposed exit contract is `0` for completed review (even when findings exist), `2` for usage/pre-dispatch selection failure, and `1` for failed/incomplete/defective execution or output failure. `--json` returns a compact status/path envelope for every outcome. An empty scope returns a labeled no-op with invocation count zero, not a purported clean model review. Consumers use explicit status/verdict, not exit code alone; the underlying generic runner can return a failure envelope with exit zero.
 
@@ -278,9 +280,9 @@ Use colocated Vitest tests and deterministic provider fixtures; no live calls in
 
 - **Scopes:** staged versus working-tree divergence, unborn HEAD, base merge-point plus dirty changes, immutable ranges, untracked opt-in, deletions/renames, empty scope, malicious ref/path arguments, symlink escapes, binary/submodule rejection, concurrent scope changes, and every bound.
 - **Selection/config:** each precedence layer, whole-list replacement, invalid empty/duplicate entries, pinned overrides and conflicts, unknown/contradictory host, actual consent requirement, scoped preflight order, option rejection, model/effort forwarding, and no second dispatch after terminal failure.
-- **Transport/policy:** declared Claude/Codex policy tuples; Cursor ineligibility; identical preflight/dispatch depth; terminal-response-only request explicitly chooses prompt-only and does not inject/write/read/clean a submit sidecar; existing callers keep current behavior; bounded Codex last-message reads (including concurrent growth) remain an explicit capture allowance.
+- **Transport/policy:** declared Claude/Codex policy tuples; Cursor ineligibility; identical explicit preflight/dispatch host context and depth; no-sidecar mode performs none of its six lifecycle actions; Claude retains provider validation and Codex uses prompt-only; existing callers retain defaults. Both capture readers enforce caps through concurrent-growth races. Review's Codex capture is external.
 - **Validation/provenance:** malformed nested findings, enum/range/key errors, false scope echo, verdict inconsistencies, invalid paths/anchors, self-reported identity, unknown internal attempts, and fake test claims never upgraded to observed evidence. Cover known/declared/unknown authorship, a host reviewing another model's work, partial/mixed authorship, untrusted trailers, conflicting attribution, and honest unknown diversity.
-- **Drift:** tracked/untracked changes, input/output alias protection, failed-run comparison, host outputs not mistaken for peer changes, unattributed concurrency, bounded coverage, and documented inability to detect transient/outside-coverage writes.
+- **Drift/state:** tracked/untracked changes, input/output alias protection, failed-run comparison, no host writes within the scanned worktree, export after comparison, unattributed concurrency, bounded coverage, and documented inability to detect transient/outside-coverage writes. Test XDG/fallback resolution, canonical-path keys, distinct sibling worktrees, symlinked/in-worktree state-root rejection, exclusive creation, and external artifact inputs.
 - **Rendering:** one fixture per severity plus mixed/empty findings, document anchors, exact request preservation, Markdown-injection payloads, stable IDs, escaping, and separation of checks run from proposed checks. Test nested paths with duplicate basenames, legitimate root-level filenames, line ranges tied to captured versions, deleted/historical files, traversal and symlink escapes, and portability using the recorded absolute worktree root. Assert absolute artifact paths in human/JSON output for default storage, relative `--output` arguments, paths with spaces, and failure diagnostics; never claim a nonexistent artifact. Run the independent OAT receipt exercise before claiming that acceptance criterion complete.
 - **Packaging:** both generated entry points outside the checkout, bundled schema/assets and provider runtime, no OAT/runtime package dependency, exact generated inventories and consumer version fan-out.
 
@@ -298,7 +300,9 @@ Fable should review the whole document, concentrating on:
 4. Whether the schema/renderer and independent receipt exercise satisfy the item without overclaiming parser compatibility.
 5. Whether packaging avoids loop coupling, dispatcher import cycles, and accidental runtime dependencies.
 
-User approval of J1–J4 and peer feedback precede the runnable plan. The later plan must coordinate with Fable's maintenance branch and use a separately visible implementation worktree as specified in the kickoff handoff. No implementation, new PR, or user-global install occurs in this design pass.
+User approval to proceed incorporates J1–J3, the revised external-state J4, provenance, and path handoff requirements. Fable's four corrections above are reconciled. The plan must coordinate with Fable's maintenance branch and use a separately visible implementation worktree as specified in the kickoff handoff. No implementation, new PR, or user-global install occurs in this planning pass.
+
+OAT source inspection informs identity/provenance distinctions, but does not import its target registry or fallback behavior: Review retains ordered lists, preflights pinned reviewers, and never retries another provider after dispatch. Model-family evidence may remain unknown and must be disclosed.
 
 ## Evidence References
 
