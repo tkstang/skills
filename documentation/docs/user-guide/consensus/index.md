@@ -208,13 +208,13 @@ JSONL event (`calls_per_round`) and report actual `peer_calls` /
 See [Configuration](configuration.md) for peer selection, the provider floor,
 diagnostics, and permissions, and the per-skill pages for the full command set.
 
-## What leaves the machine
+## What is handed to a provider process
 
-Transcripts, observer and collaboration state, and `.consensus/` run state stay local. No artifact file crosses to a peer: the skill reads it locally and compacts it into the prompt string passed on the child's argv, alongside a schema and a few submit environment variables. Everything that comes back is schema-validated and treated as untrusted data.
+This is the local process boundary, not a network boundary. Transcripts, observer and collaboration state, and `.consensus/` run state are never handed to a provider subprocess. No artifact file crosses either: the skill reads it locally and compacts it into the prompt payload, passed on argv for Claude and on stdin for Codex and Cursor, alongside a schema and a few submit environment variables. The provider CLI then sends its input to that provider's service, which this repository does not control. Everything that comes back is schema-validated and treated as untrusted data.
 
 === "Diagram"
 
-    ![What leaves the machine](/diagrams/trust-boundary.svg)
+    ![The provider process boundary](/diagrams/trust-boundary.svg)
 
     *SVG regenerated 2026-09-16*
 
@@ -222,14 +222,14 @@ Transcripts, observer and collaboration state, and `.consensus/` run state stay 
 
     ```mermaid
     flowchart TB
-      subgraph local["Stays on this machine"]
+      subgraph local["Not handed to the provider process"]
         TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
         ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]
         RUN[".consensus/ run state<br/>and output artifacts"]
       end
-      HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt string"]
+      HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt payload"]
       subgraph crossing["Crosses the boundary — approval is a skill instruction, not a code gate"]
-        PR["argv prompt string<br/>facts, constraints, and the<br/>compacted artifact text"]
+        PR["Prompt payload<br/>argv for Claude; stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
         SCH["Claude: the schema is ALSO passed<br/>inline in argv as --json-schema"]
         ENV["Submit env, 4 vars — set for every provider<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA<br/>and CONSENSUS_SUBMIT_MAX_BYTES"]
         CWD["The child inherits a cwd<br/>with no filesystem confinement"]
