@@ -1,7 +1,7 @@
 ---
 id: BL-260723-make-remaining-consensus-loop
 title: Make remaining consensus-loop write sites atomic
-status: open
+status: closed
 priority: low
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - wave-1-follow-up
 assignee: null
 created: 2026-07-23T05:20:00Z
-updated: 2026-09-16T18:06:09Z
+updated: '2026-09-16T22:50:27Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-09-07-finish-atomic-consensus-loop-writes.md

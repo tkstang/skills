@@ -18,7 +18,6 @@
 | --- | --- | --- | --- | --- | --- |
 | BL-260916-add-consensus-review-cross | Add consensus-review: cross-model review of a bounded scope | open | high | feature | M |
 | BL-260916-add-a-first-party-install | Add a first-party install command for standalone skills | open | medium | feature | S |
-| BL-260916-honor-configured-peer-models | Honor configured peer models and effort in convergence workflows | open | medium | task | M |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260916-session-fidelity-opt | Session fidelity: opt-in --include-activity for observer and exporter | open | medium | feature | L |
@@ -29,11 +28,9 @@
 | BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
 | BL-260612-add-whole-document | Add whole-document harmonization pass after section convergence | open | low | feature | M |
 | BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
-| BL-260723-make-remaining-consensus-loop | Make remaining consensus-loop write sites atomic | open | low | task | S |
 | BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
 | BL-260713-optional-idle-session | Optional idle-session application integrations | open | low | idea | M |
 | BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N&gt;2 collaboration mesh | open | low | initiative | L |
-| BL-260723-split-loop-free-cli-helpers | Split loop-free cli-helpers core for panel sharing | open | low | task | S |
 <!-- END OAT BACKLOG-INDEX -->
 
 ## Notes

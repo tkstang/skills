@@ -1,7 +1,7 @@
 ---
 id: BL-260723-split-loop-free-cli-helpers
 title: Split loop-free cli-helpers core for panel sharing
-status: open
+status: closed
 priority: low
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - wave-3-follow-up
 assignee: null
 created: 2026-07-23T09:30:00Z
-updated: 2026-09-16T18:06:09Z
+updated: '2026-09-16T22:50:27Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-09-07-extract-loop-free-cli-helper-core.md
