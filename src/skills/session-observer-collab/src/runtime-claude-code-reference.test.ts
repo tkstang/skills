@@ -19,10 +19,24 @@ describe('Claude Code Monitor reference', () => {
     expect(content).toContain('`event-wake`');
     expect(content).toContain('`scheduled-poll` or `buffered-manual`');
     expect(content).toContain(
-      'the Claude Monitor\nacceptance-matrix row remains **unvalidated**',
+      'Monitor is available but event wake is unvalidated for this session.',
     );
     expect(content).toContain(
-      'The current honest posture is\n`buffered-manual`',
+      'No autonomous Claude Code wake is available in this environment.',
+    );
+  });
+
+  test('bounds observed event wake to a Monitor lifetime without claiming restart resilience', async () => {
+    const content = (await reference()).replace(/\s+/g, ' ');
+
+    expect(content).toContain(
+      '`event-wake` holds for the lifetime of one Monitor task',
+    );
+    expect(content).toContain('30-minute ceiling and a manual re-arm');
+    expect(content).toContain('Not exercised: the client was not restarted.');
+    expect(content).toContain('Restart resilience remains unvalidated');
+    expect(content).toContain(
+      'must re-arm from the named pin and read the gap rather than claim continuity',
     );
   });
 
