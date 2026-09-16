@@ -250,6 +250,7 @@ git commit -m "chore(installer): close first-party install backlog item"
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
+| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
