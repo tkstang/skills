@@ -3,208 +3,64 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-16
-oat_current_task_id: p01-t01
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
-# Implementation: consensus-review
+# Implementation: Consensus Review
 
-**Started:** 2026-09-16
-**Last Updated:** 2026-09-16
-
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+**Status:** Not started. This is a resume record, not an execution authorization.
+**Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md. No task was implemented or completed.
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase | Status | Tasks | Completed |
+| --- | --- | --- | --- |
+| p06 — Installable, safe foundation | pending | 2 | 0/2 |
+| p07 — Scope, selection, one run | pending | 3 | 0/3 |
+| p08 — Rendering, interaction, acceptance | pending | 2 | 0/2 |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/7 tasks completed.
 
----
+## Tasks
 
-## Phase 1: {Phase Name}
+| Task | Status | Commit | Verification |
+| --- | --- | --- | --- |
+| p06-t01 | pending | - | - |
+| p06-t02 | pending | - | - |
+| p07-t01 | pending | - | - |
+| p07-t02 | pending | - | - |
+| p07-t03 | pending | - | - |
+| p08-t01 | pending | - | - |
+| p08-t02 | pending | - | - |
 
-**Status:** in_progress
-**Started:** 2026-09-16
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
----
+Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
 ## Orchestration Runs
 
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
 <!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
-
+None; implementation has not started.
 <!-- orchestration-runs-end -->
-
----
 
 ## Implementation Log
 
-Chronological log of implementation progress.
-
-### 2026-09-16
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-09-16
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
+No implementation activity. Planning revision does not count as completed product work.
 
 ## Deviations from Plan / Design
 
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
-
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| --- | --- | --- | --- | --- | --- | --- |
+| - | - | - | - | - | - | - |
 
 ## Test Results
 
-Track test execution during implementation.
-
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+No product tests run for the unimplemented feature.
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
+Not available; no capability has shipped from this project.
 
 ## References
 
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+- [Plan](plan.md)
+- [Design](design.md)

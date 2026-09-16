@@ -26,53 +26,46 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-16T23:34:29Z'
+oat_project_state_updated: '2026-09-16T23:47:24Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Design reconciled; five-phase plan drafted, awaiting review posture and formal checks.
+**Status:** Complexity-revised design and seven-task plan; awaiting Fable's re-check and formal planning checks.
 **Started:** 2026-09-16
-**Baseline:** merged planning PR #84, `08f59459`.
+**Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, lightweight design, draft-and-review explicitly requested by the user. Discovery is backfilled from the agreed backlog item and conversation. No implementation changes are authorized by this planning step.
+Quick workflow, planning only. User approved the smaller v1 and explicitly required interactive scope selection when omitted. No implementation, publication or global installation has started.
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` — CLI validation completed.
-- **Design:** `design.md` — user-approved direction, Fable's four corrections reconciled, J1–J4 resolved including external state.
-- **Spec:** not used in quick mode.
-- **Plan:** `plan.md` — 13 tasks across five sequential phases; not implementation-ready until review checks complete.
-- **Implementation:** `implementation.md` — scaffold only, not started.
+- Discovery complete; revised decisions captured.
+- Design is the behavioral source of truth: three selectors, skill-owned executable, external state, selected-file drift comparison, honest findings/provenance.
+- Plan: seven tasks in three sequential phases. Original draft tasks are retired with a coverage map, not renumbered or marked complete. First active task is p06-t01.
+- Implementation: not started; tracking reflects the revised task inventory.
+- Spec: not used in quick mode.
 
-## Progress
+## Review Posture
 
-- Merged planning baseline restored without dropping content.
-- Standard quick scaffold created; active pointer set locally.
-- Astra owns synthesis; Fable is the independent peer reviewer.
-- Runtime-maintenance implementation stays outside this project.
+- High ceiling selected by the user; effective complete ladder was verified.
+- Additional cross-runtime phase gates: disabled by user-approved complexity reduction; `oat_phase_review_gate` remains absent.
+- Configured quick-start planning and implementation-final gates: keep. No lifecycle override map or global config edits. Unused lifecycle configurations remain untouched.
+- Ordinary OAT phase/final reviews remain. Fable's receipt exercise is interoperability evidence, not an extra general review gate.
+- The existing configured quick-start command is plan-only; execute unchanged and record `legacy-plan-only` scope when run. Formal plan review still checks consistency with design/discovery.
+- Fable's earlier approval predates these changes; no approval or gate pass is claimed for the revised bundle.
 
 ## Next Milestone
 
-High dispatch ceiling selected by the user; complete effective ladder verified. Confirm optional phase review and each configured lifecycle gate, then run artifact review and the quick-start exit gate. No implementation readiness is asserted.
+Fable re-checks the revision, particularly the three-selector scope contract, no-scope interaction, selected-file drift limitations, skill-owned entrypoint and seven-task delivery. Then perform formal artifact review and the configured planning gate before marking ready for implementation.
 
-## Draft Review
+## Verification
 
-Fable reviewed design commit 40e6972e and approved direction with four corrections; those corrections and subsequent external-state/provenance/path decisions are reconciled in c1a6cc8 and its preceding design commits. The formal plan artifact review and configured quick-start exit gate have not run. PR #86 remains open at this planning check; the plan records a baseline reconciliation boundary rather than assuming its helpers are merged.
-
-Validation passed: `pnpm run validate`, `git diff --check`, and local artifact checks for 13 unique task IDs, required sections, per-task verification/format/commit steps, relative links, and non-ready frontmatter. `.oat/**` remains excluded from repository formatting. Semantic artifact review and gates have not run; implementation is not started. No source, generated product output, user install, or remote branch was changed by this planning pass.
-
-## Pending Review Choices
-
-- Optional additional cross-runtime phase reviews: all phases, selected phases, or disabled; user selection pending. Explicit enabled/available targets were found by the canonical probe.
-- Configured lifecycle gates from user config: quick-start, plan, lite, import-plan, and implement. Each supports Keep or project-local Disable independently; no override has been written. Only invoked workflows execute a gate.
-- The quick-start gate is configured with the existing plan-only command; preserve it unchanged and record `legacy-plan-only` scope. The parent artifact review still evaluates the plan against discovery and design.
-- High resolves to an effective Codex reviewer ceiling of Sol/high; this is a resolver result, not evidence of a launched or completed review.
+This revision passed `pnpm run validate`, `oat project validate-plan`, discovery completion validation and `git diff --check`. Artifact checks confirmed seven unique active tasks/three phases, retention of every old task reference and review row, per-task verification/format/commit steps, local links, the p06-t01 resume pointer and non-ready frontmatter. PJM doctor reported declared adoption with all checks passing; backlog index regeneration produced no index diff. No product test, live provider acceptance or formal review result is inferred from planning validation.
 
 ## Operational Notes
 
-The scaffold's automatic path-scoped commit hit an index lock in the pre-commit hook. The lock cleared without deletion. Persist this bundle through explicit staging and a normal non-path-scoped commit, preserving hooks, before pausing.
+Use the verified current OAT binary at `/Users/tstang/Library/pnpm/bin/oat` on this machine. The scaffold's earlier path-scoped commit collided with a hook index lock; it cleared without deletion. Commit explicit staged paths with a normal non-path-scoped commit and preserve hooks. Generated dashboard remains local/ignored.

@@ -16,235 +16,136 @@ oat_template: true
 
 # Implementation Plan: Consensus Review
 
-> Planning draft. Not implementation-ready until dispatch policy, review posture, artifact review, and the configured quick-start exit gate are resolved.
+**Goal:** Three-selector v1, one skill-owned executable in standalone/plugin distributions, one supported read-only reviewer invocation, external evidence/results, and OAT-compatible receipt.
 
-**Goal:** Ship one bounded, read-only reviewer invocation as standalone `consensus-review` and plugin `review`, with host-owned provenance, external persistent state, and an OAT-compatible Markdown artifact.
+**Behavioral source of truth:** [design.md](design.md). This plan specifies work and proof, not a second copy of that contract.
 
-**Architecture:** Review owns scope, selection policy, deep validation, drift detection, and rendering. It reuses the dependency-free provider runner without importing the command dispatcher or convergence loop into its standalone closure. Host writes stay outside the reviewed worktree until an explicit final export.
+**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable's revision re-check, formal artifact review, and planning gate remain pending. No implementation has started.
 
-**Tech stack:** Node >=22, TypeScript, Node standard library, esbuild distribution tooling, colocated Vitest tests. No shipped runtime packages or OAT dependency.
+## Planning and Execution Boundaries
 
-**Commit convention:** One bounded commit per task, using the message given below. Include required canonical versions and regenerated outputs with the task that changes their inputs.
+- High dispatch ceiling is recorded in state.md; reusable ladder was verified complete.
+- No optional phase gates. Keep the configured quick-start planning and implementation-final gates; ordinary OAT reviews remain. Other lifecycle settings are untouched. HiLL is selected at implementation kickoff, not here.
+- Implement in a separate visible Codex worktree as the kickoff handoff requires. Preserve this committed planning bundle and verify baseline/peer work. Recheck PR #86 disposition before source work; use merged helpers if available, otherwise existing loop-free runner interfaces. Do not duplicate the maintenance project.
+- Read source/build/docs instructions at the relevant boundary. Only canonical source is authored; generated outputs come from `pnpm run build`. Node >=22, no shipped runtime dependencies.
+- No live/paid provider acceptance, global install, release, push, PR or merge is authorized by this plan. Configured OAT review gates are distinct from product live acceptance.
+- Every task includes focused verification, file-scoped formatting, explicit staging and one atomic commit. Build when source/distribution inputs change and include generated outputs plus required canonical-owner version bumps; validate versions against the selected main baseline. No version bump per module or per test file.
+- Prefer four cohesive areas (`scope.ts`, `selection.ts`, `run.ts`, `review.ts`) rather than a mandatory helper-module inventory. The last owns rendering/CLI and produces `scripts/review.mjs`; a justified split may be recorded without adding new product surfaces.
+- Repository write formatter: `pnpm exec oxfmt --write <explicit authored paths>`. Generated/OAT/AGENTS artifacts remain excluded; use manual checks and `git diff --check`. Do not run repo-wide formatting. Changed authored JS/TS uses file-scoped oxlint.
 
-## Planning Checklist
+## Revision and Stable IDs
 
-- [x] Reconcile approved product decisions and Fable's four source-backed corrections.
-- [x] Preserve existing review rows; no explicit phase-review setting was present in the scaffold.
-- [x] Evaluate adjacent phase dependencies and generated write sets.
-- [x] Set sequential phase groups from that analysis.
-- [x] Select project dispatch ceiling: High, explicitly chosen by the user; effective reusable ladder is complete.
-- [ ] Confirm independent phase-gate and lifecycle-gate posture.
-- [ ] Complete plan artifact review and configured quick-start exit gate.
-- [ ] Confirm HiLL checkpoints when implementation starts; intentionally not selected during planning.
+The user explicitly approved replacing the unstarted 13-task/five-phase draft with seven tasks in three phases. Old task IDs are retired, not reused or falsely marked complete. Their definitions remain in commit e91b8685 and their coverage is preserved here:
 
-## Execution Boundaries
+| Prior task IDs | Replacement |
+| --- | --- |
+| p01-t01 | p06-t01 |
+| p01-t02, p02-t01, p02-t02 | p06-t02 |
+| p03-t01, p03-t02 | p07-t01 |
+| p03-t03 | p07-t02 |
+| p04-t01, p04-t02 | p07-t03 |
+| p04-t03, p05-t01 | p08-t01 |
+| p05-t02, p05-t03 | p08-t02 |
 
-- Implementation starts in a separate **visible Codex project worktree**, not a hidden manual worktree. Transfer this committed planning bundle and verify the exact branch/base before editing source. The kickoff handoff remains authoritative for this boundary.
-- Planning baseline is `08f59459`. PR #86 (runtime maintenance) is still open at this check. Before p01-t01, inspect its current disposition: if merged, reconcile the implementation branch to that merged source with user work preserved; if not, use the existing loop-free runner directly and do not duplicate the separate helper extraction. Do not assume `cli-helpers-core.ts` exists on this branch.
-- Read `src/AGENTS.md` before source/tests, the generated-runtime architecture page before build tooling, and `documentation/AGENTS.md` plus the applicable authoring skill before public docs.
-- New Review skill starts with quoted `metadata.version: '1.0.0'`. Every subsequent canonical edit must obey the repository's version gate against the selected base; shared-runtime changes can require version bumps for transitive consumers. Recheck against current main before handoff, and regenerate outputs rather than editing them. Plugin release version is independent.
-- Ordinary verification uses deterministic provider fixtures. No live/paid provider call, global install, release, push, PR publication, or merge is authorized by this plan. Configured OAT planning/review gates are a separate workflow authority, not product live acceptance.
-- File names below are intended owned modules. A justified split/merge may be recorded as a plan deviation, but preserve stable task IDs, concrete verification, and the import boundary.
-- Every task: format authored files only, build when distribution inputs change, inspect the scoped diff, run `git diff --check`, stage exact paths, and commit. Never stage a peer's unrelated edits.
-
-## Formatting and Version Discipline
-
-The documented formatter is oxfmt. Use the file-scoped write form `pnpm exec oxfmt --write <explicit authored paths>` supplied by each task. Do not run the repository-wide `pnpm format`. Generated payloads, synced tooling, AGENTS files, and `.oat/**` are excluded: do not force-format them. OAT artifacts use manual Markdown checks and `git diff --check`. Use `pnpm exec oxlint <explicit changed authored TS/JS paths>` for changed-code lint.
-
-Whenever a task changes source/build inputs, run `pnpm run build`, `pnpm run build:check`, and `pnpm run type-check` in addition to its focused tests. Include generated inventories/manifests and version changes in that task's exact staging list. A check command is not a substitute for formatting.
+Execution order is p06 → p07 → p08. Higher IDs preserve old references; there are only three active phases. Existing review rows are retained as historical unbound placeholders, not outstanding gates on retired work.
 
 ## Parallelism
 
-`oat_plan_parallel_groups: []` is intentional after evaluating every adjacent pair:
+Sequential after explicit adjacent-phase analysis: p06 proves and changes the runner/installation seam that p07 consumes; p07 supplies the behavior and result model that p08 renders/documents/exercises. Canonical Review source and generated outputs overlap throughout. No independent write sets justify phase worktrees in parallel. Bounded read-only assistance need not become additional formal review gates.
 
-- p01 → p02: packaging must prove the runner closure before transport changes; both touch runtime wiring and generated outputs.
-- p02 → p03: selection consumes the fixed explicit-host interface and scope/state consumes the external capture contract.
-- p03 → p04: orchestration and semantic validation depend on concrete scope/state/config types; shared Review owner and outputs overlap.
-- p04 → p05: docs and independent receipt need the actual command/renderer; final verification consumes all prior behavior.
+## Phase 6: Installable, safe foundation (2 tasks)
 
-Phase workers therefore execute sequentially. Bounded read-only evidence checks may run alongside implementation, but cannot become competing writers or substitutes for root review.
+### Task p06-t01: Declare the two skill-owned installation units
 
-## Phase 1: Prove both installation units (2 tasks)
+**Files:** Create `src/skills/consensus-review/{SKILL.md,build.json,schemas/review.schema.json,src/review.ts,src/run.ts}`; update `src/distributions.ts`, applicable build ownership, lint/format exclusions, and `tests/tooling/{skill-packaging,generated-output-sync}.test.ts`.
 
-### Task p01-t01: Declare a bundled walking skeleton
+**Build:** Declare standalone `skills/consensus-review` and plugin-local `plugins/consensus/skills/review`, each owning `scripts/review.mjs`. Bundle the actual runner closure with explicit allowed source roots. Do not add a `consensus review` subcommand or a plugin-to-skill import. Keep the skeleton honest about unfinished behavior; no OAT dependency or generic dispatcher/loop in its closure. Establish installed-unit fixtures now so p06-t02 exercises the real bundled runner, not only help output.
 
-**Files:** Create `src/skills/consensus-review/SKILL.md`, `build.json`, `src/cli.ts`, `src/runner.ts`, and `schemas/review.schema.json`. Modify `src/distributions.ts`, `scripts/build-generated.ts` only if ownership requires it, `.oxfmtrc.json`, `.oxlintrc.json`, and relevant layout/packaging fixtures.
+**Verify:** `pnpm run test:vitest tests/tooling/skill-packaging.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`. Inspect bundle inputs/resources for actual runner inclusion.
 
-**Build:** First add failing distribution/inventory assertions. Declare standalone `skills/consensus-review` and plugin `plugins/consensus/skills/review`. The skeleton imports the actual provider-runner closure through a narrow facade, not the generic dispatcher. Provide help/explicit unimplemented-review behavior; do not advertise completed review support. Bundle assets without loop/OAT/runtime-package dependencies.
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/SKILL.md src/skills/consensus-review/build.json src/skills/consensus-review/schemas/review.schema.json src/skills/consensus-review/src/review.ts src/skills/consensus-review/src/run.ts src/distributions.ts .oxfmtrc.json .oxlintrc.json tests/tooling/skill-packaging.test.ts tests/tooling/generated-output-sync.test.ts`; add exact authored build-tool paths only if changed.
 
-**Verify:** `pnpm run test:vitest tests/tooling/generated-output-sync.test.ts tests/tooling/skill-packaging.test.ts`; build/freshness/type-check. Inspect the bundle for actual runner inclusion rather than a tree-shaken unused import.
+**Commit:** `feat(p06-t01): declare skill-owned review distributions`.
 
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/SKILL.md src/skills/consensus-review/build.json src/skills/consensus-review/src/cli.ts src/skills/consensus-review/src/runner.ts src/skills/consensus-review/schemas/review.schema.json src/distributions.ts scripts/build-generated.ts .oxfmtrc.json .oxlintrc.json tests/tooling/generated-output-sync.test.ts tests/tooling/skill-packaging.test.ts` (only paths actually changed).
+### Task p06-t02: Close transport gaps and prove installed runner execution
 
-**Commit:** `feat(p01-t01): declare bundled review installation units`.
+**Files:** `src/plugins/consensus/provider-cli/{types,structured-output,subprocess,invocation,host-guard}.ts` as needed and colocated tests; Review `src/run.ts`, `src/run.test.ts`; `tests/tooling/skill-packaging.test.ts`. Touch generic args/commands only if an existing contract actually requires it, not to expose Review or duplicate internal controls publicly.
 
-### Task p01-t02: Exercise the runner outside the checkout
+**Build:** Implement the design's no-sidecar internal option, provider-specific strategy, both growth-safe bounded readers, external Codex capture and identical explicit host/depth at preflight and dispatch. Keep existing caller defaults. Use the fake-provider fixtures to execute the actual runner from each installed bundle outside the checkout with no OAT/node_modules/source-tree resolution. No testing-only production CLI flag. Do not proceed to Review logic until both installation forms pass.
 
-**Files:** Extend `tests/tooling/skill-packaging.test.ts`; add Review runner fixtures/tests under `src/skills/consensus-review/src/runner.test.ts` as needed.
+**Verify:** `pnpm run test:vitest src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts`; test existing caller behavior, byte-boundary/growth cases and no sidecar lifecycle effects. Build, type-check, freshness, and affected-owner versions.
 
-**Build:** Copy each generated installation unit to an isolated temporary directory with no source checkout, node_modules, or OAT available. Exercise the real bundled facade through a fake provider executable and verify the response, schema/resource resolution, and supported Node execution. Do not use a production flag solely to expose testing internals. Assert no sibling generated-skill imports and no missing dynamic runtime resources.
+**Format:** `pnpm exec oxfmt --write src/plugins/consensus/provider-cli/types.ts src/plugins/consensus/provider-cli/structured-output.ts src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/subprocess.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/invocation.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/skills/consensus-review/src/run.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts` on the changed subset.
 
-**Verify:** `pnpm run test:vitest tests/tooling/skill-packaging.test.ts src/skills/consensus-review/src/runner.test.ts`; build/freshness/type-check. Both forms must pass before p02 begins. If plugin-root CLI sharing prevents independent installation, resolve its explicit installation-unit contract here rather than postponing.
+**Commit:** `feat(p06-t02): enforce safe review transport in installed bundles`.
 
-**Format:** `pnpm exec oxfmt --write tests/tooling/skill-packaging.test.ts src/skills/consensus-review/src/runner.test.ts`.
+## Phase 7: Scope, selection, and one complete run (3 tasks)
 
-**Commit:** `test(p01-t02): prove isolated review runner packaging`.
+### Task p07-t01: Capture three scopes and narrow drift evidence
 
-## Phase 2: Close provider transport and host-guard gaps (2 tasks)
+**Files:** Create Review `src/scope.ts`, `src/scope.test.ts`; extend `src/run.ts` only at its scope/state seam.
 
-### Task p02-t01: Bound both file-capture readers
+**Build:** Implement base-branch, files and document selectors per design, including explicit untracked files and external documents. Capture bounded request/source evidence and authoritative versions. Store private exclusive run state externally using canonical-worktree keys; reject state resolving inside the worktree. Compare HEAD/index/status plus before/after hashes of selected paths only. Separate live selected-path state from historical base bytes. Revalidate before dispatch; detect/report differences without attribution guesses or rollback. No whole-worktree hashing engine. Deferred selectors fail clearly.
 
-**Files:** `src/plugins/consensus/provider-cli/subprocess.ts`, `structured-output.ts`, their colocated tests; create a small shared bounded-reader module/test only if it removes duplication.
+**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/scope.test.ts`. Cover branch staged+unstaged changes, rename/delete, external document anchors, malformed refs/paths, escapes, bounds, no scope and collisions. Test a selected already-dirty file changing with unchanged status is detected, and an unselected already-dirty file changing may remain undetected and is disclosed. Cover failed after-scan, external state, and export alias protection. Build/type-check/freshness.
 
-**Build:** Add failures for oversize last-message and submit-sidecar files, growth during read, exact-limit input, missing files, and read errors. Use bounded reads before whole-buffer allocation, enforcing the cap despite stat/read races. Preserve existing valid-capture behavior and report overflow distinctly. Do not alter retry/fallback policy.
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/scope.ts src/skills/consensus-review/src/scope.test.ts src/skills/consensus-review/src/run.ts`.
 
-**Verify:** `pnpm run test:vitest src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/submit-capture.test.ts`; build/freshness/type-check and impacted version validation.
+**Commit:** `feat(p07-t01): capture v1 scopes and selected-file drift`.
 
-**Format:** `pnpm exec oxfmt --write src/plugins/consensus/provider-cli/subprocess.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/structured-output.ts src/plugins/consensus/provider-cli/structured-output.test.ts`; explicitly include any new bounded-reader files.
+### Task p07-t02: Resolve ordered reviewer preferences and request context
 
-**Commit:** `fix(p02-t01): bound provider file capture reads`.
+**Files:** `src/plugins/consensus/config/consensus-config.ts` and test; config command tests/code only as needed for existing show/set/clear support; create Review `src/selection.ts`, `src/selection.test.ts`.
 
-### Task p02-t02: Add no-sidecar transport and one host context
+**Build:** Add strict typed `defaults.reviewers` with whole-list precedence and source reporting. Implement pinned/automatic choices, scoped preflight, option forwarding, host exclusion, explicit same-provider consent and no post-dispatch fallback. Build bounded prompts preserving request versus host summary and captured evidence versus instructions. Unknown identity stays unknown. Do not add model discovery calls, a target registry or attribution crawler.
 
-**Files:** `src/plugins/consensus/provider-cli/{types,args,commands,structured-output,invocation}.ts`, affected colocated tests; Review `src/runner.ts` and `runner.test.ts`.
+**Verify:** `pnpm run test:vitest src/plugins/consensus/config/consensus-config.test.ts src/plugins/consensus/provider-cli/config-commands.test.ts src/skills/consensus-review/src/selection.test.ts`; assert replacement/pinning/invalid configs, exact preflight order, forwarding, prompt bounds and zero invocation on invalid input. Build/type-check/freshness.
 
-**Build:** Add opt-in no-submit-sidecar behavior while preserving defaults for every existing caller. Gate all six sidecar lifecycle sites. Review uses Claude provider validation and Codex prompt-only, plus deep validation later. Permit a host-selected external Codex last-message path with safe exclusive creation/cleanup semantics. Resolve host runtime/inherited depth once; pass identical explicit context to scoped preflight and dispatch with max depth one. Reject unknown/contradictory hosts and depth exhaustion. Read-only tuples remain provider-specific; Cursor review is unsupported.
+**Format:** `pnpm exec oxfmt --write src/plugins/consensus/config/consensus-config.ts src/plugins/consensus/config/consensus-config.test.ts src/plugins/consensus/provider-cli/config-commands.test.ts src/skills/consensus-review/src/selection.ts src/skills/consensus-review/src/selection.test.ts`; include exact changed existing command paths if needed.
 
-**Verify:** `pnpm run test:vitest src/plugins/consensus/provider-cli/args.test.ts src/plugins/consensus/provider-cli/commands.test.ts src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/skills/consensus-review/src/runner.test.ts`. Assert zero sidecar creation/read/cleanup/injection and unchanged ordinary run behavior. Build/freshness/type-check.
+**Commit:** `feat(p07-t02): resolve reviewer defaults and bounded requests`.
 
-**Format:** `pnpm exec oxfmt --write` with the exact changed files from the Files list, including their tests; never generated copies.
+### Task p07-t03: Validate and persist exactly one review invocation
 
-**Commit:** `feat(p02-t02): add read-only review transport boundary`.
+**Files:** Complete Review `src/run.ts`, `src/run.test.ts`, `schemas/review.schema.json`; integrate scope/selection interfaces.
 
-## Phase 3: Capture bounded scope, external state, and reviewer choice (3 tasks)
+**Build:** Join capture, choice, explicit-host dispatch, deep fixed-schema validation, drift comparison and host-owned JSON persistence. Preserve author/reviewer evidence and unknown/partial coverage. Enforce one attempt/depth one, no repair/alternate provider, empty-scope zero invocation, and failure comparison/diagnostics without inventing completed crash checks. Validate path/version/line/anchor semantics and verdict consistency before complete status. Keep schema/types/fixtures aligned without a general validation framework.
 
-### Task p03-t01: Implement scope and immutable evidence capture
+**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/run.test.ts src/skills/consensus-review/src/scope.test.ts src/skills/consensus-review/src/selection.test.ts`; fake-provider success/findings/invalid reply/timeout/drift/output-error cases, hostile nested fields, provenance uncertainty, and exact invocation counts. Build/type-check/freshness.
 
-**Files:** Create Review `src/scope.ts`, `src/scope.test.ts`, `src/limits.ts`, `src/limits.test.ts`.
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/run.ts src/skills/consensus-review/src/run.test.ts src/skills/consensus-review/schemas/review.schema.json`; add changed scope/selection paths explicitly if integration needs them.
 
-**Build:** Test then implement every selector in design.md: staged, unstaged, merge-base-to-current-worktree, committed endpoint range, explicit files/untracked, repository document, and external materialized artifact. Capture refs/index/blobs, exact diff/content hashes, authoritative source versions, and verbatim request. Disable external diff/textconv, pass Git argv safely, handle unborn HEAD/deletion/rename, reject merges/binary/submodule/symlink escapes and ambiguous selectors. External artifacts use anchors, not fake repository paths. Centralize all design limits; oversize input fails rather than truncating. No automatic scope expansion.
+**Commit:** `feat(p07-t03): execute and validate one bounded review`.
 
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/scope.test.ts src/skills/consensus-review/src/limits.test.ts`; include temp-Git integration fixtures and boundary values. Build/freshness/type-check.
+## Phase 8: Rendering, interaction, and acceptance (2 tasks)
 
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/scope.ts src/skills/consensus-review/src/scope.test.ts src/skills/consensus-review/src/limits.ts src/skills/consensus-review/src/limits.test.ts`.
+### Task p08-t01: Render artifacts and finish the interactive skill and guide
 
-**Commit:** `feat(p03-t01): capture bounded review scopes and versions`.
+**Files:** Review `src/review.ts`, `src/review.test.ts`, `SKILL.md`; create `documentation/docs/user-guide/consensus/review.md`; update Consensus configuration/index, installation/standalone catalogs, README and changelog with applicable maintained manifests.
 
-### Task p03-t02: Implement external run state and drift snapshots
+**Build:** Finish CLI/rendering and complete-status versus diagnostic output. Human/JSON/chat handoffs use full absolute paths to artifacts actually written; explicit export happens after drift checking. Preserve OAT severity/location/evidence conventions and escape peer Markdown. Skill presents Branch diff / Selected files / Document or plan when the user omitted scope, then gathers ref/paths; never guesses or dispatches before an answer. An unambiguous supplied scope needs no repeat question. Headless executable returns usage error/options/zero invocations rather than prompting. Docs cover exactly three selectors, config types/examples, selected-path detection limits, external retention, author evidence, both install forms and the deliberate exit-code contract.
 
-**Files:** Create Review `src/state.ts`, `state.test.ts`, `drift.ts`, `drift.test.ts`.
+**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts`; test no-scope CLI exits without stdin, selector conflicts/deferred options, all render outcomes, path safety and absolute handoffs. Inspect host instruction examples for no scope, supplied scope, follow-up details and cancellation. Build/type-check/freshness, `pnpm run validate`, and docs production build: verified-current OAT index generation plus MDX generation, then `pnpm --dir documentation exec next build`. Do not blindly run the old docs OAT prebuild.
 
-**Build:** Resolve absolute XDG state root or home fallback, hash canonical worktree path with SHA-256, preserve sibling-worktree separation, and exclusively create private run storage. Reject state paths resolving inside the reviewed worktree, including symlink ancestors. Keep every host/provider capture external. Snapshot bounded HEAD/index/tracked/nonignored-untracked state before and after, including failure paths. Revalidate captured scope immediately before dispatch. Record coverage honestly; fail when its budget cannot be met. Preserve drift without reverting user edits. Final explicit export follows comparison and refuses collisions/input aliases. No cleanup TTL.
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/review.ts src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/SKILL.md documentation/docs/user-guide/consensus/review.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/installation.md documentation/docs/user-guide/skills/index.md README.md CHANGELOG.md` on the changed subset; list other changed authored paths explicitly, excluding generated navigation/AGENTS files.
 
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/state.test.ts src/skills/consensus-review/src/drift.test.ts`; test races, exclusive writes, after-scan errors, ignored/external coverage disclosure, and partial output failures. Build/freshness/type-check.
+**Commit:** `feat(p08-t01): render review artifacts and guide scope selection`.
 
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/state.ts src/skills/consensus-review/src/state.test.ts src/skills/consensus-review/src/drift.ts src/skills/consensus-review/src/drift.test.ts`.
+### Task p08-t02: Exercise receipt and verify complete delivery
 
-**Commit:** `feat(p03-t02): persist external review state and detect drift`.
+**Files:** Review renderer fixtures/tests as needed, implementation/review tracking, associated backlog/index/current-state/roadmap, and consumed kickoff handoff; narrowly required fixes with regression tests only.
 
-### Task p03-t03: Add ordered reviewer defaults and selection
+**Build:** Fable performs the agreed receipt exercise in a disposable destination with current `oat-review-receive`: one clean artifact, one combined findings artifact covering severities and location/anchor forms, and diagnostic rejection/non-offering. Compare actual normalized findings, not a homemade parser. Record receiving skill version, fixture identities and outcome; if unavailable, use an explicitly named independent alternate. Reconcile current main/maintenance, version impact and final installed outputs. Only when all acceptance criteria pass, use PJM doctor/declared adoption and backlog lifecycle to archive the item, regenerate index, update operating docs and remove the exact consumed handoff. Do not close deferred/adjacent work.
 
-**Files:** `src/plugins/consensus/config/consensus-config.ts` and test; `src/plugins/consensus/provider-cli/config-commands.test.ts` and command code if needed; create Review `src/selection.ts`, `selection.test.ts`.
+**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/review.test.ts tests/tooling/skill-packaging.test.ts`; independent receipt evidence; `pnpm run premerge`; `pnpm run validate:skill-versions -- --base-ref origin/main`; `pnpm run validate:internal-flags`; docs production build and changed-authored-file lint/format checks; `git diff --check`. Record exact baseline/results and live acceptance as unverified unless separately authorized. Ordinary final review and configured final gate remain separate workflow checks.
 
-**Build:** Add typed strict `defaults.reviewers` parsing/show/set/clear/source reporting. Lists replace by invocation > project > user > built-in; nonempty, unique providers, opaque model/native effort. Built-ins Claude then Codex excluding host. Explicit reviewer pins choice, provider-only discards saved model, model/effort flags require reviewer, duplicate model sources fail. Preflight ordered candidates only, record skips, never fall back after dispatch. Unsupported automatic candidates skip; explicit ones fail. Same-provider flag requires pinned reviewer and host-skill-obtained user consent. Do not infer different-family diversity from runtime alone.
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/review.test.ts` if changed, plus exact authored fixture/fix paths. OAT/PJM/generated artifacts remain excluded; check manually.
 
-**Verify:** `pnpm run test:vitest src/plugins/consensus/config/consensus-config.test.ts src/plugins/consensus/provider-cli/config-commands.test.ts src/skills/consensus-review/src/selection.test.ts`; assert exact preflight order and no provider call for usage/depth/selection errors. Build/freshness/type-check.
-
-**Format:** `pnpm exec oxfmt --write src/plugins/consensus/config/consensus-config.ts src/plugins/consensus/config/consensus-config.test.ts src/plugins/consensus/provider-cli/config-commands.test.ts src/skills/consensus-review/src/selection.ts src/skills/consensus-review/src/selection.test.ts`; include actual command-code edits explicitly.
-
-**Commit:** `feat(p03-t03): resolve ordered reviewer preferences`.
-
-## Phase 4: Validate, orchestrate, and render one review (3 tasks)
-
-### Task p04-t01: Own the deep schema and provenance contract
-
-**Files:** Review `schemas/review.schema.json`; create `src/types.ts`, `validation.ts`, `validation.test.ts`, `provenance.ts`, `provenance.test.ts`.
-
-**Build:** Implement dependency-free nested/enum/key/string/array/finite confidence validation and host aggregate checks. Keep schema, types, and fixtures synchronized. Enforce scope-token echo, verdict consistency, complete path/anchor/version/line semantics, and no peer overwrite of host evidence. Reject escaping paths and symlink ancestors; validate historical/deleted lines against captured versions. Author attribution tracks scope, evidence source, partial/unknown coverage; trailers are declared, current host is not automatically author, self-report is not independently observed identity. Achieved diversity remains unknown when evidence is insufficient.
-
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/validation.test.ts src/skills/consensus-review/src/provenance.test.ts`; include adversarial nesting, duplicate basenames, source-version bounds, unknown/mixed authors, and hostile links. Build/freshness/type-check.
-
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/schemas/review.schema.json src/skills/consensus-review/src/types.ts src/skills/consensus-review/src/validation.ts src/skills/consensus-review/src/validation.test.ts src/skills/consensus-review/src/provenance.ts src/skills/consensus-review/src/provenance.test.ts`.
-
-**Commit:** `feat(p04-t01): validate review findings and author provenance`.
-
-### Task p04-t02: Orchestrate exactly one run and expose both commands
-
-**Files:** Create Review `src/review.ts`, `review.test.ts`, `request.ts`, `request.test.ts`, `cli.test.ts`; complete `src/cli.ts`, `runner.ts`; minimally extend provider CLI `args.ts`, `commands.ts` and tests for `consensus review`.
-
-**Build:** Join capture → selection → identical-host preflight/dispatch → validation → drift → persistence. Preserve verbatim request separately from host summary; bounded prompts reference external capture paths/hashes. Treat embedded text as data. Inspection only, no tests/builds/network authorization. Enforce one invocation/one attempt/depth one with no repair call or provider replacement. Empty scopes explicitly have zero invocations. Finalize failure diagnostics even when provider/parsing/after-scan fails, without claiming crash-completed checks. Expose standalone and plugin-root commands through the same orchestration function; standalone still avoids generic dispatcher import.
-
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/src/request.test.ts src/skills/consensus-review/src/cli.test.ts src/plugins/consensus/provider-cli/args.test.ts src/plugins/consensus/provider-cli/commands.test.ts tests/tooling/skill-packaging.test.ts`. Fake-provider cases cover every outcome, forwarding, capture cleanup, and zero/one invocation counts. Build/freshness/type-check.
-
-**Format:** `pnpm exec oxfmt --write` with each exact authored file from this task's Files list that changed.
-
-**Commit:** `feat(p04-t02): orchestrate one bounded reviewer invocation`.
-
-### Task p04-t03: Render receivable Markdown and truthful path envelopes
-
-**Files:** Create Review `src/render.ts`, `render.test.ts`, fixtures; update `review.ts`, `cli.ts` and their tests.
-
-**Build:** Deterministic four-severity findings with stable IDs, evidence/suggestions/confidence, questions, exact request, root, scope, inspected context, checks, and identity evidence. Escape Markdown/injection input. Only complete valid stable results produce receivable reviews; incomplete/defective/failed outcomes are clearly diagnostics. CLI exits 0 completed (including findings/no-op), 2 usage/predispatch, 1 failed/incomplete/defective/output error, deliberately unlike generic runner envelopes. Human/JSON output always names absolute existing artifacts; relative output args resolve absolutely, export/canonical paths distinguished, never invent a diagnostic path.
-
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/render.test.ts src/skills/consensus-review/src/cli.test.ts src/skills/consensus-review/src/review.test.ts`; fixture each severity/verdict, empty/mixed results, anchors, historical paths, spaces, collisions and failures. Build/freshness/type-check.
-
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/render.ts src/skills/consensus-review/src/render.test.ts src/skills/consensus-review/src/review.ts src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/src/cli.ts src/skills/consensus-review/src/cli.test.ts`; include authored fixtures explicitly.
-
-**Commit:** `feat(p04-t03): render review artifacts and absolute handoffs`.
-
-## Phase 5: Document, exercise receipt, and verify delivery (3 tasks)
-
-### Task p05-t01: Finish host instructions and public documentation
-
-**Files:** Review `SKILL.md`; create `documentation/docs/user-guide/consensus/review.md`; update `consensus/{index,configuration}.md`, `user-guide/{installation.md,skills/index.md,plugins/index.md}`, `README.md`, `CHANGELOG.md`, applicable maintained manifests/catalogs and navigation source. Generated metadata is regenerated through the owning docs tooling, not hand-edited.
-
-**Build:** Explain both installation forms and a single canonical guide destination. Include annotated JSONC plus valid JSON configuration with actual field types/precedence/model-effort behavior and first supporting release; older binaries reject the additive key. Cover all scopes, document vs external conversation artifact, inspection-only limits, provider controls vs isolation, external persistent state/retention, identity uncertainty, path/exit/status contracts, and fixture vs live verification. Host always passes --host, obtains same-provider consent, returns clickable full absolute artifact paths, and never auto-receives/applies findings.
-
-**Verify:** `pnpm run validate`, `pnpm run build:check`, focused instruction/CLI fixtures, and `pnpm --dir documentation exec next build` after separately running MDX/index generation with the verified current OAT CLI. Do not invoke the old docs prebuild OAT binary blindly; inspect its side effects first. Verify every new navigation link and rendered examples.
-
-**Format:** `pnpm exec oxfmt --write` with the explicit changed authored Markdown/JSON paths from this task, excluding generated indexes/manifests as applicable and AGENTS files.
-
-**Commit:** `docs(p05-t01): document review scopes configuration and limits`.
-
-### Task p05-t02: Independently exercise OAT receipt
-
-**Files:** Add deterministic renderer acceptance fixtures/test under Review `src/render.test.ts` and `src/fixtures/`; record exercise results in project `implementation.md` and the review event table.
-
-**Build:** Fable performs the agreed independent receipt exercise using current `oat-review-receive` instructions in a disposable project/fixture destination, not the user's real finding register. Feed completed pass and changes-requested artifacts with all severities, locations/anchors, and questions; compare actual normalized register with expectations. Verify inconclusive/incomplete/defective diagnostics are not offered as receivable completed reviews. Preserve root/version/path fidelity. If the skill contract conflicts with the renderer, fix and re-exercise; a test-only parser does not prove instruction-driven compatibility.
-
-**Verify:** `pnpm run test:vitest src/skills/consensus-review/src/render.test.ts`, plus recorded fixture hashes, actual receiving skill version, expected/observed findings and independent reviewer result. If Fable unavailable, obtain a named alternate reviewer; do not mark this accepted from self-review alone. No product live-provider call required.
-
-**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/render.test.ts` and explicit authored fixture paths; project artifacts are excluded and checked manually.
-
-**Commit:** `test(p05-t02): verify independent OAT review receipt`.
-
-### Task p05-t03: Validate the complete outputs and close the tracked item
-
-**Files:** Any narrowly required fixes with colocated regression tests; applicable versions/manifests/generated payloads; project tracking; the associated backlog item/index/current-state/roadmap and consumed kickoff handoff.
-
-**Build:** Reconcile current main/maintenance changes without overwriting other work. Validate both final generated installations outside the checkout. Run complete gates, inspect generated drift, and record exact results. Only after all acceptance criteria pass: read PJM lifecycle instructions, run `oat pjm doctor --json` and require declared adoption, archive BL-260916-add-consensus-review-cross via its CLI, regenerate index, update current-state/roadmap, and remove the consumed handoff using its specified exact path. Do not close adjacent items. Leave live acceptance explicitly unverified unless separately authorized.
-
-**Verify:** `pnpm run premerge`; `pnpm run validate:skill-versions -- --base-ref origin/main`; `pnpm run validate:internal-flags`; changed-authored-file oxlint/oxfmt checks; docs production build from p05-t01; `git diff --check`; clean generated freshness. Record baseline SHA, totals, exclusions and existing unrelated failures accurately. Configured phase/final review gates and root reviews still run independently of this task.
-
-**Format:** File-scoped `pnpm exec oxfmt --write <exact authored fix paths>` when there are source/doc fixes; do not format generated/PJM/project artifacts. No repo-wide formatting.
-
-**Commit:** `chore(p05-t03): verify review delivery and reconcile backlog`.
-
-## Acceptance Coverage
-
-| Requirement | Primary tasks |
-| --- | --- |
-| Standalone/plugin, loop-free dependency-free installed runtime | p01-t01, p01-t02, p04-t02, p05-t03 |
-| Read-only controls, single call, host/depth agreement, bounded captures | p02-t01, p02-t02, p04-t02 |
-| All scopes, immutable evidence, external state, drift limitations | p03-t01, p03-t02 |
-| Typed defaults, precedence, ordered/pinned choice and model/effort | p03-t03 |
-| Deep schema, author/reviewer identity, full finding paths | p04-t01 |
-| OAT Markdown, complete/incomplete separation, absolute artifacts | p04-t03, p05-t02 |
-| User docs, actual receipt, version/packaging gates, PJM closeout | p05-t01, p05-t02, p05-t03 |
+**Commit:** `test(p08-t02): verify review receipt and delivery`.
 
 ## Reviews
 
-Existing scaffold rows retained. No completed formal review is claimed. Fable's earlier design feedback is incorporated into design.md; a follow-up and the plan review are pending.
+Existing rows retained unchanged. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode. No completed formal review is claimed for the revised bundle.
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
@@ -257,26 +158,20 @@ Existing scaffold rows retained. No completed formal review is claimed. Fable's 
 | p04    | code     | pending | -    | -        | -             | -          | -           |
 | p05    | code     | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | pending | -    | -        | -             | -          | -           |
-
-Review events are append-preserved; claim an unbound pending placeholder only for the first event. Preserve artifact-specific event identity and all trailing metadata cells. Spec is not used by this quick workflow; its inherited row is retained, not treated as a missing required artifact.
+| p06    | code     | pending | -    | -        | -             | -          | -           |
+| p07    | code     | pending | -    | -        | -             | -          | -           |
+| p08    | code     | pending | -    | -        | -             | -          | -           |
 
 ## Implementation Complete
 
-**Planned scope, not a completion claim:**
-
-- Phase 1: 2 tasks — installed packaging proof.
-- Phase 2: 2 tasks — bounded capture and safe transport.
-- Phase 3: 3 tasks — scope, state, and selection.
-- Phase 4: 3 tasks — validation, orchestration, and rendering.
-- Phase 5: 3 tasks — documentation, independent receipt, and full validation.
-
-**Total: 13 tasks across 5 phases; 0 completed.** First task: `p01-t01`.
-Plan review/readiness remains pending. No implementation has started.
+Planned, not completed: p06 has 2 tasks; p07 has 3; p08 has 2.
+**Total: 7 active tasks across 3 sequential phases, 0 completed. First task: p06-t01.**
+No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. Implementation readiness is still null pending the revision re-check and formal planning checks.
 
 ## References
 
 - [Design](design.md)
 - [Discovery](discovery.md)
-- [Project state](state.md)
+- [State](state.md)
 - [Backlog item](../../../repo/pjm/backlog/items/BL-260916-add-consensus-review-cross.md)
 - [Kickoff handoff](../../../repo/pjm/handoffs/BL-260916-add-consensus-review-cross.md)

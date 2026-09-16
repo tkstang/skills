@@ -41,12 +41,15 @@ Quick workflow with lightweight design. The user selected draft-and-review, then
 1. One canonical owner ships standalone `consensus-review` and Consensus plugin `review`.
 2. Exactly one selected reviewer turn through the owned runner, one attempt, maximum dispatch depth one. Provider-internal tools are not extra host dispatches.
 3. Prefer a provider different from the host; same-provider dispatch requires explicit consent. Different provider does not prove different model family.
-4. Support staged, unstaged, base-branch, commit-range, file, document, and host-materialized artifact scopes; preserve request, Git identities, diff/content hashes.
+4. Approved smaller v1: base-branch diff, explicit files, and document only. A document may be external or materialized conversation text. Preserve request, Git identities and selected diff/content hashes; staged-only, unstaged-only and committed ranges are deferred until a concrete need appears.
 5. Distinguish requested scope, reviewer-reported inspected context, and reported/observed checks. Unknown evidence is not success.
 6. Own the JSON schema and deterministic OAT Markdown adapter. OAT is an optional consumer, not a shipped dependency.
 7. Runtime maintenance stays independent. Reconcile Fable's shared-source changes before implementation; do not duplicate them.
 8. Review state persists outside the worktree under the XDG state root (home fallback), keyed by canonical worktree path. Only explicit `--output` exports a finished review into the repository after drift checking. No in-worktree runtime allowance list or automatic cleanup promise.
 9. Host-owned author provenance distinguishes detected, declared, and unknown identity and partial coverage. Findings carry complete repository-relative paths and source-version line ranges; artifact handoffs always name full absolute paths.
+10. Both distributions invoke the same skill-owned executable; no `consensus review` dispatcher integration. Drift comparison is HEAD/index/status plus selected-path hashes, not whole-worktree content hashing; explicitly disclose content changes outside the selected set may go undetected with unchanged status.
+11. With no scope supplied, the host agent presents Branch diff / Selected files / Document or plan and gathers ref/paths before dispatch. A supplied unambiguous scope needs no repeat question. The non-interactive executable returns usage error/options and zero invocations on missing scope.
+12. Delivery is seven tasks across three sequential phases. High ceiling remains selected; keep ordinary OAT reviews and configured planning/final gates, with no additional phase gates.
 
 ## Constraints
 
@@ -72,9 +75,9 @@ Convergence, multi-reviewer synthesis, repairs, packet-only mode, universal isol
 
 ## Open Questions
 
-Product judgments J1–J4 are resolved in the [design](design.md), including the revised external-state choice. Planning still needs the project's dispatch policy and review-gate posture. Runtime-maintenance PR #86 is still open at this planning check; its helper extraction is not yet a merged dependency.
+Product judgments and complexity reductions are resolved in the [design](design.md), including external state, three selectors, interactive missing scope and narrower drift coverage. High dispatch policy and no optional phase gates are selected. Runtime-maintenance PR #86 was open at the last check; recheck before implementation rather than assuming its helper extraction is merged.
 
-Fable's four source-backed corrections are incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and standalone packaging as the first phase. Formal plan review and the eventual independent OAT receipt exercise remain outstanding.
+Fable's four source-backed corrections remain incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and packaging proved first. The complexity-revised bundle needs Fable's re-check, formal plan review and the configured planning gate; the eventual independent OAT receipt exercise remains outstanding.
 
 ## Assumptions
 
@@ -89,7 +92,7 @@ Merged planning commit `08f59459` is the baseline. No Review implementation exis
 
 ## Next Steps
 
-Complete discovery through the CLI, then generate/review the quick plan and resolve its policy/gates. Implementation remains blocked until that plan is ready and the user starts execution.
+Re-check the complexity-revised bundle, complete formal plan review and the configured planning gate. Implementation remains blocked until that plan is ready and the user starts execution. Discovery was already completed through the CLI; no implementation is implied by this update.
 
 ## References
 

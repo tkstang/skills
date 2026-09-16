@@ -6,17 +6,21 @@
 
 ## Objective
 
-Ship one bounded worktree-based reviewer invocation: standalone `consensus-review`, plugin-local `review`. No convergence loop, packet-only mode, or full isolation claim. Direct provider dispatch already forwards model/effort; the convergence settings fix is not a prerequisite.
+Ship one bounded worktree-based reviewer invocation: standalone `consensus-review`, plugin-local `review`, both using the same skill-owned `scripts/review.mjs`, not a generic dispatcher subcommand. No convergence loop, packet-only mode, or full isolation claim. Direct provider dispatch already forwards model/effort; the convergence settings fix is not a prerequisite.
+
+The approved smaller v1 has three selectors: base-branch diff, explicit files, and document (including external/materialized conversation text). Missing scope makes the host agent ask the user to choose among those options and supply ref/paths; direct CLI calls return usage error with zero invocations instead of prompting or guessing. Staged-only, unstaged-only and committed ranges are deferred until a real need appears.
 
 ## Pre-populate discovery and lightweight design
 
 Use the item and confirmed conversation to fill scope, decisions and non-goals. Confirm rather than rediscover settled choices. Design these seams before an executable plan:
 
 1. `defaults.reviewers`: ordered preference list, invocation/project/user/built-in precedence, list replacement, explicit model/effort overrides, scoped readiness/fallback. A different provider is not necessarily a different model family; disclose unknown identity.
-2. Scope capture: staged/unstaged/base/range/files/document/host-materialized artifact; exact request, commit and dirty diff/content hashes; requested versus actually inspected scope and checks run.
-3. Read-only execution: supported provider controls, unsupported-provider failure/skip, permitted runtime capture writes, mutation detection and its limits. Worktree access does not authorize edits or establish universal filesystem/network isolation.
+2. Scope capture: base/files/document; exact request, commit and dirty diff/content hashes; requested versus actually inspected scope and checks run. Base scope includes staged/unstaged tracked changes; explicit file scope can include untracked files.
+3. Read-only execution: supported provider controls, unsupported-provider failure/skip, external host/capture state, and narrow drift detection: HEAD/index/status plus selected-path hashes. Unselected content changes with unchanged status can be missed; no whole-worktree hashing engine. Worktree access does not authorize edits or establish universal filesystem/network isolation.
 4. Owned JSON findings schema and deterministic OAT Markdown adapter, tested against `oat-review-receive`. Preserve location-or-anchor, severity, evidence, confidence, questions and provenance.
 5. One dispatched invocation with bounded attempts/recursion; honest handling of provider-internal tools, errors and incomplete output.
+
+Use the reconciled design/plan at `.oat/projects/shared/consensus-review/`: seven tasks, three phases, High ceiling, configured planning/final gates and ordinary reviews, no optional phase gates. The receipt exercise remains an interoperability check. The revised bundle still requires Fable's re-check and formal planning checks before implementation readiness.
 
 ## Source inputs and boundaries
 
