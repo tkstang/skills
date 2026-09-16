@@ -217,6 +217,7 @@ git commit -m "chore(pjm): disposition observer re-arm investigation"
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
 | p01    | code     | fixes_completed | 2026-09-16 | reviews/archived/p01-review-2026-09-16T212106Z.md | 7399f07125a15cfbaec6fb397906497898b6c693 | manual | - |
+| p01    | code     | passed | 2026-09-16 | reviews/archived/p01-review-2026-09-16T213252Z.md | bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911 | manual | - |
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |

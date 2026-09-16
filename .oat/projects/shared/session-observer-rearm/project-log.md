@@ -44,6 +44,10 @@ Entries are chronological and append-only.
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:3,minor:4 exit=0 status=ok artifact=.oat/projects/shared/session-observer-rearm/reviews/artifact-plan-review-2026-09-16T204720Z.md run=6e485c5f-811e-45bd-b529-637f18677b01
 
+### 2026-09-16 · structural · oat-project-implement · p01
+
+p01-phase-outcome-bfb7fc08 status=passed tasks=3/3 commits=74a68ee2,74240d78,7399f071 fix=bfb7fc08 review=reviews/archived/p01-review-2026-09-16T212106Z.md rereview=reviews/p01-review-2026-09-16T213252Z.md orchestration=attempted findings=critical:0,important:0,medium:0,minor:0
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

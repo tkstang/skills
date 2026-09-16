@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 7399f07125a15cfbaec6fb397906497898b6c693
+oat_last_commit: bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -85,25 +85,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T21:25:43Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T21:35:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-rearm
 
-**Status:** Phase implementation fixes complete; awaiting re-review
+**Status:** Phase review passed; awaiting final verification and review
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Phase 1 task implementation is complete at `7399f07125a15cfbaec6fb397906497898b6c693`. The bounded bookkeeping correction for review finding I1 is ready for p01 re-review; the overall project remains in `implement` / `in_progress`.
+Phase 1 task implementation and its bounded bookkeeping correction are complete. The fresh p01 re-review passed at `bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911`; the overall project remains in `implement` / `in_progress` for final verification, final review, and the configured exit gate.
 
 ## Artifacts
 
 - **Plan:** `plan.md` (approved, reviewed, and complete)
 - **Implementation:** `implementation.md` (3/3 tasks complete; review fix continuation recorded)
 - **Phase review:** `reviews/archived/p01-review-2026-09-16T212106Z.md` (0 Critical, 1 Important; bookkeeping fix completed)
+- **Phase re-review:** `reviews/archived/p01-review-2026-09-16T213252Z.md` (passed with no findings)
 
 ## Progress
 
@@ -122,7 +123,8 @@ Phase 1 task implementation is complete at `7399f07125a15cfbaec6fb397906497898b6
 - ✓ Phase verification passed: 2,002 tests passed with 1 skipped; build, type-check, generated parity, validation, smoke, version closure, PJM doctor, and diff hygiene passed
 - ✓ `BL-260916-session-observer-re-armed` closed and archived
 - ✓ Review finding I1 bookkeeping alignment completed without product changes
-- → Awaiting p01 re-review and receive bookkeeping
+- ✓ Fresh p01 re-review passed with no findings
+- → Awaiting final verification and final code review
 
 ## Blockers
 
@@ -130,4 +132,4 @@ None
 
 ## Next Milestone
 
-Re-review p01 at the bookkeeping-fix head, then receive the phase result
+Run final verification and the mandatory final code review

@@ -106,7 +106,19 @@ oat_generated: false
 - **Review artifact:** `reviews/archived/p01-review-2026-09-16T212106Z.md`
 - **Reviewed head:** `7399f07125a15cfbaec6fb397906497898b6c693`
 - **Finding:** I1 — align resumable phase bookkeeping and the durable archived-backlog reference.
-- **Disposition:** Bounded bookkeeping fixes completed; awaiting p01 re-review. No product, runtime, test, documentation, generated-payload, or PJM change was added in this continuation.
+- **Disposition:** Bounded bookkeeping fixes completed at `bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911`; the fresh p01 re-review passed with no findings. No product, runtime, test, documentation, generated-payload, or PJM change was added in this continuation.
+
+### p01 Root Review Outcome — 2026-09-16
+
+- **Initial review request:** `review-p01-20260916-observer-rearm-01`
+- **Initial review target:** `oat-reviewer-gpt-5-6-sol-high`
+- **Initial review artifact:** `reviews/archived/p01-review-2026-09-16T212106Z.md`
+- **Initial review:** 0 Critical, 1 Important, 0 Medium, 0 Minor; reconnaissance attempted through two bounded read-only lanes and reconciled by the primary reviewer.
+- **Fix continuation:** `cont-session-observer-rearm-p01-fix-1`; one append-only bookkeeping commit, recovery usage 0/10.
+- **Re-review request:** `review-p01-20260916-observer-rearm-02`
+- **Re-review artifact:** `reviews/archived/p01-review-2026-09-16T213252Z.md`
+- **Terminal verdict:** Passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings at `bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911`.
+- **Review dispatch stamp:** `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 
 ### p01 Implementation Run — 2026-09-16
 
@@ -199,7 +211,17 @@ oat_generated: false
 - Updated only the durable plan reference and existing p01 review event; archived the consumed review artifact.
 - No p01-t04 or product change was added. Recovery usage remains 0/10.
 
-**Next:** Re-review p01 bookkeeping alignment, then receive the phase result.
+**Next:** Run final verification and the mandatory final code review.
+
+### Phase p01 Re-review Passed
+
+**Date:** 2026-09-16
+**Review artifact:** `reviews/archived/p01-review-2026-09-16T213252Z.md`
+**Reviewed head:** `bfb7fc08410187a4b5c7bbd22c9fb3053b1c1911`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor.
+
+**Disposition:** I1 is fully resolved. Phase p01 passed and implementation closeout advances to final verification and final review.
 
 ## Deviations from Plan / Design
 
