@@ -1,13 +1,13 @@
 ---
 title: 'Session Fork to Destination'
-description: 'Prepare experimental, read-only destination-side guidance for forking a coding-agent session into another Git worktree.'
+description: 'An alpha skill for discovering sessions, previewing their context, and preparing destination-safe fork instructions for another Git worktree.'
 ---
 
 # Session Fork to Destination
 
-`session-fork-to-destination` is an **experimental, not released** skill. It is
-generated as that standalone name and as `fork-to-destination` in the session
-plugin. It discovers session candidates, shows a sanitized preview, and
+`session-fork-to-destination` is an **alpha** skill, available as a standalone
+skill and as `fork-to-destination` in the Session plugin. It discovers session
+candidates, shows a sanitized preview, and
 prepares destination-safe fork instructions. It never runs a provider itself,
 so no fork is created by discovery, preview, or preparation.
 
@@ -17,11 +17,8 @@ agents or providers, use [Session Handoff](session-handoff.md). A native fork
 does not receive a full handoff packet, and this skill does not transfer native
 runtime state across providers.
 
-The former `coding-session-handoff` name and script path are unsupported after
-the clean-break rename; no alias or compatibility wrapper is generated.
-
-The older executor remains experimental, incomplete, unverified, and paused.
-The guidance workflow does not depend on its reconcile or behavior-gate path.
+Automatic provider execution is not part of this skill. The user reviews and
+runs the prepared native command; preparation itself remains read-only.
 
 Current Cursor transcript discovery is unavailable. Cursor's store layout supplies a
 lossy project slug rather than independent exact cwd evidence, so a matching store
@@ -103,7 +100,7 @@ future-facing evidence and do not make Cursor transcript discovery available.
 
 ## Current limitations
 
-- The skill is experimental and not released.
+- Alpha maturity: provider coverage and end-to-end verification are incomplete.
 - Provider capabilities are based on dated public documentation, not a live
   provider run.
 - Discovery reads bounded transcript data and may require explicit selection.

@@ -101,5 +101,5 @@ Inside `plugins/session/`:
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/export-transcript/` — plugin-local form of
   `session-export-transcript`, including its generated dependency-free CLI.
-- `skills/fork-to-destination/` — plugin-local form of the experimental
+- `skills/fork-to-destination/` — plugin-local form of the alpha
   `session-fork-to-destination` guidance workflow and generated CLI.

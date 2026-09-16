@@ -30,7 +30,7 @@ Current consumers of the shared transcript-core:
   watch pipeline.
 - `session-export-transcript` — ships
   `runtimes.mjs`, `cursor-frames.mjs`, and `cursor-analysis.mjs`.
-- `session-fork-to-destination` — ships a single generated experimental guidance
+- `session-fork-to-destination` — ships a single generated alpha guidance
   bundle that reuses bounded transcript discovery and sanitized preview logic.
   Its public commands are limited to `discover`, `preview`, and `prepare`; it
   does not import or expose the older executor, reconciliation, or behavior
@@ -38,7 +38,7 @@ Current consumers of the shared transcript-core:
 
 The lower-level Cursor normalizer remains terminal-only for Export Session
 Transcript compatibility. Session Observer explicitly requests the
-content-first `observation` projection. Session Observer Collaboration
+content-first `observation` projection. Collaborative Observer
 explicitly requests `confirmed-completion` from the observer-generated modules;
 its control, hook, completion, and lease files remain authored JavaScript.
 

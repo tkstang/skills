@@ -18,7 +18,7 @@ What ships today:
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `retro`, `handoff`, `export-transcript`, and
   `fork-to-destination` cover bounded review, continuation, sanitized export,
-  and experimental destination-side fork guidance.
+  and alpha destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names; `next-steps`, `must-we`, and `complexity-review`
   remain standalone only.

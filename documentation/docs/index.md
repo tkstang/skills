@@ -30,7 +30,7 @@ skills are available both ways; both navigation paths lead to one guide.
 These docs cover Claude Code, Codex, and Cursor installation paths, with
 provider-specific verification limits recorded in
 [Installation](user-guide/installation.md). The plugins are independently
-versioned. Experimental capabilities are labeled in their guides.
+versioned. Alpha capabilities and incomplete verification are identified in their guides.
 
 ## Contents
 

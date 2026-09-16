@@ -52,9 +52,10 @@ an isolated complete-plugin check and executing the generated transcript
 exporter outside the checkout, with live discovery/permission evidence tracked
 separately.
 
-Session Fork to Destination remains experimental and not released until its
-capability evidence and explicitly authorized verification cover the claimed
-provider surfaces. Packaging it is not evidence that a native fork works.
+Session Fork to Destination is distributed as an alpha guidance skill. Provider
+coverage and end-to-end verification remain incomplete; packaging it is not
+evidence that a native fork works. Keep those limits explicit until current
+capability evidence and authorized verification cover each claimed surface.
 
 ## Tags and the release workflow
 

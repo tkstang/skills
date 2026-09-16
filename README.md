@@ -68,7 +68,7 @@ retrospective review, handoff, sanitized export, and destination-fork guidance.
 | `retro`               | `session-retro`               | Review a bounded episode without applying findings |
 | `handoff`             | `session-handoff`             | Prepare concise continuation context               |
 | `export-transcript`   | `session-export-transcript`   | Export a sanitized Markdown transcript             |
-| `fork-to-destination` | `session-fork-to-destination` | Prepare experimental destination-tab fork guidance |
+| `fork-to-destination` | `session-fork-to-destination` | Prepare alpha destination-tab fork guidance        |
 
 ## Optional standalone skills
 
@@ -76,17 +76,17 @@ Nine skills have explicitly generated standalone forms. Installing a plugin and
 its standalone form together may expose duplicate host entries; choose one form
 unless you have verified how your host resolves duplicates.
 
-| Skill                         | What it does                                                                                                                                               |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `next-steps`                  | Explain the situation and recommend justified next actions without executing them                                                                          |
-| `must-we`                     | Decide whether a blocker or proposed action is necessary and identify the smallest sufficient path                                                         |
-| `session-retro`               | Review one skill invocation or bounded session episode and report evidence-backed findings without applying them                                           |
-| `session-observer`            | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new                           |
-| `session-observer-collab`     | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules                   |
-| `session-export-transcript`   | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                                      |
-| `session-fork-to-destination` | Experimental, not released: prepare destination-safe fork guidance from bounded, explicit session evidence; it does not invoke a provider or create a fork |
-| `session-handoff`             | Prepare an evidence-grounded continuation brief, with observer and transcript export as optional integrations                                              |
-| `complexity-review`           | Review a plan, design, or implementation against its contract — a ledger of what to keep, simplify, defer, or delete, plus the minimum sufficient version  |
+| Skill                         | What it does                                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next-steps`                  | Explain the situation and recommend justified next actions without executing them                                                                         |
+| `must-we`                     | Decide whether a blocker or proposed action is necessary and identify the smallest sufficient path                                                        |
+| `session-retro`               | Review one skill invocation or bounded session episode and report evidence-backed findings without applying them                                          |
+| `session-observer`            | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new                          |
+| `session-observer-collab`     | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules                  |
+| `session-export-transcript`   | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                                     |
+| `session-fork-to-destination` | Alpha: prepare destination-safe fork guidance from bounded, explicit session evidence; it does not invoke a provider or create a fork                     |
+| `session-handoff`             | Prepare an evidence-grounded continuation brief, with observer and transcript export as optional integrations                                             |
+| `complexity-review`           | Review a plan, design, or implementation against its contract — a ledger of what to keep, simplify, defer, or delete, plus the minimum sufficient version |
 
 [Skills guide →](https://tkstang.github.io/skills/user-guide/skills/)
 

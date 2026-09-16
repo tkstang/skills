@@ -19,7 +19,7 @@
     - Documentation
       - [Documentation](engineering/contributing/documentation/index.md) — The docs authoring contract for this Fumadocs site: navigation rules, supported Markdown, and the review checklist agents and humans follow.
       - [Authoring](engineering/contributing/documentation/authoring.md) — How to author and restructure pages in this Fumadocs site: the index.md + ## Contents navigation contract, the .md-link convention, the generated-index discipline, and the local workflow.
-      - [Markdown Features](engineering/contributing/documentation/markdown-features.md) — The Markdown and MDX patterns this Fumadocs site actually renders: frontmatter, GFM alerts, Mermaid diagrams, code blocks with a copy button, full-text search, and dark/light mode.
+      - [Markdown & Visuals](engineering/contributing/documentation/markdown-features.md) — The Markdown, callout, tab, Mermaid, SVG, and image patterns this docs app renders, each with copyable syntax and a rendered example.
       - [Review Checklist](engineering/contributing/documentation/review-checklist.md) — What to verify before committing a docs change to this Fumadocs site: frontmatter, ## Contents updates, .md-link resolution, the untouched generated manifest, a green build, and sane sidebar order.
   - Operations
     - [Operations](engineering/operations/index.md) — Understand CI, docs deployment, release gates, and independent plugin and skill versions.
@@ -44,16 +44,16 @@
   - Plugins
     - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for continuity and retrospective review.
     - Session
-      - [Session](user-guide/plugins/session/index.md) — Choose a portable handoff, sanitized transcript, experimental native fork, or retrospective review.
+      - [Session](user-guide/plugins/session/index.md) — Choose a portable handoff, sanitized transcript, alpha native fork, or retrospective review.
   - Skills
     - [Standalone Skills](user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
     - [Session Export Transcript](user-guide/skills/session-export-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
-    - [Session Fork to Destination](user-guide/skills/session-fork-to-destination.md) — Prepare experimental, read-only destination-side guidance for forking a coding-agent session into another Git worktree.
+    - [Session Fork to Destination](user-guide/skills/session-fork-to-destination.md) — An alpha skill for discovering sessions, previewing their context, and preparing destination-safe fork instructions for another Git worktree.
     - [Session Handoff](user-guide/skills/session-handoff.md) — Prepare concise evidence-grounded continuation context, with optional observer review and sanitized transcript export.
-    - [Session Observer Collaboration](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
+    - [Collaborative Observer](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
     - [Session Observer](user-guide/skills/session-observer.md) — Review what another coding agent did in this project with tool-free digests, per-session read offsets, and foreground watch mode.
     - [Session Retro](user-guide/skills/session-retro.md) — Review one skill invocation or bounded session episode and report evidence-backed improvements without applying them.
   - [Installation](user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.

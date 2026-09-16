@@ -20,7 +20,7 @@ Choose by what the next session needs:
 | Learn from one skill invocation or a bounded session episode                  | [Session Retro](session-retro.md)                             | Evidence-backed findings and validation proposals; the review does not apply its own changes.                                                                           |
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
 | Keep a durable record of the conversation                                     | [Session Export Transcript](session-export-transcript.md)     | A sanitized Markdown transcript for reference. It is an archive, not a continuation packet or a session transfer.                                                       |
-| Continue native history within the same provider in another existing worktree | [Session Fork to Destination](session-fork-to-destination.md) | Experimental, destination-safe instructions for a native fork. Preparation does not create a fork, transfer worktree changes, or move native state across providers.    |
+| Continue native history within the same provider in another existing worktree | [Session Fork to Destination](session-fork-to-destination.md) | Alpha, destination-safe instructions for a native fork. Preparation does not create a fork, transfer worktree changes, or move native state across providers.           |
 
 These skills are grouped by user-facing behavior. The grouping does not mean
 that they share one implementation, and it does not require installing an
@@ -39,9 +39,10 @@ and standalone choices.
 - **session-export-transcript** (session-local `export-transcript`) — export the current agent session to a
   sanitized Markdown transcript, named after the current git branch and written
   by default to `~/Downloads`.
-- **session-fork-to-destination** (session-local `fork-to-destination`) — experimentally discover and preview an explicit
+- **session-fork-to-destination** (session-local `fork-to-destination`, alpha) — discover and preview an explicit
   source session, then prepare destination-safe same-provider fork guidance
-  without invoking a provider or creating a fork. It is not released.
+  without invoking a provider or creating a fork. Provider coverage and
+  end-to-end verification are incomplete.
 - **session-observer** — review what another coding agent just did in this
   project, render a tool-free digest, and track per-session read offsets so
   `catch-up` shows only new content.
@@ -68,7 +69,7 @@ and standalone choices.
 
 - [Session Handoff](session-handoff.md) - Prepare portable continuation context with optional observer and transcript-export integrations.
 - [Session Export Transcript](session-export-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
-- [Session Fork to Destination](session-fork-to-destination.md) - Prepare experimental, read-only destination-tab fork guidance without invoking a provider.
+- [Session Fork to Destination](session-fork-to-destination.md) - Prepare alpha, read-only destination-tab fork guidance without invoking a provider.
 
 ### Observe and collaborate
 

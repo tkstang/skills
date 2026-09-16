@@ -4,7 +4,7 @@
   "pages": [
     "[Handoff](/user-guide/skills/session-handoff)",
     "[Export Transcript](/user-guide/skills/session-export-transcript)",
-    "[Fork to Destination (experimental)](/user-guide/skills/session-fork-to-destination)",
+    "[Fork to Destination (alpha)](/user-guide/skills/session-fork-to-destination)",
     "[Retro](/user-guide/skills/session-retro)"
   ]
 }

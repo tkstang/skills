@@ -11,7 +11,7 @@ independently versioned plugins; installing one does not require the other.
 | Plugin                             | Use it for                                                                       | Included capabilities                                                                               |
 | ---------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | [Consensus](../consensus/index.md) | Bring independent agent perspectives to an artifact, question, or decision.      | Create, plan, decide, refine, evaluate, consult a peer or panel, observe sessions, and collaborate. |
-| [Session](session/index.md)        | Preserve useful context, continue work, or learn from a bounded session episode. | Handoff, transcript export, experimental destination-fork guidance, and retro.                      |
+| [Session](session/index.md)        | Preserve useful context, continue work, or learn from a bounded session episode. | Handoff, transcript export, alpha destination-fork guidance, and retro.                             |
 
 Use [Installation](../installation.md) for provider-specific setup and current
 verification limits. Some members are also available as
@@ -21,4 +21,4 @@ guide, which explains the plugin-local and standalone names.
 ## Contents
 
 - [Consensus](../consensus/index.md) — Peer workflows, observation, collaboration, and shared configuration.
-- [Session](session/index.md) — Portable handoffs, sanitized archives, experimental fork guidance, and retrospective review.
+- [Session](session/index.md) — Portable handoffs, sanitized archives, alpha fork guidance, and retrospective review.

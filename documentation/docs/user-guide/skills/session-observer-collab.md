@@ -1,9 +1,9 @@
 ---
-title: 'Session Observer Collaboration'
+title: 'Collaborative Observer'
 description: 'Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.'
 ---
 
-# Session Observer Collaboration
+# Collaborative Observer
 
 `session-observer-collab` is generated as a standalone skill and as the
 consensus plugin-local `observer-collab`. It coordinates one user and two

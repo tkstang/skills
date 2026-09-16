@@ -116,7 +116,7 @@ the peer was idle; inspect the digest's declared schema, index base, and
 accounting or run a pinned review.
 
 For the two-peer handshake, wake tiers, authority rules, and lifecycle setup,
-see [Session Observer Collaboration](session-observer-collab.md).
+see [Collaborative Observer](session-observer-collab.md).
 
 ## Runtime resolution (`--runtime`)
 

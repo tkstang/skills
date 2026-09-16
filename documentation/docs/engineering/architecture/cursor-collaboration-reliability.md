@@ -20,7 +20,7 @@ The reliability architecture keeps those facts separate:
 
 This page describes the engineering contract behind the user-facing
 [Session Observer](../../user-guide/skills/session-observer.md) and
-[Session Observer Collaboration](../../user-guide/skills/session-observer-collab.md)
+[Collaborative Observer](../../user-guide/skills/session-observer-collab.md)
 workflows.
 
 ## End-to-end pipeline
@@ -139,7 +139,7 @@ The CLI reports the recovery scope rather than silently resetting a checkpoint.
 
 ## Private collaboration continuity
 
-Session Observer Collaboration keeps its own lease-scoped cursor. Cursor lease
+Collaborative Observer keeps its own lease-scoped cursor. Cursor lease
 schema v6 binds:
 
 - canonical peer runtime, session, cwd, and transcript path,

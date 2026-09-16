@@ -30,7 +30,7 @@ runtime dependency installer. Those choices preserve a source's provenance:
 one editable owner remains identifiable even when several generated consumers
 ship it.
 
-Recent Session Observer Collaboration decisions separately record the sibling
+Recent Collaborative Observer decisions separately record the sibling
 composition layer, non-human wake-envelope authority boundary, bounded
 lifecycle continuation, and acting-runtime setup selection. They preserve the
 N=2 scope and evidence-gated provider posture without promoting documented

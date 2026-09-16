@@ -122,11 +122,6 @@ under `skills/`:
 | `session-fork-to-destination` | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
 | `complexity-review`           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
 
-The two renamed skills use a clean break: `export-session-transcript` and
-`coding-session-handoff` are no longer generated install names or script paths.
-There are no compatibility aliases, redirects, or wrappers. Update invocations
-to `session-export-transcript` and `session-fork-to-destination`.
-
 Qualified invocation syntax depends on the host. Claude Code and Codex include
 the plugin namespace; Cursor's local `--plugin-dir` load exposes the local name
 without a universal namespace promise.
