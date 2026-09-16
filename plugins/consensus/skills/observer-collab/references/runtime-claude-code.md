@@ -149,13 +149,13 @@ One real Claude Code session ran the pinned Monitor recipe against a Codex
 peer for roughly ten hours of collaboration, across five Monitor lifetimes.
 Sanitized observations, with the acceptance area they bear on:
 
-| Acceptance area             | Evidence in that session                                                                                                                                                      | Live status                 |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Task notification           | Monitor was callable; every completed substantive peer turn produced one task notification carrying the exact pinned digest range, and the session acted on it once per turn. | Observed, repeatedly.       |
-| Empty heartbeat suppression | `--quiet-empty` and `--heartbeat-sec 0` produced no notifications during quiet intervals; only `newer-session-candidate` warnings and the baseline line appeared as automatic control. | Observed.                   |
-| Substantive notification    | Peer decisions, requests, and corrections arrived as single notifications and were classified under the no-op rules before any response.                                       | Observed, repeatedly.       |
-| Same-session restart        | Not exercised: the client was not restarted. Monitor expiry and re-arm were exercised five times; two re-arms baselined past unread records (see above).                        | Not run; re-arm observed.   |
-| Clean stop                  | `watch-ctl stop` plus Monitor expiry left no watcher process and no lease state; a later peer turn produced no notification.                                                   | Observed.                   |
+| Acceptance area             | Evidence in that session                                                                                                                                                               | Live status               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Task notification           | Monitor was callable; every completed substantive peer turn produced one task notification carrying the exact pinned digest range, and the session acted on it once per turn.          | Observed, repeatedly.     |
+| Empty heartbeat suppression | `--quiet-empty` and `--heartbeat-sec 0` produced no notifications during quiet intervals; only `newer-session-candidate` warnings and the baseline line appeared as automatic control. | Observed.                 |
+| Substantive notification    | Peer decisions, requests, and corrections arrived as single notifications and were classified under the no-op rules before any response.                                               | Observed, repeatedly.     |
+| Same-session restart        | Not exercised: the client was not restarted. Monitor expiry and re-arm were exercised five times; two re-arms baselined past unread records (see above).                               | Not run; re-arm observed. |
+| Clean stop                  | `watch-ctl stop` plus Monitor expiry left no watcher process and no lease state; a later peer turn produced no notification.                                                           | Observed.                 |
 
 Honest posture from that evidence: `event-wake` holds for the lifetime of one
 Monitor task, with a 30-minute ceiling and a manual re-arm. Restart resilience
