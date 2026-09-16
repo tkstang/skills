@@ -3,10 +3,11 @@ import defaultComponents from 'fumadocs-ui/mdx';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { Image } from '@/components/image';
 import { Mermaid } from '@/components/mermaid';
 import { source } from '@/lib/source';
 
-const mdxComponents = { ...defaultComponents, Mermaid, Tab, Tabs };
+const mdxComponents = { ...defaultComponents, img: Image, Mermaid, Tab, Tabs };
 
 type PageProps = {
   params: Promise<{ slug?: string[] }>;

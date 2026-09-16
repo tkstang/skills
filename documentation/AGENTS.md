@@ -38,6 +38,17 @@ For approved changes, verify local links, local maps/sidebar coherence, and the 
 
 Use `oat-docs-analyze` for an audit and `oat-docs-apply` for approved bulk updates. During project lifecycle work, `oat-project-document` proposes project-derived updates. Analysis does not authorize application, commits to remote, or publication.
 
+## Diagrams
+
+Mermaid is the source of truth for diagrams. Inline fenced `mermaid` blocks render with the site palette (`components/mermaid.tsx`); do not add `%%{init}%%`, `style`, or `classDef` colour overrides. Prefer Mermaid over an authored SVG whenever the diagram type is expressible.
+
+When a polished SVG counterpart exists in `public/diagrams/`, wrap the SVG and the Mermaid source in a `===` tab group, SVG first, with an italic date caption on each tab so drift is visible. See [Markdown features](docs/engineering/contributing/documentation/markdown-features.md) for the exact syntax and the SVG authoring rules.
+
+- Every node and labelled edge must be verifiable against source code, not only prose. Keep the evidence list from when the diagram was drawn; draw the code, not the docs, when they disagree, and fix the docs.
+- Bump the Mermaid date caption when you edit Mermaid for a behaviour change.
+- Do not regenerate or restyle an SVG unless you know the diagram workflow.
+- Render a new or changed SVG on a light and a dark background and inspect both before committing.
+
 ## References
 
 - [Authoring](docs/engineering/contributing/documentation/authoring.md) — page creation, sidebar metadata, inventory generation, and local workflow.
