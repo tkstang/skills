@@ -19,10 +19,13 @@
 - **Session-observer collaboration v2 deferrals (seeded 2026-07-13; Cursor evidence closed 2026-07-24):** **BL-260713-cursor-transcript-store** is closed with evidence-gated Cursor agent-transcript discovery and fail-closed identity. **BL-260713-stronger-cursor-collaboration** is also closed: finite Stop and managed-subagent probes found no effective callback, no existing scheduled surface was available, and buffered-manual remains the strongest honest tier. Two independently verifiable follow-ups remain open: per-observer offsets and a safe N>2 mesh (**BL-260713-per-observer-offsets-and-safe**) and optional idle-session application integrations (**BL-260713-optional-idle-session**). These do not close or replace the existing shared-session-log substrate and direct-messaging initiatives.
 
 - **Session-observer reliability (seeded 2026-09-16):** **BL-260916-session-observer-re-armed** — a Monitor-driven re-arm can baseline at the transcript end and skip unread records; found during the docs/visuals collaboration with a Codex peer. Small fix (persist offset on signal, render + announce the gap) plus a reference-doc update.
+- **Cross-model review + install path (seeded 2026-09-16):** **BL-260916-add-consensus-review-cross** (high) adds a one-turn cross-provider reviewer with OAT-compatible artifacts; it depends on BL-260916-honor-configured-peer-models and BL-260723-split-loop-free-cli-helpers, which together make a natural "consensus runtime fidelity + review" project. **BL-260916-add-a-first-party-install** gives standalone skills an install path that does not depend on the third-party Skills CLI.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
+| BL-260916-add-consensus-review-cross | Add consensus-review: cross-model review of a bounded scope | open | high | feature | M |
+| BL-260916-add-a-first-party-install | Add a first-party install command for standalone skills | open | medium | feature | S |
 | BL-260916-honor-configured-peer-models | Honor configured peer models and effort in convergence workflows | open | medium | task | M |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
