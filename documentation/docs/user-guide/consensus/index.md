@@ -137,12 +137,13 @@ The three shapes are not interchangeable. `refine` deliberates to convergence or
 ```mermaid
 flowchart TB
   subgraph refine["refine · converging"]
+    direction TB
     R0["One draft, two peers"]
-    R1["Verdict rounds<br/>peers revise and respond"]
-    R2{"Agreement, or IMPASSE?"}
-    R3["Converged artifact<br/>+ deliberation log"]
-    R4["Reported impasse<br/>resume with --user-direction"]
-    RW["Who decides: the peers converge;<br/>an impasse is handed back to you"]
+    R1["Verdict rounds"]
+    R2{"Agreement or IMPASSE?"}
+    R3["Converged artifact"]
+    R4["Reported impasse"]
+    RW["Decided by: the peers"]
     R0 --> R1 --> R2
     R2 -->|agreement| R3
     R2 -->|impasse| R4
@@ -150,24 +151,32 @@ flowchart TB
     R4 --> RW
   end
   subgraph panel["panel · non-converging"]
+    direction TB
     N0["One question, 2+ panelists"]
-    N1["Single independent round<br/>panelists never see each other"]
-    N2["Side-by-side attributed responses"]
-    N3["Host stays neutral moderator:<br/>no synthesis, no vote, no consensus<br/>(instruction, not code)"]
-    NW["Who decides: you, after reading<br/>the attributed takes"]
+    N1["Single independent round"]
+    N2["Attributed responses, side by side"]
+    N3["No synthesis, no vote (instruction, not code)"]
+    NW["Decided by: you"]
     N0 --> N1 --> N2 --> N3 --> NW
   end
   subgraph phone["phone-a-friend · advisory"]
+    direction TB
     F0["One question, one peer"]
-    F1["One provider turn<br/>advisory.schema.json"]
-    F2["take, recommendation,<br/>risks, confidence"]
-    F3["Host dispositions: agree, disagree,<br/>apply, ignore, follow-up<br/>(instruction, not code)"]
-    FW["Who decides: the host agent,<br/>and it must state the disposition"]
+    F1["One provider turn"]
+    F2["Advisory payload"]
+    F3["Host states a disposition (instruction, not code)"]
+    FW["Decided by: the host agent"]
     F0 --> F1 --> F2 --> F3 --> FW
   end
 ```
 
 _Mermaid updated 2026-09-16_
+
+What the diagram compresses:
+
+- **refine** deliberates over verdict rounds to convergence or to a reported impasse; an impasse is handed back to you with `--user-direction`; `consensus-refine.ts:442-449`.
+- **panel** requires at least two panelists and passes only with two or more successful responses. It is single-round and independent: panelists never see each other. The host adds no synthesis, vote, or recommendation(instruction-level).
+- **phone-a-friend** is one provider turn under `--max-depth 1` returning `take`, `recommendation`, `risks`, `follow_up_questions`, and `confidence`; `src/skills/phone-a-friend/SKILL.md:61`, `:70`, `:94`. The host must state a disposition of agree, disagree, apply, ignore, or follow-up (instruction-level).
 
 ## Iteration modes
 
@@ -229,7 +238,7 @@ This is the local process boundary, not a network boundary. Transcripts, observe
       end
       HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt payload"]
       subgraph crossing["Crosses the boundary — approval is a skill instruction, not a code gate"]
-        PR["Prompt payload<br/>argv for Claude; stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
+        PR["Prompt payload<br/>argv for Claude — stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
         SCH["Claude: the schema is ALSO passed<br/>inline in argv as --json-schema"]
         ENV["Submit env, 4 vars — set for every provider<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA<br/>and CONSENSUS_SUBMIT_MAX_BYTES"]
         CWD["The child inherits a cwd<br/>with no filesystem confinement"]
@@ -238,7 +247,7 @@ This is the local process boundary, not a network boundary. Transcripts, observe
         PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --output-format json --force"]
       end
       subgraph back["Comes back as untrusted data"]
-        OUT["Schema-validated before use;<br/>a failure is PROVIDER_SCHEMA_VALIDATION"]
+        OUT["Schema-validated before use —<br/>a failure is PROVIDER_SCHEMA_VALIDATION"]
         REV["Advisory data, never instructions:<br/>never auto-apply edits, commands, or decisions"]
       end
       GUARD["Local guards<br/>options files capped at 1 MiB<br/>inputs, outputs, run dirs confined by --allow-root"]

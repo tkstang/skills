@@ -194,8 +194,8 @@ stateDiagram-v2
   failed_validation: Outcome 0 — build aborts before any mutation
   failed_validation: committed outputs are untouched
   checked --> backed_up: validation passed
-  backed_up: each existing output is renamed to
-  backed_up: .&lt;name&gt;.recovery-&lt;uuid&gt; beside itself; ENOENT is fine
+  backed_up: each existing output is moved aside as a
+  backed_up: recovery backup beside it, a missing prior file is fine
   backed_up --> installed: rename each staged unit onto its output path
   installed: staged unit renamed into place
 
@@ -212,7 +212,7 @@ stateDiagram-v2
   installed --> cleanup: remove the recovery backup of every entry that had one
   cleanup --> done: all backups removed
   cleanup --> backups_left: a backup could not be removed
-  done: Outcome 3a — build succeeded; orphan outputs removed
+  done: Outcome 3a — build succeeded, orphan outputs removed
   backups_left: Outcome 3b — installed, but backup cleanup failed
   backups_left: inspect only the exact backup paths named by the error
 

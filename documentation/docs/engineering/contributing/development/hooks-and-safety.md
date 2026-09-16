@@ -23,58 +23,74 @@ The checks are six independent triggers, not a pipeline: no CI job declares `nee
 
 ```mermaid
 flowchart TB
-  NOTE["Six independent triggers, not a pipeline.<br/>Nothing below is gated on anything else:<br/>the PR jobs run in parallel and no job declares needs."]
-
-  subgraph commit["Trigger: git commit · local hooks"]
-    C1["pre-commit: lint-staged<br/>oxlint + oxfmt on staged files only"]
-    C2["pre-commit: oat status --scope project --hook<br/>non-blocking"]
-    C3["commit-msg: commitlint<br/>Conventional Commits"]
+  subgraph commit["git commit"]
+    direction TB
+    C1["pre-commit: lint-staged"]
+    C2["pre-commit: oat status"]
+    C3["commit-msg: commitlint"]
+    C1 --> C2 --> C3
   end
-
-  subgraph push["Trigger: git push · pre-push hook"]
-    P1["pnpm run validate"]
-    P2["pnpm run build:check"]
-    P3["pnpm run type-check"]
-    P4["validate:skill-versions against the merge base"]
+  subgraph push["git push"]
+    direction TB
+    P1["validate"]
+    P2["build:check"]
+    P3["type-check"]
+    P4["validate:skill-versions"]
     P5["validate:internal-flags"]
-    PN["No tests, no smoke — the hook stays fast"]
+    P6["No tests, no smoke"]
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
   end
-
-  subgraph pr["Trigger: pull_request · Validate workflow"]
-    V["validate job<br/>build:check, type-check, test, validate, smoke"]
+  subgraph pr["pull_request"]
+    direction TB
+    V["validate job"]
     J1["skill-versions"]
     J2["internal-flags"]
     J3["commitlint"]
-    J4["lint: oxlint + oxfmt --check on changed files"]
-    JN["These four run in parallel with validate —<br/>no job declares needs"]
+    J4["lint: changed files only"]
+    J5["Docs CI, documentation paths"]
+    V --- J1
+    V --- J2
+    V --- J3
+    V --- J4
+    V --- J5
+  end
+  subgraph main["push to main"]
+    direction TB
+    M1["validate job only"]
+    M2["Deploy Docs workflow"]
+    M1 --- M2
+  end
+  subgraph dispatch["workflow_dispatch"]
+    direction TB
+    D1["Live E2E, dispatch-only"]
+    D2["Deploy Docs, also dispatchable"]
+    D1 --- D2
+  end
+  subgraph tag["tag consensus-v* / session-v*"]
+    direction TB
+    T1["build, then diff generated outputs"]
+    T2["type-check, build:check, test"]
+    T3["validate, smoke"]
+    T4["Verify selected plugin version"]
+    T1 --> T2 --> T3 --> T4
   end
 
-  subgraph prdocs["Trigger: pull_request touching documentation/**"]
-    D1["Docs CI workflow<br/>builds the docs app; does not publish"]
-  end
-
-  subgraph main["Trigger: push to main"]
-    M1["Validate workflow: validate job only<br/>the PR-only jobs are skipped"]
-    M2["Deploy Docs workflow — independent<br/>paths: documentation/** and its own workflow file"]
-  end
-
-  subgraph tag["Trigger: tag consensus-v* / session-v*"]
-    T1["Release workflow: build, then<br/>git diff --exit-code on generated outputs"]
-    T2["type-check, build:check, test, validate, smoke"]
-    T3["Verify selected plugin version"]
-  end
-
-  subgraph manual["Trigger: workflow_dispatch"]
-    MAN["Live Provider E2E — dispatch-ONLY<br/>real CLIs, real quota; no workflow invokes it"]
-    MAN2["Deploy Docs — also dispatchable,<br/>in addition to its push-to-main trigger"]
-  end
-
-  C1 --> C2 --> C3
-  P1 --> P2 --> P3 --> P4 --> P5
-  T1 --> T2 --> T3
+  C3 ~~~ M1
+  P6 ~~~ D1
+  J5 ~~~ T1
 ```
 
 _Mermaid updated 2026-09-16_
+
+What the diagram compresses:
+
+- These are independent triggers, not a pipeline. **No job declares `needs:`** anywhere in `.github/workflows/validate.yml`, so the four PR-only jobs run in parallel with `validate`, not downstream of it — job keys at `:43`, `:73`, `:94`, `:126`, guards at `:47`, `:80`, `:96`, `:130`.
+- The `validate` job itself runs on both `pull_request` and pushes to `main`.
+- The pre-push hook runs validate, build:check, type-check and the two gates, and deliberately skips the test suite and smoke to stay fast.
+- `oat status --scope project --hook` in pre-commit is non-blocking.
+- Docs CI is PR-only and path-scoped.
+- Deploy Docs is an independent workflow, **also** dispatchable on top of its push-to-`main` trigger. Live Provider E2E is the dispatch-**only** workflow, and nothing invokes it.
+- The Release workflow fires on `consensus-v*` / `session-v*` tags; it builds then asserts generated outputs are committed `:27-32`, reruns the static suite `:33-39`, and verifies the tag against the already-written manifests `:40-44`.
 
 ## Pre-commit: lint-staged
 

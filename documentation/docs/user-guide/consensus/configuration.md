@@ -108,35 +108,50 @@ Readiness is a state machine, not a boolean. `consensus run` is a separate comma
 
 ```mermaid
 stateDiagram-v2
-  [*] --> probing: consensus provider ls / preflight
-  probing --> missing: executable not found on PATH
+  direction TB
+  [*] --> probing: provider ls / preflight
+  probing --> missing: not on PATH
   missing: PROVIDER_MISSING
-  probing --> auth_required: version output matches an auth pattern
+  probing --> auth_required: auth pattern matched
   auth_required: PROVIDER_AUTH_REQUIRED
-  auth_required: an operator fix; nothing retries it
-  probing --> unavailable: nonzero exit or unavailable pattern
-  probing --> unavailable: version output unparseable
-  probing --> unavailable: version below the adapter minimum
-  probing --> unavailable: a required capability probe fails
+  auth_required: operator fix — nothing retries it
+  probing --> unavailable: nonzero exit or pattern
+  probing --> unavailable: version unparseable
+  probing --> unavailable: version below minimum
+  probing --> unavailable: capability probe fails
   unavailable: PROVIDER_UNAVAILABLE
   unavailable: PROVIDER_VERSION_UNPARSEABLE
   unavailable: PROVIDER_VERSION_UNSUPPORTED
   unavailable: PROVIDER_CAPABILITY_MISSING
-  probing --> ready: version at or above minimum and every requested capability probe passes
-  ready: selectable as peer, panelist, or synthesizer
+  probing --> ready: version and capabilities pass
+  ready: selectable as peer,
+  ready: panelist, or synthesizer
   missing --> [*]
   auth_required --> [*]
   unavailable --> [*]
   ready --> [*]
+```
 
-  run: consensus run
-  run: a separate command — it never probes readiness
-  run --> run_ok: envelope ok true, exit 0
+`consensus run` is a separate command and never probes readiness:
+
+```mermaid
+stateDiagram-v2
+  direction TB
+  [*] --> run: consensus run
+  run: a separate command
+  run: it never probes readiness
+  run --> run_ok: envelope ok true
+  run_ok: exit 0
   run --> run_failed: envelope ok false
-  run_failed: PROVIDER_EXIT / PROVIDER_INVALID_JSON / PROVIDER_SCHEMA_VALIDATION
-  run_failed: still exit 0 — parse the envelope, not $?
+  run_failed: PROVIDER_EXIT
+  run_failed: PROVIDER_INVALID_JSON
+  run_failed: PROVIDER_SCHEMA_VALIDATION
+  run_failed: still exit 0 — parse the envelope
   run --> usage_error: CONSENSUS_CLI_USAGE
   usage_error: the one nonzero case — exit 2
+  run_ok --> [*]
+  run_failed --> [*]
+  usage_error --> [*]
 ```
 
 _Mermaid updated 2026-09-16_

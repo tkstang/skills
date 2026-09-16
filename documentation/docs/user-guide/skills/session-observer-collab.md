@@ -176,11 +176,11 @@ Expiry, cap exhaustion, and wait timeout all silently demote to `idle`; a non-te
 ```mermaid
 stateDiagram-v2
   [*] --> armed: arm
-  armed: ready for a wake; counters and caps set
+  armed: ready for a wake — counters and caps set
   waiting: a generation-bound waiter holds the lease
   idle: no active waiter — a timeout is idle, not a waiter
   triggered: a terminal wake was consumed
-  disarmed: closeout; not terminal, arm writes a fresh lease
+  disarmed: closeout — not terminal, arm writes a fresh lease
 
   armed --> waiting: begin wait with a waiter identity
   waiting --> idle: wait-timeout

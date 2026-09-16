@@ -56,26 +56,24 @@ current session identity, and display labels are not native provider IDs.
 
 ```mermaid
 flowchart TD
-  START["Destination worktree and tab already exist<br/>this skill creates neither"]
-  EP["Entry point: source-current, source-other,<br/>or destination-fresh — it does not skip any gate<br/>(output differs for destination-fresh:<br/>an exit-current-session step is prepended)"]
-  DISC["prepare always runs discovery<br/>scoped to the provider of the selected key"]
-  CUR{"Cursor candidate?<br/>Claude and Codex skip this gate"}
-  CURQ{"cwdEvidenceQuality is<br/>independent-exact?"}
-  STOP1["Fails closed: discovery-incomplete<br/>reason cwd-evidence-incomplete<br/>Cursor stores never qualify today"]
-  SEL["Select the candidate by key<br/>choosing explicitly is instruction-level,<br/>not a code gate"]
-  QUAL{"candidate.recordedCwd equals the<br/>canonical source path?"}
-  STOP2["Throws invalid-source-candidate"]
-  AMB{"candidate.surface is ambiguous?<br/>Cursor: store-origin-ambiguous"}
-  STOP3["Returns an unsupported instruction —<br/>never a fork or resume command"]
-  EV{"Documented fork semantics for<br/>this exact provider surface?"}
-  STOP4["Cursor fork status: unsupported<br/>CLI resume is not fork semantics and<br/>must never be substituted for a fork"]
-  EVOK["claude --resume &lt;id&gt; --fork-session<br/>codex fork &lt;id&gt;"]
-  GUARD["Destination-path command guard<br/>the emitted command compares pwd -P to the<br/>canonical destination and otherwise refuses"]
-  OUT["Prepared guidance only<br/>canonical source and destination,<br/>destination dirty state, evidence, limitations"]
+  START["Destination worktree and tab exist"]
+  EP["Entry point recorded"]
+  DISC["prepare always runs discovery"]
+  CUR{"Cursor candidate?"}
+  CURQ{"cwdEvidenceQuality independent-exact?"}
+  STOP1["discovery-incomplete"]
+  SEL["Select the candidate by key"]
+  QUAL{"recordedCwd equals canonical source?"}
+  STOP2["invalid-source-candidate"]
+  AMB{"Surface ambiguous?"}
+  STOP3["unsupported instruction, no command"]
+  EV{"Fork semantics documented?"}
+  STOP4["Cursor fork unsupported"]
+  EVOK["claude --fork-session · codex fork"]
+  GUARD["pwd -P destination guard"]
+  OUT["Prepared guidance only"]
 
-  START --> EP
-  EP --> DISC
-  DISC --> CUR
+  START --> EP --> DISC --> CUR
   CUR -->|yes| CURQ
   CUR -->|no| SEL
   CURQ -->|no| STOP1
@@ -86,12 +84,21 @@ flowchart TD
   AMB -->|yes| STOP3
   AMB -->|no| EV
   EV -->|no| STOP4
-  EV -->|yes| EVOK
-  EVOK --> GUARD
-  GUARD --> OUT
+  EV -->|yes| EVOK --> GUARD --> OUT
 ```
 
 _Mermaid updated 2026-09-16_
+
+What the diagram compresses:
+
+- `prepare` always runs discovery, whatever the entry point.
+- The entry point is recorded on the output rather than branching the gates, but `destination-fresh` prepends an `exit-current-session` instruction when `destinationSwitch.status !== 'documented'`.
+- The `cwdEvidenceQuality` gate is Cursor-only: `provider === 'cursor' && transcript.cwdEvidenceQuality !== 'independent-exact'`. Claude and Codex candidates never enter it. Cursor stores never qualify today, so Cursor always stops at `discovery-incomplete` with reason `cwd-evidence-incomplete`.
+- Choosing a candidate explicitly is instruction-level, not a code gate.
+- `recordedCwd` must equal the canonical source path or `prepareForkGuidance` throws `invalid-source-candidate`. This runs **before** the ambiguous-surface refusal at `:123` and before any capability lookup.
+- An ambiguous surface (Cursor, `store-origin-ambiguous`.
+- Documented fork semantics: Claude `--resume <id> --fork-session`; Codex `codex fork <id>`; Cursor fork `status: 'unsupported'`.
+- The emitted command compares `pwd -P` against the canonical destination and otherwise refuses.
 
 ## Prepare guidance
 
