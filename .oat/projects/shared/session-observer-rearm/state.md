@@ -15,6 +15,10 @@ oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
 oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -105,7 +109,9 @@ Plan - Authoring a single-phase lite plan
 - ✓ Lite project scaffolded
 - ✓ User brief recorded as the critical interview
 - ✓ Single-phase plan authored and validated
-- ⧗ Awaiting approval, artifact review, and configured exit gate
+- ✓ Plan approved from the explicit user instruction
+- ✓ Structured plan artifact review passed after one fix cycle
+- ⧗ Awaiting the configured lite exit gate
 
 ## Blockers
 

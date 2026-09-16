@@ -6,7 +6,6 @@ oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: []
 oat_plan_parallel_groups: []
 oat_plan_source: lite
 oat_import_reference: null
@@ -34,6 +33,8 @@ If a failing case is confined to the current watcher/observer boundary and can b
 - Do not add speculative signal handlers, blanket raw-gap alarms, or unsafe rollback of shared legacy state. A broader acknowledgment/checkpoint redesign requires a separate decision.
 - Close and archive `BL-260916-session-observer-re-armed` only if the bounded evidence and shipping guidance satisfy every acceptance criterion; otherwise retain it as open with precise remaining work.
 - **Lite fit:** The evidence, regression matrix, guidance, generated payloads, and conditional backlog disposition form one sequential implementation sitting; the broader legacy acknowledgment/CAS redesign is an explicit stop boundary, not an unresolved decision inside this plan.
+- **Approval:** Approved from the user's explicit request to use `oat-project-lite` to handle the ticket; the single approval control returned no replacement selection, so the original instruction remains authoritative.
+- **Dispatch and gates:** Project dispatch uses the managed `high` ceiling requested by the user's Sol instruction. The configured lite plan gate and implementation final-code gate remain enabled; no project override, phase gate, or HiLL checkpoint was added.
 
 ## Product Behavior
 
@@ -67,8 +68,8 @@ If a failing case is confined to the current watcher/observer boundary and can b
 
 ## Validation Criteria
 
-- [ ] Exact-pin restart tests prove a known renderable message is emitted after clean SIGTERM and normal max-runtime stop, with captured `fromIndex`/`nextIndex`, persisted state, digest content, and stdout evidence — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts`
-- [ ] Deterministic coverage separately proves filtered-only advancement, startup appends, and same-target competing-consumer behavior without timing sleeps — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts`
+- [ ] Exact `codex:<session-id>` restart tests prove a known renderable message is emitted after clean SIGTERM and normal max-runtime stop, with captured `fromIndex`/`nextIndex`, persisted state, digest content, and stdout evidence — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts`
+- [ ] A deterministic negative control injects legacy stdout failure after persisted consumption, restarts the exact pin, and proves whether replay occurs; filtered-only advancement, startup appends, and same-target competing-consumer behavior are covered separately without timing sleeps — Check: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
 - [ ] Canonical Claude Code guidance states the bounded re-arm procedure, corrects the duration claim, and distinguishes process output from live agent delivery — Check: `pnpm run test:vitest src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts`
 - [ ] Affected skill versions are bumped and generated standalone/plugin payloads match canonical sources — Check: `pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run build:check`
 - [ ] Normal repository gates pass without live-provider execution — Check: `pnpm run premerge`
@@ -90,6 +91,9 @@ This plan has one phase and executes sequentially.
 - Modify if required by a demonstrated bounded defect: `src/skills/session-observer/src/lib/state.ts`
 - Modify if needed for checkpoint characterization: `src/skills/session-observer/src/observe.test.ts`
 - Modify if needed for process-level failure characterization: `src/skills/session-observer/src/integration.test.ts`
+- Modify: `src/skills/session-observer/SKILL.md`
+- Modify: `src/skills/session-observer-collab/SKILL.md`
+- Regenerate: declared `skills/` and `plugins/consensus/skills/` outputs for both affected owners
 
 **Implementation and Proof Strategy:**
 
@@ -99,26 +103,26 @@ This plan has one phase and executes sequentially.
 
 **Step 1: Implement**
 
-Add reusable deterministic fixture helpers only where they reduce duplication. First preserve a failing or characterization reproduction for SIGTERM and max-runtime re-arm with a known assistant message appended while stopped. Add separate cases for filtered-only records, an append during re-arm startup, and a same-target competing consumer. Assert raw ranges, rendered ranges/content, saved offset, stdout chunks, and single-consumer ownership independently. If a supported clean path loses content, fix the smallest safe watcher/observer boundary and keep the pre-fix test. If the only unsafe path needs cross-consumer acknowledgment/CAS, record it as an explicit limitation rather than implementing a partial rollback.
+Add reusable deterministic fixture helpers only where they reduce duplication. First preserve SIGTERM and max-runtime two-lifetime reproductions using an exact `codex:<session-id>` pin and a known assistant message appended while stopped. Add a negative control that injects a rejecting or incomplete legacy stdout sink after `observeCatchUp()` advances state, asserts the write failure and persisted `lastRecordIndex`, restarts the exact pin, and records whether the digest replays; this characterizes the broader acknowledgment/CAS stop boundary rather than authorizing speculative rollback. Add separate cases for filtered-only records, an append during re-arm startup, and a same-target competing consumer. Assert raw ranges, rendered ranges/content, saved offset, stdout chunks, and single-consumer ownership independently. If a supported clean path loses content, fix the smallest safe watcher/observer boundary and keep the pre-fix test. Bump both affected skill versions, run the canonical build, and include generated observer/collaboration payloads in this independently valid commit.
 
 **Step 2: Prove**
 
-Run: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
-Expected: All deterministic cases pass; removing catch-up-first emission/startup reconciliation or any bounded defect fix makes the corresponding regression fail. Output evidence proves only persistence and stdout boundaries.
+Run: `pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run build:check`
+Expected: All deterministic cases pass; removing catch-up-first emission/startup reconciliation or the negative stdout-failure control makes the corresponding regression fail. Affected versions and generated payloads are current. Output evidence proves only persistence and stdout boundaries.
 
 **Step 3: Refactor and format**
 
-Keep helpers colocated, avoid timing sleeps, and run `pnpm exec oxfmt --write src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts src/skills/session-observer/src/lib/watch.ts src/skills/session-observer/src/lib/observe.ts src/skills/session-observer/src/lib/state.ts` on files actually changed.
+Keep helpers colocated, avoid timing sleeps, and run `pnpm exec oxfmt --write src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts src/skills/session-observer/src/lib/watch.ts src/skills/session-observer/src/lib/observe.ts src/skills/session-observer/src/lib/state.ts src/skills/session-observer/SKILL.md src/skills/session-observer-collab/SKILL.md` on files actually changed, then run `pnpm run build`; do not format generated outputs separately.
 
 **Step 4: Verify**
 
-Run: `pnpm run type-check && pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts`
-Expected: No errors; the evidence explicitly separates persisted consumption, stdout emission, and unverified harness delivery.
+Run: `pnpm run type-check && pnpm run test:vitest src/skills/session-observer/src/watch.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/integration.test.ts && pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main`
+Expected: No errors; the evidence explicitly separates persisted consumption, stdout emission, and unverified harness delivery, and the commit satisfies version/generated-output invariants.
 
 **Step 5: Commit**
 
 ```bash
-git add src/skills/session-observer/src
+git add src/skills/session-observer src/skills/session-observer-collab/SKILL.md skills/session-observer skills/session-observer-collab plugins/consensus/skills/observer plugins/consensus/skills/observer-collab
 git commit -m "test(session-observer): cover exact-pin re-arm boundaries"
 ```
 
@@ -130,8 +134,6 @@ git commit -m "test(session-observer): cover exact-pin re-arm boundaries"
 
 - Modify: `src/skills/session-observer-collab/references/runtime-claude-code.md`
 - Modify: `src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts`
-- Modify: `src/skills/session-observer/SKILL.md`
-- Modify: `src/skills/session-observer-collab/SKILL.md`
 - Regenerate: declared `skills/` and `plugins/consensus/skills/` outputs for the affected owners
 
 **Implementation and Proof Strategy:**
@@ -142,7 +144,7 @@ git commit -m "test(session-observer): cover exact-pin re-arm boundaries"
 
 **Step 1: Implement**
 
-Replace the stale re-arm section with the verified exact-pin `catch-up-then-watch` sequence, range/state interpretation, clean-stop behavior, and explicit pre-stdout/harness-delivery limits. Reword the observed Monitor duration as session-specific evidence rather than a cap. Update the focused contract test, bump every affected canonical skill's patch version according to the transitive source rules, and run the canonical build.
+Replace the stale re-arm section with the verified exact-pin `catch-up-then-watch` sequence, range/state interpretation, clean-stop behavior, and explicit pre-stdout/harness-delivery limits. Reword the observed Monitor duration as session-specific evidence rather than a cap. Update the focused contract test and run the canonical build; the required affected-skill version bumps were already committed with p01-t01 so this task remains independently valid.
 
 **Step 2: Prove**
 
@@ -151,7 +153,7 @@ Expected: The procedure/limitation assertions, version impact, and all declared 
 
 **Step 3: Refactor and format**
 
-Run `pnpm exec oxfmt --write src/skills/session-observer-collab/references/runtime-claude-code.md src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts src/skills/session-observer/SKILL.md src/skills/session-observer-collab/SKILL.md` before `pnpm run build`; do not format generated outputs separately.
+Run `pnpm exec oxfmt --write src/skills/session-observer-collab/references/runtime-claude-code.md src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts` before `pnpm run build`; do not format generated outputs separately.
 
 **Step 4: Verify**
 
@@ -217,7 +219,7 @@ git commit -m "chore(pjm): disposition observer re-arm investigation"
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
+| plan   | artifact | passed  | 2026-09-16 | plan.md  | working-tree@46f49d3 | oat-reviewer-gpt-5-6-sol-high (retry 1) | managed high |
 
 ## Implementation Complete
 
