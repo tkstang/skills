@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues:
@@ -13,8 +13,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -91,13 +91,13 @@ oat_generated: false
 
 # Project State: session-observer-rearm
 
-**Status:** Plan complete — ready for implementation
+**Status:** Implementation in progress
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Plan complete — implementation starts at `p01-t01`
+Implementing Phase 1 from `p01-t01`
 
 ## Artifacts
 
@@ -115,6 +115,7 @@ Plan complete — implementation starts at `p01-t01`
 - ✓ Seven sub-threshold artifact findings resolved in the plan
 - ✓ Gate review archived and receive bookkeeping committed
 - ✓ Lite plan ready for `oat-project-implement`
+- → Phase 1 managed implementation dispatch prepared
 
 ## Blockers
 
@@ -122,4 +123,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement` starting at `p01-t01`
+Complete Phase 1 implementation and root-owned review

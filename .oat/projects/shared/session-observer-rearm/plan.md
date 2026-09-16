@@ -7,6 +7,7 @@ oat_last_updated: 2026-09-16
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
+oat_auto_review_at_hill_checkpoints: false # lite: no checkpoints
 oat_plan_source: lite
 oat_import_reference: null
 oat_import_source_path: null
