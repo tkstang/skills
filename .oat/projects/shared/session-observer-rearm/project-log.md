@@ -52,6 +52,10 @@ p01-phase-outcome-bfb7fc08 status=passed tasks=3/3 commits=74a68ee2,74240d78,739
 
 final-lint-generated-exclusions-20260916: Generic `pnpm lint` scanned generated/OAT mirrors under `.claude/skills/**` and failed on unchanged baseline rules, while repository guidance explicitly excludes those mirrors and CI/premerge lint only the changed authored files. The bounded closeout used the passing changed authored-file lint plus the green premerge, type-check, build, and generated-parity gates rather than widening this ticket into unrelated tooling cleanup.
 
+### 2026-09-16 · structural · oat gate review · final
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:0 exit=0 status=ok artifact=.oat/projects/shared/session-observer-rearm/reviews/final-review-2026-09-16T220057Z.md run=5d81d0bd-08cf-4353-be4c-1fba7b9c14f6
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -58,15 +58,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da
   freshness_head: 8fe69831d9fb0c24245d2ca4c3d25633b7d4099c
   freshness_fingerprint: sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da
-  launch_state: intent_persisted
+  launch_state: result_persisted
   launch_attempt_id: a125489d-a2c4-4d7f-962e-430369696004
   launch_started_at: '2026-09-16T21:54:50Z'
   launch_result_receipt: .oat/projects/shared/session-observer-rearm/gate-receipts/a125489d-a2c4-4d7f-962e-430369696004.json
-  gate_run_marker: null
-  gate_run_id: null
-  envelope_status: null
-  artifact: null
-  handoff: null
+  gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/5d81d0bd-08cf-4353-be4c-1fba7b9c14f6.json
+  gate_run_id: 5d81d0bd-08cf-4353-be4c-1fba7b9c14f6
+  envelope_status: ok
+  artifact: .oat/projects/shared/session-observer-rearm/reviews/final-review-2026-09-16T220057Z.md
+  handoff: 'Run oat-project-review-receive for .oat/projects/shared/session-observer-rearm/reviews/final-review-2026-09-16T220057Z.md before treating this gate review as consumed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -74,10 +74,10 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-16T21:54:50Z'
+  updated_at: '2026-09-16T22:06:07Z'
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -121,7 +121,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T20:19:22.898Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-16T21:54:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-16T22:06:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 

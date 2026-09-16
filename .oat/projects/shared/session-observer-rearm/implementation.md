@@ -255,7 +255,10 @@ oat_generated: false
 **Implementation fingerprint:** `sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da`.
 **Configuration fingerprint:** `sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324`.
 **Launch attempt:** `a125489d-a2c4-4d7f-962e-430369696004`; intent persisted with receipt `.oat/projects/shared/session-observer-rearm/gate-receipts/a125489d-a2c4-4d7f-962e-430369696004.json`.
-**Status:** Launch intent persisted; the configured command will be executed unchanged.
+**Gate run:** `5d81d0bd-08cf-4353-be4c-1fba7b9c14f6`; target `claude-fable-skip-permissions`; reviewer family `claude`, different from the OpenAI implementation family.
+**Envelope:** `ok`, receive eligible, 0 Critical, 0 Important, 0 Medium, 0 Minor; artifact `reviews/final-review-2026-09-16T220057Z.md` committed at `fadae61e`.
+**Reconciliation:** The configured gate completed and wrote a valid receipt before the local zsh wrapper attempted to assign its exit code to the read-only `status` variable. The durable receipt, artifact, run ID, and gate marker event corroborate the terminal result; no relaunch occurred.
+**Status:** Result persisted; eligible receive is pending.
 
 ## Deviations from Plan / Design
 
