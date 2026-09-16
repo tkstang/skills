@@ -1,6 +1,8 @@
 {
+  "title": "Architecture",
+  "pagesIndex": "[Overview](/engineering/architecture)",
   "pages": [
-    "index",
+    "../repository-layout",
     "generated-runtime",
     "transcript-core",
     "cursor-collaboration-reliability"

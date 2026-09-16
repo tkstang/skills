@@ -1,9 +1,9 @@
 ---
-title: 'Skills'
-description: 'Canonical session skills, their plugin-local and optional standalone forms, and the standalone complexity review.'
+title: 'Standalone Skills'
+description: 'Find independently installable skills by capability, including members also available through Consensus or Session.'
 ---
 
-# Skills
+# Standalone Skills
 
 Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
@@ -54,12 +54,23 @@ and standalone choices.
 
 ## Contents
 
+### Decide what to do
+
 - [Next Steps](next-steps.md) - Explain the current state and recommend justified actions without executing them.
 - [Must We?](must-we.md) - Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
+
+### Review and improve
+
+- [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
 - [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; available standalone or as Session `retro`.
+
+### Preserve and continue
+
 - [Session Handoff](session-handoff.md) - Prepare portable continuation context with optional observer and transcript-export integrations.
 - [Session Export Transcript](session-export-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
 - [Session Fork to Destination](session-fork-to-destination.md) - Prepare experimental, read-only destination-tab fork guidance without invoking a provider.
+
+### Observe and collaborate
+
 - [Session Observer](session-observer.md) - Review a peer coding agent's session with tool-free digests, per-session read offsets, and foreground watch mode.
-- [Session Observer Collaboration](session-observer-collab.md) - Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.
-- [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
+- [Collaborative Observer](session-observer-collab.md) - Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.

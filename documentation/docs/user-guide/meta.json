@@ -1,9 +1,5 @@
 {
-  "pages": [
-    "installation",
-    "---Consensus---",
-    "consensus",
-    "---Skills---",
-    "skills"
-  ]
+  "title": "User Guide",
+  "pagesIndex": "[Overview](/user-guide)",
+  "pages": ["getting-started", "plugins", "skills"]
 }

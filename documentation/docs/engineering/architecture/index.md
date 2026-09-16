@@ -40,6 +40,7 @@ Three pieces of this architecture have their own pages:
 
 ## Contents
 
+- [Repository Layout](../repository-layout.md) — Find authored source, generated installation units, manifests, and developer tooling.
 - [Generated installation units](generated-runtime.md) — The canonical-owner → complete standalone/plugin payload build contract and the never-hand-edit rule.
 - [Shared transcript-core](transcript-core.md) — One source of truth for per-provider transcript knowledge, with a committed generated copy per consuming skill.
 - [Cursor collaboration reliability](cursor-collaboration-reliability.md) — Exact identity, content-first observation, state continuity, and lease-scoped completion for Cursor collaboration.

@@ -124,10 +124,12 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 ## Contents
 
 - [Create](create.md) - `create` usage: brief inputs, `independent_draft` defaults, output contract, and input handling.
-- [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
 - [Plan](plan.md) - `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
+- [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
-- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
 - [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
+- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
+- [Observer](../skills/session-observer.md) - Read and watch a pinned peer session; also available standalone as `session-observer`.
+- [Collaborative Observer](../skills/session-observer-collab.md) - Coordinate two sessions with explicit authority boundaries; also available standalone as `session-observer-collab`.
 - [Configuration](configuration.md) - Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.

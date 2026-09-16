@@ -1,0 +1,5 @@
+{
+  "title": "Operations",
+  "pagesIndex": "[Overview](/engineering/operations)",
+  "pages": ["ci", "releases-and-versioning"]
+}

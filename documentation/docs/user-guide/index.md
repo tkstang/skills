@@ -5,16 +5,16 @@ description: 'Install and use the consensus and session plugins or their declare
 
 # User Guide
 
-How to install and use what this repo ships. Everything here is consumer-facing:
-install commands, usage, capabilities, configuration, and limitations. For
-internals and contribution guidance, see the [Engineering](../engineering/index.md)
-trunk instead.
+Install, use, and configure the skills in this collection. New here? Start with
+[Getting Started](getting-started/index.md). For implementation details and
+contribution guidance, see [Engineering](../engineering/index.md).
 
 What ships today:
 
 - **Consensus plugin** — `create`, `decide`, and `plan` start from a brief,
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
-  audit trails; `phone-a-friend` asks one peer for a one-shot advisory take;
+  audit trails; `panel` collects attributed perspectives; `phone-a-friend`
+  asks one peer for a one-shot advisory take;
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `retro`, `handoff`, `export-transcript`, and
   `fork-to-destination` cover bounded review, continuation, sanitized export,
@@ -23,8 +23,14 @@ What ships today:
   `session-*` names; `next-steps`, `must-we`, and `complexity-review`
   remain standalone only.
 
+Plugin and standalone entries share canonical guides rather than duplicate
+documentation. Pick by the task you want to accomplish, then use the guide's
+installation names for the form you have installed.
+
 ## Contents
 
-- [Installation](installation.md) — Choose plugin or standalone forms, install per provider, and check prerequisites and release evidence.
-- [Consensus](consensus/index.md) — Overview, peer workflows, session observation members, and shared configuration.
-- [Skills](skills/index.md) — Choose portable continuation, sanitized export, or same-provider native fork guidance, then find canonical and plugin-local skill names.
+- [Getting Started](getting-started/index.md) — Choose an installation form and try a bounded request.
+- [Plugins](plugins/index.md) — Compare Consensus and Session, then explore their members.
+- [Standalone Skills](skills/index.md) — Find every independently installable skill by capability.
+- [Installation](installation.md) — The canonical provider setup and update reference, also under Getting Started in the sidebar.
+- [Consensus](consensus/index.md) — The canonical Consensus guides, grouped under Plugins in the sidebar.

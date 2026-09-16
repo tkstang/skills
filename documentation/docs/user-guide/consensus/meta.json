@@ -1,13 +1,21 @@
 {
+  "title": "Consensus",
+  "pagesIndex": "[Overview](/user-guide/consensus)",
   "pages": [
-    "index",
+    "---Create, Plan & Decide---",
     "create",
-    "decide",
     "plan",
+    "decide",
+    "---Improve & Assess---",
     "refine",
     "evaluate",
-    "panel",
+    "---Consult Peers---",
     "phone-a-friend",
+    "panel",
+    "---Observe & Collaborate---",
+    "[Observer](/user-guide/skills/session-observer)",
+    "[Collaborative Observer](/user-guide/skills/session-observer-collab)",
+    "---Reference---",
     "configuration"
   ]
 }

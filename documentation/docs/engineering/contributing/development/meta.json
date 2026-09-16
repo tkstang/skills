@@ -1,6 +1,7 @@
 {
+  "title": "Development",
+  "pagesIndex": "[Setup & Workflow](/engineering/contributing/development)",
   "pages": [
-    "index",
     "adding-a-skill",
     "conventions",
     "commit-conventions",

@@ -1,14 +1,19 @@
 {
+  "title": "Standalone Skills",
+  "pagesIndex": "[Overview](/user-guide/skills)",
   "pages": [
-    "index",
+    "---Decide What to Do---",
     "next-steps",
     "must-we",
+    "---Review & Improve---",
+    "complexity-review",
     "session-retro",
+    "---Preserve & Continue---",
     "session-handoff",
     "session-export-transcript",
     "session-fork-to-destination",
+    "---Observe & Collaborate---",
     "session-observer",
-    "session-observer-collab",
-    "complexity-review"
+    "[Collaborative Observer](/user-guide/skills/session-observer-collab)"
   ]
 }
