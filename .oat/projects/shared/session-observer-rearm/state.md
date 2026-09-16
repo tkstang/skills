@@ -58,10 +58,10 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da
   freshness_head: 8fe69831d9fb0c24245d2ca4c3d25633b7d4099c
   freshness_fingerprint: sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da
-  launch_state: not_started
-  launch_attempt_id: null
-  launch_started_at: null
-  launch_result_receipt: null
+  launch_state: intent_persisted
+  launch_attempt_id: a125489d-a2c4-4d7f-962e-430369696004
+  launch_started_at: '2026-09-16T21:54:50Z'
+  launch_result_receipt: .oat/projects/shared/session-observer-rearm/gate-receipts/a125489d-a2c4-4d7f-962e-430369696004.json
   gate_run_marker: null
   gate_run_id: null
   envelope_status: null

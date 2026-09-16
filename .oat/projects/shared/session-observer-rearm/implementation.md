@@ -254,7 +254,8 @@ oat_generated: false
 **Reviewed basis:** `8fe69831d9fb0c24245d2ca4c3d25633b7d4099c` against logical base `origin/main`.
 **Implementation fingerprint:** `sha256:effective-delta-v1:30512d5c2f6df89bc6e02c65d2d4cf37dc515bb4edd5c434031a265957c2a8da`.
 **Configuration fingerprint:** `sha256:023ab163cd770b4124039ed932d22aacab2370148d7379074b4f78e0bcaaf324`.
-**Status:** Pending launch; the configured command will be executed unchanged after launch intent is durably recorded.
+**Launch attempt:** `a125489d-a2c4-4d7f-962e-430369696004`; intent persisted with receipt `.oat/projects/shared/session-observer-rearm/gate-receipts/a125489d-a2c4-4d7f-962e-430369696004.json`.
+**Status:** Launch intent persisted; the configured command will be executed unchanged.
 
 ## Deviations from Plan / Design
 
