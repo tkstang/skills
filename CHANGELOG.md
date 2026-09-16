@@ -4,6 +4,15 @@
 
 ### Added
 
+- `next-steps` 1.0.0 standalone skill for contextual, justified recommendations
+  that do not execute the proposed work.
+- `must-we` 1.0.0 standalone skill for evidence-based necessity verdicts and
+  smaller sufficient alternatives; “do we need to” remains a natural-language
+  cue rather than an installed alias.
+- `session-retro` 1.0.0 as a standalone skill and Session plugin member
+  `retro`, with a bundled report template, optional observer integration, and
+  read-only privacy boundaries.
+- `session` plugin 0.2.0 adds `retro` without requiring the Consensus plugin.
 - `complexity-review` 1.0.2 standalone instruction-only skill, promoted from its newer public-safe personal source with its evidence guide: restates the contract and minimum proof, establishes the simplest viable baseline, inventories complexity including process ceremony, applies the deletion test, and reports a keep/simplify/defer/delete ledger with graded evidence and reintroduction triggers.
 - `consensus-create` skill for generating a new artifact from a brief with v3 defaults (`independent_draft`, `parallel_synthesized`, `maximum`), optional templates, generated runtime output, bundled brief examples, a deliberation log, and `consensus-resolution` metadata including peer and synthesis call counts.
 - `consensus-decide` skill for choosing between documented options with v3 defaults (`independent_draft`, `parallel_synthesized`, `minimal`), required markdown headings including `## Dissent / Unresolved Disagreement`, generated runtime output, bundled options examples, a deliberation log, and `consensus-resolution` metadata.

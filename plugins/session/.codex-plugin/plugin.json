@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "0.1.0",
-  "description": "Session handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+  "version": "0.2.0",
+  "description": "Session retrospective, handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Session",
-    "shortDescription": "Handoff, export, and prepare destination-side session forks.",
-    "longDescription": "Session skills for transferring bounded coding context, exporting sanitized conversations, and preparing read-only destination-tab fork instructions.",
+    "shortDescription": "Review, hand off, export, and prepare destination-side session forks.",
+    "longDescription": "Session skills for reviewing bounded episodes, transferring coding context, exporting sanitized conversations, and preparing read-only destination-tab fork instructions.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use Session Export Transcript to save a sanitized conversation or Session Fork to Destination to prepare destination-tab instructions."
+      "Use Session Retro to review a bounded episode, Session Export Transcript to save a sanitized conversation, or Session Fork to Destination to prepare destination-tab instructions."
     ]
   },
   "metadata": {

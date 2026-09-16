@@ -925,6 +925,12 @@ describe('representative real installation boundaries', () => {
       path.join(repositoryRoot, 'src/skills/complexity-review'),
       path.join(root, 'src/skills/complexity-review'),
     );
+    for (const skill of ['must-we', 'next-steps', 'session-retro']) {
+      await copySkillResources(
+        path.join(repositoryRoot, 'src/skills', skill),
+        path.join(root, 'src/skills', skill),
+      );
+    }
 
     await copyIfPresent(
       path.join(repositoryRoot, 'src/skills/session-export-transcript'),
@@ -994,6 +1000,8 @@ describe('representative real installation boundaries', () => {
 
     const declarations: DistributionDeclaration[] = [
       target('complexity-review'),
+      distributions.find((declaration) => declaration.owner === 'must-we')!,
+      target('next-steps'),
       target('session-export-transcript', {
         allowedSourceRoots: ['src/shared/transcript'],
         targets: [
@@ -1012,6 +1020,9 @@ describe('representative real installation boundaries', () => {
       }),
       distributions.find(
         (declaration) => declaration.owner === 'session-handoff',
+      )!,
+      distributions.find(
+        (declaration) => declaration.owner === 'session-retro',
       )!,
       ...consensusDeclarations.map((declaration) =>
         target(declaration.owner, {
@@ -1045,6 +1056,36 @@ describe('representative real installation boundaries', () => {
       'SKILL.md',
       'references/evidence-guide.md',
     ]);
+
+    for (const installedSkill of ['skills/must-we', 'skills/next-steps']) {
+      expect(
+        (await inventoryTree(path.join(root, installedSkill))).map(
+          (entry) => entry.path,
+        ),
+      ).toEqual(['SKILL.md']);
+    }
+
+    for (const [installedRetro, expectedName] of [
+      ['skills/session-retro', 'session-retro'],
+      ['plugins/session/skills/retro', 'retro'],
+    ] as const) {
+      const retroFiles = await inventoryTree(path.join(root, installedRetro));
+      expect(retroFiles.map((entry) => entry.path)).toEqual([
+        'SKILL.md',
+        'assets/report-template.md',
+      ]);
+      const retroInstruction = await readFile(
+        path.join(root, installedRetro, 'SKILL.md'),
+        'utf8',
+      );
+      expect(retroInstruction).toMatch(
+        new RegExp(`^name: ${expectedName}$`, 'm'),
+      );
+      expect(retroInstruction).toContain(
+        'An optional transcript reader such as `session-observer`',
+      );
+      expect(retroInstruction).not.toContain('{{');
+    }
 
     for (const installedHandoff of [
       'skills/session-handoff',

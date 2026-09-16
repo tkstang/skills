@@ -43,7 +43,7 @@ it's just `/refine`.
 
 The repo now declares two independently versioned plugins. **Consensus** owns
 peer deliberation plus session observation/collaboration; **Session** owns
-handoff, sanitized export, and destination-fork guidance.
+retrospective review, handoff, sanitized export, and destination-fork guidance.
 
 ### Consensus skills
 
@@ -65,18 +65,22 @@ handoff, sanitized export, and destination-fork guidance.
 
 | Plugin-local skill    | Standalone name               | What it does                                       |
 | --------------------- | ----------------------------- | -------------------------------------------------- |
+| `retro`               | `session-retro`               | Review a bounded episode without applying findings |
 | `handoff`             | `session-handoff`             | Prepare concise continuation context               |
 | `export-transcript`   | `session-export-transcript`   | Export a sanitized Markdown transcript             |
 | `fork-to-destination` | `session-fork-to-destination` | Prepare experimental destination-tab fork guidance |
 
 ## Optional standalone skills
 
-Six skills have explicitly generated standalone forms. Installing a plugin and
+Nine skills have explicitly generated standalone forms. Installing a plugin and
 its standalone form together may expose duplicate host entries; choose one form
 unless you have verified how your host resolves duplicates.
 
 | Skill                         | What it does                                                                                                                                               |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next-steps`                  | Explain the situation and recommend justified next actions without executing them                                                                          |
+| `must-we`                     | Decide whether a blocker or proposed action is necessary and identify the smallest sufficient path                                                         |
+| `session-retro`               | Review one skill invocation or bounded session episode and report evidence-backed findings without applying them                                           |
 | `session-observer`            | Digest another runtime's transcript for this project — tool-free, and tracks a read offset so repeat checks show only what's new                           |
 | `session-observer-collab`     | Coordination protocol for two mutually-watching sessions plus the human — pinned review, bounded wake behavior, explicit authority rules                   |
 | `session-export-transcript`   | Export your own session to sanitized, branch-named Markdown — tool calls and hidden payloads stripped                                                      |

@@ -76,6 +76,35 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'must-we',
+    source: 'src/skills/must-we',
+    optionalSkills: [
+      {
+        name: 'complexity-review',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/complexity-review',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'must-we',
+        output: 'skills/must-we',
+      },
+    ],
+  },
+  {
+    owner: 'next-steps',
+    source: 'src/skills/next-steps',
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'next-steps',
+        output: 'skills/next-steps',
+      },
+    ],
+  },
+  {
     owner: 'session-handoff',
     source: 'src/skills/session-handoff',
     optionalSkills: [
@@ -119,6 +148,30 @@ export const distributions: readonly DistributionDeclaration[] = [
         plugin: 'consensus',
         name: 'observer',
         output: 'plugins/consensus/skills/observer',
+      },
+    ],
+  },
+  {
+    owner: 'session-retro',
+    source: 'src/skills/session-retro',
+    optionalSkills: [
+      {
+        name: 'session-observer',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'session-retro',
+        output: 'skills/session-retro',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'retro',
+        output: 'plugins/session/skills/retro',
       },
     ],
   },

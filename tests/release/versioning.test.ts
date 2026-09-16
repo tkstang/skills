@@ -40,9 +40,12 @@ const skillFiles = [
   'src/skills/session-fork-to-destination/SKILL.md',
   'src/skills/session-handoff/SKILL.md',
   'src/skills/complexity-review/SKILL.md',
+  'src/skills/must-we/SKILL.md',
+  'src/skills/next-steps/SKILL.md',
   'src/skills/session-observer/SKILL.md',
   'src/skills/session-observer-collab/SKILL.md',
   'src/skills/session-export-transcript/SKILL.md',
+  'src/skills/session-retro/SKILL.md',
   'src/skills/refine/SKILL.md',
   'src/skills/evaluate/SKILL.md',
   'src/skills/create/SKILL.md',
@@ -56,6 +59,10 @@ const generatedSkillFiles = [
   'plugins/session/skills/export-transcript/SKILL.md',
   'plugins/session/skills/fork-to-destination/SKILL.md',
   'plugins/session/skills/handoff/SKILL.md',
+  'plugins/session/skills/retro/SKILL.md',
+  'skills/must-we/SKILL.md',
+  'skills/next-steps/SKILL.md',
+  'skills/session-retro/SKILL.md',
   'skills/session-fork-to-destination/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
 ];
@@ -308,6 +315,8 @@ describe('release-versioning', () => {
       'src/skills/create/SKILL.md',
       'src/skills/decide/SKILL.md',
       'src/skills/evaluate/SKILL.md',
+      'src/skills/must-we/SKILL.md',
+      'src/skills/next-steps/SKILL.md',
       'src/skills/panel/SKILL.md',
       'src/skills/phone-a-friend/SKILL.md',
       'src/skills/plan/SKILL.md',
@@ -317,6 +326,7 @@ describe('release-versioning', () => {
       'src/skills/session-handoff/SKILL.md',
       'src/skills/session-observer-collab/SKILL.md',
       'src/skills/session-observer/SKILL.md',
+      'src/skills/session-retro/SKILL.md',
     ]);
   });
 

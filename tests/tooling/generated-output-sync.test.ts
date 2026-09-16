@@ -268,6 +268,9 @@ describe('generated output drift guard', () => {
   });
 
   it('includes complete standalone outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('skills/must-we');
+    expect(generatedOutputRoots).toContain('skills/next-steps');
+    expect(generatedOutputRoots).toContain('skills/session-retro');
     expect(generatedOutputRoots).toContain('skills/session-observer');
     expect(generatedOutputRoots).toContain('skills/session-export-transcript');
     expect(generatedOutputRoots).toContain(
@@ -289,6 +292,7 @@ describe('generated output drift guard', () => {
     expect(generatedOutputRoots).toContain(
       'plugins/session/skills/fork-to-destination',
     );
+    expect(generatedOutputRoots).toContain('plugins/session/skills/retro');
   });
 
   it('covers generated roots in static lint and format configs', async () => {
