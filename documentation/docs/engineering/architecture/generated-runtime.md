@@ -71,9 +71,12 @@ plugin by itself.
 | `src/skills/session-observer`                                                          | `skills/session-observer/` and `plugins/consensus/skills/observer/`                     |
 | `src/skills/session-observer-collab`                                                   | `skills/session-observer-collab/` and `plugins/consensus/skills/observer-collab/`       |
 | `src/skills/session-handoff`                                                           | `skills/session-handoff/` and `plugins/session/skills/handoff/`                         |
+| `src/skills/session-retro`                                                             | `skills/session-retro/` and `plugins/session/skills/retro/`                             |
 | `src/skills/session-export-transcript`                                                 | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
 | `src/skills/session-fork-to-destination`                                               | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
 | `src/skills/complexity-review`                                                         | `skills/complexity-review/` only                                                        |
+| `src/skills/next-steps`                                                                | `skills/next-steps/` only                                                               |
+| `src/skills/must-we`                                                                   | `skills/must-we/` only                                                                  |
 
 Executable owners declare entrypoints in `build.json`; prompt-only skills do
 not need one. The build follows actual imports into permitted shared roots,
@@ -103,6 +106,7 @@ flowchart LR
   COLLAB["session-observer-collab"] -.->|requires installed workflow| OBSERVER
   HANDOFF["session-handoff"] -.->|optional integration| OBSERVER
   HANDOFF -.->|optional integration| EXPORT
+  RETRO["session-retro"] -.->|optional integration| OBSERVER
 ```
 
 The distribution declaration carries required and optional workflow references
@@ -145,9 +149,10 @@ through the existing pinned provider-CLI recovery path at
 
 The session plugin is a separate complete package. `export-transcript` and
 `fork-to-destination` each carry their own bundled runtime closure inside their
-skill directory; `handoff` is instruction-only with a bundled template. Their
+skill directory; `handoff` and `retro` are instruction-only with bundled
+templates. Their
 canonical standalone names stay `session-export-transcript`,
-`session-fork-to-destination`, and `session-handoff`.
+`session-fork-to-destination`, `session-handoff`, and `session-retro`.
 
 ## Import rewriting
 

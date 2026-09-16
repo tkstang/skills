@@ -1,6 +1,9 @@
 {
   "pages": [
     "index",
+    "next-steps",
+    "must-we",
+    "session-retro",
     "session-handoff",
     "session-export-transcript",
     "session-fork-to-destination",

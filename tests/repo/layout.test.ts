@@ -52,11 +52,14 @@ describe('repo-layout', () => {
 
     expect(standaloneSkills).toEqual([
       'complexity-review',
+      'must-we',
+      'next-steps',
       'session-export-transcript',
       'session-fork-to-destination',
       'session-handoff',
       'session-observer',
       'session-observer-collab',
+      'session-retro',
     ]);
 
     for (const skill of standaloneSkills) {
@@ -79,6 +82,9 @@ describe('repo-layout', () => {
       path.posix.join('shared', 'transcript-core'),
       path.posix.join('skills', 'session-export-transcript'),
       path.posix.join('skills', 'session-fork-to-destination'),
+      path.posix.join('skills', 'session-retro'),
+      path.posix.join('skills', 'must-we'),
+      path.posix.join('skills', 'next-steps'),
       path.posix.join('plugins', 'consensus'),
       path.posix.join('plugins', 'consensus', 'skills'),
       path.posix.join('plugins', 'consensus', 'skills', 'refine'),
@@ -102,6 +108,7 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'session', 'skills', 'export-transcript'),
       path.posix.join('plugins', 'session', 'skills', 'fork-to-destination'),
       path.posix.join('plugins', 'session', 'skills', 'handoff'),
+      path.posix.join('plugins', 'session', 'skills', 'retro'),
       path.posix.join('plugins', 'session', '.claude-plugin'),
       path.posix.join('plugins', 'session', '.cursor-plugin'),
       path.posix.join('plugins', 'session', '.codex-plugin'),

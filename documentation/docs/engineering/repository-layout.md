@@ -98,6 +98,7 @@ Inside `plugins/session/`:
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` — independently
   versioned provider manifests.
 - `skills/handoff/` — plugin-local form of `session-handoff`.
+- `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/export-transcript/` — plugin-local form of
   `session-export-transcript`, including its generated dependency-free CLI.
 - `skills/fork-to-destination/` — plugin-local form of the experimental

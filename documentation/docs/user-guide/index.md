@@ -16,11 +16,12 @@ What ships today:
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
   audit trails; `phone-a-friend` asks one peer for a one-shot advisory take;
   `observer` and `observer-collab` provide plugin-local session observation.
-- **Session plugin** — `handoff`, `export-transcript`, and
-  `fork-to-destination` package continuation, sanitized export, and
-  experimental destination-side fork guidance.
+- **Session plugin** — `retro`, `handoff`, `export-transcript`, and
+  `fork-to-destination` cover bounded review, continuation, sanitized export,
+  and experimental destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names, while `complexity-review` remains standalone only.
+  `session-*` names; `next-steps`, `must-we`, and `complexity-review`
+  remain standalone only.
 
 ## Contents
 

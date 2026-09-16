@@ -11,7 +11,7 @@ independently versioned plugins:
 
 - `consensus` — peer workflows plus plugin-local `observer` and
   `observer-collab`.
-- `session` — plugin-local `handoff`, `export-transcript`, and
+- `session` — plugin-local `retro`, `handoff`, `export-transcript`, and
   `fork-to-destination`.
 
 Run the commands below from the repository root. Choose a plugin or a declared
@@ -112,6 +112,9 @@ under `skills/`:
 
 | Canonical standalone name     | Plugin-local form             | Source link                                                                                         |
 | ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `next-steps`                  | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
+| `must-we`                     | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
+| `session-retro`               | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |
 | `session-observer`            | consensus `observer`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer)            |
 | `session-observer-collab`     | consensus `observer-collab`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer-collab)     |
 | `session-handoff`             | session `handoff`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-handoff)             |
