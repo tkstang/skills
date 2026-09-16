@@ -154,6 +154,12 @@ Because the palette is applied centrally:
   the Mermaid transform expects it.
 - Prefer `flowchart LR` / `flowchart TD`, `sequenceDiagram`, and `stateDiagram-v2`.
   They are the shapes that stay readable at ordinary page width.
+- In `stateDiagram-v2`, a semicolon inside a state description ends the
+  statement and renders the rest as a stray state; use a comma or a dash.
+- HTML entities such as `&lt;name&gt;` inside a state label blank the whole
+  diagram in the browser; write the pattern in prose instead.
+- A Mermaid fence inside an inactive tab is not in the static export, so a
+  build proves nothing about it; open the tab in a browser.
 
 Mermaid is the **source of truth** for every diagram on this site. Agents and
 reviewers read the Mermaid in the Markdown file; a polished SVG, when one exists,
