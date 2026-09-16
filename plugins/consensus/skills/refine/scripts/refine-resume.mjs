@@ -1,13 +1,13 @@
 // GENERATED skill payload for refine.
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile4 } from "node:fs/promises";
-import path6 from "node:path";
+import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
+import path7 from "node:path";
 import { createInterface } from "node:readline/promises";
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
-import path4 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1051,13 +1051,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   realpath,
   rename as rename2,
   unlink as unlink2,
   writeFile as writeFile2
 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path3 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -2124,8 +2128,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await writeFile3(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2164,8 +2169,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await writeFile3(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2736,7 +2741,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2747,7 +2752,7 @@ if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir4,
   open as open2,
   readFile as readFile3,
@@ -2757,22 +2762,22 @@ import {
   unlink as unlink3,
   writeFile as writeFile3
 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 async function syncPathIfAvailable(targetPath) {
   let handle;
@@ -2971,7 +2976,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord2(state) ? state : {};
+  const stateRecord = isJsonRecord3(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -3017,7 +3022,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord2(candidate) ? candidate : {};
+      const state = isJsonRecord3(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -3044,7 +3049,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -3068,7 +3073,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord2(state) ? state : {};
+    const stateRecord = isJsonRecord3(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -3130,7 +3135,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
 }
 async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
-  const outputPath = path6.join(runDir, "resume-errors.json");
+  const outputPath = path7.join(runDir, "resume-errors.json");
   await mkdir5(runDir, { recursive: true });
   await writeFile4(
     outputPath,
@@ -3223,7 +3228,7 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile4(value, "utf8"),
-          sourcePath: path6.resolve(value)
+          sourcePath: path7.resolve(value)
         };
       }
     } catch (error) {
@@ -3271,7 +3276,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(

@@ -3,7 +3,7 @@
 // src/skills/refine/src/consensus-refine.ts
 import { execFile } from "node:child_process";
 import { readFile as readFile6 } from "node:fs/promises";
-import path11 from "node:path";
+import path12 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 import { promisify } from "node:util";
 
@@ -376,8 +376,8 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
-import path5 from "node:path";
+import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
+import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1426,13 +1426,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir3,
   realpath,
   rename as rename3,
   unlink as unlink2,
   writeFile as writeFile3
 } from "node:fs/promises";
+import path5 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path4 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -2523,8 +2527,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir4(path5.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir4(path6.dirname(outputPath), { recursive: true });
+  await writeFile4(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2563,8 +2568,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir4(path5.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir4(path6.dirname(recordsPath), { recursive: true });
+  await writeFile4(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -3135,7 +3140,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -3146,7 +3151,7 @@ if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir5,
   open as open2,
   readFile as readFile4,
@@ -3156,40 +3161,40 @@ import {
   unlink as unlink3,
   writeFile as writeFile4
 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
-function inside(root, target) {
-  const relative = path6.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
+function inside2(root, target) {
+  const relative = path7.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path7.isAbsolute(relative);
 }
-async function pathExists(targetPath) {
+async function pathExists2(targetPath) {
   try {
-    await lstat2(targetPath);
+    await lstat3(targetPath);
     return true;
   } catch (error) {
     if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }
-async function nearestExistingPath(targetPath) {
-  let current = path6.resolve(targetPath);
-  while (!await pathExists(current)) {
-    const parent = path6.dirname(current);
+async function nearestExistingPath2(targetPath) {
+  let current = path7.resolve(targetPath);
+  while (!await pathExists2(current)) {
+    const parent = path7.dirname(current);
     if (parent === current) return current;
     current = parent;
   }
@@ -3263,48 +3268,48 @@ async function readInputFile(inputPath, options = {}) {
   return contents;
 }
 async function confineWrite(targetPath, rootPath) {
-  const root = path6.resolve(rootPath);
-  const target = path6.isAbsolute(targetPath) ? path6.resolve(targetPath) : path6.resolve(root, targetPath);
-  if (!inside(root, target)) {
+  const root = path7.resolve(rootPath);
+  const target = path7.isAbsolute(targetPath) ? path7.resolve(targetPath) : path7.resolve(root, targetPath);
+  if (!inside2(root, target)) {
     throw new Error(`write path is outside allowed root: ${target}`);
   }
-  if (await pathExists(target)) {
-    const targetStat = await lstat2(target);
+  if (await pathExists2(target)) {
+    const targetStat = await lstat3(target);
     if (targetStat.isSymbolicLink()) {
       throw new Error(`write target may not be a symlink: ${target}`);
     }
   }
   const realRoot = await realpath2(root);
-  const parent = path6.dirname(target);
-  const existing = await nearestExistingPath(parent);
+  const parent = path7.dirname(target);
+  const existing = await nearestExistingPath2(parent);
   const realExisting = await realpath2(existing);
-  const realParent = path6.resolve(
+  const realParent = path7.resolve(
     realExisting,
-    path6.relative(existing, parent)
+    path7.relative(existing, parent)
   );
-  if (!inside(realRoot, realParent)) {
+  if (!inside2(realRoot, realParent)) {
     throw new Error(`write path resolves outside allowed root: ${target}`);
   }
   return target;
 }
 async function atomicWriteFile2(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path6.resolve(targetPath);
-  if (await pathExists(writePath)) {
-    const targetStat = await lstat2(writePath);
+  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path7.resolve(targetPath);
+  if (await pathExists2(writePath)) {
+    const targetStat = await lstat3(writePath);
     if (targetStat.isSymbolicLink()) {
       throw new Error(`write target may not be a symlink: ${writePath}`);
     }
   }
-  await mkdir5(path6.dirname(writePath), { recursive: true });
-  const tempPath = path6.join(
-    path6.dirname(writePath),
-    `.${path6.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
+  await mkdir5(path7.dirname(writePath), { recursive: true });
+  const tempPath = path7.join(
+    path7.dirname(writePath),
+    `.${path7.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
   );
   try {
     await writeFile4(tempPath, contents);
     await syncPathIfAvailable(tempPath);
     await rename4(tempPath, writePath);
-    await syncPathIfAvailable(path6.dirname(writePath));
+    await syncPathIfAvailable(path7.dirname(writePath));
   } catch (error) {
     const annotatedError = error;
     try {
@@ -3323,26 +3328,26 @@ function defaultRunDirName() {
   return `run-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
 }
 async function resolveRunDir(options = {}) {
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = options.runDir ? path6.isAbsolute(options.runDir) ? options.runDir : path6.resolve(cwd, options.runDir) : path6.resolve(cwd, ".consensus", defaultRunDirName());
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir ? path7.isAbsolute(options.runDir) ? options.runDir : path7.resolve(cwd, options.runDir) : path7.resolve(cwd, ".consensus", defaultRunDirName());
   return await confineWrite(target, root);
 }
 async function resolveOutputPath(options = {}, inputPath) {
   if (options.output) {
-    const cwd = path6.resolve(options.cwd ?? process.cwd());
-    const root = path6.resolve(options.allowRoot ?? cwd);
-    const target2 = path6.isAbsolute(options.output) ? options.output : path6.resolve(cwd, options.output);
+    const cwd = path7.resolve(options.cwd ?? process.cwd());
+    const root = path7.resolve(options.allowRoot ?? cwd);
+    const target2 = path7.isAbsolute(options.output) ? options.output : path7.resolve(cwd, options.output);
     return await confineWrite(target2, root);
   }
-  const target = path6.resolve(`${inputPath}.consensus.md`);
-  return await confineWrite(target, path6.dirname(path6.resolve(inputPath)));
+  const target = path7.resolve(`${inputPath}.consensus.md`);
+  return await confineWrite(target, path7.dirname(path7.resolve(inputPath)));
 }
 async function resolveResumePath(options = {}) {
   if (!options.resume) return null;
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = path6.isAbsolute(options.resume) ? options.resume : path6.resolve(cwd, options.resume);
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = path7.isAbsolute(options.resume) ? options.resume : path7.resolve(cwd, options.resume);
   return await confineWrite(target, root);
 }
 
@@ -3351,9 +3356,9 @@ var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
 function asProviderInventoryEntry(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
-function requireValue(argv, index, flag) {
+function requireValue2(argv, index, flag) {
   if (index + 1 >= argv.length) {
     throw new Error(`${flag} requires a value`);
   }
@@ -3410,7 +3415,7 @@ function providerEntryAvailable(entry) {
   return true;
 }
 function normalizeProviderInventory(providerInventory) {
-  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord2(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
+  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord3(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
   return (Array.isArray(entries) ? entries : []).map((entry) => {
     if (typeof entry === "string") {
       return {
@@ -3459,16 +3464,16 @@ function parseWrapperArgs(argv) {
     const token = argv[index];
     switch (token) {
       case "--goal":
-        parsed.goal = requireValue(argv, index, token);
+        parsed.goal = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--peers":
-        parsed.peers = parsePeers(requireValue(argv, index, token));
+        parsed.peers = parsePeers2(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--max-rounds",
           MAX_ROUNDS_MIN2,
           MAX_ROUNDS_MAX2
@@ -3476,11 +3481,11 @@ function parseWrapperArgs(argv) {
         index += 1;
         break;
       case "--agency":
-        parsed.agency = requireValue(argv, index, token);
+        parsed.agency = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--iteration":
-        parsed.iteration = requireValue(
+        parsed.iteration = requireValue2(
           argv,
           index,
           token
@@ -3489,48 +3494,48 @@ function parseWrapperArgs(argv) {
         break;
       case "--synthesizer":
         parsed.synthesizer = validateProviderId2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--synthesizer"
         );
         index += 1;
         break;
       case "--cold-start":
-        parsed.coldStart = requireValue(argv, index, token);
+        parsed.coldStart = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--output":
-        parsed.output = requireValue(argv, index, token);
+        parsed.output = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--resume":
-        parsed.resume = requireValue(argv, index, token);
+        parsed.resume = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--user-direction":
-        parsed.userDirection = requireValue(argv, index, token);
+        parsed.userDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-direction":
-        parsed.hostDirection = requireValue(argv, index, token);
+        parsed.hostDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-decision-kind":
-        parsed.hostDecisionKind = requireValue(argv, index, token);
+        parsed.hostDecisionKind = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--run-dir":
-        parsed.runDir = requireValue(argv, index, token);
+        parsed.runDir = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--allow-root":
-        parsed.allowRoot = requireValue(argv, index, token);
+        parsed.allowRoot = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--fail-on-section-error":
         parsed.failOnSectionError = true;
         break;
       case "--skip-corrupt-section":
-        parsed.skipCorruptSections.push(requireValue(argv, index, token));
+        parsed.skipCorruptSections.push(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--skip-all-corrupt":
@@ -3545,7 +3550,7 @@ function parseWrapperArgs(argv) {
         break;
       case "--parallelism":
         parsed.parallelism = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--parallelism",
           1,
           64
@@ -3555,7 +3560,7 @@ function parseWrapperArgs(argv) {
       case "--fan-in":
         parsed.fanIn = true;
         parsed.mode = "fan_in";
-        parsed.manifestPath = requireValue(argv, index, token);
+        parsed.manifestPath = requireValue2(argv, index, token);
         index += 1;
         break;
       default:
@@ -3675,7 +3680,7 @@ function resolveSynthesizer(options = {}, providerInventory = []) {
 }
 
 // src/skills/refine/src/refine-sections.ts
-import path7 from "node:path";
+import path8 from "node:path";
 function markdownLines(markdown) {
   const normalized = String(markdown ?? "").replace(/\r\n?/g, "\n");
   return normalized.match(/[^\n]*\n|[^\n]+$/g) ?? [];
@@ -3766,7 +3771,7 @@ function normalizeSequentialOptions(options) {
   };
 }
 function sectionRunDirectory(runDir, section) {
-  return path7.join(
+  return path8.join(
     runDir,
     "sections",
     `${String(section.original_index + 1).padStart(2, "0")}-${section.id}`
@@ -3878,7 +3883,7 @@ function dispatchInstructions(manifest) {
 }
 
 // src/skills/refine/src/refine-render.ts
-import path8 from "node:path";
+import path9 from "node:path";
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
   const maxRun = Math.max(
@@ -4212,7 +4217,7 @@ function renderDeliberationArtifact(runResult) {
     cost_source: "unavailable",
     approximate_cost_usd: null,
     input_path: runResult.inputPath ?? null,
-    run_id: runResult.runId ?? (runResult.runDir ? path8.basename(runResult.runDir) : null),
+    run_id: runResult.runId ?? (runResult.runDir ? path9.basename(runResult.runDir) : null),
     started_at: runResult.startedAt ?? null,
     ended_at: runResult.endedAt ?? null,
     subagent_ids: sections.map((section) => section.subagent_id).filter((id) => Boolean(id))
@@ -4260,8 +4265,8 @@ function renderDeliberationArtifact(runResult) {
 }
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
-import path9 from "node:path";
+import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile6 } from "node:fs/promises";
+import path10 from "node:path";
 import { createInterface } from "node:readline/promises";
 var STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   normalizeLineEndings: false,
@@ -4443,7 +4448,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord2(state) ? state : {};
+  const stateRecord = isJsonRecord3(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -4489,7 +4494,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord2(candidate) ? candidate : {};
+      const state = isJsonRecord3(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -4516,7 +4521,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -4540,7 +4545,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord2(state) ? state : {};
+    const stateRecord = isJsonRecord3(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -4602,7 +4607,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
 }
 async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
-  const outputPath = path9.join(runDir, "resume-errors.json");
+  const outputPath = path10.join(runDir, "resume-errors.json");
   await mkdir6(runDir, { recursive: true });
   await writeFile5(
     outputPath,
@@ -4695,7 +4700,7 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile5(value, "utf8"),
-          sourcePath: path9.resolve(value)
+          sourcePath: path10.resolve(value)
         };
       }
     } catch (error) {
@@ -4743,7 +4748,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(
@@ -4886,7 +4891,7 @@ function failingSections(sections) {
 
 // src/skills/refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 function manifestError(message, details = {}) {
   return new ConsensusError(message, {
     code: typeof details.code === "string" ? details.code : "INVALID_MANIFEST",
@@ -4975,19 +4980,19 @@ function validateParallelManifestShape(manifest) {
   }
 }
 function resolveManifestPathValue(value, basePath) {
-  return path10.isAbsolute(value) ? path10.resolve(value) : path10.resolve(basePath, value);
+  return path11.isAbsolute(value) ? path11.resolve(value) : path11.resolve(basePath, value);
 }
 async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
-  const root = path10.resolve(rootPath);
-  const target = path10.resolve(targetPath);
+  const root = path11.resolve(rootPath);
+  const target = path11.resolve(targetPath);
   const realRoot = await realpath3(root);
-  const existing = await nearestExistingPath(target);
+  const existing = await nearestExistingPath2(target);
   const realExisting = await realpath3(existing);
-  const realTarget = path10.resolve(
+  const realTarget = path11.resolve(
     realExisting,
-    path10.relative(existing, target)
+    path11.relative(existing, target)
   );
-  if (!inside(realRoot, realTarget)) {
+  if (!inside2(realRoot, realTarget)) {
     throw errorFactory(field, target, root);
   }
 }
@@ -4999,8 +5004,8 @@ async function resolveConfinedManifestPath(value, {
 }) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
-  const resolvedRoot = path10.resolve(root);
-  if (!inside(resolvedRoot, resolved)) {
+  const resolvedRoot = path11.resolve(root);
+  if (!inside2(resolvedRoot, resolved)) {
     throw errorFactory(field, resolved, resolvedRoot);
   }
   await assertPathResolvesInside(resolvedRoot, resolved, field, errorFactory);
@@ -5009,9 +5014,9 @@ async function resolveConfinedManifestPath(value, {
 async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
   const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
   const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
-  const defaultOutputPath = path10.resolve(`${inputPath}.consensus.md`);
+  const defaultOutputPath = path11.resolve(`${inputPath}.consensus.md`);
   if (outputPath === defaultOutputPath) {
-    const outputWriteRoot = path10.dirname(inputPath);
+    const outputWriteRoot = path11.dirname(inputPath);
     await assertPathResolvesInside(
       outputWriteRoot,
       outputPath,
@@ -5033,16 +5038,16 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
 }
 async function normalizeParallelManifest(manifest, options) {
   validateParallelManifestShape(manifest);
-  const cwd = path10.resolve(options.cwd);
-  const trustedRoot = path10.resolve(options.trustedRoot);
-  const manifestPath = path10.resolve(options.manifestPath);
+  const cwd = path11.resolve(options.cwd);
+  const trustedRoot = path11.resolve(options.trustedRoot);
+  const manifestPath = path11.resolve(options.manifestPath);
   const runDir = await resolveConfinedManifestPath(manifest.run_dir, {
     root: trustedRoot,
     base: cwd,
     field: "run_dir",
     errorFactory: pathConfinementError
   });
-  if (runDir !== path10.dirname(manifestPath)) {
+  if (runDir !== path11.dirname(manifestPath)) {
     throw manifestError(
       "parallel manifest run_dir must match the manifest file directory"
     );
@@ -5168,10 +5173,10 @@ function providerCliLoopInvokers({
 }
 async function runSequential(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
-  const cwd = path11.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path12.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const inputPathValue = normalized.inputPath;
-  const inputPath = path11.isAbsolute(inputPathValue) ? inputPathValue : path11.resolve(cwd, inputPathValue);
+  const inputPath = path12.isAbsolute(inputPathValue) ? inputPathValue : path12.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
@@ -5187,8 +5192,8 @@ async function runSequential(options, runOptions = {}) {
     stdin: runOptions.stdin,
     stdout: runOptions.stdout
   }) : null;
-  const runWriteRoot = path11.resolve(normalized.allowRoot ?? cwd);
-  const outputWriteRoot = normalized.output ? path11.resolve(normalized.allowRoot ?? cwd) : path11.dirname(inputPath);
+  const runWriteRoot = path12.resolve(normalized.allowRoot ?? cwd);
+  const outputWriteRoot = normalized.output ? path12.resolve(normalized.allowRoot ?? cwd) : path12.dirname(inputPath);
   const preflight = normalized.preflight === false ? { peers: normalized.peers ?? ["claude", "codex"], warnings: [] } : await (normalized.preflight ?? preflightConsensusProviderCli)({
     ...normalized,
     env,
@@ -5212,10 +5217,10 @@ async function runSequential(options, runOptions = {}) {
   for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
     const paths = {
-      input: path11.join(sectionDir, "section.md"),
-      records: path11.join(sectionDir, "records.json"),
-      output: path11.join(sectionDir, "output.md"),
-      status: path11.join(sectionDir, "status.json")
+      input: path12.join(sectionDir, "section.md"),
+      records: path12.join(sectionDir, "records.json"),
+      output: path12.join(sectionDir, "output.md"),
+      status: path12.join(sectionDir, "status.json")
     };
     const resumeSection = resumeSections.get(`id:${section.id}`) ?? resumeSections.get(`index:${section.original_index}`) ?? null;
     const sectionInput = resumeSection?.resumedArtifact ?? section.markdown;
@@ -5403,16 +5408,16 @@ async function runSequential(options, runOptions = {}) {
 }
 async function prepareParallelRun(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
-  const cwd = path11.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path12.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const inputPathValue = normalized.inputPath;
-  const inputPath = path11.isAbsolute(inputPathValue) ? inputPathValue : path11.resolve(cwd, inputPathValue);
+  const inputPath = path12.isAbsolute(inputPathValue) ? inputPathValue : path12.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
-  const runWriteRoot = path11.resolve(normalized.allowRoot ?? cwd);
+  const runWriteRoot = path12.resolve(normalized.allowRoot ?? cwd);
   const preflight = normalized.preflight === false ? { peers: normalized.peers ?? ["claude", "codex"], warnings: [] } : await (normalized.preflight ?? preflightConsensusProviderCli)({
     ...normalized,
     env,
@@ -5434,12 +5439,12 @@ async function prepareParallelRun(options, runOptions = {}) {
   for (const section of parsedSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
     const paths = {
-      input: path11.join(sectionDir, "section.md"),
-      records: path11.join(sectionDir, "records.json"),
-      output: path11.join(sectionDir, "output.md"),
-      status: path11.join(sectionDir, "status.json")
+      input: path12.join(sectionDir, "section.md"),
+      records: path12.join(sectionDir, "records.json"),
+      output: path12.join(sectionDir, "output.md"),
+      status: path12.join(sectionDir, "status.json")
     };
-    const packetPath = path11.join(sectionDir, "packet.json");
+    const packetPath = path12.join(sectionDir, "packet.json");
     const loopArgv = loopArgvForSection({
       section,
       paths,
@@ -5457,7 +5462,7 @@ async function prepareParallelRun(options, runOptions = {}) {
     const packet = {
       consensus_schema_version: "v1",
       packet_type: "consensus-section-runner",
-      manifest_path: path11.join(runDir, "manifest.json"),
+      manifest_path: path12.join(runDir, "manifest.json"),
       section_id: section.id,
       name: section.name,
       original_index: section.original_index,
@@ -5491,7 +5496,7 @@ async function prepareParallelRun(options, runOptions = {}) {
       })
     );
   }
-  const manifestPath = path11.join(runDir, "manifest.json");
+  const manifestPath = path12.join(runDir, "manifest.json");
   await confineWrite(manifestPath, runWriteRoot);
   const manifest = {
     consensus_schema_version: "v1",
@@ -5539,10 +5544,10 @@ async function prepareParallelRun(options, runOptions = {}) {
   };
 }
 async function fanInParallelRun(manifestPath, options = {}) {
-  const cwd = path11.resolve(options.cwd ?? process.cwd());
-  const trustedRoot = path11.resolve(options.allowRoot ?? cwd);
+  const cwd = path12.resolve(options.cwd ?? process.cwd());
+  const trustedRoot = path12.resolve(options.allowRoot ?? cwd);
   const resolvedManifestPath = resolveManifestPathValue(manifestPath, cwd);
-  if (!inside(trustedRoot, resolvedManifestPath)) {
+  if (!inside2(trustedRoot, resolvedManifestPath)) {
     throw pathConfinementError(
       "manifest_path",
       resolvedManifestPath,
@@ -5777,7 +5782,7 @@ async function resolveConfiguredProviderCliPeers({
     )
   };
 }
-function parseProviderCliEnvelope(stdout, label) {
+function parseProviderCliEnvelope2(stdout, label) {
   let parsed;
   try {
     parsed = JSON.parse(stdout);
@@ -5787,7 +5792,7 @@ function parseProviderCliEnvelope(stdout, label) {
       { cause: error }
     );
   }
-  if (!isJsonRecord2(parsed) || parsed.schema_version !== "v1") {
+  if (!isJsonRecord3(parsed) || parsed.schema_version !== "v1") {
     throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
   }
   return parsed;
@@ -5813,7 +5818,7 @@ async function preflightConsensusProviderCli(options = {}) {
     }
     throw error;
   }
-  const inventoryEnvelope = parseProviderCliEnvelope(
+  const inventoryEnvelope = parseProviderCliEnvelope2(
     inventoryOutput.stdout,
     "provider inventory"
   );
@@ -5845,7 +5850,7 @@ async function preflightConsensusProviderCli(options = {}) {
       ["preflight", "--json", "--provider", peer, "--capability", "run"],
       { env, cwd }
     );
-    const preflightEnvelope = parseProviderCliEnvelope(
+    const preflightEnvelope = parseProviderCliEnvelope2(
       preflightOutput.stdout,
       `${peer} preflight`
     );
@@ -5950,7 +5955,7 @@ async function runWrapperCli(argv, options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path11.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && path12.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
   runWrapperCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

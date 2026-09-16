@@ -1078,7 +1078,7 @@ async function invokeValidatedPeer({
   throw lastError;
 }
 
-// src/plugins/consensus/shared/cli-helpers.ts
+// src/plugins/consensus/shared/cli-helpers-core.ts
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
 var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;

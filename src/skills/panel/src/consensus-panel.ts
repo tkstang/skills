@@ -21,6 +21,25 @@ import {
   type ConsensusDefaults,
 } from '../../../plugins/consensus/config/consensus-config.js';
 import type { ProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
+// Loop-free helper core only. Panel must never import
+// `../../../plugins/consensus/shared/cli-helpers.js` (or consensus-loop.js):
+// those carry ConsensusError/EXIT_CODES and would couple panel to the loop,
+// which owns its own PanelError/PANEL_EXIT_CODES. Enforced by
+// tests/tooling/shared-cli-helpers-guard.test.ts. Panel keeps local variants
+// where behavior deliberately differs: prompt-block encoding (panel also
+// escapes `&`), envelope parsing (panel takes a subprocess result and raises
+// PanelError), and its own panelist/panel-size parsers.
+import {
+  ensureFinalNewline,
+  inside,
+  isJsonRecord,
+  nearestExistingPath,
+  pathExists,
+  providerInventoryEntries,
+  providerStatusMap,
+  requireValue,
+  validateProviderId,
+} from '../../../plugins/consensus/shared/cli-helpers-core.js';
 
 export const PANEL_QUESTION_SIZE_CAP_BYTES = 1024 * 1024;
 
@@ -175,7 +194,6 @@ interface ProviderReadiness {
   diagnostics: string[];
 }
 
-const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const RESPONSE_KEYS = new Set([
   'schema_version',
   'understood_question',
@@ -207,23 +225,6 @@ export class PanelError extends Error {
     this.exitCode = options.exitCode ?? PANEL_EXIT_CODES.CONFIG;
     this.details = options.details;
   }
-}
-
-function requireValue(argv: readonly string[], index: number, token: string) {
-  const value = argv[index + 1];
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${token} requires a value`);
-  }
-  return value;
-}
-
-function validateProviderId(value: string, flag: string) {
-  if (!PROVIDER_ID_PATTERN.test(value)) {
-    throw new Error(
-      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`,
-    );
-  }
-  return value;
 }
 
 function parsePanelists(value: string) {
@@ -370,32 +371,8 @@ function resolveInputPath(inputPath: string, cwd: string) {
     : path.resolve(cwd, inputPath);
 }
 
-function inside(root: string, target: string) {
-  const relative = path.relative(root, target);
-  return (
-    relative === '' ||
-    (!relative.startsWith('..') && !path.isAbsolute(relative))
-  );
-}
-
 function allowedRootFor(cwd: string, allowRoot: string | null) {
   return allowRoot ? resolveInputPath(allowRoot, cwd) : cwd;
-}
-
-async function pathExists(targetPath: string) {
-  return lstat(targetPath)
-    .then(() => true)
-    .catch((error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return false;
-      throw error;
-    });
-}
-
-async function nearestExistingPath(targetPath: string): Promise<string> {
-  if (await pathExists(targetPath)) return targetPath;
-  const parent = path.dirname(targetPath);
-  if (parent === targetPath) return targetPath;
-  return await nearestExistingPath(parent);
 }
 
 async function canonicalPathThroughNearestExisting(targetPath: string) {
@@ -563,10 +540,9 @@ function defaultPanelRunId() {
   return `panel-${Date.now()}-${process.pid}-${randomUUID()}`;
 }
 
-function ensureFinalNewline(text: string) {
-  return String(text ?? '').replace(/\n*$/u, '\n');
-}
-
+// Deliberately not the shared core variant: panel also escapes `&`. Merging
+// these would change panel's prompt bytes; see the plan note in
+// .oat/repo/reference/external-plans/2026-09-07-extract-loop-free-cli-helper-core.md.
 function encodePromptBlockData(text: string) {
   return String(text ?? '')
     .replaceAll('&', '&amp;')
@@ -613,7 +589,7 @@ export function panelResponseSchemaPath() {
 export function parsePanelResponsePayload(
   value: unknown,
 ): PanelResponsePayload {
-  if (!isRecord(value)) {
+  if (!isJsonRecord(value)) {
     throw new Error('Panel response must be an object');
   }
   assertKnownKeys(value, RESPONSE_KEYS, 'Panel response');
@@ -1397,7 +1373,7 @@ function parseProviderCliEnvelope(
     );
   }
 
-  if (!isRecord(parsed) || parsed.schema_version !== 'v1') {
+  if (!isJsonRecord(parsed) || parsed.schema_version !== 'v1') {
     throw new PanelError(
       `consensus ${label} output was not a v1 JSON envelope`,
       {
@@ -1428,33 +1404,9 @@ function parseProviderRunEnvelope(result: ProviderCliCommandRunnerResult) {
   return parsed;
 }
 
-function providerStatusMap(envelope: Record<string, unknown>) {
-  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
-  const entries: Array<[string, string]> = [];
-  for (const provider of providers) {
-    if (!isRecord(provider)) continue;
-    const id = String(provider.id ?? provider.provider ?? provider.name ?? '');
-    if (!id) continue;
-    entries.push([id, String(provider.status ?? 'unavailable')]);
-  }
-  return new Map(entries);
-}
-
-function providerInventoryEntries(
-  envelope: Record<string, unknown>,
-): ProviderInventoryEntry[] {
-  return [...providerStatusMap(envelope)].map(
-    ([id, status]) =>
-      ({
-        id,
-        status,
-      }) as ProviderInventoryEntry,
-  );
-}
-
 function diagnosticsFromEnvelope(envelope: Record<string, unknown>) {
   const diagnostics: string[] = [];
-  if (isRecord(envelope.diagnostics)) {
+  if (isJsonRecord(envelope.diagnostics)) {
     if (Array.isArray(envelope.diagnostics.warnings)) {
       diagnostics.push(
         ...envelope.diagnostics.warnings.filter(
@@ -1466,7 +1418,7 @@ function diagnosticsFromEnvelope(envelope: Record<string, unknown>) {
       diagnostics.push(`strategy: ${envelope.diagnostics.strategy_used}`);
     }
   }
-  if (isRecord(envelope.attempts)) {
+  if (isJsonRecord(envelope.attempts)) {
     if (typeof envelope.attempts.terminal_reason === 'string') {
       diagnostics.push(`terminal_reason: ${envelope.attempts.terminal_reason}`);
     }
@@ -1507,10 +1459,6 @@ function panelExitCodeForError(error: unknown) {
   if (code === 'ENOENT') return PANEL_EXIT_CODES.IO;
   if (code === 'EACCES' || code === 'EPERM') return PANEL_EXIT_CODES.NOPERM;
   return PANEL_EXIT_CODES.CONFIG;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 if (

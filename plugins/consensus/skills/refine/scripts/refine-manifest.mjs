@@ -2,11 +2,11 @@
 
 // src/skills/refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
-import path4 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1050,13 +1050,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   realpath,
   rename as rename2,
   unlink as unlink2,
   writeFile as writeFile2
 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path3 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -2123,8 +2127,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await writeFile3(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2163,8 +2168,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await writeFile3(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2735,7 +2740,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2746,7 +2751,7 @@ if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir4,
   open as open2,
   readFile as readFile3,
@@ -2756,31 +2761,31 @@ import {
   unlink as unlink3,
   writeFile as writeFile3
 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
-function inside(root, target) {
-  const relative = path5.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path5.isAbsolute(relative);
+function inside2(root, target) {
+  const relative = path6.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
 }
-async function pathExists(targetPath) {
+async function pathExists2(targetPath) {
   try {
-    await lstat2(targetPath);
+    await lstat3(targetPath);
     return true;
   } catch (error) {
     if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }
-async function nearestExistingPath(targetPath) {
-  let current = path5.resolve(targetPath);
-  while (!await pathExists(current)) {
-    const parent = path5.dirname(current);
+async function nearestExistingPath2(targetPath) {
+  let current = path6.resolve(targetPath);
+  while (!await pathExists2(current)) {
+    const parent = path6.dirname(current);
     if (parent === current) return current;
     current = parent;
   }
@@ -2876,19 +2881,19 @@ function validateParallelManifestShape(manifest) {
   }
 }
 function resolveManifestPathValue(value, basePath) {
-  return path6.isAbsolute(value) ? path6.resolve(value) : path6.resolve(basePath, value);
+  return path7.isAbsolute(value) ? path7.resolve(value) : path7.resolve(basePath, value);
 }
 async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
-  const root = path6.resolve(rootPath);
-  const target = path6.resolve(targetPath);
+  const root = path7.resolve(rootPath);
+  const target = path7.resolve(targetPath);
   const realRoot = await realpath3(root);
-  const existing = await nearestExistingPath(target);
+  const existing = await nearestExistingPath2(target);
   const realExisting = await realpath3(existing);
-  const realTarget = path6.resolve(
+  const realTarget = path7.resolve(
     realExisting,
-    path6.relative(existing, target)
+    path7.relative(existing, target)
   );
-  if (!inside(realRoot, realTarget)) {
+  if (!inside2(realRoot, realTarget)) {
     throw errorFactory(field, target, root);
   }
 }
@@ -2900,8 +2905,8 @@ async function resolveConfinedManifestPath(value, {
 }) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
-  const resolvedRoot = path6.resolve(root);
-  if (!inside(resolvedRoot, resolved)) {
+  const resolvedRoot = path7.resolve(root);
+  if (!inside2(resolvedRoot, resolved)) {
     throw errorFactory(field, resolved, resolvedRoot);
   }
   await assertPathResolvesInside(resolvedRoot, resolved, field, errorFactory);
@@ -2910,9 +2915,9 @@ async function resolveConfinedManifestPath(value, {
 async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
   const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
   const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
-  const defaultOutputPath = path6.resolve(`${inputPath}.consensus.md`);
+  const defaultOutputPath = path7.resolve(`${inputPath}.consensus.md`);
   if (outputPath === defaultOutputPath) {
-    const outputWriteRoot = path6.dirname(inputPath);
+    const outputWriteRoot = path7.dirname(inputPath);
     await assertPathResolvesInside(
       outputWriteRoot,
       outputPath,
@@ -2934,16 +2939,16 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
 }
 async function normalizeParallelManifest(manifest, options) {
   validateParallelManifestShape(manifest);
-  const cwd = path6.resolve(options.cwd);
-  const trustedRoot = path6.resolve(options.trustedRoot);
-  const manifestPath = path6.resolve(options.manifestPath);
+  const cwd = path7.resolve(options.cwd);
+  const trustedRoot = path7.resolve(options.trustedRoot);
+  const manifestPath = path7.resolve(options.manifestPath);
   const runDir = await resolveConfinedManifestPath(manifest.run_dir, {
     root: trustedRoot,
     base: cwd,
     field: "run_dir",
     errorFactory: pathConfinementError
   });
-  if (runDir !== path6.dirname(manifestPath)) {
+  if (runDir !== path7.dirname(manifestPath)) {
     throw manifestError(
       "parallel manifest run_dir must match the manifest file directory"
     );

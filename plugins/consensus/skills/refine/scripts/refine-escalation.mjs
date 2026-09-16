@@ -1,8 +1,8 @@
 // GENERATED skill payload for refine.
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
-import path4 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1046,13 +1046,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   realpath,
   rename as rename2,
   unlink as unlink2,
   writeFile as writeFile2
 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path3 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -2119,8 +2123,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await writeFile3(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2159,8 +2164,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await writeFile3(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2731,7 +2736,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);

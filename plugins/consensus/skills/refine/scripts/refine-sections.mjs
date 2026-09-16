@@ -1,15 +1,11 @@
 // GENERATED skill payload for refine.
 
 // src/skills/refine/src/refine-sections.ts
-import path6 from "node:path";
+import path7 from "node:path";
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
-import path4 from "node:path";
-
-// src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir2, readFile as readFile2, writeFile as writeFile2 } from "node:fs/promises";
-import path3 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1051,6 +1047,49 @@ function providerAuditFields(result) {
   };
 }
 
+// src/plugins/consensus/shared/cli-helpers.ts
+import {
+  lstat as lstat2,
+  mkdir as mkdir2,
+  realpath,
+  rename as rename2,
+  unlink as unlink2,
+  writeFile as writeFile2
+} from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
+import path3 from "node:path";
+var MAX_ROUNDS_MIN = 1;
+var MAX_ROUNDS_MAX = 100;
+var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
+function parsePositiveInteger(value, flag, min = MAX_ROUNDS_MIN, max = MAX_ROUNDS_MAX) {
+  if (!/^\d+$/u.test(value)) {
+    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+}
+function validateProviderId(value, flag) {
+  if (!PROVIDER_ID_PATTERN.test(value)) {
+    throw new Error(
+      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
+    );
+  }
+  return value;
+}
+function parsePeers(value) {
+  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (peers.length !== 2) {
+    throw new Error("--peers must list exactly two peers");
+  }
+  return peers.map((peer) => validateProviderId(peer, "--peers"));
+}
+
 // src/plugins/consensus/core/loop-args.ts
 function parseLoopArgs(argv) {
   const parsed = {
@@ -2075,8 +2114,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await writeFile3(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2115,8 +2155,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await writeFile3(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -2687,7 +2727,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path3.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2754,7 +2794,7 @@ function formatPeerAgent(peer) {
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir4,
   open as open2,
   readFile as readFile3,
@@ -2764,14 +2804,14 @@ import {
   unlink as unlink3,
   writeFile as writeFile3
 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 
 // src/skills/refine/src/refine-args.ts
 var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
-function requireValue(argv, index, flag) {
+function requireValue2(argv, index, flag) {
   if (index + 1 >= argv.length) {
     throw new Error(`${flag} requires a value`);
   }
@@ -2834,16 +2874,16 @@ function parseWrapperArgs(argv) {
     const token = argv[index];
     switch (token) {
       case "--goal":
-        parsed.goal = requireValue(argv, index, token);
+        parsed.goal = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--peers":
-        parsed.peers = parsePeers(requireValue(argv, index, token));
+        parsed.peers = parsePeers2(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--max-rounds",
           MAX_ROUNDS_MIN2,
           MAX_ROUNDS_MAX2
@@ -2851,11 +2891,11 @@ function parseWrapperArgs(argv) {
         index += 1;
         break;
       case "--agency":
-        parsed.agency = requireValue(argv, index, token);
+        parsed.agency = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--iteration":
-        parsed.iteration = requireValue(
+        parsed.iteration = requireValue2(
           argv,
           index,
           token
@@ -2864,48 +2904,48 @@ function parseWrapperArgs(argv) {
         break;
       case "--synthesizer":
         parsed.synthesizer = validateProviderId2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--synthesizer"
         );
         index += 1;
         break;
       case "--cold-start":
-        parsed.coldStart = requireValue(argv, index, token);
+        parsed.coldStart = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--output":
-        parsed.output = requireValue(argv, index, token);
+        parsed.output = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--resume":
-        parsed.resume = requireValue(argv, index, token);
+        parsed.resume = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--user-direction":
-        parsed.userDirection = requireValue(argv, index, token);
+        parsed.userDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-direction":
-        parsed.hostDirection = requireValue(argv, index, token);
+        parsed.hostDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-decision-kind":
-        parsed.hostDecisionKind = requireValue(argv, index, token);
+        parsed.hostDecisionKind = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--run-dir":
-        parsed.runDir = requireValue(argv, index, token);
+        parsed.runDir = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--allow-root":
-        parsed.allowRoot = requireValue(argv, index, token);
+        parsed.allowRoot = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--fail-on-section-error":
         parsed.failOnSectionError = true;
         break;
       case "--skip-corrupt-section":
-        parsed.skipCorruptSections.push(requireValue(argv, index, token));
+        parsed.skipCorruptSections.push(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--skip-all-corrupt":
@@ -2920,7 +2960,7 @@ function parseWrapperArgs(argv) {
         break;
       case "--parallelism":
         parsed.parallelism = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--parallelism",
           1,
           64
@@ -2930,7 +2970,7 @@ function parseWrapperArgs(argv) {
       case "--fan-in":
         parsed.fanIn = true;
         parsed.mode = "fan_in";
-        parsed.manifestPath = requireValue(argv, index, token);
+        parsed.manifestPath = requireValue2(argv, index, token);
         index += 1;
         break;
       default:
@@ -3068,7 +3108,7 @@ function normalizeSequentialOptions(options) {
   };
 }
 function sectionRunDirectory(runDir, section) {
-  return path6.join(
+  return path7.join(
     runDir,
     "sections",
     `${String(section.original_index + 1).padStart(2, "0")}-${section.id}`

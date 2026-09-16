@@ -9,219 +9,38 @@ import {
 import path from 'node:path';
 
 import { ConsensusError, EXIT_CODES } from '../core/consensus-loop.js';
-import type { PeerAgent, PeerSpec } from '../core/loop-types.js';
-import type { ProviderInventoryEntry } from '../provider-cli/types.js';
+import { inside, nearestExistingPath, pathExists } from './cli-helpers-core.js';
 
 // Shared CLI helper primitives used by the consensus command modules
 // (create/decide/plan/evaluate). Extracted verbatim from those modules'
 // previously-duplicated copies so a fix lands once. `parsePositiveInteger`
 // and `parsePeers` are the canonical (bounded, provider-id-validating)
 // variants; `consensus-loop.ts` imports them to reconcile its previously-laxer
-// copies. Panel keeps its own decoupled copies deliberately (it does not import
-// consensus-loop; see consensus-panel.ts).
-
-const MAX_ROUNDS_MIN = 1;
-const MAX_ROUNDS_MAX = 100;
-const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
-
-export function requireValue(
-  argv: readonly string[],
-  index: number,
-  token: string,
-) {
-  const value = argv[index + 1];
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${token} requires a value`);
-  }
-  return value;
-}
-
-export function parsePositiveInteger(
-  value: string,
-  flag: string,
-  min = MAX_ROUNDS_MIN,
-  max = MAX_ROUNDS_MAX,
-) {
-  if (!/^\d+$/u.test(value)) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
-  }
-  return parsed;
-}
-
-export function validateProviderId(value: string, flag: string) {
-  if (!PROVIDER_ID_PATTERN.test(value)) {
-    throw new Error(
-      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`,
-    );
-  }
-  return value;
-}
-
-export function parsePeers(value: string) {
-  const peers = value
-    .split(',')
-    .map((peer) => peer.trim())
-    .filter(Boolean);
-  if (peers.length !== 2) {
-    throw new Error('--peers must list exactly two peers');
-  }
-  return peers.map((peer) => validateProviderId(peer, '--peers'));
-}
-
-/**
- * Parse a `--peers` value that may carry per-peer model/effort selections:
- * `claude,codex` (compatibility path, provider ids only) or
- * `claude:opus:high,codex:gpt-5:medium`. Trailing segments are optional, so
- * `claude:opus` selects a model and leaves effort to the provider CLI.
- */
-export function parsePeerAgents(value: string): PeerAgent[] {
-  const specs = value
-    .split(',')
-    .map((peer) => peer.trim())
-    .filter(Boolean);
-  if (specs.length !== 2) {
-    throw new Error('--peers must list exactly two peers');
-  }
-  return specs.map((spec) => parsePeerAgentSpec(spec));
-}
-
-function parsePeerAgentSpec(spec: string): PeerAgent {
-  const [provider, model, effort, ...extra] = spec.split(':');
-  if (extra.length > 0) {
-    throw new Error('--peers entries must use provider[:model[:effort]]');
-  }
-  const agent: PeerAgent = {
-    provider: validateProviderId(provider ?? '', '--peers'),
-  };
-  // An empty segment means "omitted": `claude::high` selects an effort without
-  // pinning a model, which is how formatPeerAgents renders that combination.
-  if (model !== undefined && model.length > 0) agent.model = model;
-  if (effort !== undefined && effort.length > 0) agent.effort = effort;
-  return agent;
-}
-
-/**
- * Normalize resolved composition agents — or an invocation `--peers` override —
- * into loop peer agents. Invocation peers replace the whole list, so a
- * provider-only override deliberately carries no model or effort.
- */
-export function peerAgentsFromComposition(
-  agents: readonly PeerSpec[],
-): PeerAgent[] {
-  return agents.map((agent) => {
-    const normalized = normalizePeerAgent(agent);
-    return {
-      provider: normalized.provider,
-      ...(normalized.model ? { model: normalized.model } : {}),
-      ...(normalized.effort ? { effort: normalized.effort } : {}),
-    };
-  });
-}
-
-/** Normalize a bare provider id or an agent reference into a `PeerAgent`. */
-export function normalizePeerAgent(peer: PeerSpec): PeerAgent {
-  return typeof peer === 'string' ? { provider: peer } : peer;
-}
-
-/**
- * Render peers back into a `--peers` value. Provider-only peers render exactly
- * as before (`claude,codex`), so argv stays byte-identical when no model or
- * effort is selected.
- */
-export function formatPeerAgents(peers: readonly PeerSpec[]): string {
-  return peers.map((peer) => formatPeerAgent(peer)).join(',');
-}
-
-function formatPeerAgent(peer: PeerSpec): string {
-  const agent = normalizePeerAgent(peer);
-  if (agent.effort) {
-    return `${agent.provider}:${agent.model ?? ''}:${agent.effort}`;
-  }
-  if (agent.model) return `${agent.provider}:${agent.model}`;
-  return agent.provider;
-}
-
-export function inside(root: string, target: string) {
-  const relative = path.relative(root, target);
-  return (
-    relative === '' ||
-    (!relative.startsWith('..') && !path.isAbsolute(relative))
-  );
-}
-
-export function pathExists(targetPath: string) {
-  return lstat(targetPath)
-    .then(() => true)
-    .catch((error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return false;
-      throw error;
-    });
-}
-
-export async function nearestExistingPath(targetPath: string): Promise<string> {
-  if (await pathExists(targetPath)) return targetPath;
-  const parent = path.dirname(targetPath);
-  if (parent === targetPath) return targetPath;
-  return await nearestExistingPath(parent);
-}
-
-export function ensureFinalNewline(text: string) {
-  return String(text ?? '').replace(/\n*$/u, '\n');
-}
-
-export function encodePromptBlockData(text: string) {
-  return String(text ?? '')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
-
-export function promptBlockData(text: string) {
-  return ensureFinalNewline(encodePromptBlockData(text));
-}
-
-export function isJsonRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function parseProviderCliEnvelope(stdout: string, label: string) {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout) as unknown;
-  } catch (error) {
-    throw new Error(
-      `consensus ${label} output was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
-  }
-  if (!isJsonRecord(parsed) || parsed.schema_version !== 'v1') {
-    throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
-  }
-  return parsed;
-}
-
-export function providerStatusMap(envelope: Record<string, unknown>) {
-  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
-  const entries: Array<[string, string]> = [];
-  for (const provider of providers) {
-    if (!isJsonRecord(provider)) continue;
-    const id = String(provider.id ?? provider.provider ?? provider.name ?? '');
-    if (!id) continue;
-    entries.push([id, String(provider.status ?? 'unavailable')]);
-  }
-  return new Map(entries);
-}
-
-export function providerInventoryEntries(
-  envelope: Record<string, unknown>,
-): ProviderInventoryEntry[] {
-  return [...providerStatusMap(envelope)].map(
-    ([id, status]) => ({ id, status }) as ProviderInventoryEntry,
-  );
-}
+// copies.
+//
+// This is the loop-coupled layer: it holds only the helpers that raise
+// `ConsensusError` with a loop `EXIT_CODES` value. Every pure primitive lives
+// in `./cli-helpers-core.js` and is re-exported below, so this module's export
+// surface is unchanged for existing consumers. Panel imports the loop-free core
+// directly to keep its own `PanelError`/`PANEL_EXIT_CODES` decoupling; see
+// `src/skills/panel/src/consensus-panel.ts` and
+// `tests/tooling/shared-cli-helpers-guard.test.ts`.
+export {
+  encodePromptBlockData,
+  ensureFinalNewline,
+  inside,
+  isJsonRecord,
+  nearestExistingPath,
+  parsePeers,
+  parsePositiveInteger,
+  parseProviderCliEnvelope,
+  pathExists,
+  promptBlockData,
+  providerInventoryEntries,
+  providerStatusMap,
+  requireValue,
+  validateProviderId,
+} from './cli-helpers-core.js';
 
 export function providerCliUnavailableError(
   providers: Array<{ id: string; status: string }>,

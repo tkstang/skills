@@ -1,7 +1,7 @@
 // GENERATED skill payload for plan.
 
 // src/skills/plan/src/consensus-plan.ts
-import path6 from "node:path";
+import path7 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // src/plugins/consensus/config/consensus-config.ts
@@ -373,8 +373,8 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
-import path5 from "node:path";
+import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
+import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1418,13 +1418,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir3,
   realpath,
   rename as rename3,
   unlink as unlink2,
   writeFile as writeFile3
 } from "node:fs/promises";
+import path5 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path4 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -1563,6 +1567,8 @@ function providerInventoryEntries(envelope) {
     ([id, status]) => ({ id, status })
   );
 }
+
+// src/plugins/consensus/shared/cli-helpers.ts
 function providerCliUnavailableError(providers) {
   const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
   return new ConsensusError(
@@ -1575,8 +1581,8 @@ function providerCliUnavailableError(providers) {
   );
 }
 async function confineWrite(targetPath, rootPath) {
-  const root = path4.resolve(rootPath);
-  const target = path4.isAbsolute(targetPath) ? path4.resolve(targetPath) : path4.resolve(root, targetPath);
+  const root = path5.resolve(rootPath);
+  const target = path5.isAbsolute(targetPath) ? path5.resolve(targetPath) : path5.resolve(root, targetPath);
   if (!inside(root, target)) {
     throw new ConsensusError(`write path is outside allowed root: ${target}`, {
       code: "WRITE_PATH_OUTSIDE_ROOT",
@@ -1585,7 +1591,7 @@ async function confineWrite(targetPath, rootPath) {
     });
   }
   if (await pathExists(target)) {
-    const targetStat = await lstat(target);
+    const targetStat = await lstat2(target);
     if (targetStat.isSymbolicLink()) {
       throw new ConsensusError(`write target may not be a symlink: ${target}`, {
         code: "WRITE_TARGET_SYMLINK",
@@ -1595,12 +1601,12 @@ async function confineWrite(targetPath, rootPath) {
     }
   }
   const realRoot = await realpath(root);
-  const parent = path4.dirname(target);
+  const parent = path5.dirname(target);
   const existing = await nearestExistingPath(parent);
   const realExisting = await realpath(existing);
-  const realParent = path4.resolve(
+  const realParent = path5.resolve(
     realExisting,
-    path4.relative(existing, parent)
+    path5.relative(existing, parent)
   );
   if (!inside(realRoot, realParent)) {
     throw new ConsensusError(
@@ -1615,9 +1621,9 @@ async function confineWrite(targetPath, rootPath) {
   return target;
 }
 async function atomicWriteFile2(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path4.resolve(targetPath);
+  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path5.resolve(targetPath);
   if (await pathExists(writePath)) {
-    const targetStat = await lstat(writePath);
+    const targetStat = await lstat2(writePath);
     if (targetStat.isSymbolicLink()) {
       throw new ConsensusError(
         `write target may not be a symlink: ${writePath}`,
@@ -1629,10 +1635,10 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
       );
     }
   }
-  await mkdir3(path4.dirname(writePath), { recursive: true });
-  const tempPath = path4.join(
-    path4.dirname(writePath),
-    `.${path4.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
+  await mkdir3(path5.dirname(writePath), { recursive: true });
+  const tempPath = path5.join(
+    path5.dirname(writePath),
+    `.${path5.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
   );
   try {
     await writeFile3(tempPath, contents);
@@ -2675,8 +2681,9 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir4(path5.dirname(outputPath), { recursive: true });
-  await atomicWriteFile(outputPath, artifact);
+  await mkdir4(path6.dirname(outputPath), { recursive: true });
+  await writeFile4(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2715,8 +2722,8 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir4(path5.dirname(recordsPath), { recursive: true });
-  await atomicWriteFile(
+  await mkdir4(path6.dirname(recordsPath), { recursive: true });
+  await writeFile4(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
@@ -3287,7 +3294,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -3598,23 +3605,23 @@ function defaultRunDirName() {
   return `plan-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
 }
 async function resolveRunDir(options) {
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = options.runDir ? path6.isAbsolute(options.runDir) ? options.runDir : path6.resolve(cwd, options.runDir) : path6.resolve(cwd, ".consensus", defaultRunDirName());
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir ? path7.isAbsolute(options.runDir) ? options.runDir : path7.resolve(cwd, options.runDir) : path7.resolve(cwd, ".consensus", defaultRunDirName());
   return await confineWrite(target, root);
 }
 async function resolveOutputPath(options) {
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = options.output ? path6.isAbsolute(options.output) ? options.output : path6.resolve(cwd, options.output) : path6.resolve(cwd, "consensus-plan.md");
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = options.output ? path7.isAbsolute(options.output) ? options.output : path7.resolve(cwd, options.output) : path7.resolve(cwd, "consensus-plan.md");
   return await confineWrite(target, root);
 }
 function statePathsFor(runDir) {
   return {
-    input: path6.join(runDir, "input.md"),
-    records: path6.join(runDir, "records.json"),
-    output: path6.join(runDir, "output.md"),
-    status: path6.join(runDir, "status.json")
+    input: path7.join(runDir, "input.md"),
+    records: path7.join(runDir, "records.json"),
+    output: path7.join(runDir, "output.md"),
+    status: path7.join(runDir, "status.json")
   };
 }
 function createInitialArtifact() {
@@ -3971,14 +3978,14 @@ function renderPlanArtifact({
 }
 async function runConsensusPlan(input, runOptions = {}) {
   const normalized = normalizePlanOptions(input);
-  const cwd = path6.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path7.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const startedAt = (runOptions.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   const startMs = Date.now();
   const loaded = loadPlanInputs(normalized);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd });
-  const writeRoot = path6.resolve(normalized.allowRoot ?? cwd);
+  const writeRoot = path7.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
   const inventory = normalized.peers === null ? await loadPlanProviderInventory({ env, cwd }) : void 0;
   const peerAgents = peerAgentsFromComposition(
@@ -4045,7 +4052,7 @@ async function runConsensusPlan(input, runOptions = {}) {
     }
   });
   await atomicWriteFile2(outputPath, finalArtifact, {
-    rootPath: normalized.allowRoot ? writeRoot : path6.dirname(outputPath)
+    rootPath: normalized.allowRoot ? writeRoot : path7.dirname(outputPath)
   });
   return {
     outputPath,
@@ -4112,7 +4119,7 @@ async function runPlanCli(argv = process.argv.slice(2), options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && path7.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
   runPlanCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });
