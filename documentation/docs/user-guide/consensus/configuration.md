@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Shared consensus configuration: peer and panelist selection, default config paths, precedence, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.'
+description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, and provider diagnostics.'
 ---
 
 # Configuration
@@ -8,8 +8,157 @@ description: 'Shared consensus configuration: peer and panelist selection, defau
 Configuration shared by [`create`](create.md), [`decide`](decide.md),
 [`plan`](plan.md), [`refine`](refine.md), [`evaluate`](evaluate.md), and
 [`panel`](panel.md).
-For the full reference, see the
-[consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
+
+## What can I configure?
+
+The config file stores default participants, not a separate settings profile for
+each skill. `peers` is shared by all five converging workflows; `panelists` and
+`panel_size` apply to Panel.
+
+| Workflow                               | Saved defaults                                | Model and effort behavior today                                                                       |
+| -------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Create, Decide, Plan, Refine, Evaluate | `defaults.peers`                              | Provider selection works. Configured `model` and `effort` are accepted but discarded before dispatch. |
+| Panel                                  | `defaults.panelists`, `defaults.panel_size`   | Configured `model` and `effort` are forwarded to the selected provider.                               |
+| [Phone a Friend](phone-a-friend.md)    | No automatic saved advisor-default resolution | The host can pass `--model` and `--effort` to `consensus run` for an individual consultation.         |
+
+There are no `plan`, `refine`, or `phone-a-friend` config sections. Settings such
+as `--agency`, `--cold-start`, and `--synthesizer` are per-run controls, not saved
+config keys. See the individual workflow guides for their flags.
+
+> [!WARNING]
+> Saving a model or effort under `defaults.peers` does not currently pin either
+> setting for converging workflows. Only the provider IDs reach those wrappers'
+> dispatch paths; Panel does preserve these settings.
+
+## Configuration file example
+
+The file is **strict JSON**: comments and trailing commas are not supported.
+Use the annotated tab to understand the fields, and the JSON tab when saving a
+file. Replace the model placeholders with IDs supported by your installed
+provider CLI and account, or remove `model` to leave that choice to the provider.
+The effort strings illustrate the shape; supported values depend on the
+provider and model.
+
+=== "Annotated explanation (not a config file)"
+
+    ```jsonc
+    {
+      // Required schema identifier; only "v1" is accepted.
+      "schema_version": "v1",
+      // Optional object of shared workflow defaults.
+      "defaults": {
+        // Exactly two distinct providers for Create/Decide/Plan/Refine/Evaluate.
+        // Model/effort fields here are accepted, but currently ignored at dispatch.
+        "peers": [
+          { "provider": "claude" }, // Required provider ID, not a model name.
+          { "provider": "codex" }
+        ],
+        // At least two distinct providers for Panel; model/effort work here.
+        "panelists": [
+          {
+            "provider": "claude", // Required provider ID.
+            "model": "<claude-model-id>", // Optional nonempty string; replace this ID.
+            "effort": "high" // Optional nonempty string; check provider/model support.
+          },
+          {
+            "provider": "codex",
+            "model": "<codex-model-id>",
+            "effort": "medium"
+          }
+        ],
+        // Optional integer >= 2; otherwise uses the panelist list length, or 2.
+        "panel_size": 2
+      }
+    }
+    ```
+
+=== "JSON (replace model IDs before use)"
+
+    ```json
+    {
+      "schema_version": "v1",
+      "defaults": {
+        "peers": [{ "provider": "claude" }, { "provider": "codex" }],
+        "panelists": [
+          {
+            "provider": "claude",
+            "model": "<claude-model-id>",
+            "effort": "high"
+          },
+          {
+            "provider": "codex",
+            "model": "<codex-model-id>",
+            "effort": "medium"
+          }
+        ],
+        "panel_size": 2
+      }
+    }
+    ```
+
+For a minimal config that selects providers without overriding their models or
+effort, use:
+
+```json
+{
+  "schema_version": "v1",
+  "defaults": {
+    "peers": [{ "provider": "claude" }, { "provider": "codex" }]
+  }
+}
+```
+
+### Field reference
+
+Only `schema_version` is required in the root object; `defaults` and each of its
+fields are optional. Inside an agent object, `provider` is required. Unknown keys are rejected at every level;
+omit optional values rather than setting them to `null`.
+
+| JSON field                   | Type and constraints                                    | When omitted / behavior                                                                 |
+| ---------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `schema_version`             | Required string, exactly `"v1"`                         | Invalid if missing.                                                                     |
+| `defaults`                   | Object                                                  | This file supplies no overrides.                                                        |
+| `defaults.peers`             | Array of exactly two agent objects, distinct providers  | Falls through to lower-precedence peer defaults, then built-ins.                        |
+| `defaults.panelists`         | Array of at least two agent objects, distinct providers | Falls through to lower-precedence panel defaults, then built-ins.                       |
+| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                       | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2. |
+| `defaults.roles`             | Object with only the three keys below                   | Reserved configuration; not applied by current workflow composition resolvers.          |
+| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers  | Reserved; not an alternative to `defaults.panelists`.                                   |
+| `defaults.roles.advisor`     | One agent object                                        | Reserved; does not automatically select Phone a Friend's peer.                          |
+| `defaults.roles.synthesizer` | One agent object                                        | Reserved; does not replace `--synthesizer`.                                             |
+
+An **agent object** has this shape:
+
+| Field      | Type and constraints                                    | Meaning                                                                                                                                       |
+| ---------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider` | Required string matching `^[A-Za-z0-9][A-Za-z0-9._-]*$` | Provider adapter ID, currently `claude`, `codex`, or `cursor`. A syntactically valid ID still needs an available adapter and usable provider. |
+| `model`    | Optional nonempty string                                | Provider-specific model ID. No model catalog is validated by the config parser.                                                               |
+| `effort`   | Optional nonempty string                                | Provider-specific effort value. The config parser does not enforce an enum.                                                                   |
+
+Uniqueness is by **provider**, not by provider/model pair: two Codex entries with
+different models are rejected in the same list. A provider may appear in both
+`peers` and `panelists`, since those are separate lists.
+
+### Model and effort support
+
+These are the capabilities of this plugin's adapters, not a claim about every
+feature of the upstream provider CLI:
+
+| Provider | Model forwarding            | Effort forwarding                   |
+| -------- | --------------------------- | ----------------------------------- |
+| `claude` | `--model <value>`           | `--effort <value>`                  |
+| `codex`  | `--model <value>`           | `-c model_reasoning_effort=<value>` |
+| `cursor` | Unsupported by this adapter | Unsupported by this adapter         |
+
+When a workflow forwards them, omitted fields leave the corresponding provider
+options unset. The provider CLI supplies its own defaults. Model availability
+and allowed effort values depend on the provider, selected model, and account;
+successful config parsing does not prove those values are usable. Passing either
+option to this plugin's Cursor adapter yields `PROVIDER_UNSUPPORTED_OPTION`.
+
+The provider support above does **not** remove the convergence limitation:
+`defaults.peers[].model` and `.effort` are currently lost before reaching these
+adapters. `consensus config get` can show stored values without proving that a
+workflow will use them.
 
 ## Config paths and precedence
 
@@ -17,8 +166,9 @@ The generated provider CLI owns default composition through `consensus config`.
 Defaults are stored in JSON config files:
 
 - User config: `${XDG_CONFIG_HOME:-$HOME/.config}/consensus/config.json`.
-- Project config: `<project root>/.consensus/config.json`, resolved from the
-  invocation cwd or `--cwd`.
+- Project config: the nearest existing `.consensus/config.json` found by walking
+  upward from the invocation cwd or `--cwd`. This is not tied to a Git root. If
+  none exists, a project-scoped write targets `<cwd>/.consensus/config.json`.
 
 Effective composition is resolved in this order:
 
@@ -27,13 +177,25 @@ Effective composition is resolved in this order:
 3. User config from `.config/consensus/config.json` or `XDG_CONFIG_HOME`.
 4. Built-in defaults.
 
+Lists replace whole lists; entries are not merged by provider across scopes.
+For example, a project's provider-only `panelists` list replaces the user's
+entire list, including its model/effort settings. `panel_size` is resolved
+separately. An explicit `--panelists` list ignores lower-scope panel sizes unless
+you also supply `--panel-size` for that invocation. It also replaces saved
+model/effort settings with provider-only entries.
+
 Inspect defaults with:
 
 ```bash
 consensus config get --json --scope effective
+consensus config get --json --scope project
 consensus config get --json --scope effective --workflow panel
 consensus config list --json
 ```
+
+The workflow-specific form also resolves provider inventory. Plain effective
+output shows merged saved fields and their sources, including reserved fields;
+it is not evidence that every field affects a run.
 
 Set or clear defaults with:
 
@@ -45,6 +207,19 @@ consensus config clear --json --scope project --key panelists
 
 From a repository checkout, run the same commands through
 `plugins/consensus/scripts/consensus.mjs` with `node`.
+
+The list flags set provider IDs only. To save model/effort fields, edit the JSON
+file directly or import a complete config file:
+
+```bash
+consensus config get --json --scope user
+consensus config set --json --scope user --from-file ./consensus-config.json
+consensus config get --json --scope user
+```
+
+`--from-file` replaces the target scope's config with the supplied file (plus
+any explicit set flags); it does not merge that file into the existing config.
+Inspect and preserve any existing settings you want to keep before importing.
 
 ## Peer selection
 
@@ -180,8 +355,9 @@ can correct the verdict in-turn.
 ## Synthesizer
 
 In `parallel_synthesized` mode the synthesis call defaults to the first
-configured peer's provider. Override it with `--synthesizer <provider-id>` to run
-routine merging on a cheaper model; the provider must be present and usable in the
+configured peer's provider. Override it with `--synthesizer <provider-id>` to
+select a different provider for routine merging; this flag does not select a
+model or effort. The provider must be present and usable in the
 provider inventory or preflight fails (`SYNTHESIZER_UNAVAILABLE`). The flag is
 warned-and-ignored outside `parallel_synthesized` mode.
 
