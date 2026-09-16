@@ -115,7 +115,8 @@
    -------------------------------------------------------------------------- */
 :root {
   --rt-serif: ui-serif, 'Source Serif Pro', 'Iowan Old Style', Georgia, serif;
-  --rt-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --rt-sans:
+    -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
   --rt-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
   /* light mode surfaces — cool greys, same character as the dark reference */
@@ -361,7 +362,8 @@ body {
    Accent-on-elevated with a soft border instead. The :where() exclusions have
    zero specificity and keep this off Shiki spans inside code BLOCKS (I marks
    the figure `not-prose`; D styles `code span` from --shiki-*). */
-.prose code:not(:where(.not-prose, .not-prose *, pre, pre *, .shiki, .shiki *)) {
+.prose
+  code:not(:where(.not-prose, .not-prose *, pre, pre *, .shiki, .shiki *)) {
   font-family: var(--rt-mono);
   font-size: 0.8125em;
   color: var(--rt-accent);

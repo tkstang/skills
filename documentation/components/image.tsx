@@ -1,6 +1,5 @@
-import type { ComponentProps } from 'react';
-
 import defaultComponents from 'fumadocs-ui/mdx';
+import type { ComponentProps } from 'react';
 
 // Static export under a base path (production deploys to /skills) does not
 // rewrite root-relative Markdown image sources: `![](/diagrams/x.svg)` is
@@ -24,17 +23,34 @@ export function Image(props: ComponentProps<typeof BaseImage>) {
     return <BaseImage {...props} />;
   }
   const prefixed =
-    basePath && src.startsWith('/') && !src.startsWith(`${basePath}/`) ? `${basePath}${src}` : src;
+    basePath && src.startsWith('/') && !src.startsWith(`${basePath}/`)
+      ? `${basePath}${src}`
+      : src;
   const isDiagram = src.includes('/diagrams/');
   // oxlint-disable-next-line nextjs/no-img-element -- static export with unoptimized images; plain img avoids next/image's width requirement for root-relative assets
-  const img = <img {...(rest as ComponentProps<'img'>)} src={prefixed} alt={alt ?? ''} loading="lazy" className="rounded-lg" />;
+  const img = (
+    <img
+      {...(rest as ComponentProps<'img'>)}
+      src={prefixed}
+      alt={alt ?? ''}
+      loading="lazy"
+      className="rounded-lg"
+    />
+  );
   if (!isDiagram) return img;
   // Markdown images sit inside a <p>, so the wrapper must be phrasing content;
   // app/globals.css turns these spans into block-level scroll regions.
   return (
-    <span className="diagram-scroll" role="region" aria-label={alt ?? 'Diagram'} tabIndex={0}>
+    <span
+      className="diagram-scroll"
+      role="region"
+      aria-label={alt ?? 'Diagram'}
+      tabIndex={0}
+    >
       {img}
-      <span className="diagram-hint">Scroll sideways to see the whole diagram.</span>
+      <span className="diagram-hint">
+        Scroll sideways to see the whole diagram.
+      </span>
     </span>
   );
 }
