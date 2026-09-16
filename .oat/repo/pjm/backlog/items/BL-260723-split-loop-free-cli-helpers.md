@@ -11,7 +11,7 @@ labels:
   - wave-3-follow-up
 assignee: null
 created: 2026-07-23T09:30:00Z
-updated: 2026-09-11T13:15:47.721Z
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-09-07-extract-loop-free-cli-helper-core.md
@@ -20,7 +20,7 @@ external_plans:
 ## Description
 
 Wave-3's helper consolidation excluded `consensus-panel.ts` by reviewed ruling:
-the shared `src/consensus/shared/cli-helpers.ts` hard-depends on
+the shared `src/plugins/consensus/shared/cli-helpers.ts` hard-depends on
 consensus-loop (`ConsensusError`/`EXIT_CODES` at cli-helpers.ts:11), so a panel
 import would transitively couple panel to the loop, regressing its documented
 decoupling (own `PANEL_EXIT_CODES`/`PanelError`; enforced by
@@ -30,7 +30,7 @@ nearestExistingPath, ensureFinalNewline, prompt-block encoding, envelope
 parsing, providerStatusMap, inside).
 
 Reviewer-named follow-up shape: extract a loop-free
-`src/consensus/shared/cli-helpers-core.ts` holding the pure,
+`src/plugins/consensus/shared/cli-helpers-core.ts` holding the pure,
 ConsensusError-free helpers; both panel and the existing loop-coupled
 `cli-helpers.ts` import from it; the confineWrite/atomicWriteFile/
 providerCliUnavailableError trio stays in the loop-coupled layer. Update the

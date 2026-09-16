@@ -22,11 +22,9 @@ Conventions:
 
 ## Current handoffs
 
-- [`BL-260612-add-consensus-research-skill.md`](./BL-260612-add-consensus-research-skill.md)
-  (`BL-260612-add-consensus-research-skill` — Add consensus-research skill)
-- [`BL-260612-add-deliberation-metrics.md`](./BL-260612-add-deliberation-metrics.md)
-  (`BL-260612-add-deliberation-metrics` — Add deliberation metrics (tokens,
-  wall-clock, rounds) to artifacts)
-- [`BL-260612-add-similarity-heuristic.md`](./BL-260612-add-similarity-heuristic.md)
-  (`BL-260612-add-similarity-heuristic` — Add similarity heuristic for
-  near-converged deliberation states)
+The September 16 confirmed stack replaces the July research/loop-quality kickoff. The former handoffs and the consumed observer handoff were removed; they remain recoverable in Git history.
+
+- [Consensus Review — BL-260916-add-consensus-review-cross](BL-260916-add-consensus-review-cross.md): quick workflow with lightweight design; Astra leads, Fable reviews.
+- [First-party standalone installer — BL-260916-add-a-first-party-install](BL-260916-add-a-first-party-install.md): approved independent parallel lane; user selects owner.
+
+Later candidates are listed in the full review and alignment but have no kickoff handoffs until selected.

@@ -1,110 +1,79 @@
 # Backlog Priority Alignment
 
-**Date:** 2026-07-11
-**Status:** Active — Research boundary and loop-quality batch promoted to now; whole-document harmonization and the shared session-log substrate are next; direct messaging is later.
+**Date:** 2026-09-16
+**Status:** Active — three immediate lanes confirmed; later project grouping and order proposed, not operator-approved.
 
-One-page execution guide: recommended order, scope, parallelism, and planning investment. For the full value/effort catalog, dependency graph, and quadrant tables, see [backlog-and-roadmap-review.md](./backlog-and-roadmap-review.md).
+> **Closeout update (2026-09-16):** The observer re-arm lane subsequently completed in PR #85 and its item moved to `backlog/archived/`. Statements below that describe it as open or in flight preserve the planning snapshot taken before that closeout; the current roadmap and backlog index are authoritative for active work.
 
-> This document is produced or refreshed via the optional walkthrough at the end of `oat-pjm-review-backlog`. It is **not** auto-generated — phase shape, parallelism, and the kickoff stack reflect operator judgment captured during the walkthrough.
+The July kickoff stack is superseded. This is the operator execution view; see the [full review](backlog-and-roadmap-review.md) for ratings/evidence, [roadmap](../../roadmap.md) for horizons, [current state](../../current-state.md) for merged capability, and [item index](../index.md) for canonical records.
 
-## Related sources
+## Operator context and approval boundary
 
-| Document | Role |
-| --- | --- |
-| [roadmap.md](../../roadmap.md) | Authoritative Now / Next / Later execution order |
-| [current-state.md](../../current-state.md) | Shipped capabilities and selected active backlog |
-| [backlog/index.md](../index.md) | Curated overview and generated item table |
-| [backlog/items/](../items/) | Executable backlog records |
-| [backlog-and-roadmap-review.md](./backlog-and-roadmap-review.md) | Full value/effort catalog, dependency graph, and risks |
+PR #83 is merged. The user reports Sol has started the observer investigation, approves Consensus Review next with Astra driving and Fable reviewing, and explicitly wants the installer available in parallel. No calendar constraint was supplied.
 
-> **Planning investment** = discovery or design needed before implementation pays off — not total build time. It remains useful here because the research and substrate lanes have materially different design risk from their implementation size.
-
-**Operator context (2026-07-11):** Move the research boundary and loop-quality batch to **now**. Take whole-document harmonization and the shared session-log substrate **next**. Keep direct messaging **later**. No new calendar or numeric-capacity constraint was set in this pass; current parallelism is therefore limited by shared-surface safety rather than assumed headcount.
-
----
+These are **three approved independent lanes**, not a dependency chain. The remaining 16 items have recommended groupings below, but their total order has not been agreed. Do not present this planning PR or its eventual merge as authorization to start all of them. Publication of this planning branch/PR is authorized; product execution, provider spend, installation and release retain their own boundaries.
 
 ## Finishing / in flight
 
-**Nothing is mid-flight.** The previous generated-runtime dedup cycle shipped on 2026-07-07, so the current board has nine open items and no packaging-window dependency.
+[BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) is **started with Sol, per the user**. Its canonical item remains open on this planning branch; Sol owns implementation tracking and acceptance-based closeout in its worktree. The handoff is a reference for that existing assignment, not a second dispatch.
 
----
+## Confirmed kickoff stack
 
-## Phase 1 — Research boundary + loop-quality batch (now)
+1. **Continue:** [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) — Sol; bounded reproduction first.
+2. **Kick off:** [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) — Astra leads a quick workflow with lightweight design; Fable observes and reviews. The design must settle reviewer config/selection, scope capture, read-only policy/capture writes, owned schema and OAT rendering. This alignment does not claim the project has already been scaffolded.
+3. **Parallel kickoff:** [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) — independent implementation worktree; owner selected by the user. Approved as a parallel lane, not claimed started.
 
-Two deliberate tracks are active now. The research track is a decision-only boundary; the loop-quality track is one sequential implementation worktree. The research **build**, if approved, must not overlap the loop-quality implementation.
+Each has a [kickoff handoff](../../handoffs/README.md). Merge or reconcile the planning baseline before implementation closeout so concurrent branches do not restore older ticket text. The user already supplied Sol a chat handoff; do not restart its work.
 
-| Item | Scope | Planning investment | Parallel with | Notes |
-| --- | --- | --- | --- | --- |
-| [Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) (`BL-260612-add-consensus-research-skill`) | M | High | Loop-quality batch — **DR only** | Start with the peer tool-access, permissions, and evidence-provenance DR. The resulting go/no-go defines the wrapper scope; do not begin its loop-touching build yet. |
-| [Add deliberation metrics](../items/BL-260612-add-deliberation-metrics.md) (`BL-260612-add-deliberation-metrics`) | S | Low | Research DR only; then similarity in same worktree | Inventory real provider-CLI token/cost signals, preserve explicit unavailable semantics, and record the cost-cap feasibility outcome. |
-| [Add similarity heuristic](../items/BL-260612-add-similarity-heuristic.md) (`BL-260612-add-similarity-heuristic`) | S | Low | Metrics only — same worktree, second | Keep it deterministic, agency-gated, and audit-disclosed. Do not open the shared loop in a separate worktree. |
+## Complete project map — all 19 items
 
----
+There are **16 project candidates covering 19 items**: one three-ticket maintenance batch, one conditional two-ticket loop-quality batch, and fourteen single-ticket projects. These are planning units, not sixteen newly created OAT projects.
 
-## Phase 2 — Coherence + collaboration foundation (next)
+| Priority / approval | Project candidate | Backlog membership | Grouping boundary |
+| --- | --- | --- | --- |
+| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
+| Now — approved | Consensus Review | [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) | Quick workflow + lightweight design; Astra leads, Fable reviews. No unrelated loop changes. |
+| Now — approved parallel | Standalone installer | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | Independent quick project; integrity, overwrite/ref semantics and host-specific destinations remain explicit. |
+| Next — proposed 1 | Consensus runtime maintenance | [BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows](../items/BL-260916-honor-configured-peer-models.md); [BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic](../items/BL-260723-make-remaining-consensus-loop.md); [BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing](../items/BL-260723-split-loop-free-cli-helpers.md) | One project, three independently verifiable phases/commits: model propagation, atomic writes, helper split. Shared runtime/output ownership justifies grouping, not a hard dependency; each can ship separately. Only helper extraction may move into Review if its design demonstrates direct need. |
+| Next — proposed 2 | Provider-neutral inbox | [BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)](../items/BL-260619-inter-agent-direct-messaging.md) | Own project. Shared identity/state contract, acknowledgments, concurrency and bounded delivery; independent of fidelity/merge. |
+| Next — proposed 3 | Session fidelity | [BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter](../items/BL-260916-session-fidelity-opt.md) | Own design/build project using the retained research packet; no daemon or warehouse. |
+| Next — authorization lane | Live-submit investigation | [BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch](../items/BL-260723-investigate-live-submit.md) | Separate bounded diagnosis; schedule when live-run authority is granted. Do not hide provider spend inside a maintenance batch. |
+| After fidelity — proposed | Stateless merged activity view | [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) | Separate project consuming the fidelity contract; not a prerequisite for inboxes. |
+| Later — proposed first | Loop measurement and convergence quality | [BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md); [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) | Potential two-phase project: ship metrics first; similarity proceeds only if evidence and a reviewed deterministic contract justify it. Grouping is not approval to implement the heuristic. |
+| Later — demand-gated | Whole-document harmonization | [BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md) | Separate context/fan-in/resume project; not an incidental Review enhancement. |
+| Later — demand-gated | Consensus Research | [BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)](../items/BL-260612-add-consensus-research-skill.md) | Separate tool-access/provenance decision, then implementation only on go. |
+| Later — demand-gated | Multi-round Panel | [BL-260701-add-multi-round-panel — Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) | Separate optional attributed discussion project; not convergence. |
+| Parked — unranked | Safe N>2 collaboration | [BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh](../items/BL-260713-per-observer-offsets-and-safe.md) | Separate stateful ownership/CAS/topology project. Inboxes and stateless merge may inform it but are not hard prerequisites. |
+| Parked — unranked | Idle-session integrations | [BL-260713-optional-idle-session — Optional idle-session application integrations](../items/BL-260713-optional-idle-session.md) | Separate opt-in host integration investigation; don't couple mesh delivery to a selected application. |
+| Parked — unranked | Host-native dispatch | [BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)](../items/BL-260619-define-host-native-dispatch.md) | Separate capability/security decision; no enabling reserved flags without reviewed contract. |
+| Parked — unranked | 3+ peer deliberation | [BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)](../items/BL-260619-multi-peer-3-deliberation.md) | Separate group-convergence decision, not the N>2 observer mesh. |
 
-These are the next investments after Phase 1 closes. They are technically disjoint, but each is a high-attention design/build arc; begin one or both only with deliberate capacity.
+## Recommended order beyond the kickoff — awaiting confirmation
 
-| Item | Scope | Planning investment | Parallel with | Notes |
-| --- | --- | --- | --- | --- |
-| [Add whole-document harmonization pass](../items/BL-260612-add-whole-document.md) (`BL-260612-add-whole-document`) | M | Medium | Shared-session-log **design** only | First record the assembled-document-only versus include-section-logs decision. The implementation must compose with sequential, host-mediated parallel, impasse, and resume paths. |
-| [Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) (`BL-260619-shared-session-log-substrate`) | L | High | Harmonization subject to capacity | Begin with the adopt-versus-build, packaging, identity, merged-log schema, and lifecycle decisions. This is a daemon/operational-surface initiative, not an incidental third worktree. |
+1. **Consensus runtime maintenance** for known correctness/duplication debt.
+2. **Provider-neutral inbox**, then **Session fidelity** as the default product queue. This ordering is based on bounded scope and immediate collaboration utility, not a dependency; the user can swap them or run them with separate ownership.
+3. **Stateless merged activity view**, strictly after the fidelity contract is usable.
+4. **Loop measurement/convergence quality**, then demand-led harmonization/research/panel work. Similarity has its own evidence gate and need not ship with metrics.
+5. Keep the four parked projects unranked until a concrete need selects one.
 
----
-
-## Phase 3 — Direct messaging (later)
-
-| Item | Scope | Planning investment | Parallel with | Notes |
-| --- | --- | --- | --- | --- |
-| [Inter-agent direct messaging](../items/BL-260619-inter-agent-direct-messaging.md) (`BL-260619-inter-agent-direct-messaging`) | M | High | None until its substrate exists | Begin only after the shared session-log substrate lands. Reuse its project-scoped identity, state, lifecycle, and cursor primitives; record the Agent Mail / `cass` adopt-versus-build decision. |
-
----
-
-## Deferred / parked
-
-| Item | Scope | Notes |
-| --- | --- | --- |
-| [Define host-native dispatch / safe-packet protocol](../items/BL-260619-define-host-native-dispatch.md) (`BL-260619-define-host-native-dispatch`) | L | The reserved capability remains safely disabled. Revisit only for a concrete host-native dispatch need. |
-| [Multi-peer (3+) deliberation extension](../items/BL-260619-multi-peer-3-deliberation.md) (`BL-260619-multi-peer-3-deliberation`) | L | Panel already provides multi-provider breadth; reopen group convergence only with evidence that two peers are insufficient. |
-| [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) | M | The product boundaries are recorded. Build only after usage evidence shows that single-round breadth is inadequate. |
-
----
+**Live-submit investigation** is an independent authorization-gated slot, not a last-place item: move it earlier when the user grants a bounded live run or current release work depends on that evidence.
 
 ## Parallelism cheat sheet
 
-| Can run together | Must remain sequential |
+| Can run together | Coordinate or sequence |
 | --- | --- |
-| [Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) (`BL-260612-add-consensus-research-skill`) **DR only** ∥ the loop-quality batch | The research **build** ∥ any loop-quality implementation |
-| [Add whole-document harmonization pass](../items/BL-260612-add-whole-document.md) (`BL-260612-add-whole-document`) planning ∥ shared-session-log substrate planning, subject to capacity | [Add deliberation metrics](../items/BL-260612-add-deliberation-metrics.md) (`BL-260612-add-deliberation-metrics`) → [Add similarity heuristic](../items/BL-260612-add-similarity-heuristic.md) (`BL-260612-add-similarity-heuristic`) in one shared-loop worktree |
-| The session-log substrate can be technically disjoint from consensus work | [Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) (`BL-260619-shared-session-log-substrate`) → [Inter-agent direct messaging](../items/BL-260619-inter-agent-direct-messaging.md) (`BL-260619-inter-agent-direct-messaging`) |
+| Observer investigation, Consensus Review, standalone installer | Separate worktrees; coordinate shared distributions/version outputs and user-guide links at integration. |
+| Consensus work and inbox/fidelity planning | Review and maintenance share Consensus config/runtime/generation surfaces; serialize overlapping implementation or rebase explicitly. |
+| Inbox design and fidelity design | Their observer/collab implementation may overlap; assign exact ownership before concurrent writes. |
+| Authorized live-submit diagnosis and unrelated development | No implicit live-run permission; observe effective runtime policy and redact evidence. |
+| Research-boundary design and loop measurement | Avoid concurrent loop-mutating implementations. |
 
----
-
-## Suggested OAT project groupings
-
-| Proposed project | Items | Why |
-| --- | --- | --- |
-| **consensus-research-boundary** | [Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) (`BL-260612-add-consensus-research-skill`) | Spec-driven decision/build project; the peer tool-access decision must shape the implementation. |
-| **loop-quality** | [Add deliberation metrics](../items/BL-260612-add-deliberation-metrics.md) (`BL-260612-add-deliberation-metrics`) → [Add similarity heuristic](../items/BL-260612-add-similarity-heuristic.md) (`BL-260612-add-similarity-heuristic`) | One loop-core opening, one generated-output regeneration arc, and shared tests. |
-| **whole-document-harmonization** | [Add whole-document harmonization pass](../items/BL-260612-add-whole-document.md) (`BL-260612-add-whole-document`) | Separate design/boundary decision before a broad Refine and resume integration. |
-| **multi-agent-substrate** | [Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) (`BL-260619-shared-session-log-substrate`) | Initiative-scale foundation before later messaging. |
-| **direct-messaging** | [Inter-agent direct messaging](../items/BL-260619-inter-agent-direct-messaging.md) (`BL-260619-inter-agent-direct-messaging`) | Later project, deliberately blocked on the foundation. |
-
----
-
-## Current kickoff stack
-
-> Each current-stack item has a one-shot kickoff handoff under [`../../handoffs/`](../../handoffs/). Create a worktree per project, use the stated mode, and delete the consumed handoff in the shipping PR.
-
-1. **Kick off** [Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) (`BL-260612-add-consensus-research-skill`) as a spec-driven research-boundary project. Deliver the DR first; a build follows only on a documented go.
-2. **Kick off** the loop-quality project: [Add deliberation metrics](../items/BL-260612-add-deliberation-metrics.md) (`BL-260612-add-deliberation-metrics`) → [Add similarity heuristic](../items/BL-260612-add-similarity-heuristic.md) (`BL-260612-add-similarity-heuristic`) in one sequential worktree.
-
----
+**Hard item edge:** [BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter](../items/BL-260916-session-fidelity-opt.md) → [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md). Other sequencing above is recommended scheduling or an internal design gate.
 
 ## Changelog
 
 | Date | Update |
 | --- | --- |
-| 2026-07-11 | **Priority reset confirmed.** Research boundary and loop-quality batch moved to now; whole-document harmonization and shared session-log substrate moved to next; direct messaging moved to later. Replaced the stale 10-item/dedup-window view and refreshed the current kickoff stack. |
-| 2026-07-07 | Shared generated-runtime dedup shipped; the hosted-discovery check and decision sweep closed. |
-| 2026-07-05 | Consolidation-cycle alignment created; superseded by the July 11 execution order. |
+| 2026-09-16 | Confirmed Sol re-arm work, Astra/Fable Review lane, and parallel installer. Replaced July kickoff handoffs; mapped all 19 items into 16 candidates. Kept later order explicitly proposed; removed daemon-first messaging dependency and broad Review ride-alongs. |
+| 2026-07-11 | Previous research-boundary/loop-quality kickoff; now superseded, not marked completed. |
+| 2026-07-07 | Generated-runtime dedup and hosted-discovery/decision sweep completed. |

@@ -10,7 +10,7 @@ labels:
   - observability
 assignee: null
 created: 2026-06-12T21:33:26Z
-updated: 2026-07-11T23:41:32Z
+updated: 2026-09-16T18:06:09Z
 associated_issues: []
 legacy_id: bl-9ed4
 ---
@@ -24,6 +24,6 @@ Related open question from v3: whether `--max-cost-per-section` / `--max-cost-to
 ## Acceptance Criteria
 
 - Resolution block reports total rounds, per-section rounds, wall-clock, and token/cost figures when available, with explicit "unavailable" semantics otherwise.
-- Metrics are consistent across alternating and (once shipped) parallel modes, and survive resume.
+- Metrics are consistent across alternating and the shipped parallel modes, and survive resume.
 - Feasibility note on cost-cap flags recorded in the item or a successor.
 - Tests + docs updated.

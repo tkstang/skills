@@ -1,149 +1,67 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-09-16 (Exact-pin observer re-arm behavior is now covered across clean stop/restart paths. No supported-path message loss was reproduced; synthetic evidence stops at stdout, and the legacy pre-stdout checkpoint window remains a broader acknowledgment/CAS limitation.)
+**Last updated:** 2026-09-16
+**Verified baseline:** `origin/main` at `49b4baf3` (merged PR #83), plus four preserved backlog-only design commits. This is the repository operating picture, not a claim that every payload is installed or externally published.
 
-## Overview
+## What is available on main
 
-This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, canonical TypeScript source under `src/`, compatibility/reference material under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. The canonical source tree currently contains four public standalone entries: `session-observer`, `export-session-transcript`, `session-observer-collab`, and the experimental `coding-session-handoff`. External marketplace, registry, provider-mirror, and hosted search/install claims remain release-gated unless supported by current evidence.
+Canonical authored skills live under `src/skills/`, shared transcript code under `src/shared/transcript/`, and Consensus shared runtime under `src/plugins/consensus/`. `src/distributions.ts` declares the generated, self-contained installation units under `skills/` and `plugins/*/skills/`. Runtime remains Node >=22, standard-library only; TypeScript, Vitest, bundling, and pnpm are developer tooling.
 
-## Shipped Capabilities
+| Distribution | Committed version / members | Boundary |
+| --- | --- | --- |
+| Consensus plugin | Manifest `0.1.1`; create, decide, plan, refine, evaluate, panel, phone-a-friend, observer, observer-collab | Deliberation, consultation, and cross-session observation. |
+| Session plugin | Manifest `0.2.0`; handoff, export-transcript, fork-to-destination, retro | Transfer, export, fork guidance, and retrospective workflows. Retro does not require Consensus. |
+| Standalone skills | complexity-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Nine declared standalone payloads; plugin and standalone forms share canonical owners. |
 
-### Consensus plugin (`plugins/consensus/`) — v0.1.0 released; seven source-tree skills implemented
+Plugin manifest versions are independent of each skill's sole authored `metadata.version`. Shared-source changes also require affected consumer version bumps; the transitive version guard is already implemented and archived, not new work.
 
-Seven skills ship in the source tree:
+### Consensus
 
-- `create` (invoked as `consensus:create`): peers independently draft a new artifact from an inline or file-backed brief, optionally guided by a template, then converge through the shared loop. Defaults: `independent_draft` / `parallel_synthesized` / `maximum`.
-- `decide` (invoked as `consensus:decide`): peers independently draft decision documents from an options file and converge on a markdown recommendation with reasoning, alternatives, and explicit dissent or unresolved disagreement. Defaults: `independent_draft` / `parallel_synthesized` / `minimal`.
-- `plan` (invoked as `consensus:plan`): peers independently draft structured plans from a goal and optional inline constraints, converging on markdown steps, dependencies, and risks. Defaults: `independent_draft` / `parallel_synthesized` / `moderate`.
-- `refine` (invoked as `consensus:refine`): two provider CLI-backed AI peers (default Claude + Codex) deliberate on a markdown draft toward a converged artifact with a full audit trail.
-- `evaluate` (invoked as `consensus:evaluate`): two provider CLI-backed AI peers judge an artifact against a rubric/spec, defaulting to `shared_input` / `parallel_revision` / `minimal`, and produce a markdown evaluation with unified findings, embedded per-peer `consensus-verdict` records, and dissent or unresolved-dissent sections when disagreement remains.
-- `panel` (invoked as `consensus:panel`): provider-backed panelists answer one approved question independently with attribution while the host stays a neutral moderator; defaults can be managed through `consensus config`.
-- `phone-a-friend` (invoked as `consensus:phone-a-friend`): the host asks one other provider-backed peer for a structured advisory take, then dispositions that take itself. It ships as instructions plus `schemas/advisory.schema.json`, with no deliberation loop and no generated runtime wrapper.
+- Create, Decide, Plan, Refine, and Evaluate use the two-peer convergence engine. Alternating, parallel-revision, and parallel-synthesized modes, agency-gated escalation, resume, and host-mediated parallel section orchestration are implemented.
+- Panel gathers independent, attributed responses without forced convergence. Phone a Friend dispatches one advisory invocation and leaves disposition with the host.
+- The provider CLI owns capability/preflight checks, model/effort forwarding where supported, subprocess policy, structured output, retry bounds, and submit-sidecar/final-message handling.
+- Saved defaults use invocation > project > user > built-in precedence. **The five convergence wrappers currently discard configured peer model/effort; Panel forwards them.** Reserved roles are not automatically consumed; independent per-workflow default sections are not implemented. Phone a Friend supports explicit per-call controls, not automatic advisor-role defaults.
+- The configuration guide now includes annotated JSONC, copyable strict JSON, field types/constraints, precedence, and a workflow support matrix. Documentation does not close the remaining runtime defect.
 
-- **Cold starts:** `shared_input` remains the default core behavior and the only accepted cold start for `refine` and `evaluate`. `independent_draft` is now implemented in the shared loop core for creation-style workflows: round 1 asks each peer to produce its own draft from untrusted brief/options/goal content, then round 2+ uses the existing revision/synthesis machinery. The resolution block records `cold_start`.
-- **Iteration modes (Phase 2, branch-implemented):** three modes selected with `--iteration` — `alternating` (default; one peer revises, the other responds), `parallel_revision` (both peers revise simultaneously each round with own/peer critique, emergent same-round convergence, 2× peer calls), and `parallel_synthesized` (parallel revision plus a wrapper-driven per-round synthesis merge, 2× peer calls + 1 synthesis call). Per-round cost multiplier disclosed on the `run_started` event; `peer_calls`/`synthesis_calls` totals reported at completion.
-- **Synthesizer:** `parallel_synthesized` synthesis defaults to the first peer; override with `--synthesizer <provider>` (must be in the peer inventory or preflight fails `SYNTHESIZER_UNAVAILABLE`; warned-and-ignored outside the mode). Synthesizer identity recorded per synthesis record and in the resolution block.
-- **Escalation ladder (FR5):** parallel modes can emit a structured `escalation_required` event on deterministic triggers (persistent disagreement, oscillation, budget exhaustion, near-done drift) routed by `--agency` to user or host. Host decisions re-enter via `--resume … --host-direction "<text>"` (optionally `--host-decision-kind pick_a|pick_b|blend|direct|accept_impasse|extend_budget|defer_to_user`) and record as attributed `HOST_DECISION` orchestrator rounds; user decisions re-enter via `--user-direction`. Genuinely-stuck promotion: a re-fired trigger after a prior host decision (or an explicit `defer_to_user`) promotes to the user (`promoted_from: host`). HOST_DECISION routing metadata (`decision_kind`, `escalation_trigger`) persists in the canonical artifact block so promotion stays restart-safe across resumes.
-- **Schema:** unified v1 verdict family across modes; per-record `schema_version: "v1"` plus an artifact-level `consensus_schema_version: "v1"`; OpenAI/codex strict structured output handled (draft-07 schemas, no `oneOf`, typed properties, verdict normalization that drops branch-disallowed fields); v0 artifacts rejected with no migration. Post-receive byte caps, normalized-hash convergence with ACCEPT-twice-same-hash guard, oscillation detection, per-section round budgets (default 12).
-- **Orchestration:** sequential sections by default; opt-in host-mediated parallel dispatch (`--prepare-parallel` → host dispatches section runners per `agents/consensus-section-runner.md` → `--fan-in`); Codex subagent authorization fails closed. Each run gets a unique default run directory (no cross-run contamination).
-- **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
-- **Provider CLI peer invocation (2026-06-19):** new runs route through `plugins/consensus/scripts/consensus.mjs` for `provider ls`, `preflight`, and `run`. The CLI owns provider inventory, readiness/auth diagnostics, host recursion guard, runtime policy validation, bounded subprocess execution, provider-tier retry/cap/timeout behavior, and schema delivery. Claude receives inline JSON schema with redacted diagnostics; Codex uses `--output-schema <FILE>` plus `--output-last-message <FILE>` extraction for legacy final-message mode; Cursor uses prompt-only schema instructions plus local validation/retry and reports `auth_required` when the local keychain/auth state blocks use.
-- **Provider CLI hardening (2026-06-21; read-only capture relocation 2026-07-07):** `provider-cli-hardening` completed BL-260619-refine-provider-exit-retry + BL-260613-tool-based-verdict-submission. Unknown provider exits remain terminal-by-default; transient retry now stays separate from schema-validation feedback; diagnostics include redacted `exit_classification`; reliable external interrupts can retry while timeout/output-cap paths remain terminal; provider-specific transient signatures are evidence-only. The verdict path now injects `CONSENSUS_SUBMIT_COMMAND`, `CONSENSUS_SUBMIT_SCHEMA`, `CONSENSUS_SUBMIT_FILE`, and `CONSENSUS_SUBMIT_MAX_BYTES`; peers call `consensus submit --json -`, receive structured `SubmitResult` feedback, and successful sidecars are preferred over final-message parsing with unchanged `ConsensusCliRunEnvelope` shape. Submit-enabled Codex turns avoid native `--output-schema` so pre-turn strict-output rejection does not block the peer from submitting. Submit capture is size-bounded and now generated under the provider turn cwd at `.consensus/submit/`, removing the old Codex read-only tmpdir sidecar write dependency. Deterministic evidence covers no-final-JSON, strict-output rejection, workspace-local capture paths, and provider-specific transient signatures.
-- **Advisory peer workflow (2026-06-28):** `phone-a-friend` uses the existing provider CLI `run` primitive with a skill-local advisory schema, not a custom wrapper. The skill tells the host to infer or confirm the advisory question, compact only relevant context, prefer a different provider when available, pass `--max-depth 1`, treat the advisory payload as untrusted data, and report whether the take was accepted, rejected, applied, ignored, or followed up.
-- **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
-- **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
-- **TypeScript/generated runtime slices:** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, prompt-profile, cold-start, and peer-invocation domains. Wrapper source lives under `src/consensus/{create,decide,plan,refine,evaluate}/`. The build rewrites canonical loop module specifiers to the shared plugin-local runtime at `../../../scripts/consensus-loop.mjs` without rewriting unrelated string literals. The generated wrapper runtimes live under `plugins/consensus/skills/{create,decide,plan,refine,evaluate}/scripts/`, while the shared loop output lives once at `plugins/consensus/scripts/consensus-loop.mjs`; generated banners and drift guards cover both.
-- **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` when Cursor Agent is available. Cursor provider preflight can report `auth_required` when the macOS login keychain is locked, especially over SSH, but authenticated Cursor peer E2E now passes for Refine and Evaluate.
-- **Prerequisite:** Node >=22 and the generated consensus provider CLI. Requested peer provider CLIs (`claude`, `codex`, `cursor`) must be installed and pass provider-neutral preflight for live use.
+Exact behavior: [Consensus guide](../../../documentation/docs/user-guide/consensus/index.md), [configuration reference](../../../documentation/docs/user-guide/consensus/configuration.md), and [Consensus runtime architecture](../../../documentation/docs/engineering/architecture/index.md).
 
-Refine verified live with claude+codex across all three modes and the escalation ladder before the provider CLI cutover; current provider CLI parity is covered by focused integration tests, smoke, `premerge`, and provider inventory/preflight evidence. Cursor-as-peer is live-verified through the provider CLI for both Refine and Evaluate with `--peers cursor,codex`, using Cursor's prompt-only strategy and Codex's constrained-native strategy. Create/decide/plan are covered by mocked wrapper/provider-CLI integration, generated-output, manifest, docs, and smoke tests. Phone-a-friend is covered by schema contract tests, manifest/version-tooling tests, docs validation, and full-suite verification; live cross-provider advisory calls remain operator-authenticated/manual like the other provider-backed skills.
+### Sessions and collaboration
 
-Not yet implemented (see `roadmap.md`): `consensus-research`, whole-document harmonization, deliberation metrics/cost caps, a convergence similarity heuristic (deterministic-only triggers shipped; BL-260612-add-similarity-heuristic), optional multi-round panel discussion (evidence-gated and non-converging if pursued), and opt-in strict require-submission mode. Explicitly not planned after the 2026-07-07 decision sweep: first-class mid-loop `type=edit` interventions and LLM section auto-chunking.
+- Observer discovers and reviews Claude Code, Codex, and supported Cursor transcript surfaces, with exact-pin catch-up, bounded foreground watch, filtered digests, and locked state.
+- Collaborative Observer composes that observation into bounded **N=2** collaboration. Peer text does not acquire user authority. Wake/callback capabilities remain harness-specific; bounded continuation is not an indefinite idle-session wake guarantee.
+- Export produces sanitized conversation Markdown by default. General correlated tool/result activity is not yet implemented; the optional `--include-activity` contract remains backlog work.
+- Handoff captures portable continuation context; Retro reviews session evidence. Neither requires native provider-session forking.
+- **Session Fork to Destination is available as an alpha**, canonical version `0.2.3`. It discovers, previews, and prepares instructions for user-controlled Claude Code or Codex destinations; it does not invoke a provider, create a session, or write provider stores. Cursor lacks exact cwd evidence and fails closed. Use explicit supported-provider selection while `--provider all` encounters that incomplete surface.
+- The September 16 re-arm investigation is complete in PR #85. Deterministic fixtures found no lost renderable message across supported clean exact-pin `catch-up-then-watch` restarts, including SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, and competing-consumer interleavings. Raw-index gaps can reflect filtered activity. The legacy offset is persisted before stdout completion, so failed output can consume a range without replay; synthetic coverage verifies state and process stdout, not live harness delivery.
 
-### session-observer (`skills/session-observer/`)
+See the [standalone catalog](../../../documentation/docs/user-guide/skills/index.md) and [Session plugin guide](../../../documentation/docs/user-guide/plugins/session/index.md) for usage and supported boundaries.
 
-Standalone skill for reviewing what a peer coding agent did in the same project. Supports Claude Code, Codex, and Cursor agent-transcript stores.
+### Documentation and distribution work merged
 
-- **One-shot:** `review` (tool-free digest of the most relevant peer session), `catch-up` (only records since the per-session high-water mark), `locate` (ranked candidates as JSON), `state get/reset/clear`.
-- **Selection:** deterministic tier ranking (exact cwd → bidirectional ancestor/descendant → explicit no-match widening), tie surfacing, `--session <runtime:id>` pinning.
-- **Watch mode (shipped 2026-06-04, PRs #4/#5/#7):** foreground stat-polling watcher with debounce coalescing; emits catch-up digests to stdout for the active agent; `watch-ctl status|pause|resume|flush|stop`; lock-protected state with stale-PID cleanup; multi-watcher and duplicate-target safety; metadata-only `--event-log` hardened to the state directory; `--runtime both` (Claude Code + Codex).
-- **Exact-pin re-arm characterization (2026-09-16, PR #85 open):** deterministic Codex fixtures cover SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, stdout failure, and competing-consumer interleavings. Supported clean `catch-up-then-watch` restarts retain and emit known renderable messages without a runtime change. Raw-index movement through filtered tool/reasoning records is not proof of conversational loss. The shared legacy offset is still persisted before stdout completion, so output failure can consume a range without replay; synthetic tests verify state and process output, not delivery into a live observing agent.
-- **TypeScript/generated runtime slice (2026-06-18):** canonical implementation source now lives under `src/transcript/session-observer/`, including typed state, candidate/ranking, digest/observe, watch, CLI/probe, and transcript-core interaction boundaries. The shipped dependency-free CLI, probe, and library `.mjs` files remain generated and committed under `skills/session-observer/scripts/`; session-observer tests now run as Vitest TypeScript while generated-entrypoint coverage still executes the shipped `.mjs` paths.
-- **State:** `~/.local/state/session-observer/` (XDG), keyed `runtime:sessionId`, locked atomic writes.
-- **Digests:** natural-language-only by default; `--include-tools` / `--debug` opt-ins; filter header always present.
+- PR #79 colocated canonical owners and generated distributions; PR #82 promoted Must We?, Next Steps, and Session Retro.
+- PR #83 reorganized the site into User Guide (Getting Started, Plugins, Standalone Skills) and Engineering (Architecture, Development, Contributing, Operations), expanded TypeScript/build guidance, added diagrams and the Markdown/Visuals catalog, and completed the configuration reference.
+- README is an entry point; the [documentation site source](../../../documentation/docs/index.md) is the detailed reference. Engineering owns the build/packaging/testing and CI/release explanations.
+- The retained [session-fidelity research packet](../reference/research/session-fidelity-2026-09-10/README.md) is design input, not implemented functionality. Its original source paths/revisions predate colocation; native schemas are observational and examples synthetic.
 
-### export-session-transcript (`skills/export-session-transcript/`) — shipped 2026-06-06, PR #6
+## Release and verification posture
 
-Standalone skill exporting the current (or selected) session to sanitized markdown.
+- Live GitHub inspection on September 16 confirmed PR #83 merged as `49b4baf3`. `gh release list` returned the published Consensus `v0.1.0` release from June 20; committed manifest versions above do not establish newer tagged releases.
+- Historical provider/hosted-discovery evidence applies only to the versions and installation forms actually tested. No fresh marketplace listing, provider discovery, global install parity, hosted-search, or live invocation claim is made by this review.
+- The current Session manifest explicitly labels live permission/discovery verification unverified. Follow [RELEASING.md](../../../RELEASING.md) per plugin; release verification need not wait for future Review or installer features.
+- `install.sh` currently installs only the Consensus provider wrapper into `~/.consensus/` and defaults to `v0.1.2`; that default is not evidence of a published tag. Standalone docs currently use the third-party Skills CLI.
+- Normal verification: `pnpm run type-check`, `pnpm run build:check`, `pnpm test`, `pnpm run validate`, and `pnpm run smoke`. Changed-file lint/format and skill-version gates apply. Paid live E2E is opt-in and separately authorized; no live providers were called in this planning pass.
+- The live-submit source-contract investigation remains open; mocked tests do not resolve that historical live discrepancy.
 
-- **Selection:** announced random-hex session marker via `--match` (precedence `--all` > `--session` > `--match` > newest-for-cwd).
-- **TypeScript/generated runtime slice (2026-06-17):** canonical source now lives at `src/transcript/export-session/export-session-transcript.ts` and `src/transcript/export-session/sanitize.ts`; generated shipped output remains at `skills/export-session-transcript/scripts/export-session-transcript.mjs` and `skills/export-session-transcript/scripts/lib/sanitize.mjs`, with import rewrites to local `./lib/*.mjs` dependencies.
-- **Sanitization:** two layers — structural (`normalizeEntries`) plus export-owned content detectors (`sanitize.mjs`), drop-on-match; validated against 41k+ real store entries with zero hidden-payload survivors.
-- **Output:** defaults to `~/Downloads/<branch>.md`; `--all` writes one file per session; exit codes 0/1/2/3 (success / hard error / no candidates / ambiguous).
+## Active planning
 
-### coding-session-handoff (`skills/coding-session-handoff/`) — experimental, branch implemented
+All **18 active item files remain open and unassigned** after closing and archiving the completed observer re-arm investigation. The merged config docs satisfy only the documentation-now portion of **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows**.
 
-Experimental, read-only guidance for discovering, previewing, and preparing a
-destination-session fork into an existing Git worktree. The user executes the
-prepared handoff in the destination tab; the skill does not execute provider
-commands, create sessions, write IDE or provider stores, or modify repository
-files. Cursor fails closed because its available transcript evidence cannot prove
-an exact working-directory match.
+The confirmed kickoff now has two active independent lanes after the observer investigation completed: **BL-260916-add-consensus-review-cross — Consensus Review** (Astra leads, Fable reviews) and **BL-260916-add-a-first-party-install — First-party standalone installer** (parallel lane approved, owner/start not claimed). The refreshed alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
-The guidance uses exact-all selection, zero persistence, path-free prepared
-output, and bounded reads. Continued-session prefixes carry the destination
-guidance while preserving the strict observer/executor split. Paused or
-unreachable executors remain fail-closed. The implementation passed a standard
-final review and the Cursor Fable exit gate; PR update, user-level installation,
-publication, and release remain separate pending steps.
+Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session fidelity precedes the merged activity projection. Neither delivers safe N>2 consumer ownership automatically.
 
-### session-observer-collab (`skills/session-observer-collab/`) — shipped 2026-07-12
-
-Public standalone skill for bounded N=2 collaboration between coding-agent
-sessions. It composes with `session-observer` for pinned review and catch-up,
-supports Claude Code, Codex, and Cursor runtime references, and keeps
-human-authority and wake behavior explicit. The canonical repository path is
-public and individually installable; marketplace, registry, hosted
-skills.sh/search, and provider-mirror propagation remain unverified until the
-release checklist proves them.
-
-The final collaboration pass hardens the production XML wake contract,
-transaction-scoped queued-input normalization, fail-closed identity candidates,
-and acting-runtime setup routing. Codex's measured bounded lifecycle path is
-live-validated. Cursor's finite Stop and managed-subagent probes found no
-effective callback or existing scheduled surface, so buffered-manual is its
-strongest evidence-backed tier; Claude Monitor remains unvalidated. The
-canonical skill and user/provider copies are in parity.
-
-### transcript-core (`src/transcript/core/`)
-
-Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) lives at `src/transcript/core/runtimes.ts` and is consumed by session-observer and export-session-transcript via committed `// GENERATED` copies at each skill's `scripts/lib/runtimes.mjs`. `pnpm run build` regenerates the copies, `pnpm run build:check` and `tests/tooling/generated-output-sync.test.ts` enforce drift, and `pnpm run sync:transcript-core` remains a compatibility wrapper around the same build path.
-
-### Documentation site (`documentation/`) — shipped 2026-06-21, BL-260620-stand-up-a-documentation-site
-
-A Fumadocs (Next.js) app at `documentation/` provides the public-facing documentation, organized as a two-trunk audience-split IA: **User Guide** (install / use / configure) and **Engineering** (how-it-works / contribute). It builds with `cd documentation && pnpm build` (nested-standalone, `output: 'export'` static export to `documentation/out`) and deploys to GitHub Pages via `.github/workflows/deploy-docs.yml` (basePath `/skills`). The framework choice (Fumadocs over MkDocs) is recorded in DR-025. The dense reference content was migrated from `README.md` into the site, slimming the README (205 → 72 lines) to a lean entry point — project description, install matrix, and links into the site. Future projects document into the site via `oat-project-document` rather than the README. First deploy requires the operator to enable Settings → Pages → Source: GitHub Actions (one-time).
-
-## Validation Posture
-
-- `pnpm run type-check` — TypeScript source check.
-- `pnpm run build:check` — generated runtime drift guard.
-- `npm test` / `pnpm test` — Vitest-only; all suites are `.test.ts` using `expect`. The `node:test` runner is retired. Tests are organized by domain: `tests/consensus/{core,refine,evaluate}/`, provider-CLI suites including reliability evidence/E2E fixtures, `tests/repo/`, `tests/release/`, `tests/tooling/`, `tests/session-observer/`, `tests/export-session-transcript/`, `tests/transcript-core/`, with shared setup helpers in `tests/helpers/`.
-- `npm run validate` / `pnpm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
-- `npm run smoke` / `pnpm run smoke` — mocked end-to-end consensus wrapper flow.
-- CI: `validate.yml` on PR/main push now installs with a frozen lockfile, builds, type-checks, build-checks, tests, validates, and smokes; `release.yml` on tag push.
-
-## Release Posture
-
-- v0.1 automated gates passed locally on 2026-06-20 (re-run at tag time on the post-version-bump tree): `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (72 files / 726 tests), `pnpm run validate`, and `pnpm run smoke`.
-- CHANGELOG `[0.1.0]` is dated 2026-06-20 and `node scripts/bump-version.mjs 0.1.0` has been applied across provider manifests + shipped skill metadata; `node scripts/bump-version.mjs --check-tag v0.1.0` is clean. Release tag workflow parity installs with pnpm, then build, type-check, build-check, test, validate, smoke, and checks tag/manifest consistency.
-- v0.1 release verification (BL-260612-complete-v0-1-release) is complete as of 2026-06-20: README install matrix re-confirmed against the live provider CLIs (claude 2.1.185, codex-cli 0.139.0, cursor-agent 2026.06.19-…), and interactive provider permission/runtime smokes passed in live runtimes — Claude Code and Cursor each surfaced and approved a `node` exec prompt; Codex ran the wrapper under its sandboxed exec path (read-only commands do not prompt even under `--ask-for-approval on-request`, by design). Deliberation-behavior gates were reused from PR #9 + confirmed by the test suite. See the `RELEASING.md` snapshot.
-- **v0.1.0 is released (2026-06-20).** The tag is pushed on `main` (`e4e9348`), the `release.yml` tag/manifest-consistency workflow ran **green** (build, type-check, build:check, test, validate, smoke, `--check-tag v0.1.0`), and the GitHub Release is published at <https://github.com/tkstang/skills/releases/tag/v0.1.0>.
-- Post-tag discovery — **public-discovery surface now controlled in-repo (PR #38, BL-260621; see DR-260627):** the `.agents/skills/**` OAT tooling skills carry `metadata.internal: true` — stamped by `scripts/apply-internal-flags.mjs` and enforced by the `validate:internal-flags` CI job + `pre-push` hook — so they drop from `npx skills` discovery. Historical live evidence: `npx skills@1.5.13 add tkstang/skills --list` returned only the 2 standalone + 5 consensus skills for the pre-collaboration release, and the OAT tooling reappeared only under `INSTALL_INTERNAL_SKILLS=1`. The consensus skills stay discoverable but now recover from a standalone install via the `~/.consensus/` resolver fallback + an actionable missing-CLI error + `install.sh` (they previously failed `CONSENSUS_PROVIDER_CLI_MISSING` because `plugins/consensus/scripts/consensus.mjs` lives outside the skill dir). The canonical repository now exposes exactly three individually-installable public standalone entries — `skills/session-observer`, `skills/export-session-transcript`, and `skills/session-observer-collab`; only the first two have the hosted evidence cited below, and the apply script skips the symlinked `session-observer` mirror.
-- **Hosted-discovery verification complete (2026-07-05, BL-260627-verify-skills-sh-hosted; see DR-260705-skills-sh-listing-is-telemetry):** the skills.sh hosted index is populated **exclusively by CLI install telemetry** — no crawling, no submission flow (skills.sh FAQ/About, maintainer statement on upstream #874, contributor source audit on #1315). Install telemetry sends only the **selected** skill names (`vercel-labs/skills` v1.5.14 `src/add.ts:1786-1788`), and `metadata.internal` filtering happens client-side before selection (`src/skills.ts:46-83`), so the OAT tooling skills cannot leak via normal installs. The hosted side has no server-side internal filter and **no delist path** (upstream #1578: retroactively-flagged skills persist as permanent "telemetry fossils") — hence the standing guardrail: **never install an internal skill by name with telemetry enabled**; set `DISABLE_TELEMETRY=1` when dogfooding internals. Hosted visibility was **seeded 2026-07-05** with owner installs of `session-observer` and `export-session-transcript` (exactly one skill selected per install; entrypoints verified executing post-install).
-- **Listing strategy:** telemetry-seed, never submit (nothing to submit to).
-- **Post-lag re-check (2026-07-07 — safety confirmed on the hosted surface for the seeded pair):** the seeded installs propagated. The hosted repo page (`https://www.skills.sh/tkstang/skills`) and owner page (`https://www.skills.sh/tkstang`) now return **200** (were 404 at seed time) and the repo page lists **exactly `session-observer` and `export-session-transcript` — no `oat-*` tooling skill and no consensus skill appears** (page fetched and grepped for every internal/consensus skill name; only the two seeded skills present). This is the live end-to-end confirmation that the `metadata.internal` client-side filter protects that hosted surface, which was the open question behind BL-260627. **Still unverified for the full three-skill set:** `session-observer-collab` has not been seeded or externally verified; `npx skills find session-observer|tkstang` and owner-scoped search still return nothing, so hosted *search* remains a separate indexing lag. Codex public Plugin Directory remains not claimed until verified.
-- **Public-listing claim status:** the canonical in-repository public set is exactly `session-observer`, `export-session-transcript`, and `session-observer-collab`; hosted safety is verified only for the two seeded skills, while full hosted search/installability plus marketplace, registry, and provider propagation remain non-claims until release verification supplies evidence.
-
-## Project Management Surfaces
-
-### Session-observer collaboration v2 boundary
-
-The v1 collaboration skill is intentionally bounded to a user plus two
-mutually observing agents. **BL-260713-cursor-transcript-store** is closed with
-evidence-gated Cursor agent-transcript discovery, dotted-path slug handling,
-canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up
-coverage, and explicit non-claims for unsupported stores.
-**BL-260713-stronger-cursor-collaboration** is also closed after finite
-version-gated probes found no effective top-level Stop, managed-subagent, or
-existing scheduled callback; buffered-manual remains selected. Two
-independently verifiable v2 follow-ups remain tracked in the backlog:
-**BL-260713-per-observer-offsets-and-safe** (consumer offset namespaces and safe
-N>2 mesh) and **BL-260713-optional-idle-session** (opt-in application
-integrations for idle sessions). The existing shared-session-log substrate and
-inter-agent direct messaging initiatives remain open and unchanged.
-
-- `.oat/repo/pjm/roadmap.md` — active Now/Next/Later planning.
-- `.oat/repo/reference/decisions/` — file-per-record decisions migrated from DR-001 onward; regenerate the index with `oat decision regenerate-index`.
-- `.oat/repo/pjm/backlog/` — file-per-item backlog (`oat-pjm-*` skills; `oat backlog regenerate-index`).
-- `.oat/repo/reference/project-summaries/` — completion records; deep provenance is machine-local under `.oat/projects/archived/` (gitignored).
-- `.oat/repo/reference/research/` — evidence inputs (consensus design lineage under `research/consensus/`).
+- [Roadmap](roadmap.md) — Now / Next / Later direction.
+- [Backlog index](backlog/index.md) — active item inventory.
+- [Full review](backlog/reviews/backlog-and-roadmap-review.md) — ratings, dependencies, and evidence.
+- [Priority alignment](backlog/reviews/priority-alignment.md) — confirmed three-lane kickoff, candidate project groupings and explicitly proposed later sequencing.
+- [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md) — durable history; do not repeat it as active work.
