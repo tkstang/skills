@@ -220,6 +220,7 @@ git commit -m "chore(pjm): disposition observer re-arm investigation"
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | passed  | 2026-09-16 | plan.md  | working-tree@46f49d3 | oat-reviewer-gpt-5-6-sol-high (retry 1) | managed high |
+| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T204720Z.md | - | - | - |
 
 ## Implementation Complete
 
