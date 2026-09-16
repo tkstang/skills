@@ -169,6 +169,43 @@ authorizes arming. Normal closeout disarms the named lease and preserves the
 static hook. Uninstall is a separate explicit user choice that must preserve
 unrelated hook registrations.
 
+### Lease lifecycle
+
+Expiry, cap exhaustion, and wait timeout all silently demote to `idle`; a non-terminal wake returns to `armed`; and `disarmed` is not terminal, because `arm` writes a fresh lease from any state other than `armed` or `waiting`.
+
+```mermaid
+stateDiagram-v2
+  [*] --> armed: arm
+  armed: ready for a wake; counters and caps set
+  waiting: a generation-bound waiter holds the lease
+  idle: no active waiter — a timeout is idle, not a waiter
+  triggered: a terminal wake was consumed
+  disarmed: closeout; not terminal, arm writes a fresh lease
+
+  armed --> waiting: begin wait with a waiter identity
+  waiting --> idle: wait-timeout
+  waiting --> idle: wait-timing-rearm-required
+  waiting --> idle: waiter-terminated
+  waiting --> idle: explicit release
+  armed --> idle: lease-expired
+  waiting --> idle: lease-expired
+  armed --> idle: cap-reached
+  waiting --> idle: cap-reached
+  armed --> triggered: consume, terminal
+  waiting --> triggered: consume, terminal
+  armed --> armed: consume, terminal false
+  waiting --> armed: consume, terminal false
+  idle --> armed: arm
+  triggered --> armed: arm
+  disarmed --> armed: arm
+  armed --> disarmed: disarm
+  waiting --> disarmed: disarm
+  idle --> disarmed: disarm
+  triggered --> disarmed: disarm
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Completion, lease, and range versions
 
 Ordinary Cursor observation and collaboration completion intentionally use

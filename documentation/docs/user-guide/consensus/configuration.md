@@ -102,6 +102,45 @@ node plugins/consensus/scripts/consensus.mjs provider ls --json
 node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
+### Readiness states
+
+Readiness is a state machine, not a boolean. `consensus run` is a separate command that never probes; its terminal failures still exit 0 inside a JSON envelope, with usage errors (exit 2) the only exception.
+
+```mermaid
+stateDiagram-v2
+  [*] --> probing: consensus provider ls / preflight
+  probing --> missing: executable not found on PATH
+  missing: PROVIDER_MISSING
+  probing --> auth_required: version output matches an auth pattern
+  auth_required: PROVIDER_AUTH_REQUIRED
+  auth_required: an operator fix; nothing retries it
+  probing --> unavailable: nonzero exit or unavailable pattern
+  probing --> unavailable: version output unparseable
+  probing --> unavailable: version below the adapter minimum
+  probing --> unavailable: a required capability probe fails
+  unavailable: PROVIDER_UNAVAILABLE
+  unavailable: PROVIDER_VERSION_UNPARSEABLE
+  unavailable: PROVIDER_VERSION_UNSUPPORTED
+  unavailable: PROVIDER_CAPABILITY_MISSING
+  probing --> ready: version at or above minimum and every requested capability probe passes
+  ready: selectable as peer, panelist, or synthesizer
+  missing --> [*]
+  auth_required --> [*]
+  unavailable --> [*]
+  ready --> [*]
+
+  run: consensus run
+  run: a separate command — it never probes readiness
+  run --> run_ok: envelope ok true, exit 0
+  run --> run_failed: envelope ok false
+  run_failed: PROVIDER_EXIT / PROVIDER_INVALID_JSON / PROVIDER_SCHEMA_VALIDATION
+  run_failed: still exit 0 — parse the envelope, not $?
+  run --> usage_error: CONSENSUS_CLI_USAGE
+  usage_error: the one nonzero case — exit 2
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Diagnostics
 
 The wrappers surface provider-neutral diagnostics when a requested peer cannot be

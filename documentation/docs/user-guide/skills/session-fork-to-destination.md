@@ -50,6 +50,49 @@ Use one of three explicit entry points:
 Discovery is separate from qualification. A path match alone does not prove a
 current session identity, and display labels are not native provider IDs.
 
+### Qualification gates
+
+`prepare` always runs discovery whatever the entry point. Cursor candidates must carry independent exact working-directory evidence, which the current store never supplies; every candidate then passes recorded-directory equality, the ambiguous-surface refusal, documented fork semantics for that exact surface, and the destination guard.
+
+```mermaid
+flowchart TD
+  START["Destination worktree and tab already exist<br/>this skill creates neither"]
+  EP["Entry point: source-current, source-other,<br/>or destination-fresh — it does not skip any gate<br/>(output differs for destination-fresh:<br/>an exit-current-session step is prepended)"]
+  DISC["prepare always runs discovery<br/>scoped to the provider of the selected key"]
+  CUR{"Cursor candidate?<br/>Claude and Codex skip this gate"}
+  CURQ{"cwdEvidenceQuality is<br/>independent-exact?"}
+  STOP1["Fails closed: discovery-incomplete<br/>reason cwd-evidence-incomplete<br/>Cursor stores never qualify today"]
+  SEL["Select the candidate by key<br/>choosing explicitly is instruction-level,<br/>not a code gate"]
+  QUAL{"candidate.recordedCwd equals the<br/>canonical source path?"}
+  STOP2["Throws invalid-source-candidate"]
+  AMB{"candidate.surface is ambiguous?<br/>Cursor: store-origin-ambiguous"}
+  STOP3["Returns an unsupported instruction —<br/>never a fork or resume command"]
+  EV{"Documented fork semantics for<br/>this exact provider surface?"}
+  STOP4["Cursor fork status: unsupported<br/>CLI resume is not fork semantics and<br/>must never be substituted for a fork"]
+  EVOK["claude --resume &lt;id&gt; --fork-session<br/>codex fork &lt;id&gt;"]
+  GUARD["Destination-path command guard<br/>the emitted command compares pwd -P to the<br/>canonical destination and otherwise refuses"]
+  OUT["Prepared guidance only<br/>canonical source and destination,<br/>destination dirty state, evidence, limitations"]
+
+  START --> EP
+  EP --> DISC
+  DISC --> CUR
+  CUR -->|yes| CURQ
+  CUR -->|no| SEL
+  CURQ -->|no| STOP1
+  CURQ -->|yes| SEL
+  SEL --> QUAL
+  QUAL -->|no| STOP2
+  QUAL -->|yes| AMB
+  AMB -->|yes| STOP3
+  AMB -->|no| EV
+  EV -->|no| STOP4
+  EV -->|yes| EVOK
+  EVOK --> GUARD
+  GUARD --> OUT
+```
+
+_Mermaid updated 2026-09-16_
+
 ## Prepare guidance
 
 The following examples use synthetic paths and IDs:

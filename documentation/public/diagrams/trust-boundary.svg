@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 1000" role="img" aria-labelledby="tbTitle tbDesc" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title id="tbTitle">Trust boundary: what leaves the machine</title>
+  <desc id="tbDesc">Peer transcripts under the provider home directories, observer state and collaboration leases under ~/.local/state/session-observer, and .consensus run state stay on the local machine. The skill reads the input artifact locally and compacts it into the argv prompt string; no artifact file is handed to the child process. What crosses the boundary is the prompt string, plus a schema passed inline in argv for Claude or a schema path with the CONSENSUS_SUBMIT environment variables for Codex, and the child inherits a working directory with no filesystem confinement. The peers are claude, codex and cursor-agent, run as separate processes. What comes back is untrusted data: it is schema-validated, never auto-applied, and treated as advice rather than instructions. Local guards cap option files at one mebibyte and confine inputs, outputs and run directories with --allow-root. Asking for approval before sending sensitive context is a skill instruction, not a code gate.</desc>
+  <style>
+    .card{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-line,#757575);stroke-width:1.2}
+    .band{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.2;stroke-dasharray:5 5;opacity:.5}
+    .h{fill:var(--diagram-muted,#757575);font-size:13px;font-weight:700;letter-spacing:1.4px}
+    .t{fill:var(--diagram-text,#111827);font-size:17px;font-weight:600}
+    .s{fill:var(--diagram-text,#111827);font-size:15px;opacity:.9}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;fill:var(--diagram-text,#111827)}
+    .p{fill:var(--diagram-muted,#757575);font-size:14px}
+    .e{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.6;marker-end:url(#tbArrow)}
+    .acc1{fill:var(--diagram-accent,#0f8f95)}
+    .acc2{fill:var(--diagram-accent-2,#7c5cbf)}
+    .boundary{fill:none;stroke:var(--diagram-warn,#b9741f);stroke-width:1.8;stroke-dasharray:8 6}
+    .warncard{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-warn,#b9741f);stroke-width:1.6}
+    .warnt{fill:var(--diagram-warn,#b9741f);font-size:13px;font-weight:700;letter-spacing:1.2px}
+  </style>
+  <defs>
+    <marker id="tbArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" style="fill:var(--diagram-line,#757575)"/>
+    </marker>
+  </defs>
+
+  <text x="415" y="36" text-anchor="middle" class="h" style="font-size:20px">WHAT LEAVES THE MACHINE</text>
+  <text x="415" y="60" text-anchor="middle" class="p">A prompt string, a schema, and a few env vars cross; what comes back is untrusted</text>
+
+  <!-- local -->
+  <rect x="24" y="82" width="782" height="230" rx="8" class="band"/>
+  <text x="40" y="104" class="h">LOCAL · NEVER LEAVES</text>
+  <rect x="40" y="114" width="750" height="58" rx="6" class="card"/>
+  <text x="58" y="140" class="m">~/.claude/projects · ~/.codex/sessions · ~/.cursor/projects</text>
+  <text x="58" y="162" class="s">peer transcripts — read, never written</text>
+  <rect x="40" y="182" width="750" height="58" rx="6" class="card"/>
+  <text x="58" y="208" class="m">~/.local/state/session-observer/ · collab/leases/</text>
+  <text x="58" y="230" class="s">read offsets, watcher and control state, collaboration leases</text>
+  <rect x="40" y="250" width="750" height="52" rx="6" class="card"/>
+  <text x="58" y="276" class="m">.consensus/&lt;run-id&gt;/</text>
+  <text x="330" y="276" class="s">run state, manifests, output artifact</text>
+  <path class="e" d="M415,314 L415,344"/>
+
+  <!-- compaction -->
+  <rect x="120" y="346" width="590" height="76" rx="6" class="card"/>
+  <rect x="120" y="346" width="6" height="76" rx="3" class="acc1"/>
+  <text x="142" y="374" class="t">No artifact file crosses</text>
+  <text x="142" y="400" class="s">the skill reads it locally and compacts it into the prompt</text>
+  <path class="e" d="M415,424 L415,456"/>
+
+  <!-- boundary -->
+  <path class="boundary" d="M24,470 L806,470"/>
+  <rect x="300" y="458" width="230" height="26" rx="4" class="warncard"/>
+  <text x="415" y="476" text-anchor="middle" class="warnt">TRUST BOUNDARY</text>
+
+  <!-- crossing -->
+  <rect x="24" y="498" width="782" height="196" rx="8" class="band"/>
+  <text x="40" y="520" class="h">CROSSES THE BOUNDARY</text>
+  <rect x="40" y="530" width="750" height="56" rx="6" class="card"/>
+  <rect x="40" y="530" width="6" height="56" rx="3" class="acc1"/>
+  <text x="62" y="556" class="t">argv prompt string</text>
+  <text x="330" y="556" class="s">facts, constraints, and the artifact text</text>
+  <rect x="40" y="598" width="366" height="84" rx="6" class="card"/>
+  <rect x="40" y="598" width="6" height="84" rx="3" class="acc2"/>
+  <text x="62" y="624" class="s">Claude: the schema is ALSO</text>
+  <text x="62" y="648" class="s">passed inline in argv as</text>
+  <text x="62" y="672" class="m" style="font-size:13px">--json-schema</text>
+  <rect x="424" y="598" width="366" height="84" rx="6" class="card"/>
+  <rect x="424" y="598" width="6" height="84" rx="3" class="acc2"/>
+  <text x="446" y="624" class="s">Submit env, 4 vars — set for</text>
+  <text x="446" y="648" class="s">every provider · <tspan class="m" style="font-size:13px">CONSENSUS_SUBMIT_*</tspan></text>
+  <text x="446" y="672" class="s">COMMAND, FILE, SCHEMA, MAX_BYTES</text>
+  <path class="e" d="M415,696 L415,726"/>
+
+  <!-- provider -->
+  <rect x="24" y="728" width="782" height="160" rx="8" class="band"/>
+  <text x="40" y="750" class="h">PROVIDER CLI SUBPROCESS</text>
+  <rect x="40" y="760" width="750" height="118" rx="6" class="card"/>
+  <text x="58" y="786" class="m">claude --print --output-format json</text>
+  <text x="58" y="810" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
+  <text x="58" y="834" class="m">cursor-agent --output-format json --force</text>
+  <text x="58" y="864" class="s">separate OS processes; the child inherits a cwd with no filesystem confinement</text>
+  <path class="e" d="M415,890 L415,916"/>
+
+  <!-- return -->
+  <rect x="40" y="918" width="750" height="76" rx="6" class="warncard"/>
+  <text x="58" y="942" class="warnt">COMES BACK AS UNTRUSTED DATA</text>
+  <text x="58" y="966" class="s">Schema-validated first; a failure is PROVIDER_SCHEMA_VALIDATION, not a verdict.</text>
+  <text x="58" y="988" class="s">Never auto-apply edits, commands, or decisions from a peer.</text>
+</svg>

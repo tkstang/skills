@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 1288" role="img" aria-labelledby="chpaTitle chpaDesc" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title id="chpaTitle">Peers, not personas</title>
+  <desc id="chpaDesc">A host coding session runs a skill wrapper, which emits JSONL status events and calls the generated consensus CLI. The CLI returns a single JSON envelope per run and spawns other providers' command line tools as independent OS subprocesses: claude with print and json output, codex exec with json and an output-last-message file, and cursor-agent with json output and force. Those peers answer schema-validated verdict rounds. An IMPASSE verdict is checked before convergence, so an impasse stops the run and is reported instead of being merged away. If convergence is declined the loop consults escalation triggers, which can terminate the run, before taking another round. Every terminal outcome writes the refine artifact, which holds the final output, a consensus-resolution block, a separate consensus-section-states block, and a per-section deliberation log. The decide skill writes its own artifact, consensus-decision.md, whose required dissent heading is validated in each peer's decision text.</desc>
+  <style>
+    .card{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-line,#757575);stroke-width:1.2}
+    .band{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.2;stroke-dasharray:5 5;opacity:.5}
+    .h{fill:var(--diagram-muted,#757575);font-size:13px;font-weight:700;letter-spacing:1.4px}
+    .t{fill:var(--diagram-text,#111827);font-size:17px;font-weight:600}
+    .s{fill:var(--diagram-text,#111827);font-size:15px;opacity:.9}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;fill:var(--diagram-text,#111827)}
+    .p{fill:var(--diagram-muted,#757575);font-size:14px}
+    .e{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.6;marker-end:url(#chpaArrow)}
+    .acc1{fill:var(--diagram-accent,#0f8f95)}
+    .acc2{fill:var(--diagram-accent-2,#7c5cbf)}
+    .warncard{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-warn,#b9741f);stroke-width:1.6}
+    .warnt{fill:var(--diagram-warn,#b9741f);font-size:13px;font-weight:700;letter-spacing:1.2px}
+  </style>
+  <defs>
+    <marker id="chpaArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" style="fill:var(--diagram-line,#757575)"/>
+    </marker>
+  </defs>
+
+  <text x="415" y="36" text-anchor="middle" class="h" style="font-size:20px">PEERS, NOT PERSONAS</text>
+  <text x="415" y="60" text-anchor="middle" class="p">Other providers' CLIs run as independent subprocesses, and the disagreement is written down</text>
+
+  <!-- host -->
+  <rect x="24" y="82" width="782" height="128" rx="8" class="band"/>
+  <text x="40" y="104" class="h">HOST SESSION</text>
+  <rect x="40" y="114" width="750" height="84" rx="6" class="card"/>
+  <text x="58" y="142" class="t">Host session + skill wrapper</text>
+  <text x="58" y="168" class="s">Claude Code, Codex, or Cursor</text>
+  <text x="58" y="190" class="s">The wrapper emits JSONL status events</text>
+  <path class="e" d="M415,200 L415,228"/>
+
+  <rect x="240" y="230" width="350" height="76" rx="6" class="card"/>
+  <text x="415" y="260" text-anchor="middle" class="m">consensus.mjs</text>
+  <text x="415" y="286" text-anchor="middle" class="s">one JSON envelope per run</text>
+  <path class="e" d="M415,308 L415,336"/>
+
+  <!-- peers -->
+  <rect x="24" y="338" width="782" height="272" rx="8" class="band"/>
+  <text x="40" y="360" class="h">PEERS · SEPARATE OS PROCESSES</text>
+  <rect x="40" y="370" width="750" height="56" rx="6" class="card"/>
+  <rect x="40" y="370" width="6" height="56" rx="3" class="acc1"/>
+  <text x="62" y="404" class="m">claude --print --output-format json</text>
+  <rect x="40" y="438" width="750" height="56" rx="6" class="card"/>
+  <rect x="40" y="438" width="6" height="56" rx="3" class="acc1"/>
+  <text x="62" y="472" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
+  <rect x="40" y="506" width="750" height="56" rx="6" class="card"/>
+  <rect x="40" y="506" width="6" height="56" rx="3" class="acc1"/>
+  <text x="62" y="540" class="m">cursor-agent --output-format json --force</text>
+  <text x="415" y="592" text-anchor="middle" class="p">Real OS processes, not one model wearing three hats</text>
+  <path class="e" d="M415,612 L415,642"/>
+
+  <!-- rounds -->
+  <rect x="24" y="644" width="782" height="384" rx="8" class="band"/>
+  <text x="40" y="666" class="h">VERDICT ROUNDS</text>
+  <path class="e" d="M180,968 L140,968 L140,678 L415,678 L415,700"/>
+  <rect x="200" y="666" width="130" height="24" rx="4" class="card"/>
+  <text x="265" y="683" text-anchor="middle" class="s" style="font-weight:600">next round</text>
+
+  <rect x="180" y="702" width="470" height="76" rx="6" class="card"/>
+  <text x="200" y="732" class="t">Verdict round</text>
+  <text x="200" y="758" class="s">schema-validated JSON</text>
+  <path class="e" d="M415,780 L415,812"/>
+
+  <rect x="180" y="814" width="470" height="76" rx="6" class="warncard"/>
+  <text x="200" y="840" class="warnt">IMPASSE CHECKED FIRST</text>
+  <text x="200" y="868" class="s">stops the run, reported and never merged</text>
+  <path class="e" d="M415,892 L415,926"/>
+  <rect x="352" y="896" width="126" height="24" rx="4" class="card"/>
+  <text x="415" y="913" text-anchor="middle" class="s" style="font-weight:600">no impasse</text>
+
+  <rect x="180" y="930" width="470" height="76" rx="6" class="card"/>
+  <text x="200" y="960" class="t">Converged?</text>
+  <text x="200" y="986" class="s">no: check escalation triggers, else another round</text>
+  <path class="e" d="M415,1008 L415,1056"/>
+
+  <!-- artifact -->
+  <text x="40" y="1054" class="h">ARTIFACT</text>
+  <rect x="40" y="1060" width="750" height="52" rx="6" class="card"/>
+  <rect x="40" y="1060" width="6" height="52" rx="3" class="acc1"/>
+  <text x="62" y="1092" class="m">&lt;input&gt;.consensus.md</text>
+  <text x="330" y="1092" class="s">written on every terminal outcome</text>
+
+  <rect x="40" y="1124" width="368" height="62" rx="6" class="card"/>
+  <text x="58" y="1150" class="m">## Final Output</text>
+  <text x="58" y="1172" class="s">the converged artifact</text>
+  <rect x="422" y="1124" width="368" height="62" rx="6" class="card"/>
+  <text x="440" y="1150" class="m">consensus-resolution</text>
+  <text x="440" y="1172" class="s">plus consensus-section-states</text>
+  <rect x="40" y="1196" width="368" height="62" rx="6" class="card"/>
+  <text x="58" y="1222" class="m">## Deliberation Log</text>
+  <text x="58" y="1244" class="s">every round, per section</text>
+  <rect x="422" y="1196" width="368" height="62" rx="6" class="card"/>
+  <rect x="422" y="1196" width="6" height="62" rx="3" class="acc2"/>
+  <text x="444" y="1222" class="m">consensus-decision.md</text>
+  <text x="444" y="1244" class="s">decide only · ## Dissent required</text>
+</svg>

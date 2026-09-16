@@ -8,6 +8,30 @@ description: 'Choose a portable handoff, sanitized transcript, alpha native fork
 The Session plugin helps you preserve context and learn from coding sessions.
 Choose the output you need; these skills are not a required sequence.
 
+```mermaid
+flowchart TD
+  Q{"What do you need<br/>from this session?"}
+  H["handoff · session-handoff<br/>Portable continuation brief:<br/>goal, state, decisions, evidence,<br/>remaining work, approval boundaries"]
+  E["export-transcript · session-export-transcript<br/>Sanitized, branch-named Markdown archive<br/>written to ~/Downloads by default"]
+  F["fork-to-destination · session-fork-to-destination<br/>Experimental same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
+  R["retro · session-retro<br/>Evidence-backed findings and<br/>improvement proposals, not applied"]
+  OBS["session-observer<br/>optional integration"]
+
+  Q -->|"someone else continues the work"| H
+  Q -->|"keep a readable record"| E
+  Q -->|"continue native history<br/>in another worktree"| F
+  Q -->|"learn from the episode"| R
+  OBS -.->|optional| H
+  OBS -.->|optional| R
+  OBS -.->|optional| F
+  E -.->|optional| H
+
+  NOTE["Alternatives, not a pipeline —<br/>pick one output per need"]
+  Q --- NOTE
+```
+
+_Mermaid updated 2026-09-16_
+
 | What you need                                        | Skill                                                              | What it produces                                                                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | Let another agent or person continue the work        | [Handoff](../../skills/session-handoff.md)                         | A portable packet of goals, state, decisions, evidence, remaining work, and approval boundaries.                  |
