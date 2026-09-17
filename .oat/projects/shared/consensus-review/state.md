@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 13e54e367c7780f06dd99f0136923655cb256c1c
+oat_last_commit: 605a39bc4c7475214578b6757b4880c6e3ee4b41
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -47,17 +47,17 @@ oat_implement_exit_gate:
   reviewed_head: 62cc7054eb02ed9bf71efa1f59a1256c74661d1d
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
-  freshness_head: 73c8bd4cea60ac19b1234e622ab63dfa10f5b6bb
-  freshness_fingerprint: 'sha256:effective-delta-v1:bb1ad324823d94db85508b6b6ef99e3ea78d309cc80ec02dc0b37771cd87f861'
-  launch_state: accepted
+  freshness_head: 605a39bc4c7475214578b6757b4880c6e3ee4b41
+  freshness_fingerprint: 'sha256:effective-delta-v1:91a46b81aa2b7f2b042a093997a491bcff7b6d693d7fe4b4d94db618f7995bd5'
+  launch_state: result_persisted
   launch_attempt_id: 5df6f467-dd13-4204-9c06-30d03df24fe3
   launch_started_at: '2026-09-17T07:38:58Z'
   launch_result_receipt: '.oat/projects/shared/consensus-review/gate-receipts/5df6f467-dd13-4204-9c06-30d03df24fe3.result.json'
   gate_run_marker: 'system-temp:oat-gate-runs/14836d4a-5d65-43a1-9d78-ec3b9d300a4b.json'
   gate_run_id: 14836d4a-5d65-43a1-9d78-ec3b9d300a4b
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: ok
+  artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md'
+  handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (medium=1, minor=1). Run oat-project-review-receive for .oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md to disposition them before marking the final review row passed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -65,16 +65,16 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: null
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T07:39:52Z'
+  updated_at: '2026-09-17T07:49:37Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:39:52Z'
+oat_project_state_updated: '2026-09-17T07:49:37Z'
 oat_generated: false
 ---
 
