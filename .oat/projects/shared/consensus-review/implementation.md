@@ -19,7 +19,7 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | in_progress | 7 | 6/7 |
+| p09 — Configured gate fixes | completed | 7 | 6/7 |
 
 **Total:** 13/14 task commits completed. Final re-review round 2 added one Minor status-cell alignment; round 3 and configured exit-gate attempt 2/2 remain.
 
