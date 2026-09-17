@@ -62,9 +62,13 @@ Consensus Review adds a bounded, independent review step between freeform Phone 
 
 ## Follow-up Items
 
-- Product live-provider execution, external/global installation, native continuation, fresh-session discovery, publication, release, push, PR, and merge were not authorized or verified by this implementation run. Fixture receipt evidence does not establish those acceptance layers.
+- Product live-provider execution, external/global installation, native continuation, fresh-session discovery, release, and merge remain unverified. PR #91 is published; fixture receipt evidence does not establish the remaining acceptance layers.
 - Staged-only, unstaged-only, and committed-range selectors remain deliberately deferred until a concrete review cannot be expressed with the three v1 selectors.
 - Final HiLL approval and the configured closeout sequence remain lifecycle actions; they are not evidence of product release or live-provider acceptance.
+
+## Explainer Outcome
+
+The optional project recap was skipped by explicit user choice; no explainer run or publication was attempted.
 
 ## Associated Issues
 

@@ -93,6 +93,10 @@ oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
 oat_project_state_updated: '2026-09-17T12:52:14Z'
 oat_generated: false
+oat_project_recap:
+  decision: skip
+  source: interactive
+  decided_at: '2026-09-17T20:45:55.770Z'
 ---
 
 # Project State: Consensus Review
