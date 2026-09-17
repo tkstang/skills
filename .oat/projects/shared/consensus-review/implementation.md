@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p09-t07
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** final re-review round 2 passed its blocking threshold and auto-converted one Minor p09 status-cell alignment; p09-t07 is next.
+**Status:** the post-gate final re-review round 2 status-cell fix is complete; post-gate final re-review round 3 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,9 +19,9 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | completed | 7 | 6/7 |
+| p09 — Configured gate fixes | completed | 7 | 7/7 |
 
-**Total:** 13/14 task commits completed. Final re-review round 2 added one Minor status-cell alignment; round 3 and configured exit-gate attempt 2/2 remain.
+**Total:** 14/14 task commits completed. Post-gate final re-review round 3 and configured exit-gate attempt 2/2 remain.
 
 ## Tasks
 
@@ -40,7 +40,7 @@ oat_generated: false
 | p09-t04 | done | `bbdb284780b9b336859af11a2317866407eb3271` | 87 focused Review/run/packaging tests plus FIFO/symlink/regular regressions, build, type-check, validation, freshness and static gates passed. |
 | p09-t05 | done | `738e566c601fb65f9e54562b5fa6491ae544f29a` | Current lifecycle prose now agrees that p09 review is complete; exact-file formatting and diff checks passed. |
 | p09-t06 | done | `6c02517a20f07bd2859a70ec9f372dfc3d88e55b` | Archived backlog links resolve, deleted handoff links are absent, immutable consumption provenance is retained and plan validation passes. |
-| p09-t07 | pending | - | Mark the p09 phase overview complete without changing final-review or gate posture. |
+| p09-t07 | done | `084cbffdbb7c764221409e3413a0c2a88a85a4a6` | The p09 overview is unambiguously complete; its passed review row and distinct pending post-gate final re-review remain intact. |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
@@ -400,6 +400,14 @@ Both Minor findings are small, in-scope artifact alignment and are auto-converte
 - New m1 → p09-t07 (`artifact_alignment_required`): change only the p09 phase status cell to `completed`.
 
 The `auto` invocation converts this small in-scope Minor with no deferral or rejection. This review event remains `fixes_added` until p09-t07 completes and final re-review round 3 passes.
+
+#### Post-Gate Final Re-Review Round 2 Fix — completed
+
+- Continuation event: `cont-consensus-review-final-post-gate-minor-round2`
+- Fix commit: `084cbffdbb7c764221409e3413a0c2a88a85a4a6` (`docs(p09-t07): mark phase review complete`)
+- m1: fixed by changing only the p09 overview status cell from `in_progress` to `completed`.
+- Verification: one-file boundary, p09 passed review row, historical pre-gate round-3 pass, distinct pending post-gate round 3, formatting and range diff checks passed.
+- Disposition: advance this exact final-review event to `fixes_completed` and run post-gate final re-review round 3.
 
 ### Recovery Event p06-recovered-001
 
