@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-16T23:47:24Z'
+oat_project_state_updated: '2026-09-17T00:04:16Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Complexity-revised design and seven-task plan; awaiting Fable's re-check and formal planning checks.
+**Status:** Fable approved the revision and formal plan artifact review passed; awaiting the configured planning gate.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -56,11 +56,11 @@ Quick workflow, planning only. User approved the smaller v1 and explicitly requi
 - Configured quick-start planning and implementation-final gates: keep. No lifecycle override map or global config edits. Unused lifecycle configurations remain untouched.
 - Ordinary OAT phase/final reviews remain. Fable's receipt exercise is interoperability evidence, not an extra general review gate.
 - The existing configured quick-start command is plan-only; execute unchanged and record `legacy-plan-only` scope when run. Formal plan review still checks consistency with design/discovery.
-- Fable's earlier approval predates these changes; no approval or gate pass is claimed for the revised bundle.
+- Fable approved the revised scope and seven-task plan. Automatic formal artifact review passed without findings in the planning parent; provenance is recorded in plan.md. No configured gate pass is claimed yet.
 
 ## Next Milestone
 
-Fable re-checks the revision, particularly the three-selector scope contract, no-scope interaction, selected-file drift limitations, skill-owned entrypoint and seven-task delivery. Then perform formal artifact review and the configured planning gate before marking ready for implementation.
+Run the configured planning gate unchanged and receive its corroborated result before marking ready for implementation. Fable's next planned involvement is the p08-t02 receipt exercise and normal cross-model review during implementation.
 
 ## Verification
 

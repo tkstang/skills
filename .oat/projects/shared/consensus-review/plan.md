@@ -20,7 +20,7 @@ oat_template: true
 
 **Behavioral source of truth:** [design.md](design.md). This plan specifies work and proof, not a second copy of that contract.
 
-**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable's revision re-check, formal artifact review, and planning gate remain pending. No implementation has started.
+**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate remains pending. No implementation has started.
 
 ## Planning and Execution Boundaries
 
@@ -145,7 +145,11 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 ## Reviews
 
-Existing rows retained unchanged. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode. No completed formal review is claimed for the revised bundle.
+Existing review events are preserved. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode.
+
+Automatic plan artifact review, 2026-09-17 UTC, reviewed revision `559d54a4` against discovery, design, implementation tracking, state, backlog and kickoff handoff. Result: no findings. Structured output stayed in memory; no review file was generated. Dispatch: inline planning parent, deliberate inheritance (`gpt-6-astra`, high), corroborated by launcher turn context; resolved High reviewer ceiling `gpt-5.6-sol`, high. No delegated reconnaissance. Source checks corroborated transport gaps, config ownership, installed-unit proof infrastructure and scoped test commands; `oat project validate-plan` passed.
+
+Fable's revision re-check also approved the scope and sequencing. p06-t02 and p07-t01 may be split if implementation supplies a concrete reason; this is not a request to add tasks now.
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
@@ -157,7 +161,7 @@ Existing rows retained unchanged. p01–p05 are retired unexecuted draft phases,
 | p03    | code     | pending | -    | -        | -             | -          | -           |
 | p04    | code     | pending | -    | -        | -             | -          | -           |
 | p05    | code     | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
+| plan   | artifact | passed | 2026-09-17 | - | - | auto | - |
 | p06    | code     | pending | -    | -        | -             | -          | -           |
 | p07    | code     | pending | -    | -        | -             | -          | -           |
 | p08    | code     | pending | -    | -        | -             | -          | -           |
@@ -166,7 +170,7 @@ Existing rows retained unchanged. p01–p05 are retired unexecuted draft phases,
 
 Planned, not completed: p06 has 2 tasks; p07 has 3; p08 has 2.
 **Total: 7 active tasks across 3 sequential phases, 0 completed. First task: p06-t01.**
-No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. Implementation readiness is still null pending the revision re-check and formal planning checks.
+No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. Implementation readiness is still null pending the configured planning gate and its durable receipt.
 
 ## References
 

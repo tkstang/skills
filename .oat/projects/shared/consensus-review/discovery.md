@@ -77,7 +77,7 @@ Convergence, multi-reviewer synthesis, repairs, packet-only mode, universal isol
 
 Product judgments and complexity reductions are resolved in the [design](design.md), including external state, three selectors, interactive missing scope and narrower drift coverage. High dispatch policy and no optional phase gates are selected. Runtime-maintenance PR #86 was open at the last check; recheck before implementation rather than assuming its helper extraction is merged.
 
-Fable's four source-backed corrections remain incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and packaging proved first. The complexity-revised bundle needs Fable's re-check, formal plan review and the configured planning gate; the eventual independent OAT receipt exercise remains outstanding.
+Fable's four source-backed corrections remain incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and packaging proved first. Fable approved the complexity-revised bundle and the formal plan artifact review passed. The configured planning gate and eventual independent OAT receipt exercise remain outstanding.
 
 ## Assumptions
 
@@ -92,7 +92,7 @@ Merged planning commit `08f59459` is the baseline. No Review implementation exis
 
 ## Next Steps
 
-Re-check the complexity-revised bundle, complete formal plan review and the configured planning gate. Implementation remains blocked until that plan is ready and the user starts execution. Discovery was already completed through the CLI; no implementation is implied by this update.
+Complete the configured planning gate and record its receipt. Implementation remains blocked until that plan is ready and the user starts execution. Discovery was already completed through the CLI; no implementation is implied by this update.
 
 ## References
 
