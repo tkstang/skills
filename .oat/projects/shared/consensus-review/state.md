@@ -48,12 +48,12 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:3a5f06e02a57ab34272c7cb42adf464ff500979ca7deb7e7c4bfae134ae9c88c'
   freshness_head: 414495e7769cbd891ee1f3b6780b92da888408f6
   freshness_fingerprint: 'sha256:effective-delta-v1:1dfdfec4db3b4711a6d177b2555f35664528ae6bed2957535cc757b7cbf6b392'
-  launch_state: intent_persisted
+  launch_state: accepted
   launch_attempt_id: d55b3ba4-a973-48d7-887e-6cf3815a775f
   launch_started_at: '2026-09-17T06:11:45Z'
   launch_result_receipt: '.oat/projects/shared/consensus-review/gate-receipts/d55b3ba4-a973-48d7-887e-6cf3815a775f.result.json'
-  gate_run_marker: null
-  gate_run_id: null
+  gate_run_marker: 'system-temp:oat-gate-runs/87133850-151e-4827-9d7b-7cfd854c5724.json'
+  gate_run_id: 87133850-151e-4827-9d7b-7cfd854c5724
   envelope_status: null
   artifact: null
   handoff: null
@@ -67,13 +67,13 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T06:12:17Z'
+  updated_at: '2026-09-17T06:12:40Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T06:12:17Z'
+oat_project_state_updated: '2026-09-17T06:12:40Z'
 oat_generated: false
 ---
 

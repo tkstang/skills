@@ -374,6 +374,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Final review round 3 passed the guarded bookkeeping range with zero findings and confirmed both prior final events preserve exact provenance with `fixes_completed` status. The lifecycle review is complete; the configured implementation exit gate is next.
 - 2026-09-17: Resolved the configured `oat-project-implement` exit gate once for the passed final-review basis `c60f3fe3`; persisted the exact command, block policy, two-attempt limit, config fingerprint and qualified effective-delta fingerprint before launch.
 - 2026-09-17: Persisted configured exit-gate launch intent `d55b3ba4-a973-48d7-887e-6cf3815a775f` and its durable result receipt path before invoking the exact resolved command.
+- 2026-09-17: The configured gate emitted run marker `87133850-151e-4827-9d7b-7cfd854c5724` before reviewer dispatch; launch state advanced to `accepted` while the exact run remains active.
 
 ## Deviations from Plan / Design
 
