@@ -64,6 +64,10 @@ run-first-party-standalone-installer-p01-20260917-passed verdict=passed fix-loop
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:5 exit=0 status=ok artifact=.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md run=3631aaf2-103a-4106-9bda-9eeb577cc87f
 
+### 2026-09-17 · structural · oat gate review · final
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:4 exit=0 status=ok artifact=.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T050550Z.md run=f673a067-7275-4ef8-9a0a-55e88e880a5b
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
