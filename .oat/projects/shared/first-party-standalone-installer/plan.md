@@ -389,6 +389,7 @@ git commit -m "test(installer): relocate Node requirement regression"
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T020642Z.md | 7a85fd33013191b27a6a4d2a4c3ad6affba6a47e | gate | claude-fable-skip-permissions |
 | final  | code     | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T025657Z.md | 787a4cce286d2581047693d05826b6c060f56f83 | manual | - |
 | p03    | code     | fixes_completed | 2026-09-17 | reviews/archived/p03-review-2026-09-17T044145Z.md | 4445e18d7a3ab2d15f9cd9669a4cc04766b4fe19 | manual | - |
+| p03    | code     | passed | 2026-09-17 | reviews/archived/p03-review-2026-09-17T044812Z.md | 48fe89b51f05c5938d63391dc1eae1a8ac3e0604 | manual | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
