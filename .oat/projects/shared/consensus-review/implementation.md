@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p08-t01
+oat_current_task_id: p08-t02
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** p07 passed independent review round 2 with zero findings; p08-t01 is next.
+**Status:** p08-t01 and bounded determinism recovery are complete; p08-t02 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -18,9 +18,9 @@ oat_generated: false
 | --- | --- | --- | --- |
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
-| p08 — Rendering, interaction, acceptance | pending | 2 | 0/2 |
+| p08 — Rendering, interaction, acceptance | in_progress | 2 | 1/2 |
 
-**Total:** 5/7 task commits completed; 2/3 phases accepted.
+**Total:** 6/7 task commits completed; 2/3 phases accepted.
 
 ## Tasks
 
@@ -31,7 +31,7 @@ oat_generated: false
 | p07-t01 | done | `e40b46c23174a3c5f627dedf4164821cfd3cfc40` | 21 focused tests plus build, type-check, freshness, validation, scoped lint/format and diff checks passed. |
 | p07-t02 | done | `e75963bdf8a7c23ca888920c3f4374992e529cd9` | 40 focused tests plus build, type-check, freshness, validation, 11-owner version/changelog gate, scoped lint/format and diff checks passed. |
 | p07-t03 | done | `a580a322aadbe914f25ef9be4ec78f5631b3c2d0` | 41 focused tests plus build, type-check, freshness, validation, 11-owner version/changelog gate, scoped lint/format and diff checks passed. |
-| p08-t01 | pending | - | - |
+| p08-t01 | done | `6b65fe8c0e6b46a0d7720677fb199972fdf2c377` | 76 focused tests plus type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed; bounded determinism recovery followed. |
 | p08-t02 | pending | - | - |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
@@ -232,6 +232,21 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Recovery commit: -
 - Verification: full suite failed 4/2076; focused no-edit rerun failed the same 4/32
 - Reason: Three inventory corrections are mechanically attributable to p06, but the repeated refine peer-ordering failure is outside the changed phase surface and is not mechanically attributable. No reservation, edit or recovery commit was made.
+
+### Recovery Event p08-render-determinism-001
+
+- Phase/task: p08 / p08-t01
+- Original request: impl-consensus-review-p08-20260917T0439Z
+- Original commit: 6b65fe8c0e6b46a0d7720677fb199972fdf2c377
+- Defect class: composition
+- Discovered by: between-task deterministic renderer self-review
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 0831b0b6010f4e31d91e228acd7cc2f8ebbc990f
+- Verification: phase owner confirmed 11 focused and 74 relevant tests plus type-check/build freshness; root independently confirmed 11 focused tests, build freshness and recovery-range diff checks.
+- Reason: rendered Markdown claimed determinism while including wall-clock metadata; the bounded correction removed that field and added equality regression coverage while preserving the original task commit.
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -252,6 +267,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Independent p07 review round 1 requested changes for two Important and three Medium contract gaps. Root accepts all five; none are deferred or dismissed, and the original implementer receives bounded fix iteration 1/2.
 - 2026-09-17: Bounded p07 fix iteration 1 completed I1, I2 and M1–M3 in one append-only commit. Root independently confirmed 115 focused and 1,994 full-suite tests plus all repository gates; the review event advances to `fixes_completed` for round 2.
 - 2026-09-17: Independent p07 review round 2 passed at `fa01afbe` with zero findings. All five prior findings are verified resolved and p07 is accepted; execution advances to p08-t01 and its final-phase HiLL checkpoint.
+- 2026-09-17: p08-t01 completed at `6b65fe8c`. Between-task self-review found wall-clock metadata in a renderer documented as deterministic; phase-standing recovery attempt 1/10 fixed it at `0831b0b6`, root validated the correction, and `pending_attempt` was cleared before p08-t02.
 
 ## Deviations from Plan / Design
 
@@ -272,6 +288,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Post-main integration: 138 test files and 1,958 tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and diff checks passed; the former refine host-order baseline is resolved.
 - p07 phase verification: 69 focused tests and 1,989 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and phase-range diff checks passed; the worktree is clean.
 - p07 review fix iteration 1: 115 focused tests and 1,994 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the consensus-review `0.1.6` version/changelog gate, smoke and fix-range diff checks passed.
+- p08-t01: 76 focused tests, type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed. Determinism recovery: 11 focused tests, build freshness and exact range diff check passed independently.
 
 ## Planning review received
 

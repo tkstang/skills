@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t01
-oat_last_commit: fa01afbe8a0cd21eeaf20e4cf9c23e6574f12d04
+oat_current_task: p08-t02
+oat_last_commit: 0831b0b6010f4e31d91e228acd7cc2f8ebbc990f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -27,16 +27,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p08:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p08-render-determinism-001
-        original_request_id: impl-consensus-review-p08-20260917T0439Z
-        original_task_id: p08-t01
-        original_commit: 6b65fe8c0e6b46a0d7720677fb199972fdf2c377
-        discovered_by: between-task deterministic renderer self-review
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 6b65fe8c0e6b46a0d7720677fb199972fdf2c377
-        status: completed
+      pending_attempt: null
 oat_phase: implement
 oat_phase_status: in_progress
 oat_workflow_mode: quick
@@ -46,20 +37,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T04:36:00Z'
+oat_project_state_updated: '2026-09-17T04:57:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p07 passed independent review round 2 with zero findings. p08-t01 is next; the final-phase HiLL checkpoint and automatic review remain active.
+**Status:** p08-t01 and its deterministic-render recovery are complete. Recovery attempt 1/10 is settled; p08-t02 receipt and delivery verification is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 and p07 accepted. p08 is ready to begin with two tasks; its configured HiLL checkpoint and automatic checkpoint review remain mandatory before closeout. No publication, global installation or live provider acceptance has completed.
+Quick workflow, p06 and p07 accepted. p08-t01 is complete at `6b65fe8c` with deterministic-render recovery at `0831b0b6`; p08-t02 is next. The configured final HiLL checkpoint and automatic final review remain mandatory before closeout. No publication, global installation or live provider acceptance has completed.
 
 ## Artifacts
 
@@ -68,6 +59,7 @@ Quick workflow, p06 and p07 accepted. p08 is ready to begin with two tasks; its 
 - Plan: seven tasks in three sequential phases. Original draft tasks are retired with a coverage map, not renumbered or marked complete. First active task is p06-t01.
 - Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; bounded inventory recovery committed at `a1b2b427`; review fixes committed at `8a7871af`; current main integrated at `9cfe41ac`. Review round 2 passed at `ae059dfb` with zero findings and the full repository suite green.
 - p07 implementation: scope/drift at `e40b46c2`, reviewer selection/config at `e75963bd`, and one-run validation/persistence at `a580a322`. Review round 1 requested five fixes; all completed at `cc8c0af3`, and round 2 passed at `fa01afbe` with zero findings.
+- p08-t01: interactive rendering, scope selection and documentation committed at `6b65fe8c`; bounded determinism recovery committed at `0831b0b6` and settled at attempt 1/10.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -82,11 +74,11 @@ Quick workflow, p06 and p07 accepted. p08 is ready to begin with two tasks; its 
 
 ## Next Milestone
 
-Dispatch p08 from the clean post-review bookkeeping head, execute its two planned commits, and stop at the configured final-phase HiLL checkpoint with automatic review evidence ready. No live provider acceptance may be inferred or run without separate authorization.
+Resume the original p08 implementer at p08-t02 for fixture-only receipt exercise, PJM closure and complete-delivery verification. No live provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-p07 review round 2 independently confirmed 115 focused and 1,994 full-suite tests pass with one skipped. Build freshness, type-check, validation, the 11-owner version/changelog gate against main, smoke and range diff checks pass; all five prior findings are resolved with no new findings.
+p08-t01 passed 76 focused tests plus type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format and production docs build. Root independently confirmed the deterministic-render recovery with 11 focused tests, build freshness and range diff checks. Recovery usage is settled at 1/10 with `pending_attempt: null`.
 
 ## Operational Notes
 
