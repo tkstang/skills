@@ -286,6 +286,49 @@ git add documentation/docs/user-guide/installation.md tests/release/standalone-i
 git commit -m "fix(installer): pin documented bootstrap tag"
 ```
 
+## Phase 3: Resolve final wording review finding
+
+### Task p03-t01: (review) Make the Node requirement message installer-neutral
+
+**Files:**
+
+- Modify: `install.sh`
+- Modify: `src/plugins/consensus/install-sh.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding m3: standalone mode reuses `require_node_22`, whose failure
+message says Node.js 22 is required for the Consensus provider CLI. The version
+requirement and failure behavior are correct, but the named component is wrong
+for standalone skill installs.
+
+**Step 2: Implement the fix**
+
+Use an installer-neutral Node.js 22 failure message that is accurate for both
+the zero-argument Consensus path and the argument-bearing standalone path. Add
+a regression that invokes standalone mode with a mocked old Node version and
+asserts the neutral message without naming Consensus.
+
+**Step 3: Format and verify**
+
+Run: `pnpm exec oxfmt --write src/plugins/consensus/install-sh.test.ts`
+
+Run: `pnpm exec oxlint src/plugins/consensus/install-sh.test.ts`
+
+Run: `pnpm run test:vitest src/plugins/consensus/install-sh.test.ts`
+
+Run: `bash -n install.sh`
+
+Expected: The focused installer tests pass, the authored test is formatted and
+lint-clean, and the shell entrypoint remains syntactically valid.
+
+**Step 4: Commit**
+
+```bash
+git add install.sh src/plugins/consensus/install-sh.test.ts
+git commit -m "fix(installer): clarify Node version requirement"
+```
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
@@ -299,6 +342,7 @@ git commit -m "fix(installer): pin documented bootstrap tag"
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T015346Z.md | 9538fa57917e636982eb4a59aafa2be8c3b7517a | auto | - |
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T020642Z.md | 7a85fd33013191b27a6a4d2a4c3ad6affba6a47e | gate | claude-fable-skip-permissions |
+| final  | code     | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T025657Z.md | 787a4cce286d2581047693d05826b6c060f56f83 | manual | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
@@ -310,10 +354,11 @@ The first gate's findings were resolved in the lifecycle artifacts. The second g
 
 - Phase 1: 3 tasks — scoped installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
 - Phase 2: 1 task — final-review correction for unambiguous release-tag bootstrap selection.
+- Phase 3: 1 task — installer-neutral Node-version failure wording and regression coverage.
 
-**Total: 4 tasks**
+**Total: 5 tasks**
 
-Implementation is complete when all four tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
+Implementation is complete when all five tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
 
 ## References
 

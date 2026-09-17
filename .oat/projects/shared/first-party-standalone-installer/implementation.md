@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: null
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -28,8 +28,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 1     | 1/1       |
+| Phase 3 | in progress | 1     | 0/1       |
 
-**Total:** 4/4 tasks completed
+**Total:** 4/5 tasks completed
 
 ---
 
@@ -154,6 +155,24 @@ over the promised annotated tag.
 **Outcome:** Replaced the ambiguous clone command with an explicit qualified
 tag fetch and detached peeled-commit checkout, with a temporary local Git
 collision regression covering checkout identity and installer bytes.
+
+---
+
+## Phase 3: Resolve final wording review finding
+
+**Status:** in progress
+**Started:** 2026-09-17
+
+### Task p03-t01: (review) Make the Node requirement message installer-neutral
+
+**Status:** pending
+
+**Review finding:** m3 from the fresh final review. Standalone mode correctly
+requires Node.js 22 but reports that requirement as belonging specifically to
+the Consensus provider CLI.
+
+**Planned outcome:** Use one neutral installer message for both supported paths
+and cover the standalone old-Node failure with a focused regression.
 
 ---
 
@@ -483,6 +502,36 @@ The correction aligns full-repository lint with the repository convention that
 generated OAT/provider views are not lint inputs. The original blocker is
 resolved; final review and the configured exit gate must be refreshed because
 the prior evidence predates the lint-policy commit.
+
+### Review Received: final after lint correction
+
+**Date:** 2026-09-17
+**Review artifact:** `reviews/archived/final-review-2026-09-17T025657Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 4 carry-forward findings; no new findings
+
+**New tasks added:** `p03-t01`
+
+**Minor disposition:**
+
+- `m1` deferred: direct execution of the private Node helper is not a supported
+  interface. Revisit if that helper becomes public.
+- `m2` deferred: Git configuration isolation has a local-mirror workaround.
+  Revisit during installation-guide polish or after an affected user report.
+- `m3` converted to `p03-t01`: make the shared Node-version failure message
+  installer-neutral and add a standalone-path regression.
+- `m4` deferred: the bounded fetch timeout has not been reproduced. Improve the
+  diagnostic if a timeout is observed or support demand appears.
+
+**Deferred Medium ledger:** None.
+
+**Next:** Execute `p03-t01`, re-review the final scope, and refresh the stale
+configured exit gate.
 
 ---
 
