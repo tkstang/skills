@@ -147,7 +147,7 @@ Deferred capabilities: staged-only, unstaged-only and committed ranges, triggere
 
 - [Discovery](discovery.md)
 - [Plan](plan.md)
-- [Backlog contract](../../../repo/pjm/backlog/items/BL-260916-add-consensus-review-cross.md)
-- [Kickoff handoff](../../../repo/pjm/handoffs/BL-260916-add-consensus-review-cross.md)
+- [Backlog contract](../../../repo/pjm/backlog/archived/BL-260916-add-consensus-review-cross.md)
+- Consumed kickoff handoff: deliberately removed at immutable consumption commit `aad79ef5`.
 - Existing source: `src/plugins/consensus/provider-cli/{structured-output,subprocess,host-guard,commands,schema-validate}.ts`; `src/plugins/consensus/config/consensus-config.ts`.
 - Packaging proof infrastructure: `src/distributions.ts`, `scripts/lib/packaging.ts`, `tests/tooling/skill-packaging.test.ts`.

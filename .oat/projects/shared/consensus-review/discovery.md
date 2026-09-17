@@ -96,6 +96,6 @@ Planning and gate receipt are complete. Start `oat-project-implement` at p06-t01
 
 ## References
 
-- [Backlog item](../../../repo/pjm/backlog/items/BL-260916-add-consensus-review-cross.md)
-- [Kickoff handoff](../../../repo/pjm/handoffs/BL-260916-add-consensus-review-cross.md)
+- [Backlog item](../../../repo/pjm/backlog/archived/BL-260916-add-consensus-review-cross.md)
+- Consumed kickoff handoff: deliberately removed at immutable consumption commit `aad79ef5`.
 - [Design](design.md)

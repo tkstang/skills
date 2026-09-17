@@ -261,5 +261,5 @@ The p06 and p07 reviews passed after bounded fixes, and the lifecycle final revi
 - [Design](design.md)
 - [Discovery](discovery.md)
 - [State](state.md)
-- [Backlog item](../../../repo/pjm/backlog/items/BL-260916-add-consensus-review-cross.md)
-- [Kickoff handoff](../../../repo/pjm/handoffs/BL-260916-add-consensus-review-cross.md)
+- [Backlog item](../../../repo/pjm/backlog/archived/BL-260916-add-consensus-review-cross.md)
+- Consumed kickoff handoff: deliberately removed at immutable consumption commit `aad79ef5`.
