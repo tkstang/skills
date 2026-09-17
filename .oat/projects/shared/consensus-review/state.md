@@ -70,7 +70,7 @@ oat_implement_exit_gate:
   failure: null
   updated_at: '2026-09-17T20:47:06Z'
 oat_post_implement_sequence:
-  status: awaiting_approval
+  status: post_approval
   source: configured
   final_phase: p09
   pre_approval:
@@ -81,8 +81,8 @@ oat_post_implement_sequence:
     - summary
     - document
     - pr
-  approval: pending
-  approval_source: null
+  approval: approved
+  approval_source: user
   post_approval: []
   post_approval_completed: []
   failure: null
@@ -91,7 +91,7 @@ oat_pr_status: open
 oat_pr_url: 'https://github.com/tkstang/skills/pull/91'
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T20:47:06Z'
+oat_project_state_updated: '2026-09-17T21:22:47Z'
 oat_generated: false
 oat_project_recap:
   decision: skip
@@ -101,7 +101,7 @@ oat_project_recap:
 
 # Project State: Consensus Review
 
-**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Summary, documentation, and final PR publication are complete; final HiLL approval remains.
+**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Summary, documentation, final PR publication, and final HiLL approval are complete; closeout finalization is in progress.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
