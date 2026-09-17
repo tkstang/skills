@@ -2,15 +2,15 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-16
-oat_current_task_id: null
+oat_last_updated: 2026-09-17
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
 # Implementation: first-party-standalone-installer
 
 **Started:** 2026-09-16
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-17
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -27,8 +27,9 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
+| Phase 2 | in progress | 1     | 0/1       |
 
-**Total:** 3/3 tasks completed
+**Total:** 3/4 tasks completed
 
 ---
 
@@ -116,6 +117,21 @@ oat_generated: false
 **Resume:** The operator authorized recovery attempt 2 using candidate-tree proof before commit and authoritative version validation after commit. The scope remains limited to relocating the newly added standalone assertions and restoring the two Consensus test files to phase-base content.
 
 **Outcome:** Recovery commit `372a69c0a2eeb7a2b83a0c39441af6a7862fdb3e` relocated the standalone assertions and restored both Consensus tests to phase-base content. Both authoritative skill-version comparisons then passed with zero changed skills. The task commit recorded all automated evidence and kept six live host/scope checks pending.
+
+---
+
+## Phase 2: Resolve final review findings
+
+**Status:** in progress
+**Started:** 2026-09-17
+
+### Task p02-t01: (review) Pin the bootstrap checkout to the fully qualified release tag
+
+**Status:** pending
+
+**Review finding:** M1 from the auto final review. The documented
+`git clone --branch v0.1.2` bootstrap can prefer a divergent same-named branch
+over the promised annotated tag.
 
 ---
 
@@ -281,6 +297,34 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 ---
 
+### Review Received: final
+
+**Date:** 2026-09-17
+**Review artifact:** `reviews/archived/final-review-2026-09-17T012706Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 0
+
+**New tasks added:** `p02-t01`
+
+**Finding disposition:**
+
+- `M1` (`code_fix_required`, converted): pin the documented bootstrap to the
+  fully qualified release tag and add a local divergent branch/tag regression.
+
+**Deferred Medium ledger:** No Medium finding remains deferred. The prior p01
+M1 is the same defect and is converted into `p02-t01` for correction now.
+
+**Next:** Execute `p02-t01` via the `oat-project-implement` skill. After the
+fix task completes, update this final review event to `fixes_completed` and run
+a final code re-review.
+
+---
+
 ## Implementation Log
 
 Chronological log of implementation progress.
@@ -292,6 +336,7 @@ Chronological log of implementation progress.
 - Operator direction resumed `p01-t03` for recovery attempt 2 with exact-target continuity and candidate-tree proof; no unrelated version bumps or validator changes are authorized.
 - Recovery attempt 2 completed in `372a69c0`; `p01-t03` completed in `0876525a`; all planned static verification passed.
 - Independent phase review passed with one non-blocking Medium bootstrap-tag finding recorded in `reviews/p01-review-2026-09-17T012147Z.md`.
+- Auto final review converted the unresolved bootstrap-tag finding into `p02-t01`; no Medium finding remains deferred.
 
 ---
 

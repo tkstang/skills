@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-09-16
+oat_last_updated: 2026-09-17
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
@@ -244,12 +244,55 @@ git add .oat/repo/pjm
 git commit -m "chore(installer): close first-party install backlog item"
 ```
 
+## Phase 2: Resolve final review findings
+
+### Task p02-t01: (review) Pin the bootstrap checkout to the fully qualified release tag
+
+**Files:**
+
+- Modify: `documentation/docs/user-guide/installation.md`
+- Modify: `tests/release/standalone-install-contract.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding M1: `git clone --branch v0.1.2 --single-branch` can select a
+same-named branch instead of the annotated release tag, so the documented
+bootstrap may execute installer bytes that are not from the promised release.
+Location: `documentation/docs/user-guide/installation.md:127`
+
+**Step 2: Implement the fix**
+
+Replace the clone command with a fresh checkout that fetches only
+`refs/tags/v0.1.2` using `--no-tags --depth=1`, then detaches at the peeled
+`FETCH_HEAD^{commit}` before assigning `INSTALLER`. Add a local Git regression
+with a divergent same-named branch and annotated tag; assert the checkout HEAD
+and installer bytes both come from the tag.
+
+**Step 3: Format and verify**
+
+Run: `pnpm exec oxfmt --write documentation/docs/user-guide/installation.md tests/release/standalone-install-contract.test.ts`
+
+Run: `pnpm exec oxlint tests/release/standalone-install-contract.test.ts`
+
+Run: `pnpm run test:vitest tests/release/standalone-install-contract.test.ts`
+
+Expected: The local collision regression and documentation contract pass, and
+the changed authored files satisfy formatting and lint checks.
+
+**Step 4: Commit**
+
+```bash
+git add documentation/docs/user-guide/installation.md tests/release/standalone-install-contract.test.ts
+git commit -m "fix(installer): pin documented bootstrap tag"
+```
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
 | p01    | code     | passed | 2026-09-17 | reviews/p01-review-2026-09-17T012147Z.md | 6800dcebee56689aa9045e0d471e815e564950f2 | manual | - |
-| final  | code     | received | 2026-09-17 | reviews/final-review-2026-09-17T012706Z.md | cfe7cc01ee606523e2d14ffbea0fbcfd08124168 | auto | - |
+| p02    | code     | pending | - | - | - | - | - |
+| final  | code     | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T012706Z.md | cfe7cc01ee606523e2d14ffbea0fbcfd08124168 | auto | - |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
@@ -264,10 +307,11 @@ The first gate's findings were resolved in the lifecycle artifacts. The second g
 **Summary:**
 
 - Phase 1: 3 tasks — scoped installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
+- Phase 2: 1 task — final-review correction for unambiguous release-tag bootstrap selection.
 
-**Total: 3 tasks**
+**Total: 4 tasks**
 
-Implementation is complete when all three tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
+Implementation is complete when all four tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
 
 ## References
 

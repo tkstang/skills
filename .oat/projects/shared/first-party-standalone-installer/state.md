@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p02-t01
 oat_last_commit: 0876525a9c540021a7c23fccfa21f877797ec0c1
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -88,7 +88,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T01:25:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T01:36:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -96,11 +96,11 @@ oat_generated: false
 
 **Status:** Implementing
 **Started:** 2026-09-16
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-17
 
 ## Current Phase
 
-Implementation - Tasks and phase review complete; awaiting final lifecycle review
+Implementation - final-review fix task `p02-t01` in progress
 
 ## Artifacts
 
@@ -121,7 +121,7 @@ Implementation - Tasks and phase review complete; awaiting final lifecycle revie
 - ✓ `p01-t02` documentation and release contract complete
 - ✓ `p01-t03` full static gate and pending-live bookkeeping complete
 - ✓ Independent phase review passed with one non-blocking Medium finding
-- ⧗ Final lifecycle review pending
+- ⧗ Final review M1 converted into bounded fix task `p02-t01`
 
 ## Blockers
 
@@ -129,4 +129,4 @@ None
 
 ## Next Milestone
 
-Run and receive the final lifecycle review for the final HiLL checkpoint.
+Implement `p02-t01`, then rerun and receive the final lifecycle review.
