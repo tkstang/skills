@@ -2,8 +2,9 @@
 // GENERATED skill payload for consensus-review.
 
 // src/skills/consensus-review/src/review.ts
+import { randomUUID as randomUUID6 } from "node:crypto";
 import { constants as constants2 } from "node:fs";
-import { lstat as lstat4, open as open4, readFile as readFile3, realpath as realpath3 } from "node:fs/promises";
+import { link as link2, lstat as lstat4, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
 import path10 from "node:path";
 import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
 
@@ -4201,14 +4202,15 @@ async function runReviewCli(argv, dependencies = {}) {
       human: USAGE
     };
   }
+  const cwd = path10.resolve(dependencies.cwd ?? process.cwd());
+  const fileSystem = resolveFileSystem(dependencies.fileSystem);
   let parsed;
   try {
-    parsed = await parseReviewArgs(argv, dependencies.cwd ?? process.cwd());
+    parsed = await parseReviewArgs(argv, cwd, fileSystem);
   } catch (error) {
     const failure2 = error instanceof UsageError ? error : new UsageError("argument_invalid", errorMessage2(error));
     return usageOutcome(failure2, argv.includes("--json"));
   }
-  const cwd = path10.resolve(dependencies.cwd ?? process.cwd());
   const execute = dependencies.execute ?? executeBoundedReview;
   const input = {
     cwd,
@@ -4241,36 +4243,43 @@ async function runReviewCli(argv, dependencies = {}) {
     result.runState.runDirectory,
     "review.md"
   );
+  const renderedMarkdown = renderReviewMarkdown(result.aggregate);
   try {
     await writeExclusive(
       canonicalMarkdown,
-      renderReviewMarkdown(result.aggregate),
-      384
+      renderedMarkdown,
+      384,
+      fileSystem
     );
   } catch (error) {
     return localOutputFailure(
       result,
       "markdown_persistence_failed",
       `Completed review Markdown could not be written: ${errorMessage2(error)}`,
-      parsed.json
+      parsed.json,
+      fileSystem
     );
   }
   let exportedMarkdown = null;
   if (parsed.output) {
     try {
-      exportedMarkdown = await exportCompletedMarkdown({
-        cwd,
-        requestedPath: parsed.output,
-        contents: await readFile3(canonicalMarkdown, "utf8"),
-        aggregate: result.aggregate,
-        canonicalMarkdown
-      });
+      exportedMarkdown = await exportCompletedMarkdown(
+        {
+          cwd,
+          requestedPath: parsed.output,
+          contents: renderedMarkdown,
+          aggregate: result.aggregate,
+          canonicalMarkdown
+        },
+        fileSystem
+      );
     } catch (error) {
       return localOutputFailure(
         result,
         "export_failed",
         `Completed review was preserved at ${canonicalMarkdown}; export failed: ${errorMessage2(error)}`,
         parsed.json,
+        fileSystem,
         canonicalMarkdown
       );
     }
@@ -4387,7 +4396,7 @@ function renderReviewMarkdown(aggregate) {
   return `${lines.join("\n")}
 `;
 }
-async function parseReviewArgs(argv, cwd) {
+async function parseReviewArgs(argv, cwd, fileSystem) {
   let baseRef;
   let files;
   let document;
@@ -4499,7 +4508,7 @@ async function parseReviewArgs(argv, cwd) {
     );
   }
   if (requestFile) {
-    request = await readBoundedText(path10.resolve(cwd, requestFile));
+    request = await readBoundedText(path10.resolve(cwd, requestFile), fileSystem);
   }
   const scope = baseRef ? { kind: "base_branch", ref: baseRef } : files ? { kind: "files", paths: files } : { kind: "document", path: document };
   return {
@@ -4544,15 +4553,26 @@ function defaultRequest(scope) {
   }
   return "Review the selected document or plan for correctness, completeness, internal consistency, and actionable risks.";
 }
-async function readBoundedText(targetPath) {
-  const handle = await open4(targetPath, constants2.O_RDONLY);
+async function readBoundedText(targetPath, fileSystem) {
+  const handle = await fileSystem.openFile(targetPath, constants2.O_RDONLY);
   try {
     const info = await handle.stat();
     if (!info.isFile()) throw new Error("request file must be a regular file");
     if (info.size > REQUEST_FILE_MAX_BYTES) {
       throw new Error(`request file exceeds ${REQUEST_FILE_MAX_BYTES} bytes`);
     }
-    return await handle.readFile("utf8");
+    const buffer = Buffer.allocUnsafe(REQUEST_FILE_MAX_BYTES + 1);
+    let totalBytes = 0;
+    while (totalBytes < buffer.length) {
+      const length = Math.min(64 * 1024, buffer.length - totalBytes);
+      const { bytesRead } = await handle.read(buffer, totalBytes, length, null);
+      if (bytesRead === 0) break;
+      totalBytes += bytesRead;
+      if (totalBytes > REQUEST_FILE_MAX_BYTES) {
+        throw new Error(`request file exceeds ${REQUEST_FILE_MAX_BYTES} bytes`);
+      }
+    }
+    return buffer.subarray(0, totalBytes).toString("utf8");
   } finally {
     await handle.close();
   }
@@ -4600,15 +4620,15 @@ function diagnosticOutcome(result, json) {
     ].join("\n")
   };
 }
-async function exportCompletedMarkdown(input) {
+async function exportCompletedMarkdown(input, fileSystem) {
   const requested = path10.resolve(input.cwd, input.requestedPath);
   try {
-    await lstat4(requested);
+    await fileSystem.lstatPath(requested);
     throw new Error("output destination already exists");
   } catch (error) {
     if (!isMissing3(error)) throw error;
   }
-  const parent = await realpath3(path10.dirname(requested));
+  const parent = await fileSystem.realpathPath(path10.dirname(requested));
   const destination = path10.join(parent, path10.basename(requested));
   const protectedPaths = /* @__PURE__ */ new Set([
     input.canonicalMarkdown,
@@ -4623,47 +4643,104 @@ async function exportCompletedMarkdown(input) {
   if (protectedPaths.has(destination)) {
     throw new Error("output destination aliases a protected review input");
   }
-  await writeExclusive(destination, input.contents, 384);
+  await writeExclusive(destination, input.contents, 384, fileSystem);
   return destination;
 }
-async function writeExclusive(targetPath, contents, mode) {
-  const handle = await open4(targetPath, "wx", mode);
+async function writeExclusive(targetPath, contents, mode, fileSystem) {
+  const temporaryPath = path10.join(
+    path10.dirname(targetPath),
+    `.${path10.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
+  );
+  let handle = null;
+  let failure2;
   try {
+    handle = await fileSystem.openFile(temporaryPath, "wx", mode);
     await handle.writeFile(contents, "utf8");
     await handle.sync();
-  } finally {
     await handle.close();
+    handle = null;
+    await fileSystem.linkFile(temporaryPath, targetPath);
+  } catch (error) {
+    failure2 = error;
   }
+  if (handle) {
+    try {
+      await handle.close();
+    } catch (error) {
+      failure2 ??= error;
+    }
+  }
+  try {
+    await fileSystem.unlinkFile(temporaryPath);
+  } catch (error) {
+    if (!isMissing3(error)) failure2 ??= error;
+  }
+  if (failure2) throw failure2;
 }
-async function localOutputFailure(result, reason, message, json, markdown) {
+async function localOutputFailure(result, reason, message, json, fileSystem, markdown) {
   const diagnosticPath = path10.join(
     result.runState.runDirectory,
     "cli-diagnostic.json"
   );
-  const payload = {
+  const persistedPayload = {
     ok: false,
     status: "output_failed",
     reason,
     message,
     invocation_count: result.invocation_count,
+    diagnostic_persisted: true,
     artifacts: {
       json: result.artifactPath,
       ...markdown ? { markdown } : {},
       diagnostic: diagnosticPath
     }
   };
-  await writeExclusive(
-    diagnosticPath,
-    `${JSON.stringify(payload, null, 2)}
+  try {
+    await writeExclusive(
+      diagnosticPath,
+      `${JSON.stringify(persistedPayload, null, 2)}
 `,
-    384
-  ).catch(() => void 0);
-  return {
-    exitCode: 1,
-    json,
-    payload,
-    human: `${message}
+      384,
+      fileSystem
+    );
+    return {
+      exitCode: 1,
+      json,
+      payload: persistedPayload,
+      human: `${message}
+Diagnostic persistence: succeeded.
 Diagnostic artifact: ${diagnosticPath}`
+    };
+  } catch (error) {
+    const payload = {
+      ok: false,
+      status: "output_failed",
+      reason,
+      message,
+      invocation_count: result.invocation_count,
+      diagnostic_persisted: false,
+      diagnostic_error: errorMessage2(error),
+      artifacts: {
+        json: result.artifactPath,
+        ...markdown ? { markdown } : {}
+      }
+    };
+    return {
+      exitCode: 1,
+      json,
+      payload,
+      human: `${message}
+Diagnostic persistence: failed (${errorMessage2(error)}).`
+    };
+  }
+}
+function resolveFileSystem(overrides) {
+  return {
+    openFile: overrides?.openFile ?? open4,
+    linkFile: overrides?.linkFile ?? link2,
+    unlinkFile: overrides?.unlinkFile ?? unlink2,
+    lstatPath: overrides?.lstatPath ?? lstat4,
+    realpathPath: overrides?.realpathPath ?? realpath3
   };
 }
 function groupFindings(findings) {

@@ -1,8 +1,12 @@
 import {
   access,
+  appendFile,
+  link,
   mkdir,
   mkdtemp,
+  open,
   readFile,
+  readdir,
   realpath,
   writeFile,
 } from 'node:fs/promises';
@@ -195,6 +199,226 @@ describe('review CLI', () => {
     );
   });
 
+  it.each([
+    ['write', { writeError: 'fixture canonical write failure' }],
+    ['sync', { syncError: 'fixture canonical sync failure' }],
+  ] as const)(
+    'does not publish partial canonical Markdown after a %s failure',
+    async (_stage, fault) => {
+      const root = await temporaryRoot();
+      const runDirectory = path.join(root, 'state', 'canonical-failure');
+      await mkdir(runDirectory, { recursive: true });
+      const aggregate = aggregateFixture(root, runDirectory);
+      const canonicalMarkdown = path.join(runDirectory, 'review.md');
+
+      const result = await runReviewCli(
+        ['--files', 'src/example.ts', '--host', 'codex', '--json'],
+        {
+          cwd: root,
+          execute: async () => completedResult(aggregate, runDirectory),
+          fileSystem: {
+            openFile: faultingOpen({
+              matches: (target) => target.includes('.review.md.'),
+              ...fault,
+            }),
+          },
+        },
+      );
+
+      expect(result).toMatchObject({
+        exitCode: 1,
+        payload: {
+          status: 'output_failed',
+          reason: 'markdown_persistence_failed',
+          invocation_count: 1,
+          diagnostic_persisted: true,
+          artifacts: {
+            diagnostic: path.join(runDirectory, 'cli-diagnostic.json'),
+          },
+        },
+      });
+      await expect(access(canonicalMarkdown)).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+      await expectNoPublicationTemporary(runDirectory, 'review.md');
+    },
+  );
+
+  it('preserves canonical Markdown and removes the export temporary after an export write failure', async () => {
+    const root = await temporaryRoot();
+    const runDirectory = path.join(root, 'state', 'export-failure');
+    await mkdir(runDirectory, { recursive: true });
+    const aggregate = aggregateFixture(root, runDirectory);
+    const destination = path.join(root, 'exported-review.md');
+
+    const result = await runReviewCli(
+      [
+        '--files',
+        'src/example.ts',
+        '--host',
+        'codex',
+        '--output',
+        destination,
+        '--json',
+      ],
+      {
+        cwd: root,
+        execute: async () => completedResult(aggregate, runDirectory),
+        fileSystem: {
+          openFile: faultingOpen({
+            matches: (target) => target.includes('.exported-review.md.'),
+            writeError: 'fixture export write failure',
+          }),
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      payload: {
+        reason: 'export_failed',
+        diagnostic_persisted: true,
+        artifacts: {
+          markdown: path.join(runDirectory, 'review.md'),
+          diagnostic: path.join(runDirectory, 'cli-diagnostic.json'),
+        },
+      },
+    });
+    await expect(
+      access(path.join(runDirectory, 'review.md')),
+    ).resolves.toBeUndefined();
+    await expect(access(destination)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expectNoPublicationTemporary(root, 'exported-review.md');
+  });
+
+  it('fails closed when a competing publisher wins the canonical destination', async () => {
+    const root = await temporaryRoot();
+    const runDirectory = path.join(root, 'state', 'publish-collision');
+    await mkdir(runDirectory, { recursive: true });
+    const aggregate = aggregateFixture(root, runDirectory);
+    const canonicalMarkdown = path.join(runDirectory, 'review.md');
+    const linkFile: typeof link = async (source, destination) => {
+      if (destination === canonicalMarkdown) {
+        await writeFile(destination, 'competing publisher\n', { flag: 'wx' });
+      }
+      await link(source, destination);
+    };
+
+    const result = await runReviewCli(
+      ['--files', 'src/example.ts', '--host', 'codex', '--json'],
+      {
+        cwd: root,
+        execute: async () => completedResult(aggregate, runDirectory),
+        fileSystem: { linkFile },
+      },
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      payload: {
+        reason: 'markdown_persistence_failed',
+        diagnostic_persisted: true,
+      },
+    });
+    expect(await readFile(canonicalMarkdown, 'utf8')).toBe(
+      'competing publisher\n',
+    );
+    await expectNoPublicationTemporary(runDirectory, 'review.md');
+  });
+
+  it('does not advertise a diagnostic path when diagnostic persistence fails', async () => {
+    const root = await temporaryRoot();
+    const runDirectory = path.join(root, 'state', 'diagnostic-failure');
+    await mkdir(runDirectory, { recursive: true });
+    const aggregate = aggregateFixture(root, runDirectory);
+
+    const result = await runReviewCli(
+      ['--files', 'src/example.ts', '--host', 'codex', '--json'],
+      {
+        cwd: root,
+        execute: async () => completedResult(aggregate, runDirectory),
+        fileSystem: {
+          openFile: faultingOpen({
+            matches: (target) =>
+              target.includes('.review.md.') ||
+              target.includes('.cli-diagnostic.json.'),
+            writeError: 'fixture persistence failure',
+          }),
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      payload: {
+        status: 'output_failed',
+        diagnostic_persisted: false,
+        diagnostic_error: 'fixture persistence failure',
+      },
+    });
+    expect(result.payload).toMatchObject({
+      artifacts: { json: path.join(runDirectory, 'result.json') },
+    });
+    expect(result.payload).not.toHaveProperty('artifacts.diagnostic');
+    expect(result.human).toContain('Diagnostic persistence: failed');
+    expect(result.human).not.toContain('Diagnostic artifact:');
+    await expect(
+      access(path.join(runDirectory, 'cli-diagnostic.json')),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await expectNoPublicationTemporary(runDirectory, 'review.md');
+    await expectNoPublicationTemporary(runDirectory, 'cli-diagnostic.json');
+  });
+
+  it('rejects a request that grows after stat without an unbounded read or provider invocation', async () => {
+    const root = await temporaryRoot();
+    const requestPath = path.join(root, 'request.txt');
+    await writeFile(requestPath, 'a'.repeat(200 * 1024));
+    const execute = vi.fn();
+    let appended = false;
+    let requestedBytes = 0;
+
+    const result = await runReviewCli(
+      [
+        '--files',
+        'src/example.ts',
+        '--host',
+        'codex',
+        '--request-file',
+        requestPath,
+        '--json',
+      ],
+      {
+        cwd: root,
+        execute,
+        fileSystem: {
+          openFile: faultingOpen({
+            matches: (target) => target === requestPath,
+            beforeRead: async (length) => {
+              requestedBytes += length;
+              if (!appended) {
+                appended = true;
+                await appendFile(requestPath, 'b'.repeat(200 * 1024));
+              }
+            },
+          }),
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 2,
+      payload: {
+        status: 'usage_error',
+        reason: 'argument_invalid',
+        invocation_count: 0,
+        message: 'request file exceeds 262144 bytes',
+      },
+    });
+    expect(appended).toBe(true);
+    expect(requestedBytes).toBe(256 * 1024 + 1);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('offers only a diagnostic path for an incomplete run', async () => {
     const root = await temporaryRoot();
     const diagnosticPath = path.join(root, 'diagnostic.json');
@@ -286,6 +510,58 @@ async function temporaryRoot(): Promise<string> {
     'export const ok = true;\n',
   );
   return root;
+}
+
+function faultingOpen(options: {
+  matches: (target: string) => boolean;
+  writeError?: string;
+  syncError?: string;
+  beforeRead?: (length: number) => Promise<void>;
+}): typeof open {
+  return (async (targetPath, flags, mode) => {
+    const handle = await open(targetPath, flags, mode);
+    const target = String(targetPath);
+    if (!options.matches(target)) return handle;
+    return new Proxy(handle, {
+      get(actual, property) {
+        if (property === 'writeFile' && options.writeError) {
+          return async () => {
+            throw new Error(options.writeError);
+          };
+        }
+        if (property === 'sync' && options.syncError) {
+          return async () => {
+            throw new Error(options.syncError);
+          };
+        }
+        if (property === 'read' && options.beforeRead) {
+          return async (
+            buffer: Buffer,
+            offset: number,
+            length: number,
+            position: number | null,
+          ) => {
+            await options.beforeRead!(length);
+            return actual.read(buffer, offset, length, position);
+          };
+        }
+        const value = Reflect.get(actual, property, actual) as unknown;
+        return typeof value === 'function' ? value.bind(actual) : value;
+      },
+    });
+  }) as typeof open;
+}
+
+async function expectNoPublicationTemporary(
+  directory: string,
+  basename: string,
+): Promise<void> {
+  const names = await readdir(directory);
+  expect(
+    names.filter(
+      (name) => name.startsWith(`.${basename}.`) && name.endsWith('.tmp'),
+    ),
+  ).toEqual([]);
 }
 
 function completedResult(
