@@ -117,4 +117,11 @@ main() {
   printf 'Installed consensus provider CLI to %s\n' "$target_path"
 }
 
+if [ "$#" -gt 0 ]; then
+  helper="$(script_dir)/scripts/install-standalone.mjs"
+  [ -f "$helper" ] || fail "standalone installation requires a checkout containing install.sh and scripts/install-standalone.mjs"
+  require_node_22
+  exec node "$helper" "$@"
+fi
+
 main "$@"
