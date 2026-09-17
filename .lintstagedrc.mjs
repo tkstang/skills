@@ -11,6 +11,7 @@
 //   - agent-instruction files (AGENTS.md / CLAUDE.md) at every level: the root
 //     file carries an `oat sync`-regenerated <!-- OAT tools --> block that oat
 //     sync does not keep oxfmt-clean, so formatting fights the generator
+//   - fixtures because formatter-invalid bytes are often the behavior under test
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,6 +37,7 @@ const isExcluded = (file) =>
   /(^|\/)\.oat\//.test(file) ||
   /(^|\/)\.agents\//.test(file) ||
   /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||
+  /(^|\/)fixtures\//.test(file) ||
   /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file);
 
 const quote = (files) => files.map((f) => `"${f}"`).join(' ');

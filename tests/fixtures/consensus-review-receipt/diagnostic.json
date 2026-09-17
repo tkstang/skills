@@ -1,0 +1,7 @@
+{
+  "schema_version": "v1",
+  "status": "defective",
+  "invocation_count": 1,
+  "reason": "scope_drift",
+  "message": "Selected bytes changed during review; no completed Markdown was offered."
+}

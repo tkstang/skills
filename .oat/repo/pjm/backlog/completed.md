@@ -10,6 +10,7 @@
 
 ## Completed Items
 
+- 2026-09-17 — BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope — Implemented deterministic bounded Review delivery with three selectors, read-only single-reviewer dispatch, OAT-compatible receipts, generated standalone/plugin payloads, docs, and local interoperability evidence; live provider/install acceptance remains unverified.
 - 2026-09-16 — BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps — Added deterministic exact-pin re-arm coverage for clean stops, filtered and startup ranges, stdout failure, and competing consumers; documented bounded Monitor guidance and the legacy pre-stdout/CAS limits without claiming live harness delivery.
 - 2026-09-16 — BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing — Loop-free cli-helpers-core.ts extracted (14 pure helpers); panel imports it and drops 9 duplicates; loop-coupled layer re-exports the core; decoupling and re-fork guards updated; zero behavior change.
 - 2026-09-16 — BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic — writeSectionOutput and seedRecordsFile now use atomicWriteFile (temp+fsync+rename) with no-residue and previous-file-survival tests; bytes unchanged.

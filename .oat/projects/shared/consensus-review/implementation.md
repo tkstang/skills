@@ -247,6 +247,21 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Recovery commit: 0831b0b6010f4e31d91e228acd7cc2f8ebbc990f
 - Verification: phase owner confirmed 11 focused and 74 relevant tests plus type-check/build freshness; root independently confirmed 11 focused tests, build freshness and recovery-range diff checks.
 - Reason: rendered Markdown claimed determinism while including wall-clock metadata; the bounded correction removed that field and added equality regression coverage while preserving the original task commit.
+
+### Recovery Event p08-manifest-version-test-002
+
+- Phase/task: p08 / p08-t01
+- Original request: impl-consensus-review-p08-20260917T0439Z
+- Original commit: 6b65fe8c0e6b46a0d7720677fb199972fdf2c377
+- Defect class: test
+- Discovered by: `pnpm run premerge`
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 9a28624931646d0c7b79797e95e43ac294bb1d97
+- Verification: focused manifest validation passed 14/14 before and after commit; premerge passed 2,009 tests with one skipped before and after commit, plus type-check, build freshness, validation and smoke.
+- Reason: the Consensus plugin's intended p08 version was 0.2.0 while one release-test expectation retained 0.1.1; the mechanical test-only correction restored the full suite. Root accepted a commit-organization deviation because the already-staged, 100%-identity backlog archive rename landed early in the recovery commit; all closure metadata/content remains in p08-t02 and history was not rewritten.
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -268,6 +283,8 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Bounded p07 fix iteration 1 completed I1, I2 and M1–M3 in one append-only commit. Root independently confirmed 115 focused and 1,994 full-suite tests plus all repository gates; the review event advances to `fixes_completed` for round 2.
 - 2026-09-17: Independent p07 review round 2 passed at `fa01afbe` with zero findings. All five prior findings are verified resolved and p07 is accepted; execution advances to p08-t01 and its final-phase HiLL checkpoint.
 - 2026-09-17: p08-t01 completed at `6b65fe8c`. Between-task self-review found wall-clock metadata in a renderer documented as deterministic; phase-standing recovery attempt 1/10 fixed it at `0831b0b6`, root validated the correction, and `pending_attempt` was cleared before p08-t02.
+- 2026-09-17: The p08-t02 premerge pass exposed one stale p08-t01 release-test expectation for Consensus plugin 0.2.0. Recovery attempt 2/10 corrected it at `9a286249`; focused and full premerge checks passed before and after commit. Root accepted that the exact 100%-identity backlog archive rename landed early in the recovery commit as a commit-organization deviation, settled the ledger without rewriting history, and left all archive metadata/content in p08-t02.
+- 2026-09-17: p08-t02 used the current `oat-review-receive` 1.4.1 skill with an independent Codex alternate in a disposable destination. Completed clean and all-severity fixtures normalized exactly as expected; the defective diagnostic was rejected and not offered for receipt. The exact backlog item was closed and archived, current-state/roadmap/index surfaces were refreshed, and only its consumed kickoff handoff was removed. Live provider, external-install, native-continuation, and fresh-session discovery acceptance remain unverified.
 
 ## Deviations from Plan / Design
 
@@ -289,6 +306,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - p07 phase verification: 69 focused tests and 1,989 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and phase-range diff checks passed; the worktree is clean.
 - p07 review fix iteration 1: 115 focused tests and 1,994 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the consensus-review `0.1.6` version/changelog gate, smoke and fix-range diff checks passed.
 - p08-t01: 76 focused tests, type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed. Determinism recovery: 11 focused tests, build freshness and exact range diff check passed independently.
+- p08-t02 receipt exercise: `oat-review-receive` 1.4.1 accepted a zero-finding completed artifact without triage, normalized one Critical, Important, Medium and Minor finding with explicit `convert` dispositions into the disposable archive/task list, and rejected the defective diagnostic without archive/task-list output. Fixture and task-list hashes plus limitations are recorded in [p08-receipt-exercise.md](evidence/p08-receipt-exercise.md).
 
 ## Planning review received
 

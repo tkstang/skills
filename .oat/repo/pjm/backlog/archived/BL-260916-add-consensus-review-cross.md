@@ -1,7 +1,7 @@
 ---
 id: BL-260916-add-consensus-review-cross
 title: "Add consensus-review: cross-model review of a bounded scope"
-status: open
+status: closed
 priority: high
 scope: feature
 scope_estimate: M
@@ -11,7 +11,7 @@ labels:
   - cross-model
 assignee: null
 created: 2026-09-16T15:55:57.104Z
-updated: 2026-09-16T23:47:24Z
+updated: '2026-09-17T05:04:33Z'
 associated_issues: []
 external_plans: []
 ---

@@ -349,6 +349,19 @@ describe('generated output drift guard', () => {
     ]);
   });
 
+  it('excludes fixtures from lint-staged formatting tasks', () => {
+    expect(
+      lintStagedConfig['*.md']([
+        'tests/fixtures/consensus-review-receipt/clean-review.md',
+      ]),
+    ).toEqual([]);
+    expect(
+      lintStagedConfig['*.json']([
+        'tests/fixtures/consensus-review-receipt/diagnostic.json',
+      ]),
+    ).toEqual([]);
+  });
+
   it('uses the TypeScript generator in CI selectors', async () => {
     const workflow = await readFile(
       new URL('../../.github/workflows/validate.yml', import.meta.url),
