@@ -65,7 +65,7 @@ require_node_22() {
   local major
   major="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || true)"
   if [ -z "$major" ] || [ "$major" -lt 22 ]; then
-    fail "Node.js 22 or newer is required to run the consensus provider CLI"
+    fail "Node.js 22 or newer is required to run this installer"
   fi
 }
 

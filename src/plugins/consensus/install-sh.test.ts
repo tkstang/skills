@@ -42,6 +42,17 @@ async function runInstall(home: string, extraEnv: NodeJS.ProcessEnv = {}) {
   });
 }
 
+async function runStandaloneInstall(
+  home: string,
+  args: string[],
+  extraEnv: NodeJS.ProcessEnv = {},
+) {
+  return execFileAsync('bash', [installScript, ...args], {
+    cwd: repoRoot,
+    env: installEnv(home, extraEnv),
+  });
+}
+
 function installedConsensusPath(home: string) {
   return path.join(home, '.consensus', 'consensus.mjs');
 }
@@ -56,6 +67,53 @@ async function pathExists(target: string) {
 }
 
 describe('install.sh', () => {
+  it('uses a neutral Node requirement message for standalone installation', async () => {
+    const tempRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-install-standalone-old-node-'),
+    );
+    try {
+      const home = path.join(tempRoot, 'home');
+      const binDir = path.join(tempRoot, 'bin');
+      const nodePath = path.join(binDir, 'node');
+      await mkdir(home, { recursive: true });
+      await mkdir(binDir, { recursive: true });
+      await writeFile(
+        nodePath,
+        ['#!/usr/bin/env bash', 'printf "%s\\n" "21"', ''].join('\n'),
+      );
+      await chmod(nodePath, 0o755);
+
+      let error: unknown;
+      try {
+        await runStandaloneInstall(
+          home,
+          [
+            '--skill',
+            'session-observer',
+            '--agent',
+            'codex',
+            '--scope',
+            'user',
+            '--ref',
+            'v-test',
+          ],
+          { PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}` },
+        );
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toMatchObject({
+        stderr: expect.stringContaining(
+          'Node.js 22 or newer is required to run this installer',
+        ),
+      });
+      expect((error as { stderr: string }).stderr).not.toMatch(/consensus/i);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   describe('CONSENSUS_INSTALL_SHA256 checksum verification', () => {
     it('unset: behavior is unchanged on the local-checkout path', async () => {
       const tempRoot = await mkdtemp(
