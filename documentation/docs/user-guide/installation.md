@@ -107,6 +107,81 @@ do not import a sibling skill, this checkout, or developer dependencies.
 
 ## Install one standalone skill
 
+### First-party installer
+
+The first-party installer requires Node.js 22 or newer and Git. It reads only
+the generated `skills/<name>/` payload at the exact tag selected by `--ref`.
+The default repository is `https://github.com/tkstang/skills.git`; an optional
+`--repository` accepts another Git URL or a local tagged repository.
+
+`--skill`, `--agent`, `--scope`, and `--ref` are required. There is no default
+scope. Project scope writes beneath your physical current directory; user
+scope writes beneath `HOME`.
+
+`v0.1.2` is the planned pinned example below. These commands become usable
+once a release contains the helper and current generated payloads. They do not
+claim that this tag has been published or tested live. Use that release's
+checkout, including both `install.sh` and `scripts/install-standalone.mjs`:
+
+```bash
+git clone --branch v0.1.2 --single-branch https://github.com/tkstang/skills.git skills-installer
+INSTALLER="$PWD/skills-installer/install.sh"
+cd /path/to/your/project
+```
+
+Choose one command for the host and scope you intend to install. For project
+scope, run it from the project that should receive the skill:
+
+```bash
+bash "$INSTALLER" --skill next-steps --agent codex --scope project --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent claude-code --scope project --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent cursor --scope project --ref v0.1.2
+```
+
+User scope is a deliberate operator action that writes to the selected host's
+directory under your real `HOME`. Choose it only when you want the skill
+available across projects:
+
+```bash
+bash "$INSTALLER" --skill next-steps --agent codex --scope user --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent claude-code --scope user --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent cursor --scope user --ref v0.1.2
+```
+
+| Host        | Directory beneath the selected root | Printed invocation                          |
+| ----------- | ----------------------------------- | ------------------------------------------- |
+| Codex       | `.agents/skills/next-steps/`        | `$next-steps`                               |
+| Claude Code | `.claude/skills/next-steps/`        | `/next-steps`                               |
+| Cursor      | `.cursor/skills/next-steps/`        | `next-steps`, with skill inventory guidance |
+
+The installer writes only the selected provider directory. It does not create
+cross-provider mirrors or run `oat sync`. It requires a generated `SKILL.md`
+and copies the whole payload, including runtime and resources. It never falls
+back to `src/skills/` and never builds or executes the selected source.
+
+An existing destination is refused, including a symlink or a previous partial
+install. Symlinked provider ancestors are also refused. There is no update,
+force, merge, or automatic replacement mode. A failure after reserving a new
+destination retains the partial directory with `.standalone-install-incomplete`
+and reports its path. Inspect that exact directory and preserve anything you
+need before deliberately moving or removing it to retry. The installer never
+automatically deletes a partial destination.
+
+Success reports the selected tag, scope, verified path, and invocation. The
+installer resolves the exact tag and verifies copy fidelity by comparing every
+payload path, SHA-256 of its bytes, and executable mode. This is not signed-tag
+verification or independent release attestation. It also does not prove
+fresh-session discovery or live behavior. Start a fresh host session, check
+its skill inventory, and try the bounded request in
+[Getting Started](getting-started/index.md) when live verification is authorized.
+
+Automated installer tests use local tagged repositories, temporary project
+roots, and a temporary `HOME`. Real user-level installation and live host
+acceptance require separate operator authorization; passing these tests does
+not perform either step.
+
+### Skills CLI
+
 Run this from the project where you want the skill available. This example
 installs the generated Next Steps payload for Codex:
 
