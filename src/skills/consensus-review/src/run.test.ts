@@ -376,7 +376,9 @@ describe('one bounded review transaction', () => {
           {
             identity: 'unknown',
             evidence_source: 'unknown',
+            evidence_reference: 'No bounded author evidence was supplied.',
             scope_coverage: 'unknown',
+            covered_paths: [],
           },
         ],
         diversity: { classification: 'unknown' },
@@ -392,12 +394,150 @@ describe('one bounded review transaction', () => {
     if (!result.ok || result.status !== 'completed') {
       throw new Error('expected completed fixture');
     }
+    expect(result.aggregate.scope.captureState).toMatchObject({
+      head: fixture.head,
+      index: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      status: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect(result.aggregate.drift.before).toMatchObject({
+      head: fixture.head,
+      index: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      status: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect(result.aggregate.drift.after).toMatchObject({
+      head: fixture.head,
+      index: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      status: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
     await expect(readFile(result.artifactPath, 'utf8')).resolves.toContain(
       '"status": "complete"',
     );
     expect(result.artifactPath).toBe(
       path.join(result.runState.runDirectory, 'result.json'),
     );
+  });
+
+  it('persists mixed bounded author evidence and keeps requested options separate from observed identity', async () => {
+    const fixture = await gitReviewFixture();
+    await writeFile(path.join(fixture.worktree, 'second.ts'), 'second\n');
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts', 'second.ts'] },
+        host: 'codex',
+        request: 'Review the selected files.',
+        hostSummary: 'Bounded author evidence is supplied separately.',
+        schemaPath: fixture.schema,
+        reviewer: 'claude',
+        model: 'opus-review',
+        effort: 'high',
+        runId: 'author-evidence-run',
+        authoredBy: [
+          {
+            identity: 'alice@example.com',
+            evidence_source: 'detected',
+            evidence_reference: 'git author metadata for both selected paths',
+            scope_coverage: 'full',
+            covered_paths: ['reviewed.ts', 'second.ts'],
+          },
+          {
+            identity: 'pairing partner',
+            evidence_source: 'declared',
+            evidence_reference: 'operator declaration for second.ts',
+            scope_coverage: 'partial',
+            covered_paths: ['second.ts'],
+          },
+        ],
+      },
+      reviewExecutionDependencies(fixture, async (request) =>
+        successEnvelope(validPassReply(scopeToken(request.prompt))),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: 'completed',
+      aggregate: {
+        authored_by: [
+          {
+            identity: 'alice@example.com',
+            evidence_source: 'detected',
+            scope_coverage: 'full',
+            covered_paths: ['reviewed.ts', 'second.ts'],
+          },
+          {
+            identity: 'pairing partner',
+            evidence_source: 'declared',
+            scope_coverage: 'partial',
+            covered_paths: ['second.ts'],
+          },
+        ],
+        reviewer: {
+          requested: {
+            reviewer: 'claude',
+            model: 'opus-review',
+            effort: 'high',
+          },
+          passed: {
+            provider: 'claude',
+            model: 'opus-review',
+            effort: 'high',
+          },
+          observed: {
+            provider: 'claude',
+            model: null,
+            effort: null,
+          },
+        },
+      },
+    });
+  });
+
+  it('rejects drift between evidence capture and the first baseline before provider selection', async () => {
+    const fixture = await gitReviewFixture();
+    let preflights = 0;
+    let invocations = 0;
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'capture-drift-run',
+      },
+      {
+        ...reviewExecutionDependencies(fixture, async () => {
+          invocations += 1;
+          throw new Error('capture drift reached provider invocation');
+        }),
+        async captureScope(input) {
+          const scope = await captureReviewScope(input);
+          await writeFile(
+            path.join(fixture.worktree, 'reviewed.ts'),
+            'changed before baseline\n',
+          );
+          return scope;
+        },
+        selection: {
+          async preflight() {
+            preflights += 1;
+            return readyProvider('claude');
+          },
+        },
+      },
+    );
+
+    expect(preflights).toBe(0);
+    expect(invocations).toBe(0);
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'predispatch_failed',
+      invocation_count: 0,
+      reason: 'captured_scope_drift',
+      drift: { checked: true, stable: false },
+    });
   });
 
   it('returns an empty-scope no-op with zero provider invocations', async () => {
@@ -535,10 +675,12 @@ describe('one bounded review transaction', () => {
     });
   });
 
-  it('reports output persistence failure without rerunning the provider', async () => {
+  it('persists a labeled diagnostic after result persistence failure without rerunning the provider', async () => {
     const fixture = await gitReviewFixture();
     let writes = 0;
     let invocations = 0;
+    let diagnosticTarget = '';
+    let diagnosticValue: unknown;
     const result = await executeBoundedReview(
       {
         cwd: fixture.worktree,
@@ -554,21 +696,74 @@ describe('one bounded review transaction', () => {
           invocations += 1;
           return successEnvelope(validPassReply(scopeToken(request.prompt)));
         }),
-        async persist() {
+        async persist(target, value) {
           writes += 1;
           if (writes === 3) throw new Error('fixture output failure');
+          if (writes === 4) {
+            diagnosticTarget = target;
+            diagnosticValue = value;
+          }
         },
       },
     );
 
     expect(invocations).toBe(1);
-    expect(writes).toBe(3);
+    expect(writes).toBe(4);
     expect(result).toMatchObject({
       ok: false,
       status: 'output_failed',
       invocation_count: 1,
       reason: 'result_persistence_failed',
+      diagnosticPath: diagnosticTarget,
+      drift: { checked: true, stable: true },
     });
+    expect(diagnosticValue).toMatchObject({
+      status: 'output_failed',
+      invocation_count: 1,
+      reason: 'result_persistence_failed',
+      message: 'fixture output failure',
+      drift: { checked: true, stable: true },
+    });
+  });
+
+  it('reports both result and diagnostic persistence errors without rerunning the provider', async () => {
+    const fixture = await gitReviewFixture();
+    let writes = 0;
+    let invocations = 0;
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'double-output-failure-run',
+      },
+      {
+        ...reviewExecutionDependencies(fixture, async (request) => {
+          invocations += 1;
+          return successEnvelope(validPassReply(scopeToken(request.prompt)));
+        }),
+        async persist() {
+          writes += 1;
+          if (writes === 3) throw new Error('fixture result failure');
+          if (writes === 4) throw new Error('fixture diagnostic failure');
+        },
+      },
+    );
+
+    expect(invocations).toBe(1);
+    expect(writes).toBe(4);
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'output_failed',
+      invocation_count: 1,
+      reason: 'result_and_diagnostic_persistence_failed',
+    });
+    if (result.ok) throw new Error('expected output failure');
+    expect(result.message).toContain('fixture result failure');
+    expect(result.message).toContain('fixture diagnostic failure');
   });
 
   it('rejects a transport envelope that reports more than one invocation', async () => {

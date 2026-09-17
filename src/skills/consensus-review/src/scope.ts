@@ -27,6 +27,7 @@ export interface CapturedFileVersion {
   mode: number | null;
   bytes: number;
   sha256: string | null;
+  blobId: string | null;
   text: string | null;
 }
 
@@ -34,12 +35,14 @@ export interface CapturedReviewScope {
   token: string;
   request: ReviewScopeRequest;
   canonicalWorktree: string;
-  head: string;
+  head: string | null;
+  resolvedBaseRef?: string;
   mergeBase?: string;
   selectedPaths: string[];
   externalDocuments: string[];
   versions: CapturedFileVersion[];
   evidenceBytes: number;
+  captureState: ScopeStateSnapshot;
 }
 
 export interface SelectedPathState {
@@ -52,7 +55,7 @@ export interface SelectedPathState {
 }
 
 export interface ScopeStateSnapshot {
-  head: string;
+  head: string | null;
   index: string;
   status: string;
   selected: SelectedPathState[];
@@ -63,6 +66,8 @@ export interface ScopeComparison {
   stable: boolean;
   differences: string[];
   limitation: string;
+  before: ScopeStateSnapshot;
+  after: ScopeStateSnapshot | null;
 }
 
 export interface ReviewRunState {
@@ -77,21 +82,21 @@ export async function captureReviewScope(input: {
   request: ReviewScopeRequest;
 }): Promise<CapturedReviewScope> {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
-  const head = await gitText(canonicalWorktree, [
-    'rev-parse',
-    '--verify',
-    'HEAD',
-  ]);
+  const head = await gitOptionalHead(canonicalWorktree);
+  let resolvedBaseRef: string | undefined;
   let mergeBase: string | undefined;
   let selectedPaths: string[] = [];
   let externalDocuments: string[] = [];
   const versions: CapturedFileVersion[] = [];
 
   if (input.request.kind === 'base_branch') {
+    if (head === null) {
+      throw new Error('base_scope_requires_head');
+    }
     const ref = input.request.ref;
     assertRef(ref);
     await rejectUnresolvedMerges(canonicalWorktree);
-    const resolvedRef = await gitText(canonicalWorktree, [
+    resolvedBaseRef = await gitText(canonicalWorktree, [
       'rev-parse',
       '--verify',
       `${ref}^{commit}`,
@@ -100,7 +105,7 @@ export async function captureReviewScope(input: {
     });
     mergeBase = await gitText(canonicalWorktree, [
       'merge-base',
-      resolvedRef,
+      resolvedBaseRef,
       head,
     ]).catch(() => {
       throw new Error(
@@ -153,25 +158,38 @@ export async function captureReviewScope(input: {
     );
   }
 
-  const token = sha256(
-    JSON.stringify({
-      request: input.request,
-      canonicalWorktree,
-      head,
-      mergeBase,
-      versions: versions.map(({ text: _text, ...version }) => version),
-    }),
-  );
-  return {
-    token,
+  const scopeWithoutState = {
     request: input.request,
     canonicalWorktree,
     head,
+    ...(resolvedBaseRef ? { resolvedBaseRef } : {}),
     ...(mergeBase ? { mergeBase } : {}),
     selectedPaths,
     externalDocuments,
     versions,
     evidenceBytes,
+  };
+  const captureState = await captureScopeState(scopeWithoutState);
+  const captureComparison = compareCapturedScopeToState(
+    scopeWithoutState,
+    captureState,
+  );
+  if (!captureComparison.stable) {
+    throw new Error(
+      `scope_changed_during_capture: ${captureComparison.differences.join('; ')}`,
+    );
+  }
+  const token = sha256(
+    JSON.stringify({
+      ...scopeWithoutState,
+      captureState,
+      versions: versions.map(({ text: _text, ...version }) => version),
+    }),
+  );
+  return {
+    token,
+    ...scopeWithoutState,
+    captureState,
   };
 }
 
@@ -182,14 +200,14 @@ export async function captureScopeState(
   >,
 ): Promise<ScopeStateSnapshot> {
   const [head, index, status] = await Promise.all([
-    gitText(scope.canonicalWorktree, ['rev-parse', '--verify', 'HEAD']),
+    gitOptionalHead(scope.canonicalWorktree),
     gitBytes(scope.canonicalWorktree, ['ls-files', '-s', '-z']).then(sha256),
     gitBytes(scope.canonicalWorktree, [
       'status',
       '--porcelain=v1',
       '-z',
       '--untracked-files=all',
-    ]).then((value) => value.toString('base64')),
+    ]).then(sha256),
   ]);
   const selected: SelectedPathState[] = [];
   for (const relativePath of scope.selectedPaths) {
@@ -228,6 +246,8 @@ export function compareScopeState(
       stable: false,
       differences: [`after_scan_failed: ${after.message}`],
       limitation,
+      before,
+      after: null,
     };
   }
   const differences: string[] = [];
@@ -251,7 +271,38 @@ export function compareScopeState(
     stable: differences.length === 0,
     differences,
     limitation,
+    before,
+    after,
   };
+}
+
+export function compareCapturedScopeToState(
+  scope: Pick<
+    CapturedReviewScope,
+    | 'head'
+    | 'canonicalWorktree'
+    | 'selectedPaths'
+    | 'externalDocuments'
+    | 'versions'
+  >,
+  state: ScopeStateSnapshot,
+): ScopeComparison {
+  const expected: ScopeStateSnapshot = {
+    head: scope.head,
+    index: state.index,
+    status: state.status,
+    selected: scope.versions
+      .filter((version) => version.source === 'live')
+      .map((version) =>
+        stateFromVersion(
+          version,
+          scope.externalDocuments.includes(version.path)
+            ? 'external'
+            : 'worktree',
+        ),
+      ),
+  };
+  return compareScopeState(expected, state);
 }
 
 export async function createReviewRunState(input: {
@@ -418,8 +469,12 @@ async function captureGitVersion(
   ]);
   if (tree.length === 0) return deletedVersion(normalized, 'base');
   const header = tree.toString('utf8').split('\t', 1)[0];
-  const [mode, kind] = header.split(' ');
-  if (kind !== 'blob' || !/^[0-7]{6}$/u.test(mode)) {
+  const [mode, kind, blobId] = header.split(' ');
+  if (
+    kind !== 'blob' ||
+    !/^[0-7]{6}$/u.test(mode) ||
+    !/^[a-f0-9]{40,64}$/u.test(blobId)
+  ) {
     throw new Error(`unsupported_git_entry: ${normalized}`);
   }
   let bytes: Buffer;
@@ -434,6 +489,7 @@ async function captureGitVersion(
     Number.parseInt(mode, 8) & 0o777,
     bytes,
     true,
+    blobId,
   );
 }
 
@@ -530,6 +586,7 @@ function versionFromBytes(
   mode: number | null,
   bytes: Buffer,
   includeText: boolean,
+  blobId: string | null = null,
 ): CapturedFileVersion {
   if (bytes.includes(0))
     throw new Error(`binary_scope_not_supported: ${filePath}`);
@@ -540,6 +597,7 @@ function versionFromBytes(
     mode,
     bytes: bytes.length,
     sha256: sha256(bytes),
+    blobId,
     text: includeText ? bytes.toString('utf8') : null,
   };
 }
@@ -555,6 +613,7 @@ function deletedVersion(
     mode: null,
     bytes: 0,
     sha256: null,
+    blobId: null,
     text: null,
   };
 }
@@ -575,6 +634,19 @@ function stateFromVersion(
 
 async function gitText(cwd: string, args: string[]): Promise<string> {
   return (await gitBytes(cwd, args)).toString('utf8').trim();
+}
+
+async function gitOptionalHead(cwd: string): Promise<string | null> {
+  try {
+    return await gitText(cwd, ['rev-parse', '--verify', 'HEAD']);
+  } catch (error) {
+    try {
+      await gitText(cwd, ['symbolic-ref', '-q', 'HEAD']);
+      return null;
+    } catch {
+      throw error;
+    }
+  }
 }
 
 async function gitBytes(cwd: string, args: string[]): Promise<Buffer> {

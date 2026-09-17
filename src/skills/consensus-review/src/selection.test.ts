@@ -279,8 +279,24 @@ function capturedScope(): CapturedReviewScope {
         mode: 0o644,
         bytes: 8,
         sha256: 'hash',
+        blobId: null,
         text: 'content\n',
       },
     ],
+    captureState: {
+      head: 'abc123',
+      index: 'index-hash',
+      status: 'status-hash',
+      selected: [
+        {
+          path: 'src/example.ts',
+          location: 'worktree',
+          kind: 'file',
+          mode: 0o644,
+          bytes: 8,
+          sha256: 'hash',
+        },
+      ],
+    },
   };
 }

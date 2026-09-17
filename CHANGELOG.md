@@ -75,6 +75,7 @@
 
 ### Fixed
 
+- `consensus-review` 0.1.6 now rejects capture-to-baseline scope drift before dispatch, preserves bounded author provenance without presenting requested reviewer options as observed, supports file and document scopes without a first commit, records resolved Git and comparison identities, and writes one labeled diagnostic after final-result persistence failures.
 - `consensus-review` 0.1.2 now fails closed when Codex capture paths resolve through symlinks, alias protected inputs, or reuse pre-existing targets, and when inherited consensus depth is malformed or out of range; source and copied-installed-bundle regressions cover both boundaries.
 - The shared p06 provider-runtime hardening is propagated with explicit version impact to `create` 0.1.12, `decide` 0.1.12, `evaluate` 0.1.16, `panel` 0.1.9, `phone-a-friend` 0.1.8, `plan` 0.1.12, and `refine` 0.1.15.
 - Generated-runtime and installation-owner reconciliation after the clean-break main merge updates `session-observer` 1.0.43, `session-observer-collab` 1.0.32, `session-export-transcript` 2.0.2, and `session-fork-to-destination` 0.2.8.

@@ -1896,20 +1896,20 @@ var REVIEW_SCOPE_LIMITS = {
 };
 async function captureReviewScope(input) {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
-  const head = await gitText(canonicalWorktree, [
-    "rev-parse",
-    "--verify",
-    "HEAD"
-  ]);
+  const head = await gitOptionalHead(canonicalWorktree);
+  let resolvedBaseRef;
   let mergeBase;
   let selectedPaths = [];
   let externalDocuments = [];
   const versions = [];
   if (input.request.kind === "base_branch") {
+    if (head === null) {
+      throw new Error("base_scope_requires_head");
+    }
     const ref = input.request.ref;
     assertRef(ref);
     await rejectUnresolvedMerges(canonicalWorktree);
-    const resolvedRef = await gitText(canonicalWorktree, [
+    resolvedBaseRef = await gitText(canonicalWorktree, [
       "rev-parse",
       "--verify",
       `${ref}^{commit}`
@@ -1918,7 +1918,7 @@ async function captureReviewScope(input) {
     });
     mergeBase = await gitText(canonicalWorktree, [
       "merge-base",
-      resolvedRef,
+      resolvedBaseRef,
       head
     ]).catch(() => {
       throw new Error(
@@ -1969,37 +1969,50 @@ async function captureReviewScope(input) {
       `scope_too_large: selected textual evidence exceeds ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes} bytes`
     );
   }
-  const token = sha256(
-    JSON.stringify({
-      request: input.request,
-      canonicalWorktree,
-      head,
-      mergeBase,
-      versions: versions.map(({ text: _text, ...version }) => version)
-    })
-  );
-  return {
-    token,
+  const scopeWithoutState = {
     request: input.request,
     canonicalWorktree,
     head,
+    ...resolvedBaseRef ? { resolvedBaseRef } : {},
     ...mergeBase ? { mergeBase } : {},
     selectedPaths,
     externalDocuments,
     versions,
     evidenceBytes
   };
+  const captureState = await captureScopeState(scopeWithoutState);
+  const captureComparison = compareCapturedScopeToState(
+    scopeWithoutState,
+    captureState
+  );
+  if (!captureComparison.stable) {
+    throw new Error(
+      `scope_changed_during_capture: ${captureComparison.differences.join("; ")}`
+    );
+  }
+  const token = sha256(
+    JSON.stringify({
+      ...scopeWithoutState,
+      captureState,
+      versions: versions.map(({ text: _text, ...version }) => version)
+    })
+  );
+  return {
+    token,
+    ...scopeWithoutState,
+    captureState
+  };
 }
 async function captureScopeState(scope) {
   const [head, index, status] = await Promise.all([
-    gitText(scope.canonicalWorktree, ["rev-parse", "--verify", "HEAD"]),
+    gitOptionalHead(scope.canonicalWorktree),
     gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha256),
     gitBytes(scope.canonicalWorktree, [
       "status",
       "--porcelain=v1",
       "-z",
       "--untracked-files=all"
-    ]).then((value) => value.toString("base64"))
+    ]).then(sha256)
   ]);
   const selected = [];
   for (const relativePath of scope.selectedPaths) {
@@ -2032,7 +2045,9 @@ function compareScopeState(before, after) {
       checked: false,
       stable: false,
       differences: [`after_scan_failed: ${after.message}`],
-      limitation
+      limitation,
+      before,
+      after: null
     };
   }
   const differences = [];
@@ -2054,8 +2069,24 @@ function compareScopeState(before, after) {
     checked: true,
     stable: differences.length === 0,
     differences,
-    limitation
+    limitation,
+    before,
+    after
   };
+}
+function compareCapturedScopeToState(scope, state) {
+  const expected = {
+    head: scope.head,
+    index: state.index,
+    status: state.status,
+    selected: scope.versions.filter((version) => version.source === "live").map(
+      (version) => stateFromVersion(
+        version,
+        scope.externalDocuments.includes(version.path) ? "external" : "worktree"
+      )
+    )
+  };
+  return compareScopeState(expected, state);
 }
 async function createReviewRunState(input) {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
@@ -2190,8 +2221,8 @@ async function captureGitVersion(root, revision, relativePath) {
   ]);
   if (tree.length === 0) return deletedVersion(normalized, "base");
   const header = tree.toString("utf8").split("	", 1)[0];
-  const [mode, kind] = header.split(" ");
-  if (kind !== "blob" || !/^[0-7]{6}$/u.test(mode)) {
+  const [mode, kind, blobId] = header.split(" ");
+  if (kind !== "blob" || !/^[0-7]{6}$/u.test(mode) || !/^[a-f0-9]{40,64}$/u.test(blobId)) {
     throw new Error(`unsupported_git_entry: ${normalized}`);
   }
   let bytes;
@@ -2205,7 +2236,8 @@ async function captureGitVersion(root, revision, relativePath) {
     "base",
     Number.parseInt(mode, 8) & 511,
     bytes,
-    true
+    true,
+    blobId
   );
 }
 async function resolveDocument(root, candidate) {
@@ -2280,7 +2312,7 @@ async function boundedRead(filePath) {
     await handle.close();
   }
 }
-function versionFromBytes(filePath, source, mode, bytes, includeText) {
+function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null) {
   if (bytes.includes(0))
     throw new Error(`binary_scope_not_supported: ${filePath}`);
   return {
@@ -2290,6 +2322,7 @@ function versionFromBytes(filePath, source, mode, bytes, includeText) {
     mode,
     bytes: bytes.length,
     sha256: sha256(bytes),
+    blobId,
     text: includeText ? bytes.toString("utf8") : null
   };
 }
@@ -2301,6 +2334,7 @@ function deletedVersion(filePath, source) {
     mode: null,
     bytes: 0,
     sha256: null,
+    blobId: null,
     text: null
   };
 }
@@ -2316,6 +2350,18 @@ function stateFromVersion(version, location) {
 }
 async function gitText(cwd, args) {
   return (await gitBytes(cwd, args)).toString("utf8").trim();
+}
+async function gitOptionalHead(cwd) {
+  try {
+    return await gitText(cwd, ["rev-parse", "--verify", "HEAD"]);
+  } catch (error) {
+    try {
+      await gitText(cwd, ["symbolic-ref", "-q", "HEAD"]);
+      return null;
+    } catch {
+      throw error;
+    }
+  }
 }
 async function gitBytes(cwd, args) {
   const result = await execFileAsync("git", args, {
@@ -3105,6 +3151,17 @@ async function executeBoundedReview(input, dependencies = {}) {
   if (scope.selectedPaths.length === 0 && scope.externalDocuments.length === 0) {
     return { ok: true, status: "empty_scope", invocation_count: 0, scope };
   }
+  let authoredBy;
+  try {
+    authoredBy = normalizeAuthorEvidence(input.authoredBy, scope);
+  } catch (error) {
+    return executeFailure(
+      "predispatch_failed",
+      0,
+      "author_evidence_invalid",
+      fsMessage2(error)
+    );
+  }
   let runState;
   try {
     runState = await (dependencies.createRunState ?? createReviewRunState)({
@@ -3149,6 +3206,19 @@ async function executeBoundedReview(input, dependencies = {}) {
       message: fsMessage2(error),
       runState,
       diagnosticPath,
+      persist
+    });
+  }
+  const captureToBaseline = compareScopeState(scope.captureState, before);
+  if (!captureToBaseline.stable) {
+    return await persistDiagnosticFailure({
+      status: "predispatch_failed",
+      invocationCount: 0,
+      reason: "captured_scope_drift",
+      message: captureToBaseline.differences.join("; "),
+      runState,
+      diagnosticPath,
+      drift: captureToBaseline,
       persist
     });
   }
@@ -3290,23 +3360,27 @@ async function executeBoundedReview(input, dependencies = {}) {
     scope,
     reviewer: {
       selected: selected.reviewer,
+      requested: {
+        reviewer: input.reviewer ?? null,
+        model: input.model ?? null,
+        effort: input.effort ?? null
+      },
+      passed: {
+        provider: selected.reviewer.provider,
+        model: selected.reviewer.model ?? null,
+        effort: selected.reviewer.effort ?? null
+      },
       source: selected.source,
       skipped: selected.skipped,
       observed: {
         provider: String(transportResult.envelope.provider),
-        model: selected.reviewer.model ?? null,
-        effort: selected.reviewer.effort ?? null
+        model: null,
+        effort: null,
+        evidence: "The provider envelope identifies the provider only; model and effort were not independently observed."
       },
       claimed: validation.value.reviewer_identity
     },
-    authored_by: [
-      {
-        identity: "unknown",
-        evidence_source: "unknown",
-        evidence_reference: "No host-supplied author evidence was available.",
-        scope_coverage: "unknown"
-      }
-    ],
+    authored_by: authoredBy,
     diversity: {
       classification: "unknown",
       evidence: "Provider selection alone does not establish a different model family."
@@ -3332,13 +3406,16 @@ async function executeBoundedReview(input, dependencies = {}) {
   try {
     await persist(resultPath, aggregate);
   } catch (error) {
-    return executeFailure(
-      "output_failed",
-      1,
-      "result_persistence_failed",
-      fsMessage2(error),
-      { runState, drift }
-    );
+    return await persistDiagnosticFailure({
+      status: "output_failed",
+      invocationCount: 1,
+      reason: "result_persistence_failed",
+      message: fsMessage2(error),
+      runState,
+      diagnosticPath,
+      drift,
+      persist
+    });
   }
   return {
     ok: true,
@@ -3417,6 +3494,16 @@ async function persistDiagnosticFailure(input) {
   try {
     await input.persist(input.diagnosticPath, diagnostic);
   } catch (error) {
+    const diagnosticError = fsMessage2(error);
+    if (input.reason === "result_persistence_failed") {
+      return executeFailure(
+        "output_failed",
+        input.invocationCount,
+        "result_and_diagnostic_persistence_failed",
+        `Result persistence failed: ${input.message}; diagnostic persistence failed: ${diagnosticError}`,
+        { runState: input.runState, drift: input.drift }
+      );
+    }
     return executeFailure(
       "output_failed",
       input.invocationCount,
@@ -3436,6 +3523,112 @@ async function persistDiagnosticFailure(input) {
       drift: input.drift
     }
   );
+}
+function normalizeAuthorEvidence(input, scope) {
+  if (input === void 0 || Array.isArray(input) && input.length === 0) {
+    return [
+      {
+        identity: "unknown",
+        evidence_source: "unknown",
+        evidence_reference: "No bounded author evidence was supplied.",
+        scope_coverage: "unknown",
+        covered_paths: []
+      }
+    ];
+  }
+  if (!Array.isArray(input) || input.length > 50) {
+    throw new Error("author evidence must contain between 1 and 50 entries");
+  }
+  const scopePaths = [...scope.selectedPaths, ...scope.externalDocuments];
+  const allowedPaths = new Set(scopePaths);
+  return input.map((entry, index) => {
+    const label = `author evidence[${index}]`;
+    if (!isRecord3(entry)) throw new Error(`${label} must be an object`);
+    const errors = [];
+    assertKeys(
+      entry,
+      [
+        "identity",
+        "evidence_source",
+        "evidence_reference",
+        "scope_coverage",
+        "covered_paths"
+      ],
+      label,
+      errors
+    );
+    requireString(entry.identity, `${label}.identity`, 1, 256, errors);
+    requireEnum(
+      entry.evidence_source,
+      ["detected", "declared", "unknown"],
+      `${label}.evidence_source`,
+      errors
+    );
+    requireString(
+      entry.evidence_reference,
+      `${label}.evidence_reference`,
+      1,
+      4096,
+      errors
+    );
+    requireEnum(
+      entry.scope_coverage,
+      ["full", "partial", "unknown"],
+      `${label}.scope_coverage`,
+      errors
+    );
+    validateStringArray(
+      entry.covered_paths,
+      `${label}.covered_paths`,
+      100,
+      4096,
+      errors
+    );
+    const coveredPaths = Array.isArray(entry.covered_paths) ? entry.covered_paths.filter(
+      (candidate) => typeof candidate === "string"
+    ) : [];
+    if (new Set(coveredPaths).size !== coveredPaths.length) {
+      errors.push(`${label}.covered_paths must not contain duplicates`);
+    }
+    for (const coveredPath of coveredPaths) {
+      if (!allowedPaths.has(coveredPath)) {
+        errors.push(`${label}.covered_paths contains an out-of-scope path`);
+      }
+    }
+    if (entry.evidence_source === "unknown") {
+      if (entry.identity !== "unknown") {
+        errors.push(`${label}.identity must be unknown for unknown evidence`);
+      }
+      if (entry.scope_coverage !== "unknown" || coveredPaths.length !== 0) {
+        errors.push(
+          `${label} unknown evidence must have unknown coverage and no covered paths`
+        );
+      }
+    } else if (entry.identity === "unknown") {
+      errors.push(`${label}.identity must name detected or declared evidence`);
+    }
+    if (entry.scope_coverage === "unknown" && coveredPaths.length !== 0) {
+      errors.push(`${label} unknown coverage must not list covered paths`);
+    }
+    if (entry.scope_coverage === "partial") {
+      if (coveredPaths.length === 0) {
+        errors.push(
+          `${label} partial coverage must identify at least one scoped path`
+        );
+      }
+    }
+    if (entry.scope_coverage === "full" && (coveredPaths.length !== scopePaths.length || scopePaths.some((scopePath) => !coveredPaths.includes(scopePath)))) {
+      errors.push(`${label} full coverage must identify every scoped path`);
+    }
+    if (errors.length > 0) throw new Error(errors.join("; "));
+    return {
+      identity: entry.identity,
+      evidence_source: entry.evidence_source,
+      evidence_reference: entry.evidence_reference,
+      scope_coverage: entry.scope_coverage,
+      covered_paths: [...coveredPaths]
+    };
+  });
 }
 function executeFailure(status, invocationCount, reason, message, details = {}) {
   return {

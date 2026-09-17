@@ -291,6 +291,15 @@ export interface ExecuteReviewInput {
   effort?: string;
   allowSameProvider?: boolean;
   runId?: string;
+  authoredBy?: AuthorEvidence[];
+}
+
+export interface AuthorEvidence {
+  identity: string;
+  evidence_source: 'detected' | 'declared' | 'unknown';
+  evidence_reference: string;
+  scope_coverage: 'full' | 'partial' | 'unknown';
+  covered_paths: string[];
 }
 
 export interface ExecuteReviewDependencies {
@@ -344,21 +353,27 @@ export interface ReviewAggregate {
   scope: CapturedReviewScope;
   reviewer: {
     selected: ResolvedReviewer['reviewer'];
+    requested: {
+      reviewer: string | null;
+      model: string | null;
+      effort: string | null;
+    };
+    passed: {
+      provider: string;
+      model: string | null;
+      effort: string | null;
+    };
     source: ResolvedReviewer['source'];
     skipped: ResolvedReviewer['skipped'];
     observed: {
       provider: string;
       model: string | null;
       effort: string | null;
+      evidence: string;
     };
     claimed: ReviewReply['reviewer_identity'];
   };
-  authored_by: Array<{
-    identity: 'unknown';
-    evidence_source: 'unknown';
-    evidence_reference: string;
-    scope_coverage: 'unknown';
-  }>;
+  authored_by: AuthorEvidence[];
   diversity: {
     classification: 'unknown';
     evidence: string;
@@ -407,6 +422,17 @@ export async function executeBoundedReview(
   ) {
     return { ok: true, status: 'empty_scope', invocation_count: 0, scope };
   }
+  let authoredBy: AuthorEvidence[];
+  try {
+    authoredBy = normalizeAuthorEvidence(input.authoredBy, scope);
+  } catch (error) {
+    return executeFailure(
+      'predispatch_failed',
+      0,
+      'author_evidence_invalid',
+      fsMessage(error),
+    );
+  }
 
   let runState: ReviewRunState;
   try {
@@ -454,6 +480,19 @@ export async function executeBoundedReview(
       message: fsMessage(error),
       runState,
       diagnosticPath,
+      persist,
+    });
+  }
+  const captureToBaseline = compareScopeState(scope.captureState, before);
+  if (!captureToBaseline.stable) {
+    return await persistDiagnosticFailure({
+      status: 'predispatch_failed',
+      invocationCount: 0,
+      reason: 'captured_scope_drift',
+      message: captureToBaseline.differences.join('; '),
+      runState,
+      diagnosticPath,
+      drift: captureToBaseline,
       persist,
     });
   }
@@ -616,23 +655,28 @@ export async function executeBoundedReview(
     scope,
     reviewer: {
       selected: selected.reviewer,
+      requested: {
+        reviewer: input.reviewer ?? null,
+        model: input.model ?? null,
+        effort: input.effort ?? null,
+      },
+      passed: {
+        provider: selected.reviewer.provider,
+        model: selected.reviewer.model ?? null,
+        effort: selected.reviewer.effort ?? null,
+      },
       source: selected.source,
       skipped: selected.skipped,
       observed: {
         provider: String(transportResult.envelope.provider),
-        model: selected.reviewer.model ?? null,
-        effort: selected.reviewer.effort ?? null,
+        model: null,
+        effort: null,
+        evidence:
+          'The provider envelope identifies the provider only; model and effort were not independently observed.',
       },
       claimed: validation.value.reviewer_identity,
     },
-    authored_by: [
-      {
-        identity: 'unknown',
-        evidence_source: 'unknown',
-        evidence_reference: 'No host-supplied author evidence was available.',
-        scope_coverage: 'unknown',
-      },
-    ],
+    authored_by: authoredBy,
     diversity: {
       classification: 'unknown',
       evidence:
@@ -659,13 +703,16 @@ export async function executeBoundedReview(
   try {
     await persist(resultPath, aggregate);
   } catch (error) {
-    return executeFailure(
-      'output_failed',
-      1,
-      'result_persistence_failed',
-      fsMessage(error),
-      { runState, drift },
-    );
+    return await persistDiagnosticFailure({
+      status: 'output_failed',
+      invocationCount: 1,
+      reason: 'result_persistence_failed',
+      message: fsMessage(error),
+      runState,
+      diagnosticPath,
+      drift,
+      persist,
+    });
   }
   return {
     ok: true,
@@ -745,7 +792,7 @@ export function validateReviewReply(
 }
 
 async function persistDiagnosticFailure(input: {
-  status: 'predispatch_failed' | 'incomplete' | 'defective';
+  status: 'predispatch_failed' | 'incomplete' | 'defective' | 'output_failed';
   invocationCount: number;
   reason: string;
   message: string;
@@ -765,6 +812,16 @@ async function persistDiagnosticFailure(input: {
   try {
     await input.persist(input.diagnosticPath, diagnostic);
   } catch (error) {
+    const diagnosticError = fsMessage(error);
+    if (input.reason === 'result_persistence_failed') {
+      return executeFailure(
+        'output_failed',
+        input.invocationCount,
+        'result_and_diagnostic_persistence_failed',
+        `Result persistence failed: ${input.message}; diagnostic persistence failed: ${diagnosticError}`,
+        { runState: input.runState, drift: input.drift },
+      );
+    }
     return executeFailure(
       'output_failed',
       input.invocationCount,
@@ -784,6 +841,122 @@ async function persistDiagnosticFailure(input: {
       drift: input.drift,
     },
   );
+}
+
+function normalizeAuthorEvidence(
+  input: AuthorEvidence[] | undefined,
+  scope: CapturedReviewScope,
+): AuthorEvidence[] {
+  if (input === undefined || (Array.isArray(input) && input.length === 0)) {
+    return [
+      {
+        identity: 'unknown',
+        evidence_source: 'unknown',
+        evidence_reference: 'No bounded author evidence was supplied.',
+        scope_coverage: 'unknown',
+        covered_paths: [],
+      },
+    ];
+  }
+  if (!Array.isArray(input) || input.length > 50) {
+    throw new Error('author evidence must contain between 1 and 50 entries');
+  }
+  const scopePaths = [...scope.selectedPaths, ...scope.externalDocuments];
+  const allowedPaths = new Set(scopePaths);
+  return input.map((entry, index) => {
+    const label = `author evidence[${index}]`;
+    if (!isRecord(entry)) throw new Error(`${label} must be an object`);
+    const errors: string[] = [];
+    assertKeys(
+      entry,
+      [
+        'identity',
+        'evidence_source',
+        'evidence_reference',
+        'scope_coverage',
+        'covered_paths',
+      ],
+      label,
+      errors,
+    );
+    requireString(entry.identity, `${label}.identity`, 1, 256, errors);
+    requireEnum(
+      entry.evidence_source,
+      ['detected', 'declared', 'unknown'],
+      `${label}.evidence_source`,
+      errors,
+    );
+    requireString(
+      entry.evidence_reference,
+      `${label}.evidence_reference`,
+      1,
+      4096,
+      errors,
+    );
+    requireEnum(
+      entry.scope_coverage,
+      ['full', 'partial', 'unknown'],
+      `${label}.scope_coverage`,
+      errors,
+    );
+    validateStringArray(
+      entry.covered_paths,
+      `${label}.covered_paths`,
+      100,
+      4096,
+      errors,
+    );
+    const coveredPaths = Array.isArray(entry.covered_paths)
+      ? entry.covered_paths.filter(
+          (candidate): candidate is string => typeof candidate === 'string',
+        )
+      : [];
+    if (new Set(coveredPaths).size !== coveredPaths.length) {
+      errors.push(`${label}.covered_paths must not contain duplicates`);
+    }
+    for (const coveredPath of coveredPaths) {
+      if (!allowedPaths.has(coveredPath)) {
+        errors.push(`${label}.covered_paths contains an out-of-scope path`);
+      }
+    }
+    if (entry.evidence_source === 'unknown') {
+      if (entry.identity !== 'unknown') {
+        errors.push(`${label}.identity must be unknown for unknown evidence`);
+      }
+      if (entry.scope_coverage !== 'unknown' || coveredPaths.length !== 0) {
+        errors.push(
+          `${label} unknown evidence must have unknown coverage and no covered paths`,
+        );
+      }
+    } else if (entry.identity === 'unknown') {
+      errors.push(`${label}.identity must name detected or declared evidence`);
+    }
+    if (entry.scope_coverage === 'unknown' && coveredPaths.length !== 0) {
+      errors.push(`${label} unknown coverage must not list covered paths`);
+    }
+    if (entry.scope_coverage === 'partial') {
+      if (coveredPaths.length === 0) {
+        errors.push(
+          `${label} partial coverage must identify at least one scoped path`,
+        );
+      }
+    }
+    if (
+      entry.scope_coverage === 'full' &&
+      (coveredPaths.length !== scopePaths.length ||
+        scopePaths.some((scopePath) => !coveredPaths.includes(scopePath)))
+    ) {
+      errors.push(`${label} full coverage must identify every scoped path`);
+    }
+    if (errors.length > 0) throw new Error(errors.join('; '));
+    return {
+      identity: entry.identity,
+      evidence_source: entry.evidence_source,
+      evidence_reference: entry.evidence_reference,
+      scope_coverage: entry.scope_coverage,
+      covered_paths: [...coveredPaths],
+    } as AuthorEvidence;
+  });
 }
 
 function executeFailure(

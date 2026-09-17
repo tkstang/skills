@@ -48,6 +48,7 @@ describe('review scope capture', () => {
       request: { kind: 'base_branch', ref: fixture.base },
     });
 
+    expect(scope.resolvedBaseRef).toBe(fixture.base);
     expect(scope.mergeBase).toBe(fixture.base);
     expect(scope.selectedPaths).toEqual([
       'committed.txt',
@@ -66,8 +67,47 @@ describe('review scope capture', () => {
       scope.versions.find(
         (entry) => entry.path === 'delete.txt' && entry.source === 'base',
       ),
-    ).toMatchObject({ kind: 'file', text: 'delete\n' });
+    ).toMatchObject({
+      kind: 'file',
+      text: 'delete\n',
+      blobId: expect.stringMatching(/^[a-f0-9]{40,64}$/u),
+    });
     expect(scope.token).toMatch(/^[a-f0-9]{64}$/u);
+  });
+
+  it('persists a resolved base tip separately from its merge base and base blob identities', async () => {
+    const fixture = await gitFixture();
+    const currentBranch = git(fixture.worktree, [
+      'branch',
+      '--show-current',
+    ]).trim();
+    git(fixture.worktree, ['branch', 'review-base', fixture.base]);
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'head change\n',
+    );
+    git(fixture.worktree, ['add', 'tracked.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'head change']);
+    git(fixture.worktree, ['checkout', '-q', 'review-base']);
+    await writeFile(path.join(fixture.worktree, 'other.txt'), 'base tip\n');
+    git(fixture.worktree, ['add', 'other.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'base tip']);
+    const resolvedBaseRef = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    git(fixture.worktree, ['checkout', '-q', currentBranch]);
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: 'review-base' },
+    });
+
+    expect(scope.resolvedBaseRef).toBe(resolvedBaseRef);
+    expect(scope.mergeBase).toBe(fixture.base);
+    expect(scope.resolvedBaseRef).not.toBe(scope.mergeBase);
+    expect(
+      scope.versions.find(
+        (entry) => entry.path === 'tracked.txt' && entry.source === 'base',
+      )?.blobId,
+    ).toMatch(/^[a-f0-9]{40,64}$/u);
   });
 
   it('captures explicitly selected tracked and untracked files', async () => {
@@ -111,6 +151,48 @@ describe('review scope capture', () => {
     expect(externalScope.versions[0]).toMatchObject({
       path: await realpath(external),
       text: 'external\n',
+    });
+  });
+
+  it('captures file and document scopes without HEAD and treats the first commit as drift', async () => {
+    const fixture = await unbornGitFixture();
+    const external = path.join(fixture.root, 'external.md');
+    await writeFile(path.join(fixture.worktree, 'draft.txt'), 'draft\n');
+    await writeFile(external, 'external\n');
+
+    const fileScope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'files', paths: ['draft.txt'] },
+    });
+    const internalDocument = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'document', path: 'draft.txt' },
+    });
+    const externalDocument = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'document', path: external },
+    });
+
+    expect(fileScope.head).toBeNull();
+    expect(internalDocument.head).toBeNull();
+    expect(externalDocument.head).toBeNull();
+    expect(externalDocument.externalDocuments).toEqual([
+      await realpath(external),
+    ]);
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'base_branch', ref: 'main' },
+      }),
+    ).rejects.toThrow('base_scope_requires_head');
+
+    git(fixture.worktree, ['add', 'draft.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'first']);
+    const after = await captureScopeState(fileScope);
+    expect(compareScopeState(fileScope.captureState, after)).toMatchObject({
+      checked: true,
+      stable: false,
+      differences: expect.arrayContaining(['HEAD changed']),
     });
   });
 
@@ -312,6 +394,22 @@ async function gitFixture(): Promise<{
   git(worktree, ['commit', '-q', '-m', 'base']);
   const base = git(worktree, ['rev-parse', 'HEAD']).trim();
   return { root, worktree, base };
+}
+
+async function unbornGitFixture(): Promise<{
+  root: string;
+  worktree: string;
+}> {
+  const root = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), 'consensus-review-unborn-')),
+  );
+  roots.push(root);
+  const worktree = path.join(root, 'repo');
+  await mkdir(worktree);
+  git(worktree, ['init', '-q']);
+  git(worktree, ['config', 'user.email', 'fixture@example.com']);
+  git(worktree, ['config', 'user.name', 'Fixture']);
+  return { root, worktree };
 }
 
 function git(cwd: string, args: string[]): string {
