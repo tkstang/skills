@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 63ff71abc04c2fa17c3cbc95d5075097a7d7b916
+oat_last_commit: 03e7eed58ecc81dd224581edc1fe226da434953f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -47,8 +47,8 @@ oat_implement_exit_gate:
   reviewed_head: 62cc7054eb02ed9bf71efa1f59a1256c74661d1d
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
-  freshness_head: 5f998708223fc56245496a4a192a40193d49175d
-  freshness_fingerprint: 'sha256:effective-delta-v1:981fe45c3e95e85007cd74882e0c59393562f3f9c39bc79cde8df878b4550a7a'
+  freshness_head: 03e7eed58ecc81dd224581edc1fe226da434953f
+  freshness_fingerprint: 'sha256:effective-delta-v1:3c327e1c64938a7a5f43709c98c3c0d78438f5a446ed352694e4dd51c0563157'
   launch_state: result_persisted
   launch_attempt_id: 5df6f467-dd13-4204-9c06-30d03df24fe3
   launch_started_at: '2026-09-17T07:38:58Z'
@@ -68,7 +68,7 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-17T07:52:18Z'
+  updated_at: '2026-09-17T08:00:47Z'
 oat_post_implement_sequence:
   status: pre_approval
   source: configured
@@ -77,7 +77,8 @@ oat_post_implement_sequence:
     - summary
     - document
     - pr
-  pre_approval_completed: []
+  pre_approval_completed:
+    - summary
   approval: pending
   approval_source: null
   post_approval: []
@@ -88,20 +89,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:53:29Z'
+oat_project_state_updated: '2026-09-17T08:00:47Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. The configured pre-approval sequence is `summary → document → pr`; final HiLL follows it.
+**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. The summary step is complete; the configured pre-approval sequence continues with `document → pr`, then final HiLL approval.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. All four original p09 fixes are committed and root-verified; independent p09 review and its nonblocking evidence cleanup are complete. The post-gate final review added p09-t05 and p09-t06. Fresh final re-review, configured gate attempt 2/2 and final HiLL approval remain outstanding. No publication, global installation or product live-provider acceptance has completed.
+Implementation — closeout. Original p06–p08 tasks, p09 remediation, lifecycle final reviews, and the configured cross-family exit gate are complete. The gate is durably received and allowed/passed, and the project summary plus promoted decision records are committed. Documentation is next, followed by the configured PR step and final HiLL approval. No publication, global installation or product live-provider acceptance has completed.
 
 ## Artifacts
 
