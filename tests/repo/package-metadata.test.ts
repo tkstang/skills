@@ -26,7 +26,6 @@ describe('package-metadata', () => {
         'premerge',
         'prepare',
         'smoke',
-        'sync:transcript-core',
         'test',
         'test:live-e2e',
         'test:vitest',
@@ -63,8 +62,5 @@ describe('package-metadata', () => {
       'tsx scripts/validate-internal-flags.ts',
     );
     expect(packageJson.scripts?.smoke).toBe('node scripts/smoke-test.mjs');
-    expect(packageJson.scripts?.['sync:transcript-core']).toBe(
-      'tsx scripts/build-generated.ts',
-    );
   });
 });

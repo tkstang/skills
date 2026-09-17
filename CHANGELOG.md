@@ -41,6 +41,14 @@
   authored version. Generated forms share that skill version, while consensus
   and session plugin release versions remain independent.
 
+### Removed
+
+- The `shared/transcript-core/` compatibility README and the
+  `pnpm run sync:transcript-core` compatibility script. `pnpm run build` is the
+  only generated-output command; the canonical source stays at
+  `src/shared/transcript/runtimes.ts` (`session-export-transcript` 2.0.1,
+  `session-fork-to-destination` 0.2.6).
+
 ### Fixed
 
 - The consensus wrapper subprocess path now supports caller-supplied deadlines with SIGTERM→SIGKILL escalation, guards stdin against failed-spawn writes, and force-settles with stdio teardown when a descendant process holds the pipes open after kill (`refine` 0.1.7, `evaluate` 0.1.8, `panel` 0.1.2; shared-runtime consumers `create`/`decide`/`plan` 0.1.5). No default timeout is wired yet — deadlines apply where a caller passes one.

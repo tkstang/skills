@@ -95,7 +95,5 @@ mid-sentence are NOT dropped — only leading-content matches are removed.
 `src/shared/transcript/runtimes.ts` is the only source file with structural knowledge
 of per-runtime formats. To add a runtime, extend `discoverPaths`,
 `encodeCwd`/`encodeCwdVariants`, `extractMeta`, and `normalizeEntries` there, then
-run `pnpm run build`. `pnpm run sync:transcript-core` remains available as a
-compatibility wrapper around the generated-output build. The export CLI and
-sanitizer need no changes unless their user-facing selection or content-sanitizing
-behavior changes.
+run `pnpm run build`. The export CLI and sanitizer need no changes unless their
+user-facing selection or content-sanitizing behavior changes.

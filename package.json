@@ -6,7 +6,6 @@
   "scripts": {
     "build": "tsx scripts/build-generated.ts",
     "build:check": "tsx scripts/build-generated.ts --check",
-    "sync:transcript-core": "tsx scripts/build-generated.ts",
     "test": "pnpm run test:vitest",
     "test:vitest": "node scripts/run-vitest.mjs",
     "test:live-e2e": "CONSENSUS_LIVE_SUBMIT_E2E=1 node scripts/run-vitest.mjs src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts",

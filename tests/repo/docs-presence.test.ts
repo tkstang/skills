@@ -550,7 +550,6 @@ describe('docs-presence', () => {
     const sharedTranscriptDecision = await read(
       '.oat/repo/reference/decisions/DR-260604-shared-transcript-knowledge.md',
     );
-    const sharedTranscriptCore = await read('shared/transcript-core/README.md');
     const contributing = await read('CONTRIBUTING.md');
     const releasing = await read('RELEASING.md');
     const liveE2eWorkflow = await read('.github/workflows/live-e2e.yml');
@@ -568,24 +567,14 @@ describe('docs-presence', () => {
     // (Engineering → Architecture), not the README.
     expect(docs).toMatch(/[Gg]enerated installation units/);
     expect(docs).toMatch(/src\/shared\/transcript\/runtimes\.ts/);
-    expect(docs).toMatch(/sync:transcript-core/);
     expect(docs).toMatch(/scripts\/build-generated\.ts/);
     expect(rootAgents).toMatch(/canonical owners under `src\/skills\/`/);
-    expect(rootAgents).toMatch(
-      /pnpm run sync:transcript-core.*compatibility wrapper/,
-    );
     expect(rootAgents).toMatch(/pnpm tsx scripts\/apply-internal-flags\.ts/);
     expect(consensusAgents).toMatch(/src\/plugins\/consensus\//);
     expect(consensusAgents).toMatch(/src\/skills\/<name>\//);
     expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\//);
     expect(testAgents).toMatch(
       /tests\/tooling\/generated-output-sync\.test\.ts/,
-    );
-    expect(sharedTranscriptCore).toMatch(
-      /src\/shared\/transcript\/runtimes\.ts/,
-    );
-    expect(sharedTranscriptCore).not.toMatch(
-      /shared\/transcript-core\/runtimes\.mjs/,
     );
     expect(exportTranscriptFormats).toMatch(
       /src\/shared\/transcript\/runtimes\.ts/,
@@ -625,7 +614,6 @@ describe('docs-presence', () => {
       liveE2eWorkflow,
       consensusAgents,
       testAgents,
-      sharedTranscriptCore,
       hooksAndSafety,
       handoffToolReadme,
     ]) {
