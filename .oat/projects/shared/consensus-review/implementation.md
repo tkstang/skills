@@ -1,8 +1,7 @@
 ---
-oat_status: blocked
+oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - Repeated non-p06 refine peer-ordering failure blocks p06 recovery and phase verification pending operator direction.
+oat_blockers: []
 oat_last_updated: 2026-09-17
 oat_current_task_id: p06-t02
 oat_generated: false
@@ -10,14 +9,14 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p06 blocked after both task commits; phase verification is red and root review has not run.
+**Status:** p06 recovery authorized after both task commits; phase verification and root review remain pending.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p06 — Installable, safe foundation | blocked | 2 | 2/2 |
+| p06 — Installable, safe foundation | in_progress | 2 | 2/2 |
 | p07 — Scope, selection, one run | pending | 3 | 0/3 |
 | p08 — Rendering, interaction, acceptance | pending | 2 | 0/2 |
 
@@ -104,6 +103,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Accepted p06 dispatch returned `BLOCKED` because the root packet supplied the wrong full base SHA. The implementer changed nothing, created no commits, ran no tests and consumed no recovery attempt. The run stopped without replacement or fallback.
 - 2026-09-17: User explicitly invoked and authorized a new `oat-project-implement` run. The prior accepted run remains terminal history; p06-t01 returns to pending and the new run will capture the exact post-bookkeeping HEAD.
 - 2026-09-17: The authorized p06 run created both planned task commits and passed focused checks. Full and focused phase verification repeatedly failed three mechanical inventory assertions plus one non-p06 refine peer-ordering assertion. The implementer stopped direction-required before reserving recovery; root review did not run.
+- 2026-09-17: The user authorized treating the repeated refine peer-ordering assertion as an existing baseline failure for this run and continuing the bounded p06 recovery. Scope remains limited to the three reported inventory expectation files; both task commits and the prior direction-required event remain immutable.
 
 ## Deviations from Plan / Design
 

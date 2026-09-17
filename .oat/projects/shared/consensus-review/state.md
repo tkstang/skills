@@ -1,8 +1,7 @@
 ---
 oat_current_task: p06-t02
 oat_last_commit: 52b267c1fab7eb7c6cb0fb25b50607d10e685576
-oat_blockers:
-  - Repeated non-p06 refine peer-ordering failure blocks p06 recovery and phase verification pending operator direction.
+oat_blockers: []
 associated_issues:
   - type: backlog
     ref: BL-260916-add-consensus-review-cross
@@ -20,7 +19,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_phase: implement
-oat_phase_status: blocked
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -28,20 +27,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T01:18:40Z'
+oat_project_state_updated: '2026-09-17T02:45:16Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p06 is blocked after both task commits. Three mechanical inventory omissions are known, but a repeated non-p06 refine peer-ordering failure requires operator direction before recovery.
+**Status:** p06 recovery authorized. The repeated refine peer-ordering assertion is accepted as an existing baseline failure for this run; recovery remains bounded to the three p06 inventory corrections.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 blocked after completing p06-t01 and p06-t02. The task commits are preserved; phase verification and root review have not passed. No publication, global installation, live provider acceptance or later phase has completed.
+Quick workflow, p06 recovery in progress after completing p06-t01 and p06-t02. The task commits and prior direction-required event are preserved; phase verification and root review have not passed. No publication, global installation, live provider acceptance or later phase has completed.
 
 ## Artifacts
 
@@ -63,11 +62,11 @@ Quick workflow, p06 blocked after completing p06-t01 and p06-t02. The task commi
 
 ## Next Milestone
 
-Obtain operator direction for the repeated refine peer-ordering failure. If continuation is authorized, preserve both p06 task commits and use the existing phase-standing recovery policy to apply the three bounded inventory corrections before rerunning full phase verification and root review. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Resume the original p06 implementer at the same exact target. Apply only the three bounded inventory corrections under phase-standing recovery, rerun focused and full phase verification while recording the accepted refine baseline failure honestly, then run the root-owned p06 review. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
-Both p06 task commits passed their focused verification. Full `pnpm run test` failed 4 of 2076 tests; a no-edit focused rerun reproduced all four failures. Three failures are p06 inventory omissions in release/versioning, repository layout and plugin-manifest expectations. The fourth is a repeated refine peer-ordering expectation (`claude,codex` versus `codex,claude`) outside the p06 changed source surface. Worktree and commit range validation passed; no recovery attempt was reserved and root review did not run.
+Both p06 task commits passed their focused verification. Full `pnpm run test` failed 4 of 2076 tests; a no-edit focused rerun reproduced all four failures. Three failures are p06 inventory omissions in release/versioning, repository layout and plugin-manifest expectations. The fourth is a repeated refine peer-ordering expectation (`claude,codex` versus `codex,claude`) outside the p06 changed source surface. The user explicitly authorized treating that fourth failure as an existing baseline for this run and continuing the three-file mechanical recovery. No recovery attempt has yet been reserved and root review has not run.
 
 ## Operational Notes
 
