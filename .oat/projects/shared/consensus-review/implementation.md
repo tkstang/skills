@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** post-gate final re-review round 3 passed with zero findings; configured exit-gate attempt 2/2 is next.
+**Status:** configured exit-gate attempt 2/2 passed its Important threshold and its nonblocking findings are dispositioned; durable receipt reconciliation is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -364,6 +364,20 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 
 No finding is deferred or rejected. Blocking-gate auto-disposition converts all four while context is fresh. After p09, rerun final verification and lifecycle review, then resume the same persisted configured-gate generation under its two-attempt limit.
 
+### Configured Exit Gate Attempt 2 Review Received: final
+
+**Date:** 2026-09-17
+**Review artifact:** reviews/archived/final-review-2026-09-17T074525Z.md
+**Gate run:** `14836d4a-5d65-43a1-9d78-ec3b9d300a4b` via `cursor-fable-5-1-high`
+**Verdict:** passed Important threshold; Critical 0, Important 0, Medium 1, Minor 1
+
+**Judgment-sweep dispositions:**
+
+- M1 (`rejected_with_rationale`): the project does not claim that current renderer-bound bytes were independently received. The historical receiver inputs/outcomes and current deterministic byte parity are explicitly separated in evidence, tests and final summary; post-gate final review independently accepted that limitation. A second receiver exercise is an optional acceptance activity, not unrecorded implementation debt.
+- m1 (`rejected_with_rationale`): aggressive Markdown punctuation escaping is pre-existing, produces valid deterministic Markdown, and is unrelated to the four configured-gate remediation findings. Changing renderer policy now would expand scope and require a new version/fixture/generated-output cycle without correcting a functional defect.
+
+No finding is deferred and no new fix task is added. The passing gate artifact is archived and its exact Reviews event advances from `received` to `passed`; durable receive reconciliation remains before the gate state becomes `allowed/passed`.
+
 ### Post-Gate Final Review Received: final
 
 **Date:** 2026-09-17
@@ -517,6 +531,7 @@ The `auto` invocation converts this small in-scope Minor with no deferral or rej
 - 2026-09-17: Corroborated the archived artifact against gate run `87133850-151e-4827-9d7b-7cfd854c5724` and receive transition `9b5bcb4b`. Attempt 1/2 is consumed with status `blocked`; p09-t01 is the next executable task.
 - 2026-09-17: p09 completed in four planned commits plus one nonblocking evidence-clarification commit. Independent phase review passed with zero Critical or Important findings; root verification passed and no recovery attempt was used.
 - 2026-09-17: Post-gate final review completed its three-cycle sequence at `62cc7054` with zero findings. Both earlier review events remain `fixes_completed`; round 3 is the distinct passed event.
+- 2026-09-17: Configured exit-gate attempt 2/2 passed the Important threshold at run `14836d4a-5d65-43a1-9d78-ec3b9d300a4b`. Its Medium and Minor were rejected with explicit judgment-sweep rationale; no implementation debt or fix task was created.
 
 ## Deviations from Plan / Design
 

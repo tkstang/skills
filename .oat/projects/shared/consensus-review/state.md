@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 7958bd57feca82072dd626d43cfeaa4be1649f11
+oat_last_commit: c44555b4c3ea62c39dd24c6e9c8b7007512765ff
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -68,19 +68,19 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T07:50:53Z'
+  updated_at: '2026-09-17T07:51:26Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:50:53Z'
+oat_project_state_updated: '2026-09-17T07:51:26Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** post-gate final re-review round 3 passed with zero findings. The fresh configured exit-gate basis is pending attempt 2/2.
+**Status:** configured exit-gate attempt 2/2 passed its Important threshold and its nonblocking findings are dispositioned. Durable receive reconciliation is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -118,7 +118,7 @@ Implementation — configured-gate remediation. Original p06–p08 tasks and lif
 
 ## Next Milestone
 
-Persist the fresh configured-gate basis and run attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
+Corroborate the archived artifact, passed Reviews event and receive bookkeeping commit, then persist `allowed/passed`. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
@@ -139,7 +139,8 @@ Post-remediation terminal premerge passed 142 test files with one skipped and 2,
 - ✓ Final-review Minor artifact alignment (2/2)
 - ✓ Final re-review status alignment (1/1)
 - ✓ Post-gate final re-review round 3 passed (0 findings)
-- ⧗ Exit-gate re-run and final HiLL approval pending
+- ✓ Configured exit-gate attempt 2 passed its Important threshold
+- ⧗ Exit-gate receive reconciliation and final HiLL approval pending
 
 ## Operational Notes
 
