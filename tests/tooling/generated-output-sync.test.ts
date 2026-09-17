@@ -29,6 +29,24 @@ import { distributions } from '../../src/distributions.js';
 
 const repoRoot = new URL('../..', import.meta.url);
 
+// Minimal gitignore-flavoured glob matcher covering the pattern shapes the
+// oxlint/oxfmt `ignorePatterns` lists actually use: `dir/`, `a/**`, `a/*/b/**`,
+// and literal file paths. Patterns are anchored at the repository root.
+function matchesIgnorePattern(pattern: string, relativePath: string): boolean {
+  const normalized = pattern.endsWith('/') ? `${pattern}**` : pattern;
+  const source = normalized
+    .split('/')
+    .map((segment) => {
+      if (segment === '**') return '(?:.*)';
+      return segment
+        .replace(/[.+^${}()|[\]\\]/gu, '\\$&')
+        .replace(/\*/gu, '[^/]*');
+    })
+    .join('/')
+    .replace(/\/\(\?:\.\*\)$/u, '(?:/.*)?');
+  return new RegExp(`^${source}$`, 'u').test(relativePath);
+}
+
 function runCommand(
   command: string,
   args: string[],
@@ -283,10 +301,32 @@ describe('generated output drift guard', () => {
         ),
       ),
     );
-    for (const root of generatedOutputRoots) {
-      const expected = root.endsWith('.mjs') ? root : `${root}/**`;
-      expect(oxfmt.ignorePatterns).toContain(expected);
-      expect(oxlint.ignorePatterns).toContain(expected);
+    // The configs list collapsed globs (`skills/**`, `plugins/*/skills/**`)
+    // rather than one verbatim entry per generated root, so assert matching
+    // semantics: every generated root must be covered by some pattern.
+    for (const [tool, config] of [
+      ['.oxfmtrc.json', oxfmt],
+      ['.oxlintrc.json', oxlint],
+    ] as const) {
+      const patterns: string[] = config.ignorePatterns;
+      for (const root of generatedOutputRoots) {
+        const probe = root.endsWith('.mjs') ? root : `${root}/scripts/x.mjs`;
+        expect(
+          patterns.some((pattern) => matchesIgnorePattern(pattern, probe)),
+          `${tool} ignorePatterns must cover generated root ${root}`,
+        ).toBe(true);
+      }
+      // The collapsed globs must not swallow authored source.
+      for (const authored of [
+        'src/skills/panel/src/consensus-panel.ts',
+        'src/plugins/consensus/provider-cli/submit.ts',
+        'plugins/consensus/scripts/authored-example.mjs',
+      ]) {
+        expect(
+          patterns.some((pattern) => matchesIgnorePattern(pattern, authored)),
+          `${tool} ignorePatterns must not cover authored path ${authored}`,
+        ).toBe(false);
+      }
     }
   });
 
