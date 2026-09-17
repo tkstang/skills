@@ -1,10 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p06-t01
-    reason: 'Accepted phase dispatch stopped before edits because its supplied full phase-base SHA did not match the clean worktree HEAD.'
-    since: 2026-09-17
+oat_blockers: []
 oat_last_updated: 2026-09-17
 oat_current_task_id: p06-t01
 oat_generated: false
@@ -12,14 +9,14 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** Blocked at p06-t01 after the accepted phase implementer rejected an incorrect phase-base SHA before edits.
+**Status:** Implementation resumed at p06-t01 under explicit authorization for a new run.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md. No task was implemented or completed.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p06 — Installable, safe foundation | blocked | 2 | 0/2 |
+| p06 — Installable, safe foundation | pending | 2 | 0/2 |
 | p07 — Scope, selection, one run | pending | 3 | 0/3 |
 | p08 — Rendering, interaction, acceptance | pending | 2 | 0/2 |
 
@@ -29,7 +26,7 @@ oat_generated: false
 
 | Task | Status | Commit | Verification |
 | --- | --- | --- | --- |
-| p06-t01 | blocked | - | Not run; phase-base preflight stopped before artifact reads or edits. |
+| p06-t01 | pending | - | Prior run stopped before artifact reads or edits; new run authorized. |
 | p06-t02 | pending | - | - |
 | p07-t01 | pending | - | - |
 | p07-t02 | pending | - | - |
@@ -68,6 +65,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: HiLL checkpoint configuration resolved from workflow preferences to final phase p08, with automatic checkpoint review enabled.
 - 2026-09-17: Merged current `origin/main` append-only at `eb216c55cea9bd6f909bfca4d1137b4f00b70188` after confirming PR #86 was merged with passing checks, making the loop-free helpers available before source work.
 - 2026-09-17: Accepted p06 dispatch returned `BLOCKED` because the root packet supplied the wrong full base SHA. The implementer changed nothing, created no commits, ran no tests and consumed no recovery attempt. The run stopped without replacement or fallback.
+- 2026-09-17: User explicitly invoked and authorized a new `oat-project-implement` run. The prior accepted run remains terminal history; p06-t01 returns to pending and the new run will capture the exact post-bookkeeping HEAD.
 
 ## Deviations from Plan / Design
 

@@ -1,10 +1,7 @@
 ---
 oat_current_task: p06-t01
 oat_last_commit: eb216c55cea9bd6f909bfca4d1137b4f00b70188
-oat_blockers:
-  - task_id: p06-t01
-    reason: 'Accepted phase dispatch stopped before edits because its supplied full phase-base SHA did not match the clean worktree HEAD.'
-    since: 2026-09-17
+oat_blockers: []
 associated_issues:
   - type: backlog
     ref: BL-260916-add-consensus-review-cross
@@ -22,7 +19,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_phase: implement
-oat_phase_status: blocked
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -30,20 +27,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T00:43:05Z'
+oat_project_state_updated: '2026-09-17T00:54:14Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Implementation blocked at p06-t01 after the accepted phase implementer rejected an incorrect phase-base SHA before edits. The worktree remains clean and no product task has started.
+**Status:** Implementation resumed at p06-t01 under explicit authorization for a new run. The prior blocked dispatch remains preserved as terminal history.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, blocked at p06-t01 before source reads or edits. The accepted run cannot be replaced or silently relaunched. All seven implementation tasks remain incomplete; no product task, publication or global installation has completed.
+Quick workflow, p06-t01 pending in a newly authorized run. All seven implementation tasks remain incomplete; no product task, publication or global installation has completed.
 
 ## Artifacts
 
@@ -65,7 +62,7 @@ Quick workflow, blocked at p06-t01 before source reads or edits. The accepted ru
 
 ## Next Milestone
 
-After operator direction, start a new `oat-project-implement` run at p06-t01 using the exact clean HEAD as its phase base. PR #86 is merged and current `origin/main` was integrated append-only. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Continue the newly authorized `oat-project-implement` run at p06-t01 using the exact post-bookkeeping clean HEAD as its phase base. PR #86 is merged and current `origin/main` was integrated append-only. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
