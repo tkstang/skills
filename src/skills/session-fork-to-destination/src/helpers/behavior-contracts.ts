@@ -1,3 +1,7 @@
+// Test support only. These provider behavior contracts were authored for the
+// retired coding-session-handoff executor; they are kept here because
+// discovery.test.ts asserts native invocation argv against them. Nothing in the
+// shipped runtime closure imports this module.
 import { createHash } from 'node:crypto';
 import { isAbsolute } from 'node:path';
 
@@ -5,7 +9,7 @@ import type {
   HandoffProvider,
   NativeInvocation,
   ProviderBehaviorContract,
-} from '../../skills/session-fork-to-destination/src/types.js';
+} from '../types.js';
 
 export const HANDOFF_MARKER_PROMPT =
   'Reply exactly HANDOFF_READY. Do not use tools.';

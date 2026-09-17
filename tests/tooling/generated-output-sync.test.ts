@@ -180,12 +180,6 @@ describe('generated output drift guard', () => {
         output: 'plugins/consensus/scripts/consensus.mjs',
         bundle: true,
       },
-      {
-        id: 'coding-session-handoff-cli',
-        source: 'src/tools/coding-session-handoff/cli.ts',
-        output: 'tools/coding-session-handoff/coding-session-handoff.mjs',
-        bundle: true,
-      },
     ]);
   });
 
@@ -218,20 +212,6 @@ describe('generated output drift guard', () => {
     );
     expect(text).toContain(
       '// Source: src/plugins/consensus/provider-cli/cli.ts',
-    );
-    expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
-  });
-
-  it('bundles the repository handoff tool', async () => {
-    const text = await readFile(
-      new URL(
-        '../../tools/coding-session-handoff/coding-session-handoff.mjs',
-        import.meta.url,
-      ),
-      'utf8',
-    );
-    expect(text).toContain(
-      '// Source: src/tools/coding-session-handoff/cli.ts',
     );
     expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
   });

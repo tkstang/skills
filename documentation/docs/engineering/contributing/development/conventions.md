@@ -31,8 +31,7 @@ or build manifest.
 Run `pnpm run build` to regenerate complete committed installation units under
 `plugins/` and `skills/`, and use `pnpm run build:check` or
 `tests/tooling/generated-output-sync.test.ts` to catch inventory, content, and
-mode drift. `pnpm run sync:transcript-core` is a compatibility wrapper around
-the same build. Never hand-edit generated instructions, resources, schemas, or
+mode drift. Never hand-edit generated instructions, resources, schemas, or
 `.mjs` outputs.
 
 Shared runtime imports are materialized into every installation unit that needs
