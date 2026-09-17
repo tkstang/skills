@@ -507,7 +507,18 @@ async function readBoundedText(
   targetPath: string,
   fileSystem: ReviewCliFileSystem,
 ): Promise<string> {
-  const handle = await fileSystem.openFile(targetPath, constants.O_RDONLY);
+  const pathInfo = await fileSystem.lstatPath(targetPath);
+  if (pathInfo.isSymbolicLink() || !pathInfo.isFile()) {
+    throw new Error(
+      'request file must be a regular file and cannot be a symlink',
+    );
+  }
+  const noFollow =
+    typeof constants.O_NOFOLLOW === 'number' ? constants.O_NOFOLLOW : 0;
+  const nonblocking =
+    typeof constants.O_NONBLOCK === 'number' ? constants.O_NONBLOCK : 0;
+  const flags = constants.O_RDONLY | noFollow | nonblocking;
+  const handle = await fileSystem.openFile(targetPath, flags);
   try {
     const info = await handle.stat();
     if (!info.isFile()) throw new Error('request file must be a regular file');

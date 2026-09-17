@@ -4591,7 +4591,16 @@ function defaultRequest(scope) {
   return "Review the selected document or plan for correctness, completeness, internal consistency, and actionable risks.";
 }
 async function readBoundedText(targetPath, fileSystem) {
-  const handle = await fileSystem.openFile(targetPath, constants2.O_RDONLY);
+  const pathInfo = await fileSystem.lstatPath(targetPath);
+  if (pathInfo.isSymbolicLink() || !pathInfo.isFile()) {
+    throw new Error(
+      "request file must be a regular file and cannot be a symlink"
+    );
+  }
+  const noFollow = typeof constants2.O_NOFOLLOW === "number" ? constants2.O_NOFOLLOW : 0;
+  const nonblocking = typeof constants2.O_NONBLOCK === "number" ? constants2.O_NONBLOCK : 0;
+  const flags = constants2.O_RDONLY | noFollow | nonblocking;
+  const handle = await fileSystem.openFile(targetPath, flags);
   try {
     const info = await handle.stat();
     if (!info.isFile()) throw new Error("request file must be a regular file");

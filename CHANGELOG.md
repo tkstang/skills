@@ -76,6 +76,7 @@
 
 ### Fixed
 
+- `consensus-review` 0.1.12 rejects symlink and non-regular request files before opening them, and uses no-follow nonblocking open flags before bounded regular-file reads.
 - `consensus-review` 0.1.11 binds the deterministic clean and all-severity receipt fixtures byte-for-byte to `renderReviewMarkdown`, so receiver evidence cannot drift from renderer output.
 - Review host verification now treats a matching inherited parent as authoritative despite unrelated ambient markers, rejects explicit mismatches, and retains exact-single-marker verification when no parent is inherited (`consensus-review` 0.1.10, `create` 0.1.15, `decide` 0.1.15, `evaluate` 0.1.19, `panel` 0.1.12, `phone-a-friend` 0.1.11, `plan` 0.1.15, `refine` 0.1.18).
 - Mixed host-marker shells now preserve explicit `CONSENSUS_PARENT_HOST` precedence and the established Claude → Codex → Cursor fallback priority, so recursion-depth child state remains enforced (`consensus-review` 0.1.9, `create` 0.1.14, `decide` 0.1.14, `evaluate` 0.1.18, `panel` 0.1.11, `phone-a-friend` 0.1.10, `plan` 0.1.14, `refine` 0.1.17).

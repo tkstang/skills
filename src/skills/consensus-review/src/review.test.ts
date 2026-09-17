@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { constants } from 'node:fs';
 import {
   access,
   appendFile,
@@ -8,6 +10,7 @@ import {
   readFile,
   readdir,
   realpath,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
@@ -417,6 +420,118 @@ describe('review CLI', () => {
     expect(appended).toBe(true);
     expect(requestedBytes).toBe(256 * 1024 + 1);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects a symlinked request file before open or provider invocation', async () => {
+    const root = await temporaryRoot();
+    const requestPath = path.join(root, 'request.txt');
+    const linkedRequestPath = path.join(root, 'linked-request.txt');
+    await writeFile(requestPath, 'Review the selected file.');
+    await symlink(requestPath, linkedRequestPath);
+    const execute = vi.fn();
+    const openFile = vi.fn(async () => {
+      throw new Error('symlink reached open');
+    }) as unknown as typeof open;
+
+    const result = await runReviewCli(
+      [
+        '--files',
+        'src/example.ts',
+        '--host',
+        'codex',
+        '--request-file',
+        linkedRequestPath,
+      ],
+      { cwd: root, execute, fileSystem: { openFile } },
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 2,
+      payload: {
+        status: 'usage_error',
+        reason: 'argument_invalid',
+        invocation_count: 0,
+        message: 'request file must be a regular file and cannot be a symlink',
+      },
+    });
+    expect(openFile).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.runIf(process.platform !== 'win32')(
+    'rejects a FIFO request file before a blocking open or provider invocation',
+    async () => {
+      const root = await temporaryRoot();
+      const requestPath = path.join(root, 'request.fifo');
+      execFileSync('mkfifo', [requestPath]);
+      const execute = vi.fn();
+      const openFile = vi.fn(async () => {
+        throw new Error('FIFO reached open');
+      }) as unknown as typeof open;
+
+      const result = await runReviewCli(
+        [
+          '--files',
+          'src/example.ts',
+          '--host',
+          'codex',
+          '--request-file',
+          requestPath,
+        ],
+        { cwd: root, execute, fileSystem: { openFile } },
+      );
+
+      expect(result).toMatchObject({
+        exitCode: 2,
+        payload: {
+          status: 'usage_error',
+          reason: 'argument_invalid',
+          invocation_count: 0,
+          message:
+            'request file must be a regular file and cannot be a symlink',
+        },
+      });
+      expect(openFile).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reads a bounded regular request file with no-follow nonblocking flags', async () => {
+    const root = await temporaryRoot();
+    const requestPath = path.join(root, 'request.txt');
+    await writeFile(requestPath, 'Review the selected file.');
+    const execute = vi.fn(async (input: ExecuteReviewInput) => {
+      expect(input.request).toBe('Review the selected file.');
+      return {
+        ok: true,
+        status: 'empty_scope',
+        invocation_count: 0,
+        scope: { selectedPaths: [], externalDocuments: [] },
+      } as unknown as ExecuteReviewResult;
+    });
+    const flags: Array<string | number> = [];
+    const openFile = (async (target, openFlags, mode) => {
+      flags.push(openFlags!);
+      return open(target, openFlags, mode);
+    }) as typeof open;
+
+    const result = await runReviewCli(
+      [
+        '--files',
+        'src/example.ts',
+        '--host',
+        'codex',
+        '--request-file',
+        requestPath,
+      ],
+      { cwd: root, execute, fileSystem: { openFile } },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(flags).toEqual([
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    ]);
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it('offers only a diagnostic path for an incomplete run', async () => {
