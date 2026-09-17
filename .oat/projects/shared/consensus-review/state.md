@@ -115,10 +115,10 @@ Implementation — closeout. Original p06–p08 tasks, p09 remediation, lifecycl
 - p08-t01: interactive rendering, scope selection and documentation committed at `6b65fe8c`; bounded determinism recovery committed at `0831b0b6` and settled at attempt 1/10.
 - p08 recovery 2: stale Consensus manifest expectation corrected at `9a286249`; the immutable recovery commit also moved the exact p08-t02 backlog item into its archive with no content change. Remaining closure metadata stays in the planned p08-t02 work.
 - p08-t02: deterministic receipt evidence and PJM closure committed at `aad79ef5`; the exact backlog item is closed/archived, only its consumed handoff was removed, and adjacent work remains open.
-- Final review round 1: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md) at `b5fe65d8` requested one Important atomic-publication fix and one Medium bounded-read fix; both are accepted for bounded iteration 1/2.
+- Final review round 1: [final-review-2026-09-17T053248Z.md](reviews/archived/final-review-2026-09-17T053248Z.md) at `b5fe65d8` requested one Important atomic-publication fix and one Medium bounded-read fix; both are accepted for bounded iteration 1/2.
 - Final-review fix iteration 1/2: both findings fixed at `93575af0`; 104 root-focused tests plus build freshness, type-check and exact-range checks passed, and the implementer's full premerge passed 2,016 tests with one skipped.
-- Final review round 2 and fix iteration 2/2: [final-review-2026-09-17T055634Z.md](reviews/final-review-2026-09-17T055634Z.md) verified the product fixes and requested one ledger alignment; `8d8ff233` corrected the prior status while preserving both review events.
-- Final review round 3: [final-review-2026-09-17T060326Z.md](reviews/final-review-2026-09-17T060326Z.md) passed at `c60f3fe3` with zero findings and no deferred debt.
+- Final review round 2 and fix iteration 2/2: [final-review-2026-09-17T055634Z.md](reviews/archived/final-review-2026-09-17T055634Z.md) verified the product fixes and requested one ledger alignment; `8d8ff233` corrected the prior status while preserving both review events.
+- Final review round 3: [final-review-2026-09-17T060326Z.md](reviews/archived/final-review-2026-09-17T060326Z.md) passed at `c60f3fe3` with zero findings and no deferred debt.
 - Configured exit-gate attempt 1: run `87133850-151e-4827-9d7b-7cfd854c5724`, consumed artifact `reviews/archived/final-review-2026-09-17T062233Z.md`, four accepted p09 fix tasks, no deferrals.
 - Spec: not used in quick mode.
 

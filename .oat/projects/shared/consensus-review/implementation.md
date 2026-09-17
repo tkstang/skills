@@ -127,7 +127,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Review Round 2 — passed
 
 - Request ID: `review-consensus-review-p07-round2-20260917T0432Z`
-- Artifact: [p07-review-2026-09-17T043419Z.md](reviews/p07-review-2026-09-17T043419Z.md)
+- Artifact: [p07-review-2026-09-17T043419Z.md](reviews/archived/p07-review-2026-09-17T043419Z.md)
 - Reviewed head: `fa01afbe8a0cd21eeaf20e4cf9c23e6574f12d04`
 - Verdict: passed; Critical 0, Important 0, Medium 0, Minor 0
 - Reconnaissance: not attempted
@@ -148,7 +148,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Review Round 2 — passed
 
 - Request ID: `review-consensus-review-p06-round2-20260917T0331Z`
-- Artifact: [p06-review-2026-09-17T033619Z.md](reviews/p06-review-2026-09-17T033619Z.md)
+- Artifact: [p06-review-2026-09-17T033619Z.md](reviews/archived/p06-review-2026-09-17T033619Z.md)
 - Reviewed head: `ae059dfb64b38c5bb26896616b69caf448bc4543`
 - Verdict: passed; Critical 0, Important 0, Medium 0, Minor 0
 - Reconnaissance: not attempted
@@ -261,7 +261,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Review Round 1 — passed with nonblocking cleanup
 
 - Request ID: `review-consensus-review-p09-round1-20260917T0653Z`
-- Artifact: [p09-review-2026-09-17T065900Z.md](reviews/p09-review-2026-09-17T065900Z.md)
+- Artifact: [p09-review-2026-09-17T065900Z.md](reviews/archived/p09-review-2026-09-17T065900Z.md)
 - Reviewed head: `40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98`
 - Reviewed range: `3b8f9fdea88d53e26cb9ebfe930c3b7f5ae4eb46..40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98`
 - Verdict: passed; Critical 0, Important 0, Medium 1, Minor 0
@@ -285,7 +285,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Final Review Round 1 — changes requested
 
 - Request ID: `review-consensus-review-final-20260917T053248Z`
-- Artifact: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md)
+- Artifact: [final-review-2026-09-17T053248Z.md](reviews/archived/final-review-2026-09-17T053248Z.md)
 - Reviewed head: `b5fe65d87ed417fa967302270d6640fb99e4536a`
 - Verdict: changes requested; Critical 0, Important 1, Medium 1, Minor 0
 - Reconnaissance: attempted; two packet-incomplete recon lanes refused before reading or writing, one renderer/packaging lane completed, and the primary reviewer reconciled all three lanes.
@@ -310,7 +310,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Final Review Round 2 — changes requested
 
 - Request ID: `review-consensus-review-final-20260917T055634Z`
-- Artifact: [final-review-2026-09-17T055634Z.md](reviews/final-review-2026-09-17T055634Z.md)
+- Artifact: [final-review-2026-09-17T055634Z.md](reviews/archived/final-review-2026-09-17T055634Z.md)
 - Reviewed head: `bb59b849a499e7ebfddb11c87b0c322cfd04fd60`
 - Reviewed range: `b5fe65d87ed417fa967302270d6640fb99e4536a..bb59b849a499e7ebfddb11c87b0c322cfd04fd60`
 - Verdict: changes requested; Critical 0, Important 1, Medium 0, Minor 0
@@ -331,7 +331,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 #### Final Review Round 3 — passed
 
 - Request ID: `review-consensus-review-final-20260917T060326Z`
-- Artifact: [final-review-2026-09-17T060326Z.md](reviews/final-review-2026-09-17T060326Z.md)
+- Artifact: [final-review-2026-09-17T060326Z.md](reviews/archived/final-review-2026-09-17T060326Z.md)
 - Reviewed head: `c60f3fe354439971b00612ccf3325c05777b9fe6`
 - Reviewed range: `bb59b849a499e7ebfddb11c87b0c322cfd04fd60..c60f3fe354439971b00612ccf3325c05777b9fe6`
 - Verdict: passed; Critical 0, Important 0, Medium 0, Minor 0
