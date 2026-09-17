@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 14c991bdce178a2cecba4f99bc37019430618496
+oat_last_commit: af5a7a7e956fbe94a9afc4d133e3a1c008e0267b
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -68,19 +68,19 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'implementation_changed_after_gate'
-  updated_at: '2026-09-17T07:04:03Z'
+  updated_at: '2026-09-17T07:06:31Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:04:03Z'
+oat_project_state_updated: '2026-09-17T07:06:31Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p09 review passed with zero Critical or Important findings, and its nonblocking Medium evidence clarification is complete. Fresh final lifecycle review is next; the prior configured gate generation remains stale.
+**Status:** p09 review and post-remediation terminal verification passed. Fresh final lifecycle review is next; the prior configured gate generation remains stale.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -122,7 +122,7 @@ Run fresh final lifecycle review, then configured exit-gate attempt 2/2. Final H
 
 ## Verification
 
-Configured exit-gate attempt 1 independently passed 232 focused tests plus build freshness, type-check, version/changelog and diff checks, then blocked at its Important threshold with 0 Critical, 1 Important, 1 Medium and 2 Minor findings. All four are accepted for p09. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
+Post-remediation terminal premerge passed 142 test files with one skipped and 2,030 tests with one skipped, plus build, type-check, generated freshness, validation and smoke. The p09 reviewer passed with zero Critical or Important findings; its one Medium evidence clarification is complete. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
 
 ## Progress
 
