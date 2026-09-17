@@ -686,6 +686,12 @@ reconciliation is required before receive.
 **Resolved findings:** Prior bootstrap M1, gate `m3`, gate `m5`, and p03 M1
 remain resolved.
 
+**Gate disposition:** The receive artifact, passed Reviews row, and bookkeeping
+commit `c9862a4b` corroborate the gate handoff. The refreshed generation is
+`allowed/passed`; its rolling freshness checkpoint is
+`c9862a4bbc6f307688c987a3ccda473964c548ef` with
+`sha256:effective-delta-v1:7dc1faf96eeef9339e1b4b1e4b36b2513393371f7142158835b49ac4cfa35e3b`.
+
 ---
 
 ## Implementation Log

@@ -27,9 +27,9 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -40,8 +40,8 @@ oat_implement_exit_gate:
   reviewed_head: fd48f510a7d980f28cd350364ffe9b36f2c5cab1
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:aacebe0d731b42297d8915a06836f21b4b5bf05295f9b7cdafce24b48763b851'
-  freshness_head: 50d4c1686b0e9ceb3d9d92263ad4d4a239fc4601
-  freshness_fingerprint: 'sha256:effective-delta-v1:e305665e5942dc076bc14f7c03fcda106ecc034ee476b049a7ebc6f1e59ac952'
+  freshness_head: c9862a4bbc6f307688c987a3ccda473964c548ef
+  freshness_fingerprint: 'sha256:effective-delta-v1:7dc1faf96eeef9339e1b4b1e4b36b2513393371f7142158835b49ac4cfa35e3b'
   launch_state: result_persisted
   launch_attempt_id: 5574543a-c2d9-4fb2-aaf1-a4812873600b
   launch_started_at: '2026-09-17T05:01:03Z'
@@ -51,17 +51,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T050550Z.md'
   handoff: 'Gate passed at the important threshold with four non-blocking Minor findings; receive is required for final disposition.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=f673a067-7275-4ef8-9a0a-55e88e880a5b;scope=final;type=code;filename=final-review-2026-09-17T050550Z.md'
   receive_source_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T050550Z.md'
   receive_archived_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/archived/final-review-2026-09-17T050550Z.md'
   receive_event_identity: 'final|code|final-review-2026-09-17T050550Z.md'
   receive_pre_head: 521b4e459f2e0eef87085b9a0b72e755f903b7f0
-  receive_commit: null
+  receive_commit: c9862a4bbc6f307688c987a3ccda473964c548ef
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-17T05:08:21Z'
+  updated_at: '2026-09-17T05:09:31Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T05:08:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T05:09:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -136,7 +136,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - final review passed; exit gate refresh pending
+Implementation - final review and configured exit gate passed
 
 ## Artifacts
 
@@ -168,7 +168,7 @@ Implementation - final review passed; exit gate refresh pending
 - ✓ `p03-t02` regression relocation and version-gate verification complete
 - ✓ Independent p03 re-review passed with zero findings
 - ✓ Final full-project re-review passed with no blocking or new findings
-- ⧗ Configured exit gate refresh pending
+- ✓ Configured exit gate passed and was received
 - ⧗ Final HiLL closeout pending
 
 ## Blockers
@@ -177,4 +177,4 @@ None.
 
 ## Next Milestone
 
-Refresh the configured cross-family exit gate at the current committed HEAD.
+Complete the final HiLL closeout without crossing the unauthorized PR boundary.
