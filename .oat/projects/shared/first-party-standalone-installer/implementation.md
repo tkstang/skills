@@ -605,6 +605,32 @@ content, the standalone regression remains meaningful in the tooling suite,
 and both skill-version comparisons report zero changed skills. Phase p03
 passed; continue to the fresh final review and configured exit gate.
 
+### Review Received: final after p03
+
+**Date:** 2026-09-17
+**Review artifact:** `reviews/archived/final-review-2026-09-17T045508Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 3 carry-forward findings; 0 new findings
+
+**New tasks added:** None.
+
+**Deferred Medium ledger:** None. Original bootstrap M1 and p03 M1 are both
+resolved.
+
+**Minor disposition:** Preserve the user's explicit selections from the prior
+final receive: `m1` remains deferred until direct helper execution is public,
+`m2` until installation-guide polish or an affected user report, and `m4`
+until a timeout is observed or support demand appears. Original `m3` is
+resolved by p03 and is not deferred.
+
+**Disposition:** The final review passed. Refresh the stale configured exit
+gate at the current implementation basis.
+
 ---
 
 ## Implementation Log

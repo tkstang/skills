@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T04:49:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T04:58:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -136,7 +136,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - p03 passed; final review and exit gate refresh pending
+Implementation - final review passed; exit gate refresh pending
 
 ## Artifacts
 
@@ -167,7 +167,8 @@ Implementation - p03 passed; final review and exit gate refresh pending
 - ⚠ Independent p03 review found one Medium test-placement issue
 - ✓ `p03-t02` regression relocation and version-gate verification complete
 - ✓ Independent p03 re-review passed with zero findings
-- ⧗ Final re-review and configured exit gate refresh pending
+- ✓ Final full-project re-review passed with no blocking or new findings
+- ⧗ Configured exit gate refresh pending
 - ⧗ Final HiLL closeout pending
 
 ## Blockers
@@ -176,5 +177,4 @@ None.
 
 ## Next Milestone
 
-Refresh the final review and configured cross-family exit gate at the corrected
-committed HEAD.
+Refresh the configured cross-family exit gate at the current committed HEAD.
