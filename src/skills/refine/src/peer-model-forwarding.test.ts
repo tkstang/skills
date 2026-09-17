@@ -35,6 +35,29 @@ interface PeerModelContext {
   inputPath: string;
 }
 
+// Host markers belonging to the process that runs this suite must not choose
+// the default peer order. `detectHost` puts the detected host first in the
+// built-in peer composition, and the stub env spreads `process.env`, so a
+// Claude- or Codex-hosted runner would silently reorder `--peers` (CI, with no
+// markers at all, sees host `unknown`). Strip the inherited markers so these
+// tests are deterministic on every host; a test that genuinely needs a host can
+// still pin one through `envOverrides`, which is applied afterwards.
+function withoutInheritedHostMarkers(env: NodeJS.ProcessEnv) {
+  const stripped: NodeJS.ProcessEnv = { ...env };
+  for (const key of Object.keys(stripped)) {
+    if (
+      key === 'CLAUDECODE' ||
+      key === 'CLAUDE_CODE' ||
+      key === 'CLAUDECODE_SESSION_ID' ||
+      key.startsWith('CODEX_') ||
+      key.startsWith('CURSOR_')
+    ) {
+      delete stripped[key];
+    }
+  }
+  return stripped;
+}
+
 async function withPeerModelContext(
   fn: (context: PeerModelContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
@@ -59,14 +82,18 @@ async function withPeerModelContext(
       cwd,
       callsPath,
       inputPath,
-      env: makeProviderCliEnv({
-        HOME: home,
-        XDG_CONFIG_HOME: xdg,
-        CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
-        CONSENSUS_STUB_CALLS_JSONL: callsPath,
-        CONSENSUS_STUB_VERDICT: 'ACCEPT',
+      env: {
+        ...withoutInheritedHostMarkers(
+          makeProviderCliEnv({
+            HOME: home,
+            XDG_CONFIG_HOME: xdg,
+            CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
+            CONSENSUS_STUB_CALLS_JSONL: callsPath,
+            CONSENSUS_STUB_VERDICT: 'ACCEPT',
+          }),
+        ),
         ...envOverrides,
-      }),
+      },
     });
   } finally {
     await rm(root, { recursive: true, force: true });
