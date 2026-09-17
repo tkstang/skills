@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t03
-oat_last_commit: e5a9c9717a313590803633930855af9784adb5c2
+oat_current_task: null
+oat_last_commit: 0876525a9c540021a7c23fccfa21f877797ec0c1
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -25,16 +25,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: p01-recovery-002
-        original_request_id: impl-first-party-standalone-installer-p01-20260917T0042Z
-        original_task_id: p01-t01
-        original_commit: 4fc228e9f48da6426004dd8dddca7a9b6fc5e302
-        discovered_by: pnpm run validate:skill-versions -- --base-ref origin/main
-        dispatch_target: oat-phase-implementer-gpt-6-astra-high-5b14a55346
-        reservation_head: baae08efa12da7db2e4c4f960322ea75dc190b31
-        status: completed
+      pending_attempt: null
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -92,12 +83,12 @@ oat_workflow_origin: native # native | imported
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
-oat_docs_updated: null # null | skipped | complete — documentation sync status
+oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T01:05:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T01:16:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -109,7 +100,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implement - Phase 1 resumed at `p01-t03`
+Implementation - Tasks complete; awaiting independent phase review
 
 ## Artifacts
 
@@ -128,7 +119,8 @@ Implement - Phase 1 resumed at `p01-t03`
 - ✓ Plan ready for implementation
 - ✓ `p01-t01` scoped installer behavior complete
 - ✓ `p01-t02` documentation and release contract complete
-- ⧗ `p01-t03` recovery attempt 2 authorized with candidate-tree proof
+- ✓ `p01-t03` full static gate and pending-live bookkeeping complete
+- ⧗ Independent phase review pending
 
 ## Blockers
 
@@ -136,4 +128,4 @@ None
 
 ## Next Milestone
 
-Complete recovery attempt 2, rerun the version gate, and finish `p01-t03`.
+Run the required root-owned phase review for `p01`.

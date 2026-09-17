@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-16
-oat_current_task_id: p01-t03
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -26,9 +26,9 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 2/3       |
+| Phase 1 | in_progress | 3     | 3/3       |
 
-**Total:** 2/3 tasks completed
+**Total:** 3/3 tasks completed
 
 ---
 
@@ -41,20 +41,25 @@ oat_generated: false
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Added a dependency-free standalone installer for exact tagged generated skill payloads.
+- Added explicit Codex, Claude Code, and Cursor destinations at both project and user scope.
+- Preserved the zero-argument Consensus recovery installer and documented authority-gated live acceptance separately.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `install.sh` and `scripts/install-standalone.mjs` - command dispatch and safe pinned-source installation.
+- `tests/tooling/standalone-installer.test.ts` and `tests/release/standalone-install-contract.test.ts` - isolated behavior and documentation contracts.
+- `documentation/docs/user-guide/installation.md` and `RELEASING.md` - scoped procedures and release evidence.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: focused Vitest suites, both skill-version comparisons, `pnpm run premerge`, docs build, diff check, and PJM doctor.
+- Result: passed; 65 focused tests and 2,029 full-suite tests passed, with one opt-in live test skipped.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- Standalone-specific assertions were moved out of `src/plugins/consensus` so tests do not falsely trigger seven shipped-skill version bumps.
+- Live host discovery, invocation, real user-home mutation, publishing, and release remain explicitly pending.
 
 ### Task p01-t01: Adapt the proven installer core for public standalone installs
 
@@ -103,12 +108,14 @@ oat_generated: false
 
 ### Task p01-t03: Run the full gate and record the pending live boundary
 
-**Status:** in_progress
-**Commit:** -
+**Status:** completed
+**Commit:** `0876525a9c540021a7c23fccfa21f877797ec0c1`
 
 **Prior blocker:** `validate:skill-versions` treats the two planned test-file changes under `src/plugins/consensus` as changes to seven distributed skills. A mechanically bounded relocation passed 44 focused tests, but the validator unions committed and uncommitted paths, so it could not validate the cancellation before a candidate commit. Recovery attempt 1 was recorded as failed with no product-code commit.
 
 **Resume:** The operator authorized recovery attempt 2 using candidate-tree proof before commit and authoritative version validation after commit. The scope remains limited to relocating the newly added standalone assertions and restoring the two Consensus test files to phase-base content.
+
+**Outcome:** Recovery commit `372a69c0a2eeb7a2b83a0c39441af6a7862fdb3e` relocated the standalone assertions and restored both Consensus tests to phase-base content. Both authoritative skill-version comparisons then passed with zero changed skills. The task commit recorded all automated evidence and kept six live host/scope checks pending.
 
 ---
 
@@ -171,6 +178,37 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Outstanding items:**
 
 - `p01-t03` requires operator direction on a candidate-tree verification strategy or a plan change. Phase review was not launched.
+
+### Run 2 — 2026-09-16
+
+- Branch: `standalone-installer`
+- Tier: 1 — same accepted phase handle
+- Dispatch policy: exact target and axes preserved from Run 1
+- Phase outcome: implementation complete; independent phase review pending
+
+| Phase | Outcome | Tasks | Commits | Review | Recovery attempts |
+| ----- | ------- | ----- | ------- | ------ | ----------------- |
+| p01 | implemented | 3/3 | recovery `372a69c0`, task `0876525a` | pending | 2/10 used |
+
+#### Recovery Event p01-recovery-002
+
+- Phase/task: p01 / p01-t01; related p01-t02 assertions
+- Original request: `impl-first-party-standalone-installer-p01-20260917T0042Z`
+- Continuation event: `cont-first-party-standalone-installer-p01-recover-2`
+- Original commit: `4fc228e9f48da6426004dd8dddca7a9b6fc5e302`
+- Defect class: composition
+- Discovered by: `pnpm run validate:skill-versions -- --base-ref origin/main`
+- Disposition: recovered
+- Authorization: operator-extension
+- Attempt: 2/10
+- Dispatch target: `oat-phase-implementer-gpt-6-astra-high-5b14a55346`
+- Recovery commit: `372a69c0a2eeb7a2b83a0c39441af6a7862fdb3e`
+- Verification: candidate-tree equality and 65 focused tests passed before commit; after commit, focused tests, both version gates, full premerge, documentation build, diff check, and PJM doctor passed.
+- Reason: standalone assertions moved outside the shared runtime source directory while both original Consensus tests returned exactly to phase-base content.
+
+**Outstanding items:**
+
+- Root-owned phase review, final lifecycle review, and configured closeout gates remain.
 
 <!-- orchestration-runs-end -->
 
@@ -237,6 +275,7 @@ Chronological log of implementation progress.
 - `p01-t03` blocked during the version gate. Full premerge otherwise passed with 2,029 tests passed and 1 skipped; build freshness, validation, smoke, docs build, diff check, and PJM doctor passed.
 - Recovery attempt 1 made no product-code commit and preserved immutable task history.
 - Operator direction resumed `p01-t03` for recovery attempt 2 with exact-target continuity and candidate-tree proof; no unrelated version bumps or validator changes are authorized.
+- Recovery attempt 2 completed in `372a69c0`; `p01-t03` completed in `0876525a`; all planned static verification passed.
 
 ---
 
@@ -246,7 +285,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| p01-t03 / p01-recovery-001 | `plan.md` | Existing Consensus test files can hold standalone assertions while the version gate confirms no skill bump is needed. | The version gate classifies any changed path under `src/plugins/consensus` as affecting seven skills; an uncommitted restoration cannot cancel earlier committed paths. | The validator unions base-to-HEAD, index, worktree, and untracked paths. | Validator behavior and immutable Git history | Direction required before a second recovery attempt or plan revision. |
+| p01-t03 / p01-recovery-001 | `plan.md` | Existing Consensus test files can hold standalone assertions while the version gate confirms no skill bump is needed. | Standalone assertions live in `tests/tooling/standalone-installer.test.ts` and `tests/release/standalone-install-contract.test.ts`; the original Consensus tests match the phase base. | The validator treats every changed path under `src/plugins/consensus` as a distributed-skill change, so test-only assertions belong outside that runtime source root. | Implementation and passing committed-HEAD version gates | Reflected in recovery commit `372a69c0`; no validator or skill-version change required. |
 
 ## Test Results
 
@@ -254,30 +293,33 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | Focused installer/docs suites; `premerge`; docs build; version gate; diff/PJM checks | 42 installer tests; 24 docs tests; 2,029 full-suite tests; all non-version gates | Version gate | No coverage metric configured |
+| 1     | Focused installer/docs suites; `premerge`; docs build; both version comparisons; diff/PJM checks | 65 focused tests; 2,029 full-suite tests; all gates | 0 | No coverage metric configured |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Exact-tag installation of generated standalone skill payloads from a private bare Git repository.
+- Explicit project or user installation for Codex, Claude Code, and Cursor without cross-provider mirrors.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- `install.sh` accepts explicit standalone flags while preserving its existing zero-argument Consensus recovery behavior.
+- Existing destinations and symlinked ancestors are refused; partial failures retain a marked destination for inspection.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `scripts/install-standalone.mjs` - dependency-free installer implementation.
+- `tests/tooling/standalone-installer.test.ts` - isolated behavior coverage.
+- `tests/release/standalone-install-contract.test.ts` - stable documentation/release assertions.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Focused and full Vitest suites, type-check, lint/format checks, build freshness, repository validation, smoke, docs production build, both skill-version comparisons, diff check, and PJM doctor.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- Only test placement changed: standalone assertions moved outside `src/plugins/consensus` to avoid false shipped-skill version impact. Runtime design is unchanged.
 
 ## References
 
