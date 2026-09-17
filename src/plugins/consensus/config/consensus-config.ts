@@ -9,17 +9,19 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 
+import { FIRST_SCOPE_PROVIDER_IDS } from '../provider-cli/types.js';
 import type {
   ProviderId,
   ProviderInventoryEntry,
 } from '../provider-cli/types.js';
 
-export type ConsensusWorkflow = 'convergence' | 'panel';
+export type ConsensusWorkflow = 'convergence' | 'panel' | 'review';
 export type ConsensusConfigScope = 'user' | 'project';
 export type ConsensusConfigKey =
   | 'peers'
   | 'panelists'
   | 'panel-size'
+  | 'reviewers'
   | 'roles'
   | 'all';
 export type ConsensusCompositionSource =
@@ -44,6 +46,7 @@ export interface ConsensusDefaults {
   peers?: ConsensusAgentRef[];
   panelists?: ConsensusAgentRef[];
   panel_size?: number;
+  reviewers?: ConsensusAgentRef[];
   roles?: ConsensusRolesConfig;
 }
 
@@ -88,7 +91,13 @@ interface ConfigCandidate {
 
 const BUILT_IN_PROVIDER_ORDER: ProviderId[] = ['claude', 'codex'];
 const CONFIG_KEYS = new Set(['schema_version', 'defaults']);
-const DEFAULTS_KEYS = new Set(['peers', 'panelists', 'panel_size', 'roles']);
+const DEFAULTS_KEYS = new Set([
+  'peers',
+  'panelists',
+  'panel_size',
+  'reviewers',
+  'roles',
+]);
 const AGENT_KEYS = new Set(['provider', 'model', 'effort']);
 const ROLE_KEYS = new Set(['panelist', 'advisor', 'synthesizer']);
 
@@ -134,6 +143,13 @@ function parseConsensusDefaults(value: unknown): ConsensusDefaults {
   }
   if (value.panel_size !== undefined) {
     defaults.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.reviewers !== undefined) {
+    defaults.reviewers = parseAgentList(value.reviewers, {
+      label: 'Consensus config reviewers',
+      minLength: 1,
+      knownProvidersOnly: true,
+    });
   }
   if (value.roles !== undefined) {
     defaults.roles = parseRolesConfig(value.roles);
@@ -196,6 +212,8 @@ export async function clearConsensusConfig(
     delete defaults.panelists;
   } else if (key === 'panel-size') {
     delete defaults.panel_size;
+  } else if (key === 'reviewers') {
+    delete defaults.reviewers;
   } else if (key === 'roles') {
     delete defaults.roles;
   } else {
@@ -253,7 +271,29 @@ export async function resolveConsensusComposition(
   if (input.workflow === 'convergence') {
     return resolveConvergenceComposition(input, candidates);
   }
+  if (input.workflow === 'review') {
+    return resolveReviewComposition(input, candidates);
+  }
   return resolvePanelComposition(input, candidates);
+}
+
+function resolveReviewComposition(
+  input: ResolveConsensusCompositionInput,
+  candidates: ConfigCandidate[],
+): ResolvedConsensusComposition {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.reviewers !== undefined,
+  );
+  const reviewers = candidate?.config.defaults?.reviewers ?? [
+    { provider: 'claude' },
+    { provider: 'codex' },
+  ];
+  return {
+    source: candidate?.source ?? 'built-in',
+    workflow: 'review',
+    agents: reviewers,
+    warnings: inventoryWarnings(reviewers, input.inventory),
+  };
 }
 
 async function loadCandidates(
@@ -450,6 +490,7 @@ function parseAgentList(
     label: string;
     minLength?: number;
     exactLength?: number;
+    knownProvidersOnly?: boolean;
   },
 ): ConsensusAgentRef[] {
   if (!Array.isArray(value)) {
@@ -472,6 +513,15 @@ function parseAgentList(
   const agents = value.map((item, index) =>
     parseAgentRef(item, `${options.label}[${index}]`),
   );
+  if (options.knownProvidersOnly) {
+    for (const agent of agents) {
+      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+        throw new Error(
+          `${options.label} contains unsupported provider: ${agent.provider}`,
+        );
+      }
+    }
+  }
   assertUniqueProviders(agents, options.label);
   return agents;
 }
@@ -573,6 +623,7 @@ function hasConsensusDefaults(value: ConsensusDefaults): boolean {
     value.peers !== undefined ||
     value.panelists !== undefined ||
     value.panel_size !== undefined ||
+    value.reviewers !== undefined ||
     value.roles !== undefined
   );
 }

@@ -45,6 +45,7 @@ export const distributions: readonly DistributionDeclaration[] = [
     owner: 'consensus-review',
     source: 'src/skills/consensus-review',
     allowedSourceRoots: [
+      'src/plugins/consensus/config',
       'src/plugins/consensus/provider-cli',
       'src/plugins/consensus/shared',
     ],

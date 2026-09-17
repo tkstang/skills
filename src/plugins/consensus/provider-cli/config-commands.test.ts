@@ -20,6 +20,7 @@ describe('provider CLI consensus config commands', () => {
           schema_version: 'v1',
           defaults: {
             peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            reviewers: [{ provider: 'codex', model: 'review-model' }],
           },
         },
       });
@@ -105,6 +106,27 @@ describe('provider CLI consensus config commands', () => {
           },
         },
       });
+
+      await expect(
+        runCli(context, [
+          'config',
+          'get',
+          '--json',
+          '--scope',
+          'effective',
+          '--workflow',
+          'review',
+        ]),
+      ).resolves.toMatchObject({
+        code: 0,
+        json: {
+          ok: true,
+          scope: 'effective',
+          source: 'user',
+          workflow: 'review',
+          agents: [{ provider: 'codex', model: 'review-model' }],
+        },
+      });
     });
   });
 
@@ -162,6 +184,7 @@ describe('provider CLI consensus config commands', () => {
           schema_version: 'v1',
           defaults: {
             peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            reviewers: [{ provider: 'codex' }],
           },
         },
       });
@@ -196,6 +219,7 @@ describe('provider CLI consensus config commands', () => {
           source: 'project',
           field_sources: {
             peers: 'user',
+            reviewers: 'user',
             panelists: 'project',
             'panel-size': 'project',
           },
@@ -215,8 +239,15 @@ describe('provider CLI consensus config commands', () => {
           ok: true,
           scopes: ['user', 'project', 'effective'],
           writable_scopes: ['user', 'project'],
-          keys: ['peers', 'panelists', 'panel-size', 'roles', 'all'],
-          workflows: ['convergence', 'panel'],
+          keys: [
+            'peers',
+            'panelists',
+            'panel-size',
+            'reviewers',
+            'roles',
+            'all',
+          ],
+          workflows: ['convergence', 'panel', 'review'],
         },
       });
 
@@ -266,6 +297,8 @@ describe('provider CLI consensus config commands', () => {
           'claude,codex,cursor',
           '--panel-size',
           '3',
+          '--reviewers',
+          'claude:opus:high,codex',
         ]),
       ).resolves.toMatchObject({
         code: 0,
@@ -280,6 +313,10 @@ describe('provider CLI consensus config commands', () => {
                 { provider: 'cursor' },
               ],
               panel_size: 3,
+              reviewers: [
+                { provider: 'claude', model: 'opus', effort: 'high' },
+                { provider: 'codex' },
+              ],
             },
           },
         },
@@ -312,6 +349,10 @@ describe('provider CLI consensus config commands', () => {
             { provider: 'cursor' },
           ],
           panel_size: 3,
+          reviewers: [
+            { provider: 'claude', model: 'opus', effort: 'high' },
+            { provider: 'codex' },
+          ],
         },
       });
     });
@@ -407,7 +448,36 @@ describe('provider CLI consensus config commands', () => {
         'claude,codex,cursor',
         '--panel-size',
         '3',
+        '--reviewers',
+        'claude,codex',
       ]);
+
+      await expect(
+        runCli(context, [
+          'config',
+          'clear',
+          '--json',
+          '--scope',
+          'project',
+          '--key',
+          'reviewers',
+        ]),
+      ).resolves.toMatchObject({
+        code: 0,
+        json: {
+          key: 'reviewers',
+          config: {
+            defaults: {
+              panelists: [
+                { provider: 'claude' },
+                { provider: 'codex' },
+                { provider: 'cursor' },
+              ],
+              panel_size: 3,
+            },
+          },
+        },
+      });
 
       await expect(
         runCli(context, [

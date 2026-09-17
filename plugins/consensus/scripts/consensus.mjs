@@ -21,9 +21,21 @@ import {
   writeFile
 } from "node:fs/promises";
 import path from "node:path";
+
+// src/plugins/consensus/provider-cli/types.ts
+var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+
+// src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
 var CONFIG_KEYS = /* @__PURE__ */ new Set(["schema_version", "defaults"]);
-var DEFAULTS_KEYS = /* @__PURE__ */ new Set(["peers", "panelists", "panel_size", "roles"]);
+var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
+  "peers",
+  "panelists",
+  "panel_size",
+  "reviewers",
+  "roles"
+]);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -60,6 +72,13 @@ function parseConsensusDefaults(value) {
   }
   if (value.panel_size !== void 0) {
     defaults.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.reviewers !== void 0) {
+    defaults.reviewers = parseAgentList(value.reviewers, {
+      label: "Consensus config reviewers",
+      minLength: 1,
+      knownProvidersOnly: true
+    });
   }
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
@@ -107,6 +126,8 @@ async function clearConsensusConfig(input) {
     delete defaults.panelists;
   } else if (key === "panel-size") {
     delete defaults.panel_size;
+  } else if (key === "reviewers") {
+    delete defaults.reviewers;
   } else if (key === "roles") {
     delete defaults.roles;
   } else {
@@ -150,7 +171,25 @@ async function resolveConsensusComposition(input) {
   if (input.workflow === "convergence") {
     return resolveConvergenceComposition(input, candidates);
   }
+  if (input.workflow === "review") {
+    return resolveReviewComposition(input, candidates);
+  }
   return resolvePanelComposition(input, candidates);
+}
+function resolveReviewComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.reviewers !== void 0
+  );
+  const reviewers = candidate?.config.defaults?.reviewers ?? [
+    { provider: "claude" },
+    { provider: "codex" }
+  ];
+  return {
+    source: candidate?.source ?? "built-in",
+    workflow: "review",
+    agents: reviewers,
+    warnings: inventoryWarnings(reviewers, input.inventory)
+  };
 }
 async function loadCandidates(input) {
   const candidates = [];
@@ -304,6 +343,15 @@ function parseAgentList(value, options) {
   const agents = value.map(
     (item, index) => parseAgentRef(item, `${options.label}[${index}]`)
   );
+  if (options.knownProvidersOnly) {
+    for (const agent of agents) {
+      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+        throw new Error(
+          `${options.label} contains unsupported provider: ${agent.provider}`
+        );
+      }
+    }
+  }
   assertUniqueProviders(agents, options.label);
   return agents;
 }
@@ -384,7 +432,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
@@ -1284,9 +1332,6 @@ function detectedHostRuntimes(env) {
   return detected;
 }
 
-// src/plugins/consensus/provider-cli/types.ts
-var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
-
 // src/plugins/consensus/provider-cli/args.ts
 var ConsensusCliUsageError = class extends Error {
   code = "CONSENSUS_CLI_USAGE";
@@ -1436,6 +1481,7 @@ function parseConfigSetCommand(tokens) {
       "--peers",
       "--panelists",
       "--panel-size",
+      "--reviewers",
       "--from-file"
     ]),
     valueFlags: /* @__PURE__ */ new Set([
@@ -1444,6 +1490,7 @@ function parseConfigSetCommand(tokens) {
       "--peers",
       "--panelists",
       "--panel-size",
+      "--reviewers",
       "--from-file"
     ])
   });
@@ -1460,6 +1507,11 @@ function parseConfigSetCommand(tokens) {
     command,
     "panelists",
     singleValue(parsed.flags, "--panelists")
+  );
+  assignIfDefined(
+    command,
+    "reviewers",
+    singleValue(parsed.flags, "--reviewers")
   );
   assignIfDefined(
     command,
@@ -1504,13 +1556,15 @@ function parseConfigWriteScope(value) {
   throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
 }
 function parseConfigKey(value) {
-  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "roles" || value === "all") {
+  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "reviewers" || value === "roles" || value === "all") {
     return value;
   }
   throw new ConsensusCliUsageError(`Invalid config key: ${value}`);
 }
 function parseConfigWorkflow(value) {
-  if (value === "convergence" || value === "panel") return value;
+  if (value === "convergence" || value === "panel" || value === "review") {
+    return value;
+  }
   throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
 }
 function parsePreflightCommand(tokens) {
@@ -2992,11 +3046,11 @@ function helpText() {
   return `Usage: consensus <command> --json
 
 Commands:
-  config get --json [--scope user|project|effective] [--workflow convergence|panel] [--cwd <path>]
+  config get --json [--scope user|project|effective] [--workflow convergence|panel|review] [--cwd <path>]
   config list --json [--cwd <path>]
-  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>] [--reviewers <a,b>]
       [--panel-size <n>] [--from-file <path>] [--cwd <path>]
-  config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|reviewers|roles|all] [--cwd <path>]
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
@@ -3206,8 +3260,8 @@ function runConfigList() {
     ok: true,
     scopes: ["user", "project", "effective"],
     writable_scopes: ["user", "project"],
-    keys: ["peers", "panelists", "panel-size", "roles", "all"],
-    workflows: ["convergence", "panel"]
+    keys: ["peers", "panelists", "panel-size", "reviewers", "roles", "all"],
+    workflows: ["convergence", "panel", "review"]
   };
 }
 async function runConfigGet(command, io, options) {
@@ -3261,7 +3315,7 @@ async function runConfigSet(command, io) {
   const patch = parseConfigSetPatch(command);
   if (!command.fromFile && !configDefaultsHasValues(patch)) {
     throw new ConsensusCliUsageError(
-      "config set requires --peers, --panelists, --panel-size, or --from-file"
+      "config set requires --peers, --panelists, --panel-size, --reviewers, or --from-file"
     );
   }
   const base = command.fromFile ? await readConfigFromFile(command.fromFile, io) : await readConsensusConfig({
@@ -3316,6 +3370,7 @@ function effectiveFieldSources(user, project) {
     ["peers", "peers"],
     ["panelists", "panelists"],
     ["panel-size", "panel_size"],
+    ["reviewers", "reviewers"],
     ["roles", "roles"]
   ];
   for (const [key, field] of fields) {
@@ -3340,6 +3395,7 @@ function mergeConfigFields(target, source) {
   if (source.peers !== void 0) target.peers = source.peers;
   if (source.panelists !== void 0) target.panelists = source.panelists;
   if (source.panel_size !== void 0) target.panel_size = source.panel_size;
+  if (source.reviewers !== void 0) target.reviewers = source.reviewers;
   if (source.roles !== void 0) target.roles = source.roles;
 }
 function configHasDefaults(config) {
@@ -3376,6 +3432,9 @@ function parseConfigSetPatch(command) {
   if (command.panelSize !== void 0) {
     patch.panel_size = command.panelSize;
   }
+  if (command.reviewers !== void 0) {
+    patch.reviewers = parseAgentSpecList(command.reviewers);
+  }
   return patch;
 }
 function configWithDefaultsPatch(base, patch) {
@@ -3390,7 +3449,7 @@ function configWithDefaultsPatch(base, patch) {
   return config;
 }
 function configDefaultsHasValues(defaults) {
-  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.roles !== void 0);
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0);
 }
 function parseAgentSpecList(value) {
   return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);

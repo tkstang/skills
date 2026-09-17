@@ -29,6 +29,10 @@ describe('consensus config schema and resolver', () => {
             { provider: 'cursor' },
           ],
           panel_size: 2,
+          reviewers: [
+            { provider: 'claude', model: 'opus', effort: 'high' },
+            { provider: 'codex' },
+          ],
           roles: {
             advisor: { provider: 'cursor' },
           },
@@ -47,6 +51,10 @@ describe('consensus config schema and resolver', () => {
           { provider: 'cursor' },
         ],
         panel_size: 2,
+        reviewers: [
+          { provider: 'claude', model: 'opus', effort: 'high' },
+          { provider: 'codex' },
+        ],
         roles: {
           advisor: { provider: 'cursor' },
         },
@@ -79,11 +87,74 @@ describe('consensus config schema and resolver', () => {
     ).toThrow('Consensus config panel_size must be an integer greater than 1');
     expect(() =>
       parseConsensusDefaultsConfig({
+        schema_version: 'v1',
+        defaults: { reviewers: [] },
+      }),
+    ).toThrow('Consensus config reviewers must contain at least 1 agents');
+    expect(() =>
+      parseConsensusDefaultsConfig({
+        schema_version: 'v1',
+        defaults: { reviewers: [{ provider: 'gemini' }] },
+      }),
+    ).toThrow(
+      'Consensus config reviewers contains unsupported provider: gemini',
+    );
+    expect(() =>
+      parseConsensusDefaultsConfig({
         defaults: {
           peers: [{ provider: 'claude' }, { provider: 'codex' }],
         },
       }),
     ).toThrow('Consensus config schema_version must be "v1"');
+  });
+
+  it('resolves review preferences with whole-list invocation, project, user, and built-in precedence', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await expect(
+        resolveConsensusComposition({ workflow: 'review', cwd, env }),
+      ).resolves.toMatchObject({
+        source: 'built-in',
+        agents: [{ provider: 'claude' }, { provider: 'codex' }],
+      });
+      await writeConsensusConfig({
+        scope: 'user',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: { reviewers: [{ provider: 'codex', model: 'user' }] },
+        },
+      });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: { reviewers: [{ provider: 'claude', model: 'project' }] },
+        },
+      });
+
+      await expect(
+        resolveConsensusComposition({ workflow: 'review', cwd, env }),
+      ).resolves.toMatchObject({
+        source: 'project',
+        agents: [{ provider: 'claude', model: 'project' }],
+      });
+      await expect(
+        resolveConsensusComposition({
+          workflow: 'review',
+          cwd,
+          env,
+          invocation: {
+            reviewers: [{ provider: 'codex', effort: 'xhigh' }],
+          },
+        }),
+      ).resolves.toMatchObject({
+        source: 'invocation',
+        agents: [{ provider: 'codex', effort: 'xhigh' }],
+      });
+    });
   });
 
   it('resolves built-in, user, and project config in precedence order', async () => {

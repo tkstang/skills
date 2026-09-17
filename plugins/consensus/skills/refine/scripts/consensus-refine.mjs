@@ -18,9 +18,20 @@ import {
   writeFile
 } from "node:fs/promises";
 import path from "node:path";
+
+// src/plugins/consensus/provider-cli/types.ts
+var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+
+// src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
 var CONFIG_KEYS = /* @__PURE__ */ new Set(["schema_version", "defaults"]);
-var DEFAULTS_KEYS = /* @__PURE__ */ new Set(["peers", "panelists", "panel_size", "roles"]);
+var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
+  "peers",
+  "panelists",
+  "panel_size",
+  "reviewers",
+  "roles"
+]);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -57,6 +68,13 @@ function parseConsensusDefaults(value) {
   }
   if (value.panel_size !== void 0) {
     defaults.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.reviewers !== void 0) {
+    defaults.reviewers = parseAgentList(value.reviewers, {
+      label: "Consensus config reviewers",
+      minLength: 1,
+      knownProvidersOnly: true
+    });
   }
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
@@ -117,7 +135,25 @@ async function resolveConsensusComposition(input) {
   if (input.workflow === "convergence") {
     return resolveConvergenceComposition(input, candidates);
   }
+  if (input.workflow === "review") {
+    return resolveReviewComposition(input, candidates);
+  }
   return resolvePanelComposition(input, candidates);
+}
+function resolveReviewComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.reviewers !== void 0
+  );
+  const reviewers = candidate?.config.defaults?.reviewers ?? [
+    { provider: "claude" },
+    { provider: "codex" }
+  ];
+  return {
+    source: candidate?.source ?? "built-in",
+    workflow: "review",
+    agents: reviewers,
+    warnings: inventoryWarnings(reviewers, input.inventory)
+  };
 }
 async function loadCandidates(input) {
   const candidates = [];
@@ -271,6 +307,15 @@ function parseAgentList(value, options) {
   const agents = value.map(
     (item, index) => parseAgentRef(item, `${options.label}[${index}]`)
   );
+  if (options.knownProvidersOnly) {
+    for (const agent of agents) {
+      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+        throw new Error(
+          `${options.label} contains unsupported provider: ${agent.provider}`
+        );
+      }
+    }
+  }
   assertUniqueProviders(agents, options.label);
   return agents;
 }
@@ -351,7 +396,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
