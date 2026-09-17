@@ -84,6 +84,10 @@ Final lifecycle review returned CHANGES_REQUESTED at b5fe65d8 with critical:0, i
 
 Final lifecycle review PASSED round 3 at c60f3fe3 with critical:0, important:0, medium:0, minor:0 after two bounded fix iterations; artifacts and exact provenance preserved. consensus-review-final-review-passed-20260917T0608Z
 
+### 2026-09-17 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1,medium:1,minor:2 exit=1 status=blocked artifact=.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md run=87133850-151e-4827-9d7b-7cfd854c5724
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
