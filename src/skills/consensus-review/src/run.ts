@@ -1,4 +1,5 @@
-import { lstat, open, realpath, stat, unlink } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { link, lstat, open, realpath, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 import { providerRegistry } from '../../../plugins/consensus/provider-cli/adapters.js';
@@ -30,6 +31,17 @@ import {
 } from '../../../plugins/consensus/shared/cli-helpers-core.js';
 import { captureScopeState, compareScopeState } from './scope.js';
 import type { CapturedReviewScope, ScopeStateSnapshot } from './scope.js';
+import { captureReviewScope, createReviewRunState } from './scope.js';
+import type {
+  ReviewScopeRequest,
+  ReviewRunState,
+  ScopeComparison,
+} from './scope.js';
+import { buildReviewPrompt, resolveReviewer } from './selection.js';
+import type {
+  ResolvedReviewer,
+  ReviewSelectionDependencies,
+} from './selection.js';
 
 export interface ReviewFoundationResult {
   ok: false;
@@ -80,7 +92,7 @@ export type ReviewRunResult =
       ok: true;
       status: 'completed';
       invocation_count: number;
-      envelope: ConsensusCliRunEnvelope;
+      envelope: Extract<ConsensusCliRunEnvelope, { ok: true }>;
     }
   | {
       ok: false;
@@ -225,6 +237,908 @@ export async function runReview(
     invocation_count: envelope.attempts.cli_attempts,
     envelope,
   };
+}
+
+export interface ReviewLocation {
+  path: string;
+  start_line: number;
+  end_line: number;
+  source_version: string;
+}
+
+export interface ReviewFinding {
+  severity: 'critical' | 'important' | 'medium' | 'minor';
+  title: string;
+  location?: ReviewLocation;
+  anchor?: string;
+  claim: string;
+  evidence: string;
+  suggestion: string;
+  confidence: number;
+}
+
+export interface ReviewReply {
+  schema_version: 'v1';
+  scope_token: string;
+  verdict: 'pass' | 'changes_requested' | 'inconclusive';
+  summary: string;
+  findings: ReviewFinding[];
+  questions: string[];
+  limitations: string[];
+  coverage: string[];
+  inspected_context: Array<{ subject: string; source_version: string }>;
+  checks: Array<{
+    name: string;
+    status: 'passed' | 'failed' | 'not_run';
+    detail?: string;
+  }>;
+  reviewer_identity: {
+    provider: string;
+    model?: string;
+    effort?: string;
+  };
+}
+
+export interface ExecuteReviewInput {
+  cwd: string;
+  scope: ReviewScopeRequest;
+  host: KnownHostRuntime;
+  request: string;
+  hostSummary: string;
+  schemaPath: string;
+  reviewer?: string;
+  model?: string;
+  effort?: string;
+  allowSameProvider?: boolean;
+  runId?: string;
+}
+
+export interface ExecuteReviewDependencies {
+  env?: NodeJS.ProcessEnv;
+  selection?: ReviewSelectionDependencies;
+  transport?: typeof runReview;
+  transportDependencies?: ReviewRunDependencies;
+  captureScope?: typeof captureReviewScope;
+  scanScopeState?: typeof captureScopeState;
+  createRunState?: typeof createReviewRunState;
+  persist?: typeof persistPrivateJson;
+}
+
+export type ExecuteReviewResult =
+  | {
+      ok: true;
+      status: 'empty_scope';
+      invocation_count: 0;
+      scope: CapturedReviewScope;
+    }
+  | {
+      ok: true;
+      status: 'completed';
+      invocation_count: 1;
+      artifactPath: string;
+      runState: ReviewRunState;
+      aggregate: ReviewAggregate;
+    }
+  | {
+      ok: false;
+      status:
+        | 'predispatch_failed'
+        | 'incomplete'
+        | 'defective'
+        | 'output_failed';
+      invocation_count: number;
+      reason: string;
+      message: string;
+      diagnosticPath?: string;
+      runState?: ReviewRunState;
+      drift?: ScopeComparison;
+    };
+
+export interface ReviewAggregate {
+  schema_version: 'v1';
+  run_id: string;
+  status: 'complete';
+  worktree_root: string;
+  request: string;
+  request_sha256: string;
+  scope: CapturedReviewScope;
+  reviewer: {
+    selected: ResolvedReviewer['reviewer'];
+    source: ResolvedReviewer['source'];
+    skipped: ResolvedReviewer['skipped'];
+    observed: {
+      provider: string;
+      model: string | null;
+      effort: string | null;
+    };
+    claimed: ReviewReply['reviewer_identity'];
+  };
+  authored_by: Array<{
+    identity: 'unknown';
+    evidence_source: 'unknown';
+    evidence_reference: string;
+    scope_coverage: 'unknown';
+  }>;
+  diversity: {
+    classification: 'unknown';
+    evidence: string;
+  };
+  invocation_count: 1;
+  policy: {
+    max_depth: 1;
+    max_attempts: 1;
+    read_only: true;
+    repair: false;
+    fallback_after_dispatch: false;
+  };
+  drift: ScopeComparison;
+  validation: { ok: true };
+  reply: ReviewReply;
+  paths: {
+    run_directory: string;
+    request: string;
+    evidence: string;
+    result: string;
+  };
+}
+
+export async function executeBoundedReview(
+  input: ExecuteReviewInput,
+  dependencies: ExecuteReviewDependencies = {},
+): Promise<ExecuteReviewResult> {
+  const env = dependencies.env ?? process.env;
+  let scope: CapturedReviewScope;
+  try {
+    scope = await (dependencies.captureScope ?? captureReviewScope)({
+      cwd: input.cwd,
+      request: input.scope,
+    });
+  } catch (error) {
+    return executeFailure(
+      'predispatch_failed',
+      0,
+      'scope_capture_failed',
+      fsMessage(error),
+    );
+  }
+  if (
+    scope.selectedPaths.length === 0 &&
+    scope.externalDocuments.length === 0
+  ) {
+    return { ok: true, status: 'empty_scope', invocation_count: 0, scope };
+  }
+
+  let runState: ReviewRunState;
+  try {
+    runState = await (dependencies.createRunState ?? createReviewRunState)({
+      cwd: scope.canonicalWorktree,
+      env,
+      ...(input.runId ? { runId: input.runId } : {}),
+    });
+  } catch (error) {
+    return executeFailure(
+      'predispatch_failed',
+      0,
+      'state_creation_failed',
+      fsMessage(error),
+    );
+  }
+
+  const requestPath = path.join(runState.runDirectory, 'request.txt');
+  const evidencePath = path.join(runState.runDirectory, 'evidence.json');
+  const resultPath = path.join(runState.runDirectory, 'result.json');
+  const diagnosticPath = path.join(runState.runDirectory, 'diagnostic.json');
+  const persist = dependencies.persist ?? persistPrivateJson;
+  try {
+    await persist(requestPath, input.request);
+    await persist(evidencePath, scope);
+  } catch (error) {
+    return executeFailure(
+      'output_failed',
+      0,
+      'capture_persistence_failed',
+      fsMessage(error),
+      { runState },
+    );
+  }
+
+  const scanScope = dependencies.scanScopeState ?? captureScopeState;
+  let before: ScopeStateSnapshot;
+  try {
+    before = await scanScope(scope);
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: 'predispatch_failed',
+      invocationCount: 0,
+      reason: 'before_scan_failed',
+      message: fsMessage(error),
+      runState,
+      diagnosticPath,
+      persist,
+    });
+  }
+
+  let selected: ResolvedReviewer;
+  try {
+    selected = await resolveReviewer(
+      {
+        cwd: scope.canonicalWorktree,
+        host: input.host,
+        env,
+        ...(input.reviewer ? { reviewer: input.reviewer } : {}),
+        ...(input.model ? { model: input.model } : {}),
+        ...(input.effort ? { effort: input.effort } : {}),
+        ...(input.allowSameProvider
+          ? { allowSameProvider: input.allowSameProvider }
+          : {}),
+      },
+      dependencies.selection,
+    );
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: 'predispatch_failed',
+      invocationCount: 0,
+      reason: 'reviewer_selection_failed',
+      message: fsMessage(error),
+      runState,
+      diagnosticPath,
+      persist,
+    });
+  }
+
+  let prompt: string;
+  try {
+    prompt = buildReviewPrompt({
+      request: input.request,
+      hostSummary: input.hostSummary,
+      scope,
+      evidencePath,
+      requestPath,
+    });
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: 'predispatch_failed',
+      invocationCount: 0,
+      reason: 'prompt_build_failed',
+      message: fsMessage(error),
+      runState,
+      diagnosticPath,
+      persist,
+    });
+  }
+
+  const transport = dependencies.transport ?? runReview;
+  const transportResult = await transport(
+    {
+      provider: selected.reviewer.provider as 'claude' | 'codex',
+      prompt,
+      schemaPath: input.schemaPath,
+      cwd: scope.canonicalWorktree,
+      host: input.host,
+      allowSameProvider: selected.allowSameProvider,
+      ...(selected.reviewer.model ? { model: selected.reviewer.model } : {}),
+      ...(selected.reviewer.effort ? { effort: selected.reviewer.effort } : {}),
+      ...(selected.reviewer.provider === 'codex'
+        ? {
+            codexCapturePath: path.join(
+              runState.runDirectory,
+              'last-message.json',
+            ),
+          }
+        : {}),
+      scopeGuard: { scope, before },
+    },
+    {
+      ...dependencies.transportDependencies,
+      env,
+      scanScopeState: scanScope,
+      preflight: async () => selected.readiness,
+    },
+  );
+
+  let drift: ScopeComparison;
+  try {
+    drift = compareScopeState(before, await scanScope(scope));
+  } catch (error) {
+    drift = compareScopeState(before, toError(error));
+  }
+
+  if (!transportResult.ok) {
+    const reason =
+      transportResult.status === 'foundation_only'
+        ? 'foundation_only'
+        : transportResult.reason;
+    const message =
+      transportResult.status === 'foundation_only'
+        ? 'Review transport was not configured.'
+        : transportResult.message;
+    return await persistDiagnosticFailure({
+      status:
+        transportResult.status === 'preflight_failed'
+          ? 'predispatch_failed'
+          : 'incomplete',
+      invocationCount: transportResult.invocation_count,
+      reason,
+      message,
+      runState,
+      diagnosticPath,
+      drift,
+      persist,
+    });
+  }
+  if (transportResult.invocation_count !== 1) {
+    return await persistDiagnosticFailure({
+      status: 'defective',
+      invocationCount: transportResult.invocation_count,
+      reason: 'invocation_count_invalid',
+      message:
+        'A completed review must contain exactly one provider invocation.',
+      runState,
+      diagnosticPath,
+      drift,
+      persist,
+    });
+  }
+  if (!drift.checked || !drift.stable) {
+    return await persistDiagnosticFailure({
+      status: 'defective',
+      invocationCount: 1,
+      reason: drift.checked ? 'scope_drift' : 'scope_comparison_failed',
+      message: drift.differences.join('; '),
+      runState,
+      diagnosticPath,
+      drift,
+      persist,
+    });
+  }
+
+  const validation = validateReviewReply(transportResult.envelope.json, scope);
+  if (!validation.ok) {
+    return await persistDiagnosticFailure({
+      status: 'defective',
+      invocationCount: 1,
+      reason: 'invalid_review_reply',
+      message: validation.errors.join('; '),
+      runState,
+      diagnosticPath,
+      drift,
+      persist,
+    });
+  }
+
+  const aggregate: ReviewAggregate = {
+    schema_version: 'v1',
+    run_id: runState.runId,
+    status: 'complete',
+    worktree_root: scope.canonicalWorktree,
+    request: input.request,
+    request_sha256: sha256(input.request),
+    scope,
+    reviewer: {
+      selected: selected.reviewer,
+      source: selected.source,
+      skipped: selected.skipped,
+      observed: {
+        provider: String(transportResult.envelope.provider),
+        model: selected.reviewer.model ?? null,
+        effort: selected.reviewer.effort ?? null,
+      },
+      claimed: validation.value.reviewer_identity,
+    },
+    authored_by: [
+      {
+        identity: 'unknown',
+        evidence_source: 'unknown',
+        evidence_reference: 'No host-supplied author evidence was available.',
+        scope_coverage: 'unknown',
+      },
+    ],
+    diversity: {
+      classification: 'unknown',
+      evidence:
+        'Provider selection alone does not establish a different model family.',
+    },
+    invocation_count: 1,
+    policy: {
+      max_depth: 1,
+      max_attempts: 1,
+      read_only: true,
+      repair: false,
+      fallback_after_dispatch: false,
+    },
+    drift,
+    validation: { ok: true },
+    reply: validation.value,
+    paths: {
+      run_directory: runState.runDirectory,
+      request: requestPath,
+      evidence: evidencePath,
+      result: resultPath,
+    },
+  };
+  try {
+    await persist(resultPath, aggregate);
+  } catch (error) {
+    return executeFailure(
+      'output_failed',
+      1,
+      'result_persistence_failed',
+      fsMessage(error),
+      { runState, drift },
+    );
+  }
+  return {
+    ok: true,
+    status: 'completed',
+    invocation_count: 1,
+    artifactPath: resultPath,
+    runState,
+    aggregate,
+  };
+}
+
+export function validateReviewReply(
+  value: unknown,
+  scope: CapturedReviewScope,
+): { ok: true; value: ReviewReply } | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  if (!isRecord(value)) {
+    return { ok: false, errors: ['reply must be an object'] };
+  }
+  assertKeys(
+    value,
+    [
+      'schema_version',
+      'scope_token',
+      'verdict',
+      'summary',
+      'findings',
+      'questions',
+      'limitations',
+      'coverage',
+      'inspected_context',
+      'checks',
+      'reviewer_identity',
+    ],
+    'reply',
+    errors,
+  );
+  requireEqual(value.schema_version, 'v1', 'reply.schema_version', errors);
+  requireEqual(value.scope_token, scope.token, 'reply.scope_token', errors);
+  requireEnum(
+    value.verdict,
+    ['pass', 'changes_requested', 'inconclusive'],
+    'reply.verdict',
+    errors,
+  );
+  requireString(value.summary, 'reply.summary', 1, 8192, errors);
+  const findings = validateFindings(value.findings, scope, errors);
+  validateStringArray(value.questions, 'reply.questions', 50, 4096, errors);
+  validateStringArray(value.limitations, 'reply.limitations', 50, 4096, errors);
+  validateStringArray(value.coverage, 'reply.coverage', 200, 4096, errors);
+  validateInspectedContext(value.inspected_context, errors);
+  validateChecks(value.checks, errors);
+  validateReviewerIdentity(value.reviewer_identity, errors);
+
+  const blockingFindings = findings.filter(
+    (finding) =>
+      finding.severity === 'critical' || finding.severity === 'important',
+  );
+  const failedChecks = Array.isArray(value.checks)
+    ? value.checks.some((check) => isRecord(check) && check.status === 'failed')
+    : false;
+  if (
+    value.verdict === 'pass' &&
+    (blockingFindings.length > 0 || failedChecks)
+  ) {
+    errors.push(
+      'reply.verdict pass forbids critical/important findings and failed checks',
+    );
+  }
+  if (value.verdict === 'changes_requested' && blockingFindings.length === 0) {
+    errors.push(
+      'reply.verdict changes_requested requires a critical or important finding',
+    );
+  }
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value: value as unknown as ReviewReply };
+}
+
+async function persistDiagnosticFailure(input: {
+  status: 'predispatch_failed' | 'incomplete' | 'defective';
+  invocationCount: number;
+  reason: string;
+  message: string;
+  runState: ReviewRunState;
+  diagnosticPath: string;
+  persist: typeof persistPrivateJson;
+  drift?: ScopeComparison;
+}): Promise<ExecuteReviewResult> {
+  const diagnostic = {
+    schema_version: 'v1',
+    status: input.status,
+    invocation_count: input.invocationCount,
+    reason: input.reason,
+    message: input.message,
+    ...(input.drift ? { drift: input.drift } : {}),
+  };
+  try {
+    await input.persist(input.diagnosticPath, diagnostic);
+  } catch (error) {
+    return executeFailure(
+      'output_failed',
+      input.invocationCount,
+      'diagnostic_persistence_failed',
+      fsMessage(error),
+      { runState: input.runState, drift: input.drift },
+    );
+  }
+  return executeFailure(
+    input.status,
+    input.invocationCount,
+    input.reason,
+    input.message,
+    {
+      runState: input.runState,
+      diagnosticPath: input.diagnosticPath,
+      drift: input.drift,
+    },
+  );
+}
+
+function executeFailure(
+  status: Extract<ExecuteReviewResult, { ok: false }>['status'],
+  invocationCount: number,
+  reason: string,
+  message: string,
+  details: {
+    diagnosticPath?: string;
+    runState?: ReviewRunState;
+    drift?: ScopeComparison;
+  } = {},
+): ExecuteReviewResult {
+  return {
+    ok: false,
+    status,
+    invocation_count: invocationCount,
+    reason,
+    message,
+    ...details,
+  };
+}
+
+async function persistPrivateJson(
+  targetPath: string,
+  value: unknown,
+): Promise<void> {
+  const contents =
+    typeof value === 'string' ? value : `${JSON.stringify(value, null, 2)}\n`;
+  const temporary = path.join(
+    path.dirname(targetPath),
+    `.${path.basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`,
+  );
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(contents, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await link(temporary, targetPath);
+    await unlink(temporary);
+  } catch (error) {
+    await handle?.close().catch(() => undefined);
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+}
+
+function validateFindings(
+  value: unknown,
+  scope: CapturedReviewScope,
+  errors: string[],
+): ReviewFinding[] {
+  if (!Array.isArray(value)) {
+    errors.push('reply.findings must be an array');
+    return [];
+  }
+  if (value.length > 100) errors.push('reply.findings exceeds 100 items');
+  const findings: ReviewFinding[] = [];
+  value.slice(0, 100).forEach((candidate, index) => {
+    const label = `reply.findings[${index}]`;
+    if (!isRecord(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(
+      candidate,
+      [
+        'severity',
+        'title',
+        'location',
+        'anchor',
+        'claim',
+        'evidence',
+        'suggestion',
+        'confidence',
+      ],
+      label,
+      errors,
+    );
+    requireEnum(
+      candidate.severity,
+      ['critical', 'important', 'medium', 'minor'],
+      `${label}.severity`,
+      errors,
+    );
+    requireString(candidate.title, `${label}.title`, 1, 512, errors);
+    requireString(candidate.claim, `${label}.claim`, 1, 8192, errors);
+    requireString(candidate.evidence, `${label}.evidence`, 1, 8192, errors);
+    requireString(candidate.suggestion, `${label}.suggestion`, 1, 8192, errors);
+    if (
+      typeof candidate.confidence !== 'number' ||
+      !Number.isFinite(candidate.confidence) ||
+      candidate.confidence < 0 ||
+      candidate.confidence > 1
+    ) {
+      errors.push(`${label}.confidence must be finite and between 0 and 1`);
+    }
+    const hasLocation = candidate.location !== undefined;
+    const hasAnchor = candidate.anchor !== undefined;
+    if (hasLocation === hasAnchor) {
+      errors.push(`${label} must contain exactly one of location or anchor`);
+    }
+    if (hasLocation) validateLocation(candidate.location, scope, label, errors);
+    if (hasAnchor) {
+      requireString(candidate.anchor, `${label}.anchor`, 1, 1024, errors);
+      if (scope.externalDocuments.length === 0) {
+        errors.push(`${label}.anchor requires an external document scope`);
+      }
+    }
+    findings.push(candidate as unknown as ReviewFinding);
+  });
+  return findings;
+}
+
+function validateLocation(
+  value: unknown,
+  scope: CapturedReviewScope,
+  findingLabel: string,
+  errors: string[],
+): void {
+  const label = `${findingLabel}.location`;
+  if (!isRecord(value)) {
+    errors.push(`${label} must be an object`);
+    return;
+  }
+  assertKeys(
+    value,
+    ['path', 'start_line', 'end_line', 'source_version'],
+    label,
+    errors,
+  );
+  requireString(value.path, `${label}.path`, 1, 4096, errors);
+  requireString(
+    value.source_version,
+    `${label}.source_version`,
+    1,
+    256,
+    errors,
+  );
+  if (
+    typeof value.path !== 'string' ||
+    path.isAbsolute(value.path) ||
+    value.path.split('/').includes('..') ||
+    !scope.selectedPaths.includes(value.path)
+  ) {
+    errors.push(`${label}.path must be a complete selected repository path`);
+  }
+  if (!isPositiveInteger(value.start_line)) {
+    errors.push(`${label}.start_line must be a positive integer`);
+  }
+  if (!isPositiveInteger(value.end_line)) {
+    errors.push(`${label}.end_line must be a positive integer`);
+  }
+  if (
+    isPositiveInteger(value.start_line) &&
+    isPositiveInteger(value.end_line) &&
+    value.end_line < value.start_line
+  ) {
+    errors.push(
+      `${label}.end_line must be greater than or equal to start_line`,
+    );
+  }
+  const version = scope.versions.find(
+    (entry) =>
+      entry.path === value.path && entry.sha256 === value.source_version,
+  );
+  if (!version || version.kind !== 'file' || version.text === null) {
+    errors.push(`${label}.source_version must identify captured bytes`);
+    return;
+  }
+  const lineCount =
+    version.text.length === 0 ? 1 : version.text.split('\n').length;
+  if (isPositiveInteger(value.end_line) && value.end_line > lineCount) {
+    errors.push(`${label}.end_line exceeds captured source lines`);
+  }
+}
+
+function validateInspectedContext(value: unknown, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    errors.push('reply.inspected_context must be an array');
+    return;
+  }
+  if (value.length > 200) {
+    errors.push('reply.inspected_context exceeds 200 items');
+  }
+  value.slice(0, 200).forEach((candidate, index) => {
+    const label = `reply.inspected_context[${index}]`;
+    if (!isRecord(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(candidate, ['subject', 'source_version'], label, errors);
+    requireString(candidate.subject, `${label}.subject`, 1, 4096, errors);
+    requireString(
+      candidate.source_version,
+      `${label}.source_version`,
+      1,
+      256,
+      errors,
+    );
+  });
+}
+
+function validateChecks(value: unknown, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    errors.push('reply.checks must be an array');
+    return;
+  }
+  if (value.length > 100) errors.push('reply.checks exceeds 100 items');
+  value.slice(0, 100).forEach((candidate, index) => {
+    const label = `reply.checks[${index}]`;
+    if (!isRecord(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(candidate, ['name', 'status', 'detail'], label, errors);
+    requireString(candidate.name, `${label}.name`, 1, 512, errors);
+    requireEnum(
+      candidate.status,
+      ['passed', 'failed', 'not_run'],
+      `${label}.status`,
+      errors,
+    );
+    if (candidate.detail !== undefined) {
+      requireString(candidate.detail, `${label}.detail`, 0, 4096, errors);
+    }
+  });
+}
+
+function validateReviewerIdentity(value: unknown, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push('reply.reviewer_identity must be an object');
+    return;
+  }
+  assertKeys(
+    value,
+    ['provider', 'model', 'effort'],
+    'reply.reviewer_identity',
+    errors,
+  );
+  requireString(
+    value.provider,
+    'reply.reviewer_identity.provider',
+    1,
+    128,
+    errors,
+  );
+  if (value.model !== undefined) {
+    requireString(value.model, 'reply.reviewer_identity.model', 1, 256, errors);
+  }
+  if (value.effort !== undefined) {
+    requireString(
+      value.effort,
+      'reply.reviewer_identity.effort',
+      1,
+      128,
+      errors,
+    );
+  }
+}
+
+function validateStringArray(
+  value: unknown,
+  label: string,
+  maxItems: number,
+  maxLength: number,
+  errors: string[],
+): void {
+  if (!Array.isArray(value)) {
+    errors.push(`${label} must be an array`);
+    return;
+  }
+  if (value.length > maxItems)
+    errors.push(`${label} exceeds ${maxItems} items`);
+  value
+    .slice(0, maxItems)
+    .forEach((entry, index) =>
+      requireString(entry, `${label}[${index}]`, 1, maxLength, errors),
+    );
+}
+
+function assertKeys(
+  value: Record<string, unknown>,
+  keys: string[],
+  label: string,
+  errors: string[],
+): void {
+  const allowed = new Set(keys);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) errors.push(`${label} has unknown key: ${key}`);
+  }
+  for (const key of keys) {
+    if (
+      !['location', 'anchor', 'detail', 'model', 'effort'].includes(key) &&
+      !(key in value)
+    ) {
+      errors.push(`${label} is missing required key: ${key}`);
+    }
+  }
+}
+
+function requireString(
+  value: unknown,
+  label: string,
+  minLength: number,
+  maxLength: number,
+  errors: string[],
+): void {
+  if (
+    typeof value !== 'string' ||
+    value.length < minLength ||
+    value.length > maxLength
+  ) {
+    errors.push(
+      `${label} must be a string between ${minLength} and ${maxLength} characters`,
+    );
+  }
+}
+
+function requireEnum(
+  value: unknown,
+  allowed: readonly string[],
+  label: string,
+  errors: string[],
+): void {
+  if (typeof value !== 'string' || !allowed.includes(value)) {
+    errors.push(`${label} must be one of ${allowed.join(', ')}`);
+  }
+}
+
+function requireEqual(
+  value: unknown,
+  expected: string,
+  label: string,
+  errors: string[],
+): void {
+  if (value !== expected) errors.push(`${label} must equal ${expected}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) >= 1;
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 async function defaultReviewPreflight(

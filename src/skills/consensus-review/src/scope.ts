@@ -409,13 +409,32 @@ async function captureGitVersion(
   relativePath: string,
 ): Promise<CapturedFileVersion> {
   const normalized = normalizeRepositoryPath(relativePath);
+  const tree = await gitBytes(root, [
+    'ls-tree',
+    '-z',
+    revision,
+    '--',
+    normalized,
+  ]);
+  if (tree.length === 0) return deletedVersion(normalized, 'base');
+  const header = tree.toString('utf8').split('\t', 1)[0];
+  const [mode, kind] = header.split(' ');
+  if (kind !== 'blob' || !/^[0-7]{6}$/u.test(mode)) {
+    throw new Error(`unsupported_git_entry: ${normalized}`);
+  }
   let bytes: Buffer;
   try {
     bytes = await gitBytes(root, ['show', `${revision}:${normalized}`]);
   } catch {
     return deletedVersion(normalized, 'base');
   }
-  return versionFromBytes(normalized, 'base', null, bytes, true);
+  return versionFromBytes(
+    normalized,
+    'base',
+    Number.parseInt(mode, 8) & 0o777,
+    bytes,
+    true,
+  );
 }
 
 async function resolveDocument(

@@ -94,13 +94,19 @@
       "additionalProperties": false,
       "required": ["path", "start_line", "end_line", "source_version"],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+        },
         "start_line": { "type": "integer", "minimum": 1 },
         "end_line": { "type": "integer", "minimum": 1 },
         "source_version": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256
+          "maxLength": 256,
+          "pattern": "^[a-f0-9]{64}$"
         }
       }
     },

@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 
 import { runReview } from './run.js';
 
-export { runReview } from './run.js';
+export { executeBoundedReview, runReview, validateReviewReply } from './run.js';
 export { buildReviewPrompt, resolveReviewer } from './selection.js';
 
 export async function reviewMain(): Promise<number> {

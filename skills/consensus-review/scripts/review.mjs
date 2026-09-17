@@ -5,8 +5,9 @@
 import { pathToFileURL } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
-import { lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
-import path7 from "node:path";
+import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
+import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
+import path9 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
@@ -1893,6 +1894,102 @@ var REVIEW_SCOPE_LIMITS = {
   maxEvidenceBytes: 2 * 1024 * 1024,
   maxGitOutputBytes: 4 * 1024 * 1024
 };
+async function captureReviewScope(input) {
+  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
+  const head = await gitText(canonicalWorktree, [
+    "rev-parse",
+    "--verify",
+    "HEAD"
+  ]);
+  let mergeBase;
+  let selectedPaths = [];
+  let externalDocuments = [];
+  const versions = [];
+  if (input.request.kind === "base_branch") {
+    const ref = input.request.ref;
+    assertRef(ref);
+    await rejectUnresolvedMerges(canonicalWorktree);
+    const resolvedRef = await gitText(canonicalWorktree, [
+      "rev-parse",
+      "--verify",
+      `${ref}^{commit}`
+    ]).catch(() => {
+      throw new Error(`base_ref_invalid: could not resolve ${ref}`);
+    });
+    mergeBase = await gitText(canonicalWorktree, [
+      "merge-base",
+      resolvedRef,
+      head
+    ]).catch(() => {
+      throw new Error(
+        `base_ref_invalid: could not resolve a merge base for ${ref}`
+      );
+    });
+    selectedPaths = await changedTrackedPaths(canonicalWorktree, mergeBase);
+    enforceFileCount(selectedPaths);
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureWorktreeVersion(canonicalWorktree, relativePath)
+      );
+      versions.push(
+        await captureGitVersion(canonicalWorktree, mergeBase, relativePath)
+      );
+    }
+  } else if (input.request.kind === "files") {
+    if (input.request.paths.length === 0) {
+      throw new Error("scope_required: --files requires at least one path");
+    }
+    selectedPaths = unique(input.request.paths).map(
+      (candidate) => normalizeRepositoryPath(candidate)
+    );
+    enforceFileCount(selectedPaths);
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureWorktreeVersion(canonicalWorktree, relativePath, true)
+      );
+    }
+  } else {
+    if (!input.request.path.trim()) {
+      throw new Error("scope_required: --document requires a path");
+    }
+    const document = await resolveDocument(
+      canonicalWorktree,
+      input.request.path
+    );
+    if (document.location === "worktree") selectedPaths = [document.path];
+    else externalDocuments = [document.path];
+    versions.push(document.version);
+  }
+  const evidenceBytes = versions.reduce(
+    (total, version) => total + version.bytes,
+    0
+  );
+  if (evidenceBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw new Error(
+      `scope_too_large: selected textual evidence exceeds ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes} bytes`
+    );
+  }
+  const token = sha256(
+    JSON.stringify({
+      request: input.request,
+      canonicalWorktree,
+      head,
+      mergeBase,
+      versions: versions.map(({ text: _text, ...version }) => version)
+    })
+  );
+  return {
+    token,
+    request: input.request,
+    canonicalWorktree,
+    head,
+    ...mergeBase ? { mergeBase } : {},
+    selectedPaths,
+    externalDocuments,
+    versions,
+    evidenceBytes
+  };
+}
 async function captureScopeState(scope) {
   const [head, index, status] = await Promise.all([
     gitText(scope.canonicalWorktree, ["rev-parse", "--verify", "HEAD"]),
@@ -1960,6 +2057,98 @@ function compareScopeState(before, after) {
     limitation
   };
 }
+async function createReviewRunState(input) {
+  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
+  const env = input.env ?? process.env;
+  const configuredRoot = env.XDG_STATE_HOME;
+  if (configuredRoot && !path6.isAbsolute(configuredRoot)) {
+    throw new Error("XDG_STATE_HOME must be absolute");
+  }
+  const home = env.HOME || os.homedir();
+  if (!configuredRoot && !path6.isAbsolute(home)) {
+    throw new Error("HOME must resolve to an absolute path");
+  }
+  const stateRoot = path6.resolve(
+    configuredRoot ?? path6.join(home, ".local", "state"),
+    "consensus"
+  );
+  await mkdir(stateRoot, { recursive: true, mode: 448 });
+  const canonicalStateRoot = await realpath(stateRoot);
+  if (inside(canonicalWorktree, canonicalStateRoot)) {
+    throw new Error("review_state_inside_worktree");
+  }
+  const worktreeKey = sha256(canonicalWorktree);
+  const reviews = path6.join(canonicalStateRoot, worktreeKey, "reviews");
+  await mkdir(reviews, { recursive: true, mode: 448 });
+  await chmod(path6.join(canonicalStateRoot, worktreeKey), 448);
+  await chmod(reviews, 448);
+  const runId = input.runId ?? randomUUID3();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
+    throw new Error("run_id_invalid");
+  }
+  const runDirectory = path6.join(reviews, runId);
+  await mkdir(runDirectory, { mode: 448 });
+  const canonicalRunDirectory = await realpath(runDirectory);
+  if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
+    throw new Error("review_state_boundary_invalid");
+  }
+  const info = await lstat2(canonicalRunDirectory);
+  const uid = process.getuid?.();
+  if (!info.isDirectory() || (info.mode & 63) !== 0 || uid !== void 0 && info.uid !== uid) {
+    throw new Error("review_state_not_private");
+  }
+  return {
+    stateRoot: canonicalStateRoot,
+    worktreeKey,
+    runId,
+    runDirectory: canonicalRunDirectory
+  };
+}
+async function canonicalGitWorktree(cwd) {
+  const worktree = await gitText(path6.resolve(cwd), [
+    "rev-parse",
+    "--show-toplevel"
+  ]).catch(() => {
+    throw new Error("review_scope_requires_git_worktree");
+  });
+  return await realpath(worktree);
+}
+async function changedTrackedPaths(cwd, mergeBase) {
+  const output = await gitBytes(cwd, [
+    "diff",
+    "--name-status",
+    "-z",
+    "--find-renames",
+    "--no-ext-diff",
+    mergeBase,
+    "--"
+  ]);
+  const fields = splitNul(output);
+  const paths = [];
+  for (let index = 0; index < fields.length; ) {
+    const status = fields[index++];
+    if (!status) break;
+    const first = fields[index++];
+    if (first === void 0) throw new Error("git_diff_malformed");
+    paths.push(normalizeRepositoryPath(first));
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const second = fields[index++];
+      if (second === void 0) throw new Error("git_diff_malformed");
+      paths.push(normalizeRepositoryPath(second));
+    }
+  }
+  return unique(paths).toSorted();
+}
+async function rejectUnresolvedMerges(cwd) {
+  const unresolved = await gitBytes(cwd, [
+    "diff",
+    "--name-only",
+    "--diff-filter=U",
+    "-z",
+    "--"
+  ]);
+  if (unresolved.length > 0) throw new Error("unresolved_merge_not_supported");
+}
 async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
   const normalized = normalizeRepositoryPath(relativePath);
   const requested = path6.resolve(root, normalized);
@@ -1989,6 +2178,57 @@ async function captureWorktreeVersion(root, relativePath, requirePresent = false
     bytes,
     includeText
   );
+}
+async function captureGitVersion(root, revision, relativePath) {
+  const normalized = normalizeRepositoryPath(relativePath);
+  const tree = await gitBytes(root, [
+    "ls-tree",
+    "-z",
+    revision,
+    "--",
+    normalized
+  ]);
+  if (tree.length === 0) return deletedVersion(normalized, "base");
+  const header = tree.toString("utf8").split("	", 1)[0];
+  const [mode, kind] = header.split(" ");
+  if (kind !== "blob" || !/^[0-7]{6}$/u.test(mode)) {
+    throw new Error(`unsupported_git_entry: ${normalized}`);
+  }
+  let bytes;
+  try {
+    bytes = await gitBytes(root, ["show", `${revision}:${normalized}`]);
+  } catch {
+    return deletedVersion(normalized, "base");
+  }
+  return versionFromBytes(
+    normalized,
+    "base",
+    Number.parseInt(mode, 8) & 511,
+    bytes,
+    true
+  );
+}
+async function resolveDocument(root, candidate) {
+  const requested = path6.isAbsolute(candidate) ? path6.resolve(candidate) : path6.resolve(root, candidate);
+  const canonical = await realpath(requested).catch((error) => {
+    throw new Error(`document_unreadable: ${fsMessage(error)}`);
+  });
+  const location = inside(root, canonical) ? "worktree" : "external";
+  if (location === "worktree") {
+    const relativePath = normalizeRepositoryPath(
+      path6.relative(root, canonical)
+    );
+    return {
+      location,
+      path: relativePath,
+      version: await captureWorktreeVersion(root, relativePath, true)
+    };
+  }
+  return {
+    location,
+    path: canonical,
+    version: await captureAbsoluteFile(canonical, "live")
+  };
 }
 async function captureAbsoluteFile(canonicalPath, source) {
   const info = await lstat2(canonicalPath).catch((error) => {
@@ -2093,6 +2333,11 @@ async function gitBytes(cwd, args) {
   });
   return result.stdout;
 }
+function assertRef(ref) {
+  if (!ref.trim() || ref.startsWith("-") || ref.includes("\0")) {
+    throw new Error(`base_ref_invalid: ${ref}`);
+  }
+}
 function normalizeRepositoryPath(candidate) {
   if (!candidate || candidate.includes("\0") || path6.isAbsolute(candidate)) {
     throw new Error(`scope_path_invalid: ${candidate}`);
@@ -2102,6 +2347,21 @@ function normalizeRepositoryPath(candidate) {
     throw new Error(`path_escape: ${candidate}`);
   }
   return normalized.split(path6.sep).join("/");
+}
+function enforceFileCount(paths) {
+  if (paths.length > REVIEW_SCOPE_LIMITS.maxSelectedFiles) {
+    throw new Error(
+      `scope_too_large: selected file count exceeds ${REVIEW_SCOPE_LIMITS.maxSelectedFiles}`
+    );
+  }
+}
+function unique(values) {
+  return [...new Set(values)];
+}
+function splitNul(value) {
+  const parts = value.toString("utf8").split("\0");
+  if (parts.at(-1) === "") parts.pop();
+  return parts;
 }
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -2116,375 +2376,9 @@ function fsMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-// src/skills/consensus-review/src/run.ts
-async function runReview(input, dependencies = {}) {
-  if (!input) return foundationOnly();
-  if (input.provider !== "claude" && input.provider !== "codex") {
-    return preflightFailure(
-      "provider_ineligible",
-      `Provider is not eligible for read-only review transport: ${String(input.provider)}.`
-    );
-  }
-  const env = dependencies.env ?? process.env;
-  const hostResolution = resolveExplicitHostContext({
-    runtime: input.host,
-    cwd: input.cwd,
-    env,
-    maxDepth: 1
-  });
-  if (!hostResolution.ok) {
-    return preflightFailure(hostResolution.reason, hostResolution.message);
-  }
-  if (hostResolution.context.runtime === input.provider && input.allowSameProvider !== true) {
-    return preflightFailure(
-      "same_provider_consent_required",
-      "Same-provider review requires explicit user consent."
-    );
-  }
-  const transport = await reviewTransport(input);
-  if (!transport.ok) {
-    return preflightFailure(transport.reason, transport.message);
-  }
-  const hostGuard = evaluateHostGuard({
-    host: hostResolution.context,
-    provider: input.provider
-  });
-  if (!hostGuard.allowed) {
-    return preflightFailure("host_recursion_blocked", hostGuard.message);
-  }
-  const registry = dependencies.registry ?? providerRegistry();
-  const probeRunner = dependencies.probeRunner ?? nodeProbeCommandRunner(env);
-  const preflight = dependencies.preflight ?? defaultReviewPreflight;
-  const readiness = await preflight({
-    provider: input.provider,
-    host: hostResolution.context,
-    registry,
-    probeRunner
-  });
-  if (readiness.status !== "ready") {
-    return preflightFailure(
-      `provider_${readiness.status}`,
-      `Review provider ${input.provider} is not ready (${readiness.status}).`
-    );
-  }
-  const claimedTransport = await claimReviewTransport(input, transport.options);
-  if (!claimedTransport.ok) {
-    return preflightFailure(claimedTransport.reason, claimedTransport.message);
-  }
-  if (input.scopeGuard) {
-    let after;
-    try {
-      after = await (dependencies.scanScopeState ?? captureScopeState)(
-        input.scopeGuard.scope
-      );
-    } catch (error) {
-      return preflightFailure(
-        "scope_comparison_failed",
-        `Review scope could not be revalidated before dispatch: ${fsMessage2(error)}.`
-      );
-    }
-    const comparison = compareScopeState(input.scopeGuard.before, after);
-    if (!comparison.stable) {
-      return preflightFailure(
-        "scope_drift",
-        `Review scope changed before dispatch: ${comparison.differences.join("; ")}.`
-      );
-    }
-  }
-  const request = {
-    schema_version: "v1",
-    provider: input.provider,
-    schema_path: input.schemaPath,
-    prompt: input.prompt,
-    cwd: input.cwd,
-    host: hostResolution.context,
-    runtime_policy: input.provider === "claude" ? { permission_mode: "read-only" } : {
-      permission_mode: "non-interactive",
-      sandbox: "read-only",
-      approval_policy: "never"
-    },
-    max_attempts: 1,
-    max_runtime_sec: input.maxRuntimeSec ?? 600,
-    max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
-    ...input.model ? { model: input.model } : {},
-    ...input.effort ? { effort: input.effort } : {}
-  };
-  const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
-    registry,
-    parentEnv: env,
-    transport: claimedTransport.options
-  });
-  if (!envelope.ok) {
-    return {
-      ok: false,
-      status: "execution_failed",
-      invocation_count: envelope.attempts.cli_attempts,
-      reason: envelope.code,
-      message: envelope.message,
-      envelope
-    };
-  }
-  return {
-    ok: true,
-    status: "completed",
-    invocation_count: envelope.attempts.cli_attempts,
-    envelope
-  };
-}
-async function defaultReviewPreflight(input) {
-  const [entry] = await probeProviderRegistry({
-    registry: input.registry,
-    runner: input.probeRunner,
-    provider: input.provider,
-    requiredCapabilities: ["run"]
-  });
-  if (entry) return entry;
-  throw new Error(`Review provider is not registered: ${input.provider}`);
-}
-async function reviewTransport(input) {
-  if (input.provider === "claude") {
-    return {
-      ok: true,
-      options: {
-        submitCaptureEnabled: false,
-        strategy: "provider_validated"
-      }
-    };
-  }
-  if (!input.codexCapturePath || !path7.isAbsolute(input.codexCapturePath)) {
-    return {
-      ok: false,
-      reason: "capture_not_external",
-      message: "Codex review capture must be an absolute external path."
-    };
-  }
-  const capture = await validateCodexCapture(input);
-  if (!capture.ok) return capture;
-  return {
-    ok: true,
-    options: {
-      submitCaptureEnabled: false,
-      strategy: "prompt_only",
-      lastMessageFile: capture.path,
-      preserveLastMessageFile: true
-    }
-  };
-}
-async function claimReviewTransport(input, options) {
-  if (input.provider === "claude") return { ok: true, options };
-  const capture = await validateCodexCapture(input);
-  if (!capture.ok) return capture;
-  let handle;
-  try {
-    handle = await open3(capture.path, "wx", 384);
-    await handle.close();
-  } catch (error) {
-    await handle?.close().catch(() => void 0);
-    if (handle) await unlink(capture.path).catch(() => void 0);
-    return captureFailure(
-      "capture_destination_unsafe",
-      `Codex review capture could not be claimed exclusively: ${fsMessage2(error)}.`
-    );
-  }
-  try {
-    const [info, canonical] = await Promise.all([
-      lstat3(capture.path),
-      realpath2(capture.path)
-    ]);
-    if (info.isSymbolicLink() || !info.isFile() || canonical !== capture.path || (info.mode & 63) !== 0) {
-      await unlink(capture.path).catch(() => void 0);
-      return captureFailure(
-        "capture_destination_unsafe",
-        "Codex review capture lost its private canonical file identity."
-      );
-    }
-  } catch (error) {
-    await unlink(capture.path).catch(() => void 0);
-    return captureFailure(
-      "capture_destination_unsafe",
-      `Codex review capture identity could not be verified: ${fsMessage2(error)}.`
-    );
-  }
-  return {
-    ok: true,
-    options: { ...options, lastMessageFile: capture.path }
-  };
-}
-async function validateCodexCapture(input) {
-  const capturePath = path7.resolve(input.codexCapturePath);
-  let canonicalWorktree;
-  try {
-    canonicalWorktree = await realpath2(input.cwd);
-  } catch (error) {
-    return captureFailure(
-      "capture_boundary_invalid",
-      `Reviewed worktree identity could not be resolved: ${fsMessage2(error)}.`
-    );
-  }
-  let targetInfo = null;
-  try {
-    targetInfo = await lstat3(capturePath);
-  } catch (error) {
-    if (!isMissing2(error)) {
-      return captureFailure(
-        "capture_destination_unsafe",
-        `Codex review capture could not be inspected: ${fsMessage2(error)}.`
-      );
-    }
-  }
-  if (targetInfo?.isSymbolicLink()) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture must not be a symbolic link."
-    );
-  }
-  if (targetInfo) {
-    let protectedAlias;
-    try {
-      protectedAlias = await aliasesProtectedInput(capturePath, input);
-    } catch (error) {
-      return captureFailure(
-        "capture_destination_unsafe",
-        `Codex review capture identity could not be compared: ${fsMessage2(error)}.`
-      );
-    }
-    if (protectedAlias) {
-      return captureFailure(
-        "capture_protected_alias",
-        "Codex review capture must not alias a protected review input."
-      );
-    }
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture must not already exist."
-    );
-  }
-  const parent = path7.dirname(capturePath);
-  let existing;
-  let canonicalExisting;
-  let existingInfo;
-  try {
-    existing = await nearestExistingPath(parent);
-    [canonicalExisting, existingInfo] = await Promise.all([
-      realpath2(existing),
-      lstat3(existing)
-    ]);
-  } catch (error) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      `Codex review capture parent could not be resolved: ${fsMessage2(error)}.`
-    );
-  }
-  if (!existingInfo.isDirectory()) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture parent must be a directory."
-    );
-  }
-  const canonicalParent = path7.resolve(
-    canonicalExisting,
-    path7.relative(existing, parent)
-  );
-  const canonicalCapture = path7.join(
-    canonicalParent,
-    path7.basename(capturePath)
-  );
-  if (inside(canonicalWorktree, canonicalCapture)) {
-    return captureFailure(
-      "capture_not_external",
-      "Codex review capture must remain outside the reviewed worktree."
-    );
-  }
-  if (path7.resolve(existing) !== canonicalExisting || path7.resolve(parent) !== canonicalParent) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture path must not contain symbolic-link aliases."
-    );
-  }
-  if (path7.resolve(existing) !== path7.resolve(parent)) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture requires an existing private run directory."
-    );
-  }
-  const currentUid = process.getuid?.();
-  if ((existingInfo.mode & 63) !== 0 || currentUid !== void 0 && existingInfo.uid !== currentUid) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      "Codex review capture run directory must be private to the current user."
-    );
-  }
-  let protectedPaths;
-  try {
-    protectedPaths = await canonicalProtectedPaths(input);
-  } catch (error) {
-    return captureFailure(
-      "capture_destination_unsafe",
-      `Protected review input identity could not be resolved: ${fsMessage2(error)}.`
-    );
-  }
-  if (protectedPaths.includes(canonicalCapture)) {
-    return captureFailure(
-      "capture_protected_alias",
-      "Codex review capture must not alias a protected review input."
-    );
-  }
-  return { ok: true, path: canonicalCapture };
-}
-async function aliasesProtectedInput(capturePath, input) {
-  try {
-    const captureInfo = await stat2(capturePath);
-    for (const protectedPath of [input.schemaPath, input.cwd]) {
-      try {
-        const protectedInfo = await stat2(protectedPath);
-        if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
-          return true;
-        }
-      } catch (error) {
-        if (!isMissing2(error)) throw error;
-      }
-    }
-  } catch (error) {
-    if (!isMissing2(error)) throw error;
-  }
-  return false;
-}
-async function canonicalProtectedPaths(input) {
-  const protectedPaths = [];
-  for (const protectedPath of [input.schemaPath, input.cwd]) {
-    try {
-      protectedPaths.push(await realpath2(protectedPath));
-    } catch (error) {
-      if (!isMissing2(error)) throw error;
-    }
-  }
-  return protectedPaths;
-}
-function captureFailure(reason, message) {
-  return { ok: false, reason, message };
-}
-function isMissing2(error) {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-function fsMessage2(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-function preflightFailure(reason, message) {
-  return {
-    ok: false,
-    status: "preflight_failed",
-    invocation_count: 0,
-    reason,
-    message
-  };
-}
-function foundationOnly() {
-  return { ok: false, status: "foundation_only", invocation_count: 0 };
-}
-
 // src/skills/consensus-review/src/selection.ts
 import { createHash as createHash2 } from "node:crypto";
-import path9 from "node:path";
+import path8 from "node:path";
 
 // src/plugins/consensus/config/consensus-config.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -2496,7 +2390,7 @@ import {
   rm as rm3,
   writeFile
 } from "node:fs/promises";
-import path8 from "node:path";
+import path7 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
@@ -2582,7 +2476,7 @@ async function readConsensusConfig(input) {
 }
 async function consensusConfigPath(input) {
   if (input.scope === "user") {
-    return path8.join(userConfigDir(input.env), "consensus", "config.json");
+    return path7.join(userConfigDir(input.env), "consensus", "config.json");
   }
   return projectConsensusConfigPath(input.cwd);
 }
@@ -2592,7 +2486,7 @@ async function projectConsensusConfigPath(cwd) {
   return existing ?? fallback;
 }
 async function findNearestProjectConsensusConfig(cwd) {
-  let current = path8.resolve(cwd);
+  let current = path7.resolve(cwd);
   while (true) {
     const candidate = projectConsensusConfigPathAt(current);
     try {
@@ -2601,13 +2495,13 @@ async function findNearestProjectConsensusConfig(cwd) {
     } catch (error) {
       if (!isNodeError(error) || error.code !== "ENOENT") throw error;
     }
-    const parent = path8.dirname(current);
+    const parent = path7.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 function projectConsensusConfigPathAt(cwd) {
-  return path8.join(path8.resolve(cwd), ".consensus", "config.json");
+  return path7.join(path7.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -2882,12 +2776,12 @@ function isProviderId(value) {
 }
 function userConfigDir(env = {}) {
   const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.length > 0) return path8.resolve(xdg);
+  if (xdg && xdg.length > 0) return path7.resolve(xdg);
   const home = env.HOME ?? process.env.HOME;
   if (!home) {
     throw new Error("HOME is required to resolve user consensus config");
   }
-  return path8.join(path8.resolve(home), ".config");
+  return path7.join(path7.resolve(home), ".config");
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -2982,10 +2876,10 @@ function buildReviewPrompt(input) {
   if (requestBytes > REVIEW_REQUEST_MAX_BYTES) {
     throw new Error("review_request_too_large");
   }
-  if (!path9.isAbsolute(input.evidencePath)) {
+  if (!path8.isAbsolute(input.evidencePath)) {
     throw new Error("review_evidence_path_must_be_absolute");
   }
-  if (input.requestPath && !path9.isAbsolute(input.requestPath)) {
+  if (input.requestPath && !path8.isAbsolute(input.requestPath)) {
     throw new Error("review_request_path_must_be_absolute");
   }
   const manifest = input.scope.versions.map(
@@ -3077,6 +2971,988 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+// src/skills/consensus-review/src/run.ts
+async function runReview(input, dependencies = {}) {
+  if (!input) return foundationOnly();
+  if (input.provider !== "claude" && input.provider !== "codex") {
+    return preflightFailure(
+      "provider_ineligible",
+      `Provider is not eligible for read-only review transport: ${String(input.provider)}.`
+    );
+  }
+  const env = dependencies.env ?? process.env;
+  const hostResolution = resolveExplicitHostContext({
+    runtime: input.host,
+    cwd: input.cwd,
+    env,
+    maxDepth: 1
+  });
+  if (!hostResolution.ok) {
+    return preflightFailure(hostResolution.reason, hostResolution.message);
+  }
+  if (hostResolution.context.runtime === input.provider && input.allowSameProvider !== true) {
+    return preflightFailure(
+      "same_provider_consent_required",
+      "Same-provider review requires explicit user consent."
+    );
+  }
+  const transport = await reviewTransport(input);
+  if (!transport.ok) {
+    return preflightFailure(transport.reason, transport.message);
+  }
+  const hostGuard = evaluateHostGuard({
+    host: hostResolution.context,
+    provider: input.provider
+  });
+  if (!hostGuard.allowed) {
+    return preflightFailure("host_recursion_blocked", hostGuard.message);
+  }
+  const registry = dependencies.registry ?? providerRegistry();
+  const probeRunner = dependencies.probeRunner ?? nodeProbeCommandRunner(env);
+  const preflight = dependencies.preflight ?? defaultReviewPreflight;
+  const readiness = await preflight({
+    provider: input.provider,
+    host: hostResolution.context,
+    registry,
+    probeRunner
+  });
+  if (readiness.status !== "ready") {
+    return preflightFailure(
+      `provider_${readiness.status}`,
+      `Review provider ${input.provider} is not ready (${readiness.status}).`
+    );
+  }
+  const claimedTransport = await claimReviewTransport(input, transport.options);
+  if (!claimedTransport.ok) {
+    return preflightFailure(claimedTransport.reason, claimedTransport.message);
+  }
+  if (input.scopeGuard) {
+    let after;
+    try {
+      after = await (dependencies.scanScopeState ?? captureScopeState)(
+        input.scopeGuard.scope
+      );
+    } catch (error) {
+      return preflightFailure(
+        "scope_comparison_failed",
+        `Review scope could not be revalidated before dispatch: ${fsMessage2(error)}.`
+      );
+    }
+    const comparison = compareScopeState(input.scopeGuard.before, after);
+    if (!comparison.stable) {
+      return preflightFailure(
+        "scope_drift",
+        `Review scope changed before dispatch: ${comparison.differences.join("; ")}.`
+      );
+    }
+  }
+  const request = {
+    schema_version: "v1",
+    provider: input.provider,
+    schema_path: input.schemaPath,
+    prompt: input.prompt,
+    cwd: input.cwd,
+    host: hostResolution.context,
+    runtime_policy: input.provider === "claude" ? { permission_mode: "read-only" } : {
+      permission_mode: "non-interactive",
+      sandbox: "read-only",
+      approval_policy: "never"
+    },
+    max_attempts: 1,
+    max_runtime_sec: input.maxRuntimeSec ?? 600,
+    max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
+    ...input.model ? { model: input.model } : {},
+    ...input.effort ? { effort: input.effort } : {}
+  };
+  const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
+    registry,
+    parentEnv: env,
+    transport: claimedTransport.options
+  });
+  if (!envelope.ok) {
+    return {
+      ok: false,
+      status: "execution_failed",
+      invocation_count: envelope.attempts.cli_attempts,
+      reason: envelope.code,
+      message: envelope.message,
+      envelope
+    };
+  }
+  return {
+    ok: true,
+    status: "completed",
+    invocation_count: envelope.attempts.cli_attempts,
+    envelope
+  };
+}
+async function executeBoundedReview(input, dependencies = {}) {
+  const env = dependencies.env ?? process.env;
+  let scope;
+  try {
+    scope = await (dependencies.captureScope ?? captureReviewScope)({
+      cwd: input.cwd,
+      request: input.scope
+    });
+  } catch (error) {
+    return executeFailure(
+      "predispatch_failed",
+      0,
+      "scope_capture_failed",
+      fsMessage2(error)
+    );
+  }
+  if (scope.selectedPaths.length === 0 && scope.externalDocuments.length === 0) {
+    return { ok: true, status: "empty_scope", invocation_count: 0, scope };
+  }
+  let runState;
+  try {
+    runState = await (dependencies.createRunState ?? createReviewRunState)({
+      cwd: scope.canonicalWorktree,
+      env,
+      ...input.runId ? { runId: input.runId } : {}
+    });
+  } catch (error) {
+    return executeFailure(
+      "predispatch_failed",
+      0,
+      "state_creation_failed",
+      fsMessage2(error)
+    );
+  }
+  const requestPath = path9.join(runState.runDirectory, "request.txt");
+  const evidencePath = path9.join(runState.runDirectory, "evidence.json");
+  const resultPath = path9.join(runState.runDirectory, "result.json");
+  const diagnosticPath = path9.join(runState.runDirectory, "diagnostic.json");
+  const persist = dependencies.persist ?? persistPrivateJson;
+  try {
+    await persist(requestPath, input.request);
+    await persist(evidencePath, scope);
+  } catch (error) {
+    return executeFailure(
+      "output_failed",
+      0,
+      "capture_persistence_failed",
+      fsMessage2(error),
+      { runState }
+    );
+  }
+  const scanScope = dependencies.scanScopeState ?? captureScopeState;
+  let before;
+  try {
+    before = await scanScope(scope);
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: "predispatch_failed",
+      invocationCount: 0,
+      reason: "before_scan_failed",
+      message: fsMessage2(error),
+      runState,
+      diagnosticPath,
+      persist
+    });
+  }
+  let selected;
+  try {
+    selected = await resolveReviewer(
+      {
+        cwd: scope.canonicalWorktree,
+        host: input.host,
+        env,
+        ...input.reviewer ? { reviewer: input.reviewer } : {},
+        ...input.model ? { model: input.model } : {},
+        ...input.effort ? { effort: input.effort } : {},
+        ...input.allowSameProvider ? { allowSameProvider: input.allowSameProvider } : {}
+      },
+      dependencies.selection
+    );
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: "predispatch_failed",
+      invocationCount: 0,
+      reason: "reviewer_selection_failed",
+      message: fsMessage2(error),
+      runState,
+      diagnosticPath,
+      persist
+    });
+  }
+  let prompt;
+  try {
+    prompt = buildReviewPrompt({
+      request: input.request,
+      hostSummary: input.hostSummary,
+      scope,
+      evidencePath,
+      requestPath
+    });
+  } catch (error) {
+    return await persistDiagnosticFailure({
+      status: "predispatch_failed",
+      invocationCount: 0,
+      reason: "prompt_build_failed",
+      message: fsMessage2(error),
+      runState,
+      diagnosticPath,
+      persist
+    });
+  }
+  const transport = dependencies.transport ?? runReview;
+  const transportResult = await transport(
+    {
+      provider: selected.reviewer.provider,
+      prompt,
+      schemaPath: input.schemaPath,
+      cwd: scope.canonicalWorktree,
+      host: input.host,
+      allowSameProvider: selected.allowSameProvider,
+      ...selected.reviewer.model ? { model: selected.reviewer.model } : {},
+      ...selected.reviewer.effort ? { effort: selected.reviewer.effort } : {},
+      ...selected.reviewer.provider === "codex" ? {
+        codexCapturePath: path9.join(
+          runState.runDirectory,
+          "last-message.json"
+        )
+      } : {},
+      scopeGuard: { scope, before }
+    },
+    {
+      ...dependencies.transportDependencies,
+      env,
+      scanScopeState: scanScope,
+      preflight: async () => selected.readiness
+    }
+  );
+  let drift;
+  try {
+    drift = compareScopeState(before, await scanScope(scope));
+  } catch (error) {
+    drift = compareScopeState(before, toError(error));
+  }
+  if (!transportResult.ok) {
+    const reason = transportResult.status === "foundation_only" ? "foundation_only" : transportResult.reason;
+    const message = transportResult.status === "foundation_only" ? "Review transport was not configured." : transportResult.message;
+    return await persistDiagnosticFailure({
+      status: transportResult.status === "preflight_failed" ? "predispatch_failed" : "incomplete",
+      invocationCount: transportResult.invocation_count,
+      reason,
+      message,
+      runState,
+      diagnosticPath,
+      drift,
+      persist
+    });
+  }
+  if (transportResult.invocation_count !== 1) {
+    return await persistDiagnosticFailure({
+      status: "defective",
+      invocationCount: transportResult.invocation_count,
+      reason: "invocation_count_invalid",
+      message: "A completed review must contain exactly one provider invocation.",
+      runState,
+      diagnosticPath,
+      drift,
+      persist
+    });
+  }
+  if (!drift.checked || !drift.stable) {
+    return await persistDiagnosticFailure({
+      status: "defective",
+      invocationCount: 1,
+      reason: drift.checked ? "scope_drift" : "scope_comparison_failed",
+      message: drift.differences.join("; "),
+      runState,
+      diagnosticPath,
+      drift,
+      persist
+    });
+  }
+  const validation = validateReviewReply(transportResult.envelope.json, scope);
+  if (!validation.ok) {
+    return await persistDiagnosticFailure({
+      status: "defective",
+      invocationCount: 1,
+      reason: "invalid_review_reply",
+      message: validation.errors.join("; "),
+      runState,
+      diagnosticPath,
+      drift,
+      persist
+    });
+  }
+  const aggregate = {
+    schema_version: "v1",
+    run_id: runState.runId,
+    status: "complete",
+    worktree_root: scope.canonicalWorktree,
+    request: input.request,
+    request_sha256: sha2563(input.request),
+    scope,
+    reviewer: {
+      selected: selected.reviewer,
+      source: selected.source,
+      skipped: selected.skipped,
+      observed: {
+        provider: String(transportResult.envelope.provider),
+        model: selected.reviewer.model ?? null,
+        effort: selected.reviewer.effort ?? null
+      },
+      claimed: validation.value.reviewer_identity
+    },
+    authored_by: [
+      {
+        identity: "unknown",
+        evidence_source: "unknown",
+        evidence_reference: "No host-supplied author evidence was available.",
+        scope_coverage: "unknown"
+      }
+    ],
+    diversity: {
+      classification: "unknown",
+      evidence: "Provider selection alone does not establish a different model family."
+    },
+    invocation_count: 1,
+    policy: {
+      max_depth: 1,
+      max_attempts: 1,
+      read_only: true,
+      repair: false,
+      fallback_after_dispatch: false
+    },
+    drift,
+    validation: { ok: true },
+    reply: validation.value,
+    paths: {
+      run_directory: runState.runDirectory,
+      request: requestPath,
+      evidence: evidencePath,
+      result: resultPath
+    }
+  };
+  try {
+    await persist(resultPath, aggregate);
+  } catch (error) {
+    return executeFailure(
+      "output_failed",
+      1,
+      "result_persistence_failed",
+      fsMessage2(error),
+      { runState, drift }
+    );
+  }
+  return {
+    ok: true,
+    status: "completed",
+    invocation_count: 1,
+    artifactPath: resultPath,
+    runState,
+    aggregate
+  };
+}
+function validateReviewReply(value, scope) {
+  const errors = [];
+  if (!isRecord3(value)) {
+    return { ok: false, errors: ["reply must be an object"] };
+  }
+  assertKeys(
+    value,
+    [
+      "schema_version",
+      "scope_token",
+      "verdict",
+      "summary",
+      "findings",
+      "questions",
+      "limitations",
+      "coverage",
+      "inspected_context",
+      "checks",
+      "reviewer_identity"
+    ],
+    "reply",
+    errors
+  );
+  requireEqual(value.schema_version, "v1", "reply.schema_version", errors);
+  requireEqual(value.scope_token, scope.token, "reply.scope_token", errors);
+  requireEnum(
+    value.verdict,
+    ["pass", "changes_requested", "inconclusive"],
+    "reply.verdict",
+    errors
+  );
+  requireString(value.summary, "reply.summary", 1, 8192, errors);
+  const findings = validateFindings(value.findings, scope, errors);
+  validateStringArray(value.questions, "reply.questions", 50, 4096, errors);
+  validateStringArray(value.limitations, "reply.limitations", 50, 4096, errors);
+  validateStringArray(value.coverage, "reply.coverage", 200, 4096, errors);
+  validateInspectedContext(value.inspected_context, errors);
+  validateChecks(value.checks, errors);
+  validateReviewerIdentity(value.reviewer_identity, errors);
+  const blockingFindings = findings.filter(
+    (finding) => finding.severity === "critical" || finding.severity === "important"
+  );
+  const failedChecks = Array.isArray(value.checks) ? value.checks.some((check) => isRecord3(check) && check.status === "failed") : false;
+  if (value.verdict === "pass" && (blockingFindings.length > 0 || failedChecks)) {
+    errors.push(
+      "reply.verdict pass forbids critical/important findings and failed checks"
+    );
+  }
+  if (value.verdict === "changes_requested" && blockingFindings.length === 0) {
+    errors.push(
+      "reply.verdict changes_requested requires a critical or important finding"
+    );
+  }
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value };
+}
+async function persistDiagnosticFailure(input) {
+  const diagnostic = {
+    schema_version: "v1",
+    status: input.status,
+    invocation_count: input.invocationCount,
+    reason: input.reason,
+    message: input.message,
+    ...input.drift ? { drift: input.drift } : {}
+  };
+  try {
+    await input.persist(input.diagnosticPath, diagnostic);
+  } catch (error) {
+    return executeFailure(
+      "output_failed",
+      input.invocationCount,
+      "diagnostic_persistence_failed",
+      fsMessage2(error),
+      { runState: input.runState, drift: input.drift }
+    );
+  }
+  return executeFailure(
+    input.status,
+    input.invocationCount,
+    input.reason,
+    input.message,
+    {
+      runState: input.runState,
+      diagnosticPath: input.diagnosticPath,
+      drift: input.drift
+    }
+  );
+}
+function executeFailure(status, invocationCount, reason, message, details = {}) {
+  return {
+    ok: false,
+    status,
+    invocation_count: invocationCount,
+    reason,
+    message,
+    ...details
+  };
+}
+async function persistPrivateJson(targetPath, value) {
+  const contents = typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}
+`;
+  const temporary = path9.join(
+    path9.dirname(targetPath),
+    `.${path9.basename(targetPath)}.${process.pid}.${randomUUID5()}.tmp`
+  );
+  let handle;
+  try {
+    handle = await open3(temporary, "wx", 384);
+    await handle.writeFile(contents, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = void 0;
+    await link(temporary, targetPath);
+    await unlink(temporary);
+  } catch (error) {
+    await handle?.close().catch(() => void 0);
+    await unlink(temporary).catch(() => void 0);
+    throw error;
+  }
+}
+function validateFindings(value, scope, errors) {
+  if (!Array.isArray(value)) {
+    errors.push("reply.findings must be an array");
+    return [];
+  }
+  if (value.length > 100) errors.push("reply.findings exceeds 100 items");
+  const findings = [];
+  value.slice(0, 100).forEach((candidate, index) => {
+    const label = `reply.findings[${index}]`;
+    if (!isRecord3(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(
+      candidate,
+      [
+        "severity",
+        "title",
+        "location",
+        "anchor",
+        "claim",
+        "evidence",
+        "suggestion",
+        "confidence"
+      ],
+      label,
+      errors
+    );
+    requireEnum(
+      candidate.severity,
+      ["critical", "important", "medium", "minor"],
+      `${label}.severity`,
+      errors
+    );
+    requireString(candidate.title, `${label}.title`, 1, 512, errors);
+    requireString(candidate.claim, `${label}.claim`, 1, 8192, errors);
+    requireString(candidate.evidence, `${label}.evidence`, 1, 8192, errors);
+    requireString(candidate.suggestion, `${label}.suggestion`, 1, 8192, errors);
+    if (typeof candidate.confidence !== "number" || !Number.isFinite(candidate.confidence) || candidate.confidence < 0 || candidate.confidence > 1) {
+      errors.push(`${label}.confidence must be finite and between 0 and 1`);
+    }
+    const hasLocation = candidate.location !== void 0;
+    const hasAnchor = candidate.anchor !== void 0;
+    if (hasLocation === hasAnchor) {
+      errors.push(`${label} must contain exactly one of location or anchor`);
+    }
+    if (hasLocation) validateLocation(candidate.location, scope, label, errors);
+    if (hasAnchor) {
+      requireString(candidate.anchor, `${label}.anchor`, 1, 1024, errors);
+      if (scope.externalDocuments.length === 0) {
+        errors.push(`${label}.anchor requires an external document scope`);
+      }
+    }
+    findings.push(candidate);
+  });
+  return findings;
+}
+function validateLocation(value, scope, findingLabel, errors) {
+  const label = `${findingLabel}.location`;
+  if (!isRecord3(value)) {
+    errors.push(`${label} must be an object`);
+    return;
+  }
+  assertKeys(
+    value,
+    ["path", "start_line", "end_line", "source_version"],
+    label,
+    errors
+  );
+  requireString(value.path, `${label}.path`, 1, 4096, errors);
+  requireString(
+    value.source_version,
+    `${label}.source_version`,
+    1,
+    256,
+    errors
+  );
+  if (typeof value.path !== "string" || path9.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
+    errors.push(`${label}.path must be a complete selected repository path`);
+  }
+  if (!isPositiveInteger(value.start_line)) {
+    errors.push(`${label}.start_line must be a positive integer`);
+  }
+  if (!isPositiveInteger(value.end_line)) {
+    errors.push(`${label}.end_line must be a positive integer`);
+  }
+  if (isPositiveInteger(value.start_line) && isPositiveInteger(value.end_line) && value.end_line < value.start_line) {
+    errors.push(
+      `${label}.end_line must be greater than or equal to start_line`
+    );
+  }
+  const version = scope.versions.find(
+    (entry) => entry.path === value.path && entry.sha256 === value.source_version
+  );
+  if (!version || version.kind !== "file" || version.text === null) {
+    errors.push(`${label}.source_version must identify captured bytes`);
+    return;
+  }
+  const lineCount = version.text.length === 0 ? 1 : version.text.split("\n").length;
+  if (isPositiveInteger(value.end_line) && value.end_line > lineCount) {
+    errors.push(`${label}.end_line exceeds captured source lines`);
+  }
+}
+function validateInspectedContext(value, errors) {
+  if (!Array.isArray(value)) {
+    errors.push("reply.inspected_context must be an array");
+    return;
+  }
+  if (value.length > 200) {
+    errors.push("reply.inspected_context exceeds 200 items");
+  }
+  value.slice(0, 200).forEach((candidate, index) => {
+    const label = `reply.inspected_context[${index}]`;
+    if (!isRecord3(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(candidate, ["subject", "source_version"], label, errors);
+    requireString(candidate.subject, `${label}.subject`, 1, 4096, errors);
+    requireString(
+      candidate.source_version,
+      `${label}.source_version`,
+      1,
+      256,
+      errors
+    );
+  });
+}
+function validateChecks(value, errors) {
+  if (!Array.isArray(value)) {
+    errors.push("reply.checks must be an array");
+    return;
+  }
+  if (value.length > 100) errors.push("reply.checks exceeds 100 items");
+  value.slice(0, 100).forEach((candidate, index) => {
+    const label = `reply.checks[${index}]`;
+    if (!isRecord3(candidate)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+    assertKeys(candidate, ["name", "status", "detail"], label, errors);
+    requireString(candidate.name, `${label}.name`, 1, 512, errors);
+    requireEnum(
+      candidate.status,
+      ["passed", "failed", "not_run"],
+      `${label}.status`,
+      errors
+    );
+    if (candidate.detail !== void 0) {
+      requireString(candidate.detail, `${label}.detail`, 0, 4096, errors);
+    }
+  });
+}
+function validateReviewerIdentity(value, errors) {
+  if (!isRecord3(value)) {
+    errors.push("reply.reviewer_identity must be an object");
+    return;
+  }
+  assertKeys(
+    value,
+    ["provider", "model", "effort"],
+    "reply.reviewer_identity",
+    errors
+  );
+  requireString(
+    value.provider,
+    "reply.reviewer_identity.provider",
+    1,
+    128,
+    errors
+  );
+  if (value.model !== void 0) {
+    requireString(value.model, "reply.reviewer_identity.model", 1, 256, errors);
+  }
+  if (value.effort !== void 0) {
+    requireString(
+      value.effort,
+      "reply.reviewer_identity.effort",
+      1,
+      128,
+      errors
+    );
+  }
+}
+function validateStringArray(value, label, maxItems, maxLength, errors) {
+  if (!Array.isArray(value)) {
+    errors.push(`${label} must be an array`);
+    return;
+  }
+  if (value.length > maxItems)
+    errors.push(`${label} exceeds ${maxItems} items`);
+  value.slice(0, maxItems).forEach(
+    (entry, index) => requireString(entry, `${label}[${index}]`, 1, maxLength, errors)
+  );
+}
+function assertKeys(value, keys, label, errors) {
+  const allowed2 = new Set(keys);
+  for (const key of Object.keys(value)) {
+    if (!allowed2.has(key)) errors.push(`${label} has unknown key: ${key}`);
+  }
+  for (const key of keys) {
+    if (!["location", "anchor", "detail", "model", "effort"].includes(key) && !(key in value)) {
+      errors.push(`${label} is missing required key: ${key}`);
+    }
+  }
+}
+function requireString(value, label, minLength, maxLength, errors) {
+  if (typeof value !== "string" || value.length < minLength || value.length > maxLength) {
+    errors.push(
+      `${label} must be a string between ${minLength} and ${maxLength} characters`
+    );
+  }
+}
+function requireEnum(value, allowed2, label, errors) {
+  if (typeof value !== "string" || !allowed2.includes(value)) {
+    errors.push(`${label} must be one of ${allowed2.join(", ")}`);
+  }
+}
+function requireEqual(value, expected, label, errors) {
+  if (value !== expected) errors.push(`${label} must equal ${expected}`);
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isPositiveInteger(value) {
+  return Number.isInteger(value) && Number(value) >= 1;
+}
+function sha2563(value) {
+  return createHash3("sha256").update(value).digest("hex");
+}
+function toError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
+async function defaultReviewPreflight(input) {
+  const [entry] = await probeProviderRegistry({
+    registry: input.registry,
+    runner: input.probeRunner,
+    provider: input.provider,
+    requiredCapabilities: ["run"]
+  });
+  if (entry) return entry;
+  throw new Error(`Review provider is not registered: ${input.provider}`);
+}
+async function reviewTransport(input) {
+  if (input.provider === "claude") {
+    return {
+      ok: true,
+      options: {
+        submitCaptureEnabled: false,
+        strategy: "provider_validated"
+      }
+    };
+  }
+  if (!input.codexCapturePath || !path9.isAbsolute(input.codexCapturePath)) {
+    return {
+      ok: false,
+      reason: "capture_not_external",
+      message: "Codex review capture must be an absolute external path."
+    };
+  }
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
+  return {
+    ok: true,
+    options: {
+      submitCaptureEnabled: false,
+      strategy: "prompt_only",
+      lastMessageFile: capture.path,
+      preserveLastMessageFile: true
+    }
+  };
+}
+async function claimReviewTransport(input, options) {
+  if (input.provider === "claude") return { ok: true, options };
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
+  let handle;
+  try {
+    handle = await open3(capture.path, "wx", 384);
+    await handle.close();
+  } catch (error) {
+    await handle?.close().catch(() => void 0);
+    if (handle) await unlink(capture.path).catch(() => void 0);
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture could not be claimed exclusively: ${fsMessage2(error)}.`
+    );
+  }
+  try {
+    const [info, canonical] = await Promise.all([
+      lstat3(capture.path),
+      realpath2(capture.path)
+    ]);
+    if (info.isSymbolicLink() || !info.isFile() || canonical !== capture.path || (info.mode & 63) !== 0) {
+      await unlink(capture.path).catch(() => void 0);
+      return captureFailure(
+        "capture_destination_unsafe",
+        "Codex review capture lost its private canonical file identity."
+      );
+    }
+  } catch (error) {
+    await unlink(capture.path).catch(() => void 0);
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture identity could not be verified: ${fsMessage2(error)}.`
+    );
+  }
+  return {
+    ok: true,
+    options: { ...options, lastMessageFile: capture.path }
+  };
+}
+async function validateCodexCapture(input) {
+  const capturePath = path9.resolve(input.codexCapturePath);
+  let canonicalWorktree;
+  try {
+    canonicalWorktree = await realpath2(input.cwd);
+  } catch (error) {
+    return captureFailure(
+      "capture_boundary_invalid",
+      `Reviewed worktree identity could not be resolved: ${fsMessage2(error)}.`
+    );
+  }
+  let targetInfo = null;
+  try {
+    targetInfo = await lstat3(capturePath);
+  } catch (error) {
+    if (!isMissing2(error)) {
+      return captureFailure(
+        "capture_destination_unsafe",
+        `Codex review capture could not be inspected: ${fsMessage2(error)}.`
+      );
+    }
+  }
+  if (targetInfo?.isSymbolicLink()) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture must not be a symbolic link."
+    );
+  }
+  if (targetInfo) {
+    let protectedAlias;
+    try {
+      protectedAlias = await aliasesProtectedInput(capturePath, input);
+    } catch (error) {
+      return captureFailure(
+        "capture_destination_unsafe",
+        `Codex review capture identity could not be compared: ${fsMessage2(error)}.`
+      );
+    }
+    if (protectedAlias) {
+      return captureFailure(
+        "capture_protected_alias",
+        "Codex review capture must not alias a protected review input."
+      );
+    }
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture must not already exist."
+    );
+  }
+  const parent = path9.dirname(capturePath);
+  let existing;
+  let canonicalExisting;
+  let existingInfo;
+  try {
+    existing = await nearestExistingPath(parent);
+    [canonicalExisting, existingInfo] = await Promise.all([
+      realpath2(existing),
+      lstat3(existing)
+    ]);
+  } catch (error) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture parent could not be resolved: ${fsMessage2(error)}.`
+    );
+  }
+  if (!existingInfo.isDirectory()) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture parent must be a directory."
+    );
+  }
+  const canonicalParent = path9.resolve(
+    canonicalExisting,
+    path9.relative(existing, parent)
+  );
+  const canonicalCapture = path9.join(
+    canonicalParent,
+    path9.basename(capturePath)
+  );
+  if (inside(canonicalWorktree, canonicalCapture)) {
+    return captureFailure(
+      "capture_not_external",
+      "Codex review capture must remain outside the reviewed worktree."
+    );
+  }
+  if (path9.resolve(existing) !== canonicalExisting || path9.resolve(parent) !== canonicalParent) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture path must not contain symbolic-link aliases."
+    );
+  }
+  if (path9.resolve(existing) !== path9.resolve(parent)) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture requires an existing private run directory."
+    );
+  }
+  const currentUid = process.getuid?.();
+  if ((existingInfo.mode & 63) !== 0 || currentUid !== void 0 && existingInfo.uid !== currentUid) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture run directory must be private to the current user."
+    );
+  }
+  let protectedPaths;
+  try {
+    protectedPaths = await canonicalProtectedPaths(input);
+  } catch (error) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Protected review input identity could not be resolved: ${fsMessage2(error)}.`
+    );
+  }
+  if (protectedPaths.includes(canonicalCapture)) {
+    return captureFailure(
+      "capture_protected_alias",
+      "Codex review capture must not alias a protected review input."
+    );
+  }
+  return { ok: true, path: canonicalCapture };
+}
+async function aliasesProtectedInput(capturePath, input) {
+  try {
+    const captureInfo = await stat2(capturePath);
+    for (const protectedPath of [input.schemaPath, input.cwd]) {
+      try {
+        const protectedInfo = await stat2(protectedPath);
+        if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
+          return true;
+        }
+      } catch (error) {
+        if (!isMissing2(error)) throw error;
+      }
+    }
+  } catch (error) {
+    if (!isMissing2(error)) throw error;
+  }
+  return false;
+}
+async function canonicalProtectedPaths(input) {
+  const protectedPaths = [];
+  for (const protectedPath of [input.schemaPath, input.cwd]) {
+    try {
+      protectedPaths.push(await realpath2(protectedPath));
+    } catch (error) {
+      if (!isMissing2(error)) throw error;
+    }
+  }
+  return protectedPaths;
+}
+function captureFailure(reason, message) {
+  return { ok: false, reason, message };
+}
+function isMissing2(error) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+function fsMessage2(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function preflightFailure(reason, message) {
+  return {
+    ok: false,
+    status: "preflight_failed",
+    invocation_count: 0,
+    reason,
+    message
+  };
+}
+function foundationOnly() {
+  return { ok: false, status: "foundation_only", invocation_count: 0 };
+}
+
 // src/skills/consensus-review/src/review.ts
 async function reviewMain() {
   const result = await runReview();
@@ -3089,7 +3965,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 }
 export {
   buildReviewPrompt,
+  executeBoundedReview,
   resolveReviewer,
   reviewMain,
-  runReview
+  runReview,
+  validateReviewReply
 };
