@@ -65,7 +65,7 @@ export async function syncFileIfAvailable(filePath: string): Promise<void> {
  * failure, best-effort remove the temp file and rethrow so the previous
  * `targetPath` contents are left intact.
  */
-async function atomicWriteFile(
+export async function atomicWriteFile(
   targetPath: string,
   data: string,
 ): Promise<void> {

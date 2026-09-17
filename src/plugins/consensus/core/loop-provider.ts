@@ -313,6 +313,8 @@ export async function invokeConsensusProviderCli({
   provider,
   schemaPath,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -322,12 +324,18 @@ export async function invokeConsensusProviderCli({
     runCommand === runProviderCliCommand
       ? requireConsensusCliPath({ consensusCliPath, env })
       : resolveConsensusCliPath({ consensusCliPath, env });
+  // Model/effort are omitted when unselected so the provider CLI keeps its own
+  // defaults. When present they reach `consensus run`, which rejects them with
+  // PROVIDER_UNSUPPORTED_OPTION for adapters that cannot honor them rather than
+  // dropping them silently.
   const request = {
     schema_version: 'v1',
     provider,
     schema_path: schemaPath,
     prompt,
     cwd,
+    ...(model ? { model } : {}),
+    ...(effort ? { effort } : {}),
   };
   const result = await runCommand(
     command,

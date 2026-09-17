@@ -19,7 +19,9 @@ import {
   requireConsensusCliPath,
   runConsensusLoop,
 } from '../../../plugins/consensus/core/consensus-loop.js';
+import type { PeerAgent } from '../../../plugins/consensus/core/consensus-loop.js';
 import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
+import { peerAgentsFromComposition } from '../../../plugins/consensus/shared/cli-helpers.js';
 import {
   isJsonRecord,
   asErrorLike,
@@ -181,6 +183,10 @@ function providerCliLoopInvokers({
           provider: turn.provider,
           schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
           prompt: turn.prompt,
+          // Configured peer model/effort ride along to `consensus run`; they
+          // are omitted when unselected so the provider CLI keeps its defaults.
+          ...(turn.model ? { model: turn.model } : {}),
+          ...(turn.effort ? { effort: turn.effort } : {}),
           env,
           cwd,
         },
@@ -237,7 +243,13 @@ export async function runSequential(
           env,
           cwd,
         });
-  const peers = normalized.peers ?? preflight.peers;
+  // Invocation `--peers` replaces the whole configured list, so a
+  // provider-only override carries no model/effort; otherwise the configured
+  // composition's selections ride through to peer dispatch.
+  const peerAgents: PeerAgent[] = normalized.peers
+    ? peerAgentsFromComposition(normalized.peers)
+    : (preflight.peerAgents ?? peerAgentsFromComposition(preflight.peers));
+  const peers = peerAgents.map((agent) => agent.provider);
   const host = preflight.host ?? detectHost(env);
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
@@ -371,7 +383,7 @@ export async function runSequential(
           section,
           paths,
           options: normalized,
-          peers,
+          peers: peerAgents,
           synthesizer,
         }),
         loopRunOptions,
@@ -494,7 +506,13 @@ export async function prepareParallelRun(
           env,
           cwd,
         });
-  const peers = normalized.peers ?? preflight.peers;
+  // Invocation `--peers` replaces the whole configured list, so a
+  // provider-only override carries no model/effort; otherwise the configured
+  // composition's selections ride through to peer dispatch.
+  const peerAgents: PeerAgent[] = normalized.peers
+    ? peerAgentsFromComposition(normalized.peers)
+    : (preflight.peerAgents ?? peerAgentsFromComposition(preflight.peers));
+  const peers = peerAgents.map((agent) => agent.provider);
   const host = preflight.host ?? detectHost(env);
   // Resolve the synthesizer (FR6) so parallel_synthesized section runners receive
   // the same identity the sequential path would (p05-t04). Outside synthesized mode
@@ -523,7 +541,7 @@ export async function prepareParallelRun(
       section,
       paths,
       options: normalized,
-      peers,
+      peers: peerAgents,
       synthesizer,
     });
 
@@ -885,7 +903,10 @@ async function resolveConfiguredProviderCliPeers({
   providerInventory: NormalizedProviderInventoryEntry[];
 }) {
   if (options.peers) {
-    return resolveProviderCliPeers(options, host, providerInventory);
+    return {
+      ...resolveProviderCliPeers(options, host, providerInventory),
+      peerAgents: peerAgentsFromComposition(options.peers),
+    };
   }
 
   const composition = await resolveConsensusComposition({
@@ -898,7 +919,17 @@ async function resolveConfiguredProviderCliPeers({
     composition.source === 'built-in'
       ? {}
       : { peers: composition.agents.map((agent) => agent.provider) };
-  return resolveProviderCliPeers(peerOptions, host, providerInventory);
+  const resolved = resolveProviderCliPeers(
+    peerOptions,
+    host,
+    providerInventory,
+  );
+  return {
+    ...resolved,
+    peerAgents: peerAgentsFromComposition(
+      composition.source === 'built-in' ? resolved.peers : composition.agents,
+    ),
+  };
 }
 
 function parseProviderCliEnvelope(stdout: string, label: string): JsonRecord {
@@ -1000,6 +1031,7 @@ export async function preflightConsensusProviderCli(
     providerInventory: resolved.inventory,
     host,
     peers: resolved.peers,
+    peerAgents: resolved.peerAgents,
     warnings: [],
   };
 }

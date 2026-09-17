@@ -1,13 +1,13 @@
 // GENERATED skill payload for refine.
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
-import path6 from "node:path";
+import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile4 } from "node:fs/promises";
+import path7 from "node:path";
 import { createInterface } from "node:readline/promises";
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
-import path4 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -885,6 +885,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -896,7 +898,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1047,13 +1051,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   realpath,
   rename as rename2,
   unlink as unlink2,
   writeFile as writeFile2
 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path3 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -1076,12 +1084,82 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
+function isJsonRecord2(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// src/plugins/consensus/shared/cli-helpers.ts
+var PEER_AGENTS_OPTION = "--peer-agents";
+function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
   }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1111,7 +1189,13 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
+        break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1153,14 +1237,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1170,6 +1255,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -1465,6 +1563,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1494,7 +1600,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -1632,7 +1739,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2097,9 +2205,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await writeFile3(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2138,13 +2245,12 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await writeFile3(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2469,6 +2575,14 @@ async function runConsensusLoop(argv, runOptions = {}) {
       provider: turn.provider,
       schemaPath: peerSchemaPathForMode(options.iteration),
       prompt: turn.prompt,
+      // The turn already carries this peer's resolved selections (see
+      // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+      // consensus-loop.mjs dispatch — which always uses this default invoker
+      // — would send `model: null`/`effort: null` and silently drop the
+      // configured peer agent. Omitted when unselected so the provider CLI
+      // keeps its own defaults.
+      ...turn.model ? { model: turn.model } : {},
+      ...turn.effort ? { effort: turn.effort } : {},
       env,
       cwd
     },
@@ -2711,7 +2825,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2722,7 +2836,7 @@ if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir4,
   open as open2,
   readFile as readFile3,
@@ -2730,24 +2844,24 @@ import {
   rename as rename3,
   stat,
   unlink as unlink3,
-  writeFile as writeFile4
+  writeFile as writeFile3
 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 async function syncPathIfAvailable(targetPath) {
   let handle;
@@ -2946,7 +3060,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord2(state) ? state : {};
+  const stateRecord = isJsonRecord3(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -2992,7 +3106,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord2(candidate) ? candidate : {};
+      const state = isJsonRecord3(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -3019,7 +3133,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -3043,7 +3157,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord2(state) ? state : {};
+    const stateRecord = isJsonRecord3(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -3105,9 +3219,9 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
 }
 async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
-  const outputPath = path6.join(runDir, "resume-errors.json");
+  const outputPath = path7.join(runDir, "resume-errors.json");
   await mkdir5(runDir, { recursive: true });
-  await writeFile5(
+  await writeFile4(
     outputPath,
     `${JSON.stringify(
       {
@@ -3198,7 +3312,7 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile4(value, "utf8"),
-          sourcePath: path6.resolve(value)
+          sourcePath: path7.resolve(value)
         };
       }
     } catch (error) {
@@ -3246,7 +3360,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(
