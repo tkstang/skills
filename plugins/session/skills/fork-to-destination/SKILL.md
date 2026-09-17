@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Read, Bash(node <skill-dir>/scripts/session-fork-to-destination.mjs:*)
 metadata:
   author: thomas.stang
-  version: '0.2.6'
+  version: '0.2.7'
 ---
 
 # fork-to-destination
@@ -27,12 +27,14 @@ project slug rather than independent exact cwd evidence, so a matching store ret
 path-free `discovery-incomplete` result. No Cursor candidate can be selected or
 previewed.
 
-Use this skill for one of three entry points:
+Use this skill for one of three entry points, named by the `--entry-point` selector
+`prepare` expects:
 
-1. The user invokes it inside the exact source session they want to fork.
-2. The user invokes it from another session in the source worktree.
-3. The user invokes it from a fresh session in the existing destination worktree and
-   supplies the source worktree.
+1. `source-current` — the user invokes it inside the exact source session they want to
+   fork.
+2. `source-other` — the user invokes it from another session in the source worktree.
+3. `destination-fresh` — the user invokes it from a fresh session in the existing
+   destination worktree and supplies the source worktree.
 
 ## Workflow
 

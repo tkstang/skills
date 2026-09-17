@@ -11,13 +11,13 @@ import { join } from 'node:path';
 
 import { describe, expect, test, vi } from 'vitest';
 
-import { buildNativeInvocation } from '../../../tools/coding-session-handoff/behavior-contracts.js';
 import type { TranscriptCandidate } from '../../session-observer/src/lib/types.js';
 import {
   HandoffDiscoveryError,
   discoverHandoffCandidates,
   type HandoffDiscoveryDependencies,
 } from './discovery.js';
+import { buildNativeInvocation } from './helpers/behavior-contracts.js';
 
 function transcriptCandidate(
   runtime: 'codex' | 'claude-code',

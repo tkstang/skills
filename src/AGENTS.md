@@ -7,7 +7,6 @@ Inherits the root instructions. Read this file before changing source or tests u
 - `skills/<name>/` owns a skill's instructions, resources, runtime, and tests. Prompt-only skills need no empty runtime directory or `build.json`; executable owners declare entrypoints in `build.json`.
 - `shared/` owns genuinely shared runtime and its tests. Importing code does not require installing another skill's workflow.
 - `plugins/<plugin>/` owns non-skill plugin code and tests. Consensus CLI/core changes belong here; member-skill changes belong to their skill owner.
-- `tools/coding-session-handoff/` owns the experimental handoff CLI tooling and behavior-gate tests. The older automated executor remains paused and unverified; a packaging or docs change does not authorize running live behavior gates.
 - `distributions.ts` is build-time configuration: canonical owners, selected standalone/plugin forms, permitted source roots, required/optional workflow references, and independent plugin release targets. A declaration is not proof of live provider discovery.
 
 For a worked example, read [Adding a skill or distribution](../documentation/docs/engineering/contributing/development/adding-a-skill.md). Keep one editable owner when promoting a skill; preserve provenance and coordinate downstream ownership explicitly.

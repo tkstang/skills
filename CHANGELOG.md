@@ -43,6 +43,13 @@
 
 ### Removed
 
+- The paused, unverified `coding-session-handoff` executor: its CLI, handoff,
+  provider, reconcile, and behavior-gate source and tests, the generated
+  `tools/coding-session-handoff/coding-session-handoff.mjs`, its build
+  declaration, and its README and capability matrix. The shipped
+  `session-fork-to-destination` guidance skill is unaffected; its docs page and
+  `SKILL.md` are now the only operator-facing entry-point reference
+  (`session-fork-to-destination` 0.2.7).
 - The `shared/transcript-core/` compatibility README and the
   `pnpm run sync:transcript-core` compatibility script. `pnpm run build` is the
   only generated-output command; the canonical source stays at

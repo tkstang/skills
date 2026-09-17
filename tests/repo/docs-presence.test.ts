@@ -556,9 +556,6 @@ describe('docs-presence', () => {
     const hooksAndSafety = await read(
       'documentation/docs/engineering/contributing/development/hooks-and-safety.md',
     );
-    const handoffToolReadme = await read(
-      'tools/coding-session-handoff/README.md',
-    );
     const exportTranscriptFormats = await read(
       'skills/session-export-transcript/references/transcript-formats.md',
     );
@@ -601,12 +598,6 @@ describe('docs-presence', () => {
     expect(hooksAndSafety).toMatch(
       /pnpm tsx scripts\/apply-internal-flags\.ts/,
     );
-    expect(handoffToolReadme).toMatch(
-      /The new `session-fork-to-destination` skill/,
-    );
-    expect(handoffToolReadme).toMatch(
-      /older executor in `coding-session-handoff\.mjs`/,
-    );
     for (const maintained of [
       rootAgents,
       contributing,
@@ -615,7 +606,6 @@ describe('docs-presence', () => {
       consensusAgents,
       testAgents,
       hooksAndSafety,
-      handoffToolReadme,
     ]) {
       expect(maintained).not.toMatch(/scripts\/validate\.mjs/);
       expect(maintained).not.toMatch(/src\/consensus\//);
