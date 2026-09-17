@@ -67,7 +67,7 @@ oat_post_implement_sequence:
   source: configured
   final_phase: p03
   pre_approval: [summary, document, pr]
-  pre_approval_completed: [summary]
+  pre_approval_completed: [summary, document]
   approval: not_required
   approval_source: null
   post_approval: []
@@ -135,7 +135,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T05:17:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T05:21:37Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -147,7 +147,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - final review and configured exit gate passed
+Implementation - local closeout complete; PR authorization pending
 
 ## Artifacts
 
@@ -180,6 +180,9 @@ Implementation - final review and configured exit gate passed
 - ✓ Independent p03 re-review passed with zero findings
 - ✓ Final full-project re-review passed with no blocking or new findings
 - ✓ Configured exit gate passed and was received
+- ✓ Project summary complete
+- ✓ Documentation audit complete with no changes required
+- ⧗ Configured PR step awaiting explicit authorization
 - ⧗ Final HiLL closeout pending
 
 ## Blockers
@@ -188,4 +191,5 @@ None.
 
 ## Next Milestone
 
-Complete the final HiLL closeout without crossing the unauthorized PR boundary.
+Await explicit authorization to publish the configured PR step, then resume
+`oat-project-implement`.
