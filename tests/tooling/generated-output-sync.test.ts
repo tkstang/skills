@@ -332,6 +332,32 @@ describe('generated output drift guard', () => {
     }
   });
 
+  it('excludes generated provider skill mirrors from static lint', async () => {
+    const oxlint = JSON.parse(
+      await readFile(new URL('../../.oxlintrc.json', import.meta.url), 'utf8'),
+    );
+    const patterns: string[] = oxlint.ignorePatterns;
+    for (const providerMirror of [
+      '.claude/skills/oat-project-implement/scripts/run.mjs',
+      '.cursor/skills/oat-project-implement/scripts/run.mjs',
+    ]) {
+      expect(
+        patterns.some((pattern) =>
+          matchesIgnorePattern(pattern, providerMirror),
+        ),
+        `.oxlintrc.json ignorePatterns must cover ${providerMirror}`,
+      ).toBe(true);
+    }
+    expect(
+      patterns.some((pattern) =>
+        matchesIgnorePattern(
+          pattern,
+          'src/skills/oat-project-implement/scripts/run.mjs',
+        ),
+      ),
+    ).toBe(false);
+  });
+
   it('excludes generated roots from lint-staged tasks', () => {
     const task = lintStagedConfig['*.{ts,mts,mjs,js}'];
     for (const root of generatedOutputRoots) {
