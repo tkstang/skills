@@ -42,15 +42,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
   freshness_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
   freshness_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: d4f1da76-995a-42ac-95a7-f20461caa7bf
   launch_started_at: '2026-09-17T02:01:20Z'
   launch_result_receipt: '.oat/projects/shared/first-party-standalone-installer/gate-receipts/d4f1da76-995a-42ac-95a7-f20461caa7bf.json'
   gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/3631aaf2-103a-4106-9bda-9eeb577cc87f.json'
   gate_run_id: 3631aaf2-103a-4106-9bda-9eeb577cc87f
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: ok
+  artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md'
+  handoff: 'Gate passed at the important threshold with five non-blocking Minor findings; receive is required for final disposition.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -58,10 +58,10 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T02:02:50Z'
+  updated_at: '2026-09-17T02:10:50Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T02:02:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T02:10:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
