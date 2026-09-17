@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t02
-oat_last_commit: 266dd3c360b5779743d4bc634d2c7b92e7b86cb0
+oat_current_task: null
+oat_last_commit: 3d9da99d9cff0042506299af6abd1bb3d3b0f60d
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T04:44:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T04:46:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -136,7 +136,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - p03 review fix `p03-t02` pending
+Implementation - p03 review fix complete; re-review pending
 
 ## Artifacts
 
@@ -165,7 +165,8 @@ Implementation - p03 review fix `p03-t02` pending
 - ✓ Fresh final review found no blocking issues; user selected `m3` for correction
 - ✓ `p03-t01` installer-neutral Node-version wording and regression complete
 - ⚠ Independent p03 review found one Medium test-placement issue
-- ⧗ `p03-t02` regression relocation and version-gate verification pending
+- ✓ `p03-t02` regression relocation and version-gate verification complete
+- ⧗ Independent p03 re-review pending
 - ⧗ Final re-review and configured exit gate refresh pending
 - ⧗ Final HiLL closeout pending
 
@@ -175,5 +176,5 @@ None.
 
 ## Next Milestone
 
-Execute `p03-t02`, re-review p03, then refresh the final review and configured
-cross-family exit gate at the corrected committed HEAD.
+Re-review p03, then refresh the final review and configured cross-family exit
+gate at the corrected committed HEAD.

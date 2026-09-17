@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p03-t02
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,15 +28,15 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 1     | 1/1       |
-| Phase 3 | in progress | 2     | 1/2       |
+| Phase 3 | complete    | 2     | 2/2       |
 
-**Total:** 5/6 tasks completed
+**Total:** 6/6 tasks completed
 
 ---
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** in progress
+**Status:** complete
 **Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
@@ -192,16 +192,17 @@ mocked old Node, asserts the neutral message, and rejects any Consensus wording.
 
 ### Task p03-t02: (review) Relocate the standalone wording regression outside distributed source
 
-**Status:** pending
+**Status:** completed
+**Commit:** `3d9da99d9cff0042506299af6abd1bb3d3b0f60d`
 
 **Review finding:** M1 from the p03 review. The regression is behaviorally
 sound, but its location under `src/plugins/consensus/` makes the version gate
 require unrelated version bumps for all seven Consensus member skills.
 
-**Planned outcome:** Move the new regression to
-`tests/tooling/standalone-installer.test.ts`, restore the Consensus test file to
-its pre-p03 content, and prove the committed net delta has no skill-version
-impact.
+**Outcome:** Moved the regression to
+`tests/tooling/standalone-installer.test.ts` and restored the Consensus test to
+its pre-p03 content. Forty-two focused tests and both committed-range
+skill-version checks passed with zero changed skills.
 
 ---
 
@@ -604,6 +605,7 @@ Chronological log of implementation progress.
 - Configured cross-family exit gate passed at the Important threshold; four Minor findings were explicitly deferred and one quick-mode reference was aligned.
 - Operator-authorized closeout recovery committed the provider-mirror lint exclusions in `bbe37778`; the exact test, lint, type-check, and build commands all passed.
 - `p03-t01` completed in `266dd3c3`; the shared Node-version message is neutral and the standalone old-Node regression passes.
+- `p03-t02` completed in `3d9da99d`; the regression now lives outside distributed source and both version checks report zero changed skills.
 
 ---
 
