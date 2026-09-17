@@ -404,8 +404,12 @@ function changelogCovers(
     `(^|[^\\w-])${escapeRegExp(name)}([^\\w-]|$)`,
     'u',
   );
+  const versionPattern = new RegExp(
+    `(?<![\\w.])${escapeRegExp(version)}(?![\\w]|\\.\\d)`,
+    'u',
+  );
   return addedLines.some(
-    (line) => namePattern.test(line) && line.includes(version),
+    (line) => namePattern.test(line) && versionPattern.test(line),
   );
 }
 

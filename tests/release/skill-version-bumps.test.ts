@@ -415,7 +415,7 @@ metadata:
     );
     await writeChangelogEntry(
       root,
-      '- `demo` now does a new thing.\n- `other-skill` 1.1.0 unrelated.',
+      '- `demo` now does a new thing.\n- `other-skill` 1.1.0 unrelated.\n- `demo` 11.1.0 and 1.1.01 are not the bumped version.',
     );
     await git(root, ['commit', '-aqm', 'bump with entry missing version']);
 
