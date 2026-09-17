@@ -217,6 +217,7 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | p06    | code     | passed | 2026-09-17 | reviews/p06-review-2026-09-17T033619Z.md | ae059dfb64b38c5bb26896616b69caf448bc4543 | root-phase-review-round-2 | - |
 | p07    | code     | passed | 2026-09-17 | reviews/p07-review-2026-09-17T043419Z.md | fa01afbe8a0cd21eeaf20e4cf9c23e6574f12d04 | root-phase-review-round-2 | - |
 | p08    | code     | pending | -    | -        | -             | -          | -           |
+| p09    | code     | passed | 2026-09-17 | reviews/p09-review-2026-09-17T065900Z.md | 40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98 | root-phase-review-round-1 | - |
 | plan | artifact | fixes_completed | 2026-09-17 | reviews/archived/artifact-plan-review-2026-09-17T000849Z.md | - | - | - |
 | final | code | fixes_completed | 2026-09-17 | reviews/final-review-2026-09-17T055634Z.md | bb59b849a499e7ebfddb11c87b0c322cfd04fd60 | auto | - |
 | final | code | passed | 2026-09-17 | reviews/final-review-2026-09-17T060326Z.md | c60f3fe354439971b00612ccf3325c05777b9fe6 | auto | - |

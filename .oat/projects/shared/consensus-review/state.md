@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: bbdb284780b9b336859af11a2317866407eb3271
+oat_current_task: p09-review-fix-1
+oat_last_commit: 40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -68,19 +68,19 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'implementation_changed_after_gate'
-  updated_at: '2026-09-17T06:51:42Z'
+  updated_at: '2026-09-17T07:03:15Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T06:51:42Z'
+oat_project_state_updated: '2026-09-17T07:03:15Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p09 implementation is complete and root-verified; independent p09 review is next. The prior configured gate generation is stale because remediation changed substantive code.
+**Status:** p09 review passed with zero Critical or Important findings. One nonblocking Medium receipt-evidence clarification is in bounded cleanup before final lifecycle review; the prior configured gate generation remains stale.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -118,7 +118,7 @@ Implementation — configured-gate remediation. Original p06–p08 tasks and lif
 
 ## Next Milestone
 
-Complete independent p09 review, then fresh final lifecycle review and configured exit-gate attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
+Complete the narrow p09 review-evidence clarification and root verification, then fresh final lifecycle review and configured exit-gate attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
@@ -134,7 +134,8 @@ Configured exit-gate attempt 1 independently passed 232 focused tests plus build
 - ✓ Final lifecycle review fixes complete (2/2)
 - ✓ Final lifecycle review round 3 passed
 - ✓ Configured exit-gate remediation p09 implementation (4/4)
-- ⧗ Independent p09 review pending
+- ✓ Independent p09 review passed (0 Critical, 0 Important)
+- ⧗ Nonblocking p09 evidence clarification pending
 - ⧗ Exit-gate re-run and final HiLL approval pending
 
 ## Operational Notes

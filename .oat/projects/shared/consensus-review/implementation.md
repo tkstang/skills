@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: null
+oat_current_task_id: p09-review-fix-1
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** p09 implementation complete and independently root-verified; phase review is pending before final lifecycle review and gate attempt 2/2.
+**Status:** p09 review passed with no Critical or Important findings; one nonblocking Medium receipt-evidence clarification is in bounded cleanup before final lifecycle review.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -254,6 +254,20 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Recovery: 0/10; no recovery event.
 - Worktree: tracked files clean; the root-owned untracked gate receipt remains untouched.
 - Disposition: preserve the four immutable task commits and run independent p09 review.
+
+#### Review Round 1 — passed with nonblocking cleanup
+
+- Request ID: `review-consensus-review-p09-round1-20260917T0653Z`
+- Artifact: [p09-review-2026-09-17T065900Z.md](reviews/p09-review-2026-09-17T065900Z.md)
+- Reviewed head: `40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98`
+- Reviewed range: `3b8f9fdea88d53e26cb9ebfe930c3b7f5ae4eb46..40f8016f48b8ee1f9521d1a4b5516e7ade3cfe98`
+- Verdict: passed; Critical 0, Important 0, Medium 1, Minor 0
+- Reconnaissance: not attempted
+- M1 accepted for immediate nonblocking cleanup: distinguish the historical independent receiver exercise from the refreshed renderer-bound fixture identities and remove the claim that the refreshed hashes were independently received.
+- Dispatch target and axes: `oat-reviewer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+- Verification: the reviewer independently passed 118 focused tests, build freshness, type-check, validation, smoke, the 11-owner version/changelog gate, scoped static checks and range diff checks.
+- Disposition: p09 passes the blocking threshold. Route one narrow evidence/test-description correction to the original implementer, root-verify it, and let the required final lifecycle review cover the appended fix.
 
 #### Final Review Round 1 — changes requested
 
