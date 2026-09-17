@@ -76,6 +76,7 @@
 
 ### Fixed
 
+- Mixed host-marker shells now preserve explicit `CONSENSUS_PARENT_HOST` precedence and the established Claude → Codex → Cursor fallback priority, so recursion-depth child state remains enforced (`consensus-review` 0.1.9, `create` 0.1.14, `decide` 0.1.14, `evaluate` 0.1.18, `panel` 0.1.11, `phone-a-friend` 0.1.10, `plan` 0.1.14, `refine` 0.1.17).
 - `consensus-review` 0.1.8 now publishes canonical and exported Markdown atomically without overwrite, reports diagnostic paths only after successful persistence, and bounds growing request-file reads to 256 KiB plus one detection byte.
 - `consensus-review` 0.1.6 now rejects capture-to-baseline scope drift before dispatch, preserves bounded author provenance without presenting requested reviewer options as observed, supports file and document scopes without a first commit, records resolved Git and comparison identities, and writes one labeled diagnostic after final-result persistence failures.
 - `consensus-review` 0.1.2 now fails closed when Codex capture paths resolve through symlinks, alias protected inputs, or reuse pre-existing targets, and when inherited consensus depth is malformed or out of range; source and copied-installed-bundle regressions cover both boundaries.

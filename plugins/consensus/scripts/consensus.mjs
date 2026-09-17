@@ -1234,8 +1234,12 @@ function firstNonEmptyLine(value) {
 
 // src/plugins/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
-  const detected = detectedHostRuntimes(env);
-  return detected.size === 1 ? [...detected][0] : "unknown";
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) return declaredParent;
+  if (hasClaudeHostMarker(env)) return "claude";
+  if (hasCodexHostMarker(env)) return "codex";
+  if (hasCursorHostMarker(env)) return "cursor";
+  return "unknown";
 }
 function hostContextFromEnv(env, cwd, maxDepth = 1) {
   return {
@@ -1318,18 +1322,23 @@ function parseNonNegativeInteger(value) {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) ? parsed : void 0;
 }
-function detectedHostRuntimes(env) {
-  const detected = /* @__PURE__ */ new Set();
-  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
-    detected.add("claude");
-  }
-  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
-    detected.add("codex");
-  }
-  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
-    detected.add("cursor");
-  }
-  return detected;
+function knownHostRuntime(value) {
+  return value === "claude" || value === "codex" || value === "cursor" ? value : void 0;
+}
+function hasClaudeHostMarker(env) {
+  return Boolean(
+    env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID
+  );
+}
+function hasCodexHostMarker(env) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID
+  );
+}
+function hasCursorHostMarker(env) {
+  return Boolean(
+    env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR
+  );
 }
 
 // src/plugins/consensus/provider-cli/args.ts

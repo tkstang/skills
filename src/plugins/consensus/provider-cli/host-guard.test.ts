@@ -21,6 +21,27 @@ describe('provider host runtime guard', () => {
     expect(detectHostRuntime({})).toBe('unknown');
   });
 
+  it('uses the established host priority when ambient markers are mixed', () => {
+    expect(
+      detectHostRuntime({ CLAUDECODE: '1', CURSOR_TRACE_ID: 'trace' }),
+    ).toBe('claude');
+    expect(
+      detectHostRuntime({
+        CODEX_SESSION_ID: 'session',
+        CURSOR_TRACE_ID: 'trace',
+      }),
+    ).toBe('codex');
+  });
+
+  it('gives an explicit parent precedence over unrelated ambient markers', () => {
+    expect(
+      detectHostRuntime({
+        CONSENSUS_PARENT_HOST: 'codex',
+        CURSOR_AGENT: '1',
+      }),
+    ).toBe('codex');
+  });
+
   it('allows a depth 0 host to spawn a same-provider leaf subprocess at depth 1', () => {
     const host = hostContext({ runtime: 'codex', depth: 0, max_depth: 1 });
 
@@ -199,6 +220,34 @@ describe('provider host runtime guard', () => {
       max_depth: 2,
     });
   });
+
+  it.each([
+    {
+      env: { CLAUDECODE: '1', CURSOR_TRACE_ID: 'trace' },
+      runtime: 'claude' as const,
+    },
+    {
+      env: { CONSENSUS_PARENT_HOST: 'codex', CURSOR_AGENT: '1' },
+      runtime: 'codex' as const,
+    },
+  ])(
+    'propagates child host state for mixed marker evidence as $runtime',
+    ({ env, runtime }) => {
+      const host = hostContextFromEnv(
+        { ...env, CONSENSUS_RUN_ID: 'mixed-run' },
+        '/repo',
+      );
+
+      expect(evaluateHostGuard({ host, provider: 'cursor' })).toMatchObject({
+        allowed: true,
+        child_env: {
+          CONSENSUS_RUN_ID: 'mixed-run',
+          CONSENSUS_PARENT_HOST: runtime,
+          CONSENSUS_DEPTH: '1',
+        },
+      });
+    },
+  );
 
   it('resolves one explicit review host while preserving inherited depth', () => {
     expect(

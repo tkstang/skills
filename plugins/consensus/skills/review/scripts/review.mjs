@@ -887,16 +887,36 @@ function parseNonNegativeInteger(value) {
 }
 function detectedHostRuntimes(env) {
   const detected = /* @__PURE__ */ new Set();
-  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) detected.add(declaredParent);
+  if (hasClaudeHostMarker(env)) {
     detected.add("claude");
   }
-  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
+  if (hasCodexHostMarker(env)) {
     detected.add("codex");
   }
-  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
+  if (hasCursorHostMarker(env)) {
     detected.add("cursor");
   }
   return detected;
+}
+function knownHostRuntime(value) {
+  return value === "claude" || value === "codex" || value === "cursor" ? value : void 0;
+}
+function hasClaudeHostMarker(env) {
+  return Boolean(
+    env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID
+  );
+}
+function hasCodexHostMarker(env) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID
+  );
+}
+function hasCursorHostMarker(env) {
+  return Boolean(
+    env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR
+  );
 }
 
 // src/plugins/consensus/provider-cli/probe.ts

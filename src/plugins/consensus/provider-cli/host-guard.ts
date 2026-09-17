@@ -38,8 +38,12 @@ export interface HostGuardBlockedResult {
 export function detectHostRuntime(
   env: Record<string, string | undefined>,
 ): HostRuntime {
-  const detected = detectedHostRuntimes(env);
-  return detected.size === 1 ? [...detected][0] : 'unknown';
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) return declaredParent;
+  if (hasClaudeHostMarker(env)) return 'claude';
+  if (hasCodexHostMarker(env)) return 'codex';
+  if (hasCursorHostMarker(env)) return 'cursor';
+  return 'unknown';
 }
 
 export function resolveExplicitHostContext(input: {
@@ -202,31 +206,48 @@ function detectedHostRuntimes(
   env: Record<string, string | undefined>,
 ): Set<KnownHostRuntime> {
   const detected = new Set<KnownHostRuntime>();
-  if (
-    env.CONSENSUS_PARENT_HOST === 'claude' ||
-    env.CLAUDECODE ||
-    env.CLAUDE_CODE_ENTRYPOINT ||
-    env.CLAUDE_CODE_SESSION_ID ||
-    env.CLAUDE_SESSION_ID
-  ) {
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) detected.add(declaredParent);
+  if (hasClaudeHostMarker(env)) {
     detected.add('claude');
   }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'codex' ||
-    env.CODEX_SESSION_ID ||
-    env.CODEX_SANDBOX ||
-    env.OPENAI_CODEX_SESSION_ID
-  ) {
+  if (hasCodexHostMarker(env)) {
     detected.add('codex');
   }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'cursor' ||
-    env.CURSOR_TRACE_ID ||
-    env.CURSOR_AGENT ||
-    env.CURSOR_SESSION_ID ||
-    env.CURSOR
-  ) {
+  if (hasCursorHostMarker(env)) {
     detected.add('cursor');
   }
   return detected;
+}
+
+function knownHostRuntime(
+  value: string | undefined,
+): KnownHostRuntime | undefined {
+  return value === 'claude' || value === 'codex' || value === 'cursor'
+    ? value
+    : undefined;
+}
+
+function hasClaudeHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CLAUDECODE ||
+    env.CLAUDE_CODE_ENTRYPOINT ||
+    env.CLAUDE_CODE_SESSION_ID ||
+    env.CLAUDE_SESSION_ID,
+  );
+}
+
+function hasCodexHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID,
+  );
+}
+
+function hasCursorHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CURSOR_TRACE_ID ||
+    env.CURSOR_AGENT ||
+    env.CURSOR_SESSION_ID ||
+    env.CURSOR,
+  );
 }
