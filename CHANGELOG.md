@@ -28,6 +28,11 @@
 - `session-handoff` 1.1.2 as an authored public skill with optional
   `session-observer` and `session-export-transcript` integrations and no
   implicit installation or active user-install replacement.
+- Documentation site retheme (dark terminal-serif palette with a derived light mode, site-palette Mermaid, accessible horizontally scrollable diagrams, base-path-safe images) and a Markdown & Visuals catalog with copyable syntax and rendered examples.
+- Twelve source-verified diagrams across the User Guide and Engineering pages, three with hand-authored SVG counterparts (source-to-distribution, peers-not-personas, provider process boundary).
+- Engineering guides: TypeScript & Build Tooling, Testing, Consensus Runtime, CI & Quality Gates, Releases & Versioning; User Guide reorganized into Getting Started, Plugins (Consensus, Session), and capability-grouped Standalone Skills, with the README as a task-oriented entry point.
+- `defaults.peers` model and effort now reach dispatch in Create, Decide, Plan, Refine, and Evaluate (`create`/`decide`/`plan` 0.1.10, `refine` 0.1.13, `evaluate` 0.1.14); peer agents travel to the standalone loop as JSON (`--peer-agents`) so model IDs may contain delimiters, and the configuration page's model/effort limitation is removed.
+- Deterministic observer re-arm tests covering SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, and competing consumers (`session-observer` 1.0.41); the Claude Code collaboration reference now records live Monitor evidence, the 30-minute cap, the re-arm gap read, and an explicit worktree handback rule (`session-observer-collab` 1.0.30).
 
 ### Changed
 
@@ -40,6 +45,10 @@
 - Skill frontmatter now uses quoted stable `metadata.version` as its sole
   authored version. Generated forms share that skill version, while consensus
   and session plugin release versions remain independent.
+- `session-fork-to-destination` is described as alpha with explicit limits rather than "experimental, not released" (0.2.5); its CLI status string is unchanged.
+- "Collaborative Observer" is the navigation label for `session-observer-collab` site-wide.
+- Loop-free helpers extracted to `src/plugins/consensus/shared/cli-helpers-core.ts`; Panel imports the core and drops nine duplicated helpers (`panel` 0.1.7, `phone-a-friend` 0.1.6); the loop-coupled layer re-exports the core.
+- Repository validation moved the provider install-matrix gate from the README to the canonical Installation page; the README keeps a standalone quick start and links to the matrix.
 
 ### Removed
 
@@ -68,6 +77,8 @@
 - Consensus loop `records.json` and status writes are now atomic (same-directory temp file + fsync + rename), so a crash mid-write can no longer corrupt a resumable deliberation session (`refine` 0.1.6, `evaluate` 0.1.7).
 - The provider CLI host-recursion guard now propagates depth and enforces `max_depth` across cross-provider peer chains; alternating-provider spawn chains can no longer bypass the recursion cap.
 - `session-observer` state locks now record their owner PID and recover from stale locks left by crashed processes, using a race-hardened rename-based reclaim with post-claim re-verification (a narrow multi-contender window documented in the source remains, funneled through exclusive lock creation); the codex cwd cache is written atomically (`session-observer` 1.0.6).
+- `writeSectionOutput` and `seedRecordsFile` in the consensus loop now use the atomic temp+fsync+rename writer, with no-residue and previous-file-survival tests.
+- Refine's parallel worker path forwards configured peer model/effort through the standalone loop invoker (previously sent null).
 
 ## [0.1.0] - 2026-06-20
 
