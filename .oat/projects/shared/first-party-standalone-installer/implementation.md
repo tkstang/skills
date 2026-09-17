@@ -664,6 +664,28 @@ reconciliation is required before receive.
 `reviews/final-review-2026-09-17T050550Z.md`, and collision-free archive path
 `reviews/archived/final-review-2026-09-17T050550Z.md`.
 
+**Receive disposition:** Passing-gate judgment sweep completed. The event is
+`passed`; no fix task or blocking re-review is required.
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 4 Minor.
+
+**Deferred Findings (Minor):**
+
+- `m1` retained with the user's explicit trigger: revisit only if direct helper
+  execution becomes a supported interface.
+- `m2` retained with the user's explicit trigger: revisit during the next
+  installation-guide polish or after an affected user report.
+- `m4` retained with the user's explicit trigger: improve diagnostics if a
+  timeout is observed or support demand appears.
+- `m6` deferred by passing-gate judgment sweep: the lint exclusions are the
+  defensible source of truth and have no format impact today because the
+  mirrors are extension-less symlinks into an already ignored tree. Align the
+  root guidance and `.oxfmtrc.json` during the next tooling/docs touch, or
+  sooner if formatter traversal begins affecting provider skill mirrors.
+
+**Resolved findings:** Prior bootstrap M1, gate `m3`, gate `m5`, and p03 M1
+remain resolved.
+
 ---
 
 ## Implementation Log
