@@ -439,6 +439,33 @@ reconciled idempotently after a transient index-lock collision.
 `reviews/final-review-2026-09-17T020642Z.md`, and collision-free archive path
 `reviews/archived/final-review-2026-09-17T020642Z.md`.
 
+**Receive disposition:** Passing-gate judgment sweep completed. The event is
+`passed`; no fix task or blocking re-review is required.
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 5 Minor.
+
+**Deferred Findings (Minor):**
+
+- `m1` deferred: direct Node invocation of the private helper through a
+  symlink is undocumented and unsupported; the documented `install.sh` route
+  resolves physical paths correctly. Revisit only if direct helper execution
+  becomes a supported interface.
+- `m2` deferred: documenting global/system Git-config isolation would help
+  proxy/private-CA users, but the isolation is deliberate and `--repository`
+  already supports local mirrors. Revisit during the next installation-guide
+  polish or on a user report.
+- `m3` deferred: the Node-version error names Consensus in standalone mode but
+  remains accurate about the requirement. Fix with the next `install.sh`
+  wording change.
+- `m4` deferred: a 60-second fetch timeout reports an opaque Git failure, but
+  the bounded shallow tag fetch is normally small. Improve diagnostics if a
+  timeout is reproduced or support demand appears.
+
+**Artifact alignment:**
+
+- `m5` addressed now: quick mode has no `spec.md`; the References section now
+  records Spec as N/A instead of linking a nonexistent artifact.
+
 ---
 
 ## Implementation Log
@@ -455,6 +482,7 @@ Chronological log of implementation progress.
 - Auto final review converted the unresolved bootstrap-tag finding into `p02-t01`; no Medium finding remains deferred.
 - `p02-t01` completed in `f0879afa`; independent p02 review passed with zero findings and resolved the bootstrap-tag defect.
 - Final re-review passed with zero findings; all prior Medium and Minor dispositions are closed.
+- Configured cross-family exit gate passed at the Important threshold; four Minor findings were explicitly deferred and one quick-mode reference was aligned.
 
 ---
 
@@ -506,4 +534,4 @@ Track test execution during implementation.
 
 - Plan: `plan.md`
 - Design: `design.md`
-- Spec: `spec.md`
+- Spec: N/A (quick mode)
