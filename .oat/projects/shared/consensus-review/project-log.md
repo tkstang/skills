@@ -100,6 +100,10 @@ Phase p09 outcome: PASSED independent review at 40f8016f with findings=critical:
 
 Post-gate final review sequence PASSED round 3 at 62cc7054 with findings=critical:0,important:0,medium:0,minor:0 after three bounded cycles; artifacts preserve exact provenance, including attempted reconnaissance in round 1. consensus-review-post-gate-final-passed-20260917T073608Z
 
+### 2026-09-17 · structural · oat gate review · final
+
+target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:1 exit=0 status=ok artifact=.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md run=14836d4a-5d65-43a1-9d78-ec3b9d300a4b
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
