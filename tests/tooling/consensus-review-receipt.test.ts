@@ -8,7 +8,7 @@ const fixtureRoot = new URL(
   import.meta.url,
 );
 
-const fixtureHashes = {
+const canonicalFixtureHashes = {
   'clean-review.md':
     '2a14076b1672186cf3a80a06f37bc2e4b66db950d8125203b23115a2b52e830a',
   'diagnostic.json':
@@ -17,12 +17,14 @@ const fixtureHashes = {
     'e3cfc7b4c6462ebf729f25f22bf7a7e6ba7cc6184266862457c07b3db361db06',
 } as const;
 
-async function fixtureText(name: keyof typeof fixtureHashes): Promise<string> {
+async function fixtureText(
+  name: keyof typeof canonicalFixtureHashes,
+): Promise<string> {
   return readFile(new URL(name, fixtureRoot), 'utf8');
 }
 
-describe('consensus review receipt fixtures', () => {
-  it('keeps the clean renderer fixture receivable and finding-free', async () => {
+describe('canonical consensus review receipt fixtures', () => {
+  it('keeps the clean renderer fixture finding-free', async () => {
     const fixture = await fixtureText('clean-review.md');
 
     expect(fixture).toContain('oat_review_run_id: "receipt-clean-v1"');
@@ -60,9 +62,11 @@ describe('consensus review receipt fixtures', () => {
     expect(fixture.status).not.toBe('complete');
   });
 
-  it('pins the exact fixture identities exercised by the independent receiver', async () => {
-    for (const [name, expectedHash] of Object.entries(fixtureHashes)) {
-      const fixture = await fixtureText(name as keyof typeof fixtureHashes);
+  it('pins the current canonical renderer/fixture identities', async () => {
+    for (const [name, expectedHash] of Object.entries(canonicalFixtureHashes)) {
+      const fixture = await fixtureText(
+        name as keyof typeof canonicalFixtureHashes,
+      );
       expect(createHash('sha256').update(fixture).digest('hex')).toBe(
         expectedHash,
       );
