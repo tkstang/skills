@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p02-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -27,9 +27,9 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
-| Phase 2 | in progress | 1     | 0/1       |
+| Phase 2 | complete    | 1     | 1/1       |
 
-**Total:** 3/4 tasks completed
+**Total:** 4/4 tasks completed
 
 ---
 
@@ -122,16 +122,38 @@ oat_generated: false
 
 ## Phase 2: Resolve final review findings
 
-**Status:** in progress
+**Status:** complete
 **Started:** 2026-09-17
+
+### Phase Summary (fill when phase is complete)
+
+**Outcome (what changed):**
+
+- The documented bootstrap now fetches only the fully qualified release tag
+  and checks out its peeled commit before selecting the installer.
+- An offline local regression proves a divergent same-named branch cannot
+  substitute different installer bytes.
+
+**Verification:**
+
+- Three focused release-contract tests, changed-file lint/format checks, the
+  documentation production build, and authoritative-range whitespace checks
+  passed.
+- Independent p02 review passed with zero findings and reproduced both the old
+  failure mode and corrected behavior without executing the fixture installer.
 
 ### Task p02-t01: (review) Pin the bootstrap checkout to the fully qualified release tag
 
-**Status:** pending
+**Status:** completed
+**Commit:** `f0879afabb0556f836eae1849edafd3393dd90e7`
 
 **Review finding:** M1 from the auto final review. The documented
 `git clone --branch v0.1.2` bootstrap can prefer a divergent same-named branch
 over the promised annotated tag.
+
+**Outcome:** Replaced the ambiguous clone command with an explicit qualified
+tag fetch and detached peeled-commit checkout, with a temporary local Git
+collision regression covering checkout identity and installer bytes.
 
 ---
 
@@ -241,6 +263,46 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Medium M1: make the documented installer bootstrap resolve the fully qualified release tag rather than a same-named branch.
 - Final lifecycle review and configured closeout gates remain.
 
+### Run 4 — 2026-09-17
+
+- Branch: `standalone-installer`
+- Tier: 1 — subagent
+- Dispatch policy: `frontier`; cap `xhigh`; selected `gpt-5.6-terra/high`
+- Phase outcome: passed
+
+| Phase | Outcome | Tasks | Commits | Review | Fix iterations |
+| ----- | ------- | ----- | ------- | ------ | -------------- |
+| p02 | passed | 1/1 | `f0879afa` | 0 Critical, 0 Important, 0 Medium, 0 Minor | 0 |
+
+#### Dispatch record — p02 implementation
+
+- Request ID: `impl-first-party-standalone-installer-p02-20260917T0138Z`
+- Caller / role: `oat-project-implement` / `oat-phase-implementer`
+- Role class / task class: `worker` / `default-implementation`
+- Provider / context / route: `codex` / `root-native` / native materialized role
+- Authority: `p02-t01` files and required implementation bookkeeping; no push, release, network, live provider, or real-home mutation
+- Target: `oat-phase-implementer-gpt-5-6-terra-high`
+- Model axis: `selected:gpt-5.6-terra`
+- Effort axis: `selected:high`
+- Selection source / reason: configured balanced candidate / bounded, strongly tested implementation floor
+- Candidates considered: `gpt-5.6-terra/high`, `gpt-5.6-sol/medium`, `gpt-6-astra/high`
+- Launch status / child outcome: `accepted` / `DONE`
+- Phase base / returned head: `e2fe6c4106e2949b2ebefe1816cdae1622bc7b6c` / `f0879afabb0556f836eae1849edafd3393dd90e7`
+- Optional children: none
+- Dispatch stamp: `Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=xhigh target=oat-phase-implementer-gpt-5-6-terra-high`
+
+#### Review record — p02
+
+- Target: `oat-reviewer-gpt-6-astra-xhigh-d2ba02747a`
+- Reviewed range: `e2fe6c4106e2949b2ebefe1816cdae1622bc7b6c..f0879afabb0556f836eae1849edafd3393dd90e7`
+- Verdict: passed with zero findings
+- Review artifact: `reviews/p02-review-2026-09-17T014619Z.md`
+- Reconnaissance: not attempted
+
+**Outstanding items:**
+
+- Final lifecycle re-review and configured closeout gates remain.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -319,9 +381,8 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Deferred Medium ledger:** No Medium finding remains deferred. The prior p01
 M1 is the same defect and is converted into `p02-t01` for correction now.
 
-**Next:** Execute `p02-t01` via the `oat-project-implement` skill. After the
-fix task completes, update this final review event to `fixes_completed` and run
-a final code re-review.
+**Next:** `p02-t01` completed in `f0879afa`, its phase review passed, and this
+event is now `fixes_completed`. Run the final code re-review.
 
 ---
 
@@ -337,6 +398,7 @@ Chronological log of implementation progress.
 - Recovery attempt 2 completed in `372a69c0`; `p01-t03` completed in `0876525a`; all planned static verification passed.
 - Independent phase review passed with one non-blocking Medium bootstrap-tag finding recorded in `reviews/p01-review-2026-09-17T012147Z.md`.
 - Auto final review converted the unresolved bootstrap-tag finding into `p02-t01`; no Medium finding remains deferred.
+- `p02-t01` completed in `f0879afa`; independent p02 review passed with zero findings and resolved the bootstrap-tag defect.
 
 ---
 
@@ -355,6 +417,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused installer/docs suites; `premerge`; docs build; both version comparisons; diff/PJM checks | 65 focused tests; 2,029 full-suite tests; all gates | 0 | No coverage metric configured |
+| 2     | Release-contract suite; lint/format; docs build; independent command reproduction; diff check | 3 focused tests; all gates | 0 | Targeted regression for branch/tag ambiguity |
 
 ## Final Summary (for PR/docs)
 
@@ -381,7 +444,7 @@ Track test execution during implementation.
 **Design deltas (if any):**
 
 - Only test placement changed: standalone assertions moved outside `src/plugins/consensus` to avoid false shipped-skill version impact. Runtime design is unchanged.
-- Phase review left one Medium documentation finding for final lifecycle review: the bootstrap command must not prefer a same-named branch over the pinned tag.
+- The phase-review bootstrap finding was resolved in `f0879afa` with an explicit qualified-tag fetch and local collision regression.
 
 ## References
 

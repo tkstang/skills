@@ -291,8 +291,8 @@ git commit -m "fix(installer): pin documented bootstrap tag"
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
 | p01    | code     | passed | 2026-09-17 | reviews/p01-review-2026-09-17T012147Z.md | 6800dcebee56689aa9045e0d471e815e564950f2 | manual | - |
-| p02    | code     | pending | - | - | - | - | - |
-| final  | code     | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T012706Z.md | cfe7cc01ee606523e2d14ffbea0fbcfd08124168 | auto | - |
+| p02    | code     | passed | 2026-09-17 | reviews/p02-review-2026-09-17T014619Z.md | f0879afabb0556f836eae1849edafd3393dd90e7 | manual | - |
+| final  | code     | fixes_completed | 2026-09-17 | reviews/archived/final-review-2026-09-17T012706Z.md | cfe7cc01ee606523e2d14ffbea0fbcfd08124168 | auto | - |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
