@@ -26,7 +26,7 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | pending     | 3     | 0/3       |
+| Phase 1 | in_progress | 3     | 0/3       |
 
 **Total:** 0/3 tasks completed
 
@@ -34,8 +34,8 @@ oat_generated: false
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
 
@@ -174,7 +174,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-No implementation task has started yet.
+Implementation started at `p01-t01`; no product-code task has completed yet.
 
 ---
 
