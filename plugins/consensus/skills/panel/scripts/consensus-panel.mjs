@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   readFile as readFile2,
   realpath,
@@ -14,7 +14,7 @@ import {
   unlink,
   writeFile as writeFile2
 } from "node:fs/promises";
-import path2 from "node:path";
+import path3 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/config/consensus-config.ts
@@ -385,6 +385,64 @@ function formatCount(count) {
   return count === 2 ? "two" : String(count);
 }
 
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
+import path2 from "node:path";
+var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
+function requireValue(argv, index, token) {
+  const value = argv[index + 1];
+  if (value === void 0 || value.startsWith("--")) {
+    throw new Error(`${token} requires a value`);
+  }
+  return value;
+}
+function validateProviderId(value, flag) {
+  if (!PROVIDER_ID_PATTERN.test(value)) {
+    throw new Error(
+      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
+    );
+  }
+  return value;
+}
+function inside(root, target) {
+  const relative = path2.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path2.isAbsolute(relative);
+}
+function pathExists(targetPath) {
+  return lstat(targetPath).then(() => true).catch((error) => {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  });
+}
+async function nearestExistingPath(targetPath) {
+  if (await pathExists(targetPath)) return targetPath;
+  const parent = path2.dirname(targetPath);
+  if (parent === targetPath) return targetPath;
+  return await nearestExistingPath(parent);
+}
+function ensureFinalNewline(text) {
+  return String(text ?? "").replace(/\n*$/u, "\n");
+}
+function isJsonRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+function providerStatusMap(envelope) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entries = [];
+  for (const provider of providers) {
+    if (!isJsonRecord(provider)) continue;
+    const id = String(provider.id ?? provider.provider ?? provider.name ?? "");
+    if (!id) continue;
+    entries.push([id, String(provider.status ?? "unavailable")]);
+  }
+  return new Map(entries);
+}
+function providerInventoryEntries(envelope) {
+  return [...providerStatusMap(envelope)].map(
+    ([id, status]) => ({ id, status })
+  );
+}
+
 // src/skills/panel/src/consensus-panel.ts
 var PANEL_QUESTION_SIZE_CAP_BYTES = 1024 * 1024;
 var PANEL_EXIT_CODES = Object.freeze({
@@ -396,7 +454,6 @@ var PANEL_EXIT_CODES = Object.freeze({
 });
 var PROVIDER_CLI_KILL_GRACE_MS = 250;
 var PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
-var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 var RESPONSE_KEYS = /* @__PURE__ */ new Set([
   "schema_version",
   "understood_question",
@@ -427,21 +484,6 @@ var PanelError = class extends Error {
     this.details = options.details;
   }
 };
-function requireValue(argv, index, token) {
-  const value = argv[index + 1];
-  if (value === void 0 || value.startsWith("--")) {
-    throw new Error(`${token} requires a value`);
-  }
-  return value;
-}
-function validateProviderId(value, flag) {
-  if (!PROVIDER_ID_PATTERN.test(value)) {
-    throw new Error(
-      `${flag} provider ids must match ${PROVIDER_ID_PATTERN.source}`
-    );
-  }
-  return value;
-}
 function parsePanelists(value) {
   const panelists = value.split(",").map((panelist) => panelist.trim()).filter(Boolean);
   if (panelists.length < 2) {
@@ -561,38 +603,22 @@ function ensureUnderQuestionSizeCap(contents, label) {
   }
 }
 function resolveInputPath(inputPath, cwd) {
-  return path2.isAbsolute(inputPath) ? path2.resolve(inputPath) : path2.resolve(cwd, inputPath);
-}
-function inside(root, target) {
-  const relative = path2.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path2.isAbsolute(relative);
+  return path3.isAbsolute(inputPath) ? path3.resolve(inputPath) : path3.resolve(cwd, inputPath);
 }
 function allowedRootFor(cwd, allowRoot) {
   return allowRoot ? resolveInputPath(allowRoot, cwd) : cwd;
 }
-async function pathExists(targetPath) {
-  return lstat(targetPath).then(() => true).catch((error) => {
-    if (error.code === "ENOENT") return false;
-    throw error;
-  });
-}
-async function nearestExistingPath(targetPath) {
-  if (await pathExists(targetPath)) return targetPath;
-  const parent = path2.dirname(targetPath);
-  if (parent === targetPath) return targetPath;
-  return await nearestExistingPath(parent);
-}
 async function canonicalPathThroughNearestExisting(targetPath) {
   const existing = await nearestExistingPath(targetPath);
   const realExisting = await realpath(existing);
-  return path2.resolve(realExisting, path2.relative(existing, targetPath));
+  return path3.resolve(realExisting, path3.relative(existing, targetPath));
 }
 async function confineRead(inputPath, cwd, rootPath) {
-  const root = path2.resolve(rootPath);
+  const root = path3.resolve(rootPath);
   const target = resolveInputPath(inputPath, cwd);
   const [realRoot, targetStat] = await Promise.all([
     realpath(root),
-    lstat(target)
+    lstat2(target)
   ]);
   if (!targetStat.isFile() && !targetStat.isSymbolicLink()) {
     throw new Error(`question path must be a file: ${target}`);
@@ -608,10 +634,10 @@ async function confineRead(inputPath, cwd, rootPath) {
   return target;
 }
 async function confinePanelWrite(targetPath, rootPath) {
-  const root = path2.resolve(rootPath);
-  const target = path2.resolve(targetPath);
+  const root = path3.resolve(rootPath);
+  const target = path3.resolve(targetPath);
   if (await pathExists(target)) {
-    const targetStat = await lstat(target);
+    const targetStat = await lstat2(target);
     if (targetStat.isSymbolicLink()) {
       throw new PanelError(`write target may not be a symlink: ${target}`, {
         code: "WRITE_TARGET_SYMLINK",
@@ -621,7 +647,7 @@ async function confinePanelWrite(targetPath, rootPath) {
     }
   }
   const realRoot = await realpath(root);
-  const parent = path2.dirname(target);
+  const parent = path3.dirname(target);
   const realParent = await canonicalPathThroughNearestExisting(parent);
   if (!inside(realRoot, realParent)) {
     throw new PanelError(
@@ -636,11 +662,11 @@ async function confinePanelWrite(targetPath, rootPath) {
   return target;
 }
 async function atomicWritePanelFile(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confinePanelWrite(targetPath, options.rootPath) : path2.resolve(targetPath);
-  await mkdir2(path2.dirname(writePath), { recursive: true });
-  const tempPath = path2.join(
-    path2.dirname(writePath),
-    `.${path2.basename(writePath)}.tmp-${process.pid}-${randomUUID2()}`
+  const writePath = options.rootPath ? await confinePanelWrite(targetPath, options.rootPath) : path3.resolve(targetPath);
+  await mkdir2(path3.dirname(writePath), { recursive: true });
+  const tempPath = path3.join(
+    path3.dirname(writePath),
+    `.${path3.basename(writePath)}.tmp-${process.pid}-${randomUUID2()}`
   );
   try {
     await writeFile2(tempPath, contents, "utf8");
@@ -670,7 +696,7 @@ async function readPanelQuestionFile(inputPath) {
   return contents;
 }
 async function loadPanelQuestion(options, { cwd = process.cwd() } = {}) {
-  const resolvedCwd = path2.resolve(cwd);
+  const resolvedCwd = path3.resolve(cwd);
   const allowedRoot = allowedRootFor(resolvedCwd, options.allowRoot);
   const questionPath = options.questionFile ? await confineRead(options.questionFile, resolvedCwd, allowedRoot) : null;
   const question = questionPath ? await readPanelQuestionFile(questionPath) : String(options.question ?? "");
@@ -688,10 +714,10 @@ async function resolvePanelPaths(options, {
   questionPath = null,
   runId = defaultPanelRunId()
 } = {}) {
-  const resolvedCwd = path2.resolve(cwd);
+  const resolvedCwd = path3.resolve(cwd);
   const allowedRoot = allowedRootFor(resolvedCwd, options.allowRoot);
-  const runDirTarget = options.runDir ? resolveInputPath(options.runDir, resolvedCwd) : path2.resolve(resolvedCwd, ".consensus", runId);
-  const outputTarget = options.output ? resolveInputPath(options.output, resolvedCwd) : questionPath ? `${questionPath}.panel.md` : path2.join(runDirTarget, "panel.md");
+  const runDirTarget = options.runDir ? resolveInputPath(options.runDir, resolvedCwd) : path3.resolve(resolvedCwd, ".consensus", runId);
+  const outputTarget = options.output ? resolveInputPath(options.output, resolvedCwd) : questionPath ? `${questionPath}.panel.md` : path3.join(runDirTarget, "panel.md");
   const [runDir, outputPath] = await Promise.all([
     confinePanelWrite(runDirTarget, allowedRoot),
     confinePanelWrite(outputTarget, allowedRoot)
@@ -700,9 +726,6 @@ async function resolvePanelPaths(options, {
 }
 function defaultPanelRunId() {
   return `panel-${Date.now()}-${process.pid}-${randomUUID2()}`;
-}
-function ensureFinalNewline(text) {
-  return String(text ?? "").replace(/\n*$/u, "\n");
 }
 function encodePromptBlockData(text) {
   return String(text ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -740,7 +763,7 @@ function panelResponseSchemaPath() {
   );
 }
 function parsePanelResponsePayload(value) {
-  if (!isRecord2(value)) {
+  if (!isJsonRecord(value)) {
     throw new Error("Panel response must be an object");
   }
   assertKnownKeys2(value, RESPONSE_KEYS, "Panel response");
@@ -946,7 +969,7 @@ function invocationDefaultsFor(options) {
 }
 async function runConsensusPanel(input, runOptions = {}) {
   const normalized = normalizePanelOptions(input);
-  const cwd = path2.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path3.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const now = runOptions.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
   const createdAt = now();
@@ -1179,7 +1202,7 @@ function resolveConsensusCliPath(env = process.env) {
   );
 }
 function providerCliSpawnTarget(command, args) {
-  if (path2.extname(command) === ".mjs") {
+  if (path3.extname(command) === ".mjs") {
     return { command: process.execPath, args: [command, ...args] };
   }
   return { command, args };
@@ -1397,7 +1420,7 @@ function parseProviderCliEnvelope(result, label) {
       }
     );
   }
-  if (!isRecord2(parsed) || parsed.schema_version !== "v1") {
+  if (!isJsonRecord(parsed) || parsed.schema_version !== "v1") {
     throw new PanelError(
       `consensus ${label} output was not a v1 JSON envelope`,
       {
@@ -1425,28 +1448,9 @@ function parseProviderRunEnvelope(result) {
   }
   return parsed;
 }
-function providerStatusMap(envelope) {
-  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
-  const entries = [];
-  for (const provider of providers) {
-    if (!isRecord2(provider)) continue;
-    const id = String(provider.id ?? provider.provider ?? provider.name ?? "");
-    if (!id) continue;
-    entries.push([id, String(provider.status ?? "unavailable")]);
-  }
-  return new Map(entries);
-}
-function providerInventoryEntries(envelope) {
-  return [...providerStatusMap(envelope)].map(
-    ([id, status]) => ({
-      id,
-      status
-    })
-  );
-}
 function diagnosticsFromEnvelope(envelope) {
   const diagnostics = [];
-  if (isRecord2(envelope.diagnostics)) {
+  if (isJsonRecord(envelope.diagnostics)) {
     if (Array.isArray(envelope.diagnostics.warnings)) {
       diagnostics.push(
         ...envelope.diagnostics.warnings.filter(
@@ -1458,7 +1462,7 @@ function diagnosticsFromEnvelope(envelope) {
       diagnostics.push(`strategy: ${envelope.diagnostics.strategy_used}`);
     }
   }
-  if (isRecord2(envelope.attempts)) {
+  if (isJsonRecord(envelope.attempts)) {
     if (typeof envelope.attempts.terminal_reason === "string") {
       diagnostics.push(`terminal_reason: ${envelope.attempts.terminal_reason}`);
     }
@@ -1491,10 +1495,7 @@ function panelExitCodeForError(error) {
   if (code === "EACCES" || code === "EPERM") return PANEL_EXIT_CODES.NOPERM;
   return PANEL_EXIT_CODES.CONFIG;
 }
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-if (process.argv[1] && path2.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && path3.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runPanelCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

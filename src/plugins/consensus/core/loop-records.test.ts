@@ -3,6 +3,7 @@ import {
   readdir,
   readFile,
   rename as fsRename,
+  writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +16,7 @@ import {
   createRecordsWriter,
   executeRound,
   hashArtifact,
+  runConsensusLoop,
   synthesisSchemaPath,
   writeLoopStatus,
 } from '../core/consensus-loop.js';
@@ -605,4 +607,175 @@ it('writeLoopStatus leaves no tmp file beside status.json after writing', async 
   const tmpEntries = entries.filter((entry) => entry.endsWith('.tmp'));
   expect(tmpEntries).toEqual([]);
   expect(entries).toContain('status.json');
+});
+
+// --- atomic writes for the two consensus-loop-owned write sites -------------
+// `writeSectionOutput` and `seedRecordsFile` are module-private, so they are
+// exercised through `runConsensusLoop`, their only caller. Each pair below
+// mirrors the createRecordsWriter/writeLoopStatus pattern above: no `*.tmp`
+// residue on success, and the previous file surviving a simulated failure.
+
+type LoopFiles = {
+  tempRoot: string;
+  sectionPath: string;
+  recordsPath: string;
+  outputPath: string;
+  statusPath: string;
+};
+
+async function makeLoopFiles({
+  sectionText = 'Seed text.\n',
+  writeSection = true,
+}: { sectionText?: string; writeSection?: boolean } = {}): Promise<LoopFiles> {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-loop-'));
+  const sectionPath = path.join(tempRoot, 'section.md');
+  if (writeSection) await writeFile(sectionPath, sectionText);
+  return {
+    tempRoot,
+    sectionPath,
+    recordsPath: path.join(tempRoot, 'records.json'),
+    outputPath: path.join(tempRoot, 'output.md'),
+    statusPath: path.join(tempRoot, 'status.json'),
+  };
+}
+
+function loopArgv(files: LoopFiles) {
+  return [
+    '--section-file',
+    files.sectionPath,
+    '--goal',
+    'Make this clearer.',
+    '--peers',
+    'claude,codex',
+    '--max-rounds',
+    '3',
+    '--agency',
+    'moderate',
+    '--output-records',
+    files.recordsPath,
+    '--output-section',
+    files.outputPath,
+    '--output-status',
+    files.statusPath,
+  ];
+}
+
+// Two identical proposals in a row converge on hash_match, so the run reaches
+// the terminal writeSectionOutput call without any live provider.
+function convergingPeer() {
+  const revisions = [
+    'Round one revision.\n',
+    'Round two revision.\n',
+    'Round two revision.\n',
+  ];
+  let turn = 0;
+  return async () => {
+    const proposed = revisions[turn] ?? revisions.at(-1);
+    turn += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `revision ${turn}`,
+        proposed_artifact: proposed,
+      },
+      stdout: '{"id":"raw"}',
+    };
+  };
+}
+
+it('writeSectionOutput leaves no tmp file beside the section output', async () => {
+  const files = await makeLoopFiles();
+
+  const result = await runConsensusLoop(loopArgv(files), {
+    invokePeer: convergingPeer(),
+  });
+  expect(result.status.status).toBe('converged');
+
+  const entries = await readdir(files.tempRoot);
+  expect(entries.filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+  expect(entries).toContain('output.md');
+  expect(await readFile(files.outputPath, 'utf8')).toBe(
+    'Round two revision.\n',
+  );
+});
+
+it('writeSectionOutput rethrows a rename failure, cleans up the tmp file, and leaves the previous section output intact', async () => {
+  const files = await makeLoopFiles();
+  const previousOutput = 'Previously written section.\n';
+  await writeFile(files.outputPath, previousOutput);
+
+  // Only the section-output rename is failed; the records.json and status.json
+  // renames in the same run must still succeed, so the default (real)
+  // implementation is captured and delegated to for every other target.
+  const renameMock = vi.mocked(fsRename);
+  const realRename = renameMock.getMockImplementation()!;
+  const renameError = Object.assign(new Error('simulated rename failure'), {
+    code: 'EACCES',
+  });
+  renameMock.mockImplementation((from: any, to: any) =>
+    String(to) === files.outputPath
+      ? Promise.reject(renameError)
+      : realRename(from, to),
+  );
+
+  try {
+    await expect(
+      runConsensusLoop(loopArgv(files), { invokePeer: convergingPeer() }),
+    ).rejects.toBe(renameError);
+  } finally {
+    renameMock.mockImplementation(realRename);
+  }
+
+  expect(await readFile(files.outputPath, 'utf8')).toBe(previousOutput);
+  const entries = await readdir(files.tempRoot);
+  expect(entries.filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+});
+
+// The seed write is the first thing runConsensusLoop does, and the section file
+// is read before the loop's try/catch. Pointing --section-file at a missing
+// path therefore ends the run right after seeding, isolating these assertions
+// to seedRecordsFile's own write.
+const seedRecords = [
+  { turn_index: 1, agent: 'claude', verdict: 'REVISE' as const },
+];
+
+it('seedRecordsFile leaves no tmp file beside the seeded records file', async () => {
+  const files = await makeLoopFiles({ writeSection: false });
+
+  await expect(
+    runConsensusLoop(loopArgv(files), {
+      initialRecords: seedRecords,
+      now: () => '2026-05-04T01:00:00.000Z',
+    }),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+
+  const entries = await readdir(files.tempRoot);
+  expect(entries.filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+  expect(entries).toContain('records.json');
+  expect(JSON.parse(await readFile(files.recordsPath, 'utf8'))).toHaveLength(1);
+});
+
+it('seedRecordsFile rethrows a rename failure, cleans up the tmp file, and leaves the previous records file intact', async () => {
+  const files = await makeLoopFiles({ writeSection: false });
+  const previousRecords = '[]\n';
+  await writeFile(files.recordsPath, previousRecords);
+
+  // Seeding is the run's first rename, so a single one-shot rejection lands on
+  // it and nothing else.
+  const renameError = Object.assign(new Error('simulated rename failure'), {
+    code: 'EACCES',
+  });
+  vi.mocked(fsRename).mockImplementationOnce(() => Promise.reject(renameError));
+
+  await expect(
+    runConsensusLoop(loopArgv(files), {
+      initialRecords: seedRecords,
+      now: () => '2026-05-04T01:00:00.000Z',
+    }),
+  ).rejects.toBe(renameError);
+
+  expect(await readFile(files.recordsPath, 'utf8')).toBe(previousRecords);
+  const entries = await readdir(files.tempRoot);
+  expect(entries.filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
 });

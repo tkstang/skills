@@ -2,7 +2,7 @@
 
 // src/skills/evaluate/src/consensus-evaluate.ts
 import { readFile as readFile4, stat } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // src/plugins/consensus/config/consensus-config.ts
@@ -374,8 +374,8 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
-import path5 from "node:path";
+import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
+import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1253,6 +1253,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -1264,7 +1266,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1415,13 +1419,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir3,
   realpath,
   rename as rename3,
   unlink as unlink2,
   writeFile as writeFile3
 } from "node:fs/promises";
+import path5 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path4 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -1517,6 +1525,8 @@ function providerInventoryEntries(envelope) {
     ([id, status]) => ({ id, status })
   );
 }
+
+// src/plugins/consensus/shared/cli-helpers.ts
 function providerCliUnavailableError(providers) {
   const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
   return new ConsensusError(
@@ -1529,8 +1539,8 @@ function providerCliUnavailableError(providers) {
   );
 }
 async function confineWrite(targetPath, rootPath) {
-  const root = path4.resolve(rootPath);
-  const target = path4.isAbsolute(targetPath) ? path4.resolve(targetPath) : path4.resolve(root, targetPath);
+  const root = path5.resolve(rootPath);
+  const target = path5.isAbsolute(targetPath) ? path5.resolve(targetPath) : path5.resolve(root, targetPath);
   if (!inside(root, target)) {
     throw new ConsensusError(`write path is outside allowed root: ${target}`, {
       code: "WRITE_PATH_OUTSIDE_ROOT",
@@ -1539,7 +1549,7 @@ async function confineWrite(targetPath, rootPath) {
     });
   }
   if (await pathExists(target)) {
-    const targetStat = await lstat(target);
+    const targetStat = await lstat2(target);
     if (targetStat.isSymbolicLink()) {
       throw new ConsensusError(`write target may not be a symlink: ${target}`, {
         code: "WRITE_TARGET_SYMLINK",
@@ -1549,12 +1559,12 @@ async function confineWrite(targetPath, rootPath) {
     }
   }
   const realRoot = await realpath(root);
-  const parent = path4.dirname(target);
+  const parent = path5.dirname(target);
   const existing = await nearestExistingPath(parent);
   const realExisting = await realpath(existing);
-  const realParent = path4.resolve(
+  const realParent = path5.resolve(
     realExisting,
-    path4.relative(existing, parent)
+    path5.relative(existing, parent)
   );
   if (!inside(realRoot, realParent)) {
     throw new ConsensusError(
@@ -1569,9 +1579,9 @@ async function confineWrite(targetPath, rootPath) {
   return target;
 }
 async function atomicWriteFile2(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path4.resolve(targetPath);
+  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path5.resolve(targetPath);
   if (await pathExists(writePath)) {
-    const targetStat = await lstat(writePath);
+    const targetStat = await lstat2(writePath);
     if (targetStat.isSymbolicLink()) {
       throw new ConsensusError(
         `write target may not be a symlink: ${writePath}`,
@@ -1583,10 +1593,10 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
       );
     }
   }
-  await mkdir3(path4.dirname(writePath), { recursive: true });
-  const tempPath = path4.join(
-    path4.dirname(writePath),
-    `.${path4.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
+  await mkdir3(path5.dirname(writePath), { recursive: true });
+  const tempPath = path5.join(
+    path5.dirname(writePath),
+    `.${path5.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
   );
   try {
     await writeFile3(tempPath, contents);
@@ -1603,6 +1613,99 @@ async function atomicWriteFile2(targetPath, contents, options = {}) {
     throw error;
   }
   return writePath;
+}
+var PEER_AGENTS_OPTION = "--peer-agents";
+function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
+    throw new Error("--peers must list exactly two peers");
+  }
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
+}
+function peerAgentsArgv(peers) {
+  const agents = peerAgentsFromComposition(peers);
+  const argv = ["--peers", agents.map((agent) => agent.provider).join(",")];
+  if (agents.some((agent) => agent.model || agent.effort)) {
+    argv.push(PEER_AGENTS_OPTION, JSON.stringify(agents));
+  }
+  return argv;
+}
+function peerAgentsFromComposition(agents) {
+  return agents.map((agent) => {
+    const normalized = normalizePeerAgent(agent);
+    return {
+      provider: normalized.provider,
+      ...normalized.model ? { model: normalized.model } : {},
+      ...normalized.effort ? { effort: normalized.effort } : {}
+    };
+  });
+}
+function normalizePeerAgent(peer) {
+  return typeof peer === "string" ? { provider: peer } : peer;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1632,7 +1735,13 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
+        break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1674,14 +1783,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1691,6 +1801,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -1986,6 +2109,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -2015,7 +2146,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -2153,7 +2285,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2618,9 +2751,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir4(path5.dirname(outputPath), { recursive: true });
-  await writeFile4(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir4(path6.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2659,13 +2791,12 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir4(path5.dirname(recordsPath), { recursive: true });
-  await writeFile4(
+  await mkdir4(path6.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2990,6 +3121,14 @@ async function runConsensusLoop(argv, runOptions = {}) {
       provider: turn.provider,
       schemaPath: peerSchemaPathForMode(options.iteration),
       prompt: turn.prompt,
+      // The turn already carries this peer's resolved selections (see
+      // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+      // consensus-loop.mjs dispatch — which always uses this default invoker
+      // — would send `model: null`/`effort: null` and silently drop the
+      // configured peer agent. Omitted when unselected so the provider CLI
+      // keeps its own defaults.
+      ...turn.model ? { model: turn.model } : {},
+      ...turn.effort ? { effort: turn.effort } : {},
       env,
       cwd
     },
@@ -3232,7 +3371,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -3313,6 +3452,10 @@ function providerCliLoopInvokers({
         provider: turn.provider,
         schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
         prompt: turn.prompt,
+        // Configured peer model/effort ride along to `consensus run`; they
+        // are omitted when unselected so the provider CLI keeps its defaults.
+        ...turn.model ? { model: turn.model } : {},
+        ...turn.effort ? { effort: turn.effort } : {},
         env,
         cwd
       },
@@ -3447,7 +3590,7 @@ function parseEvaluateArgs(argv) {
   };
 }
 function resolveInputPath(inputPath, cwd) {
-  return path6.isAbsolute(inputPath) ? inputPath : path6.resolve(cwd, inputPath);
+  return path7.isAbsolute(inputPath) ? inputPath : path7.resolve(cwd, inputPath);
 }
 async function readInputFile(inputPath, options = {}) {
   const capBytes = options.sizeCapBytes ?? INPUT_SIZE_CAP_BYTES;
@@ -3604,29 +3747,29 @@ function defaultRunDirName() {
   return `evaluate-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
 }
 async function resolveRunDir(options) {
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = options.runDir ? path6.isAbsolute(options.runDir) ? options.runDir : path6.resolve(cwd, options.runDir) : path6.resolve(cwd, ".consensus", defaultRunDirName());
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir ? path7.isAbsolute(options.runDir) ? options.runDir : path7.resolve(cwd, options.runDir) : path7.resolve(cwd, ".consensus", defaultRunDirName());
   return await confineWrite(target, root);
 }
 async function resolveOutputPath(options, inputPath) {
   if (options.output) {
-    const cwd = path6.resolve(options.cwd ?? process.cwd());
-    const root = path6.resolve(options.allowRoot ?? cwd);
-    const target = path6.isAbsolute(options.output) ? options.output : path6.resolve(cwd, options.output);
+    const cwd = path7.resolve(options.cwd ?? process.cwd());
+    const root = path7.resolve(options.allowRoot ?? cwd);
+    const target = path7.isAbsolute(options.output) ? options.output : path7.resolve(cwd, options.output);
     return await confineWrite(target, root);
   }
   return await confineWrite(
-    path6.resolve(`${inputPath}.evaluation.md`),
-    path6.dirname(path6.resolve(inputPath))
+    path7.resolve(`${inputPath}.evaluation.md`),
+    path7.dirname(path7.resolve(inputPath))
   );
 }
 function statePathsFor(runDir) {
   return {
-    input: path6.join(runDir, "input.md"),
-    records: path6.join(runDir, "records.json"),
-    output: path6.join(runDir, "output.md"),
-    status: path6.join(runDir, "status.json")
+    input: path7.join(runDir, "input.md"),
+    records: path7.join(runDir, "records.json"),
+    output: path7.join(runDir, "output.md"),
+    status: path7.join(runDir, "status.json")
   };
 }
 var RUBRIC_CRITERIA_CAP = 12;
@@ -3702,8 +3845,7 @@ function loopArgvForEvaluation({
     paths.input,
     "--goal",
     options.goal,
-    "--peers",
-    peers.join(","),
+    ...peerAgentsArgv(peers),
     "--max-rounds",
     String(options.maxRounds),
     "--agency",
@@ -3890,7 +4032,7 @@ function renderEvaluationArtifact({
 }
 async function runConsensusEvaluate(input, runOptions = {}) {
   const normalized = normalizeEvaluateOptions(input);
-  const cwd = path6.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path7.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const startedAt = (runOptions.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   const startMs = Date.now();
@@ -3900,15 +4042,18 @@ async function runConsensusEvaluate(input, runOptions = {}) {
     { ...normalized, cwd },
     loaded.artifactPath
   );
-  const writeRoot = path6.resolve(normalized.allowRoot ?? cwd);
+  const writeRoot = path7.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
   const inventory = normalized.peers === null ? await loadEvaluateProviderInventory({ env, cwd }) : void 0;
-  const peers = normalized.peers ?? (await resolveConsensusComposition({
-    workflow: "convergence",
-    cwd,
-    env,
-    inventory
-  })).agents.map((agent) => agent.provider);
+  const peerAgents = peerAgentsFromComposition(
+    normalized.peers ?? (await resolveConsensusComposition({
+      workflow: "convergence",
+      cwd,
+      env,
+      inventory
+    })).agents
+  );
+  const peers = peerAgents.map((agent) => agent.provider);
   const synthesizer = normalized.iteration === "parallel_synthesized" ? normalized.synthesizer ?? peers[0] : null;
   const providerCliInvokers = providerCliLoopInvokers({
     env,
@@ -3926,7 +4071,7 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const loopArgv = loopArgvForEvaluation({
     paths,
     options: normalized,
-    peers,
+    peers: peerAgents,
     synthesizer
   });
   await Promise.all([
@@ -3968,7 +4113,7 @@ async function runConsensusEvaluate(input, runOptions = {}) {
     }
   });
   await atomicWriteFile2(outputPath, finalArtifact, {
-    rootPath: normalized.allowRoot ? writeRoot : path6.dirname(outputPath)
+    rootPath: normalized.allowRoot ? writeRoot : path7.dirname(outputPath)
   });
   return {
     artifactPath: loaded.artifactPath,
@@ -4038,7 +4183,7 @@ async function runEvaluateCli(argv, options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && path7.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
   runEvaluateCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

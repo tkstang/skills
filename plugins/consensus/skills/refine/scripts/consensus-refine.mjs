@@ -3,7 +3,7 @@
 // src/skills/refine/src/consensus-refine.ts
 import { execFile } from "node:child_process";
 import { readFile as readFile6 } from "node:fs/promises";
-import path11 from "node:path";
+import path12 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 import { promisify } from "node:util";
 
@@ -376,8 +376,8 @@ function formatCount(count) {
 }
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile4 } from "node:fs/promises";
-import path5 from "node:path";
+import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
+import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -1260,6 +1260,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -1271,7 +1273,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1422,13 +1426,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir3,
   realpath,
   rename as rename3,
   unlink as unlink2,
   writeFile as writeFile3
 } from "node:fs/promises";
+import path5 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path4 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -1451,12 +1459,103 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
+function isJsonRecord2(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// src/plugins/consensus/shared/cli-helpers.ts
+var PEER_AGENTS_OPTION = "--peer-agents";
+function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
   }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
+}
+function peerAgentsArgv(peers) {
+  const agents = peerAgentsFromComposition(peers);
+  const argv = ["--peers", agents.map((agent) => agent.provider).join(",")];
+  if (agents.some((agent) => agent.model || agent.effort)) {
+    argv.push(PEER_AGENTS_OPTION, JSON.stringify(agents));
+  }
+  return argv;
+}
+function peerAgentsFromComposition(agents) {
+  return agents.map((agent) => {
+    const normalized = normalizePeerAgent(agent);
+    return {
+      provider: normalized.provider,
+      ...normalized.model ? { model: normalized.model } : {},
+      ...normalized.effort ? { effort: normalized.effort } : {}
+    };
+  });
+}
+function normalizePeerAgent(peer) {
+  return typeof peer === "string" ? { provider: peer } : peer;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1486,7 +1585,13 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
+        break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1528,14 +1633,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1545,6 +1651,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -1840,6 +1959,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1869,7 +1996,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -2007,7 +2135,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2472,9 +2601,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir4(path5.dirname(outputPath), { recursive: true });
-  await writeFile4(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir4(path6.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2513,13 +2641,12 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir4(path5.dirname(recordsPath), { recursive: true });
-  await writeFile4(
+  await mkdir4(path6.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2844,6 +2971,14 @@ async function runConsensusLoop(argv, runOptions = {}) {
       provider: turn.provider,
       schemaPath: peerSchemaPathForMode(options.iteration),
       prompt: turn.prompt,
+      // The turn already carries this peer's resolved selections (see
+      // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+      // consensus-loop.mjs dispatch — which always uses this default invoker
+      // — would send `model: null`/`effort: null` and silently drop the
+      // configured peer agent. Omitted when unselected so the provider CLI
+      // keeps its own defaults.
+      ...turn.model ? { model: turn.model } : {},
+      ...turn.effort ? { effort: turn.effort } : {},
       env,
       cwd
     },
@@ -3086,7 +3221,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -3097,7 +3232,7 @@ if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir5,
   open as open2,
   readFile as readFile4,
@@ -3105,42 +3240,42 @@ import {
   rename as rename4,
   stat,
   unlink as unlink3,
-  writeFile as writeFile5
+  writeFile as writeFile4
 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
 function asConsensusRecord(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
 function asConsensusRecords(value) {
   return Array.isArray(value) ? value.map(asConsensusRecord) : [];
 }
 function asSectionStatus(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
-function inside(root, target) {
-  const relative = path6.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
+function inside2(root, target) {
+  const relative = path7.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path7.isAbsolute(relative);
 }
-async function pathExists(targetPath) {
+async function pathExists2(targetPath) {
   try {
-    await lstat2(targetPath);
+    await lstat3(targetPath);
     return true;
   } catch (error) {
     if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }
-async function nearestExistingPath(targetPath) {
-  let current = path6.resolve(targetPath);
-  while (!await pathExists(current)) {
-    const parent = path6.dirname(current);
+async function nearestExistingPath2(targetPath) {
+  let current = path7.resolve(targetPath);
+  while (!await pathExists2(current)) {
+    const parent = path7.dirname(current);
     if (parent === current) return current;
     current = parent;
   }
@@ -3214,48 +3349,48 @@ async function readInputFile(inputPath, options = {}) {
   return contents;
 }
 async function confineWrite(targetPath, rootPath) {
-  const root = path6.resolve(rootPath);
-  const target = path6.isAbsolute(targetPath) ? path6.resolve(targetPath) : path6.resolve(root, targetPath);
-  if (!inside(root, target)) {
+  const root = path7.resolve(rootPath);
+  const target = path7.isAbsolute(targetPath) ? path7.resolve(targetPath) : path7.resolve(root, targetPath);
+  if (!inside2(root, target)) {
     throw new Error(`write path is outside allowed root: ${target}`);
   }
-  if (await pathExists(target)) {
-    const targetStat = await lstat2(target);
+  if (await pathExists2(target)) {
+    const targetStat = await lstat3(target);
     if (targetStat.isSymbolicLink()) {
       throw new Error(`write target may not be a symlink: ${target}`);
     }
   }
   const realRoot = await realpath2(root);
-  const parent = path6.dirname(target);
-  const existing = await nearestExistingPath(parent);
+  const parent = path7.dirname(target);
+  const existing = await nearestExistingPath2(parent);
   const realExisting = await realpath2(existing);
-  const realParent = path6.resolve(
+  const realParent = path7.resolve(
     realExisting,
-    path6.relative(existing, parent)
+    path7.relative(existing, parent)
   );
-  if (!inside(realRoot, realParent)) {
+  if (!inside2(realRoot, realParent)) {
     throw new Error(`write path resolves outside allowed root: ${target}`);
   }
   return target;
 }
 async function atomicWriteFile2(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path6.resolve(targetPath);
-  if (await pathExists(writePath)) {
-    const targetStat = await lstat2(writePath);
+  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path7.resolve(targetPath);
+  if (await pathExists2(writePath)) {
+    const targetStat = await lstat3(writePath);
     if (targetStat.isSymbolicLink()) {
       throw new Error(`write target may not be a symlink: ${writePath}`);
     }
   }
-  await mkdir5(path6.dirname(writePath), { recursive: true });
-  const tempPath = path6.join(
-    path6.dirname(writePath),
-    `.${path6.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
+  await mkdir5(path7.dirname(writePath), { recursive: true });
+  const tempPath = path7.join(
+    path7.dirname(writePath),
+    `.${path7.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
   );
   try {
-    await writeFile5(tempPath, contents);
+    await writeFile4(tempPath, contents);
     await syncPathIfAvailable(tempPath);
     await rename4(tempPath, writePath);
-    await syncPathIfAvailable(path6.dirname(writePath));
+    await syncPathIfAvailable(path7.dirname(writePath));
   } catch (error) {
     const annotatedError = error;
     try {
@@ -3274,26 +3409,26 @@ function defaultRunDirName() {
   return `run-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
 }
 async function resolveRunDir(options = {}) {
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = options.runDir ? path6.isAbsolute(options.runDir) ? options.runDir : path6.resolve(cwd, options.runDir) : path6.resolve(cwd, ".consensus", defaultRunDirName());
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir ? path7.isAbsolute(options.runDir) ? options.runDir : path7.resolve(cwd, options.runDir) : path7.resolve(cwd, ".consensus", defaultRunDirName());
   return await confineWrite(target, root);
 }
 async function resolveOutputPath(options = {}, inputPath) {
   if (options.output) {
-    const cwd = path6.resolve(options.cwd ?? process.cwd());
-    const root = path6.resolve(options.allowRoot ?? cwd);
-    const target2 = path6.isAbsolute(options.output) ? options.output : path6.resolve(cwd, options.output);
+    const cwd = path7.resolve(options.cwd ?? process.cwd());
+    const root = path7.resolve(options.allowRoot ?? cwd);
+    const target2 = path7.isAbsolute(options.output) ? options.output : path7.resolve(cwd, options.output);
     return await confineWrite(target2, root);
   }
-  const target = path6.resolve(`${inputPath}.consensus.md`);
-  return await confineWrite(target, path6.dirname(path6.resolve(inputPath)));
+  const target = path7.resolve(`${inputPath}.consensus.md`);
+  return await confineWrite(target, path7.dirname(path7.resolve(inputPath)));
 }
 async function resolveResumePath(options = {}) {
   if (!options.resume) return null;
-  const cwd = path6.resolve(options.cwd ?? process.cwd());
-  const root = path6.resolve(options.allowRoot ?? cwd);
-  const target = path6.isAbsolute(options.resume) ? options.resume : path6.resolve(cwd, options.resume);
+  const cwd = path7.resolve(options.cwd ?? process.cwd());
+  const root = path7.resolve(options.allowRoot ?? cwd);
+  const target = path7.isAbsolute(options.resume) ? options.resume : path7.resolve(cwd, options.resume);
   return await confineWrite(target, root);
 }
 
@@ -3302,9 +3437,9 @@ var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
 function asProviderInventoryEntry(value) {
-  return isJsonRecord2(value) ? value : {};
+  return isJsonRecord3(value) ? value : {};
 }
-function requireValue(argv, index, flag) {
+function requireValue2(argv, index, flag) {
   if (index + 1 >= argv.length) {
     throw new Error(`${flag} requires a value`);
   }
@@ -3361,7 +3496,7 @@ function providerEntryAvailable(entry) {
   return true;
 }
 function normalizeProviderInventory(providerInventory) {
-  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord2(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
+  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord3(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
   return (Array.isArray(entries) ? entries : []).map((entry) => {
     if (typeof entry === "string") {
       return {
@@ -3410,16 +3545,16 @@ function parseWrapperArgs(argv) {
     const token = argv[index];
     switch (token) {
       case "--goal":
-        parsed.goal = requireValue(argv, index, token);
+        parsed.goal = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--peers":
-        parsed.peers = parsePeers2(requireValue(argv, index, token));
+        parsed.peers = parsePeers2(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--max-rounds",
           MAX_ROUNDS_MIN2,
           MAX_ROUNDS_MAX2
@@ -3427,11 +3562,11 @@ function parseWrapperArgs(argv) {
         index += 1;
         break;
       case "--agency":
-        parsed.agency = requireValue(argv, index, token);
+        parsed.agency = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--iteration":
-        parsed.iteration = requireValue(
+        parsed.iteration = requireValue2(
           argv,
           index,
           token
@@ -3440,48 +3575,48 @@ function parseWrapperArgs(argv) {
         break;
       case "--synthesizer":
         parsed.synthesizer = validateProviderId2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--synthesizer"
         );
         index += 1;
         break;
       case "--cold-start":
-        parsed.coldStart = requireValue(argv, index, token);
+        parsed.coldStart = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--output":
-        parsed.output = requireValue(argv, index, token);
+        parsed.output = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--resume":
-        parsed.resume = requireValue(argv, index, token);
+        parsed.resume = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--user-direction":
-        parsed.userDirection = requireValue(argv, index, token);
+        parsed.userDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-direction":
-        parsed.hostDirection = requireValue(argv, index, token);
+        parsed.hostDirection = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--host-decision-kind":
-        parsed.hostDecisionKind = requireValue(argv, index, token);
+        parsed.hostDecisionKind = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--run-dir":
-        parsed.runDir = requireValue(argv, index, token);
+        parsed.runDir = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--allow-root":
-        parsed.allowRoot = requireValue(argv, index, token);
+        parsed.allowRoot = requireValue2(argv, index, token);
         index += 1;
         break;
       case "--fail-on-section-error":
         parsed.failOnSectionError = true;
         break;
       case "--skip-corrupt-section":
-        parsed.skipCorruptSections.push(requireValue(argv, index, token));
+        parsed.skipCorruptSections.push(requireValue2(argv, index, token));
         index += 1;
         break;
       case "--skip-all-corrupt":
@@ -3496,7 +3631,7 @@ function parseWrapperArgs(argv) {
         break;
       case "--parallelism":
         parsed.parallelism = parsePositiveInteger2(
-          requireValue(argv, index, token),
+          requireValue2(argv, index, token),
           "--parallelism",
           1,
           64
@@ -3506,7 +3641,7 @@ function parseWrapperArgs(argv) {
       case "--fan-in":
         parsed.fanIn = true;
         parsed.mode = "fan_in";
-        parsed.manifestPath = requireValue(argv, index, token);
+        parsed.manifestPath = requireValue2(argv, index, token);
         index += 1;
         break;
       default:
@@ -3626,7 +3761,7 @@ function resolveSynthesizer(options = {}, providerInventory = []) {
 }
 
 // src/skills/refine/src/refine-sections.ts
-import path7 from "node:path";
+import path8 from "node:path";
 function markdownLines(markdown) {
   const normalized = String(markdown ?? "").replace(/\r\n?/g, "\n");
   return normalized.match(/[^\n]*\n|[^\n]+$/g) ?? [];
@@ -3717,7 +3852,7 @@ function normalizeSequentialOptions(options) {
   };
 }
 function sectionRunDirectory(runDir, section) {
-  return path7.join(
+  return path8.join(
     runDir,
     "sections",
     `${String(section.original_index + 1).padStart(2, "0")}-${section.id}`
@@ -3755,8 +3890,7 @@ function loopArgvForSection({
     paths.input,
     "--goal",
     options.goal ?? "",
-    "--peers",
-    peers.join(","),
+    ...peerAgentsArgv(peers),
     "--max-rounds",
     String(options.maxRounds),
     "--agency",
@@ -3829,7 +3963,7 @@ function dispatchInstructions(manifest) {
 }
 
 // src/skills/refine/src/refine-render.ts
-import path8 from "node:path";
+import path9 from "node:path";
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
   const maxRun = Math.max(
@@ -4163,7 +4297,7 @@ function renderDeliberationArtifact(runResult) {
     cost_source: "unavailable",
     approximate_cost_usd: null,
     input_path: runResult.inputPath ?? null,
-    run_id: runResult.runId ?? (runResult.runDir ? path8.basename(runResult.runDir) : null),
+    run_id: runResult.runId ?? (runResult.runDir ? path9.basename(runResult.runDir) : null),
     started_at: runResult.startedAt ?? null,
     ended_at: runResult.endedAt ?? null,
     subagent_ids: sections.map((section) => section.subagent_id).filter((id) => Boolean(id))
@@ -4211,8 +4345,8 @@ function renderDeliberationArtifact(runResult) {
 }
 
 // src/skills/refine/src/refine-resume.ts
-import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile6 } from "node:fs/promises";
-import path9 from "node:path";
+import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
+import path10 from "node:path";
 import { createInterface } from "node:readline/promises";
 var STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   normalizeLineEndings: false,
@@ -4394,7 +4528,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const stateRecord = isJsonRecord2(state) ? state : {};
+  const stateRecord = isJsonRecord3(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers ?? void 0,
@@ -4440,7 +4574,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
   if (logSections.length < resumeSectionStates.length) {
     for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
       const candidate = resumeSectionStates[index];
-      const state = isJsonRecord2(candidate) ? candidate : {};
+      const state = isJsonRecord3(candidate) ? candidate : {};
       const sectionId = typeof state.id === "string" ? state.id : void 0;
       const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
@@ -4467,7 +4601,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord2(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord3(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -4491,7 +4625,7 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
         message: `missing section state for ${section.id}`
       });
     }
-    const stateRecord = isJsonRecord2(state) ? state : {};
+    const stateRecord = isJsonRecord3(state) ? state : {};
     const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
@@ -4553,9 +4687,9 @@ function collectResumeValidationErrors(resumeSectionStates, logSections, unscope
 }
 async function writeResumeErrors(runDir, errors, skippedIds = []) {
   if (!runDir) return null;
-  const outputPath = path9.join(runDir, "resume-errors.json");
+  const outputPath = path10.join(runDir, "resume-errors.json");
   await mkdir6(runDir, { recursive: true });
-  await writeFile6(
+  await writeFile5(
     outputPath,
     `${JSON.stringify(
       {
@@ -4646,7 +4780,7 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile5(value, "utf8"),
-          sourcePath: path9.resolve(value)
+          sourcePath: path10.resolve(value)
         };
       }
     } catch (error) {
@@ -4694,7 +4828,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = isJsonRecord2(resolutions[0]) ? resolutions[0] : {};
+  const resolution = isJsonRecord3(resolutions[0]) ? resolutions[0] : {};
   const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(
@@ -4837,7 +4971,7 @@ function failingSections(sections) {
 
 // src/skills/refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 function manifestError(message, details = {}) {
   return new ConsensusError(message, {
     code: typeof details.code === "string" ? details.code : "INVALID_MANIFEST",
@@ -4926,19 +5060,19 @@ function validateParallelManifestShape(manifest) {
   }
 }
 function resolveManifestPathValue(value, basePath) {
-  return path10.isAbsolute(value) ? path10.resolve(value) : path10.resolve(basePath, value);
+  return path11.isAbsolute(value) ? path11.resolve(value) : path11.resolve(basePath, value);
 }
 async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
-  const root = path10.resolve(rootPath);
-  const target = path10.resolve(targetPath);
+  const root = path11.resolve(rootPath);
+  const target = path11.resolve(targetPath);
   const realRoot = await realpath3(root);
-  const existing = await nearestExistingPath(target);
+  const existing = await nearestExistingPath2(target);
   const realExisting = await realpath3(existing);
-  const realTarget = path10.resolve(
+  const realTarget = path11.resolve(
     realExisting,
-    path10.relative(existing, target)
+    path11.relative(existing, target)
   );
-  if (!inside(realRoot, realTarget)) {
+  if (!inside2(realRoot, realTarget)) {
     throw errorFactory(field, target, root);
   }
 }
@@ -4950,8 +5084,8 @@ async function resolveConfinedManifestPath(value, {
 }) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
-  const resolvedRoot = path10.resolve(root);
-  if (!inside(resolvedRoot, resolved)) {
+  const resolvedRoot = path11.resolve(root);
+  if (!inside2(resolvedRoot, resolved)) {
     throw errorFactory(field, resolved, resolvedRoot);
   }
   await assertPathResolvesInside(resolvedRoot, resolved, field, errorFactory);
@@ -4960,9 +5094,9 @@ async function resolveConfinedManifestPath(value, {
 async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
   const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
   const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
-  const defaultOutputPath = path10.resolve(`${inputPath}.consensus.md`);
+  const defaultOutputPath = path11.resolve(`${inputPath}.consensus.md`);
   if (outputPath === defaultOutputPath) {
-    const outputWriteRoot = path10.dirname(inputPath);
+    const outputWriteRoot = path11.dirname(inputPath);
     await assertPathResolvesInside(
       outputWriteRoot,
       outputPath,
@@ -4984,16 +5118,16 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
 }
 async function normalizeParallelManifest(manifest, options) {
   validateParallelManifestShape(manifest);
-  const cwd = path10.resolve(options.cwd);
-  const trustedRoot = path10.resolve(options.trustedRoot);
-  const manifestPath = path10.resolve(options.manifestPath);
+  const cwd = path11.resolve(options.cwd);
+  const trustedRoot = path11.resolve(options.trustedRoot);
+  const manifestPath = path11.resolve(options.manifestPath);
   const runDir = await resolveConfinedManifestPath(manifest.run_dir, {
     root: trustedRoot,
     base: cwd,
     field: "run_dir",
     errorFactory: pathConfinementError
   });
-  if (runDir !== path10.dirname(manifestPath)) {
+  if (runDir !== path11.dirname(manifestPath)) {
     throw manifestError(
       "parallel manifest run_dir must match the manifest file directory"
     );
@@ -5099,6 +5233,10 @@ function providerCliLoopInvokers({
         provider: turn.provider,
         schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
         prompt: turn.prompt,
+        // Configured peer model/effort ride along to `consensus run`; they
+        // are omitted when unselected so the provider CLI keeps its defaults.
+        ...turn.model ? { model: turn.model } : {},
+        ...turn.effort ? { effort: turn.effort } : {},
         env,
         cwd
       },
@@ -5115,10 +5253,10 @@ function providerCliLoopInvokers({
 }
 async function runSequential(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
-  const cwd = path11.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path12.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const inputPathValue = normalized.inputPath;
-  const inputPath = path11.isAbsolute(inputPathValue) ? inputPathValue : path11.resolve(cwd, inputPathValue);
+  const inputPath = path12.isAbsolute(inputPathValue) ? inputPathValue : path12.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
@@ -5134,14 +5272,15 @@ async function runSequential(options, runOptions = {}) {
     stdin: runOptions.stdin,
     stdout: runOptions.stdout
   }) : null;
-  const runWriteRoot = path11.resolve(normalized.allowRoot ?? cwd);
-  const outputWriteRoot = normalized.output ? path11.resolve(normalized.allowRoot ?? cwd) : path11.dirname(inputPath);
+  const runWriteRoot = path12.resolve(normalized.allowRoot ?? cwd);
+  const outputWriteRoot = normalized.output ? path12.resolve(normalized.allowRoot ?? cwd) : path12.dirname(inputPath);
   const preflight = normalized.preflight === false ? { peers: normalized.peers ?? ["claude", "codex"], warnings: [] } : await (normalized.preflight ?? preflightConsensusProviderCli)({
     ...normalized,
     env,
     cwd
   });
-  const peers = normalized.peers ?? preflight.peers;
+  const peerAgents = normalized.peers ? peerAgentsFromComposition(normalized.peers) : preflight.peerAgents ?? peerAgentsFromComposition(preflight.peers);
+  const peers = peerAgents.map((agent) => agent.provider);
   const host = preflight.host ?? detectHost(env);
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
@@ -5158,10 +5297,10 @@ async function runSequential(options, runOptions = {}) {
   for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
     const paths = {
-      input: path11.join(sectionDir, "section.md"),
-      records: path11.join(sectionDir, "records.json"),
-      output: path11.join(sectionDir, "output.md"),
-      status: path11.join(sectionDir, "status.json")
+      input: path12.join(sectionDir, "section.md"),
+      records: path12.join(sectionDir, "records.json"),
+      output: path12.join(sectionDir, "output.md"),
+      status: path12.join(sectionDir, "status.json")
     };
     const resumeSection = resumeSections.get(`id:${section.id}`) ?? resumeSections.get(`index:${section.original_index}`) ?? null;
     const sectionInput = resumeSection?.resumedArtifact ?? section.markdown;
@@ -5259,7 +5398,7 @@ async function runSequential(options, runOptions = {}) {
           section,
           paths,
           options: normalized,
-          peers,
+          peers: peerAgents,
           synthesizer
         }),
         loopRunOptions
@@ -5349,22 +5488,23 @@ async function runSequential(options, runOptions = {}) {
 }
 async function prepareParallelRun(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
-  const cwd = path11.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const cwd = path12.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const inputPathValue = normalized.inputPath;
-  const inputPath = path11.isAbsolute(inputPathValue) ? inputPathValue : path11.resolve(cwd, inputPathValue);
+  const inputPath = path12.isAbsolute(inputPathValue) ? inputPathValue : path12.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
-  const runWriteRoot = path11.resolve(normalized.allowRoot ?? cwd);
+  const runWriteRoot = path12.resolve(normalized.allowRoot ?? cwd);
   const preflight = normalized.preflight === false ? { peers: normalized.peers ?? ["claude", "codex"], warnings: [] } : await (normalized.preflight ?? preflightConsensusProviderCli)({
     ...normalized,
     env,
     cwd
   });
-  const peers = normalized.peers ?? preflight.peers;
+  const peerAgents = normalized.peers ? peerAgentsFromComposition(normalized.peers) : preflight.peerAgents ?? peerAgentsFromComposition(preflight.peers);
+  const peers = peerAgents.map((agent) => agent.provider);
   const host = preflight.host ?? detectHost(env);
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
@@ -5379,17 +5519,17 @@ async function prepareParallelRun(options, runOptions = {}) {
   for (const section of parsedSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
     const paths = {
-      input: path11.join(sectionDir, "section.md"),
-      records: path11.join(sectionDir, "records.json"),
-      output: path11.join(sectionDir, "output.md"),
-      status: path11.join(sectionDir, "status.json")
+      input: path12.join(sectionDir, "section.md"),
+      records: path12.join(sectionDir, "records.json"),
+      output: path12.join(sectionDir, "output.md"),
+      status: path12.join(sectionDir, "status.json")
     };
-    const packetPath = path11.join(sectionDir, "packet.json");
+    const packetPath = path12.join(sectionDir, "packet.json");
     const loopArgv = loopArgvForSection({
       section,
       paths,
       options: normalized,
-      peers,
+      peers: peerAgents,
       synthesizer
     });
     await Promise.all([
@@ -5402,7 +5542,7 @@ async function prepareParallelRun(options, runOptions = {}) {
     const packet = {
       consensus_schema_version: "v1",
       packet_type: "consensus-section-runner",
-      manifest_path: path11.join(runDir, "manifest.json"),
+      manifest_path: path12.join(runDir, "manifest.json"),
       section_id: section.id,
       name: section.name,
       original_index: section.original_index,
@@ -5436,7 +5576,7 @@ async function prepareParallelRun(options, runOptions = {}) {
       })
     );
   }
-  const manifestPath = path11.join(runDir, "manifest.json");
+  const manifestPath = path12.join(runDir, "manifest.json");
   await confineWrite(manifestPath, runWriteRoot);
   const manifest = {
     consensus_schema_version: "v1",
@@ -5484,10 +5624,10 @@ async function prepareParallelRun(options, runOptions = {}) {
   };
 }
 async function fanInParallelRun(manifestPath, options = {}) {
-  const cwd = path11.resolve(options.cwd ?? process.cwd());
-  const trustedRoot = path11.resolve(options.allowRoot ?? cwd);
+  const cwd = path12.resolve(options.cwd ?? process.cwd());
+  const trustedRoot = path12.resolve(options.allowRoot ?? cwd);
   const resolvedManifestPath = resolveManifestPathValue(manifestPath, cwd);
-  if (!inside(trustedRoot, resolvedManifestPath)) {
+  if (!inside2(trustedRoot, resolvedManifestPath)) {
     throw pathConfinementError(
       "manifest_path",
       resolvedManifestPath,
@@ -5698,7 +5838,10 @@ async function resolveConfiguredProviderCliPeers({
   providerInventory
 }) {
   if (options.peers) {
-    return resolveProviderCliPeers(options, host, providerInventory);
+    return {
+      ...resolveProviderCliPeers(options, host, providerInventory),
+      peerAgents: peerAgentsFromComposition(options.peers)
+    };
   }
   const composition = await resolveConsensusComposition({
     workflow: "convergence",
@@ -5707,9 +5850,19 @@ async function resolveConfiguredProviderCliPeers({
     inventory: providerInventoryForConsensusConfig(providerInventory)
   });
   const peerOptions = composition.source === "built-in" ? {} : { peers: composition.agents.map((agent) => agent.provider) };
-  return resolveProviderCliPeers(peerOptions, host, providerInventory);
+  const resolved = resolveProviderCliPeers(
+    peerOptions,
+    host,
+    providerInventory
+  );
+  return {
+    ...resolved,
+    peerAgents: peerAgentsFromComposition(
+      composition.source === "built-in" ? resolved.peers : composition.agents
+    )
+  };
 }
-function parseProviderCliEnvelope(stdout, label) {
+function parseProviderCliEnvelope2(stdout, label) {
   let parsed;
   try {
     parsed = JSON.parse(stdout);
@@ -5719,7 +5872,7 @@ function parseProviderCliEnvelope(stdout, label) {
       { cause: error }
     );
   }
-  if (!isJsonRecord2(parsed) || parsed.schema_version !== "v1") {
+  if (!isJsonRecord3(parsed) || parsed.schema_version !== "v1") {
     throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
   }
   return parsed;
@@ -5745,7 +5898,7 @@ async function preflightConsensusProviderCli(options = {}) {
     }
     throw error;
   }
-  const inventoryEnvelope = parseProviderCliEnvelope(
+  const inventoryEnvelope = parseProviderCliEnvelope2(
     inventoryOutput.stdout,
     "provider inventory"
   );
@@ -5777,7 +5930,7 @@ async function preflightConsensusProviderCli(options = {}) {
       ["preflight", "--json", "--provider", peer, "--capability", "run"],
       { env, cwd }
     );
-    const preflightEnvelope = parseProviderCliEnvelope(
+    const preflightEnvelope = parseProviderCliEnvelope2(
       preflightOutput.stdout,
       `${peer} preflight`
     );
@@ -5794,6 +5947,7 @@ async function preflightConsensusProviderCli(options = {}) {
     providerInventory: resolved.inventory,
     host,
     peers: resolved.peers,
+    peerAgents: resolved.peerAgents,
     warnings: []
   };
 }
@@ -5881,7 +6035,7 @@ async function runWrapperCli(argv, options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path11.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && path12.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
   runWrapperCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,6 +56,8 @@ export type {
   ConsensusCliResolutionSource,
   ConsensusCliResolution,
   ConsensusCliPathOptions,
+  PeerAgent,
+  PeerSpec,
   PeerInvocation,
   PeerInvoker,
   SynthesizerInvocation,
@@ -136,12 +138,12 @@ export {
 };
 
 import {
+  atomicWriteFile,
   createRecordsWriter,
   peerRecords,
   peerTurnCount,
   readExistingRecords,
   synthesisRecordCount,
-  syncFileIfAvailable,
   withRecordMetadata,
   writeLoopStatus,
 } from './loop-records.js';
@@ -198,8 +200,7 @@ async function writeSectionOutput(
   artifact: string,
 ): Promise<void> {
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 
 async function writeTerminalArtifacts(
@@ -258,11 +259,10 @@ async function seedRecordsFile(
     withRecordMetadata(record as LoopRecord, options),
   );
   await mkdir(path.dirname(recordsPath), { recursive: true });
-  await writeFile(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}\n`,
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 
@@ -741,6 +741,14 @@ export async function runConsensusLoop(
           provider: turn.provider,
           schemaPath: peerSchemaPathForMode(options.iteration),
           prompt: turn.prompt,
+          // The turn already carries this peer's resolved selections (see
+          // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+          // consensus-loop.mjs dispatch — which always uses this default invoker
+          // — would send `model: null`/`effort: null` and silently drop the
+          // configured peer agent. Omitted when unselected so the provider CLI
+          // keeps its own defaults.
+          ...(turn.model ? { model: turn.model } : {}),
+          ...(turn.effort ? { effort: turn.effort } : {}),
           env,
           cwd,
         },

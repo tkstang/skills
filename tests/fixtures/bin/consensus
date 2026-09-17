@@ -129,6 +129,10 @@ async function main() {
       event: 'run',
       provider,
       schema_path: request.schema_path,
+      // Recorded so wrapper tests can assert what reached the provider CLI:
+      // null means the wrapper sent no such option (provider CLI default).
+      model: request.model ?? null,
+      effort: request.effort ?? null,
     });
 
     const failureCode = process.env.CONSENSUS_STUB_RUN_FAILURE_CODE;

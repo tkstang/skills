@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --brief "<text>" | --brief-file <brief.md>
 metadata:
   author: thomas.stang
-  version: '0.1.9'
+  version: '0.1.10'
 ---
 
 # Create

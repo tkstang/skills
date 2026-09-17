@@ -2,7 +2,7 @@
 // Source: src/plugins/consensus/core/consensus-loop.ts
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir2, readFile as readFile2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile as readFile2 } from "node:fs/promises";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -886,6 +886,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -897,7 +899,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1074,7 +1078,7 @@ async function invokeValidatedPeer({
   throw lastError;
 }
 
-// src/plugins/consensus/shared/cli-helpers.ts
+// src/plugins/consensus/shared/cli-helpers-core.ts
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
 var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
@@ -1096,12 +1100,82 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
+function isJsonRecord2(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// src/plugins/consensus/shared/cli-helpers.ts
+var PEER_AGENTS_OPTION = "--peer-agents";
+function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
   }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1131,7 +1205,13 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
+        break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1173,14 +1253,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1190,6 +1271,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -1485,6 +1579,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1514,7 +1616,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -1652,7 +1755,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2148,8 +2252,7 @@ function detectEscalation(records, {
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
   await mkdir2(path3.dirname(outputPath), { recursive: true });
-  await writeFile2(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2189,12 +2292,11 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
     (record) => withRecordMetadata(record, options)
   );
   await mkdir2(path3.dirname(recordsPath), { recursive: true });
-  await writeFile2(
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2519,6 +2621,14 @@ async function runConsensusLoop(argv, runOptions = {}) {
       provider: turn.provider,
       schemaPath: peerSchemaPathForMode(options.iteration),
       prompt: turn.prompt,
+      // The turn already carries this peer's resolved selections (see
+      // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+      // consensus-loop.mjs dispatch — which always uses this default invoker
+      // — would send `model: null`/`effort: null` and silently drop the
+      // configured peer agent. Omitted when unselected so the provider CLI
+      // keeps its own defaults.
+      ...turn.model ? { model: turn.model } : {},
+      ...turn.effort ? { effort: turn.effort } : {},
       env,
       cwd
     },
