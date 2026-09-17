@@ -403,6 +403,7 @@ No finding is deferred or rejected. Blocking-gate auto-disposition converts all 
 - 2026-09-17: Correlated the configured gate's complete `blocked` envelope to run `87133850-151e-4827-9d7b-7cfd854c5724`, the gate-only review artifact and committed Reviews event. The envelope is receive-eligible with one Important, one Medium and two Minor findings; receive intent must be persisted before disposition.
 - 2026-09-17: Persisted configured-gate receive intent for the exact active artifact, collision-free archived destination and bound final/code Reviews event at pre-receive head `db9fe2d9` before applying autonomous blocking-gate dispositions.
 - 2026-09-17: Received configured exit-gate attempt 1 in autonomous blocking mode. All four findings were accepted as p09-t01 through p09-t04; none were deferred or rejected. The gate artifact moved to its collision-free archived path and the review event advanced to `fixes_added`.
+- 2026-09-17: Corroborated the archived artifact against gate run `87133850-151e-4827-9d7b-7cfd854c5724` and receive transition `9b5bcb4b`. Attempt 1/2 is consumed with status `blocked`; p09-t01 is the next executable task.
 
 ## Deviations from Plan / Design
 

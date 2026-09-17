@@ -1,6 +1,6 @@
 ---
 oat_current_task: p09-t01
-oat_last_commit: e367ae21ba810c2a8ac6494d99b27dcfaaf46c1c
+oat_last_commit: 9b5bcb4b71bcae3ea9a0b263770865bf717eac50
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,7 +34,7 @@ oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_implement_exit_gate:
-  status: pending
+  status: blocked
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
@@ -43,7 +43,7 @@ oat_implement_exit_gate:
   project_override: null
   on_failure: block
   max_attempts: 2
-  attempts_completed: 0
+  attempts_completed: 1
   reviewed_head: c60f3fe354439971b00612ccf3325c05777b9fe6
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:3a5f06e02a57ab34272c7cb42adf464ff500979ca7deb7e7c4bfae134ae9c88c'
@@ -58,23 +58,23 @@ oat_implement_exit_gate:
   envelope_status: blocked
   artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md'
   handoff: 'Run oat-project-review-receive for .oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md before treating this gate review as consumed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=87133850-151e-4827-9d7b-7cfd854c5724 scope=final type=code source=final-review-2026-09-17T062233Z.md handoff=corroborated'
   receive_source_artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md'
   receive_archived_artifact: '.oat/projects/shared/consensus-review/reviews/archived/final-review-2026-09-17T062233Z.md'
   receive_event_identity: 'scope=final type=code source=final-review-2026-09-17T062233Z.md'
   receive_pre_head: db9fe2d9d9cab74498dd578d3d090044bf7817b5
-  receive_commit: null
+  receive_commit: 9b5bcb4b71bcae3ea9a0b263770865bf717eac50
   receive_eligible: true
-  receive_completed: false
-  failure: null
-  updated_at: '2026-09-17T06:28:22Z'
+  receive_completed: true
+  failure: 'blocking_findings_remediation_required'
+  updated_at: '2026-09-17T06:32:50Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T06:28:22Z'
+oat_project_state_updated: '2026-09-17T06:32:50Z'
 oat_generated: false
 ---
 
