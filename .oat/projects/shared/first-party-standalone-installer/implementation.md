@@ -1,7 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers: ["Final verification: repository-wide pnpm lint follows generated provider-skill symlinks and fails on baseline OAT tooling files"]
 oat_last_updated: 2026-09-17
 oat_current_task_id: null
 oat_generated: false
@@ -465,6 +465,26 @@ reconciled idempotently after a transient index-lock collision.
 
 - `m5` addressed now: quick mode has no `spec.md`; the References section now
   records Spec as N/A instead of linking a nonexistent artifact.
+
+### Final Verification Blocker
+
+**Date:** 2026-09-17
+
+- `pnpm test`: passed — 137 files passed, 1 skipped; 2,030 tests passed,
+  1 skipped.
+- `pnpm type-check`: passed.
+- `pnpm build`: passed with no generated-file drift.
+- `pnpm lint`: blocked closeout. Oxlint follows tracked
+  `.claude/skills/*` symlinks into generated `.agents/skills/*` even though
+  `.agents/` itself is ignored, then reports pre-existing OAT-tooling errors.
+
+The failing canonical files and symlinks are identical at the merge base,
+current branch, and `origin/main`; none were introduced by this installer
+project. All changed installer source/test files pass scoped oxlint. The OAT
+Step 12 contract nevertheless requires the literal repository-wide lint command
+to pass and provides no baseline waiver. Strict closeout is blocked pending
+operator authorization for a separate tooling/config correction that ignores
+the generated `.claude/skills/**` and `.cursor/skills/**` provider mirrors.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 oat_current_task: null
 oat_last_commit: f0879afabb0556f836eae1849edafd3393dd90e7
-oat_blockers: []
+oat_blockers: ["Final verification: repository-wide pnpm lint follows generated provider-skill symlinks and fails on baseline OAT tooling files"]
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T02:13:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T02:19:42Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -136,7 +136,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - all tasks and code reviews complete; closeout gates pending
+Implementation - final verification blocked by baseline generated-mirror lint failures
 
 ## Artifacts
 
@@ -160,12 +160,17 @@ Implementation - all tasks and code reviews complete; closeout gates pending
 - ✓ Final review M1 resolved by `p02-t01`
 - ✓ Independent p02 review passed with zero findings
 - ✓ Final lifecycle re-review passed with zero findings
-- ⧗ Configured implementation exit gate and final HiLL closeout pending
+- ✓ Configured implementation exit gate passed and was received
+- ⚠ Repository-wide final lint blocked by generated provider-skill mirrors
+- ⧗ Final HiLL closeout pending
 
 ## Blockers
 
-None
+- `pnpm lint` follows `.claude/skills/*` symlinks into generated
+  `.agents/skills/*` and reports baseline OAT-tooling errors. The installer
+  change itself passes scoped lint; OAT Step 12 has no baseline waiver.
 
 ## Next Milestone
 
-Run the configured implementation exit gate, then complete the final HiLL closeout.
+Authorize a separate lint-config correction for generated provider-skill
+mirrors, rerun final verification, then resume `oat-project-implement`.
