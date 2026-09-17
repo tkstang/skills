@@ -64,6 +64,10 @@ Phase p06 outcome: BLOCKED after two immutable task commits because full and foc
 
 STOP triggered by accepted p06 direction-required event before recovery reservation: repeated refine peer-ordering failure is outside the p06 changed surface; preserve task commits and require operator direction before mechanical inventory recovery. consensus-review-stop-peer-ordering-20260917T0118Z
 
+### 2026-09-17 · structural · oat-project-implement · p06
+
+Phase p06 outcome: PASSED independent review round 2 at ae059dfb with findings=critical:0,important:0,medium:0,minor:0; 170 focused and 1,958 full-suite tests passed, recovery settled at 1/10, worktree clean. consensus-review-p06-passed-20260917T0338Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

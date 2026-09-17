@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-t02
-oat_last_commit: 9cfe41acd7749ccb5504d2bceee3ca510bcbf442
+oat_current_task: p07-t01
+oat_last_commit: ae059dfb64b38c5bb26896616b69caf448bc4543
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,27 +34,27 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T03:31:00Z'
+oat_project_state_updated: '2026-09-17T03:38:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p06 fix iteration 1 and current-main integration are complete with all repository gates green. Root review round 2 is next; recovery remains settled at 1/10.
+**Status:** p06 passed independent review round 2 with zero findings. p07-t01 is next; p06 recovery remains settled at 1/10.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 task implementation, recovery, bounded review fix iteration 1 and current-main integration complete. Root review round 2 is next. No publication, global installation, live provider acceptance or later phase has completed.
+Quick workflow, p06 accepted after implementation, bounded recovery, one review fix iteration, current-main integration and clean re-review. p07 is ready to begin. No publication, global installation, live provider acceptance or later phase has completed.
 
 ## Artifacts
 
 - Discovery complete; revised decisions captured.
 - Design is the behavioral source of truth: three selectors, skill-owned executable, external state, selected-file drift comparison, honest findings/provenance.
 - Plan: seven tasks in three sequential phases. Original draft tasks are retired with a coverage map, not renumbered or marked complete. First active task is p06-t01.
-- Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; bounded inventory recovery committed at `a1b2b427`; review fixes committed at `8a7871af`; current main integrated at `9cfe41ac`. The former host-sensitive baseline is resolved by main and the full repository suite is green; root review round 2 remains pending.
+- Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; bounded inventory recovery committed at `a1b2b427`; review fixes committed at `8a7871af`; current main integrated at `9cfe41ac`. Review round 2 passed at `ae059dfb` with zero findings and the full repository suite green.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -69,11 +69,11 @@ Quick workflow, p06 task implementation, recovery, bounded review fix iteration 
 
 ## Next Milestone
 
-Run independent p06 review round 2 against the integrated, fully green head. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Dispatch p07 from the clean post-review bookkeeping head, preserving its three planned task commits and phase-wide verification/review loop. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
-Both p06 task commits, recovery and review fix passed focused verification, build freshness, type-check and validation. After merging current main, root independently confirmed 1,958 tests passed with one skipped and no failures; build freshness, type-check, validation, the 11-skill version/changelog gate and smoke also passed. The former refine host-sensitive assertion now passes. Recovery usage is settled at 1/10 with `pending_attempt: null`; review round 2 has not run.
+Review round 2 independently confirmed 170 focused tests and the full 1,958-test suite passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke, scoped format and diff checks passed. Both prior Important findings are fixed; the final verdict has zero findings at every severity. Recovery usage is settled at 1/10 with `pending_attempt: null`.
 
 ## Operational Notes
 
