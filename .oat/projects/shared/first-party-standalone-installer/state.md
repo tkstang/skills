@@ -27,9 +27,9 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_implement_exit_gate:
-  status: stale
+  status: pending
   resolution: configured
-  disposition: passed
+  disposition: null
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -37,31 +37,31 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 0
-  reviewed_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
+  reviewed_head: fd48f510a7d980f28cd350364ffe9b36f2c5cab1
   implementation_base_ref: origin/main
-  implementation_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
-  freshness_head: b915b78a326fb93de4d29cd243ba302fca979772
-  freshness_fingerprint: 'sha256:effective-delta-v1:7d47b9be7bfc954ddc8d377bd0817240ec0480a493407529db0bcbd44e290d6e'
-  launch_state: result_persisted
-  launch_attempt_id: d4f1da76-995a-42ac-95a7-f20461caa7bf
-  launch_started_at: '2026-09-17T02:01:20Z'
-  launch_result_receipt: '.oat/projects/shared/first-party-standalone-installer/gate-receipts/d4f1da76-995a-42ac-95a7-f20461caa7bf.json'
-  gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/3631aaf2-103a-4106-9bda-9eeb577cc87f.json'
-  gate_run_id: 3631aaf2-103a-4106-9bda-9eeb577cc87f
-  envelope_status: ok
-  artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md'
-  handoff: 'Gate passed at the important threshold with five non-blocking Minor findings; receive is required for final disposition.'
-  receive_state: completed
-  receive_correlation: 'run=3631aaf2-103a-4106-9bda-9eeb577cc87f;scope=final;type=code;filename=final-review-2026-09-17T020642Z.md'
-  receive_source_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md'
-  receive_archived_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/archived/final-review-2026-09-17T020642Z.md'
-  receive_event_identity: 'final|code|final-review-2026-09-17T020642Z.md'
-  receive_pre_head: 220b9bd9a537c1efa54db9114429a824250bede9
-  receive_commit: 013098dcee335bf277ac6fa6b87b4db592106943
-  receive_eligible: true
-  receive_completed: true
-  failure: 'Substantive lint-policy commit bbe37778 postdates the received gate evidence; start a new gate generation after final re-review.'
-  updated_at: '2026-09-17T02:50:43Z'
+  implementation_fingerprint: 'sha256:effective-delta-v1:aacebe0d731b42297d8915a06836f21b4b5bf05295f9b7cdafce24b48763b851'
+  freshness_head: 50d4c1686b0e9ceb3d9d92263ad4d4a239fc4601
+  freshness_fingerprint: 'sha256:effective-delta-v1:e305665e5942dc076bc14f7c03fcda106ecc034ee476b049a7ebc6f1e59ac952'
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-09-17T04:59:58Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T04:58:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T04:59:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 

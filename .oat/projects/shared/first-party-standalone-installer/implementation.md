@@ -631,6 +631,20 @@ resolved by p03 and is not deferred.
 **Disposition:** The final review passed. Refresh the stale configured exit
 gate at the current implementation basis.
 
+### Implementation Exit Gate: refreshed generation initialized
+
+**Date:** 2026-09-17
+**Resolution:** Configured semantic cross-family final review, `onFailure:
+block`, maximum 2 remediation attempts.
+**Reviewed basis:** `fd48f510a7d980f28cd350364ffe9b36f2c5cab1`
+against `origin/main` with
+`sha256:effective-delta-v1:aacebe0d731b42297d8915a06836f21b4b5bf05295f9b7cdafce24b48763b851`.
+**Freshness checkpoint:** Final-review receive bookkeeping through
+`50d4c1686b0e9ceb3d9d92263ad4d4a239fc4601` is classified as closeout-only;
+its rolling fingerprint is
+`sha256:effective-delta-v1:e305665e5942dc076bc14f7c03fcda106ecc034ee476b049a7ebc6f1e59ac952`.
+**State:** New generation is pending with no launch attempt yet.
+
 ---
 
 ## Implementation Log
