@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p09-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** configured exit-gate attempt 1 blocked with four accepted findings; p09 remediation starts at p09-t01.
+**Status:** p09 implementation complete and independently root-verified; phase review is pending before final lifecycle review and gate attempt 2/2.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,9 +19,9 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | in_progress | 4 | 0/4 |
+| p09 — Configured gate fixes | review_pending | 4 | 4/4 |
 
-**Total:** 7/11 task commits completed; original phases complete and p09 remediation pending. The prior lifecycle final review passed; the configured exit gate must be re-run after p09 and a fresh final review.
+**Total:** 11/11 task commits completed. The prior lifecycle final review passed; p09 phase review, fresh final review and configured exit-gate attempt 2/2 remain.
 
 ## Tasks
 
@@ -34,6 +34,10 @@ oat_generated: false
 | p07-t03 | done | `a580a322aadbe914f25ef9be4ec78f5631b3c2d0` | 41 focused tests plus build, type-check, freshness, validation, 11-owner version/changelog gate, scoped lint/format and diff checks passed. |
 | p08-t01 | done | `6b65fe8c0e6b46a0d7720677fb199972fdf2c377` | 76 focused tests plus type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed; bounded determinism recovery followed. |
 | p08-t02 | done | `aad79ef577c037887ff8990875d352bff1ce7fe8` | 80 phase-focused tests, independent receipt evidence, PJM doctor, full premerge, version/internal gates, current-OAT docs generation, 52-page production build, lint/format and diff checks passed. |
+| p09-t01 | done | `d6b1a25622ba0f2d439c2826a06c427d5d9bd25f` | 68 focused tests plus build, type-check, freshness, version/changelog, scoped lint/format and diff checks passed. |
+| p09-t02 | done | `160661cbf470d16b507cfe7cc8df25be5f7eafe3` | 51 focused tests plus validation, build, type-check, freshness, version/changelog and scoped static checks passed. |
+| p09-t03 | done | `25b075bbb15be4b9df62c9a67a66f9bb0785baac` | 64 focused renderer/receipt/packaging tests plus exact fixture hashes, build, type-check, freshness and version gates passed. |
+| p09-t04 | done | `bbdb284780b9b336859af11a2317866407eb3271` | 87 focused Review/run/packaging tests plus FIFO/symlink/regular regressions, build, type-check, validation, freshness and static gates passed. |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
@@ -227,6 +231,29 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Worktree: clean.
 - Receipt alternate: Codex independent receipt alternate using `oat-review-receive` 1.4.1; clean, all-severity and diagnostic fixtures behaved as specified.
 - Disposition: all implementation tasks complete; prepare committed final-review baseline and run the single final lifecycle review required by the p08 HiLL checkpoint.
+
+### Run 5 — 2026-09-17
+
+- Phase: p09
+- Request ID: `impl-consensus-review-p09-20260917T0635Z`
+- Launch status: accepted
+- Tier: Tier 1 subagent
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Model axis: `selected:gpt-5.6-sol`
+- Effort axis: `selected:high`
+- Task class: `default-implementation`
+- Selection reason: `matrix-pinned`
+- Candidates considered: `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p09 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Phase base: `3b8f9fdea88d53e26cb9ebfe930c3b7f5ae4eb46`
+- Task commits: `d6b1a25622ba0f2d439c2826a06c427d5d9bd25f`, `160661cbf470d16b507cfe7cc8df25be5f7eafe3`, `25b075bbb15be4b9df62c9a67a66f9bb0785baac`, `bbdb284780b9b336859af11a2317866407eb3271`
+- Terminal outcome: `DONE`
+- Tasks: 4/4; root review: pending; fix loops: 0
+- Implementer verification: full premerge passed 2,030 tests with one skipped; build, type-check, freshness, validation, smoke, 11-owner version/changelog, 72 internal flags, scoped lint/format, range diff and 52-page production docs build passed.
+- Root verification: 118 boundary-focused tests plus build freshness, type-check, validation, smoke, 11-owner version/changelog and range diff checks passed.
+- Recovery: 0/10; no recovery event.
+- Worktree: tracked files clean; the root-owned untracked gate receipt remains untouched.
+- Disposition: preserve the four immutable task commits and run independent p09 review.
 
 #### Final Review Round 1 — changes requested
 

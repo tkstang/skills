@@ -1,6 +1,6 @@
 ---
-oat_current_task: p09-t01
-oat_last_commit: 6052f071a91831fdf801adcf49b9e25a1250e18a
+oat_current_task: null
+oat_last_commit: bbdb284780b9b336859af11a2317866407eb3271
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,7 +34,7 @@ oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_implement_exit_gate:
-  status: blocked
+  status: stale
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
@@ -67,27 +67,27 @@ oat_implement_exit_gate:
   receive_commit: 9b5bcb4b71bcae3ea9a0b263770865bf717eac50
   receive_eligible: true
   receive_completed: true
-  failure: 'blocking_findings_remediation_required'
-  updated_at: '2026-09-17T06:33:48Z'
+  failure: 'implementation_changed_after_gate'
+  updated_at: '2026-09-17T06:51:42Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T06:33:48Z'
+oat_project_state_updated: '2026-09-17T06:51:42Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** configured implementation exit-gate attempt 1 blocked with one Important, one Medium and two Minor findings. All four are accepted as p09 remediation tasks; p09-t01 is next.
+**Status:** p09 implementation is complete and root-verified; independent p09 review is next. The prior configured gate generation is stale because remediation changed substantive code.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. p09 contains four sequential fixes. No publication, global installation or product live-provider acceptance has completed.
+Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. All four p09 fixes are committed and root-verified; independent phase review remains. No publication, global installation or product live-provider acceptance has completed.
 
 ## Artifacts
 
@@ -118,7 +118,7 @@ Implementation — configured-gate remediation. Original p06–p08 tasks and lif
 
 ## Next Milestone
 
-Execute p09-t01 through p09-t04, complete full verification and a fresh final lifecycle review, then resume the persisted configured-gate generation. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
+Complete independent p09 review, then fresh final lifecycle review and configured exit-gate attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
@@ -133,7 +133,8 @@ Configured exit-gate attempt 1 independently passed 232 focused tests plus build
 - ✓ p08 receipt and delivery acceptance complete
 - ✓ Final lifecycle review fixes complete (2/2)
 - ✓ Final lifecycle review round 3 passed
-- ⧗ Configured exit-gate remediation p09 (0/4)
+- ✓ Configured exit-gate remediation p09 implementation (4/4)
+- ⧗ Independent p09 review pending
 - ⧗ Exit-gate re-run and final HiLL approval pending
 
 ## Operational Notes
