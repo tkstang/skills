@@ -375,6 +375,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Resolved the configured `oat-project-implement` exit gate once for the passed final-review basis `c60f3fe3`; persisted the exact command, block policy, two-attempt limit, config fingerprint and qualified effective-delta fingerprint before launch.
 - 2026-09-17: Persisted configured exit-gate launch intent `d55b3ba4-a973-48d7-887e-6cf3815a775f` and its durable result receipt path before invoking the exact resolved command.
 - 2026-09-17: The configured gate emitted run marker `87133850-151e-4827-9d7b-7cfd854c5724` before reviewer dispatch; launch state advanced to `accepted` while the exact run remains active.
+- 2026-09-17: Correlated the configured gate's complete `blocked` envelope to run `87133850-151e-4827-9d7b-7cfd854c5724`, the gate-only review artifact and committed Reviews event. The envelope is receive-eligible with one Important, one Medium and two Minor findings; receive intent must be persisted before disposition.
 
 ## Deviations from Plan / Design
 
