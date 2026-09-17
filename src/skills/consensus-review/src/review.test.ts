@@ -273,6 +273,7 @@ describe('review Markdown rendering', () => {
     expect(rendered).toContain('live provider');
     expect(rendered).toContain('## Scope and provenance');
     expect(rendered).toContain('operator\\-managed');
+    expect(renderReviewMarkdown(aggregate)).toBe(rendered);
   });
 });
 

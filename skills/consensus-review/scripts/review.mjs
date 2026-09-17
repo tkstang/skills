@@ -4300,7 +4300,6 @@ function renderReviewMarkdown(aggregate) {
   const lines = [
     "---",
     "oat_generated: true",
-    `oat_generated_at: ${JSON.stringify((/* @__PURE__ */ new Date()).toISOString())}`,
     "oat_review_scope: bounded",
     "oat_review_type: code",
     `oat_review_run_id: ${JSON.stringify(aggregate.run_id)}`,
