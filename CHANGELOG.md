@@ -4,6 +4,7 @@
 
 ### Added
 
+- `pnpm run validate:skill-versions` now also requires a new line under `## [Unreleased]` in `CHANGELOG.md` whenever a canonical skill `metadata.version` or a plugin release version changes, so a bump cannot ship without release notes.
 - `next-steps` 1.0.0 standalone skill for contextual, justified recommendations
   that do not execute the proposed work.
 - `must-we` 1.0.0 standalone skill for evidence-based necessity verdicts and

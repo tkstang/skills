@@ -125,6 +125,12 @@ hook. Shared roots, generated outputs, plugin-shared areas, and rename history
 can affect more than the directly edited path; see the
 [version-impact table](conventions.md#skill-version-bump-on-edit).
 
+The same check also requires a changelog entry: when a canonical skill version or
+a plugin release version changes, `CHANGELOG.md` must gain at least one new line
+inside its `## [Unreleased]` section, so a version bump can never ship without
+release notes. A release PR that moves the Unreleased entries under a new
+`## [x.y.z] - date` heading satisfies the check through that new heading.
+
 ## Pre-push: OAT tooling internal-flag enforcement
 
 The OAT tooling skills mirrored under `.agents/skills/**` must stay hidden from

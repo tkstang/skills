@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { distributions } from '../src/distributions.js';
+import { distributions, pluginReleaseTargets } from '../src/distributions.js';
 import { isStableSemver, isValidSemver } from './bump-version.js';
 import { discoverSkillDirectories } from './lib/discover-skills.js';
 import type { DistributionDeclaration } from './lib/packaging.js';
@@ -278,6 +278,112 @@ async function baselineCandidates(
   return candidates;
 }
 
+const CHANGELOG_FILE = 'CHANGELOG.md';
+const UNRELEASED_HEADING = /^##\s+\[Unreleased\]\s*$/u;
+
+/** Lines inside `## [Unreleased]`, up to the next `## ` heading. */
+function unreleasedSection(changelog: string): string[] {
+  const lines = changelog.split('\n');
+  const start = lines.findIndex((line) => UNRELEASED_HEADING.test(line));
+  if (start === -1) return [];
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => /^##\s/u.test(line));
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+/**
+ * Content lines present in `next` beyond what `base` already had, ignoring
+ * blank lines and `###` group headings so a bare `### Added` is not an entry.
+ */
+function addedUnreleasedLines(base: string, next: string): string[] {
+  const remaining = new Map<string, number>();
+  for (const line of unreleasedSection(base)) {
+    const key = line.trim();
+    remaining.set(key, (remaining.get(key) ?? 0) + 1);
+  }
+  const added: string[] = [];
+  for (const line of unreleasedSection(next)) {
+    const key = line.trim();
+    const count = remaining.get(key) ?? 0;
+    if (count > 0) {
+      remaining.set(key, count - 1);
+      continue;
+    }
+    if (key !== '' && !key.startsWith('#')) added.push(key);
+  }
+  return added;
+}
+
+/**
+ * Versioned release headings (`## [x.y.z] - date`) present in `next` but not
+ * in `base`. A release moves the Unreleased entries under a new heading, which
+ * leaves `## [Unreleased]` empty by design.
+ */
+function addedReleaseHeadings(base: string, next: string): string[] {
+  const headings = (changelog: string): Set<string> =>
+    new Set(
+      changelog
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(
+          (line) =>
+            /^##\s+\[[^\]]+\]/u.test(line) && !UNRELEASED_HEADING.test(line),
+        ),
+    );
+  const known = headings(base);
+  return [...headings(next)].filter((heading) => !known.has(heading));
+}
+
+async function showAtBase(
+  runner: GitRunner,
+  baseRef: string,
+  file: string,
+): Promise<string | null> {
+  try {
+    return await runner(['show', `${baseRef}:${file}`]);
+  } catch {
+    return null;
+  }
+}
+
+function manifestVersion(contents: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(contents);
+    if (parsed && typeof parsed === 'object' && 'version' in parsed) {
+      const version = (parsed as { version?: unknown }).version;
+      return version == null ? null : String(version);
+    }
+  } catch {
+    // Manifest structure is validated by scripts/validate.ts.
+  }
+  return null;
+}
+
+/** Plugin release targets whose provider-manifest version moved off the base. */
+async function bumpedPluginReleases(
+  root: string,
+  runner: GitRunner,
+  baseRef: string,
+): Promise<string[]> {
+  const bumped: string[] = [];
+  for (const target of pluginReleaseTargets) {
+    for (const manifest of target.providerManifests) {
+      const current = await readFile(path.join(root, manifest), 'utf8').catch(
+        () => null,
+      );
+      if (current === null) continue;
+      const currentValue = manifestVersion(current);
+      if (currentValue === null) continue;
+      const base = await showAtBase(runner, baseRef, manifest);
+      if (base === null || manifestVersion(base) !== currentValue) {
+        bumped.push(target.name);
+        break;
+      }
+    }
+  }
+  return [...new Set(bumped)].toSorted();
+}
+
 export async function validateChangedSkillVersions(
   root: string,
   options: {
@@ -291,6 +397,8 @@ export async function validateChangedSkillVersions(
   findings: VersionFinding[];
   newOwners: string[];
   removedOwners: string[];
+  bumpedSkills: string[];
+  bumpedPlugins: string[];
 }> {
   const { baseRef } = options;
   if (!baseRef)
@@ -325,6 +433,7 @@ export async function validateChangedSkillVersions(
 
   let checkedSkillCount = 0;
   const newOwners: string[] = [];
+  const bumpedSkills: string[] = [];
   for (const owner of [...impact.owners].toSorted()) {
     const directory = currentOwners.get(owner);
     if (!directory) continue;
@@ -369,6 +478,7 @@ export async function validateChangedSkillVersions(
         currentContent,
         relativeSkillFile,
       );
+      if (compareSemver(nextVersion, baseVersion) > 0) bumpedSkills.push(owner);
       if (compareSemver(nextVersion, baseVersion) <= 0) {
         findings.push({
           skill: owner,
@@ -412,11 +522,42 @@ export async function validateChangedSkillVersions(
     }
   }
 
+  // A released version change only reaches users through the changelog, so the
+  // entry is required in the same change that moves the version.
+  const bumpedPlugins = await bumpedPluginReleases(root, git, baseRef);
+  if (bumpedSkills.length > 0 || bumpedPlugins.length > 0) {
+    const currentChangelog = await readFile(
+      path.join(root, CHANGELOG_FILE),
+      'utf8',
+    ).catch(() => null);
+    const baseChangelog =
+      (await showAtBase(git, baseRef, CHANGELOG_FILE)) ?? '';
+    const added =
+      currentChangelog === null
+        ? []
+        : [
+            ...addedUnreleasedLines(baseChangelog, currentChangelog),
+            ...addedReleaseHeadings(baseChangelog, currentChangelog),
+          ];
+    if (added.length === 0) {
+      const bumped = [
+        ...bumpedSkills.toSorted().map((skill) => `skill ${skill}`),
+        ...bumpedPlugins.map((plugin) => `plugin ${plugin}`),
+      ].join(', ');
+      findings.push({
+        skill: '<changelog>',
+        message: `${bumped} changed version against ${baseRef} with no new changelog entry: add an entry under ## [Unreleased] in CHANGELOG.md (Added/Changed/Fixed/Removed) naming the affected skills and versions, or add the release heading that the Unreleased entries moved under.`,
+      });
+    }
+  }
+
   return {
     checkedSkillCount,
     findings,
     newOwners: newOwners.toSorted(),
     removedOwners: [...removedOwners].toSorted(),
+    bumpedSkills: bumpedSkills.toSorted(),
+    bumpedPlugins,
   };
 }
 
