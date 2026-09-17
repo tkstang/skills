@@ -20,7 +20,7 @@ oat_template: true
 
 **Behavioral source of truth:** [design.md](design.md). This plan specifies work and proof, not a second copy of that contract.
 
-**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate remains pending. No implementation has started.
+**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate passed its Important threshold with two Medium and four Minor findings awaiting artifact-receive disposition. No implementation has started.
 
 ## Planning and Execution Boundaries
 
@@ -171,7 +171,7 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 
 Planned, not completed: p06 has 2 tasks; p07 has 3; p08 has 2.
 **Total: 7 active tasks across 3 sequential phases, 0 completed. First task: p06-t01.**
-No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. Implementation readiness is still null pending the configured planning gate and its durable receipt.
+No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. The planning gate passed; implementation readiness is still null pending finding disposition and durable receipt.
 
 ## References
 

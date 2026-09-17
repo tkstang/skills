@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T00:04:16Z'
+oat_project_state_updated: '2026-09-17T00:13:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Fable approved the revision and formal plan artifact review passed; awaiting the configured planning gate.
+**Status:** Formal artifact review passed. The configured planning gate passed its Important threshold with two Medium and four Minor findings; artifact-receive disposition awaits user confirmation. Plan readiness remains null.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -56,11 +56,12 @@ Quick workflow, planning only. User approved the smaller v1 and explicitly requi
 - Configured quick-start planning and implementation-final gates: keep. No lifecycle override map or global config edits. Unused lifecycle configurations remain untouched.
 - Ordinary OAT phase/final reviews remain. Fable's receipt exercise is interoperability evidence, not an extra general review gate.
 - The existing configured quick-start command is plan-only; execute unchanged and record `legacy-plan-only` scope when run. Formal plan review still checks consistency with design/discovery.
-- Fable approved the revised scope and seven-task plan. Automatic formal artifact review passed without findings in the planning parent; provenance is recorded in plan.md. No configured gate pass is claimed yet.
+- Fable approved the revised scope and seven-task plan. Automatic formal artifact review passed without findings in the planning parent; provenance is recorded in plan.md.
+- Configured planning gate run `128cf9b8-0007-4de1-a310-ec5383e43c90` passed the Important threshold (`status: ok`, `receiveEligible: true`, matched project/run/invocation). Scope was `legacy-plan-only`. Its review is [artifact-plan-review-2026-09-17T000849Z.md](reviews/artifact-plan-review-2026-09-17T000849Z.md). This is a gate pass, not a clean review or completed receipt.
 
 ## Next Milestone
 
-Run the configured planning gate unchanged and receive its corroborated result before marking ready for implementation. Fable's next planned involvement is the p08-t02 receipt exercise and normal cross-model review during implementation.
+Obtain confirmation for artifact-review dispositions, then complete receipt before marking ready. Proposed: reject M1 because quick-start requires the template flag until completion; resolve M2 by naming the exported-runner installed proof; preserve the historical auto row (m1); clarify adapters as-needed (m2), use a combined chore commit for acceptance/closeout (m3), and explicitly name the first supporting config release (m4). No additional tasks or phases. Fable's next planned involvement remains the p08-t02 receipt exercise and normal cross-model review during implementation.
 
 ## Verification
 
@@ -69,3 +70,5 @@ This revision passed `pnpm run validate`, `oat project validate-plan`, discovery
 ## Operational Notes
 
 Use the verified current OAT binary at `/Users/tstang/Library/pnpm/bin/oat` on this machine. The scaffold's earlier path-scoped commit collided with a hook index lock; it cleared without deletion. Commit explicit staged paths with a normal non-path-scoped commit and preserve hooks. Generated dashboard remains local/ignored.
+
+The planning gate's automatic project-log commit repeated that hook/index-lock failure on OAT 0.2.77. The root committed the exact log path with a normal staged commit, then replayed the supplied idempotent recovery command successfully. The CLI removed its transient recovery receipt. No lock was deleted or hook bypassed.
