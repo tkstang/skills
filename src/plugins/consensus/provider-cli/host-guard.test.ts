@@ -224,6 +224,34 @@ describe('provider host runtime guard', () => {
     });
   });
 
+  it.each(['malformed', '-1', '1.5', '2', '9007199254740992'])(
+    'rejects present invalid review depth %s instead of resetting it to zero',
+    (depth) => {
+      expect(
+        resolveExplicitHostContext({
+          runtime: 'codex',
+          cwd: '/repo',
+          env: {
+            CONSENSUS_PARENT_HOST: 'codex',
+            CONSENSUS_DEPTH: depth,
+          },
+          maxDepth: 1,
+        }),
+      ).toMatchObject({ ok: false, reason: 'invalid_depth' });
+    },
+  );
+
+  it('defaults an absent explicit review depth to the root depth', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: { CONSENSUS_PARENT_HOST: 'codex' },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: true, context: { depth: 0, max_depth: 1 } });
+  });
+
   it('blocks unknown and contradictory explicit review host identity', () => {
     expect(
       resolveExplicitHostContext({

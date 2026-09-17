@@ -5,6 +5,7 @@
 import { pathToFileURL } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
+import { lstat as lstat2, open as open2, realpath, stat, unlink } from "node:fs/promises";
 import path6 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
@@ -787,13 +788,22 @@ function resolveExplicitHostContext(input) {
       message: `Could not verify explicit host ${input.runtime} from runtime evidence.`
     };
   }
+  const inheritedDepth = input.env.CONSENSUS_DEPTH;
+  const depth = inheritedDepth === void 0 ? 0 : parseNonNegativeInteger(inheritedDepth);
+  if (depth === void 0 || depth > input.maxDepth) {
+    return {
+      ok: false,
+      reason: "invalid_depth",
+      message: `Inherited consensus depth must be a safe integer between 0 and ${input.maxDepth}.`
+    };
+  }
   return {
     ok: true,
     context: {
       runtime: input.runtime,
       cwd: input.cwd,
       run_id: input.env.CONSENSUS_RUN_ID ?? "local",
-      depth: parseNonNegativeInteger(input.env.CONSENSUS_DEPTH) ?? 0,
+      depth,
       max_depth: input.maxDepth
     }
   };
@@ -867,7 +877,8 @@ function allowed(hostRelation, guard, childEnv) {
 }
 function parseNonNegativeInteger(value) {
   if (value === void 0 || !/^\d+$/.test(value)) return void 0;
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : void 0;
 }
 function detectedHostRuntimes(env) {
   const detected = /* @__PURE__ */ new Set();
@@ -1853,6 +1864,18 @@ function inside(root, target) {
   const relative = path5.relative(root, target);
   return relative === "" || !relative.startsWith("..") && !path5.isAbsolute(relative);
 }
+function pathExists(targetPath) {
+  return lstat(targetPath).then(() => true).catch((error) => {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  });
+}
+async function nearestExistingPath(targetPath) {
+  if (await pathExists(targetPath)) return targetPath;
+  const parent = path5.dirname(targetPath);
+  if (parent === targetPath) return targetPath;
+  return await nearestExistingPath(parent);
+}
 
 // src/skills/consensus-review/src/run.ts
 async function runReview(input, dependencies = {}) {
@@ -1879,7 +1902,7 @@ async function runReview(input, dependencies = {}) {
       "Same-provider review requires explicit user consent."
     );
   }
-  const transport = reviewTransport(input);
+  const transport = await reviewTransport(input);
   if (!transport.ok) {
     return preflightFailure(transport.reason, transport.message);
   }
@@ -1905,6 +1928,10 @@ async function runReview(input, dependencies = {}) {
       `Review provider ${input.provider} is not ready (${readiness.status}).`
     );
   }
+  const claimedTransport = await claimReviewTransport(input, transport.options);
+  if (!claimedTransport.ok) {
+    return preflightFailure(claimedTransport.reason, claimedTransport.message);
+  }
   const request = {
     schema_version: "v1",
     provider: input.provider,
@@ -1926,7 +1953,7 @@ async function runReview(input, dependencies = {}) {
   const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
     registry,
     parentEnv: env,
-    transport: transport.options
+    transport: claimedTransport.options
   });
   if (!envelope.ok) {
     return {
@@ -1955,7 +1982,7 @@ async function defaultReviewPreflight(input) {
   if (entry) return entry;
   throw new Error(`Review provider is not registered: ${input.provider}`);
 }
-function reviewTransport(input) {
+async function reviewTransport(input) {
   if (input.provider === "claude") {
     return {
       ok: true,
@@ -1972,23 +1999,216 @@ function reviewTransport(input) {
       message: "Codex review capture must be an absolute external path."
     };
   }
-  const capturePath = path6.resolve(input.codexCapturePath);
-  if (inside(path6.resolve(input.cwd), capturePath)) {
-    return {
-      ok: false,
-      reason: "capture_not_external",
-      message: "Codex review capture must remain outside the reviewed worktree."
-    };
-  }
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
   return {
     ok: true,
     options: {
       submitCaptureEnabled: false,
       strategy: "prompt_only",
-      lastMessageFile: capturePath,
+      lastMessageFile: capture.path,
       preserveLastMessageFile: true
     }
   };
+}
+async function claimReviewTransport(input, options) {
+  if (input.provider === "claude") return { ok: true, options };
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
+  let handle;
+  try {
+    handle = await open2(capture.path, "wx", 384);
+    await handle.close();
+  } catch (error) {
+    await handle?.close().catch(() => void 0);
+    if (handle) await unlink(capture.path).catch(() => void 0);
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture could not be claimed exclusively: ${fsMessage(error)}.`
+    );
+  }
+  try {
+    const [info, canonical] = await Promise.all([
+      lstat2(capture.path),
+      realpath(capture.path)
+    ]);
+    if (info.isSymbolicLink() || !info.isFile() || canonical !== capture.path || (info.mode & 63) !== 0) {
+      await unlink(capture.path).catch(() => void 0);
+      return captureFailure(
+        "capture_destination_unsafe",
+        "Codex review capture lost its private canonical file identity."
+      );
+    }
+  } catch (error) {
+    await unlink(capture.path).catch(() => void 0);
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture identity could not be verified: ${fsMessage(error)}.`
+    );
+  }
+  return {
+    ok: true,
+    options: { ...options, lastMessageFile: capture.path }
+  };
+}
+async function validateCodexCapture(input) {
+  const capturePath = path6.resolve(input.codexCapturePath);
+  let canonicalWorktree;
+  try {
+    canonicalWorktree = await realpath(input.cwd);
+  } catch (error) {
+    return captureFailure(
+      "capture_boundary_invalid",
+      `Reviewed worktree identity could not be resolved: ${fsMessage(error)}.`
+    );
+  }
+  let targetInfo = null;
+  try {
+    targetInfo = await lstat2(capturePath);
+  } catch (error) {
+    if (!isMissing(error)) {
+      return captureFailure(
+        "capture_destination_unsafe",
+        `Codex review capture could not be inspected: ${fsMessage(error)}.`
+      );
+    }
+  }
+  if (targetInfo?.isSymbolicLink()) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture must not be a symbolic link."
+    );
+  }
+  if (targetInfo) {
+    let protectedAlias;
+    try {
+      protectedAlias = await aliasesProtectedInput(capturePath, input);
+    } catch (error) {
+      return captureFailure(
+        "capture_destination_unsafe",
+        `Codex review capture identity could not be compared: ${fsMessage(error)}.`
+      );
+    }
+    if (protectedAlias) {
+      return captureFailure(
+        "capture_protected_alias",
+        "Codex review capture must not alias a protected review input."
+      );
+    }
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture must not already exist."
+    );
+  }
+  const parent = path6.dirname(capturePath);
+  let existing;
+  let canonicalExisting;
+  let existingInfo;
+  try {
+    existing = await nearestExistingPath(parent);
+    [canonicalExisting, existingInfo] = await Promise.all([
+      realpath(existing),
+      lstat2(existing)
+    ]);
+  } catch (error) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Codex review capture parent could not be resolved: ${fsMessage(error)}.`
+    );
+  }
+  if (!existingInfo.isDirectory()) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture parent must be a directory."
+    );
+  }
+  const canonicalParent = path6.resolve(
+    canonicalExisting,
+    path6.relative(existing, parent)
+  );
+  const canonicalCapture = path6.join(
+    canonicalParent,
+    path6.basename(capturePath)
+  );
+  if (inside(canonicalWorktree, canonicalCapture)) {
+    return captureFailure(
+      "capture_not_external",
+      "Codex review capture must remain outside the reviewed worktree."
+    );
+  }
+  if (path6.resolve(existing) !== canonicalExisting || path6.resolve(parent) !== canonicalParent) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture path must not contain symbolic-link aliases."
+    );
+  }
+  if (path6.resolve(existing) !== path6.resolve(parent)) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture requires an existing private run directory."
+    );
+  }
+  const currentUid = process.getuid?.();
+  if ((existingInfo.mode & 63) !== 0 || currentUid !== void 0 && existingInfo.uid !== currentUid) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      "Codex review capture run directory must be private to the current user."
+    );
+  }
+  let protectedPaths;
+  try {
+    protectedPaths = await canonicalProtectedPaths(input);
+  } catch (error) {
+    return captureFailure(
+      "capture_destination_unsafe",
+      `Protected review input identity could not be resolved: ${fsMessage(error)}.`
+    );
+  }
+  if (protectedPaths.includes(canonicalCapture)) {
+    return captureFailure(
+      "capture_protected_alias",
+      "Codex review capture must not alias a protected review input."
+    );
+  }
+  return { ok: true, path: canonicalCapture };
+}
+async function aliasesProtectedInput(capturePath, input) {
+  try {
+    const captureInfo = await stat(capturePath);
+    for (const protectedPath of [input.schemaPath, input.cwd]) {
+      try {
+        const protectedInfo = await stat(protectedPath);
+        if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
+          return true;
+        }
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
+    }
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
+  return false;
+}
+async function canonicalProtectedPaths(input) {
+  const protectedPaths = [];
+  for (const protectedPath of [input.schemaPath, input.cwd]) {
+    try {
+      protectedPaths.push(await realpath(protectedPath));
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+    }
+  }
+  return protectedPaths;
+}
+function captureFailure(reason, message) {
+  return { ok: false, reason, message };
+}
+function isMissing(error) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+function fsMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 function preflightFailure(reason, message) {
   return {

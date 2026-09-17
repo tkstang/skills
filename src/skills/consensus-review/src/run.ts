@@ -1,3 +1,4 @@
+import { lstat, open, realpath, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 import { providerRegistry } from '../../../plugins/consensus/provider-cli/adapters.js';
@@ -23,7 +24,10 @@ import type {
   HostContext,
   ProviderInventoryEntry,
 } from '../../../plugins/consensus/provider-cli/types.js';
-import { inside } from '../../../plugins/consensus/shared/cli-helpers-core.js';
+import {
+  inside,
+  nearestExistingPath,
+} from '../../../plugins/consensus/shared/cli-helpers-core.js';
 
 export interface ReviewFoundationResult {
   ok: false;
@@ -117,7 +121,7 @@ export async function runReview(
     );
   }
 
-  const transport = reviewTransport(input);
+  const transport = await reviewTransport(input);
   if (!transport.ok) {
     return preflightFailure(transport.reason, transport.message);
   }
@@ -146,6 +150,11 @@ export async function runReview(
     );
   }
 
+  const claimedTransport = await claimReviewTransport(input, transport.options);
+  if (!claimedTransport.ok) {
+    return preflightFailure(claimedTransport.reason, claimedTransport.message);
+  }
+
   const request: ConsensusCliRunRequest = {
     schema_version: 'v1',
     provider: input.provider,
@@ -170,7 +179,7 @@ export async function runReview(
   const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
     registry,
     parentEnv: env,
-    transport: transport.options,
+    transport: claimedTransport.options,
   });
   if (!envelope.ok) {
     return {
@@ -203,11 +212,12 @@ async function defaultReviewPreflight(
   throw new Error(`Review provider is not registered: ${input.provider}`);
 }
 
-function reviewTransport(
+async function reviewTransport(
   input: ReviewTransportRequest,
-):
+): Promise<
   | { ok: true; options: ProviderTurnTransportOptions }
-  | { ok: false; reason: string; message: string } {
+  | { ok: false; reason: string; message: string }
+> {
   if (input.provider === 'claude') {
     return {
       ok: true,
@@ -225,24 +235,264 @@ function reviewTransport(
       message: 'Codex review capture must be an absolute external path.',
     };
   }
-  const capturePath = path.resolve(input.codexCapturePath);
-  if (inside(path.resolve(input.cwd), capturePath)) {
-    return {
-      ok: false,
-      reason: 'capture_not_external',
-      message:
-        'Codex review capture must remain outside the reviewed worktree.',
-    };
-  }
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
   return {
     ok: true,
     options: {
       submitCaptureEnabled: false,
       strategy: 'prompt_only',
-      lastMessageFile: capturePath,
+      lastMessageFile: capture.path,
       preserveLastMessageFile: true,
     },
   };
+}
+
+async function claimReviewTransport(
+  input: ReviewTransportRequest,
+  options: ProviderTurnTransportOptions,
+): Promise<
+  | { ok: true; options: ProviderTurnTransportOptions }
+  | { ok: false; reason: string; message: string }
+> {
+  if (input.provider === 'claude') return { ok: true, options };
+
+  const capture = await validateCodexCapture(input);
+  if (!capture.ok) return capture;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(capture.path, 'wx', 0o600);
+    await handle.close();
+  } catch (error) {
+    await handle?.close().catch(() => undefined);
+    if (handle) await unlink(capture.path).catch(() => undefined);
+    return captureFailure(
+      'capture_destination_unsafe',
+      `Codex review capture could not be claimed exclusively: ${fsMessage(error)}.`,
+    );
+  }
+
+  try {
+    const [info, canonical] = await Promise.all([
+      lstat(capture.path),
+      realpath(capture.path),
+    ]);
+    if (
+      info.isSymbolicLink() ||
+      !info.isFile() ||
+      canonical !== capture.path ||
+      (info.mode & 0o077) !== 0
+    ) {
+      await unlink(capture.path).catch(() => undefined);
+      return captureFailure(
+        'capture_destination_unsafe',
+        'Codex review capture lost its private canonical file identity.',
+      );
+    }
+  } catch (error) {
+    await unlink(capture.path).catch(() => undefined);
+    return captureFailure(
+      'capture_destination_unsafe',
+      `Codex review capture identity could not be verified: ${fsMessage(error)}.`,
+    );
+  }
+
+  return {
+    ok: true,
+    options: { ...options, lastMessageFile: capture.path },
+  };
+}
+
+async function validateCodexCapture(
+  input: ReviewTransportRequest,
+): Promise<
+  { ok: true; path: string } | { ok: false; reason: string; message: string }
+> {
+  const capturePath = path.resolve(input.codexCapturePath!);
+  let canonicalWorktree: string;
+  try {
+    canonicalWorktree = await realpath(input.cwd);
+  } catch (error) {
+    return captureFailure(
+      'capture_boundary_invalid',
+      `Reviewed worktree identity could not be resolved: ${fsMessage(error)}.`,
+    );
+  }
+
+  let targetInfo: Awaited<ReturnType<typeof lstat>> | null = null;
+  try {
+    targetInfo = await lstat(capturePath);
+  } catch (error) {
+    if (!isMissing(error)) {
+      return captureFailure(
+        'capture_destination_unsafe',
+        `Codex review capture could not be inspected: ${fsMessage(error)}.`,
+      );
+    }
+  }
+  if (targetInfo?.isSymbolicLink()) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture must not be a symbolic link.',
+    );
+  }
+  if (targetInfo) {
+    let protectedAlias: boolean;
+    try {
+      protectedAlias = await aliasesProtectedInput(capturePath, input);
+    } catch (error) {
+      return captureFailure(
+        'capture_destination_unsafe',
+        `Codex review capture identity could not be compared: ${fsMessage(error)}.`,
+      );
+    }
+    if (protectedAlias) {
+      return captureFailure(
+        'capture_protected_alias',
+        'Codex review capture must not alias a protected review input.',
+      );
+    }
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture must not already exist.',
+    );
+  }
+
+  const parent = path.dirname(capturePath);
+  let existing: string;
+  let canonicalExisting: string;
+  let existingInfo: Awaited<ReturnType<typeof lstat>>;
+  try {
+    existing = await nearestExistingPath(parent);
+    [canonicalExisting, existingInfo] = await Promise.all([
+      realpath(existing),
+      lstat(existing),
+    ]);
+  } catch (error) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      `Codex review capture parent could not be resolved: ${fsMessage(error)}.`,
+    );
+  }
+  if (!existingInfo.isDirectory()) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture parent must be a directory.',
+    );
+  }
+
+  const canonicalParent = path.resolve(
+    canonicalExisting,
+    path.relative(existing, parent),
+  );
+  const canonicalCapture = path.join(
+    canonicalParent,
+    path.basename(capturePath),
+  );
+  if (inside(canonicalWorktree, canonicalCapture)) {
+    return captureFailure(
+      'capture_not_external',
+      'Codex review capture must remain outside the reviewed worktree.',
+    );
+  }
+  if (
+    path.resolve(existing) !== canonicalExisting ||
+    path.resolve(parent) !== canonicalParent
+  ) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture path must not contain symbolic-link aliases.',
+    );
+  }
+  if (path.resolve(existing) !== path.resolve(parent)) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture requires an existing private run directory.',
+    );
+  }
+
+  const currentUid = process.getuid?.();
+  if (
+    (existingInfo.mode & 0o077) !== 0 ||
+    (currentUid !== undefined && existingInfo.uid !== currentUid)
+  ) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      'Codex review capture run directory must be private to the current user.',
+    );
+  }
+
+  let protectedPaths: string[];
+  try {
+    protectedPaths = await canonicalProtectedPaths(input);
+  } catch (error) {
+    return captureFailure(
+      'capture_destination_unsafe',
+      `Protected review input identity could not be resolved: ${fsMessage(error)}.`,
+    );
+  }
+  if (protectedPaths.includes(canonicalCapture)) {
+    return captureFailure(
+      'capture_protected_alias',
+      'Codex review capture must not alias a protected review input.',
+    );
+  }
+  return { ok: true, path: canonicalCapture };
+}
+
+async function aliasesProtectedInput(
+  capturePath: string,
+  input: ReviewTransportRequest,
+): Promise<boolean> {
+  try {
+    const captureInfo = await stat(capturePath);
+    for (const protectedPath of [input.schemaPath, input.cwd]) {
+      try {
+        const protectedInfo = await stat(protectedPath);
+        if (
+          captureInfo.dev === protectedInfo.dev &&
+          captureInfo.ino === protectedInfo.ino
+        ) {
+          return true;
+        }
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
+    }
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
+  return false;
+}
+
+async function canonicalProtectedPaths(
+  input: ReviewTransportRequest,
+): Promise<string[]> {
+  const protectedPaths: string[] = [];
+  for (const protectedPath of [input.schemaPath, input.cwd]) {
+    try {
+      protectedPaths.push(await realpath(protectedPath));
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+    }
+  }
+  return protectedPaths;
+}
+
+function captureFailure(reason: string, message: string) {
+  return { ok: false as const, reason, message };
+}
+
+function isMissing(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+function fsMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function preflightFailure(reason: string, message: string): ReviewRunResult {

@@ -14,7 +14,7 @@ export type ExplicitHostContextResult =
   | { ok: true; context: HostContext }
   | {
       ok: false;
-      reason: 'unknown_host' | 'contradictory_host';
+      reason: 'unknown_host' | 'contradictory_host' | 'invalid_depth';
       message: string;
     };
 
@@ -72,13 +72,24 @@ export function resolveExplicitHostContext(input: {
     };
   }
 
+  const inheritedDepth = input.env.CONSENSUS_DEPTH;
+  const depth =
+    inheritedDepth === undefined ? 0 : parseNonNegativeInteger(inheritedDepth);
+  if (depth === undefined || depth > input.maxDepth) {
+    return {
+      ok: false,
+      reason: 'invalid_depth',
+      message: `Inherited consensus depth must be a safe integer between 0 and ${input.maxDepth}.`,
+    };
+  }
+
   return {
     ok: true,
     context: {
       runtime: input.runtime,
       cwd: input.cwd,
       run_id: input.env.CONSENSUS_RUN_ID ?? 'local',
-      depth: parseNonNegativeInteger(input.env.CONSENSUS_DEPTH) ?? 0,
+      depth,
       max_depth: input.maxDepth,
     },
   };
@@ -183,7 +194,8 @@ function allowed(
 
 function parseNonNegativeInteger(value: string | undefined) {
   if (value === undefined || !/^\d+$/.test(value)) return undefined;
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 function detectedHostRuntimes(

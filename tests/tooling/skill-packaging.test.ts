@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import {
   chmod,
   cp,
+  link,
   mkdir,
   mkdtemp,
   readFile,
@@ -926,7 +927,7 @@ describe('representative real installation boundaries', () => {
       'skills/consensus-review',
     ]);
 
-    const root = await fixtureRoot();
+    const root = await realpath(await fixtureRoot());
     const bin = path.join(root, 'bin');
     const home = path.join(root, 'home');
     const reviewed = path.join(root, 'reviewed-worktree');
@@ -991,6 +992,12 @@ process.stdout.write(JSON.stringify(result));
 `,
     );
 
+    const reviewedState = path.join(reviewed, '.review');
+    const reviewedAlias = path.join(root, 'reviewed-alias');
+    await mkdir(reviewedState, { mode: 0o700 });
+    await chmod(reviewedState, 0o700);
+    await symlink(reviewed, reviewedAlias, 'dir');
+
     for (const unit of built) {
       const installed = path.join(root, 'installed', unit.target.name);
       await cp(unit.stagedPath, installed, { recursive: true });
@@ -1001,29 +1008,85 @@ process.stdout.write(JSON.stringify(result));
         unit.target.name,
         'codex-last-message.json',
       );
-      await mkdir(path.dirname(capture), { recursive: true });
+      const runRoot = path.dirname(capture);
+      await mkdir(runRoot, { recursive: true, mode: 0o700 });
+      await chmod(runRoot, 0o700);
 
-      const execution = await execFileAsync(
-        process.execPath,
-        [
-          path.join(root, 'review-driver.mjs'),
-          `${pathToFileURL(runtime).href}?unit=${unit.target.name}`,
-          schema,
-          capture,
-          reviewed,
-        ],
-        {
-          cwd: root,
-          env: {
-            HOME: home,
-            PATH: `${bin}${path.delimiter}${path.dirname(process.execPath)}`,
-            CONSENSUS_PARENT_HOST: 'codex',
-            CONSENSUS_RUN_ID: `installed-${unit.target.name}`,
-            CONSENSUS_DEPTH: '0',
+      const execute = async (
+        capturePath: string,
+        depth = '0',
+      ): Promise<Record<string, unknown>> => {
+        const execution = await execFileAsync(
+          process.execPath,
+          [
+            path.join(root, 'review-driver.mjs'),
+            `${pathToFileURL(runtime).href}?unit=${unit.target.name}&capture=${encodeURIComponent(path.basename(capturePath))}`,
+            schema,
+            capturePath,
+            reviewed,
+          ],
+          {
+            cwd: root,
+            env: {
+              HOME: home,
+              PATH: `${bin}${path.delimiter}${path.dirname(process.execPath)}`,
+              CONSENSUS_PARENT_HOST: 'codex',
+              CONSENSUS_RUN_ID: `installed-${unit.target.name}`,
+              CONSENSUS_DEPTH: depth,
+            },
           },
-        },
+        );
+        return JSON.parse(execution.stdout) as Record<string, unknown>;
+      };
+
+      const actualParent = path.join(root, `${unit.target.name}-actual-run`);
+      const linkedParent = path.join(root, `${unit.target.name}-linked-run`);
+      const symlinkTarget = path.join(
+        root,
+        `${unit.target.name}-symlink-target.json`,
       );
-      expect(JSON.parse(execution.stdout), execution.stdout).toMatchObject({
+      const symlinkCapture = path.join(
+        root,
+        `${unit.target.name}-symlink-capture.json`,
+      );
+      const preExisting = path.join(runRoot, 'pre-existing.json');
+      const protectedAlias = path.join(runRoot, 'schema-alias.json');
+      await mkdir(actualParent, { mode: 0o700 });
+      await chmod(actualParent, 0o700);
+      await symlink(actualParent, linkedParent, 'dir');
+      await writeFile(symlinkTarget, '{}');
+      await symlink(symlinkTarget, symlinkCapture);
+      await writeFile(preExisting, '{}');
+      await link(schema, protectedAlias);
+
+      for (const unsafeCapture of [
+        path.join(linkedParent, 'last-message.json'),
+        symlinkCapture,
+        path.join(
+          reviewedAlias,
+          '.review',
+          `${unit.target.name}-last-message.json`,
+        ),
+        preExisting,
+        protectedAlias,
+      ]) {
+        expect(await execute(unsafeCapture)).toMatchObject({
+          ok: false,
+          status: 'preflight_failed',
+          invocation_count: 0,
+        });
+      }
+      expect(
+        await execute(path.join(runRoot, 'invalid-depth.json'), 'bad'),
+      ).toMatchObject({
+        ok: false,
+        status: 'preflight_failed',
+        reason: 'invalid_depth',
+        invocation_count: 0,
+      });
+
+      const validExecution = await execute(capture);
+      expect(validExecution, JSON.stringify(validExecution)).toMatchObject({
         ok: true,
         status: 'completed',
         invocation_count: 1,

@@ -1267,7 +1267,8 @@ function allowed(hostRelation, guard, childEnv) {
 }
 function parseNonNegativeInteger(value) {
   if (value === void 0 || !/^\d+$/.test(value)) return void 0;
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : void 0;
 }
 function detectedHostRuntimes(env) {
   const detected = /* @__PURE__ */ new Set();
