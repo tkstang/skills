@@ -303,7 +303,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Phase review target: `oat-reviewer-gpt-6-astra-xhigh-d2ba02747a`
 - Reviewed range: `01e459687e33459357774a4aa584c44d6a64a9a2..6800dcebee56689aa9045e0d471e815e564950f2`
 - Verdict: passed under the phase contract with 0 Critical, 0 Important, 1 Medium, and 0 Minor findings
-- Review artifact: `reviews/p01-review-2026-09-17T012147Z.md`
+- Review artifact: `reviews/archived/p01-review-2026-09-17T012147Z.md`
 - Reconnaissance: not attempted
 - Fix iterations: 0
 
@@ -345,7 +345,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Target: `oat-reviewer-gpt-6-astra-xhigh-d2ba02747a`
 - Reviewed range: `e2fe6c4106e2949b2ebefe1816cdae1622bc7b6c..f0879afabb0556f836eae1849edafd3393dd90e7`
 - Verdict: passed with zero findings
-- Review artifact: `reviews/p02-review-2026-09-17T014619Z.md`
+- Review artifact: `reviews/archived/p02-review-2026-09-17T014619Z.md`
 - Reconnaissance: not attempted
 
 **Outstanding items:**
@@ -704,7 +704,7 @@ Chronological log of implementation progress.
 - Recovery attempt 1 made no product-code commit and preserved immutable task history.
 - Operator direction resumed `p01-t03` for recovery attempt 2 with exact-target continuity and candidate-tree proof; no unrelated version bumps or validator changes are authorized.
 - Recovery attempt 2 completed in `372a69c0`; `p01-t03` completed in `0876525a`; all planned static verification passed.
-- Independent phase review passed with one non-blocking Medium bootstrap-tag finding recorded in `reviews/p01-review-2026-09-17T012147Z.md`.
+- Independent phase review passed with one non-blocking Medium bootstrap-tag finding recorded in `reviews/archived/p01-review-2026-09-17T012147Z.md`.
 - Auto final review converted the unresolved bootstrap-tag finding into `p02-t01`; no Medium finding remains deferred.
 - `p02-t01` completed in `f0879afa`; independent p02 review passed with zero findings and resolved the bootstrap-tag defect.
 - Final re-review passed with zero findings; all prior Medium and Minor dispositions are closed.
