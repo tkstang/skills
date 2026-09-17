@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
@@ -18,21 +18,21 @@ oat_template: false
 
 > Execute this plan using `oat-project-implement`.
 
-**Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host's project-scoped skills directory while preserving the existing Consensus recovery installer.
+**Goal:** Add a dependency-free first-party command that installs a generated standalone skill from an exact tag into an explicit host and explicit project or user scope while preserving the existing Consensus recovery installer.
 
-**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and standalone flags to an adjacent dependency-free Node.js 22 helper. The helper performs qualified-tag fetch and detached commit verification, generated-payload validation, complete path/mode/SHA-256 inventories, same-parent staging, atomic exclusive destination reservation, descriptor-held `wx` population, final verification, and host invocation output.
+**Architecture:** `install.sh` dispatches zero arguments to the unchanged Consensus path and standalone flags to an adjacent dependency-free Node.js 22 helper. The helper adapts the proven `personal-skills` pinned-Git, inventory, explicit-destination, and injectable-filesystem patterns: it scrubs inherited `GIT_*`, reads one generated payload from an exact tag in a private bare repository, resolves the selected host/scope destination, reserves it exclusively, writes without overwrite-capable operations, verifies the inventory, and prints the host invocation.
 
-**Tech Stack:** Bash, Git, Node.js 22 repository tooling, Vitest, temporary local Git fixtures, Fumadocs Markdown.
+**Tech Stack:** Bash, Git, Node.js 22 standard library, Vitest, temporary local Git fixtures, Fumadocs Markdown.
 
 **Commit Convention:** `{type}({scope}): {description}`
 
 ## Parallelism
 
-The plan is sequential (`oat_plan_parallel_groups: []`). Installer behavior, its compatibility contract, and the user/release documentation describe one shared CLI boundary. The documentation task depends on the finalized command and output, while final verification and backlog disposition depend on both prior tasks. Parallel worktrees would create avoidable overlap in the install contract and integration checks.
+The plan is sequential (`oat_plan_parallel_groups: []`). Installer behavior, its compatibility contract, and the user/release documentation describe one shared CLI boundary. Documentation depends on the finalized command, while final verification and backlog disposition depend on both prior tasks.
 
 ## Phase 1: Implement and verify the first-party installer
 
-### Task p01-t01: Add the standalone installer path and behavior tests
+### Task p01-t01: Adapt the proven installer core for public standalone installs
 
 **Files:**
 
@@ -41,7 +41,13 @@ The plan is sequential (`oat_plan_parallel_groups: []`). Installer behavior, its
 - Modify: `src/plugins/consensus/install-sh.test.ts`
 - Create: `tests/tooling/standalone-installer.test.ts`
 
-**Step 1: Establish the baseline**
+**Step 1: Read implementation contracts and establish the baseline**
+
+Read `src/AGENTS.md` and `documentation/docs/engineering/architecture/generated-runtime.md` before changing shipped or build-adjacent code. Use these prior-art sources as design references, not runtime dependencies:
+
+- `tkstang/personal-skills` `scripts/install.ts`
+- `tkstang/personal-skills` `scripts/external/git-source.ts`
+- `tkstang/personal-skills` `tests/install.test.ts`
 
 Run: `pnpm run build:check`
 
@@ -51,45 +57,44 @@ Run: `pnpm run test:vitest src/plugins/consensus/install-sh.test.ts src/plugins/
 
 Expected: Existing Consensus installer behavior is green before the additive change.
 
-**Step 2: Write failing standalone behavior tests**
+**Step 2: Write proportional failing tests**
 
-Use temporary project roots and temporary local Git repositories with lightweight tags. Exercise the real `install.sh` process with isolated environment variables and working directories.
+Use temporary project roots, temporary `HOME` directories, and temporary local Git repositories. Exercise the real `install.sh` process for CLI behavior and exported helper functions for the single injected filesystem failure.
 
-Cover:
+Cover these coherent groups, using tables instead of bespoke process harnesses:
 
-- required `--skill`, `--agent`, and `--ref` parsing plus `--help`, unknown flags, duplicate flags, missing values, and partial flag sets;
-- Codex, Claude Code, and Cursor project destinations and invocation output;
-- complete payload bytes and executable-mode preservation;
-- missing tag, branch-only ref, missing generated skill, authored-source-only fixture, malformed name, unsupported host, unsafe entry, and symlinked ancestor refusal;
-- annotated-tag handling and a same-named branch/tag fixture with different bytes that must install the peeled tag commit;
-- existing destination preservation;
-- deterministic post-preflight directory and symlink collision refusal with competing content preserved;
-- post-reservation competing directory, regular-file, symlink, FIFO, and symlink-to-FIFO creation plus destination replacement, proving exclusive opens and no recursive cleanup preserve foreign entries without blocking or write-through;
-- `.standalone-install-incomplete` reserved marker-name rejection;
-- injected post-reservation copy or inventory failure that leaves a marked partial destination, preserves concurrent additions, cleans checkout/staging state, and makes a later install refuse the existing path;
-- real-process checkpoint control using `STANDALONE_INSTALL_TEST_MODE=1` with a test-owned hook directory, plus a test proving the hook-directory variable alone is inert;
-- standalone flags applied to an isolated/streamed `install.sh` with no adjacent helper, requiring checkout guidance and no host-directory mutation;
-- zero-argument Consensus checkout, remote, checksum, permission, and repeated-install compatibility.
+- required `--skill`, `--agent`, `--scope`, and `--ref` parsing, plus help and representative invalid/missing values;
+- Codex, Claude Code, and Cursor destination/invocation mappings at both project and user scope, with user tests confined to a temporary `HOME`;
+- complete multi-file payload bytes and executable-mode preservation;
+- missing tag, branch-only ref, missing generated skill, `src/skills`-only fixture, malformed name, unsupported host/scope, unsafe Git entry, and reserved marker refusal;
+- one annotated tag sharing a name with a different branch, proving the fully qualified tag wins;
+- inherited `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, and representative `GIT_CONFIG_*` decoys, proving the intended private repository is used and the decoy is unchanged;
+- an existing destination preserved byte-for-byte and one symlinked-ancestor refusal;
+- one programmatically injected mid-write failure leaving `.standalone-install-incomplete` in the new destination;
+- standalone flags applied to an isolated `install.sh` with no adjacent helper, requiring checkout guidance and no destination mutation;
+- zero-argument Consensus compatibility through the existing focused suite.
+
+Do not add real-process race checkpoints, timed handshakes, FIFO/special-file collision permutations, or destination-replacement fixtures.
 
 Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
 
-Expected: New standalone cases fail for the missing behavior while legacy cases remain green.
+Expected: New standalone cases fail for missing behavior while legacy cases remain green.
 
-**Step 3: Implement the dependency-free standalone flow**
+**Step 3: Implement the dependency-free public delta**
 
 - Dispatch no arguments to the existing Consensus path and delegate standalone arguments to `scripts/install-standalone.mjs` through Node.js 22.
-- Validate standalone flags and safe names in the dependency-free helper before installation work; invoke Git with argv arrays.
-- When standalone flags are present but the adjacent helper is missing, fail with `install.sh:` checkout-based guidance before creating host directories.
-- Fetch the fully qualified `refs/tags/<ref>` from the default repository or `--repository` override, peel it to a commit, check it out detached, and require `HEAD` equality before reading the payload.
-- Select only `skills/<name>/` and require `SKILL.md`; never search or fall back to `src/skills/`.
-- Reject symlinks and non-file/non-directory entries.
-- Map hosts to `.agents/skills`, `.claude/skills`, or `.cursor/skills` beneath the physical current project.
-- Refuse existing destinations and symlinked destination ancestors during preflight, then repeat the ancestor check immediately before publication.
-- Inventory every regular file by relative path, permission mode, and SHA-256; copy to a same-parent stage; and verify inventory equality.
-- Atomically reserve the final path with exclusive `mkdir`; if another directory or symlink appeared, preserve it and fail.
-- Reject `.standalone-install-incomplete` in source payloads. Add that marker after reservation; create payload directories parent-first with exclusive `mkdir`; open payload files through Node `wx`, retain the descriptor through byte copy and permission changes, and never overwrite or open an existing final-path entry. Verify while excluding only the marker, then remove the marker only after verification succeeds.
-- Add source-commented, test-only checkpoints at `after-preflight`, `after-reservation`, and `before-final-verify`. Activate them only when `STANDALONE_INSTALL_TEST_MODE=1` and a confined hook directory are both present; use bounded waits and continue/fail signals. Without the opt-in, the hook directory variable is inert.
-- On post-reservation failure, preserve the marked partial destination and any concurrent additions, report explicit recovery, and clean only owned checkout/staging paths. Print the verified path plus host invocation name only after the marker is removed.
+- Require explicit `--skill`, `--agent`, `--scope <project|user>`, and `--ref`; accept optional `--repository`; validate all inputs before destination mutation.
+- When standalone flags are present but the adjacent helper is missing, fail with `install.sh:` checkout guidance before creating destination directories.
+- Build every Git subprocess environment by dropping all inherited keys with the `GIT_` prefix, then add deliberate noninteractive controls.
+- In a private bare repository, fetch only `refs/tags/<ref>` from `https://github.com/tkstang/skills.git` or the explicit repository override, peel `FETCH_HEAD^{commit}`, and read only `skills/<name>/` with `git ls-tree` and `git cat-file`.
+- Require `SKILL.md`; accept only safe relative paths and regular-file modes `100644` or `100755`; reject symlinks, gitlinks, unsupported modes, and `.standalone-install-incomplete`.
+- Record a deterministic inventory of relative path, executable mode, and SHA-256 bytes.
+- Resolve project scope beneath the physical current directory and user scope beneath `HOME`; map the selected host to `.agents/skills`, `.claude/skills`, or `.cursor/skills`. Do not create provider mirrors or run `oat sync`.
+- Validate/create the provider parent chain one real directory at a time after source validation. Refuse symlinked ancestors and any existing final destination.
+- Reserve the final destination with exclusive `mkdir`, write `.standalone-install-incomplete`, create payload directories parent-first, and create files through held Node `wx` descriptors before applying modes.
+- Re-inventory the destination while excluding only the marker. Remove the marker and report the selected tag, scope, verified path, and invocation only after exact equality succeeds.
+- Export a small `fileOperations` object for direct failure injection. Do not expose environment-driven test hooks or wait protocols.
+- On post-reservation failure, retain the marked partial destination, report its exact path, and clean only the private Git repository.
 
 **Step 4: Format and verify**
 
@@ -99,7 +104,7 @@ For `install.sh`, warn once with `no format command discovered in repo instructi
 
 Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts src/plugins/consensus/install-contract.test.ts`
 
-Expected: All standalone and legacy installer cases pass.
+Expected: Standalone and legacy installer cases pass without network access or real user-home mutation.
 
 Run: `pnpm run type-check`
 
@@ -113,44 +118,44 @@ Expected: Changed JavaScript/TypeScript files pass static lint.
 
 ```bash
 git add install.sh scripts/install-standalone.mjs src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts
-git commit -m "feat(installer): add pinned standalone skill installs"
+git commit -m "feat(installer): add scoped standalone skill installs"
 ```
 
-### Task p01-t02: Document the first-party path and release acceptance
+### Task p01-t02: Document both scopes and release acceptance
 
 **Files:**
 
 - Modify: `documentation/docs/user-guide/installation.md`
 - Modify: `RELEASING.md`
 - Modify: `src/plugins/consensus/install-contract.test.ts`
-- Create or modify if needed: `tests/release/standalone-install-contract.test.ts`
 
-**Step 1: Add contract assertions**
+**Step 1: Add focused contract assertions**
 
-Protect the documented command shape, explicit pinned tag, supported hosts, generated `skills/<name>/` boundary, project-scope default, verification wording, and printed invocation guidance. Preserve the separate Consensus recovery test's immutable raw URL pin and shared runtime path instead of weakening it globally.
+Extend the existing installation contract test with stable assertions for the command shape, required explicit scope, exact tag, supported hosts, generated `skills/<name>/` boundary, default repository, and verification wording. Preserve the Consensus recovery test's immutable raw URL pin and shared runtime path.
 
-Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts tests/repo/readme-scope.test.ts`
+Do not create a separate release-contract test unless the implementation demonstrates that the existing contract file cannot express these stable assertions clearly.
 
-Expected: New documentation assertions fail before the guide is updated; README and Consensus recovery invariants remain green.
+Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/repo/readme-scope.test.ts`
+
+Expected: New assertions fail before the guide is updated; README and Consensus recovery invariants remain green.
 
 **Step 2: Update canonical documentation**
 
 - Add the first-party procedure beside the existing Skills CLI path.
-- Show `v0.1.2` as the pinned checkout/install ref, matching the existing Consensus installer pin, with the same explicit caveat that the command becomes usable only once that release contains the first-party helper and current generated payloads. Reject placeholder or mutable refs in the documentation contract.
-- State the generated-payload-only boundary and refusal of `src/skills/`.
-- Explain absent-destination refusal and how to choose a different project or remove an installation deliberately.
-- Name `.standalone-install-incomplete` and explain that a post-reservation failure leaves the marked directory for deliberate inspection/removal rather than unsafe automatic cleanup.
+- Show explicit project and user examples for each supported host, with no default scope.
+- Use `v0.1.2` as the planned pinned example only with an explicit caveat that the command becomes usable once a release contains the helper and current generated payloads; reject placeholders and mutable refs in contract assertions.
+- State that tests use a temporary `HOME` and that real user-level installation requires deliberate operator action.
+- Explain the generated-payload-only boundary, existing-destination refusal, and marked-partial recovery behavior.
+- State that the installer writes only the selected provider directory and does not create cross-provider mirrors or run `oat sync`.
 - Distinguish exact-tag resolution and copy-fidelity verification from signed provenance, fresh-session discovery, and live behavior.
-- Add release checklist evidence for each advertised host: pinned tag, selected skill, project placement, payload verification, printed invocation, fresh-session discovery, and bounded invocation/permission behavior.
-- Mark live host evidence as a separate authority-gated release step, not something static tests prove.
+- Add release checklist evidence for each advertised host and scope: pinned tag, selected skill, placement, payload verification, printed invocation, fresh-session discovery, and bounded invocation/permission behavior.
+- Mark live host evidence and real user-home mutation as separate authority-gated release steps.
 
 **Step 3: Format and verify**
 
-Run: `pnpm exec oxfmt --write documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts`
+Run: `pnpm exec oxfmt --write documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts`
 
-If the optional release test file is not created, omit it from the formatter invocation.
-
-Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts tests/repo/readme-scope.test.ts`
+Run: `pnpm run test:vitest src/plugins/consensus/install-contract.test.ts tests/repo/readme-scope.test.ts`
 
 Expected: Documentation and compatibility contracts pass.
 
@@ -158,20 +163,16 @@ Run: `pnpm --dir documentation build`
 
 Expected: The production documentation build and generated navigation complete successfully.
 
-Run: `pnpm exec oxlint src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts`
+Run: `pnpm exec oxlint src/plugins/consensus/install-contract.test.ts`
 
-If the optional release test file is not created, omit it from the lint invocation.
-
-Expected: Changed TypeScript contract tests pass static lint.
+Expected: The changed TypeScript contract test passes static lint.
 
 **Step 4: Commit**
 
 ```bash
-git add documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts tests/release/standalone-install-contract.test.ts
-git commit -m "docs(installer): add first-party standalone procedure"
+git add documentation/docs/user-guide/installation.md RELEASING.md src/plugins/consensus/install-contract.test.ts
+git commit -m "docs(installer): add scoped first-party procedure"
 ```
-
-Omit any path that was not created or changed.
 
 ### Task p01-t03: Run the full gate and record the pending live boundary
 
@@ -205,19 +206,19 @@ Expected: No whitespace errors.
 
 **Step 2: Record acceptance honestly**
 
-Update the backlog item with automated evidence and the explicit status of Claude Code, Codex, and Cursor live install/discovery/invocation checks. Without separate authorization, keep those live checks pending, leave the item active, do not archive it, and do not delete the kickoff handoff.
+Update the backlog item with automated evidence and the explicit status of project and user scope checks for Claude Code, Codex, and Cursor. Without separate authorization, keep real user-home mutation and live install/discovery/invocation checks pending, leave the item active, do not archive it, and do not delete the kickoff handoff.
 
-Only if the agreed live verification boundary has been explicitly authorized and all host evidence passes:
+Only if the agreed live verification boundary has been explicitly authorized and all host/scope evidence passes:
 
 ```bash
-oat backlog archive BL-260916-add-a-first-party-install --summary "Added and verified the first-party pinned-tag standalone skill installer"
+oat backlog archive BL-260916-add-a-first-party-install --summary "Added and verified the first-party scoped standalone skill installer"
 oat backlog regenerate-index
 git rm .oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md
 ```
 
 Then refresh `current-state.md` and `roadmap.md` if the operating picture changed.
 
-**Step 3: Format and verify project-management artifacts**
+**Step 3: Verify project-management artifacts**
 
 Warn once with `no format command discovered in repo instructions; skipping`, then keep generated/index-managed regions owned by their OAT commands and run:
 
@@ -250,21 +251,21 @@ git commit -m "chore(installer): close first-party install backlog item"
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
-| plan   | artifact | received | 2026-09-16 | reviews/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
+| plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
-Plan gate review `8526c3ae-9e24-42fd-b0c2-bf22639824df` was received and all findings were resolved directly in the lifecycle artifacts. The row remains `fixes_completed` until a clean re-gate records `passed`.
+The first gate's findings were resolved in the lifecycle artifacts. The second gate's Git-environment, parent-creation, default-repository, and contract-test consistency findings were also resolved. The user-approved complexity revision then removed the second staging copy, environment-driven race harness, and exhaustive adversarial collision matrix; it added explicit project/user scope and documented `personal-skills` as prior art. No further pre-implementation gate is required unless the user requests one. Both gate rows remain `fixes_completed`, not `passed`, because no clean re-gate was run.
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: 3 tasks — installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
+- Phase 1: 3 tasks — scoped installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
 
 **Total: 3 tasks**
 
-Implementation is complete when all three tasks and configured reviews pass. The backlog item remains active if authority-gated live host evidence is still pending.
+Implementation is complete when all three tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
 
 ## References
 
@@ -272,6 +273,8 @@ Implementation is complete when all three tasks and configured reviews pass. The
 - Design: `design.md`
 - Backlog item: `.oat/repo/pjm/backlog/items/BL-260916-add-a-first-party-install.md`
 - Kickoff handoff: `.oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md`
+- Prior-art installer: `tkstang/personal-skills` `scripts/install.ts`
+- Prior-art pinned source reader: `tkstang/personal-skills` `scripts/external/git-source.ts`
 - Distribution catalog: `src/distributions.ts`
 - Packaging contract: `scripts/lib/packaging.ts`
 - Installation guide: `documentation/docs/user-guide/installation.md`

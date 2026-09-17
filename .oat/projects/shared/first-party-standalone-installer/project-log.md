@@ -44,6 +44,14 @@ Entries are chronological and append-only.
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:1,medium:3,minor:4 exit=1 status=blocked artifact=.oat/projects/shared/first-party-standalone-installer/reviews/artifact-plan-review-2026-09-16T231057Z.md run=8526c3ae-9e24-42fd-b0c2-bf22639824df
 
+### 2026-09-16 · structural · oat gate review · plan
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:1,medium:1,minor:2 exit=1 status=blocked artifact=.oat/projects/shared/first-party-standalone-installer/reviews/artifact-plan-review-2026-09-16T232140Z.md run=0a7568fc-1f95-49dd-90bc-3768c2c5fc2c
+
+### 2026-09-17 · project · feedback · reuse proven installer prior art
+
+A complexity review and live comparison found that tkstang/personal-skills already provides the relevant pinned-source, inventory, destination, and failure-injection patterns. The plan now adapts only the dependency-free public bootstrap delta; do not reintroduce a second staging copy or shipped race harness without a demonstrated requirement.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -12,31 +12,35 @@ oat_template_name: design
 
 ## Overview
 
-Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior byte-for-byte at the contract level. Calling it with `--skill`, `--agent`, and an explicit `--ref` delegates to a dependency-free Node.js 22 helper: resolve an exact tag from the configured Git repository, read only the generated `skills/<name>/` payload, and install it into the selected host's project-scoped skills directory.
+Extend the existing top-level installer with a strictly additive standalone-skill mode. Calling `install.sh` with no arguments retains the current Consensus recovery behavior at the contract level. Calling it with `--skill`, `--agent`, `--scope`, and an explicit `--ref` delegates to a dependency-free Node.js 22 helper that resolves an exact tag, reads only the generated `skills/<name>/` payload, and installs it into the selected host and scope.
 
-The installer treats the destination as a new installation, not an update. It validates the source name, exact-tag resolution, payload boundary, and entry types before touching the host directory. It then records a complete source inventory of relative paths, modes, and SHA-256 hashes; copies into a same-parent staging directory; verifies the staged inventory; and atomically reserves the final name with an exclusive `mkdir`. Only after acquiring that absent path does it add a reserved installer marker, populate the directory, verify the payload while ignoring only that marker, and remove the marker to publish success. Existing or concurrently created destinations are refused. A post-reservation failure leaves the marked partial directory for explicit recovery rather than recursively deleting a path that concurrent activity may have altered.
+This design adapts two proven patterns from the sibling `tkstang/personal-skills` repository: bounded pinned-Git object inspection and an inventory-driven direct installer with a small injectable filesystem seam. It deliberately does not port that repository's update receipts, provenance registry, status, uninstall, or multi-skill lifecycle.
 
-The verification claim is deliberately narrow. Exact-tag resolution pins the selected repository revision, and the inventory comparison proves that the installed payload matches that selected source. The command does not claim cryptographic authorship of the tag, independent release attestation, fresh-session discovery, or live provider behavior. Those live checks remain explicit release gates.
+The public installer supports new installations only. It inventories the tagged source, resolves the selected provider destination beneath either the physical current project or `HOME`, exclusively reserves the absent final directory, writes an incomplete marker, creates payload entries without overwrite-capable operations, verifies the installed inventory, and removes the marker only on success. A post-reservation failure leaves a clearly marked partial directory for deliberate recovery.
+
+The verification claim is narrow. Exact-tag resolution pins the selected repository revision, and inventory comparison proves that the installed payload matches that selected source. The command does not claim cryptographic authorship of the tag, independent release attestation, fresh-session discovery, or live provider behavior.
 
 ## Architecture
 
 ### System Context
 
-The top-level `install.sh` remains the single first-party bootstrap surface. Argument dispatch separates two contracts before any filesystem mutation:
+The top-level `install.sh` remains the single first-party bootstrap surface:
 
 - no arguments call the existing Consensus recovery flow;
-- standalone arguments call the new generated-payload helper through Node.js 22.
+- standalone arguments call `scripts/install-standalone.mjs` through Node.js 22.
 
-The standalone flow uses Git as the only external acquisition boundary. It clones an exact tag from the default repository or an explicit `--repository` override, which also enables isolated local-fixture tests. It does not execute build tooling from the checkout and does not import the TypeScript distribution catalog at runtime. Eligibility is structural and fail-closed: a safe skill name must resolve to `skills/<name>/SKILL.md`; the command never searches or falls back to `src/skills/`.
+The standalone helper uses Git as the only external acquisition boundary. It fetches the fully qualified tag from `https://github.com/tkstang/skills.git` or an explicit `--repository` override into a private bare repository. It reads the selected tree and blobs without executing builds, filters, hooks, submodules, or code from the source. Every Git subprocess receives a clean environment with inherited `GIT_*` variables removed before deliberate noninteractive values are added.
+
+Eligibility is structural and fail-closed: a safe skill name must resolve to `skills/<name>/SKILL.md`, and every selected Git entry must be a regular file with mode `100644` or `100755`. The helper never searches or falls back to `src/skills/`.
 
 **Key components:**
 
-- **Argument dispatcher:** Preserves legacy zero-argument behavior and delegates standalone arguments to the adjacent dependency-free helper.
-- **Standalone helper:** Owns argument validation, Git acquisition, inventory, host mapping, and safe publication using Node standard-library APIs.
-- **Pinned source resolver:** Checks out and verifies an exact tag into a temporary directory.
-- **Payload validator:** Enforces confinement and regular-file/directory entry types and records a complete file inventory.
-- **Host mapper:** Maps the explicit agent to a project-relative destination and invocation display.
-- **Staged publisher:** Copies, re-inventories, compares, exclusively reserves the absent destination, and publishes only after marked population verifies.
+- **Argument dispatcher:** Preserves legacy zero-argument behavior and delegates standalone arguments to the adjacent helper.
+- **Standalone helper:** Owns argument validation, scope/host mapping, Git acquisition, inventory, publication, and output.
+- **Pinned source reader:** Fetches and peels one exact tag in a private bare repository, then reads bounded tree objects.
+- **Payload inventory:** Records each file's safe relative path, executable mode, bytes, and SHA-256 digest.
+- **Destination resolver:** Maps the explicit host and scope to one provider-specific skills directory.
+- **Exclusive publisher:** Reserves an absent destination, marks it incomplete, writes without overwriting, verifies, and publishes by removing the marker.
 
 ### Data Flow
 
@@ -45,107 +49,110 @@ arguments
    |
    +-- none ----------------------> legacy Consensus installer
    |
-   `-- --skill/--agent/--ref
+   `-- --skill/--agent/--scope/--ref
           |
           v
-   validate flags and destination absence
+   validate flags and resolve destination
           |
           v
-   fetch qualified tag + detach at peeled commit
+   fetch refs/tags/<ref> into private bare repo
           |
           v
-   select skills/<name>/ only
+   peel tag + read skills/<name>/ tree and blobs
           |
           v
-   validate entries + inventory source
+   validate entries + build source inventory
           |
           v
-   copy to same-parent temporary directory
+   validate/create provider parent directory
           |
           v
-   inventory stage == source inventory
+   exclusively mkdir absent destination
           |
           v
-   atomically mkdir absent destination
+   add marker + write payload entries exclusively
           |
           v
-   add marker + populate + verify destination
+   verify destination inventory
           |
           v
-   remove marker and report success
-          |
-          v
-   print installed path + host invocation name
+   remove marker + print path and invocation
 ```
 
 ## Component Design
 
 ### Argument Dispatcher
 
-**Purpose:** Keep the Consensus recovery path backward compatible while exposing one explicit standalone mode.
-
 **Responsibilities:**
 
-- Route zero arguments directly to the existing behavior.
-- Route standalone arguments to the adjacent helper so the cloned/tagged checkout owns both entrypoint and implementation.
-- Preserve clear errors when standalone mode is invoked from a streamed script with no adjacent helper; the documented first-party path runs from an exact-tag checkout.
-- Require Node.js 22 for both contracts and add no package dependencies.
+- Route zero arguments directly to the existing Consensus behavior.
+- Route any standalone arguments to the adjacent helper.
+- Fail clearly when standalone mode is invoked from a copied or streamed shell script without the adjacent helper.
+- Require Node.js 22 and add no package dependencies.
 
-### Standalone Helper
+### Standalone Helper and Destination Resolver
 
-**Purpose:** Implement the standalone CLI with safe standard-library filesystem primitives.
+Parse:
 
-**Responsibilities:**
+- `--skill <name>`
+- `--agent <codex|claude-code|cursor>`
+- `--scope <project|user>`
+- `--ref <exact-tag>`
+- optional `--repository <git-url-or-local-path>`
+- `--help`
 
-- Parse `--skill <name>`, `--agent <codex|claude-code|cursor>`, `--ref <tag>`, optional `--repository <git-url-or-path>`, and `--help`.
-- Reject duplicates, unknown flags, missing values, unsafe skill names, and partial flag sets before installation work.
-- Spawn Git with argv arrays rather than shell interpolation.
-- Hold true-exclusive `wx` file descriptors across destination writes and permission changes.
-- Keep deterministic race/failure checkpoints disabled unless `STANDALONE_INSTALL_TEST_MODE=1` and a validated `STANDALONE_INSTALL_TEST_HOOK_DIR` are both present. In test mode, write phase-ready files and wait for bounded continue/fail signals at `after-preflight`, `after-reservation`, and `before-final-verify`. Source comments identify this as a test-only seam; the hook-directory variable alone has no effect.
+All four primary flags are required. There is no default scope, mutable ref, global alias, force flag, or direct source-directory option.
 
-### Pinned Source Resolver
+Destination roots:
 
-**Purpose:** Materialize the selected repository revision without production-network assumptions in tests.
+| Agent | Project scope | User scope | Invocation |
+| --- | --- | --- | --- |
+| Codex | `<physical-cwd>/.agents/skills/<name>` | `$HOME/.agents/skills/<name>` | `$<name>` |
+| Claude Code | `<physical-cwd>/.claude/skills/<name>` | `$HOME/.claude/skills/<name>` | `/<name>` |
+| Cursor | `<physical-cwd>/.cursor/skills/<name>` | `$HOME/.cursor/skills/<name>` | installed name plus inventory guidance |
 
-**Responsibilities:**
+The helper writes only the selected provider destination. It does not create provider mirrors, symlinks, plugin state, or run `oat sync`.
 
-- Validate the tag with Git ref rules and reject option-like or revision-expression inputs.
-- Fetch only the fully qualified `refs/tags/<ref>` into a private temporary repository.
-- Peel the fetched tag to a commit, check out that commit detached, and require `HEAD` to equal the peeled commit before reading payload bytes.
-- Clean only the exact temporary directory created by this invocation.
+### Pinned Source Reader
 
-### Payload Validator and Inventory
+The resolver is a narrowed dependency-free adaptation of `personal-skills/scripts/external/git-source.ts`:
 
-**Purpose:** Establish the complete source and copied payload identities.
+- validate safe repository and tag arguments;
+- create a private temporary bare repository;
+- fetch only `refs/tags/<ref>` with tags otherwise disabled;
+- peel `FETCH_HEAD^{commit}` and use that commit for every subsequent read;
+- list only `skills/<name>/` with `git ls-tree`;
+- reject symlinks, gitlinks, unsupported modes, unsafe paths, and a missing `SKILL.md`;
+- read blobs with `git cat-file`, preserving executable mode and computing SHA-256 over the bytes;
+- remove only the exact temporary repository created by this invocation.
 
-**Responsibilities:**
+All Git calls use argv arrays and an environment constructed by removing every inherited key beginning with `GIT_`, then adding deliberate noninteractive controls. The implementation passes the private `--git-dir` explicitly.
 
-- Resolve only `<checkout>/skills/<name>` and require its `SKILL.md`.
-- Reject symlinks, sockets, devices, FIFOs, and other non-file/non-directory entries.
-- Reject relative paths that cannot be represented safely in the inventory.
-- Emit a deterministic sorted inventory of each regular file's relative path, permission mode, and SHA-256 hash.
-- Compare source and staged inventories byte-for-byte.
+### Payload Inventory
 
-Empty directories and directory permission modes are not part of the payload identity, matching the repository's current build inventory semantics.
+The deterministic inventory contains every selected regular file:
 
-### Host Mapper and Publisher
+```text
+relative-path -> { sha256, executable }
+```
 
-**Purpose:** Translate the explicit host into a confined project destination and publish a verified new install.
+Directories are derived from file paths. Empty directories are not part of the payload identity, matching Git's tree semantics and the repository's generated-output contract. Source entries named `.standalone-install-incomplete` are rejected because the name is reserved for publication state.
 
-**Responsibilities:**
+### Exclusive Publisher
 
-- Map Codex to `.agents/skills/<name>` and `$<name>`.
-- Map Claude Code to `.claude/skills/<name>` and `/<name>`.
-- Map Cursor to `.cursor/skills/<name>` and the unqualified installed name shown with inventory-selection guidance.
-- Resolve the current working directory as the physical project root and reject symlinked destination ancestors.
-- Refuse any existing destination, including a dangling symlink, during preflight.
-- Create a same-parent staging directory, preserve file modes during copy, and verify the stage.
-- Re-check destination ancestors immediately before publication, then atomically reserve the final path with exclusive `mkdir`; failure means a concurrent directory or symlink won and must be preserved unchanged.
-- Reject a source payload that already contains the reserved installer marker `.standalone-install-incomplete`.
-- Add `.standalone-install-incomplete` immediately after exclusive reservation. Create payload directories in deterministic parent-first order and require each `mkdir` to acquire a previously absent path. Open each payload file through Node's `wx` mode (`O_CREAT | O_EXCL`), retain that descriptor while copying bytes, apply its declared mode through the descriptor, and close it; never use an overwrite-capable copy into the final directory.
-- Verify the complete destination inventory while excluding only the marker, and remove the marker only after verification succeeds.
-- On post-reservation copy or verification failure, preserve the marked partial directory and report its exact recovery path. Never recursively delete the final path, because concurrent content or path replacement cannot be proven to belong to this invocation.
-- Remove owned staging and checkout paths on failure; never clean a destination whose exclusive reservation was not acquired by this process.
+After the complete source has been read and inventoried:
+
+1. Resolve the selected project or user root physically and refuse unsafe or symlinked provider ancestors.
+2. Create missing provider parent components one at a time, accepting an `EEXIST` race only after `lstat` confirms a real directory.
+3. Refuse any existing final destination, including a dangling symlink.
+4. Reserve the final destination with exclusive `mkdir` and immediately create `.standalone-install-incomplete`.
+5. Create required directories parent-first and open each file with Node `wx`; write bytes and apply the executable/non-executable mode through the held descriptor.
+6. Re-inventory the destination while ignoring only the marker and require exact equality with the source inventory.
+7. Remove the marker and report success.
+
+If any operation fails after reservation, retain the marked destination and report its exact path. Never recursively delete the final directory: it is safer to preserve an incomplete new installation for inspection than to guess which entries remain owned after failure. Cleanup is limited to the private bare Git repository.
+
+The module exports a small `fileOperations` object, following the `personal-skills` test pattern, so a direct unit test can inject one deterministic mid-write failure. The CLI has no environment-driven failure mode or checkpoint protocol.
 
 ## API Design
 
@@ -155,63 +162,52 @@ bash install.sh --help
 bash install.sh \
   --skill <standalone-name> \
   --agent <codex|claude-code|cursor> \
+  --scope <project|user> \
   --ref <exact-tag> \
   [--repository <git-url-or-local-path>]
 ```
 
-`bash install.sh` remains the Consensus recovery command. Standalone installation requires all three primary flags; there is no implicit host, mutable branch default, global flag, source-directory flag, or force flag.
+`bash install.sh` remains the Consensus recovery command. `--repository` changes only the Git origin used to resolve the exact tag; it cannot select an arbitrary payload directory.
 
-Standalone mode requires the adjacent `scripts/install-standalone.mjs`. If the shell script is streamed or copied without that helper, it fails before creating host directories and directs the user to run the first-party procedure from an exact-tag checkout.
-
-The default repository is the canonical Git repository. `--repository` changes only the Git origin used to resolve the exact tag; it does not allow a direct payload path and therefore cannot select `src/skills/`.
-
-Success output includes the selected tag, final project-relative path, verification result, and host invocation name. Output must not imply fresh-session discovery.
+Success output includes the selected tag, scope, final path, verification result, and host invocation name. It must not imply fresh-session discovery.
 
 ## Error Handling
 
-Validation and acquisition errors exit nonzero with an `install.sh:` prefix and no destination mutation. These include incomplete flags, invalid names, unsupported agents, invalid tags, missing tags, missing generated payloads, authored-source-only fixtures, unsafe entry types, symlinked destination ancestors, and existing destinations.
+Argument, acquisition, and source-validation errors exit nonzero with an `install.sh:` prefix and do not create a skill destination. These include incomplete flags, invalid names, unsupported agents/scopes, invalid or missing tags, branch-only refs, missing generated payloads, authored-source-only fixtures, unsafe Git entries, symlinked destination ancestors, and existing destinations.
 
-Copy and staging-verification errors remove the owned staging directory and leave the final destination absent. Publication uses exclusive `mkdir` as the atomic final-directory reservation. If that fails, the installer preserves the competing directory or symlink unchanged. After reservation, the helper writes a reserved marker, creates every payload directory exclusively, opens every payload file with Node `wx`, and verifies the payload while excluding only the marker. Existing regular files, symlinks, FIFOs, devices, and other entries therefore fail before any write-through. If population or final verification fails, the installer cleans the checkout and stage but deliberately leaves the marked partial destination with a recovery error. It never recursively removes the final path, because a concurrent writer or path replacement would make ownership ambiguous. Success removes the marker only after payload verification.
-
-The command performs no automatic retry. Git/network failures are reported with the repository and tag context so the operator can retry deliberately.
+After destination reservation, errors leave `.standalone-install-incomplete` in place and identify the recovery path. Subsequent installs refuse the existing directory. There is no automatic retry, deletion, adoption, or replacement.
 
 ## Testing Strategy
 
-### Installer Behavior Tests
+Use temporary project roots, temporary `HOME` directories, and temporary local Git repositories. No production networking or real user installation is required.
 
-Extend the existing shell-installer coverage and add a focused tooling suite that uses temporary directories and a temporary local Git repository with lightweight tags. Execute the real `install.sh` process with isolated `HOME`, working directory, environment, stdout, and stderr.
+Keep the suite proportional and table-driven:
 
-Key scenarios:
+1. Existing zero-argument Consensus checkout, remote, checksum, permission, and repeated-install tests remain green.
+2. One tagged multi-file fixture covers bytes, executable mode, all three host mappings, both explicit scopes, and invocation output.
+3. A compact argument table covers help and representative missing, unknown, and invalid values.
+4. A source-refusal table covers missing tag, branch-only ref, missing generated skill, `src/skills`-only fixture, unsafe name, unsupported Git entry, and reserved marker.
+5. One annotated tag sharing a name with a different branch proves the qualified tag is selected.
+6. One inherited-`GIT_*` decoy test proves acquisition uses the intended temporary repository and leaves the decoy unchanged.
+7. One existing-destination test proves byte-for-byte preservation.
+8. One symlinked-ancestor test proves destination confinement.
+9. One direct publisher test injects a mid-write failure through `fileOperations` and proves a marked partial directory remains.
+10. One missing-helper process test verifies checkout guidance without host-directory mutation.
 
-- Zero arguments preserve Consensus checkout, remote, checksum, permission, and repeated-install behavior.
-- Help, unknown flags, missing values, invalid skill names, unsupported agents, and partial standalone inputs do not create host directories.
-- Unknown, duplicate, partial, and missing-value flags are each covered explicitly.
-- Each host mapping installs a small generated fixture and prints the expected invocation form.
-- A generated executable fixture preserves its executable mode and runs outside the source checkout.
-- Missing tag, branch-only ref, missing generated skill, and a fixture containing only `src/skills/<name>` fail clearly.
-- Annotated tags work, and a same-named branch/tag fixture with different payload bytes installs the peeled tag commit's bytes.
-- Symlink/special-entry payloads and symlinked destination ancestors are refused.
-- Existing destinations remain byte-for-byte unchanged, including deterministic races that create a directory or symlink after preflight but before exclusive reservation.
-- A source payload using `.standalone-install-incomplete` is rejected.
-- Competing directories, regular files, symlinks, FIFOs, and symlink-to-FIFO entries created after reservation are never opened for write or overwritten; deterministic fixtures assert prompt failure and survival.
-- Copy or inventory mismatch after reservation leaves a clearly marked partial destination, preserves concurrent additions or a replacement path, cleans only checkout/staging paths, and causes subsequent installs to refuse the existing path.
-- Real-process races and injected failures use the explicitly opted-in bounded hook checkpoints. A separate test sets the hook directory without `STANDALONE_INSTALL_TEST_MODE=1` and proves the seam is inert by default.
-- Running `install.sh` with standalone flags but without the adjacent helper fails with checkout guidance and no host-directory mutation.
+Documentation contract coverage belongs in the existing `src/plugins/consensus/install-contract.test.ts` unless implementation shows a separate stable contract file is materially clearer. Do not add a second documentation test merely to mirror prose.
 
-### Documentation and Contract Tests
+## Verification Layers
 
-Update the Installation page beside the Skills CLI path and extend release-contract assertions without weakening the separate Consensus recovery pin. Keep README quick-start wording and the provider plugin matrix untouched.
-
-### Verification Layers
-
-- Focused Vitest suites for the standalone installer, legacy installer, install contract, and README scope.
-- Type checking, generated-output freshness, repository validation, and smoke tests.
-- Documentation production build and local link checks for the changed guide.
+- Focused standalone, legacy installer, and installation-contract tests.
+- Type checking, changed-file lint/format, generated-output freshness, repository validation, and smoke tests.
+- Documentation production build.
 - Full `pnpm run premerge` before handoff.
-- No `test:live-e2e` or live host install/discovery in this implementation session; the release checklist records that evidence as pending separate authorization.
+- No live provider install/discovery/invocation or real user-home mutation without separate authorization.
 
 ## References
 
 - Discovery: `discovery.md`
 - Backlog item: `.oat/repo/pjm/backlog/items/BL-260916-add-a-first-party-install.md`
 - Kickoff handoff: `.oat/repo/pjm/handoffs/BL-260916-add-a-first-party-install.md`
+- Prior-art installer: `tkstang/personal-skills` `scripts/install.ts`
+- Prior-art pinned source reader: `tkstang/personal-skills` `scripts/external/git-source.ts`
