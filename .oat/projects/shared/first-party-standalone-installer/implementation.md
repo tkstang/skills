@@ -421,7 +421,9 @@ block`, maximum 2 remediation attempts.
 **Reviewed basis:** `9538fa57917e636982eb4a59aafa2be8c3b7517a`
 against `origin/main` with
 `sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418`.
-**State:** Pending; no gate process has launched yet.
+**State:** Launch intent persisted as
+`d4f1da76-995a-42ac-95a7-f20461caa7bf`; the configured command has not yet
+been invoked.
 
 ---
 
