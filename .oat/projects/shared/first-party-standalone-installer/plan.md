@@ -297,7 +297,7 @@ git commit -m "fix(installer): pin documented bootstrap tag"
 | design | artifact | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
-| final  | code     | received | 2026-09-17 | reviews/final-review-2026-09-17T015346Z.md | 9538fa57917e636982eb4a59aafa2be8c3b7517a | auto | - |
+| final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T015346Z.md | 9538fa57917e636982eb4a59aafa2be8c3b7517a | auto | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 

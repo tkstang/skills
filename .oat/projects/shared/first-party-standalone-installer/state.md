@@ -88,7 +88,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T01:48:32Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T01:57:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -100,7 +100,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - all tasks and phase reviews complete; final re-review pending
+Implementation - all tasks and code reviews complete; closeout gates pending
 
 ## Artifacts
 
@@ -123,7 +123,8 @@ Implementation - all tasks and phase reviews complete; final re-review pending
 - ✓ Independent phase review passed with one non-blocking Medium finding
 - ✓ Final review M1 resolved by `p02-t01`
 - ✓ Independent p02 review passed with zero findings
-- ⧗ Final lifecycle re-review pending
+- ✓ Final lifecycle re-review passed with zero findings
+- ⧗ Configured implementation exit gate and final HiLL closeout pending
 
 ## Blockers
 
@@ -131,4 +132,4 @@ None
 
 ## Next Milestone
 
-Run and receive the final lifecycle re-review.
+Run the configured implementation exit gate, then complete the final HiLL closeout.
