@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: c44555b4c3ea62c39dd24c6e9c8b7007512765ff
+oat_last_commit: 5f998708223fc56245496a4a192a40193d49175d
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,9 +34,9 @@ oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -47,8 +47,8 @@ oat_implement_exit_gate:
   reviewed_head: 62cc7054eb02ed9bf71efa1f59a1256c74661d1d
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
-  freshness_head: 605a39bc59c62d74362e4a425e3351905347561f
-  freshness_fingerprint: 'sha256:effective-delta-v1:91a46b81aa2b7f2b042a093997a491bcff7b6d693d7fe4b4d94db618f7995bd5'
+  freshness_head: 5f998708223fc56245496a4a192a40193d49175d
+  freshness_fingerprint: 'sha256:effective-delta-v1:981fe45c3e95e85007cd74882e0c59393562f3f9c39bc79cde8df878b4550a7a'
   launch_state: result_persisted
   launch_attempt_id: 5df6f467-dd13-4204-9c06-30d03df24fe3
   launch_started_at: '2026-09-17T07:38:58Z'
@@ -58,29 +58,29 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md'
   handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (medium=1, minor=1). Run oat-project-review-receive for .oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md to disposition them before marking the final review row passed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=14836d4a-5d65-43a1-9d78-ec3b9d300a4b scope=final type=code source=final-review-2026-09-17T074525Z.md handoff=corroborated'
   receive_source_artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md'
   receive_archived_artifact: '.oat/projects/shared/consensus-review/reviews/archived/final-review-2026-09-17T074525Z.md'
   receive_event_identity: 'scope=final type=code source=final-review-2026-09-17T074525Z.md'
   receive_pre_head: 7958bd57feca82072dd626d43cfeaa4be1649f11
-  receive_commit: null
+  receive_commit: 5f998708223fc56245496a4a192a40193d49175d
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-17T07:51:26Z'
+  updated_at: '2026-09-17T07:52:18Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:51:26Z'
+oat_project_state_updated: '2026-09-17T07:52:18Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** configured exit-gate attempt 2/2 passed its Important threshold and its nonblocking findings are dispositioned. Durable receive reconciliation is next.
+**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Final HiLL approval is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -118,7 +118,7 @@ Implementation — configured-gate remediation. Original p06–p08 tasks and lif
 
 ## Next Milestone
 
-Corroborate the archived artifact, passed Reviews event and receive bookkeeping commit, then persist `allowed/passed`. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
+Reach the p09 final HiLL approval checkpoint, then follow the configured post-implementation sequence without crossing publication, installation, merge or live-provider boundaries. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
@@ -140,7 +140,8 @@ Post-remediation terminal premerge passed 142 test files with one skipped and 2,
 - ✓ Final re-review status alignment (1/1)
 - ✓ Post-gate final re-review round 3 passed (0 findings)
 - ✓ Configured exit-gate attempt 2 passed its Important threshold
-- ⧗ Exit-gate receive reconciliation and final HiLL approval pending
+- ✓ Exit-gate receive reconciled and allowed/passed
+- ⧗ Final HiLL approval pending
 
 ## Operational Notes
 
