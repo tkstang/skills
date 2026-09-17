@@ -1,9 +1,7 @@
 ---
 oat_current_task: p01-t03
 oat_last_commit: e5a9c9717a313590803633930855af9784adb5c2
-oat_blockers:
-  - task_id: p01-t03
-    reason: "The skill-version gate treats planned tests under src/plugins/consensus as changes to seven shipped skills; the first bounded relocation attempt could not validate the candidate tree before commit."
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -90,19 +88,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T00:58:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T01:05:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: first-party-standalone-installer
 
-**Status:** Blocked
+**Status:** Implementing
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Implement - Phase 1 blocked at `p01-t03`
+Implement - Phase 1 resumed at `p01-t03`
 
 ## Artifacts
 
@@ -121,12 +119,12 @@ Implement - Phase 1 blocked at `p01-t03`
 - ✓ Plan ready for implementation
 - ✓ `p01-t01` scoped installer behavior complete
 - ✓ `p01-t02` documentation and release contract complete
-- ⚠ `p01-t03` blocked at the skill-version gate
+- ⧗ `p01-t03` recovery attempt 2 authorized with candidate-tree proof
 
 ## Blockers
 
-- `p01-t03`: the skill-version validator counts the planned Consensus test locations as seven shipped-skill changes, while its pre-commit union cannot validate a restoring relocation before that relocation is committed.
+None
 
 ## Next Milestone
 
-Choose a verified candidate-tree strategy for recovery attempt 2, defer `p01-t03`, or revise the plan.
+Complete recovery attempt 2, rerun the version gate, and finish `p01-t03`.

@@ -1,9 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p01-t03
-    reason: "The skill-version gate treats planned tests under src/plugins/consensus as changes to seven shipped skills; the first bounded relocation attempt could not validate the candidate tree before commit."
+oat_blockers: []
 oat_last_updated: 2026-09-16
 oat_current_task_id: p01-t03
 oat_generated: false
@@ -28,7 +26,7 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | blocked     | 3     | 2/3       |
+| Phase 1 | in_progress | 3     | 2/3       |
 
 **Total:** 2/3 tasks completed
 
@@ -36,7 +34,7 @@ oat_generated: false
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** blocked
+**Status:** in_progress
 **Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
@@ -105,10 +103,12 @@ oat_generated: false
 
 ### Task p01-t03: Run the full gate and record the pending live boundary
 
-**Status:** blocked
+**Status:** in_progress
 **Commit:** -
 
-**Blocker:** `validate:skill-versions` treats the two planned test-file changes under `src/plugins/consensus` as changes to seven distributed skills. A mechanically bounded relocation passed 44 focused tests, but the validator unions committed and uncommitted paths, so it could not validate the cancellation before a candidate commit. Recovery attempt 1 was recorded as failed with no product-code commit.
+**Prior blocker:** `validate:skill-versions` treats the two planned test-file changes under `src/plugins/consensus` as changes to seven distributed skills. A mechanically bounded relocation passed 44 focused tests, but the validator unions committed and uncommitted paths, so it could not validate the cancellation before a candidate commit. Recovery attempt 1 was recorded as failed with no product-code commit.
+
+**Resume:** The operator authorized recovery attempt 2 using candidate-tree proof before commit and authoritative version validation after commit. The scope remains limited to relocating the newly added standalone assertions and restoring the two Consensus test files to phase-base content.
 
 ---
 
@@ -235,6 +235,7 @@ Chronological log of implementation progress.
 - `p01-t02` completed in `1606a5c9`; documentation contracts and production docs build passed.
 - `p01-t03` blocked during the version gate. Full premerge otherwise passed with 2,029 tests passed and 1 skipped; build freshness, validation, smoke, docs build, diff check, and PJM doctor passed.
 - Recovery attempt 1 made no product-code commit and preserved immutable task history.
+- Operator direction resumed `p01-t03` for recovery attempt 2 with exact-target continuity and candidate-tree proof; no unrelated version bumps or validator changes are authorized.
 
 ---
 
