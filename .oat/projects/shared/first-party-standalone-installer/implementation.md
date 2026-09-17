@@ -1,7 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: ["Final verification: repository-wide pnpm lint follows generated provider-skill symlinks and fails on baseline OAT tooling files"]
+oat_blockers: []
 oat_last_updated: 2026-09-17
 oat_current_task_id: null
 oat_generated: false
@@ -466,25 +466,23 @@ reconciled idempotently after a transient index-lock collision.
 - `m5` addressed now: quick mode has no `spec.md`; the References section now
   records Spec as N/A instead of linking a nonexistent artifact.
 
-### Final Verification Blocker
+### Final Verification Resolution
 
 **Date:** 2026-09-17
 
+- Operator authorization allowed the narrow tooling correction in `bbe37778`:
+  `.oxlintrc.json` now ignores the generated `.claude/skills/**` and
+  `.cursor/skills/**` provider mirrors alongside `.agents/`.
 - `pnpm test`: passed — 137 files passed, 1 skipped; 2,030 tests passed,
   1 skipped.
+- `pnpm lint`: passed with four pre-existing warnings and no errors.
 - `pnpm type-check`: passed.
 - `pnpm build`: passed with no generated-file drift.
-- `pnpm lint`: blocked closeout. Oxlint follows tracked
-  `.claude/skills/*` symlinks into generated `.agents/skills/*` even though
-  `.agents/` itself is ignored, then reports pre-existing OAT-tooling errors.
 
-The failing canonical files and symlinks are identical at the merge base,
-current branch, and `origin/main`; none were introduced by this installer
-project. All changed installer source/test files pass scoped oxlint. The OAT
-Step 12 contract nevertheless requires the literal repository-wide lint command
-to pass and provides no baseline waiver. Strict closeout is blocked pending
-operator authorization for a separate tooling/config correction that ignores
-the generated `.claude/skills/**` and `.cursor/skills/**` provider mirrors.
+The correction aligns full-repository lint with the repository convention that
+generated OAT/provider views are not lint inputs. The original blocker is
+resolved; final review and the configured exit gate must be refreshed because
+the prior evidence predates the lint-policy commit.
 
 ---
 
@@ -503,6 +501,7 @@ Chronological log of implementation progress.
 - `p02-t01` completed in `f0879afa`; independent p02 review passed with zero findings and resolved the bootstrap-tag defect.
 - Final re-review passed with zero findings; all prior Medium and Minor dispositions are closed.
 - Configured cross-family exit gate passed at the Important threshold; four Minor findings were explicitly deferred and one quick-mode reference was aligned.
+- Operator-authorized closeout recovery committed the provider-mirror lint exclusions in `bbe37778`; the exact test, lint, type-check, and build commands all passed.
 
 ---
 
@@ -522,6 +521,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused installer/docs suites; `premerge`; docs build; both version comparisons; diff/PJM checks | 65 focused tests; 2,029 full-suite tests; all gates | 0 | No coverage metric configured |
 | 2     | Release-contract suite; lint/format; docs build; independent command reproduction; diff check | 3 focused tests; all gates | 0 | Targeted regression for branch/tag ambiguity |
+| Closeout | Full Vitest suite; repository-wide lint; type-check; generated build | 2,030 tests passed, 1 skipped; all commands passed | 0 | Provider-mirror lint exclusions verified at committed HEAD |
 
 ## Final Summary (for PR/docs)
 

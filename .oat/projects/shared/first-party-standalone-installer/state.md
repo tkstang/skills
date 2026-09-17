@@ -1,7 +1,7 @@
 ---
 oat_current_task: null
-oat_last_commit: f0879afabb0556f836eae1849edafd3393dd90e7
-oat_blockers: ["Final verification: repository-wide pnpm lint follows generated provider-skill symlinks and fails on baseline OAT tooling files"]
+oat_last_commit: bbe377784ab971c9f8a25b5ae224de19ab784a0c
+oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -27,7 +27,7 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_implement_exit_gate:
-  status: allowed
+  status: stale
   resolution: configured
   disposition: passed
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
@@ -60,8 +60,8 @@ oat_implement_exit_gate:
   receive_commit: 013098dcee335bf277ac6fa6b87b4db592106943
   receive_eligible: true
   receive_completed: true
-  failure: null
-  updated_at: '2026-09-17T02:20:28Z'
+  failure: 'Substantive lint-policy commit bbe37778 postdates the received gate evidence; start a new gate generation after final re-review.'
+  updated_at: '2026-09-17T02:50:43Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T02:20:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T02:50:43Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -136,7 +136,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - final verification blocked by baseline generated-mirror lint failures
+Implementation - final verification passed; refreshing final review and exit gate
 
 ## Artifacts
 
@@ -161,16 +161,15 @@ Implementation - final verification blocked by baseline generated-mirror lint fa
 - ✓ Independent p02 review passed with zero findings
 - ✓ Final lifecycle re-review passed with zero findings
 - ✓ Configured implementation exit gate passed and was received
-- ⚠ Repository-wide final lint blocked by generated provider-skill mirrors
+- ✓ Repository-wide final lint passes after the authorized provider-mirror exclusions
+- ⧗ Final review and configured exit gate refresh pending
 - ⧗ Final HiLL closeout pending
 
 ## Blockers
 
-- `pnpm lint` follows `.claude/skills/*` symlinks into generated
-  `.agents/skills/*` and reports baseline OAT-tooling errors. The installer
-  change itself passes scoped lint; OAT Step 12 has no baseline waiver.
+None.
 
 ## Next Milestone
 
-Authorize a separate lint-config correction for generated provider-skill
-mirrors, rerun final verification, then resume `oat-project-implement`.
+Refresh the final independent review and configured cross-family exit gate at
+the current committed HEAD, then complete the final HiLL closeout.
