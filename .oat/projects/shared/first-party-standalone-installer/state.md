@@ -131,11 +131,11 @@ oat_workflow_origin: native # native | imported
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_status: ready # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T12:44:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T12:46:38Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -147,7 +147,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - local closeout complete; PR authorization pending
+Implementation - PR artifact ready; creating final PR
 
 ## Artifacts
 
@@ -182,7 +182,9 @@ Implementation - local closeout complete; PR authorization pending
 - ✓ Configured exit gate passed and was received
 - ✓ Project summary complete
 - ✓ Documentation audit complete with no changes required
-- ⧗ Configured PR step awaiting explicit authorization
+- ✓ Configured PR step explicitly authorized
+- ✓ Final PR artifact ready
+- ⧗ Branch push and PR creation pending
 - ⧗ Final HiLL closeout pending
 
 ## Blockers
@@ -191,5 +193,4 @@ None.
 
 ## Next Milestone
 
-Await explicit authorization to publish the configured PR step, then resume
-`oat-project-implement`.
+Push the implementation branch, create the final PR, and record its URL.
