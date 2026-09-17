@@ -649,6 +649,10 @@ its rolling fingerprint is
 `5574543a-c2d9-4fb2-aaf1-a4812873600b`; the configured command has not yet
 been invoked.
 
+**Acceptance:** Gate run `f673a067-7275-4ef8-9a0a-55e88e880a5b` was accepted
+by the configured `claude-fable-skip-permissions` target; terminal result and
+artifact receipt remain pending.
+
 ---
 
 ## Implementation Log
