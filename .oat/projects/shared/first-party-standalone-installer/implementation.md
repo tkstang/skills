@@ -425,6 +425,10 @@ against `origin/main` with
 `d4f1da76-995a-42ac-95a7-f20461caa7bf`; the configured command has not yet
 been invoked.
 
+**Acceptance:** Gate run `3631aaf2-103a-4106-9bda-9eeb577cc87f` was accepted
+by the configured `claude-fable-skip-permissions` target; terminal result and
+artifact receipt remain pending.
+
 ---
 
 ## Implementation Log
