@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p07 implementation and phase verification are complete in three planned commits; independent review is next.
+**Status:** p07 review round 1 requested two Important and three Medium fixes; bounded fix iteration 1/2 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -159,6 +159,23 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Worktree: clean.
 - Disposition: preserve the three immutable task commits and run independent p07 review.
 
+#### Review Round 1 — changes requested
+
+- Request ID: `review-consensus-review-p07-20260917T0410Z`
+- Artifact: [p07-review-2026-09-17T041501Z.md](reviews/p07-review-2026-09-17T041501Z.md)
+- Reviewed head: `4a83ce7878afc487e42598567a647572c3dbe2f9`
+- Verdict: changes requested; Critical 0, Important 2, Medium 3, Minor 0
+- Reconnaissance: not attempted
+- I1 accepted: reject capture-to-baseline changes before dispatch so stale evidence cannot be marked stable.
+- I2 accepted: preserve bounded author evidence and separate requested/passed reviewer options from independently observed identity.
+- M1 accepted: support files/document scopes in unborn repositories and treat first-commit creation as drift.
+- M2 accepted: persist resolved base-ref and bounded before/after comparison identities for auditability.
+- M3 accepted: attempt a labeled diagnostic after final-result persistence failure without another provider invocation.
+- Dispatch target and axes: `oat-reviewer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p07 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+- Verification: 69 focused tests plus build freshness, type-check, validation, 11-owner version/changelog gate and diff checks passed; deterministic probes reproduced I1 and M1.
+- Disposition: route all five findings to the original p07 implementer in bounded fix iteration 1/2, then re-review.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -205,6 +222,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Merged current `origin/main` at `9cfe41ac`, resolved the new skill-version changelog requirements, and regenerated affected distributions. The full suite and all repository gates are green; PR #89 removes the prior Codex-host refine baseline. Independent p06 review round 2 is next.
 - 2026-09-17: Independent p06 review round 2 passed at `ae059dfb` with zero findings. Both prior Important transport-boundary findings are verified fixed, full and focused suites are green, and p06 is accepted; execution advances to p07-t01.
 - 2026-09-17: p07 completed in exactly three planned commits with no recovery events. Root independently confirmed focused and full suites plus all repository gates; the clean task head advances to independent p07 review.
+- 2026-09-17: Independent p07 review round 1 requested changes for two Important and three Medium contract gaps. Root accepts all five; none are deferred or dismissed, and the original implementer receives bounded fix iteration 1/2.
 
 ## Deviations from Plan / Design
 
