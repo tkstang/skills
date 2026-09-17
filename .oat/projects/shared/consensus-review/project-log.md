@@ -48,6 +48,14 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 Implementation paused before task execution because implementation.md points to p06-t01 while state.md has oat_current_task null; explicit approval is required to reconcile durable pointers and continue. consensus-review-resume-drift-20260917T0022Z
 
+### 2026-09-17 · structural · oat-project-implement · p06
+
+Phase p06 outcome: BLOCKED before edits because the accepted dispatch packet carried an incorrect full phase base SHA; tasks=0/2, fix-loops=0, worktree clean. consensus-review-p06-blocked-20260917T0048Z
+
+### 2026-09-17 · structural · oat-project-implement · stop
+
+STOP triggered by accepted p06 implementer terminal BLOCKED on phase-base mismatch; no replacement or fallback is authorized in this run. consensus-review-stop-base-mismatch-20260917T0048Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

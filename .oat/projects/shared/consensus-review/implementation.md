@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p06-t01
+    reason: 'Accepted phase dispatch stopped before edits because its supplied full phase-base SHA did not match the clean worktree HEAD.'
+    since: 2026-09-17
 oat_last_updated: 2026-09-17
 oat_current_task_id: p06-t01
 oat_generated: false
@@ -9,14 +12,14 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** Implementation started at p06-t01 after user-approved resume-state reconciliation.
+**Status:** Blocked at p06-t01 after the accepted phase implementer rejected an incorrect phase-base SHA before edits.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md. No task was implemented or completed.
 
 ## Progress Overview
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | --- | --- |
-| p06 — Installable, safe foundation | pending | 2 | 0/2 |
+| p06 — Installable, safe foundation | blocked | 2 | 0/2 |
 | p07 — Scope, selection, one run | pending | 3 | 0/3 |
 | p08 — Rendering, interaction, acceptance | pending | 2 | 0/2 |
 
@@ -26,7 +29,7 @@ oat_generated: false
 
 | Task | Status | Commit | Verification |
 | --- | --- | --- | --- |
-| p06-t01 | pending | - | - |
+| p06-t01 | blocked | - | Not run; phase-base preflight stopped before artifact reads or edits. |
 | p06-t02 | pending | - | - |
 | p07-t01 | pending | - | - |
 | p07-t02 | pending | - | - |
@@ -39,13 +42,32 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 ## Orchestration Runs
 
 <!-- orchestration-runs-start -->
-None; implementation has not started.
+### Run 1 — 2026-09-17
+
+- Phase: p06
+- Request ID: `impl-consensus-review-p06-20260917T0042Z`
+- Launch status: accepted
+- Tier: Tier 1 subagent
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Model axis: `selected:gpt-5.6-sol`
+- Effort axis: `selected:high`
+- Selection reason: `native-catalog`
+- Candidates considered: `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p06 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Supplied phase base: `eb216c55dfc9777dd75a66ddcb4d90c739340a30`
+- Actual clean HEAD: `eb216c55cea9bd6f909bfca4d1137b4f00b70188`
+- Terminal outcome: `BLOCKED`
+- Tasks: 0/2; commits: none; verification: not run; recovery: 0/10; fix loops: 0
+- Worktree: clean
+- Disposition: stop this accepted run without replacement or fallback; require operator direction before a new implementation run.
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
 
 - 2026-09-17: User approved reconciling the stale `state.md` task pointer with the authoritative plan and implementation record. Execution resumes at p06-t01; no product task had started before this repair.
 - 2026-09-17: HiLL checkpoint configuration resolved from workflow preferences to final phase p08, with automatic checkpoint review enabled.
+- 2026-09-17: Merged current `origin/main` append-only at `eb216c55cea9bd6f909bfca4d1137b4f00b70188` after confirming PR #86 was merged with passing checks, making the loop-free helpers available before source work.
+- 2026-09-17: Accepted p06 dispatch returned `BLOCKED` because the root packet supplied the wrong full base SHA. The implementer changed nothing, created no commits, ran no tests and consumed no recovery attempt. The run stopped without replacement or fallback.
 
 ## Deviations from Plan / Design
 

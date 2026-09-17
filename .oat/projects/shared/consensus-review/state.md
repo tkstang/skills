@@ -1,7 +1,10 @@
 ---
 oat_current_task: p06-t01
-oat_last_commit: null
-oat_blockers: []
+oat_last_commit: eb216c55cea9bd6f909bfca4d1137b4f00b70188
+oat_blockers:
+  - task_id: p06-t01
+    reason: 'Accepted phase dispatch stopped before edits because its supplied full phase-base SHA did not match the clean worktree HEAD.'
+    since: 2026-09-17
 associated_issues:
   - type: backlog
     ref: BL-260916-add-consensus-review-cross
@@ -19,7 +22,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: blocked
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -27,20 +30,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T00:39:24Z'
+oat_project_state_updated: '2026-09-17T00:43:05Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Implementation in progress at p06-t01 after user-approved resume-state reconciliation. The formal artifact review passed, the configured planning gate passed its Important threshold, and the user-approved finding dispositions are applied and recorded.
+**Status:** Implementation blocked at p06-t01 after the accepted phase implementer rejected an incorrect phase-base SHA before edits. The worktree remains clean and no product task has started.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, implementation started at p06-t01. User approved the smaller v1 and explicitly required interactive scope selection when omitted. All seven implementation tasks remain pending. No product task, publication or global installation has completed.
+Quick workflow, blocked at p06-t01 before source reads or edits. The accepted run cannot be replaced or silently relaunched. All seven implementation tasks remain incomplete; no product task, publication or global installation has completed.
 
 ## Artifacts
 
@@ -62,7 +65,7 @@ Quick workflow, implementation started at p06-t01. User approved the smaller v1 
 
 ## Next Milestone
 
-Continue `oat-project-implement` at p06-t01 in the dedicated visible worktree. Recheck main and PR #86 before source work. The final-phase p08 HiLL checkpoint and automatic checkpoint review are active. No additional tasks or phases were added during receipt. Fable's next planned involvement remains the p08-t02 receipt exercise and normal cross-model review during implementation.
+After operator direction, start a new `oat-project-implement` run at p06-t01 using the exact clean HEAD as its phase base. PR #86 is merged and current `origin/main` was integrated append-only. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
