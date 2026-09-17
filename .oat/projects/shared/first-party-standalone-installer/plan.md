@@ -329,6 +329,51 @@ git add install.sh src/plugins/consensus/install-sh.test.ts
 git commit -m "fix(installer): clarify Node version requirement"
 ```
 
+### Task p03-t02: (review) Relocate the standalone wording regression outside distributed source
+
+**Files:**
+
+- Modify: `src/plugins/consensus/install-sh.test.ts`
+- Modify: `tests/tooling/standalone-installer.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding M1: placing the new standalone regression under
+`src/plugins/consensus/` makes the skill-version validator treat all seven
+Consensus member skills as changed, even though the shipped runtime change is
+only the repository-root installer message.
+
+**Step 2: Implement the fix**
+
+Move only the new mocked-old-Node regression and its helper into the existing
+standalone tooling suite. Restore `src/plugins/consensus/install-sh.test.ts` to
+its pre-p03 contents, preserve the `install.sh` wording fix, and do not bump
+unrelated skill versions or weaken the validator.
+
+**Step 3: Format and verify**
+
+Run: `pnpm exec oxfmt --write tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
+
+Run: `pnpm exec oxlint tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
+
+Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts`
+
+After committing the net cancellation, run:
+
+Run: `pnpm run validate:skill-versions -- --base-ref ed2a6e24be0748a220a2321b338c8bb22dcdfeda`
+
+Run: `pnpm run validate:skill-versions -- --base-ref origin/main`
+
+Expected: Focused tests and static checks pass, and both committed-range version
+checks report no changed skills.
+
+**Step 4: Commit**
+
+```bash
+git add src/plugins/consensus/install-sh.test.ts tests/tooling/standalone-installer.test.ts
+git commit -m "test(installer): relocate Node requirement regression"
+```
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
@@ -343,6 +388,7 @@ git commit -m "fix(installer): clarify Node version requirement"
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T015346Z.md | 9538fa57917e636982eb4a59aafa2be8c3b7517a | auto | - |
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T020642Z.md | 7a85fd33013191b27a6a4d2a4c3ad6affba6a47e | gate | claude-fable-skip-permissions |
 | final  | code     | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T025657Z.md | 787a4cce286d2581047693d05826b6c060f56f83 | manual | - |
+| p03    | code     | fixes_added | 2026-09-17 | reviews/archived/p03-review-2026-09-17T044145Z.md | 4445e18d7a3ab2d15f9cd9669a4cc04766b4fe19 | manual | - |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
@@ -354,11 +400,11 @@ The first gate's findings were resolved in the lifecycle artifacts. The second g
 
 - Phase 1: 3 tasks — scoped installer behavior, user/release documentation, and complete static verification with live-boundary bookkeeping.
 - Phase 2: 1 task — final-review correction for unambiguous release-tag bootstrap selection.
-- Phase 3: 1 task — installer-neutral Node-version failure wording and regression coverage.
+- Phase 3: 2 tasks — installer-neutral Node-version failure wording and regression relocation outside distributed source.
 
-**Total: 5 tasks**
+**Total: 6 tasks**
 
-Implementation is complete when all five tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
+Implementation is complete when all six tasks and configured code reviews pass. The backlog item remains active if authority-gated live host or real user-home evidence is pending.
 
 ## References
 

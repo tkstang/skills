@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: null
+oat_current_task_id: p03-t02
 oat_generated: false
 ---
 
@@ -28,15 +28,15 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 1     | 1/1       |
-| Phase 3 | complete    | 1     | 1/1       |
+| Phase 3 | in progress | 2     | 1/2       |
 
-**Total:** 5/5 tasks completed
+**Total:** 5/6 tasks completed
 
 ---
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** complete
+**Status:** in progress
 **Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
@@ -189,6 +189,19 @@ the Consensus provider CLI.
 **Outcome:** `require_node_22` now reports that Node.js 22 is required to run
 "this installer". The focused regression exercises standalone arguments with a
 mocked old Node, asserts the neutral message, and rejects any Consensus wording.
+
+### Task p03-t02: (review) Relocate the standalone wording regression outside distributed source
+
+**Status:** pending
+
+**Review finding:** M1 from the p03 review. The regression is behaviorally
+sound, but its location under `src/plugins/consensus/` makes the version gate
+require unrelated version bumps for all seven Consensus member skills.
+
+**Planned outcome:** Move the new regression to
+`tests/tooling/standalone-installer.test.ts`, restore the Consensus test file to
+its pre-p03 content, and prove the committed net delta has no skill-version
+impact.
 
 ---
 
@@ -548,6 +561,29 @@ the prior evidence predates the lint-policy commit.
 
 **Next:** Execute `p03-t01`, re-review the final scope, and refresh the stale
 configured exit gate.
+
+### Review Received: p03
+
+**Date:** 2026-09-17
+**Review artifact:** `reviews/archived/p03-review-2026-09-17T044145Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 0
+
+**New tasks added:** `p03-t02`
+
+**Finding disposition:**
+
+- `M1` (`code_fix_required`, converted): relocate the standalone-only
+  regression outside `src/plugins/consensus/`, restore the Consensus test to
+  its pre-p03 content, and verify no unrelated skill-version impact. Do not
+  bump seven skills or weaken the validator.
+
+**Next:** Execute `p03-t02`, then re-review p03.
 
 ---
 
