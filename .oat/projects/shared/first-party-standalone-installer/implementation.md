@@ -659,6 +659,11 @@ corroborated and eligible for receive. The gate-owned project-log append was
 written but its automatic commit hit a transient index-lock collision; root
 reconciliation is required before receive.
 
+**Receive intent:** Persisted for gate run
+`f673a067-7275-4ef8-9a0a-55e88e880a5b`, source artifact
+`reviews/final-review-2026-09-17T050550Z.md`, and collision-free archive path
+`reviews/archived/final-review-2026-09-17T050550Z.md`.
+
 ---
 
 ## Implementation Log

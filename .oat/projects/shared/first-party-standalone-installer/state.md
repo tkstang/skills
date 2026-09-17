@@ -51,17 +51,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T050550Z.md'
   handoff: 'Gate passed at the important threshold with four non-blocking Minor findings; receive is required for final disposition.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation: 'run=f673a067-7275-4ef8-9a0a-55e88e880a5b;scope=final;type=code;filename=final-review-2026-09-17T050550Z.md'
+  receive_source_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T050550Z.md'
+  receive_archived_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/archived/final-review-2026-09-17T050550Z.md'
+  receive_event_identity: 'final|code|final-review-2026-09-17T050550Z.md'
+  receive_pre_head: 521b4e459f2e0eef87085b9a0b72e755f903b7f0
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T05:07:08Z'
+  updated_at: '2026-09-17T05:08:21Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T05:07:08Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T05:08:21Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
