@@ -92,6 +92,10 @@ target=cursor-fable-5-1-high threshold=important findings=critical:0,important:1
 
 Configured exit-gate attempt 1/2 was corroborated and received at `9b5bcb4b`; findings=critical:0,important:1,medium:1,minor:2, all accepted as p09-t01 through p09-t04. Status remains blocked pending remediation. consensus-review-gate-received-20260917T063250Z
 
+### 2026-09-17 · structural · oat-project-implement · p09
+
+Phase p09 outcome: PASSED independent review at 40f8016f with findings=critical:0,important:0,medium:1,minor:0; nonblocking M1 evidence clarification completed at 14c991bd, root verification passed 26 tests, recovery=0/10, tracked worktree clean. consensus-review-p09-passed-20260917T0705Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

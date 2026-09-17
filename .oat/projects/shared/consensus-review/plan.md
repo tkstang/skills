@@ -229,7 +229,7 @@ Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected bec
 
 Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2, configured-gate remediation p09 4/4.
 **Total: 11/11 active tasks across 4 sequential phases completed.**
-The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are now committed and root-verified. Independent p09 review, fresh final lifecycle review and configured exit-gate attempt 2/2 remain; final HiLL approval is pending at p09.
+The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are committed, root-verified and independently phase-reviewed with no blocking findings; its one nonblocking evidence clarification is also complete. Fresh final lifecycle review and configured exit-gate attempt 2/2 remain; final HiLL approval is pending at p09.
 
 ## References
 

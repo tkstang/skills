@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p09-review-fix-1
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** p09 review passed with no Critical or Important findings; one nonblocking Medium receipt-evidence clarification is in bounded cleanup before final lifecycle review.
+**Status:** p09 review passed and its nonblocking Medium evidence clarification is complete; fresh final lifecycle review is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,7 +19,7 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | review_pending | 4 | 4/4 |
+| p09 — Configured gate fixes | completed | 4 | 4/4 |
 
 **Total:** 11/11 task commits completed. The prior lifecycle final review passed; p09 phase review, fresh final review and configured exit-gate attempt 2/2 remain.
 
@@ -269,6 +269,16 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: the reviewer independently passed 118 focused tests, build freshness, type-check, validation, smoke, the 11-owner version/changelog gate, scoped static checks and range diff checks.
 - Disposition: p09 passes the blocking threshold. Route one narrow evidence/test-description correction to the original implementer, root-verify it, and let the required final lifecycle review cover the appended fix.
 
+#### Nonblocking Review Cleanup — completed
+
+- Continuation event: `cont-consensus-review-p09-review-medium-fix-1`
+- Fix commit: `14c991bdce178a2cecba4f99bc37019430618496` (`fix(p09): clarify receipt evidence provenance`)
+- M1: resolved by separating historical receiver inputs/outcomes from current renderer-bound fixture identities and removing the claim that refreshed bytes were independently received.
+- Scope: exactly `.oat/projects/shared/consensus-review/evidence/p08-receipt-exercise.md` and `tests/tooling/consensus-review-receipt.test.ts`; no canonical skill, version, changelog or generated output changed.
+- Verification: implementer and root each passed 26 receipt/renderer tests; root also confirmed scoped format, lint, diff and final wording checks.
+- Recovery: none; this review cleanup consumed no phase recovery attempt.
+- Disposition: p09 is complete and accepted. Proceed to the fresh final lifecycle review over the full post-gate remediation range.
+
 #### Final Review Round 1 — changes requested
 
 - Request ID: `review-consensus-review-final-20260917T053248Z`
@@ -445,6 +455,7 @@ No finding is deferred or rejected. Blocking-gate auto-disposition converts all 
 - 2026-09-17: Persisted configured-gate receive intent for the exact active artifact, collision-free archived destination and bound final/code Reviews event at pre-receive head `db9fe2d9` before applying autonomous blocking-gate dispositions.
 - 2026-09-17: Received configured exit-gate attempt 1 in autonomous blocking mode. All four findings were accepted as p09-t01 through p09-t04; none were deferred or rejected. The gate artifact moved to its collision-free archived path and the review event advanced to `fixes_added`.
 - 2026-09-17: Corroborated the archived artifact against gate run `87133850-151e-4827-9d7b-7cfd854c5724` and receive transition `9b5bcb4b`. Attempt 1/2 is consumed with status `blocked`; p09-t01 is the next executable task.
+- 2026-09-17: p09 completed in four planned commits plus one nonblocking evidence-clarification commit. Independent phase review passed with zero Critical or Important findings; root verification passed and no recovery attempt was used.
 
 ## Deviations from Plan / Design
 
