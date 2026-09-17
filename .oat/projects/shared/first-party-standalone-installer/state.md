@@ -26,6 +26,42 @@ oat_phase_recovery_policy:
     p01:
       used_attempts: 2
       pending_attempt: null
+oat_implement_exit_gate:
+  status: pending
+  resolution: configured
+  disposition: null
+  config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
+  resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
+  resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
+  project_override: null
+  on_failure: block
+  max_attempts: 2
+  attempts_completed: 0
+  reviewed_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
+  implementation_base_ref: origin/main
+  implementation_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
+  freshness_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
+  freshness_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-09-17T02:00:10Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -88,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T01:57:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T02:00:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
