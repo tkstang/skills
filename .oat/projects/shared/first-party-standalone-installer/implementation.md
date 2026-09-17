@@ -434,6 +434,11 @@ artifact receipt remain pending.
 corroborated and eligible for receive. The gate-owned project-log entry was
 reconciled idempotently after a transient index-lock collision.
 
+**Receive intent:** Persisted for gate run
+`3631aaf2-103a-4106-9bda-9eeb577cc87f`, source artifact
+`reviews/final-review-2026-09-17T020642Z.md`, and collision-free archive path
+`reviews/archived/final-review-2026-09-17T020642Z.md`.
+
 ---
 
 ## Implementation Log
