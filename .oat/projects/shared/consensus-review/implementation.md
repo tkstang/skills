@@ -373,6 +373,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Final review round 2 verified both product findings resolved, then requested one Important lifecycle-ledger alignment. The prior event was advanced to `fixes_completed` and the round-2 artifact preserved separately at `8d8ff233`; bounded fix usage is now 2/2 and round 3 is required.
 - 2026-09-17: Final review round 3 passed the guarded bookkeeping range with zero findings and confirmed both prior final events preserve exact provenance with `fixes_completed` status. The lifecycle review is complete; the configured implementation exit gate is next.
 - 2026-09-17: Resolved the configured `oat-project-implement` exit gate once for the passed final-review basis `c60f3fe3`; persisted the exact command, block policy, two-attempt limit, config fingerprint and qualified effective-delta fingerprint before launch.
+- 2026-09-17: Persisted configured exit-gate launch intent `d55b3ba4-a973-48d7-887e-6cf3815a775f` and its durable result receipt path before invoking the exact resolved command.
 
 ## Deviations from Plan / Design
 
