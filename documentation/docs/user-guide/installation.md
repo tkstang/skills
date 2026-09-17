@@ -124,7 +124,11 @@ claim that this tag has been published or tested live. Use that release's
 checkout, including both `install.sh` and `scripts/install-standalone.mjs`:
 
 ```bash
-git clone --branch v0.1.2 --single-branch https://github.com/tkstang/skills.git skills-installer
+mkdir skills-installer
+git -C skills-installer init --quiet
+git -C skills-installer remote add origin https://github.com/tkstang/skills.git
+git -C skills-installer fetch --no-tags --depth=1 origin refs/tags/v0.1.2
+git -C skills-installer checkout --detach --quiet 'FETCH_HEAD^{commit}'
 INSTALLER="$PWD/skills-installer/install.sh"
 cd /path/to/your/project
 ```
