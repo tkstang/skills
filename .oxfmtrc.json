@@ -16,6 +16,8 @@
     "node_modules/**",
     ".oat/**",
     ".agents/**",
+    ".claude/skills/**",
+    ".cursor/skills/**",
     ".claude/rules/**",
     ".cursor/rules/**",
     "AGENTS.md",
