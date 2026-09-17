@@ -27,9 +27,9 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: 'sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5'
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: 'Semantic cross-family final implementation review before oat-project-implement exits.'
@@ -40,8 +40,8 @@ oat_implement_exit_gate:
   reviewed_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
-  freshness_head: 9538fa57917e636982eb4a59aafa2be8c3b7517a
-  freshness_fingerprint: 'sha256:effective-delta-v1:55c4802746154f37fd53f7204855a079da1ae289fc412973d854cc4eeb9fb418'
+  freshness_head: 013098dcee335bf277ac6fa6b87b4db592106943
+  freshness_fingerprint: 'sha256:effective-delta-v1:15830cbacc141cfe1082acf4b74f1e515fd41782a198858afd57e9fbbb759579'
   launch_state: result_persisted
   launch_attempt_id: d4f1da76-995a-42ac-95a7-f20461caa7bf
   launch_started_at: '2026-09-17T02:01:20Z'
@@ -51,17 +51,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md'
   handoff: 'Gate passed at the important threshold with five non-blocking Minor findings; receive is required for final disposition.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: 'run=3631aaf2-103a-4106-9bda-9eeb577cc87f;scope=final;type=code;filename=final-review-2026-09-17T020642Z.md'
   receive_source_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/final-review-2026-09-17T020642Z.md'
   receive_archived_artifact: '.oat/projects/shared/first-party-standalone-installer/reviews/archived/final-review-2026-09-17T020642Z.md'
   receive_event_identity: 'final|code|final-review-2026-09-17T020642Z.md'
   receive_pre_head: 220b9bd9a537c1efa54db9114429a824250bede9
-  receive_commit: null
+  receive_commit: 013098dcee335bf277ac6fa6b87b4db592106943
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-17T02:11:46Z'
+  updated_at: '2026-09-17T02:13:17Z'
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +124,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T02:11:46Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T02:13:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
