@@ -165,6 +165,7 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | p06    | code     | pending | -    | -        | -             | -          | -           |
 | p07    | code     | pending | -    | -        | -             | -          | -           |
 | p08    | code     | pending | -    | -        | -             | -          | -           |
+| plan | artifact | received | 2026-09-17 | reviews/artifact-plan-review-2026-09-17T000849Z.md | - | - | - |
 
 ## Implementation Complete
 
