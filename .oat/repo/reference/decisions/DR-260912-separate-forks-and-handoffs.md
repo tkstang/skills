@@ -61,7 +61,7 @@ reconcile,behavior-gate}` and their tests, the generated
 README and capability matrix are gone, along with the executor's build
 declaration. Its behavior contracts survive only as test support for the
 guidance skill at
-`src/skills/session-fork-to-destination/src/test-support/behavior-contracts.ts`.
+`src/skills/session-fork-to-destination/src/helpers/behavior-contracts.ts`.
 Nothing above is rewritten: the executor's live gates were never passed, and
 retiring it does not change the two-skill boundary or authorize any provider
 operation. Reviving automated execution would be a new decision, not a

@@ -399,10 +399,34 @@ metadata:
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0].skill).toBe('<changelog>');
     expect(result.findings[0].message).toMatch(
-      /skill demo changed version.*no new changelog entry/s,
+      /skill demo 1\.1\.0 changed version.*no new changelog entry/s,
     );
     expect(result.findings[0].message).toMatch(
       /add an entry under ## \[Unreleased\] in CHANGELOG\.md/,
+    );
+  });
+
+  it('flags a bump whose new Unreleased entry does not name the skill and version', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.1.0'),
+    );
+    await writeChangelogEntry(
+      root,
+      '- `demo` now does a new thing.\n- `other-skill` 1.1.0 unrelated.',
+    );
+    await git(root, ['commit', '-aqm', 'bump with entry missing version']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('<changelog>');
+    expect(result.findings[0].message).toMatch(
+      /skill demo 1\.1\.0 changed version/,
     );
   });
 
@@ -476,7 +500,7 @@ metadata:
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0].skill).toBe('<changelog>');
     expect(result.findings[0].message).toMatch(
-      /plugin consensus changed version/,
+      /plugin consensus 0\.2\.0 changed version/,
     );
   });
 

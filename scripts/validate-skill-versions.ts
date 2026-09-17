@@ -359,13 +359,18 @@ function manifestVersion(contents: string): string | null {
   return null;
 }
 
+interface VersionedName {
+  name: string;
+  version: string;
+}
+
 /** Plugin release targets whose provider-manifest version moved off the base. */
 async function bumpedPluginReleases(
   root: string,
   runner: GitRunner,
   baseRef: string,
-): Promise<string[]> {
-  const bumped: string[] = [];
+): Promise<VersionedName[]> {
+  const bumped = new Map<string, string>();
   for (const target of pluginReleaseTargets) {
     for (const manifest of target.providerManifests) {
       const current = await readFile(path.join(root, manifest), 'utf8').catch(
@@ -376,12 +381,32 @@ async function bumpedPluginReleases(
       if (currentValue === null) continue;
       const base = await showAtBase(runner, baseRef, manifest);
       if (base === null || manifestVersion(base) !== currentValue) {
-        bumped.push(target.name);
+        bumped.set(target.name, currentValue);
         break;
       }
     }
   }
-  return [...new Set(bumped)].toSorted();
+  return [...bumped]
+    .map(([name, version]) => ({ name, version }))
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+/** True when one added line names `name` as a whole word and its `version`. */
+function changelogCovers(
+  addedLines: readonly string[],
+  { name, version }: VersionedName,
+): boolean {
+  const namePattern = new RegExp(
+    `(^|[^\\w-])${escapeRegExp(name)}([^\\w-]|$)`,
+    'u',
+  );
+  return addedLines.some(
+    (line) => namePattern.test(line) && line.includes(version),
+  );
 }
 
 export async function validateChangedSkillVersions(
@@ -433,7 +458,7 @@ export async function validateChangedSkillVersions(
 
   let checkedSkillCount = 0;
   const newOwners: string[] = [];
-  const bumpedSkills: string[] = [];
+  const bumpedSkills: VersionedName[] = [];
   for (const owner of [...impact.owners].toSorted()) {
     const directory = currentOwners.get(owner);
     if (!directory) continue;
@@ -478,7 +503,8 @@ export async function validateChangedSkillVersions(
         currentContent,
         relativeSkillFile,
       );
-      if (compareSemver(nextVersion, baseVersion) > 0) bumpedSkills.push(owner);
+      if (compareSemver(nextVersion, baseVersion) > 0)
+        bumpedSkills.push({ name: owner, version: nextVersion });
       if (compareSemver(nextVersion, baseVersion) <= 0) {
         findings.push({
           skill: owner,
@@ -532,21 +558,32 @@ export async function validateChangedSkillVersions(
     ).catch(() => null);
     const baseChangelog =
       (await showAtBase(git, baseRef, CHANGELOG_FILE)) ?? '';
-    const added =
+    const addedEntries =
       currentChangelog === null
         ? []
-        : [
-            ...addedUnreleasedLines(baseChangelog, currentChangelog),
-            ...addedReleaseHeadings(baseChangelog, currentChangelog),
-          ];
-    if (added.length === 0) {
-      const bumped = [
-        ...bumpedSkills.toSorted().map((skill) => `skill ${skill}`),
-        ...bumpedPlugins.map((plugin) => `plugin ${plugin}`),
-      ].join(', ');
+        : addedUnreleasedLines(baseChangelog, currentChangelog);
+    const addedHeadings =
+      currentChangelog === null
+        ? []
+        : addedReleaseHeadings(baseChangelog, currentChangelog);
+    const uncovered = [
+      ...bumpedSkills
+        .filter((skill) => !changelogCovers(addedEntries, skill))
+        .map((skill) => `skill ${skill.name} ${skill.version}`),
+      ...bumpedPlugins
+        .filter(
+          (plugin) =>
+            !changelogCovers(addedEntries, plugin) &&
+            !addedHeadings.some((heading) =>
+              heading.includes(`[${plugin.version}]`),
+            ),
+        )
+        .map((plugin) => `plugin ${plugin.name} ${plugin.version}`),
+    ];
+    if (uncovered.length > 0) {
       findings.push({
         skill: '<changelog>',
-        message: `${bumped} changed version against ${baseRef} with no new changelog entry: add an entry under ## [Unreleased] in CHANGELOG.md (Added/Changed/Fixed/Removed) naming the affected skills and versions, or add the release heading that the Unreleased entries moved under.`,
+        message: `${uncovered.join(', ')} changed version against ${baseRef} with no new changelog entry: add an entry under ## [Unreleased] in CHANGELOG.md (Added/Changed/Fixed/Removed) naming each affected skill or plugin with its new version, or add the release heading that the Unreleased entries moved under.`,
       });
     }
   }
@@ -556,8 +593,8 @@ export async function validateChangedSkillVersions(
     findings,
     newOwners: newOwners.toSorted(),
     removedOwners: [...removedOwners].toSorted(),
-    bumpedSkills: bumpedSkills.toSorted(),
-    bumpedPlugins,
+    bumpedSkills: bumpedSkills.map((skill) => skill.name).toSorted(),
+    bumpedPlugins: bumpedPlugins.map((plugin) => plugin.name),
   };
 }
 
