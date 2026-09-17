@@ -76,6 +76,10 @@ Phase p07 outcome: PASSED independent review round 2 at fa01afbe with findings=c
 
 Phase p08 implementation outcome: DONE with tasks=2/2, recovery=2/10 settled, fixture-only receipt acceptance and PJM closure complete; terminal root verification passed 92 focused tests, premerge 2,010 passed plus one skipped, version/internal/PJM/docs gates, worktree clean. Final lifecycle review remains pending. consensus-review-p08-tasks-complete-20260917T0529Z
 
+### 2026-09-17 · structural · oat-project-review-provide · final
+
+Final lifecycle review returned CHANGES_REQUESTED at b5fe65d8 with critical:0, important:1, medium:1, minor:0; reconnaissance attempted and reconciled. Artifact: reviews/final-review-2026-09-17T053248Z.md. consensus-review-final-review-20260917T053248Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
