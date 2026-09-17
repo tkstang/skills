@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 5f998708223fc56245496a4a192a40193d49175d
+oat_last_commit: 63ff71abc04c2fa17c3cbc95d5075097a7d7b916
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -69,18 +69,32 @@ oat_implement_exit_gate:
   receive_completed: true
   failure: null
   updated_at: '2026-09-17T07:52:18Z'
+oat_post_implement_sequence:
+  status: pre_approval
+  source: configured
+  final_phase: p09
+  pre_approval:
+    - summary
+    - document
+    - pr
+  pre_approval_completed: []
+  approval: pending
+  approval_source: null
+  post_approval: []
+  post_approval_completed: []
+  failure: null
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:52:18Z'
+oat_project_state_updated: '2026-09-17T07:53:29Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Final HiLL approval is next.
+**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. The configured pre-approval sequence is `summary → document → pr`; final HiLL follows it.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
