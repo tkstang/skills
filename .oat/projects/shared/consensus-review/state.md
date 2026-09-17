@@ -57,23 +57,23 @@ oat_implement_exit_gate:
   envelope_status: blocked
   artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md'
   handoff: 'Run oat-project-review-receive for .oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md before treating this gate review as consumed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation: 'run=87133850-151e-4827-9d7b-7cfd854c5724 scope=final type=code source=final-review-2026-09-17T062233Z.md handoff=corroborated'
+  receive_source_artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T062233Z.md'
+  receive_archived_artifact: '.oat/projects/shared/consensus-review/reviews/archived/final-review-2026-09-17T062233Z.md'
+  receive_event_identity: 'scope=final type=code source=final-review-2026-09-17T062233Z.md'
+  receive_pre_head: db9fe2d9d9cab74498dd578d3d090044bf7817b5
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T06:27:24Z'
+  updated_at: '2026-09-17T06:28:22Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T06:27:24Z'
+oat_project_state_updated: '2026-09-17T06:28:22Z'
 oat_generated: false
 ---
 
