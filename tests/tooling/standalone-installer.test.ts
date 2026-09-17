@@ -104,6 +104,32 @@ afterEach(async () => {
 });
 
 describe('standalone installation', () => {
+  it('uses a neutral Node requirement message for standalone installation', async () => {
+    const binDir = path.join(root, 'bin');
+    const nodePath = path.join(binDir, 'node');
+    await mkdir(binDir);
+    await writeFile(
+      nodePath,
+      ['#!/usr/bin/env bash', 'printf "%s\\n" "21"', ''].join('\n'),
+    );
+    await chmod(nodePath, 0o755);
+
+    const failure = await run(args(), {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+    }).then(
+      () => {
+        throw new Error('Expected standalone installation to fail');
+      },
+      (error: { stderr: string }) => error,
+    );
+
+    expect(failure.stderr).toContain(
+      'Node.js 22 or newer is required to run this installer',
+    );
+    expect(failure.stderr).not.toMatch(/consensus/i);
+    await untouched();
+  });
+
   it('requires a checkout with the adjacent helper for standalone arguments', async () => {
     const isolated = path.join(root, 'install.sh');
     await writeFile(isolated, await readFile(installer));
