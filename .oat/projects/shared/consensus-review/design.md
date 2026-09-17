@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-16
+oat_last_updated: 2026-09-17
 oat_generated: false
 oat_template: false
 oat_template_name: design
@@ -10,7 +10,7 @@ oat_template_name: design
 
 # Design: Consensus Review
 
-**Disposition:** Revised after user-approved complexity cuts. The smaller v1 and interactive scope choice below supersede the initial seven-selector design. Fable approved the revision and the formal plan artifact review passed; the configured planning gate remains pending. Nothing here claims shipped behavior.
+**Disposition:** Revised after user-approved complexity cuts. The smaller v1 and interactive scope choice below supersede the initial seven-selector design. Fable approved the revision, the formal plan artifact review passed, and the configured planning gate passed its Important threshold. User-approved finding dispositions are recorded in implementation.md. Planning is complete; nothing here claims shipped behavior.
 
 ## Contract and Boundaries
 

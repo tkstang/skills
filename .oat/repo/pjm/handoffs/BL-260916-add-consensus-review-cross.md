@@ -20,7 +20,7 @@ Use the item and confirmed conversation to fill scope, decisions and non-goals. 
 4. Owned JSON findings schema and deterministic OAT Markdown adapter, tested against `oat-review-receive`. Preserve location-or-anchor, severity, evidence, confidence, questions and provenance.
 5. One dispatched invocation with bounded attempts/recursion; honest handling of provider-internal tools, errors and incomplete output.
 
-Use the reconciled design/plan at `.oat/projects/shared/consensus-review/`: seven tasks, three phases, High ceiling, configured planning/final gates and ordinary reviews, no optional phase gates. The receipt exercise remains an interoperability check. The revised bundle still requires Fable's re-check and formal planning checks before implementation readiness.
+Use the reconciled design/plan at `.oat/projects/shared/consensus-review/`: seven tasks, three phases, High ceiling, configured planning/final gates and ordinary reviews, no optional phase gates. Fable approved the revision, formal artifact review passed, and the configured planning gate passed with its user-approved dispositions recorded. The plan is ready for implementation starting at p06-t01; execution still requires user authorization. The p08-t02 receipt exercise remains an interoperability check.
 
 ## Source inputs and boundaries
 

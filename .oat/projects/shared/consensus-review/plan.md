@@ -1,17 +1,17 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-09-16
+oat_last_updated: 2026-09-17
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: Consensus Review
@@ -20,7 +20,7 @@ oat_template: true
 
 **Behavioral source of truth:** [design.md](design.md). This plan specifies work and proof, not a second copy of that contract.
 
-**Disposition:** User-approved scope reduction and interactive missing-scope behavior captured. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate passed its Important threshold with two Medium and four Minor findings awaiting artifact-receive disposition. No implementation has started.
+**Disposition:** Planning complete and ready for implementation. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate passed its Important threshold. The user approved all six finding dispositions, the four clarifications below, and continuation to the planning handoff. No implementation has started.
 
 ## Planning and Execution Boundaries
 
@@ -69,13 +69,13 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 ### Task p06-t02: Close transport gaps and prove installed runner execution
 
-**Files:** `src/plugins/consensus/provider-cli/{types,structured-output,subprocess,invocation,host-guard}.ts` as needed and colocated tests; Review `src/run.ts`, `src/run.test.ts`; `tests/tooling/skill-packaging.test.ts`. Touch generic args/commands only if an existing contract actually requires it, not to expose Review or duplicate internal controls publicly.
+**Files:** `src/plugins/consensus/provider-cli/{types,structured-output,subprocess,invocation,host-guard,adapters}.ts` as needed and colocated tests; Review `src/run.ts`, `src/run.test.ts`; `tests/tooling/skill-packaging.test.ts`. Adapter edits are conditional on the implementation needing a capability declaration, not required work. Touch generic args/commands only if an existing contract actually requires it, not to expose Review or duplicate internal controls publicly.
 
-**Build:** Implement the design's no-sidecar internal option, provider-specific strategy, both growth-safe bounded readers, external Codex capture and identical explicit host/depth at preflight and dispatch. Keep existing caller defaults. Use the fake-provider fixtures to execute the actual runner from each installed bundle outside the checkout with no OAT/node_modules/source-tree resolution. No testing-only production CLI flag. Do not proceed to Review logic until both installation forms pass.
+**Build:** Implement the design's no-sidecar internal option, provider-specific strategy, both growth-safe bounded readers, external Codex capture and identical explicit host/depth at preflight and dispatch. Keep existing caller defaults. Use the fake-provider fixtures to execute the actual runner from each installed bundle outside the checkout with no OAT/node_modules/source-tree resolution. The external test driver imports the copied bundle's exported run entry and supplies a fixed bounded request to a fake provider; this proves the shipped runner closure before scope selectors exist, without adding a testing-only production CLI flag. Do not proceed to Review logic until both installation forms pass.
 
 **Verify:** `pnpm run test:vitest src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts`; test existing caller behavior, byte-boundary/growth cases and no sidecar lifecycle effects. Build, type-check, freshness, and affected-owner versions.
 
-**Format:** `pnpm exec oxfmt --write src/plugins/consensus/provider-cli/types.ts src/plugins/consensus/provider-cli/structured-output.ts src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/subprocess.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/invocation.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/skills/consensus-review/src/run.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts` on the changed subset.
+**Format:** `pnpm exec oxfmt --write src/plugins/consensus/provider-cli/types.ts src/plugins/consensus/provider-cli/structured-output.ts src/plugins/consensus/provider-cli/structured-output.test.ts src/plugins/consensus/provider-cli/subprocess.ts src/plugins/consensus/provider-cli/subprocess.test.ts src/plugins/consensus/provider-cli/invocation.ts src/plugins/consensus/provider-cli/invocation.test.ts src/plugins/consensus/provider-cli/host-guard.ts src/plugins/consensus/provider-cli/host-guard.test.ts src/plugins/consensus/provider-cli/adapters.ts src/plugins/consensus/provider-cli/adapters.test.ts src/skills/consensus-review/src/run.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts` on the changed subset.
 
 **Commit:** `feat(p06-t02): enforce safe review transport in installed bundles`.
 
@@ -123,7 +123,7 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 **Files:** Review `src/review.ts`, `src/review.test.ts`, `SKILL.md`; create `documentation/docs/user-guide/consensus/review.md`; update Consensus configuration/index, installation/standalone catalogs, README and changelog with applicable maintained manifests.
 
-**Build:** Finish CLI/rendering and complete-status versus diagnostic output. Human/JSON/chat handoffs use full absolute paths to artifacts actually written; explicit export happens after drift checking. Preserve OAT severity/location/evidence conventions and escape peer Markdown. Skill presents Branch diff / Selected files / Document or plan when the user omitted scope, then gathers ref/paths; never guesses or dispatches before an answer. An unambiguous supplied scope needs no repeat question. Headless executable returns usage error/options/zero invocations rather than prompting. Docs cover exactly three selectors, config types/examples, selected-path detection limits, external retention, author evidence, both install forms and the deliberate exit-code contract.
+**Build:** Finish CLI/rendering and complete-status versus diagnostic output. Human/JSON/chat handoffs use full absolute paths to artifacts actually written; explicit export happens after drift checking. Preserve OAT severity/location/evidence conventions and escape peer Markdown. Skill presents Branch diff / Selected files / Document or plan when the user omitted scope, then gathers ref/paths; never guesses or dispatches before an answer. An unambiguous supplied scope needs no repeat question. Headless executable returns usage error/options/zero invocations rather than prompting. Docs cover exactly three selectors, config types/examples, selected-path detection limits, external retention, author evidence, both install forms and the deliberate exit-code contract. State the first release supporting `defaults.reviewers` in the configuration guide and changelog, and explain that older binaries reject this key.
 
 **Verify:** `pnpm run test:vitest src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/src/run.test.ts tests/tooling/skill-packaging.test.ts`; test no-scope CLI exits without stdin, selector conflicts/deferred options, all render outcomes, path safety and absolute handoffs. Inspect host instruction examples for no scope, supplied scope, follow-up details and cancellation. Build/type-check/freshness, `pnpm run validate`, and docs production build: verified-current OAT index generation plus MDX generation, then `pnpm --dir documentation exec next build`. Do not blindly run the old docs OAT prebuild.
 
@@ -141,7 +141,7 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 **Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/review.test.ts` if changed, plus exact authored fixture/fix paths. OAT/PJM/generated artifacts remain excluded; check manually.
 
-**Commit:** `test(p08-t02): verify review receipt and delivery`.
+**Commit:** `chore(p08-t02): verify review receipt and delivery`.
 
 ## Reviews
 
@@ -165,13 +165,15 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | p06    | code     | pending | -    | -        | -             | -          | -           |
 | p07    | code     | pending | -    | -        | -             | -          | -           |
 | p08    | code     | pending | -    | -        | -             | -          | -           |
-| plan | artifact | received | 2026-09-17 | reviews/artifact-plan-review-2026-09-17T000849Z.md | - | - | - |
+| plan | artifact | fixes_completed | 2026-09-17 | reviews/archived/artifact-plan-review-2026-09-17T000849Z.md | - | - | - |
+
+Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected because the template flag was required before completion; it is cleared now as the normal readiness transition. M2 and m2–m4 are resolved by four plan clarifications. For m1, retain the historical auto row and use `-` in future artifact-row provenance cells. Full dispositions are in implementation.md. The gate passed its Important threshold; `fixes_completed` records applied edits without claiming a new clean re-review. The user approved continuing the phase flow, so no additional gate or review was launched.
 
 ## Implementation Complete
 
 Planned, not completed: p06 has 2 tasks; p07 has 3; p08 has 2.
 **Total: 7 active tasks across 3 sequential phases, 0 completed. First task: p06-t01.**
-No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. The planning gate passed; implementation readiness is still null pending finding disposition and durable receipt.
+No optional phase gates; High ceiling; configured planning/final gates and ordinary reviews remain. The planning gate passed and its approved dispositions are recorded. The plan is ready for `oat-project-implement`; no execution is authorized by this handoff alone.
 
 ## References
 

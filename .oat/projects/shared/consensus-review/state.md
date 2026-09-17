@@ -18,7 +18,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -26,20 +26,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T00:13:00Z'
+oat_project_state_updated: '2026-09-17T00:21:44Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** Formal artifact review passed. The configured planning gate passed its Important threshold with two Medium and four Minor findings; artifact-receive disposition awaits user confirmation. Plan readiness remains null.
+**Status:** Planning complete and ready for `oat-project-implement`. The formal artifact review passed, the configured planning gate passed its Important threshold, and the user-approved finding dispositions are applied and recorded. Implementation has not started.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, planning only. User approved the smaller v1 and explicitly required interactive scope selection when omitted. No implementation, publication or global installation has started.
+Quick workflow, planning complete. User approved the smaller v1 and explicitly required interactive scope selection when omitted. All seven implementation tasks remain pending. No implementation, publication or global installation has started.
 
 ## Artifacts
 
@@ -57,15 +57,15 @@ Quick workflow, planning only. User approved the smaller v1 and explicitly requi
 - Ordinary OAT phase/final reviews remain. Fable's receipt exercise is interoperability evidence, not an extra general review gate.
 - The existing configured quick-start command is plan-only; execute unchanged and record `legacy-plan-only` scope when run. Formal plan review still checks consistency with design/discovery.
 - Fable approved the revised scope and seven-task plan. Automatic formal artifact review passed without findings in the planning parent; provenance is recorded in plan.md.
-- Configured planning gate run `128cf9b8-0007-4de1-a310-ec5383e43c90` passed the Important threshold (`status: ok`, `receiveEligible: true`, matched project/run/invocation). Scope was `legacy-plan-only`. Its review is [artifact-plan-review-2026-09-17T000849Z.md](reviews/artifact-plan-review-2026-09-17T000849Z.md). This is a gate pass, not a clean review or completed receipt.
+- Configured planning gate run `128cf9b8-0007-4de1-a310-ec5383e43c90` passed the Important threshold (`status: ok`, `receiveEligible: true`, matched project/run/invocation). Scope was `legacy-plan-only`. Its consumed review is [artifact-plan-review-2026-09-17T000849Z.md](reviews/archived/artifact-plan-review-2026-09-17T000849Z.md). The user approved the six dispositions and continuation; implementation.md records each outcome. The gate event is `fixes_completed`, not a new clean re-review.
 
 ## Next Milestone
 
-Obtain confirmation for artifact-review dispositions, then complete receipt before marking ready. Proposed: reject M1 because quick-start requires the template flag until completion; resolve M2 by naming the exported-runner installed proof; preserve the historical auto row (m1); clarify adapters as-needed (m2), use a combined chore commit for acceptance/closeout (m3), and explicitly name the first supporting config release (m4). No additional tasks or phases. Fable's next planned involvement remains the p08-t02 receipt exercise and normal cross-model review during implementation.
+When the user authorizes execution, start `oat-project-implement` at p06-t01 in a separate visible Codex worktree. Carry this completed planning bundle into that worktree, recheck main and PR #86, and select implementation HiLL checkpoints at kickoff. No additional tasks or phases were added during receipt. Fable's next planned involvement remains the p08-t02 receipt exercise and normal cross-model review during implementation.
 
 ## Verification
 
-This revision passed `pnpm run validate`, `oat project validate-plan`, discovery completion validation and `git diff --check`. Artifact checks confirmed seven unique active tasks/three phases, retention of every old task reference and review row, per-task verification/format/commit steps, local links, the p06-t01 resume pointer and non-ready frontmatter. PJM doctor reported declared adoption with all checks passing; backlog index regeneration produced no index diff. No product test, live provider acceptance or formal review result is inferred from planning validation.
+Receipt validation passed `pnpm run validate`, `oat project validate-plan` and `git diff --check`. `oat project status` reports `quickPlanReadiness.ready: true`, seven tasks, zero completed, and p06-t01 next. Artifact assertions confirmed unchanged task IDs/counts, preserved review history, all six dispositions and a byte-identical archived review. PJM doctor reported declared adoption with all checks passing. The dashboard was refreshed locally. No product test or live provider acceptance is inferred from planning validation.
 
 ## Operational Notes
 

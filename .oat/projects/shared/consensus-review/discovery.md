@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-quick-start
 oat_blockers: []
-oat_last_updated: 2026-09-16
+oat_last_updated: 2026-09-17
 oat_generated: false
 oat_template: false
 oat_template_name: discovery
@@ -77,7 +77,7 @@ Convergence, multi-reviewer synthesis, repairs, packet-only mode, universal isol
 
 Product judgments and complexity reductions are resolved in the [design](design.md), including external state, three selectors, interactive missing scope and narrower drift coverage. High dispatch policy and no optional phase gates are selected. Runtime-maintenance PR #86 was open at the last check; recheck before implementation rather than assuming its helper extraction is merged.
 
-Fable's four source-backed corrections remain incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and packaging proved first. Fable approved the complexity-revised bundle and the formal plan artifact review passed. The configured planning gate and eventual independent OAT receipt exercise remain outstanding.
+Fable's four source-backed corrections remain incorporated: provider-specific no-sidecar transport, one explicit host context for preflight/dispatch, both capture readers bounded, and packaging proved first. Fable approved the complexity-revised bundle, the formal plan artifact review passed, and the configured planning gate passed its Important threshold. Its user-approved dispositions are recorded in implementation.md. The eventual independent product-artifact receipt exercise remains outstanding in p08-t02.
 
 ## Assumptions
 
@@ -92,7 +92,7 @@ Merged planning commit `08f59459` is the baseline. No Review implementation exis
 
 ## Next Steps
 
-Complete the configured planning gate and record its receipt. Implementation remains blocked until that plan is ready and the user starts execution. Discovery was already completed through the CLI; no implementation is implied by this update.
+Planning and gate receipt are complete. Start `oat-project-implement` at p06-t01 when the user authorizes execution, using the separate visible worktree required by the handoff. Discovery was already completed through the CLI; no implementation is implied by this update.
 
 ## References
 
