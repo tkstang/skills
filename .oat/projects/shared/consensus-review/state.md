@@ -30,7 +30,7 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_implement_exit_gate:
@@ -86,24 +86,24 @@ oat_post_implement_sequence:
   post_approval_completed: []
   failure: null
 oat_docs_updated: complete
-oat_pr_status: null
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: 'https://github.com/tkstang/skills/pull/91'
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T08:06:41Z'
+oat_project_state_updated: '2026-09-17T12:51:05Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Summary and documentation are complete; the configured pre-approval sequence continues with `pr`, then final HiLL approval.
+**Status:** configured exit-gate attempt 2/2 is durably received and allowed/passed. Summary, documentation, and final PR publication are complete; final HiLL approval remains.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — closeout. Original p06–p08 tasks, p09 remediation, lifecycle final reviews, and the configured cross-family exit gate are complete. The gate is durably received and allowed/passed; the project summary, promoted decision records, and documentation sync are committed. The configured PR step and final HiLL approval remain. No publication, global installation or product live-provider acceptance has completed.
+Implementation — PR open; completion may run before or after merge.
 
 ## Artifacts
 
@@ -134,7 +134,11 @@ Implementation — closeout. Original p06–p08 tasks, p09 remediation, lifecycl
 
 ## Next Milestone
 
-Reach the p09 final HiLL approval checkpoint, then follow the configured post-implementation sequence without crossing publication, installation, merge or live-provider boundaries. No product live-provider acceptance may be inferred or run without separate authorization.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- Complete before merge: run `oat-project-complete` now, then merge the PR.
+- Merge before completion: merge the PR, then run `oat-project-complete`.
 
 ## Verification
 
@@ -157,6 +161,8 @@ Post-remediation terminal premerge passed 142 test files with one skipped and 2,
 - ✓ Post-gate final re-review round 3 passed (0 findings)
 - ✓ Configured exit-gate attempt 2 passed its Important threshold
 - ✓ Exit-gate receive reconciled and allowed/passed
+- ✓ PR created
+- ⧗ Awaiting human review
 - ⧗ Final HiLL approval pending
 
 ## Operational Notes
