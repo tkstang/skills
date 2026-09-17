@@ -219,6 +219,18 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 **Commit:** `docs(p09-t06): reconcile consumed pjm references`.
 
+### Task p09-t07: (review) Mark p09 phase overview complete
+
+**Files:** Modify only the p09 status cell in `implementation.md`.
+
+**Build:** Replace the contradictory `review_pending` phase status with `completed`. Preserve the adjacent final re-review, configured-gate and HiLL posture plus every historical review event.
+
+**Verify:** Inspect the p09 plan review row and current implementation/state prose for agreement; run Markdown formatting and `git diff --check`.
+
+**Format:** Format only `implementation.md` if required.
+
+**Commit:** `docs(p09-t07): mark phase review complete`.
+
 ## Reviews
 
 Existing review events are preserved. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode.
@@ -247,14 +259,15 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | final | code | passed | 2026-09-17 | reviews/final-review-2026-09-17T060326Z.md | c60f3fe354439971b00612ccf3325c05777b9fe6 | auto | - |
 | final | code | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T062233Z.md | e4aa759ea6ad0d1c2d2d65eb1068d2373b7f44b2 | gate | cursor-fable-5-1-high |
 | final | code | fixes_completed | 2026-09-17 | reviews/archived/final-review-2026-09-17T071244Z.md | 8b84b4e0407772b9d859a0cb7778b0dbad7e3c18 | auto | - |
+| final | code | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T072611Z.md | 7caccdb5ab3e9cad6b2ce9f4b82281a0dd609375 | auto | - |
 
 Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected because the template flag was required before completion; it is cleared now as the normal readiness transition. M2 and m2–m4 are resolved by four plan clarifications. For m1, retain the historical auto row and use `-` in future artifact-row provenance cells. Full dispositions are in implementation.md. The gate passed its Important threshold; `fixes_completed` records applied edits without claiming a new clean re-review. The user approved continuing the phase flow, so no additional gate or review was launched.
 
 ## Implementation Complete
 
-Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2, configured-gate remediation p09 6/6.
-**Total: 13/13 active tasks across 4 sequential phases completed.**
-The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are committed, root-verified and independently phase-reviewed with no blocking findings; its one nonblocking evidence clarification is also complete. The fresh final review's two auto-converted Minor artifact-alignment tasks are complete. Re-review final scope, run configured exit-gate attempt 2/2, then reach final HiLL approval at p09.
+Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2; configured-gate remediation p09 6/7.
+**Total: 13/14 active tasks across 4 sequential phases completed.**
+The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are committed, root-verified and independently phase-reviewed with no blocking findings; its one nonblocking evidence clarification is also complete. The fresh final review's two auto-converted Minor artifact-alignment tasks are complete. Final re-review round 2 added one Minor p09 status-cell alignment task. Complete p09-t07, run final re-review round 3, then configured exit-gate attempt 2/2 and final HiLL approval at p09.
 
 ## References
 
