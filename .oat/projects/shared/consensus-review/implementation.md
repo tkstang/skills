@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p08-t02
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** p08-t01 and bounded determinism recovery are complete; p08-t02 is next.
+**Status:** all seven implementation tasks are complete and verified; final lifecycle review is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -18,9 +18,9 @@ oat_generated: false
 | --- | --- | --- | --- |
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
-| p08 — Rendering, interaction, acceptance | in_progress | 2 | 1/2 |
+| p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
 
-**Total:** 6/7 task commits completed; 2/3 phases accepted.
+**Total:** 7/7 task commits completed; all 3 implementation phases completed. Final lifecycle review remains pending.
 
 ## Tasks
 
@@ -32,7 +32,7 @@ oat_generated: false
 | p07-t02 | done | `e75963bdf8a7c23ca888920c3f4374992e529cd9` | 40 focused tests plus build, type-check, freshness, validation, 11-owner version/changelog gate, scoped lint/format and diff checks passed. |
 | p07-t03 | done | `a580a322aadbe914f25ef9be4ec78f5631b3c2d0` | 41 focused tests plus build, type-check, freshness, validation, 11-owner version/changelog gate, scoped lint/format and diff checks passed. |
 | p08-t01 | done | `6b65fe8c0e6b46a0d7720677fb199972fdf2c377` | 76 focused tests plus type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed; bounded determinism recovery followed. |
-| p08-t02 | pending | - | - |
+| p08-t02 | done | `aad79ef577c037887ff8990875d352bff1ce7fe8` | 80 phase-focused tests, independent receipt evidence, PJM doctor, full premerge, version/internal gates, current-OAT docs generation, 52-page production build, lint/format and diff checks passed. |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
@@ -203,6 +203,30 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: 115 focused and 1,994 full-suite tests passed with one skipped; build, build freshness, type-check, validation, consensus-review `0.1.6` version/changelog gate, smoke, scoped lint/format and range diff checks passed.
 - Worktree: clean; exactly one append-only fix commit.
 
+### Run 4 — 2026-09-17
+
+- Phase: p08
+- Request ID: `impl-consensus-review-p08-20260917T0439Z`
+- Launch status: accepted
+- Tier: Tier 1 subagent
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Model axis: `selected:gpt-5.6-sol`
+- Effort axis: `selected:high`
+- Task class: `hard-reasoning`
+- Selection reason: `candidate-requested`
+- Candidates considered: `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p08 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Phase base: `b2c966579831c2dbacb9ebbbc213aa180d1b6f41`
+- Task commits: `6b65fe8c0e6b46a0d7720677fb199972fdf2c377`, `aad79ef577c037887ff8990875d352bff1ce7fe8`
+- Recovery commits: `0831b0b6010f4e31d91e228acd7cc2f8ebbc990f`, `9a28624931646d0c7b79797e95e43ac294bb1d97`
+- Terminal outcome: `DONE`
+- Tasks: 2/2; final review: pending; fix loops: 0
+- Verification: root confirmed 92 focused tests and full premerge with 2,010 passed and one skipped; build/type/freshness/validation/smoke, 11 skill versions, 72 internal flags, declared PJM health and 52-page production docs build passed.
+- Recovery: 2/10; both events recovered and settled; `pending_attempt: null`.
+- Worktree: clean.
+- Receipt alternate: Codex independent receipt alternate using `oat-review-receive` 1.4.1; clean, all-severity and diagnostic fixtures behaved as specified.
+- Disposition: all implementation tasks complete; prepare committed final-review baseline and run the single final lifecycle review required by the p08 HiLL checkpoint.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -285,6 +309,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: p08-t01 completed at `6b65fe8c`. Between-task self-review found wall-clock metadata in a renderer documented as deterministic; phase-standing recovery attempt 1/10 fixed it at `0831b0b6`, root validated the correction, and `pending_attempt` was cleared before p08-t02.
 - 2026-09-17: The p08-t02 premerge pass exposed one stale p08-t01 release-test expectation for Consensus plugin 0.2.0. Recovery attempt 2/10 corrected it at `9a286249`; focused and full premerge checks passed before and after commit. Root accepted that the exact 100%-identity backlog archive rename landed early in the recovery commit as a commit-organization deviation, settled the ledger without rewriting history, and left all archive metadata/content in p08-t02.
 - 2026-09-17: p08-t02 used the current `oat-review-receive` 1.4.1 skill with an independent Codex alternate in a disposable destination. Completed clean and all-severity fixtures normalized exactly as expected; the defective diagnostic was rejected and not offered for receipt. The exact backlog item was closed and archived, current-state/roadmap/index surfaces were refreshed, and only its consumed kickoff handoff was removed. Live provider, external-install, native-continuation, and fresh-session discovery acceptance remain unverified.
+- 2026-09-17: p08-t02 committed at `aad79ef5`; root independently reran focused, premerge, version/internal/PJM and production docs gates. All seven tasks are complete, the task pointer is cleared, and the terminal implementation baseline is ready for final lifecycle review.
 
 ## Deviations from Plan / Design
 
@@ -307,6 +332,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - p07 review fix iteration 1: 115 focused tests and 1,994 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the consensus-review `0.1.6` version/changelog gate, smoke and fix-range diff checks passed.
 - p08-t01: 76 focused tests, type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format, current-OAT MDX/index generation and production docs build passed. Determinism recovery: 11 focused tests, build freshness and exact range diff check passed independently.
 - p08-t02 receipt exercise: `oat-review-receive` 1.4.1 accepted a zero-finding completed artifact without triage, normalized one Critical, Important, Medium and Minor finding with explicit `convert` dispositions into the disposable archive/task list, and rejected the defective diagnostic without archive/task-list output. Fixture and task-list hashes plus limitations are recorded in [p08-receipt-exercise.md](evidence/p08-receipt-exercise.md).
+- p08 terminal root verification: 92 focused tests passed; full premerge passed 2,010 tests with one skipped; build, type-check, freshness, validation and smoke passed. Eleven skill-version/changelog impacts, 72 internal tooling flags, PJM declared adoption/health, current-OAT MDX/index generation and a 52-page Next production build passed; worktree remained clean.
 
 ## Planning review received
 
@@ -321,13 +347,19 @@ User approved the proposed dispositions and planning handoff on 2026-09-17 UTC. 
 | m3, closeout commit type | resolve_in_artifact | Use `chore(p08-t02)` for the combined receipt verification and PJM bookkeeping commit. No task or commit split is required. |
 | m4, first supporting release | resolve_in_artifact | p08-t01 explicitly requires the first supporting release and older-binary limitation in the configuration guide and changelog. |
 
-Four clarifications applied; no new tasks, deferred findings or unresolved user decisions. The user approved continuing the phase flow. The gate event records `fixes_completed`, not a new clean re-review; no further reviewer or gate was launched. The earlier automatic artifact-review pass remains separate history. Planning is ready; all seven implementation tasks remain pending, beginning with p06-t01.
+Four clarifications were applied before implementation; no new tasks, deferred findings or unresolved user decisions were introduced. The user approved the phase flow. The gate event records `fixes_completed`, not a new clean re-review; the earlier automatic artifact-review pass remains separate history. All seven tasks have since completed.
 
-The review's coverage table uses the word `implemented` for plan coverage. It is not evidence of shipped functionality; this project has no implementation yet.
+The planning review's coverage table used `implemented` prospectively for plan coverage; it was not execution evidence at review time. The implementation and verification evidence above now supplies the actual terminal task record.
 
 ## Final Summary (for PR/docs)
 
-Not available; p06 task code is committed but the phase is blocked and unaccepted. No capability has shipped from this project.
+Consensus Review is implemented as one canonical skill with standalone `consensus-review` and plugin-local `review` distributions. It supports exactly three bounded selectors (base branch, explicit files, document), ordered strict reviewer defaults, host-aware one-invocation selection, provider-specific read-only transport, selected-path drift checks, deep schema validation, honest author/reviewer provenance, private external run state, deterministic OAT-compatible Markdown/JSON handoffs and interactive host scope selection with a non-interactive CLI contract.
+
+Key implementation surfaces are `src/skills/consensus-review/`, the existing Consensus config/provider runner under `src/plugins/consensus/`, generated standalone/plugin payloads, user documentation under `documentation/docs/user-guide/consensus/`, and deterministic receipt fixtures under `tests/fixtures/consensus-review-receipt/`. The Consensus plugin is versioned `0.2.0`; the Review skill and mechanically affected owners carry validated SemVer/changelog propagation.
+
+Verification includes 92 focused terminal tests, full premerge with 2,010 passed and one skipped, build/type/freshness/validation/smoke, skill-version and internal-flag gates, declared PJM health, changed-file lint/format, current OAT 0.2.77 docs generation and a 52-page production docs build. An independent Codex alternate exercised `oat-review-receive` 1.4.1 against clean, all-severity and diagnostic fixtures; exact hashes and limitations are recorded in [p08 receipt evidence](evidence/p08-receipt-exercise.md).
+
+Accepted deltas: v1 intentionally uses three selectors and selected-path rather than whole-worktree drift coverage; live provider execution, external/global installation, native continuation, fresh-session discovery, publication and release remain unverified. Recovery removed wall-clock rendering metadata and corrected a stale manifest test. One 100%-identity backlog archive rename landed early in that recovery commit; remaining closure content stayed in p08-t02 and history was not rewritten.
 
 ## References
 

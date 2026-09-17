@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t02
-oat_last_commit: 9a28624931646d0c7b79797e95e43ac294bb1d97
+oat_current_task: null
+oat_last_commit: aad79ef577c037887ff8990875d352bff1ce7fe8
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -37,20 +37,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T05:13:00Z'
+oat_project_state_updated: '2026-09-17T05:29:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p08-t02 receipt/PJM work is in progress. Recovery attempts 1–2/10 are settled; attempt 2 corrected a stale manifest expectation and carried one accepted p08-t02 backlog-rename boundary deviation.
+**Status:** all seven implementation tasks are complete and independently verified. Final lifecycle review is next; the implementation exit gate and final HiLL approval remain pending.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 and p07 accepted. p08-t01 is complete at `6b65fe8c`; recoveries at `0831b0b6` and `9a286249` are settled. p08-t02 receipt and PJM closure remain in progress. The configured final HiLL checkpoint and automatic final review remain mandatory before closeout. No publication, global installation or live provider acceptance has completed.
+Implementation — tasks complete; awaiting final lifecycle review. p06 and p07 passed phase review, p08 completed both tasks and its acceptance exercise, and the final-phase checkpoint now routes to one `final` review rather than a duplicate p08 review. No publication, global installation or live provider acceptance has completed.
 
 ## Artifacts
 
@@ -61,6 +61,7 @@ Quick workflow, p06 and p07 accepted. p08-t01 is complete at `6b65fe8c`; recover
 - p07 implementation: scope/drift at `e40b46c2`, reviewer selection/config at `e75963bd`, and one-run validation/persistence at `a580a322`. Review round 1 requested five fixes; all completed at `cc8c0af3`, and round 2 passed at `fa01afbe` with zero findings.
 - p08-t01: interactive rendering, scope selection and documentation committed at `6b65fe8c`; bounded determinism recovery committed at `0831b0b6` and settled at attempt 1/10.
 - p08 recovery 2: stale Consensus manifest expectation corrected at `9a286249`; the immutable recovery commit also moved the exact p08-t02 backlog item into its archive with no content change. Remaining closure metadata stays in the planned p08-t02 work.
+- p08-t02: deterministic receipt evidence and PJM closure committed at `aad79ef5`; the exact backlog item is closed/archived, only its consumed handoff was removed, and adjacent work remains open.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -75,11 +76,21 @@ Quick workflow, p06 and p07 accepted. p08-t01 is complete at `6b65fe8c`; recover
 
 ## Next Milestone
 
-Resume the original p08 implementer at p08-t02, preserve the immutable recovery boundary, record its accepted deviation, complete closure metadata and full gates, then commit the remaining task work. No live provider acceptance may be inferred or run without separate authorization.
+Run the required final lifecycle code review against the committed terminal implementation baseline, then process any findings before the configured implementation exit gate and final HiLL approval. No live provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-p08-t01 passed 76 focused tests plus type-check, build/freshness, validation, version/internal-flag gates, scoped lint/format and production docs build. Root independently confirmed recovery 1 with 11 focused tests and recovery 2 with 14 focused tests plus exact range diff checks. Recovery usage is settled at 2/10 with `pending_attempt: null`.
+p08 terminal verification confirmed 92 focused tests, full premerge with 2,010 passed and one skipped, build/type/freshness/validation/smoke, 11 skill-version/changelog impacts, 72 internal flags, declared PJM health, current-OAT MDX/index generation and a 52-page production docs build. Recovery usage is settled at 2/10 with `pending_attempt: null`.
+
+## Progress
+
+- ✓ Discovery complete
+- ✓ Design and plan complete
+- ✓ All seven implementation tasks complete
+- ✓ Phase p06 and p07 reviews passed
+- ✓ p08 receipt and delivery acceptance complete
+- ⧗ Awaiting final lifecycle review
+- ⧗ Implementation exit gate and final HiLL approval pending
 
 ## Operational Notes
 
