@@ -24,8 +24,17 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: p01-recovery-002
+        original_request_id: impl-first-party-standalone-installer-p01-20260917T0042Z
+        original_task_id: p01-t01
+        original_commit: 4fc228e9f48da6426004dd8dddca7a9b6fc5e302
+        discovered_by: pnpm run validate:skill-versions -- --base-ref origin/main
+        dispatch_target: oat-phase-implementer-gpt-6-astra-high-5b14a55346
+        reservation_head: baae08efa12da7db2e4c4f960322ea75dc190b31
+        status: completed
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier

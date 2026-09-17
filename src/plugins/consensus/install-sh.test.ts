@@ -5,7 +5,6 @@ import {
   mkdir,
   mkdtemp,
   readFile,
-  readdir,
   rm,
   writeFile,
 } from 'node:fs/promises';
@@ -57,44 +56,6 @@ async function pathExists(target: string) {
 }
 
 describe('install.sh', () => {
-  it('requires a checkout with the adjacent helper for standalone arguments', async () => {
-    const root = await mkdtemp(
-      path.join(os.tmpdir(), 'standalone-missing-helper-'),
-    );
-    try {
-      const isolated = path.join(root, 'install.sh');
-      const home = path.join(root, 'home');
-      await mkdir(home);
-      await writeFile(isolated, await readFile(installScript));
-      await expect(
-        execFileAsync(
-          'bash',
-          [
-            isolated,
-            '--skill',
-            'demo',
-            '--agent',
-            'codex',
-            '--scope',
-            'user',
-            '--ref',
-            'v1.0.0',
-          ],
-          {
-            cwd: home,
-            env: installEnv(home, {
-              CONSENSUS_INSTALL_RAW_BASE: `file://${root}`,
-            }),
-          },
-        ),
-      ).rejects.toMatchObject({
-        stderr: expect.stringMatching(/install.sh:.*checkout/),
-      });
-      expect(await readdir(home)).toEqual([]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
   describe('CONSENSUS_INSTALL_SHA256 checksum verification', () => {
     it('unset: behavior is unchanged on the local-checkout path', async () => {
       const tempRoot = await mkdtemp(

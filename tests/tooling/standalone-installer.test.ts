@@ -104,6 +104,20 @@ afterEach(async () => {
 });
 
 describe('standalone installation', () => {
+  it('requires a checkout with the adjacent helper for standalone arguments', async () => {
+    const isolated = path.join(root, 'install.sh');
+    await writeFile(isolated, await readFile(installer));
+    await expect(
+      exec('bash', [isolated, ...args({ scope: 'user' })], {
+        cwd: project,
+        env: { ...env, CONSENSUS_INSTALL_RAW_BASE: `file://${root}` },
+      }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringMatching(/install.sh:.*checkout/),
+    });
+    await untouched();
+  });
+
   it.each(
     [
       ['codex', '.agents', '$demo'],
