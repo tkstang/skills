@@ -51,6 +51,15 @@ reviewer with `--reviewer provider[:model]`; `--model` and `--effort` require
 that explicit reviewer. Same-provider review also requires user consent and
 `--allow-same-provider`.
 
+`--host` names the runtime executing Review. A known inherited
+`CONSENSUS_PARENT_HOST` is authoritative when it matches `--host`, even if the
+shell also carries unrelated ambient provider markers. A mismatched inherited
+parent fails with `contradictory_host`. When no inherited parent is present,
+Review requires exactly one ambient runtime marker matching `--host`; mixed
+markers fail with `contradictory_host`, and a marker-free shell fails with
+`unknown_host`. These identity failures occur before provider selection or
+invocation.
+
 `--output <path>` creates an additional completed Markdown copy only after the
 drift comparison. It refuses overwrite, symlink/input aliases, and destructive
 destinations. Human and `--json` output report full absolute paths to every

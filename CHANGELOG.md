@@ -76,6 +76,7 @@
 
 ### Fixed
 
+- Review host verification now treats a matching inherited parent as authoritative despite unrelated ambient markers, rejects explicit mismatches, and retains exact-single-marker verification when no parent is inherited (`consensus-review` 0.1.10, `create` 0.1.15, `decide` 0.1.15, `evaluate` 0.1.19, `panel` 0.1.12, `phone-a-friend` 0.1.11, `plan` 0.1.15, `refine` 0.1.18).
 - Mixed host-marker shells now preserve explicit `CONSENSUS_PARENT_HOST` precedence and the established Claude → Codex → Cursor fallback priority, so recursion-depth child state remains enforced (`consensus-review` 0.1.9, `create` 0.1.14, `decide` 0.1.14, `evaluate` 0.1.18, `panel` 0.1.11, `phone-a-friend` 0.1.10, `plan` 0.1.14, `refine` 0.1.17).
 - `consensus-review` 0.1.8 now publishes canonical and exported Markdown atomically without overwrite, reports diagnostic paths only after successful persistence, and bounds growing request-file reads to 256 KiB plus one detection byte.
 - `consensus-review` 0.1.6 now rejects capture-to-baseline scope drift before dispatch, preserves bounded author provenance without presenting requested reviewer options as observed, supports file and document scopes without a first commit, records resolved Git and comparison identities, and writes one labeled diagnostic after final-result persistence failures.

@@ -52,28 +52,42 @@ export function resolveExplicitHostContext(input: {
   env: Record<string, string | undefined>;
   maxDepth: number;
 }): ExplicitHostContextResult {
-  const detected = detectedHostRuntimes(input.env);
   const declaredParent = input.env.CONSENSUS_PARENT_HOST;
-  if (
-    (declaredParent !== undefined &&
-      declaredParent !== 'claude' &&
-      declaredParent !== 'codex' &&
-      declaredParent !== 'cursor') ||
-    detected.size > 1 ||
-    (detected.size === 1 && !detected.has(input.runtime))
-  ) {
+  const knownParent = knownHostRuntime(declaredParent);
+  if (declaredParent !== undefined && !knownParent) {
     return {
       ok: false,
       reason: 'contradictory_host',
       message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
     };
   }
-  if (detected.size === 0) {
-    return {
-      ok: false,
-      reason: 'unknown_host',
-      message: `Could not verify explicit host ${input.runtime} from runtime evidence.`,
-    };
+  if (knownParent) {
+    if (knownParent !== input.runtime) {
+      return {
+        ok: false,
+        reason: 'contradictory_host',
+        message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+      };
+    }
+  } else {
+    const detected = detectedHostRuntimes(input.env);
+    if (
+      detected.size > 1 ||
+      (detected.size === 1 && !detected.has(input.runtime))
+    ) {
+      return {
+        ok: false,
+        reason: 'contradictory_host',
+        message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+      };
+    }
+    if (detected.size === 0) {
+      return {
+        ok: false,
+        reason: 'unknown_host',
+        message: `Could not verify explicit host ${input.runtime} from runtime evidence.`,
+      };
+    }
   }
 
   const inheritedDepth = input.env.CONSENSUS_DEPTH;

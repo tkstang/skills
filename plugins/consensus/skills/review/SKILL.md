@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: thomas.stang
-  version: '0.1.9'
+  version: '0.1.10'
 ---
 
 # Consensus Review
@@ -49,6 +49,13 @@ Use `--request` or `--request-file` for an exact review question. A pinned
 Same-provider review requires actual user consent and both `--reviewer` and
 `--allow-same-provider`. `--output <path>` exports completed Markdown only
 after drift checking and refuses existing destinations.
+
+Pass the actual host runtime with `--host`. An inherited known
+`CONSENSUS_PARENT_HOST` is authoritative only when it matches that value;
+unrelated ambient provider markers are then ignored. Without an inherited
+parent, exactly one matching provider-runtime marker is required. A marker-free
+shell fails with `unknown_host`, while an explicit mismatch or mixed ambient
+evidence fails with `contradictory_host`; both stop before provider dispatch.
 
 The executable is intentionally non-interactive. Missing or conflicting scope
 returns usage exit 2, lists the three selectors, and invokes no provider; never

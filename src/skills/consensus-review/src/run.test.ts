@@ -101,6 +101,78 @@ describe('review transport runner', () => {
     expect((await lstat(fixture.capture)).mode & 0o777).toBe(0o600);
   });
 
+  it('accepts matching parent identity despite unrelated live host markers', async () => {
+    const fixture = await reviewFixture();
+    let invocations = 0;
+    await expect(
+      runReview(
+        {
+          provider: 'codex',
+          prompt: 'Review.',
+          schemaPath: fixture.schema,
+          cwd: fixture.worktree,
+          host: 'codex',
+          allowSameProvider: true,
+          codexCapturePath: fixture.capture,
+        },
+        {
+          env: {
+            CONSENSUS_PARENT_HOST: 'codex',
+            CLAUDECODE: '1',
+            CURSOR_TRACE_ID: 'trace',
+          },
+          preflight: async () => readyProvider('codex'),
+          async runTurn() {
+            invocations += 1;
+            return successEnvelope({ verdict: 'pass' });
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      status: 'completed',
+      invocation_count: 1,
+    });
+    expect(invocations).toBe(1);
+  });
+
+  it('blocks explicit host mismatch before preflight or provider invocation', async () => {
+    let preflights = 0;
+    let invocations = 0;
+    await expect(
+      runReview(
+        {
+          provider: 'claude',
+          prompt: 'Review.',
+          schemaPath: '/external/review.schema.json',
+          cwd: '/workspace/repo',
+          host: 'codex',
+        },
+        {
+          env: {
+            CONSENSUS_PARENT_HOST: 'claude',
+            CODEX_SESSION_ID: 'session',
+          },
+          async preflight() {
+            preflights += 1;
+            return readyProvider('claude');
+          },
+          async runTurn() {
+            invocations += 1;
+            throw new Error('host mismatch reached provider invocation');
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      status: 'preflight_failed',
+      invocation_count: 0,
+      reason: 'contradictory_host',
+    });
+    expect(preflights).toBe(0);
+    expect(invocations).toBe(0);
+  });
+
   it('blocks unknown host evidence and an in-worktree Codex capture before preflight', async () => {
     const fixture = await reviewFixture();
     const preflight = async () => readyProvider('codex');

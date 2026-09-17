@@ -273,6 +273,55 @@ describe('provider host runtime guard', () => {
     });
   });
 
+  it('treats a matching explicit parent as authoritative over ambient markers', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: {
+          CONSENSUS_PARENT_HOST: 'codex',
+          CLAUDECODE: '1',
+          CURSOR_AGENT: '1',
+        },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: true, context: { runtime: 'codex' } });
+  });
+
+  it('rejects an explicit parent that disagrees with the requested host', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: {
+          CONSENSUS_PARENT_HOST: 'claude',
+          CODEX_SESSION_ID: 'session',
+        },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: false, reason: 'contradictory_host' });
+  });
+
+  it('requires exactly one matching ambient runtime without an explicit parent', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: { CODEX_SESSION_ID: 'session' },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: true, context: { runtime: 'codex' } });
+
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: { CODEX_SESSION_ID: 'session', CURSOR_TRACE_ID: 'trace' },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: false, reason: 'contradictory_host' });
+  });
+
   it.each(['malformed', '-1', '1.5', '2', '9007199254740992'])(
     'rejects present invalid review depth %s instead of resetting it to zero',
     (depth) => {
