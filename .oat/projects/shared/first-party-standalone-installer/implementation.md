@@ -653,6 +653,12 @@ been invoked.
 by the configured `claude-fable-skip-permissions` target; terminal result and
 artifact receipt remain pending.
 
+**Result:** Structured envelope `ok`, threshold `important`, with 0 Critical,
+0 Important, 0 Medium, and 4 Minor findings. The artifact and handoff are
+corroborated and eligible for receive. The gate-owned project-log append was
+written but its automatic commit hit a transient index-lock collision; root
+reconciliation is required before receive.
+
 ---
 
 ## Implementation Log
