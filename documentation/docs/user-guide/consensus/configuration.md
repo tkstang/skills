@@ -6,20 +6,21 @@ description: 'Consensus config JSON examples, field types, model and effort supp
 # Configuration
 
 Configuration shared by [`create`](create.md), [`decide`](decide.md),
-[`plan`](plan.md), [`refine`](refine.md), [`evaluate`](evaluate.md), and
-[`panel`](panel.md).
+[`plan`](plan.md), [`refine`](refine.md), [`evaluate`](evaluate.md),
+[`panel`](panel.md), and [`review`](review.md).
 
 ## What can I configure?
 
 The config file stores default participants, not a separate settings profile for
 each skill. `peers` is shared by all five converging workflows; `panelists` and
-`panel_size` apply to Panel.
+`panel_size` apply to Panel; `reviewers` is Review's ordered preference list.
 
-| Workflow                               | Saved defaults                                | Model and effort behavior today                                                                  |
-| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Create, Decide, Plan, Refine, Evaluate | `defaults.peers`                              | Provider selection works. Configured `model` and `effort` are forwarded to each peer's provider. |
-| Panel                                  | `defaults.panelists`, `defaults.panel_size`   | Configured `model` and `effort` are forwarded to the selected provider.                          |
-| [Phone a Friend](phone-a-friend.md)    | No automatic saved advisor-default resolution | The host can pass `--model` and `--effort` to `consensus run` for an individual consultation.    |
+| Workflow                               | Saved defaults                                | Model and effort behavior today                                                                   |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Create, Decide, Plan, Refine, Evaluate | `defaults.peers`                              | Provider selection works. Configured `model` and `effort` are forwarded to each peer's provider.  |
+| Panel                                  | `defaults.panelists`, `defaults.panel_size`   | Configured `model` and `effort` are forwarded to the selected provider.                           |
+| Review                                 | `defaults.reviewers`                          | The first eligible non-host candidate is selected; configured `model` and `effort` are forwarded. |
+| [Phone a Friend](phone-a-friend.md)    | No automatic saved advisor-default resolution | The host can pass `--model` and `--effort` to `consensus run` for an individual consultation.     |
 
 There are no `plan`, `refine`, or `phone-a-friend` config sections. Settings such
 as `--agency`, `--cold-start`, and `--synthesizer` are per-run controls, not saved
@@ -65,6 +66,11 @@ provider and model.
             "effort": "medium"
           }
         ],
+        // Ordered Review candidates; one or more distinct providers.
+        "reviewers": [
+          { "provider": "claude", "model": "<claude-model-id>", "effort": "high" },
+          { "provider": "codex" }
+        ],
         // Optional integer >= 2; otherwise uses the panelist list length, or 2.
         "panel_size": 2
       }
@@ -97,6 +103,14 @@ provider and model.
             "effort": "medium"
           }
         ],
+        "reviewers": [
+          {
+            "provider": "claude",
+            "model": "<claude-model-id>",
+            "effort": "high"
+          },
+          { "provider": "codex" }
+        ],
         "panel_size": 2
       }
     }
@@ -120,17 +134,18 @@ Only `schema_version` is required in the root object; `defaults` and each of its
 fields are optional. Inside an agent object, `provider` is required. Unknown keys are rejected at every level;
 omit optional values rather than setting them to `null`.
 
-| JSON field                   | Type and constraints                                    | When omitted / behavior                                                                 |
-| ---------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `schema_version`             | Required string, exactly `"v1"`                         | Invalid if missing.                                                                     |
-| `defaults`                   | Object                                                  | This file supplies no overrides.                                                        |
-| `defaults.peers`             | Array of exactly two agent objects, distinct providers  | Falls through to lower-precedence peer defaults, then built-ins.                        |
-| `defaults.panelists`         | Array of at least two agent objects, distinct providers | Falls through to lower-precedence panel defaults, then built-ins.                       |
-| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                       | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2. |
-| `defaults.roles`             | Object with only the three keys below                   | Reserved configuration; not applied by current workflow composition resolvers.          |
-| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers  | Reserved; not an alternative to `defaults.panelists`.                                   |
-| `defaults.roles.advisor`     | One agent object                                        | Reserved; does not automatically select Phone a Friend's peer.                          |
-| `defaults.roles.synthesizer` | One agent object                                        | Reserved; does not replace `--synthesizer`.                                             |
+| JSON field                   | Type and constraints                                        | When omitted / behavior                                                                                                            |
+| ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `schema_version`             | Required string, exactly `"v1"`                             | Invalid if missing.                                                                                                                |
+| `defaults`                   | Object                                                      | This file supplies no overrides.                                                                                                   |
+| `defaults.peers`             | Array of exactly two agent objects, distinct providers      | Falls through to lower-precedence peer defaults, then built-ins.                                                                   |
+| `defaults.panelists`         | Array of at least two agent objects, distinct providers     | Falls through to lower-precedence panel defaults, then built-ins.                                                                  |
+| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                           | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2.                                            |
+| `defaults.reviewers`         | Nonempty ordered array of agent objects, distinct providers | Falls through to lower-precedence Review defaults, then Claude followed by Codex. The host is excluded during automatic selection. |
+| `defaults.roles`             | Object with only the three keys below                       | Reserved configuration; not applied by current workflow composition resolvers.                                                     |
+| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers      | Reserved; not an alternative to `defaults.panelists`.                                                                              |
+| `defaults.roles.advisor`     | One agent object                                            | Reserved; does not automatically select Phone a Friend's peer.                                                                     |
+| `defaults.roles.synthesizer` | One agent object                                            | Reserved; does not replace `--synthesizer`.                                                                                        |
 
 An **agent object** has this shape:
 
@@ -142,7 +157,12 @@ An **agent object** has this shape:
 
 Uniqueness is by **provider**, not by provider/model pair: two Codex entries with
 different models are rejected in the same list. A provider may appear in both
-`peers` and `panelists`, since those are separate lists.
+`peers`, `panelists`, and `reviewers`, since those are separate lists.
+
+The Consensus plugin 0.2.0 and standalone `consensus-review` 0.1.7 are the
+first released forms that understand `defaults.reviewers`. Older binaries use
+strict config parsing and reject this key; upgrade before adding it rather than
+expecting an older install to ignore it.
 
 ### Model and effort support
 
@@ -178,14 +198,14 @@ Defaults are stored in JSON config files:
 
 Effective composition is resolved in this order:
 
-1. Invocation flags such as `--peers`, `--panelists`, and `--panel-size`.
+1. Invocation flags such as `--peers`, `--panelists`, `--panel-size`, and Review's pinned `--reviewer`.
 2. Project config from `.consensus/config.json`.
 3. User config from `.config/consensus/config.json` or `XDG_CONFIG_HOME`.
 4. Built-in defaults.
 
 Lists replace whole lists; entries are not merged by provider across scopes.
-For example, a project's provider-only `peers` or `panelists` list replaces the
-user's entire list, including its model/effort settings. `panel_size` is resolved
+For example, a project's provider-only `peers`, `panelists`, or `reviewers` list replaces the
+user's entire corresponding list, including its model/effort settings. `panel_size` is resolved
 separately. An explicit `--panelists` list ignores lower-scope panel sizes unless
 you also supply `--panel-size` for that invocation. It also replaces saved
 model/effort settings with provider-only entries.
@@ -208,6 +228,7 @@ Set or clear defaults with:
 ```bash
 consensus config set --json --scope user --peers claude,codex
 consensus config set --json --scope project --panelists claude,codex,cursor --panel-size 3
+consensus config set --json --scope project --reviewers claude,codex
 consensus config clear --json --scope project --key panelists
 ```
 
@@ -226,6 +247,17 @@ consensus config get --json --scope user
 `--from-file` replaces the target scope's config with the supplied file (plus
 any explicit set flags); it does not merge that file into the existing config.
 Inspect and preserve any existing settings you want to keep before importing.
+
+## Reviewer selection
+
+[`review`](review.md) chooses the first candidate that has a supported read-only
+policy, is not the host, and passes scoped preflight. Automatic candidates can
+be skipped before dispatch with recorded reasons. `--reviewer provider[:model]`
+pins one candidate; it fails rather than falling back. Provider-only pinning
+uses that provider's defaults instead of a saved model. `--model` and
+`--effort` require the explicit reviewer, and same-provider review additionally
+requires actual user consent plus `--allow-same-provider`. No failure after
+dispatch authorizes another provider invocation.
 
 ## Peer selection
 

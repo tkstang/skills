@@ -1,7 +1,7 @@
 {
   "name": "consensus",
-  "version": "0.1.1",
-  "description": "Consensus create, decide, plan, refine, evaluate, panel, phone-a-friend, observer, and observer-collab skills for peer deliberation, attributed panels, advisory consultation, and session observation.",
+  "version": "0.2.0",
+  "description": "Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,14 +9,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Consensus",
-    "shortDescription": "Create, decide, plan, refine, evaluate, consult peers, or observe sessions with Consensus.",
-    "longDescription": "Consensus skills for creating artifacts from briefs, deciding between options, planning from goals and constraints, refining and evaluating artifacts with multiple AI peers, running attributed panels, asking one peer for advice, and observing coding-agent sessions with optional collaboration control.",
+    "shortDescription": "Create, decide, plan, refine, evaluate, review, consult peers, or observe sessions with Consensus.",
+    "longDescription": "Consensus skills for creating artifacts from briefs, deciding between options, planning from goals and constraints, refining and evaluating artifacts with multiple AI peers, running one bounded independent review, running attributed panels, asking one peer for advice, and observing coding-agent sessions with optional collaboration control.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
       "Use Consensus Create to draft from a brief, Consensus Decide to turn options into a decision, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric.",
-      "Use Consensus Plan to turn a goal and constraints into a structured plan, Consensus Panel to ask multiple peers the same question, or Consensus Phone-a-friend to ask one peer for a one-shot advisory take.",
+      "Use Consensus Plan to turn a goal and constraints into a structured plan, Consensus Review for one bounded independent inspection, Consensus Panel to ask multiple peers the same question, or Consensus Phone-a-friend to ask one peer for a one-shot advisory take.",
       "Use Consensus Observer to inspect coding-agent session progress and Observer-collab when coordinated control is explicitly needed."
     ]
   },

@@ -12,7 +12,7 @@ installation and available capabilities vary by host.
 
 | I want to…                                                                 | Start with                                                                                                                                                                                |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Create, refine, evaluate, or decide with independent AI peers              | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
+| Create, refine, evaluate, review, or decide with independent AI peers      | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
 | Hand off work, export a transcript, or review a session                    | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Get a justified next step, question unnecessary work, or review complexity | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
 | Observe another session or collaborate across two sessions                 | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
@@ -48,8 +48,8 @@ covers Claude Code, Codex, and Cursor without requiring every skill in this repo
 
 **Consensus** asks provider-backed peers for independent work, rather than
 assigning several personas to one conversation. It offers artifact creation,
-planning, decisions, refinement, evaluation, panels without synthesis, and
-one-shot advice. Disagreement is preserved, and an impasse is a valid outcome.
+planning, decisions, refinement, evaluation, one bounded independent review,
+panels without synthesis, and one-shot advice. Disagreement is preserved, and an impasse is a valid outcome.
 It also includes Observer and Collaborative Observer.
 
 **Session** offers portable handoffs, sanitized transcript exports, and
