@@ -56,6 +56,14 @@ Phase p06 outcome: BLOCKED before edits because the accepted dispatch packet car
 
 STOP triggered by accepted p06 implementer terminal BLOCKED on phase-base mismatch; no replacement or fallback is authorized in this run. consensus-review-stop-base-mismatch-20260917T0048Z
 
+### 2026-09-17 · structural · oat-project-implement · p06
+
+Phase p06 outcome: BLOCKED after two immutable task commits because full and focused verification repeat three mechanical inventory omissions plus one non-p06 refine peer-ordering failure; tasks=2/2, review=not-run, recovery=0/10, worktree clean. consensus-review-p06-direction-required-20260917T0118Z
+
+### 2026-09-17 · structural · oat-project-implement · stop
+
+STOP triggered by accepted p06 direction-required event before recovery reservation: repeated refine peer-ordering failure is outside the p06 changed surface; preserve task commits and require operator direction before mechanical inventory recovery. consensus-review-stop-peer-ordering-20260917T0118Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
