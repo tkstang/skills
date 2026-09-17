@@ -1,6 +1,6 @@
 ---
 oat_current_task: p06-t02
-oat_last_commit: 52b267c1fab7eb7c6cb0fb25b50607d10e685576
+oat_last_commit: a1b2b427fa3ca30744f301eb16d7b4b3ed2d9f61
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -24,16 +24,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p06:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p06-recovered-001
-        original_request_id: impl-consensus-review-p06-run2-20260917T0055Z
-        original_task_id: p06-t02
-        original_commit: 52b267c1fab7eb7c6cb0fb25b50607d10e685576
-        discovered_by: pnpm run test
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 70cdd5c5673f56606a97df90445d4ae6231269c3
-        status: completed
+      pending_attempt: null
 oat_phase: implement
 oat_phase_status: in_progress
 oat_workflow_mode: quick
@@ -43,27 +34,27 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T02:45:16Z'
+oat_project_state_updated: '2026-09-17T02:56:20Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p06 recovery authorized. The repeated refine peer-ordering assertion is accepted as an existing baseline failure for this run; recovery remains bounded to the three p06 inventory corrections.
+**Status:** p06 recovery passed and its ledger is settled at 1/10. Root-owned phase review is next; the accepted host-sensitive refine baseline remains recorded.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 recovery in progress after completing p06-t01 and p06-t02. The task commits and prior direction-required event are preserved; phase verification and root review have not passed. No publication, global installation, live provider acceptance or later phase has completed.
+Quick workflow, p06 task implementation and bounded recovery complete. The two task commits, prior direction-required event and recovery commit are preserved; root review has not yet passed. No publication, global installation, live provider acceptance or later phase has completed.
 
 ## Artifacts
 
 - Discovery complete; revised decisions captured.
 - Design is the behavioral source of truth: three selectors, skill-owned executable, external state, selected-file drift comparison, honest findings/provenance.
 - Plan: seven tasks in three sequential phases. Original draft tasks are retired with a coverage map, not renumbered or marked complete. First active task is p06-t01.
-- Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; the phase is not accepted because verification is red and review did not run.
+- Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; bounded inventory recovery committed at `a1b2b427`. Verification is accepted with one operator-approved non-p06 host-sensitive baseline; root review remains pending.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -78,11 +69,11 @@ Quick workflow, p06 recovery in progress after completing p06-t01 and p06-t02. T
 
 ## Next Milestone
 
-Resume the original p06 implementer at the same exact target. Apply only the three bounded inventory corrections under phase-standing recovery, rerun focused and full phase verification while recording the accepted refine baseline failure honestly, then run the root-owned p06 review. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Run the independent root-owned p06 review against the complete phase range through recovery commit `a1b2b427`. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
-Both p06 task commits passed their focused verification. Full `pnpm run test` failed 4 of 2076 tests; a no-edit focused rerun reproduced all four failures. Three failures are p06 inventory omissions in release/versioning, repository layout and plugin-manifest expectations. The fourth is a repeated refine peer-ordering expectation (`claude,codex` versus `codex,claude`) outside the p06 changed source surface. The user explicitly authorized treating that fourth failure as an existing baseline for this run and continuing the three-file mechanical recovery. No recovery attempt has yet been reserved and root review has not run.
+Both p06 task commits and recovery commit passed focused verification, build freshness, type-check and validation. Root independently reran the full suite: 2,074 passed, one skipped and only the operator-approved refine host-sensitive assertion failed (`claude,codex` versus `codex,claude`). The three p06 inventory assertions now pass. Recovery usage is settled at 1/10 with `pending_attempt: null`; root review has not run.
 
 ## Operational Notes
 

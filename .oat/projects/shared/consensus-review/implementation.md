@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p06 recovery authorized after both task commits; phase verification and root review remain pending.
+**Status:** p06 implementation and bounded recovery verified; root-owned phase review is pending.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -79,6 +79,33 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Worktree: clean
 - Disposition: preserve both immutable task commits and stop for operator direction on the repeated non-p06 refine peer-ordering failure before bounded inventory recovery.
 
+#### Continuation 1 — p06 recovery
+
+- Continuation event: `cont-consensus-review-p06-recovery-1`
+- Recovery base: `70cdd5c5673f56606a97df90445d4ae6231269c3`
+- Dispatch target and axes: unchanged `oat-phase-implementer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p06-recovery-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Recovery commit: `a1b2b427fa3ca30744f301eb16d7b4b3ed2d9f61` (`fix(p06): register review skill inventories`)
+- Scope: three inventory expectation files plus the dedicated p06 recovery ledger
+- Verification: focused inventory checks passed; build freshness, type-check and validation passed; full suite reported 2,074 passed, one skipped and only the operator-approved refine host-sensitive baseline failure
+- Recovery accounting: attempt 1/10 recovered; completed marker validated and cleared; `pending_attempt: null`
+- Worktree: clean
+
+### Recovery Event p06-recovered-001
+
+- Phase/task: p06 / p06-t02
+- Original request: impl-consensus-review-p06-run2-20260917T0055Z
+- Original commit: 52b267c1fab7eb7c6cb0fb25b50607d10e685576
+- Defect class: composition
+- Discovered by: `pnpm run test`
+- Disposition: recovered
+- Authorization: operator-scope
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: a1b2b427fa3ca30744f301eb16d7b4b3ed2d9f61
+- Verification: focused inventory checks passed before and after commit; build freshness, type-check and validation passed; full suite retained only the exact authorized refine baseline.
+- Reason: The correction was limited to three deterministic inventory expectations, with no product/runtime/generated changes; the sole remaining failure exactly matched the operator-authorized non-p06 baseline.
+
 ### Recovery Event p06-direction-required-001
 
 - Phase/task: p06 / p06-t02
@@ -104,6 +131,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: User explicitly invoked and authorized a new `oat-project-implement` run. The prior accepted run remains terminal history; p06-t01 returns to pending and the new run will capture the exact post-bookkeeping HEAD.
 - 2026-09-17: The authorized p06 run created both planned task commits and passed focused checks. Full and focused phase verification repeatedly failed three mechanical inventory assertions plus one non-p06 refine peer-ordering assertion. The implementer stopped direction-required before reserving recovery; root review did not run.
 - 2026-09-17: The user authorized treating the repeated refine peer-ordering assertion as an existing baseline failure for this run and continuing the bounded p06 recovery. Scope remains limited to the three reported inventory expectation files; both task commits and the prior direction-required event remain immutable.
+- 2026-09-17: Same-target recovery attempt 1/10 committed the three bounded inventory corrections at `a1b2b427`; root independently confirmed the complete suite now retains only the exact authorized host-sensitive refine baseline. The completed marker was validated and cleared before p06 review.
 
 ## Deviations from Plan / Design
 
@@ -117,7 +145,9 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - p06-t02: 154 focused tests plus type-check, build freshness, affected-owner version validation, validation and formatting passed.
 - Phase-wide `pnpm run test`: failed 4 of 2076 tests.
 - Root-confirmed focused rerun: failed the same 4 of 32 tests in `tests/release/versioning.test.ts`, `tests/repo/layout.test.ts`, `tests/repo/plugin-manifests.test.ts` and `src/skills/refine/src/peer-model-forwarding.test.ts`.
-- Smoke, root phase review and later chained gates were not run because phase verification stopped direction-required.
+- Recovery-focused rerun: all 23 inventory tests passed; combined focused evidence was 31 passed with only the exact refine baseline failing.
+- Root-confirmed post-recovery full suite: 2,074 passed, one skipped and only the exact operator-approved refine host-sensitive assertion failed.
+- Build freshness, type-check and validation passed after recovery. Root phase review and later chained gates have not yet run.
 
 ## Planning review received
 
