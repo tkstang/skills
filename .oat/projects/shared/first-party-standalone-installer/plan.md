@@ -298,6 +298,7 @@ git commit -m "fix(installer): pin documented bootstrap tag"
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T231057Z.md | - | - | - |
 | plan   | artifact | fixes_completed | 2026-09-16 | reviews/archived/artifact-plan-review-2026-09-16T232140Z.md | - | - | - |
 | final  | code     | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T015346Z.md | 9538fa57917e636982eb4a59aafa2be8c3b7517a | auto | - |
+| final  | code     | received | 2026-09-17 | reviews/final-review-2026-09-17T020642Z.md | 7a85fd33013191b27a6a4d2a4c3ad6affba6a47e | gate | claude-fable-skip-permissions |
 
 The `spec` placeholder row is retained for ledger compatibility; quick mode does not produce `spec.md`.
 
