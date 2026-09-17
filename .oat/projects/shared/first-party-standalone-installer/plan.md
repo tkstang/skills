@@ -248,7 +248,7 @@ git commit -m "chore(installer): close first-party install backlog item"
 
 | Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -    | -        | -             | -          | -           |
+| p01    | code     | passed | 2026-09-17 | reviews/p01-review-2026-09-17T012147Z.md | 6800dcebee56689aa9045e0d471e815e564950f2 | manual | - |
 | final  | code     | pending | -    | -        | -             | -          | -           |
 | spec   | artifact | pending | -    | -        | -             | -          | -           |
 | design | artifact | pending | -    | -        | -             | -          | -           |

@@ -26,7 +26,7 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 3/3       |
+| Phase 1 | complete    | 3     | 3/3       |
 
 **Total:** 3/3 tasks completed
 
@@ -34,7 +34,7 @@ oat_generated: false
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
@@ -210,6 +210,21 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - Root-owned phase review, final lifecycle review, and configured closeout gates remain.
 
+### Run 3 — 2026-09-16
+
+- Branch: `standalone-installer`
+- Phase review target: `oat-reviewer-gpt-6-astra-xhigh-d2ba02747a`
+- Reviewed range: `01e459687e33459357774a4aa584c44d6a64a9a2..6800dcebee56689aa9045e0d471e815e564950f2`
+- Verdict: passed under the phase contract with 0 Critical, 0 Important, 1 Medium, and 0 Minor findings
+- Review artifact: `reviews/p01-review-2026-09-17T012147Z.md`
+- Reconnaissance: not attempted
+- Fix iterations: 0
+
+**Outstanding items:**
+
+- Medium M1: make the documented installer bootstrap resolve the fully qualified release tag rather than a same-named branch.
+- Final lifecycle review and configured closeout gates remain.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -276,6 +291,7 @@ Chronological log of implementation progress.
 - Recovery attempt 1 made no product-code commit and preserved immutable task history.
 - Operator direction resumed `p01-t03` for recovery attempt 2 with exact-target continuity and candidate-tree proof; no unrelated version bumps or validator changes are authorized.
 - Recovery attempt 2 completed in `372a69c0`; `p01-t03` completed in `0876525a`; all planned static verification passed.
+- Independent phase review passed with one non-blocking Medium bootstrap-tag finding recorded in `reviews/p01-review-2026-09-17T012147Z.md`.
 
 ---
 
@@ -320,6 +336,7 @@ Track test execution during implementation.
 **Design deltas (if any):**
 
 - Only test placement changed: standalone assertions moved outside `src/plugins/consensus` to avoid false shipped-skill version impact. Runtime design is unchanged.
+- Phase review left one Medium documentation finding for final lifecycle review: the bootstrap command must not prefer a same-named branch over the pinned tag.
 
 ## References
 

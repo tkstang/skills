@@ -88,7 +88,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T01:16:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T01:25:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -100,7 +100,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Tasks complete; awaiting independent phase review
+Implementation - Tasks and phase review complete; awaiting final lifecycle review
 
 ## Artifacts
 
@@ -120,7 +120,8 @@ Implementation - Tasks complete; awaiting independent phase review
 - ✓ `p01-t01` scoped installer behavior complete
 - ✓ `p01-t02` documentation and release contract complete
 - ✓ `p01-t03` full static gate and pending-live bookkeeping complete
-- ⧗ Independent phase review pending
+- ✓ Independent phase review passed with one non-blocking Medium finding
+- ⧗ Final lifecycle review pending
 
 ## Blockers
 
@@ -128,4 +129,4 @@ None
 
 ## Next Milestone
 
-Run the required root-owned phase review for `p01`.
+Run and receive the final lifecycle review for the final HiLL checkpoint.
