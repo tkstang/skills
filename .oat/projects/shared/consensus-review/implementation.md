@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: null
+oat_current_task_id: p09-t01
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** all seven implementation tasks are complete and final review round 3 passed with zero findings; the configured implementation exit gate is next.
+**Status:** configured exit-gate attempt 1 blocked with four accepted findings; p09 remediation starts at p09-t01.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,8 +19,9 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
+| p09 — Configured gate fixes | in_progress | 4 | 0/4 |
 
-**Total:** 7/7 task commits completed; all 3 implementation phases completed. Final lifecycle review remains pending.
+**Total:** 7/11 task commits completed; original phases complete and p09 remediation pending. The prior lifecycle final review passed; the configured exit gate must be re-run after p09 and a fresh final review.
 
 ## Tasks
 
@@ -285,6 +286,30 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: exact ancestry/range and four-file bookkeeping scope confirmed; before/after ledger comparison and `git diff --check` passed.
 - Disposition: final lifecycle review passed with no deferred Medium or Minor findings. Proceed to the configured implementation exit gate.
 
+### Configured Exit Gate Review Received: final
+
+**Date:** 2026-09-17
+**Review artifact:** reviews/archived/final-review-2026-09-17T062233Z.md
+**Gate run:** `87133850-151e-4827-9d7b-7cfd854c5724` via `cursor-fable-5-1-high`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 1
+- Minor: 2
+
+**New tasks added:** p09-t01, p09-t02, p09-t03, p09-t04
+
+**Disposition map:**
+
+- I1 → p09-t01 (`code_fix_required`): restore deterministic shared host priority/explicit-parent precedence so existing Consensus callers retain recursion-depth child environment in mixed-marker shells.
+- M1 → p09-t02 (`code_fix_required`): accept an explicit matching parent host despite unrelated ambient markers, retain mismatch/unknown failure rules, and document host evidence.
+- m1 → p09-t03 (`code_fix_required`): bind deterministic receipt fixtures to actual renderer bytes so evidence cannot drift silently.
+- m2 → p09-t04 (`code_fix_required`): reject symlink and non-regular request files before any blocking open/read.
+
+No finding is deferred or rejected. Blocking-gate auto-disposition converts all four while context is fresh. After p09, rerun final verification and lifecycle review, then resume the same persisted configured-gate generation under its two-attempt limit.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -377,6 +402,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: The configured gate emitted run marker `87133850-151e-4827-9d7b-7cfd854c5724` before reviewer dispatch; launch state advanced to `accepted` while the exact run remains active.
 - 2026-09-17: Correlated the configured gate's complete `blocked` envelope to run `87133850-151e-4827-9d7b-7cfd854c5724`, the gate-only review artifact and committed Reviews event. The envelope is receive-eligible with one Important, one Medium and two Minor findings; receive intent must be persisted before disposition.
 - 2026-09-17: Persisted configured-gate receive intent for the exact active artifact, collision-free archived destination and bound final/code Reviews event at pre-receive head `db9fe2d9` before applying autonomous blocking-gate dispositions.
+- 2026-09-17: Received configured exit-gate attempt 1 in autonomous blocking mode. All four findings were accepted as p09-t01 through p09-t04; none were deferred or rejected. The gate artifact moved to its collision-free archived path and the review event advanced to `fixes_added`.
 
 ## Deviations from Plan / Design
 

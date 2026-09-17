@@ -6,7 +6,7 @@ oat_last_updated: 2026-09-17
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p08"]
+oat_plan_hill_phases: ["p08", "p09"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
@@ -22,7 +22,7 @@ oat_template: false
 
 **Behavioral source of truth:** [design.md](design.md). This plan specifies work and proof, not a second copy of that contract.
 
-**Disposition:** Planning complete and ready for implementation. Fable approved the revision; the formal automatic artifact review passed without findings. The configured planning gate passed its Important threshold. The user approved all six finding dispositions, the four clarifications below, and continuation to the planning handoff. No implementation has started.
+**Disposition:** Original planning and seven implementation tasks completed. The lifecycle final review passed; configured exit-gate attempt 1 added the four p09 remediation tasks below before gate re-review and final HiLL approval.
 
 ## Planning and Execution Boundaries
 
@@ -49,11 +49,11 @@ The user explicitly approved replacing the unstarted 13-task/five-phase draft wi
 | p04-t03, p05-t01 | p08-t01 |
 | p05-t02, p05-t03 | p08-t02 |
 
-Execution order is p06 → p07 → p08. Higher IDs preserve old references; there are only three active phases. Existing review rows are retained as historical unbound placeholders, not outstanding gates on retired work.
+Execution order is p06 → p07 → p08 → p09. Higher IDs preserve old references; p09 is the configured-gate remediation phase added after the original three-phase implementation. Existing review rows are retained as historical unbound placeholders, not outstanding gates on retired work.
 
 ## Parallelism
 
-Sequential after explicit adjacent-phase analysis: p06 proves and changes the runner/installation seam that p07 consumes; p07 supplies the behavior and result model that p08 renders/documents/exercises. Canonical Review source and generated outputs overlap throughout. No independent write sets justify phase worktrees in parallel. Bounded read-only assistance need not become additional formal review gates.
+Sequential after explicit adjacent-phase analysis: p06 proves and changes the runner/installation seam that p07 consumes; p07 supplies the behavior and result model that p08 renders/documents/exercises; p09 repairs the configured-gate findings against the completed system. Canonical Review source and generated outputs overlap throughout. No independent write sets justify phase worktrees in parallel. Bounded read-only assistance need not become additional formal review gates.
 
 ## Phase 6: Installable, safe foundation (2 tasks)
 
@@ -145,6 +145,56 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 **Commit:** `chore(p08-t02): verify review receipt and delivery`.
 
+## Phase 9: Configured gate fixes (4 tasks)
+
+### Task p09-t01: (review) Restore mixed-marker host detection
+
+**Files:** Modify `src/plugins/consensus/provider-cli/host-guard.ts` and `src/plugins/consensus/provider-cli/host-guard.test.ts`; regenerate affected declared outputs and update affected owner versions/changelog entries required by repository validation.
+
+**Build:** Restore deterministic shared host detection for existing Consensus workflows. A known explicit `CONSENSUS_PARENT_HOST` takes precedence; otherwise preserve the established Claude → Codex → Cursor priority when multiple ambient markers are present. Prove `evaluateHostGuard` still emits incremented `CONSENSUS_DEPTH` and `CONSENSUS_PARENT_HOST` child environment in mixed-marker cases.
+
+**Verify:** Run the host-guard, existing Consensus caller, generated freshness, type-check, version/changelog and diff gates. Include `{CLAUDECODE, CURSOR_TRACE_ID}` and `{CONSENSUS_PARENT_HOST: codex, CURSOR_AGENT}` regressions.
+
+**Format:** `pnpm exec oxfmt --write src/plugins/consensus/provider-cli/host-guard.ts src/plugins/consensus/provider-cli/host-guard.test.ts` plus exact changed authored owner/changelog paths.
+
+**Commit:** `fix(p09-t01): restore mixed-marker host detection`.
+
+### Task p09-t02: (review) Honor explicit Review host identity
+
+**Files:** Modify `src/plugins/consensus/provider-cli/host-guard.ts`, `src/plugins/consensus/provider-cli/host-guard.test.ts`, `src/skills/consensus-review/src/run.test.ts`, `src/skills/consensus-review/SKILL.md`, `documentation/docs/user-guide/consensus/review.md`, `CHANGELOG.md`, and regenerated Review payloads.
+
+**Build:** When `CONSENSUS_PARENT_HOST` is known, make it authoritative for `resolveExplicitHostContext`: accept only when it matches `--host`, ignore unrelated ambient markers, and reject explicit mismatches. Without an explicit parent, retain the exact-single-detected-runtime rule. Document host evidence, marker-free shell behavior, and `unknown_host` / `contradictory_host` failures.
+
+**Verify:** Cover explicit-parent-plus-ambient allow, explicit mismatch block, mixed live-style markers, zero provider invocation on predispatch failure, docs accuracy, build freshness, type-check and required version/changelog gates.
+
+**Format:** `pnpm exec oxfmt --write` on the exact changed host-guard, Review test/skill, docs and changelog paths; do not format generated outputs.
+
+**Commit:** `fix(p09-t02): honor explicit review host identity`.
+
+### Task p09-t03: (review) Bind receipt fixtures to renderer output
+
+**Files:** Modify `src/skills/consensus-review/src/review.test.ts` and the receipt fixtures/evidence only if deterministic renderer parity requires a justified refresh; update the Review version/changelog and regenerate declared outputs as required.
+
+**Build:** Construct the clean and all-severity deterministic aggregates used by receipt evidence and assert `renderReviewMarkdown` produces the exact fixture bytes. Keep fixture hashes, renderer output and recorded receipt identities attributable to the same canonical output.
+
+**Verify:** Run Review renderer tests, `tests/tooling/consensus-review-receipt.test.ts`, packaging/generated freshness, type-check, version/changelog and diff gates.
+
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/review.test.ts` plus exact changed authored fixture/evidence/changelog paths; manually check generated/OAT evidence.
+
+**Commit:** `test(p09-t03): bind receipt fixtures to renderer`.
+
+### Task p09-t04: (review) Reject unsafe request-file inputs before open
+
+**Files:** Modify `src/skills/consensus-review/src/review.ts`, `src/skills/consensus-review/src/review.test.ts`, canonical metadata/changelog and regenerated Review payloads.
+
+**Build:** Reject symlink and non-regular `--request-file` paths before any blocking read. Use a pre-open `lstat` plus no-follow/nonblocking open semantics where available, preserve bounded regular-file reads and return the existing structured usage failure without provider invocation.
+
+**Verify:** Add FIFO, symlink and regular-file regressions; run focused Review/run/packaging tests, build freshness, type-check, validation, version/changelog, scoped lint/format and diff gates.
+
+**Format:** `pnpm exec oxfmt --write src/skills/consensus-review/src/review.ts src/skills/consensus-review/src/review.test.ts src/skills/consensus-review/SKILL.md CHANGELOG.md` on changed authored paths.
+
+**Commit:** `fix(p09-t04): reject unsafe request-file inputs`.
+
 ## Reviews
 
 Existing review events are preserved. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode.
@@ -170,15 +220,15 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | plan | artifact | fixes_completed | 2026-09-17 | reviews/archived/artifact-plan-review-2026-09-17T000849Z.md | - | - | - |
 | final | code | fixes_completed | 2026-09-17 | reviews/final-review-2026-09-17T055634Z.md | bb59b849a499e7ebfddb11c87b0c322cfd04fd60 | auto | - |
 | final | code | passed | 2026-09-17 | reviews/final-review-2026-09-17T060326Z.md | c60f3fe354439971b00612ccf3325c05777b9fe6 | auto | - |
-| final | code | received | 2026-09-17 | reviews/final-review-2026-09-17T062233Z.md | e4aa759ea6ad0d1c2d2d65eb1068d2373b7f44b2 | gate | cursor-fable-5-1-high |
+| final | code | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T062233Z.md | e4aa759ea6ad0d1c2d2d65eb1068d2373b7f44b2 | gate | cursor-fable-5-1-high |
 
 Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected because the template flag was required before completion; it is cleared now as the normal readiness transition. M2 and m2–m4 are resolved by four plan clarifications. For m1, retain the historical auto row and use `-` in future artifact-row provenance cells. Full dispositions are in implementation.md. The gate passed its Important threshold; `fixes_completed` records applied edits without claiming a new clean re-review. The user approved continuing the phase flow, so no additional gate or review was launched.
 
 ## Implementation Complete
 
-Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2.
-**Total: 7/7 active tasks across 3 sequential phases completed.**
-The p06 and p07 reviews passed after bounded fixes. The final implementation phase intentionally routes to the single `final` lifecycle review rather than a duplicate p08-only review. Final review, the configured implementation exit gate and final HiLL approval remain pending.
+Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2; configured-gate remediation p09 0/4.
+**Total: 7/11 active tasks across 4 sequential phases completed.**
+The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks. Re-run final verification/review and the persisted gate generation after p09; final HiLL approval remains pending at the new final phase.
 
 ## References
 

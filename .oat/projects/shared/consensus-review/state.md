@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p09-t01
 oat_last_commit: e367ae21ba810c2a8ac6494d99b27dcfaaf46c1c
 oat_blockers: []
 associated_issues:
@@ -12,6 +12,7 @@ oat_depends_on: []
 oat_children: []
 oat_hill_checkpoints:
   - p08
+  - p09
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_dispatch_policy:
@@ -79,14 +80,14 @@ oat_generated: false
 
 # Project State: Consensus Review
 
-**Status:** all seven implementation tasks are complete and final review round 3 passed with zero findings. The configured implementation exit gate is next; final HiLL approval remains pending.
+**Status:** configured implementation exit-gate attempt 1 blocked with one Important, one Medium and two Minor findings. All four are accepted as p09 remediation tasks; p09-t01 is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — tasks and final review complete. Round 3 passed the guarded bookkeeping range with zero findings after both bounded fix iterations. The configured implementation exit gate is next, followed by final HiLL approval. No publication, global installation or live provider acceptance has completed.
+Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. p09 contains four sequential fixes. No publication, global installation or product live-provider acceptance has completed.
 
 ## Artifacts
 
@@ -102,6 +103,7 @@ Implementation — tasks and final review complete. Round 3 passed the guarded b
 - Final-review fix iteration 1/2: both findings fixed at `93575af0`; 104 root-focused tests plus build freshness, type-check and exact-range checks passed, and the implementer's full premerge passed 2,016 tests with one skipped.
 - Final review round 2 and fix iteration 2/2: [final-review-2026-09-17T055634Z.md](reviews/final-review-2026-09-17T055634Z.md) verified the product fixes and requested one ledger alignment; `8d8ff233` corrected the prior status while preserving both review events.
 - Final review round 3: [final-review-2026-09-17T060326Z.md](reviews/final-review-2026-09-17T060326Z.md) passed at `c60f3fe3` with zero findings and no deferred debt.
+- Configured exit-gate attempt 1: run `87133850-151e-4827-9d7b-7cfd854c5724`, consumed artifact `reviews/archived/final-review-2026-09-17T062233Z.md`, four accepted p09 fix tasks, no deferrals.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -116,11 +118,11 @@ Implementation — tasks and final review complete. Round 3 passed the guarded b
 
 ## Next Milestone
 
-Resolve and execute the configured implementation exit gate against the committed final-review pass, then continue to the final HiLL approval boundary. No live provider acceptance may be inferred or run without separate authorization.
+Execute p09-t01 through p09-t04, complete full verification and a fresh final lifecycle review, then resume the persisted configured-gate generation. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-Final review round 3 passed with 0 Critical, 0 Important, 0 Medium and 0 Minor findings. It verified exact ancestry, the four-file bookkeeping-only range, preserved review provenance and aligned statuses; `git diff --check` passed. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
+Configured exit-gate attempt 1 independently passed 232 focused tests plus build freshness, type-check, version/changelog and diff checks, then blocked at its Important threshold with 0 Critical, 1 Important, 1 Medium and 2 Minor findings. All four are accepted for p09. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
 
 ## Progress
 
@@ -131,7 +133,8 @@ Final review round 3 passed with 0 Critical, 0 Important, 0 Medium and 0 Minor f
 - ✓ p08 receipt and delivery acceptance complete
 - ✓ Final lifecycle review fixes complete (2/2)
 - ✓ Final lifecycle review round 3 passed
-- ⧗ Implementation exit gate and final HiLL approval pending
+- ⧗ Configured exit-gate remediation p09 (0/4)
+- ⧗ Exit-gate re-run and final HiLL approval pending
 
 ## Operational Notes
 
