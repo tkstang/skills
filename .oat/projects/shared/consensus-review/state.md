@@ -1,6 +1,6 @@
 ---
 oat_current_task: p06-t02
-oat_last_commit: a1b2b427fa3ca30744f301eb16d7b4b3ed2d9f61
+oat_last_commit: 8a7871af3feb8d4582d5bf988cc798001634a535
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,20 +34,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T03:07:13Z'
+oat_project_state_updated: '2026-09-17T03:25:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p06 review round 1 requested fixes for two Important safety findings. Bounded fix iteration 1/2 is next; recovery remains settled at 1/10.
+**Status:** p06 fix iteration 1 completed both Important findings. Current main integration and root review round 2 are next; recovery remains settled at 1/10.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 task implementation and bounded recovery complete. Review round 1 found two Important safety defects; the original implementer will address them under bounded fix iteration 1/2. No publication, global installation, live provider acceptance or later phase has completed.
+Quick workflow, p06 task implementation, recovery and bounded review fix iteration 1 complete. Current main will be integrated before root review round 2. No publication, global installation, live provider acceptance or later phase has completed.
 
 ## Artifacts
 
@@ -69,7 +69,7 @@ Quick workflow, p06 task implementation and bounded recovery complete. Review ro
 
 ## Next Milestone
 
-Resume the original p06 implementer with only review findings I1 and I2, verify one bounded fix commit and full phase evidence, then run review round 2. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Integrate current `origin/main`, reconcile its new changelog/version gate without altering p06 behavior, verify the branch, then run independent p06 review round 2. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 

@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p06 review round 1 requested fixes for two Important safety findings; bounded fix iteration 1 is pending.
+**Status:** p06 bounded fix iteration 1 completed both Important findings; main integration and review round 2 are next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -104,6 +104,18 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: 111 scoped tests and 23 inventory tests passed; build freshness, type-check, validation, skill-version propagation and diff checks passed; two deterministic no-provider probes reproduced I1 and I2.
 - Disposition: route both Important findings to the original p06 implementer under bounded fix iteration 1/2, then re-review the updated range.
 
+#### Fix Iteration 1 — completed
+
+- Continuation event: `cont-consensus-review-p06-review-fix-1`
+- Fix base: `576ed5d8aed3e0c91c0f9392eb43af63b9df5ef5`
+- Fix commit: `8a7871af3feb8d4582d5bf988cc798001634a535` (`fix(p06): fail closed on transport boundaries`)
+- I1: fixed with canonical capture identity, safe external destination checks, exclusive creation and source/installed-bundle regressions.
+- I2: fixed with fail-closed malformed/non-safe/out-of-range inherited depth and zero-invocation source/installed-bundle regressions.
+- Dispatch target and axes: unchanged `oat-phase-implementer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p06-review-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Verification: 124 focused tests passed; build, build freshness, type-check, validation, affected-owner versions and scoped lint/format passed; full suite retained only the then-authorized refine baseline.
+- Worktree: clean; exactly one append-only fix commit.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -146,6 +158,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: The user authorized treating the repeated refine peer-ordering assertion as an existing baseline failure for this run and continuing the bounded p06 recovery. Scope remains limited to the three reported inventory expectation files; both task commits and the prior direction-required event remain immutable.
 - 2026-09-17: Same-target recovery attempt 1/10 committed the three bounded inventory corrections at `a1b2b427`; root independently confirmed the complete suite now retains only the exact authorized host-sensitive refine baseline. The completed marker was validated and cleared before p06 review.
 - 2026-09-17: Independent p06 review round 1 requested changes for two Important fail-open safety defects: canonical Codex capture confinement and malformed inherited depth. The artifact is committed as `fixes_added`; both findings return to the original implementer in bounded fix iteration 1/2.
+- 2026-09-17: Bounded fix iteration 1 completed I1 and I2 in one append-only commit with source and copied-installed-bundle regressions. The review event advances to `fixes_completed`; current main will be integrated at the clean boundary before review round 2.
 
 ## Deviations from Plan / Design
 
@@ -162,6 +175,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Recovery-focused rerun: all 23 inventory tests passed; combined focused evidence was 31 passed with only the exact refine baseline failing.
 - Root-confirmed post-recovery full suite: 2,074 passed, one skipped and only the exact operator-approved refine host-sensitive assertion failed.
 - Build freshness, type-check and validation passed after recovery. Root phase review and later chained gates have not yet run.
+- Review fix iteration 1: 124 focused tests passed; build, build freshness, type-check, validation, affected-owner version checks and scoped lint/format passed. Root independently reran 72 boundary-focused tests successfully.
 
 ## Planning review received
 
