@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 73c8bd4cea60ac19b1234e622ab63dfa10f5b6bb
+oat_last_commit: 93856bd2c29edb8bfa434e44140b1cd205999650
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -47,8 +47,8 @@ oat_implement_exit_gate:
   reviewed_head: 62cc7054eb02ed9bf71efa1f59a1256c74661d1d
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
-  freshness_head: 62cc7054eb02ed9bf71efa1f59a1256c74661d1d
-  freshness_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
+  freshness_head: 73c8bd4cea60ac19b1234e622ab63dfa10f5b6bb
+  freshness_fingerprint: 'sha256:effective-delta-v1:bb1ad324823d94db85508b6b6ef99e3ea78d309cc80ec02dc0b37771cd87f861'
   launch_state: not_started
   launch_attempt_id: null
   launch_started_at: null
