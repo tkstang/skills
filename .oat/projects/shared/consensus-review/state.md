@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. All four p09 fixes are committed and root-verified; independent phase review remains. No publication, global installation or product live-provider acceptance has completed.
+Implementation — configured-gate remediation. Original p06–p08 tasks and lifecycle final review completed, then the configured cross-family gate blocked on four accepted host-detection, documentation/test and request-file robustness findings. All four original p09 fixes are committed and root-verified; independent p09 review and its nonblocking evidence cleanup are complete. The post-gate final review added p09-t05 and p09-t06. Fresh final re-review, configured gate attempt 2/2 and final HiLL approval remain outstanding. No publication, global installation or product live-provider acceptance has completed.
 
 ## Artifacts
 

@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** fresh final review passed its blocking threshold and auto-converted two Minor lifecycle-artifact fixes; p09-t05 is next.
+**Status:** independent p09 review and its nonblocking evidence cleanup are complete. The post-gate final review passed its blocking threshold and auto-converted two Minor lifecycle-artifact fixes; p09-t05 is next, with a fresh final re-review afterward.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
