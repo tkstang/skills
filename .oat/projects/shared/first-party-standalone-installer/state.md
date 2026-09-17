@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 3d9da99d9cff0042506299af6abd1bb3d3b0f60d
+oat_last_commit: 4dc9fdc60f3f46a1474d3ab8efd9e454c5e93baf
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ["p01"] # Configured: which phases require human-in-the-lo
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: pr_open # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -135,7 +135,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/90" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T12:48:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T12:49:03Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -147,7 +147,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — PR open; completion may run before or after merge.
+Implementation complete — PR open for review.
 
 ## Artifacts
 
@@ -155,7 +155,7 @@ Implementation — PR open; completion may run before or after merge.
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete; two received gate events have fixes completed without a clean re-gate)
-- **Implementation:** `implementation.md` (in progress)
+- **Implementation:** `implementation.md` (complete)
 
 ## Progress
 
@@ -186,7 +186,8 @@ Implementation — PR open; completion may run before or after merge.
 - ✓ Final PR artifact ready
 - ✓ PR created
 - ⧗ Awaiting human review
-- ⧗ Final HiLL closeout pending
+- ✓ Post-implementation sequence complete; final checkpoint not required for p03
+- ✓ Implementation complete
 
 ## Blockers
 
