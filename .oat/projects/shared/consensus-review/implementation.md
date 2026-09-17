@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: null
+oat_current_task_id: p09-t05
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** p09 review passed and its nonblocking Medium evidence clarification is complete; fresh final lifecycle review is next.
+**Status:** fresh final review passed its blocking threshold and auto-converted two Minor lifecycle-artifact fixes; p09-t05 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,9 +19,9 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | completed | 4 | 4/4 |
+| p09 — Configured gate fixes | in_progress | 6 | 4/6 |
 
-**Total:** 11/11 task commits completed. The prior lifecycle final review passed; p09 phase review, fresh final review and configured exit-gate attempt 2/2 remain.
+**Total:** 11/13 task commits completed. The fresh final review passed with two auto-converted Minor artifact-alignment tasks; configured exit-gate attempt 2/2 remains after their implementation and final re-review.
 
 ## Tasks
 
@@ -38,6 +38,8 @@ oat_generated: false
 | p09-t02 | done | `160661cbf470d16b507cfe7cc8df25be5f7eafe3` | 51 focused tests plus validation, build, type-check, freshness, version/changelog and scoped static checks passed. |
 | p09-t03 | done | `25b075bbb15be4b9df62c9a67a66f9bb0785baac` | 64 focused renderer/receipt/packaging tests plus exact fixture hashes, build, type-check, freshness and version gates passed. |
 | p09-t04 | done | `bbdb284780b9b336859af11a2317866407eb3271` | 87 focused Review/run/packaging tests plus FIFO/symlink/regular regressions, build, type-check, validation, freshness and static gates passed. |
+| p09-t05 | pending | - | Align stale current-status prose after completed p09 review. |
+| p09-t06 | pending | - | Reconcile durable project references with archived backlog and consumed handoff. |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
@@ -360,6 +362,20 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - m2 → p09-t04 (`code_fix_required`): reject symlink and non-regular request files before any blocking open/read.
 
 No finding is deferred or rejected. Blocking-gate auto-disposition converts all four while context is fresh. After p09, rerun final verification and lifecycle review, then resume the same persisted configured-gate generation under its two-attempt limit.
+
+### Post-Gate Final Review Received: final
+
+**Date:** 2026-09-17
+**Review artifact:** reviews/archived/final-review-2026-09-17T071244Z.md
+**Reviewed head:** `8b84b4e0407772b9d859a0cb7778b0dbad7e3c18`
+**Verdict:** passed blocking threshold; Critical 0, Important 0, Medium 0, Minor 2
+
+**Auto-dispositions:**
+
+- m1 → p09-t05 (`artifact_alignment_required`): remove stale current-status claims that completed p09 review remains pending.
+- m2 → p09-t06 (`artifact_alignment_required`): repoint the backlog references to the archived item and replace removed handoff links with immutable consumed-handoff provenance.
+
+Both Minor findings are small, in-scope artifact alignment and are auto-converted under the review's `auto` invocation. Nothing is deferred or rejected. The review event remains `fixes_added` until both commits complete and a fresh final re-review passes.
 
 ### Recovery Event p06-recovered-001
 

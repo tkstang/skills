@@ -195,6 +195,30 @@ Sequential after explicit adjacent-phase analysis: p06 proves and changes the ru
 
 **Commit:** `fix(p09-t04): reject unsafe request-file inputs`.
 
+### Task p09-t05: (review) Align completed p09 lifecycle prose
+
+**Files:** Modify only the current-status prose in `implementation.md` and `state.md`; preserve historical review events and provenance.
+
+**Build:** Remove statements that p09 review remains pending now that its independent review passed and nonblocking cleanup completed. Keep only the fresh final-review receipt, configured exit-gate attempt 2/2 and final HiLL approval as outstanding.
+
+**Verify:** Inspect both current-status sections, preserve the append-ordered review ledger, and run Markdown formatting plus `git diff --check`.
+
+**Format:** Format only the changed OAT project Markdown files if required.
+
+**Commit:** `docs(p09-t05): align completed review status`.
+
+### Task p09-t06: (review) Reconcile consumed PJM references
+
+**Files:** Modify the References sections of `discovery.md`, `design.md`, and `plan.md` only.
+
+**Build:** Point backlog references at the archived backlog item. Replace links to the deliberately removed kickoff handoff with plain consumed-handoff provenance naming the immutable consumption commit; do not recreate compatibility files.
+
+**Verify:** Resolve every retained local Markdown link, confirm the removed handoff path is no longer linked, run plan validation, Markdown formatting and `git diff --check`.
+
+**Format:** Format only the three changed OAT project Markdown files if required.
+
+**Commit:** `docs(p09-t06): reconcile consumed pjm references`.
+
 ## Reviews
 
 Existing review events are preserved. p01–p05 are retired unexecuted draft phases, not unfinished implementation; spec is unused in quick mode.
@@ -222,14 +246,15 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | final | code | fixes_completed | 2026-09-17 | reviews/final-review-2026-09-17T055634Z.md | bb59b849a499e7ebfddb11c87b0c322cfd04fd60 | auto | - |
 | final | code | passed | 2026-09-17 | reviews/final-review-2026-09-17T060326Z.md | c60f3fe354439971b00612ccf3325c05777b9fe6 | auto | - |
 | final | code | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T062233Z.md | e4aa759ea6ad0d1c2d2d65eb1068d2373b7f44b2 | gate | cursor-fable-5-1-high |
+| final | code | fixes_added | 2026-09-17 | reviews/archived/final-review-2026-09-17T071244Z.md | 8b84b4e0407772b9d859a0cb7778b0dbad7e3c18 | auto | - |
 
 Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected because the template flag was required before completion; it is cleared now as the normal readiness transition. M2 and m2–m4 are resolved by four plan clarifications. For m1, retain the historical auto row and use `-` in future artifact-row provenance cells. Full dispositions are in implementation.md. The gate passed its Important threshold; `fixes_completed` records applied edits without claiming a new clean re-review. The user approved continuing the phase flow, so no additional gate or review was launched.
 
 ## Implementation Complete
 
-Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2, configured-gate remediation p09 4/4.
-**Total: 11/11 active tasks across 4 sequential phases completed.**
-The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are committed, root-verified and independently phase-reviewed with no blocking findings; its one nonblocking evidence clarification is also complete. Fresh final lifecycle review and configured exit-gate attempt 2/2 remain; final HiLL approval is pending at p09.
+Implementation tasks completed: p06 2/2, p07 3/3, p08 2/2; configured-gate remediation p09 4/6.
+**Total: 11/13 active tasks across 4 sequential phases completed.**
+The p06 and p07 reviews passed after bounded fixes, and the lifecycle final review passed before the configured exit gate. The first configured-gate attempt added four p09 remediation tasks, which are committed, root-verified and independently phase-reviewed with no blocking findings; its one nonblocking evidence clarification is also complete. The fresh final review passed its blocking threshold and added two auto-converted Minor artifact-alignment tasks. After p09-t05 and p09-t06, re-review final scope, run configured exit-gate attempt 2/2, then reach final HiLL approval at p09.
 
 ## References
 
