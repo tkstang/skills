@@ -149,6 +149,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 - Candidates considered: `gpt-6-astra/high`, `gpt-5.6-sol/medium`, `gpt-5.6-sol/high`
 - Launch status / child outcome: `accepted` / `BLOCKED`
 - Phase base / returned head: `01e459687e33459357774a4aa584c44d6a64a9a2` / `e5a9c9717a313590803633930855af9784adb5c2`
+- Continuation events: `cont-first-party-standalone-installer-p01-recover-2` — same accepted handle, `mode: implement`, operator-authorized bounded recovery attempt 2 followed by the remaining `p01-t03` work; exact target and dispatch axes unchanged
 - Optional children: none
 - Dispatch stamp: `Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6-astra effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=xhigh target=oat-phase-implementer-gpt-6-astra-high-5b14a55346`
 
