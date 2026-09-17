@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: f93786eb74cb49b301db134efda23867652e4b08
+oat_last_commit: 93575af0ba215d2b4e753243661eb78c58f9bacf
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -37,20 +37,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T05:45:00Z'
+oat_project_state_updated: '2026-09-17T05:56:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** all seven implementation tasks are complete. Final review round 1 requested one Important and one Medium fix; bounded final-review fix iteration 1/2 is next.
+**Status:** all seven implementation tasks and final-review fix iteration 1/2 are complete. Final review round 2 is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — tasks complete; final review fixes in progress. Round 1 found atomic-publication and bounded-request-read defects in the shared Review implementation. Both are accepted for one integrated fix iteration before final re-review. No publication, global installation or live provider acceptance has completed.
+Implementation — tasks complete; final-review fixes complete. The atomic-publication and bounded-request-read defects are fixed together at `93575af0`, with generated outputs and Review version `0.1.8`. Final review round 2 is next. No publication, global installation or live provider acceptance has completed.
 
 ## Artifacts
 
@@ -63,6 +63,7 @@ Implementation — tasks complete; final review fixes in progress. Round 1 found
 - p08 recovery 2: stale Consensus manifest expectation corrected at `9a286249`; the immutable recovery commit also moved the exact p08-t02 backlog item into its archive with no content change. Remaining closure metadata stays in the planned p08-t02 work.
 - p08-t02: deterministic receipt evidence and PJM closure committed at `aad79ef5`; the exact backlog item is closed/archived, only its consumed handoff was removed, and adjacent work remains open.
 - Final review round 1: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md) at `b5fe65d8` requested one Important atomic-publication fix and one Medium bounded-read fix; both are accepted for bounded iteration 1/2.
+- Final-review fix iteration 1/2: both findings fixed at `93575af0`; 104 root-focused tests plus build freshness, type-check and exact-range checks passed, and the implementer's full premerge passed 2,016 tests with one skipped.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -77,11 +78,11 @@ Implementation — tasks complete; final review fixes in progress. Round 1 found
 
 ## Next Milestone
 
-Apply both accepted final-review findings in one append-only fix commit, rerun focused and repository gates, and perform final review round 2. The configured implementation exit gate and final HiLL approval remain pending. No live provider acceptance may be inferred or run without separate authorization.
+Run final review round 2 over the guarded narrowed range from the prior reviewed head through the committed fix/bookkeeping head. The configured implementation exit gate and final HiLL approval remain pending. No live provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-Final review round 1 independently passed 226 focused tests, build freshness, type-check and range diff checks, then requested changes with 0 Critical, 1 Important, 1 Medium and 0 Minor findings. It classified the unchanged `.claude/skills/**` symlink traversal as a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
+Final-review fix iteration 1/2 passed 104 root-focused tests, build freshness, type-check and exact-range checks; the implementer's post-commit premerge passed 2,016 tests with one skipped plus validation, smoke, version/changelog and scoped lint/format gates. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
 
 ## Progress
 
@@ -90,7 +91,8 @@ Final review round 1 independently passed 226 focused tests, build freshness, ty
 - ✓ All seven implementation tasks complete
 - ✓ Phase p06 and p07 reviews passed
 - ✓ p08 receipt and delivery acceptance complete
-- ⧗ Final lifecycle review fixes in progress
+- ✓ Final lifecycle review fixes complete
+- ⧗ Final lifecycle re-review pending
 - ⧗ Implementation exit gate and final HiLL approval pending
 
 ## Operational Notes

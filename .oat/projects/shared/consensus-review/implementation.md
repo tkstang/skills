@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** all seven implementation tasks are complete; final review round 1 requested one Important and one Medium fix, and bounded fix iteration 1/2 is next.
+**Status:** all seven implementation tasks and final-review fix iteration 1/2 are complete; final review round 2 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -241,6 +241,17 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: 226 focused tests, build freshness, type-check and range diff checks passed; deterministic probes reproduced M1 and direct code/contract inspection verified I1. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue.
 - Disposition: route both accepted same-module findings to the p08 implementer in one bounded final-review fix iteration 1/2, then re-review the corrected range.
 
+#### Final Review Fix Iteration 1/2 — complete
+
+- Base: `a9bf6887ade752dbb8b64b355afac65ca5281c96`
+- Commit: `93575af0ba215d2b4e753243661eb78c58f9bacf`
+- I1: canonical and exported Markdown now use fully written/synced private temporary files plus atomic no-clobber publication; failures clean temporary state and disclose diagnostic paths only after successful persistence.
+- M1: request files now use bounded chunked reads from the already-open handle with one overflow-detection byte; concurrent growth is rejected before any provider invocation.
+- Version: Consensus Review `0.1.7` → `0.1.8`, with matching Unreleased changelog entry and regenerated standalone/plugin payloads.
+- Implementer verification: 80 focused tests and full premerge with 2,016 passed plus one skipped; type-check, build/freshness, validation, smoke, 11-owner version/changelog gate, scoped lint/format and diff checks passed.
+- Root verification: 104 focused tests, build freshness, type-check and exact fix-range diff checks passed; worktree clean.
+- Disposition: preserve the one append-only fix commit and run final review round 2 over the guarded narrowed range.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -325,6 +336,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: p08-t02 used the current `oat-review-receive` 1.4.1 skill with an independent Codex alternate in a disposable destination. Completed clean and all-severity fixtures normalized exactly as expected; the defective diagnostic was rejected and not offered for receipt. The exact backlog item was closed and archived, current-state/roadmap/index surfaces were refreshed, and only its consumed kickoff handoff was removed. Live provider, external-install, native-continuation, and fresh-session discovery acceptance remain unverified.
 - 2026-09-17: p08-t02 committed at `aad79ef5`; root independently reran focused, premerge, version/internal/PJM and production docs gates. All seven tasks are complete, the task pointer is cleared, and the terminal implementation baseline is ready for final lifecycle review.
 - 2026-09-17: Final review round 1 requested one Important atomic-publication fix and one Medium bounded-read fix. Root accepts both as implementation defects; none are deferred or dismissed, and the p08 implementer receives one bounded same-module fix iteration before final re-review.
+- 2026-09-17: Final-review fix iteration 1/2 committed both accepted fixes at `93575af0`, advanced Consensus Review to `0.1.8`, regenerated declared outputs and passed focused/full repository gates. Root independently verified the fix range; final review round 2 is next.
 
 ## Deviations from Plan / Design
 
