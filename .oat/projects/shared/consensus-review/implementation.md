@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p06 implementation and bounded recovery verified; root-owned phase review is pending.
+**Status:** p06 review round 1 requested fixes for two Important safety findings; bounded fix iteration 1 is pending.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -91,6 +91,19 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Recovery accounting: attempt 1/10 recovered; completed marker validated and cleared; `pending_attempt: null`
 - Worktree: clean
 
+#### Review Round 1 — changes requested
+
+- Request ID: `review-consensus-review-p06-20260917T0257Z`
+- Artifact: [p06-review-2026-09-17T030501Z.md](reviews/p06-review-2026-09-17T030501Z.md)
+- Reviewed head: `fd596f1f2e4ef8fffecf3df5013acf3a8a0a9ff7`
+- Verdict: changes requested; Critical 0, Important 2, Medium 0, Minor 0
+- Reconnaissance: not attempted
+- Blocking findings: I1 canonical confinement and exclusive external-destination safety for Codex capture; I2 fail-closed handling for malformed inherited depth.
+- Dispatch target and axes: `oat-reviewer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p06 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+- Verification: 111 scoped tests and 23 inventory tests passed; build freshness, type-check, validation, skill-version propagation and diff checks passed; two deterministic no-provider probes reproduced I1 and I2.
+- Disposition: route both Important findings to the original p06 implementer under bounded fix iteration 1/2, then re-review the updated range.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -132,6 +145,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: The authorized p06 run created both planned task commits and passed focused checks. Full and focused phase verification repeatedly failed three mechanical inventory assertions plus one non-p06 refine peer-ordering assertion. The implementer stopped direction-required before reserving recovery; root review did not run.
 - 2026-09-17: The user authorized treating the repeated refine peer-ordering assertion as an existing baseline failure for this run and continuing the bounded p06 recovery. Scope remains limited to the three reported inventory expectation files; both task commits and the prior direction-required event remain immutable.
 - 2026-09-17: Same-target recovery attempt 1/10 committed the three bounded inventory corrections at `a1b2b427`; root independently confirmed the complete suite now retains only the exact authorized host-sensitive refine baseline. The completed marker was validated and cleared before p06 review.
+- 2026-09-17: Independent p06 review round 1 requested changes for two Important fail-open safety defects: canonical Codex capture confinement and malformed inherited depth. The artifact is committed as `fixes_added`; both findings return to the original implementer in bounded fix iteration 1/2.
 
 ## Deviations from Plan / Design
 

@@ -34,20 +34,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T02:56:20Z'
+oat_project_state_updated: '2026-09-17T03:07:13Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p06 recovery passed and its ledger is settled at 1/10. Root-owned phase review is next; the accepted host-sensitive refine baseline remains recorded.
+**Status:** p06 review round 1 requested fixes for two Important safety findings. Bounded fix iteration 1/2 is next; recovery remains settled at 1/10.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 task implementation and bounded recovery complete. The two task commits, prior direction-required event and recovery commit are preserved; root review has not yet passed. No publication, global installation, live provider acceptance or later phase has completed.
+Quick workflow, p06 task implementation and bounded recovery complete. Review round 1 found two Important safety defects; the original implementer will address them under bounded fix iteration 1/2. No publication, global installation, live provider acceptance or later phase has completed.
 
 ## Artifacts
 
@@ -69,7 +69,7 @@ Quick workflow, p06 task implementation and bounded recovery complete. The two t
 
 ## Next Milestone
 
-Run the independent root-owned p06 review against the complete phase range through recovery commit `a1b2b427`. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Resume the original p06 implementer with only review findings I1 and I2, verify one bounded fix commit and full phase evidence, then run review round 2. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
