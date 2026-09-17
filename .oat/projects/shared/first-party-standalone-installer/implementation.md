@@ -645,6 +645,10 @@ its rolling fingerprint is
 `sha256:effective-delta-v1:e305665e5942dc076bc14f7c03fcda106ecc034ee476b049a7ebc6f1e59ac952`.
 **State:** New generation is pending with no launch attempt yet.
 
+**Launch intent:** Persisted as
+`5574543a-c2d9-4fb2-aaf1-a4812873600b`; the configured command has not yet
+been invoked.
+
 ---
 
 ## Implementation Log
