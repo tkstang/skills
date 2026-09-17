@@ -44,6 +44,10 @@ Entries are chronological and append-only.
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:2,minor:4 exit=0 status=ok artifact=.oat/projects/shared/consensus-review/reviews/artifact-plan-review-2026-09-17T000849Z.md run=128cf9b8-0007-4de1-a310-ec5383e43c90
 
+### 2026-09-17 · structural · oat-project-implement · resume-state-reconciliation
+
+Implementation paused before task execution because implementation.md points to p06-t01 while state.md has oat_current_task null; explicit approval is required to reconcile durable pointers and continue. consensus-review-resume-drift-20260917T0022Z
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
