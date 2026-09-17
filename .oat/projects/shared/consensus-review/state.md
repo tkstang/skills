@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 93856bd2c29edb8bfa434e44140b1cd205999650
+oat_last_commit: b61ec65f3138f0946838aec57052be70e1df912f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -49,10 +49,10 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:e23af51a6f5ea3d22d66faa1bae34b9e6b0bde590affcee0fb065249f0838d4f'
   freshness_head: 73c8bd4cea60ac19b1234e622ab63dfa10f5b6bb
   freshness_fingerprint: 'sha256:effective-delta-v1:bb1ad324823d94db85508b6b6ef99e3ea78d309cc80ec02dc0b37771cd87f861'
-  launch_state: not_started
-  launch_attempt_id: null
-  launch_started_at: null
-  launch_result_receipt: null
+  launch_state: intent_persisted
+  launch_attempt_id: 5df6f467-dd13-4204-9c06-30d03df24fe3
+  launch_started_at: '2026-09-17T07:38:58Z'
+  launch_result_receipt: '.oat/projects/shared/consensus-review/gate-receipts/5df6f467-dd13-4204-9c06-30d03df24fe3.result.json'
   gate_run_marker: null
   gate_run_id: null
   envelope_status: null
@@ -68,13 +68,13 @@ oat_implement_exit_gate:
   receive_eligible: null
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T07:37:30Z'
+  updated_at: '2026-09-17T07:38:58Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:37:30Z'
+oat_project_state_updated: '2026-09-17T07:38:58Z'
 oat_generated: false
 ---
 
