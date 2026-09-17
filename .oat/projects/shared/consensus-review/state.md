@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 93575af0ba215d2b4e753243661eb78c58f9bacf
+oat_last_commit: 8d8ff2336325c9126027238cc5075a90f552607b
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -37,20 +37,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T05:56:00Z'
+oat_project_state_updated: '2026-09-17T06:02:23Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** all seven implementation tasks and final-review fix iteration 1/2 are complete. Final review round 2 is next.
+**Status:** all seven implementation tasks and both bounded final-review fix iterations are complete. Final review round 3 is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — tasks complete; final-review fixes complete. The atomic-publication and bounded-request-read defects are fixed together at `93575af0`, with generated outputs and Review version `0.1.8`. Final review round 2 is next. No publication, global installation or live provider acceptance has completed.
+Implementation — tasks complete; bounded final-review fixes complete at 2/2. Round 2 confirmed both product fixes, then found one lifecycle-ledger mismatch; the prior event is now `fixes_completed` and round 2 is preserved separately. Final review round 3 is next. No publication, global installation or live provider acceptance has completed.
 
 ## Artifacts
 
@@ -64,6 +64,7 @@ Implementation — tasks complete; final-review fixes complete. The atomic-publi
 - p08-t02: deterministic receipt evidence and PJM closure committed at `aad79ef5`; the exact backlog item is closed/archived, only its consumed handoff was removed, and adjacent work remains open.
 - Final review round 1: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md) at `b5fe65d8` requested one Important atomic-publication fix and one Medium bounded-read fix; both are accepted for bounded iteration 1/2.
 - Final-review fix iteration 1/2: both findings fixed at `93575af0`; 104 root-focused tests plus build freshness, type-check and exact-range checks passed, and the implementer's full premerge passed 2,016 tests with one skipped.
+- Final review round 2 and fix iteration 2/2: [final-review-2026-09-17T055634Z.md](reviews/final-review-2026-09-17T055634Z.md) verified the product fixes and requested one ledger alignment; `8d8ff233` corrected the prior status while preserving both review events.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -78,11 +79,11 @@ Implementation — tasks complete; final-review fixes complete. The atomic-publi
 
 ## Next Milestone
 
-Run final review round 2 over the guarded narrowed range from the prior reviewed head through the committed fix/bookkeeping head. The configured implementation exit gate and final HiLL approval remain pending. No live provider acceptance may be inferred or run without separate authorization.
+Run final review round 3 over the guarded narrowed bookkeeping range. No further bounded fix iteration remains; any new blocking finding is a real stop. The configured implementation exit gate and final HiLL approval remain pending. No live provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-Final-review fix iteration 1/2 passed 104 root-focused tests, build freshness, type-check and exact-range checks; the implementer's post-commit premerge passed 2,016 tests with one skipped plus validation, smoke, version/changelog and scoped lint/format gates. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
+Final review round 2 passed 82 independent focused tests, build freshness, type-check, the one-skill version gate, scoped lint/format and exact-range checks. It confirmed both product findings resolved; the remaining ledger mismatch was corrected and hook/diff checks passed. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
 
 ## Progress
 
@@ -91,8 +92,8 @@ Final-review fix iteration 1/2 passed 104 root-focused tests, build freshness, t
 - ✓ All seven implementation tasks complete
 - ✓ Phase p06 and p07 reviews passed
 - ✓ p08 receipt and delivery acceptance complete
-- ✓ Final lifecycle review fixes complete
-- ⧗ Final lifecycle re-review pending
+- ✓ Final lifecycle review fixes complete (2/2)
+- ⧗ Final lifecycle review round 3 pending
 - ⧗ Implementation exit gate and final HiLL approval pending
 
 ## Operational Notes

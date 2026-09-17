@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** all seven implementation tasks and final-review fix iteration 1/2 are complete; final review round 2 is next.
+**Status:** all seven implementation tasks and both bounded final-review fix iterations are complete; final review round 3 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -252,6 +252,27 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Root verification: 104 focused tests, build freshness, type-check and exact fix-range diff checks passed; worktree clean.
 - Disposition: preserve the one append-only fix commit and run final review round 2 over the guarded narrowed range.
 
+#### Final Review Round 2 — changes requested
+
+- Request ID: `review-consensus-review-final-20260917T055634Z`
+- Artifact: [final-review-2026-09-17T055634Z.md](reviews/final-review-2026-09-17T055634Z.md)
+- Reviewed head: `bb59b849a499e7ebfddb11c87b0c322cfd04fd60`
+- Reviewed range: `b5fe65d87ed417fa967302270d6640fb99e4536a..bb59b849a499e7ebfddb11c87b0c322cfd04fd60`
+- Verdict: changes requested; Critical 0, Important 1, Medium 0, Minor 0
+- Reconnaissance: not attempted
+- Prior I1 and M1: resolved; atomic publication, truthful diagnostic paths and bounded concurrent-growth reads passed re-review.
+- New I1 accepted: the first final-review event remained `fixes_added` after its implementation fixes were complete, conflicting with implementation/state and review-status semantics.
+- Disposition: correct the artifact-identified prior event to `fixes_completed`, preserve round 2 as a separate append-ordered review event, and re-review once more.
+
+#### Final Review Fix Iteration 2/2 — complete
+
+- Commit: `8d8ff2336325c9126027238cc5075a90f552607b`
+- Alignment: advanced the prior final-review event from `fixes_added` to `fixes_completed` without changing its artifact, reviewed head, invocation or gate-target provenance.
+- Event preservation: recorded round 2 under its own timestamped artifact and exact reviewed head; this receipt marks that event `fixes_completed` before round 3.
+- Product code: unchanged; round 2 explicitly confirmed both product findings resolved.
+- Verification: Markdown hook, diff check and exact ledger inspection passed; worktree clean.
+- Disposition: bounded final-review fixes are exhausted at 2/2; run final review round 3 over the guarded narrowed bookkeeping range.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -337,6 +358,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: p08-t02 committed at `aad79ef5`; root independently reran focused, premerge, version/internal/PJM and production docs gates. All seven tasks are complete, the task pointer is cleared, and the terminal implementation baseline is ready for final lifecycle review.
 - 2026-09-17: Final review round 1 requested one Important atomic-publication fix and one Medium bounded-read fix. Root accepts both as implementation defects; none are deferred or dismissed, and the p08 implementer receives one bounded same-module fix iteration before final re-review.
 - 2026-09-17: Final-review fix iteration 1/2 committed both accepted fixes at `93575af0`, advanced Consensus Review to `0.1.8`, regenerated declared outputs and passed focused/full repository gates. Root independently verified the fix range; final review round 2 is next.
+- 2026-09-17: Final review round 2 verified both product findings resolved, then requested one Important lifecycle-ledger alignment. The prior event was advanced to `fixes_completed` and the round-2 artifact preserved separately at `8d8ff233`; bounded fix usage is now 2/2 and round 3 is required.
 
 ## Deviations from Plan / Design
 
