@@ -52,6 +52,10 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 A complexity review and live comparison found that tkstang/personal-skills already provides the relevant pinned-source, inventory, destination, and failure-injection patterns. The plan now adapts only the dependency-free public bootstrap delta; do not reintroduce a second staging copy or shipped race harness without a demonstrated requirement.
 
+### 2026-09-17 · structural · oat-project-implement · p01
+
+run-first-party-standalone-installer-p01-20260917-blocked verdict=blocked fix-loops=0 recovery-attempts=1; see implementation.md#run-1--2026-09-16
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

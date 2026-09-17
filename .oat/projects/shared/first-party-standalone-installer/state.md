@@ -1,7 +1,9 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: null
-oat_blockers: []
+oat_current_task: p01-t03
+oat_last_commit: e5a9c9717a313590803633930855af9784adb5c2
+oat_blockers:
+  - task_id: p01-t03
+    reason: "The skill-version gate treats planned tests under src/plugins/consensus as changes to seven shipped skills; the first bounded relocation attempt could not validate the candidate tree before commit."
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -25,16 +27,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p01-recovery-001
-        original_request_id: impl-first-party-standalone-installer-p01-20260917T0042Z
-        original_task_id: p01-t01
-        original_commit: 4fc228e9f48da6426004dd8dddca7a9b6fc5e302
-        discovered_by: pnpm run validate:skill-versions -- --base-ref origin/main
-        dispatch_target: oat-phase-implementer-gpt-6-astra-high-5b14a55346
-        reservation_head: 1606a5c9a4816c96d058d5a6c7ea2bc4ed8d7a6f
-        status: failed
+      pending_attempt: null
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -97,19 +90,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T00:40:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T00:58:04Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: first-party-standalone-installer
 
-**Status:** Implementing
+**Status:** Blocked
 **Started:** 2026-09-16
 **Last Updated:** 2026-09-16
 
 ## Current Phase
 
-Implement - Phase 1 in progress at `p01-t01`
+Implement - Phase 1 blocked at `p01-t03`
 
 ## Artifacts
 
@@ -126,12 +119,14 @@ Implement - Phase 1 in progress at `p01-t01`
 - ✓ Lightweight design complete
 - ✓ User-approved scope and complexity revisions incorporated
 - ✓ Plan ready for implementation
-- ⧗ Phase 1 implementation in progress
+- ✓ `p01-t01` scoped installer behavior complete
+- ✓ `p01-t02` documentation and release contract complete
+- ⚠ `p01-t03` blocked at the skill-version gate
 
 ## Blockers
 
-None
+- `p01-t03`: the skill-version validator counts the planned Consensus test locations as seven shipped-skill changes, while its pre-commit union cannot validate a restoring relocation before that relocation is committed.
 
 ## Next Milestone
 
-Complete `p01-t01`
+Choose a verified candidate-tree strategy for recovery attempt 2, defer `p01-t03`, or revise the plan.

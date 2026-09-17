@@ -1,9 +1,11 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p01-t03
+    reason: "The skill-version gate treats planned tests under src/plugins/consensus as changes to seven shipped skills; the first bounded relocation attempt could not validate the candidate tree before commit."
 oat_last_updated: 2026-09-16
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t03
 oat_generated: false
 ---
 
@@ -26,15 +28,15 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 0/3       |
+| Phase 1 | blocked     | 3     | 2/3       |
 
-**Total:** 0/3 tasks completed
+**Total:** 2/3 tasks completed
 
 ---
 
 ## Phase 1: Implement and verify the first-party installer
 
-**Status:** in_progress
+**Status:** blocked
 **Started:** 2026-09-16
 
 ### Phase Summary (fill when phase is complete)
@@ -58,47 +60,55 @@ oat_generated: false
 
 ### Task p01-t01: Adapt the proven installer core for public standalone installs
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `4fc228e9f48da6426004dd8dddca7a9b6fc5e302`
 
 **Outcome (required when completed):**
 
-- {what materially changed (not “did task”, but “system now does X”)}
+- `install.sh` now preserves the zero-argument Consensus recovery path and delegates explicit standalone flags to a dependency-free Node.js installer.
+- Standalone installs require a skill, host, scope, and exact tag; read only generated payloads from a private bare Git repository; refuse unsafe or existing destinations; and verify the written inventory.
 
 **Files changed:**
 
-- `{path}` - {why}
+- `install.sh` - dispatches standalone arguments without changing zero-argument recovery behavior.
+- `scripts/install-standalone.mjs` - implements pinned-source reading, safe scoped placement, inventory verification, and failure marking.
+- `src/plugins/consensus/install-sh.test.ts` - covers the isolated-script missing-helper boundary.
+- `tests/tooling/standalone-installer.test.ts` - covers scoped destinations, source/ref safety, fidelity, and injected failure behavior.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm run test:vitest tests/tooling/standalone-installer.test.ts src/plugins/consensus/install-sh.test.ts src/plugins/consensus/install-contract.test.ts`
+- Result: 42 focused tests passed; type-check, lint, formatting, and Bash syntax also passed.
 
 **Notes / Decisions:**
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+- No real user home, network repository, or live provider was used.
 
 **Issues Encountered:**
 
-- {Issue and resolution}
+- Pre-commit lint findings were corrected within the four-file task boundary.
 
 ---
 
 ### Task p01-t02: Document both scopes and release acceptance
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `1606a5c9a4816c96d058d5a6c7ea2bc4ed8d7a6f`
 
 **Notes:**
 
-- {Notes will be added during implementation}
+- Added project- and user-scope examples for Codex, Claude Code, and Cursor, plus explicit release acceptance boundaries.
+- 24 documentation/README contract tests, the production docs build, type-check, lint, and diff checks passed.
+- Documentation-build changes to `.oat/config.json` and `documentation/index.md` were verified as generated drift and restored exactly.
 
 ---
 
 ### Task p01-t03: Run the full gate and record the pending live boundary
 
-**Status:** pending
+**Status:** blocked
 **Commit:** -
+
+**Blocker:** `validate:skill-versions` treats the two planned test-file changes under `src/plugins/consensus` as changes to seven distributed skills. A mechanically bounded relocation passed 44 focused tests, but the validator unions committed and uncommitted paths, so it could not validate the cancellation before a candidate commit. Recovery attempt 1 was recorded as failed with no product-code commit.
 
 ---
 
@@ -113,6 +123,53 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 1 — 2026-09-16
+
+- Branch: `standalone-installer`
+- Tier: 1 — subagent
+- Dispatch policy: `frontier`; cap `xhigh`; selected `gpt-6-astra/high`
+- Phase outcomes: 0 passed, 0 failed review, 1 blocked
+
+| Phase | Outcome | Tasks | Commits | Review | Fix iterations |
+| ----- | ------- | ----- | ------- | ------ | -------------- |
+| p01 | blocked | 2/3 | `4fc228e9`, `1606a5c9`, ledger `e5a9c971` | not started | 0 |
+
+#### Dispatch record — p01 implementation
+
+- Request ID: `impl-first-party-standalone-installer-p01-20260917T0042Z`
+- Caller / role: `oat-project-implement` / `oat-phase-implementer`
+- Role class / task class: `worker` / `default-implementation`
+- Provider / context / route: `codex` / `root-native` / native materialized role
+- Authority: phase-scoped repository writes; one commit per planned task; no push, release, live provider, or real-home mutation
+- Target: `oat-phase-implementer-gpt-6-astra-high-5b14a55346`
+- Model axis: `selected:gpt-6-astra`
+- Effort axis: `selected:high`
+- Selection source / reason: `native-default` / `native-catalog`
+- Candidates considered: `gpt-6-astra/high`, `gpt-5.6-sol/medium`, `gpt-5.6-sol/high`
+- Launch status / child outcome: `accepted` / `BLOCKED`
+- Phase base / returned head: `01e459687e33459357774a4aa584c44d6a64a9a2` / `e5a9c9717a313590803633930855af9784adb5c2`
+- Optional children: none
+- Dispatch stamp: `Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6-astra effort_axis=selected:high dispatch_policy=frontier dispatch_ceiling=xhigh target=oat-phase-implementer-gpt-6-astra-high-5b14a55346`
+
+#### Recovery Event p01-recovery-001
+
+- Phase/task: p01 / p01-t01; related p01-t02 test changes
+- Original request: `impl-first-party-standalone-installer-p01-20260917T0042Z`
+- Original commit: `4fc228e9f48da6426004dd8dddca7a9b6fc5e302`
+- Defect class: composition
+- Discovered by: `pnpm run validate:skill-versions -- --base-ref origin/main`
+- Disposition: failed-attempt
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: `oat-phase-implementer-gpt-6-astra-high-5b14a55346`
+- Recovery commit: -
+- Verification: relocated coverage passed 44 focused tests; the pre-commit version validation remained blocked by committed-path unioning.
+- Reason: the validator cannot observe the proposed net cancellation until a new commit exists; bounded files were restored and only the failed ledger transition was committed.
+
+**Outstanding items:**
+
+- `p01-t03` requires operator direction on a candidate-tree verification strategy or a plan change. Phase review was not launched.
 
 <!-- orchestration-runs-end -->
 
@@ -174,7 +231,10 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-Implementation started at `p01-t01`; no product-code task has completed yet.
+- `p01-t01` completed in `4fc228e9`; focused behavior, type-check, lint, formatting, and Bash syntax passed.
+- `p01-t02` completed in `1606a5c9`; documentation contracts and production docs build passed.
+- `p01-t03` blocked during the version gate. Full premerge otherwise passed with 2,029 tests passed and 1 skipped; build freshness, validation, smoke, docs build, diff check, and PJM doctor passed.
+- Recovery attempt 1 made no product-code commit and preserved immutable task history.
 
 ---
 
@@ -184,7 +244,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01-t03 / p01-recovery-001 | `plan.md` | Existing Consensus test files can hold standalone assertions while the version gate confirms no skill bump is needed. | The version gate classifies any changed path under `src/plugins/consensus` as affecting seven skills; an uncommitted restoration cannot cancel earlier committed paths. | The validator unions base-to-HEAD, index, worktree, and untracked paths. | Validator behavior and immutable Git history | Direction required before a second recovery attempt or plan revision. |
 
 ## Test Results
 
@@ -192,8 +252,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| 1     | Focused installer/docs suites; `premerge`; docs build; version gate; diff/PJM checks | 42 installer tests; 24 docs tests; 2,029 full-suite tests; all non-version gates | Version gate | No coverage metric configured |
 
 ## Final Summary (for PR/docs)
 
