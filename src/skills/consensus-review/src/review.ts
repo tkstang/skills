@@ -326,7 +326,7 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `- Host result JSON: ${inlineCode(aggregate.paths.result)}`,
     '',
   ];
-  return `${lines.join('\n')}\n`;
+  return lines.join('\n');
 }
 
 async function parseReviewArgs(

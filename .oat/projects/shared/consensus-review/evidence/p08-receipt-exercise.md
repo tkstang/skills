@@ -14,8 +14,8 @@
 
 | Fixture | Source | SHA-256 |
 | --- | --- | --- |
-| Clean completed review | `tests/fixtures/consensus-review-receipt/clean-review.md` | `3e7dcc04da2b9cb763cff072c277426b68db089c6aa28d58cc5d54a849d850d6` |
-| Combined findings review | `tests/fixtures/consensus-review-receipt/findings-review.md` | `0e49b8317b4bfd7de86de283c8c73d2175c568316adeaf95dc2349515739b30a` |
+| Clean completed review | `tests/fixtures/consensus-review-receipt/clean-review.md` | `2a14076b1672186cf3a80a06f37bc2e4b66db950d8125203b23115a2b52e830a` |
+| Combined findings review | `tests/fixtures/consensus-review-receipt/findings-review.md` | `e3cfc7b4c6462ebf729f25f22bf7a7e6ba7cc6184266862457c07b3db361db06` |
 | Defective diagnostic | `tests/fixtures/consensus-review-receipt/diagnostic.json` | `fd63fabd0d2912811b8ae4c1e7752510c2214d4a16def988d626ef28f12009cf` |
 
 ## Normalized outcomes
@@ -37,7 +37,7 @@ The `.json` diagnostic was rejected and not offered as a completed review: it ca
 
 ## Verification and limitations
 
-- The implementer independently verified all four SHA-256 identities and inspected the disposable archive/task-list inventory and task-list contents. The exercise was repeated after removing formatter-invalid terminal blank lines so these identities match the exact final fixture bytes.
+- The implementer independently verified all three SHA-256 identities and inspected the disposable archive/task-list inventory and task-list contents. During p09 remediation, the two Markdown fixtures were regenerated from the deterministic renderer aggregate used by the new byte-parity test. The refresh adds the renderer's literal escaping and preserves one repository-valid terminal newline without changing headings, findings, locations, anchors, counts, or the normalized receipt outcomes recorded above; the hashes now identify the exact renderer output guarded by both renderer and receipt tests.
 - The alternate wrote only to `/tmp/consensus-review-receipt-repeat.PjWQHz`. It observed the parent concurrently modifying the staged test file, but no repository write originated from the exercise.
 - Receipt is instruction-driven, not a stable machine-parser contract.
 - Deterministic local fixtures do not prove live provider discovery or invocation, external installation, native continuation, or fresh-session skill discovery.

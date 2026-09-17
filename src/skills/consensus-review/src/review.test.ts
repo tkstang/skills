@@ -499,6 +499,24 @@ describe('review Markdown rendering', () => {
     expect(rendered).toContain('operator\\-managed');
     expect(renderReviewMarkdown(aggregate)).toBe(rendered);
   });
+
+  it.each([
+    ['clean', 'clean-review.md'],
+    ['findings', 'findings-review.md'],
+  ] as const)(
+    'renders the %s receipt aggregate byte-for-byte as its exercised fixture',
+    async (kind, fixtureName) => {
+      const fixture = await readFile(
+        new URL(
+          `../../../../tests/fixtures/consensus-review-receipt/${fixtureName}`,
+          import.meta.url,
+        ),
+        'utf8',
+      );
+
+      expect(renderReviewMarkdown(receiptAggregateFixture(kind))).toBe(fixture);
+    },
+  );
 });
 
 async function temporaryRoot(): Promise<string> {
@@ -713,4 +731,144 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
       result: path.join(runDirectory, 'result.json'),
     },
   };
+}
+
+function receiptAggregateFixture(kind: 'clean' | 'findings'): ReviewAggregate {
+  const root = '/tmp/consensus-review-receipt/worktree';
+  const runDirectory = `/tmp/consensus-review-receipt/${kind}`;
+  const aggregate = aggregateFixture(root, runDirectory);
+  aggregate.run_id = `receipt-${kind}-v1`;
+  aggregate.reviewer.observed = {
+    provider: 'claude',
+    model: null,
+    effort: null,
+    evidence: 'Provider envelope only.',
+  };
+  aggregate.reviewer.claimed = { provider: 'claude' };
+
+  if (kind === 'clean') {
+    aggregate.request = 'Review the bounded receipt fixture.';
+    aggregate.scope.token = 'receipt-clean-token';
+    aggregate.scope.request = { kind: 'files', paths: ['src/clean.ts'] };
+    aggregate.scope.selectedPaths = ['src/clean.ts'];
+    aggregate.scope.externalDocuments = [];
+    aggregate.scope.evidenceBytes = 24;
+    aggregate.reply = {
+      schema_version: 'v1',
+      scope_token: 'receipt-clean-token',
+      verdict: 'pass',
+      summary: 'No findings in the bounded fixture.',
+      findings: [],
+      questions: [],
+      limitations: ['Fixture execution does not prove live provider behavior.'],
+      coverage: ['src/clean.ts'],
+      inspected_context: [
+        { subject: 'src/clean.ts', source_version: 'clean-source-v1' },
+      ],
+      checks: [
+        {
+          name: 'renderer fixture',
+          status: 'passed',
+          detail: 'deterministic local output',
+        },
+        {
+          name: 'live provider',
+          status: 'not_run',
+          detail: 'not authorized',
+        },
+      ],
+      reviewer_identity: { provider: 'claude' },
+    };
+    return aggregate;
+  }
+
+  const planPath = '/tmp/consensus-review-receipt/plan.md';
+  aggregate.request = 'Review all supported severity and location forms.';
+  aggregate.scope.token = 'receipt-findings-token';
+  aggregate.scope.request = { kind: 'document', path: planPath };
+  aggregate.scope.selectedPaths = ['src/reviewed.ts'];
+  aggregate.scope.externalDocuments = [planPath];
+  aggregate.scope.evidenceBytes = 256;
+  aggregate.reply = {
+    schema_version: 'v1',
+    scope_token: 'receipt-findings-token',
+    verdict: 'changes_requested',
+    summary: 'The fixture contains four independently actionable findings.',
+    findings: [
+      {
+        severity: 'critical',
+        title: 'Reject unsafe destination',
+        location: {
+          path: 'src/reviewed.ts',
+          start_line: 12,
+          end_line: 14,
+          source_version: 'reviewed-source-v1',
+        },
+        claim: 'The destination can escape its declared root.',
+        evidence: 'The resolved path is used without a containment check.',
+        suggestion:
+          'Resolve canonically and reject paths outside the declared root.',
+        confidence: 0.99,
+      },
+      {
+        severity: 'important',
+        title: 'Preserve the explicit acceptance rule',
+        anchor: 'Acceptance Criteria > Receipt',
+        claim: 'The document omits the diagnostic rejection requirement.',
+        evidence: 'The receipt section describes completed reviews only.',
+        suggestion:
+          'State that diagnostics are not receivable completed reviews.',
+        confidence: 0.92,
+      },
+      {
+        severity: 'medium',
+        title: 'Record fixture identity',
+        location: {
+          path: 'src/reviewed.ts',
+          start_line: 28,
+          end_line: 28,
+          source_version: 'reviewed-source-v1',
+        },
+        claim: 'The evidence omits the fixture identity.',
+        evidence: 'The result records only a count.',
+        suggestion:
+          'Persist the stable fixture name with the normalized outcome.',
+        confidence: 0.83,
+      },
+      {
+        severity: 'minor',
+        title: 'Clarify retained state',
+        anchor: 'Limitations > Retention',
+        claim: 'Retention ownership is implied rather than stated.',
+        evidence: 'The text names the directory but not the cleanup owner.',
+        suggestion: 'Say that retention is operator-managed.',
+        confidence: 0.74,
+      },
+    ],
+    questions: [
+      'Should the operator archive the completed review after triage?',
+    ],
+    limitations: [
+      'This is a deterministic fixture, not live provider acceptance.',
+    ],
+    coverage: ['src/reviewed.ts', 'external plan'],
+    inspected_context: [
+      { subject: 'src/reviewed.ts', source_version: 'reviewed-source-v1' },
+      { subject: 'external plan', source_version: 'plan-source-v1' },
+    ],
+    checks: [
+      {
+        name: 'renderer fixture',
+        status: 'passed',
+        detail: 'all four severity sections rendered',
+      },
+      {
+        name: 'live provider',
+        status: 'not_run',
+        detail: 'not authorized',
+      },
+    ],
+    reviewer_identity: { provider: 'claude' },
+  };
+  return aggregate;
 }

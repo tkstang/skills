@@ -15,11 +15,11 @@ oat_review_run_id: "receipt-clean-v1"
 
 ## Request
 
-Review the bounded receipt fixture.
+Review the bounded receipt fixture\.
 
 ## Summary
 
-No findings in the bounded fixture.
+No findings in the bounded fixture\.
 
 ## Scope and provenance
 
@@ -28,18 +28,18 @@ No findings in the bounded fixture.
 - External documents: none
 - Captured evidence: 24 bytes
 - Reviewer claim: \{"provider":"claude"\}
-- Observed reviewer evidence: Provider envelope only.
-- Diversity: unknown — Provider identity does not establish model family.
+- Observed reviewer evidence: Provider envelope only\.
+- Diversity: unknown — Provider identity does not establish model family\.
 - Drift comparison: stable within stated coverage
-- Detection limit: Unselected content changes with unchanged Git status may go undetected.
+- Detection limit: Unselected content changes with unchanged Git status may go undetected\.
 
 ### Authorship evidence
 
-- unknown — unknown, unknown coverage; No bounded author evidence was supplied.
+- unknown — unknown, unknown coverage; No bounded author evidence was supplied\.
 
 ### Reviewer-reported inspected context
 
-- src/clean.ts (`clean-source-v1`)
+- src/clean\.ts (`clean-source-v1`)
 
 ## Findings
 
@@ -65,10 +65,10 @@ None
 
 ## Limitations
 
-- Fixture execution does not prove live provider behavior.
-- Unselected content changes with unchanged Git status may go undetected.
-- Provider read\-only controls are not universal filesystem or network isolation.
-- Retention is operator\-managed; the external run directory has no automatic cleanup or replay policy.
+- Fixture execution does not prove live provider behavior\.
+- Unselected content changes with unchanged Git status may go undetected\.
+- Provider read\-only controls are not universal filesystem or network isolation\.
+- Retention is operator\-managed; the external run directory has no automatic cleanup or replay policy\.
 
 ## Checks reported
 

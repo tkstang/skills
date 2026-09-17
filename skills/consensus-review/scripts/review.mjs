@@ -4431,8 +4431,7 @@ function renderReviewMarkdown(aggregate) {
     `- Host result JSON: ${inlineCode(aggregate.paths.result)}`,
     ""
   ];
-  return `${lines.join("\n")}
-`;
+  return lines.join("\n");
 }
 async function parseReviewArgs(argv, cwd, fileSystem) {
   let baseRef;
