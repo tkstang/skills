@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, rm } from 'node:fs/promises';
+import { open, rm } from 'node:fs/promises';
 
 import type { ProviderInvocation } from './invocation.js';
 import type { ProviderDiagnostics, ProviderErrorCode } from './types.js';
@@ -268,7 +268,23 @@ export function runProviderSubprocess(
         return;
       }
 
-      const lastMessage = await readLastMessage(invocation);
+      const lastMessage = await readLastMessage(invocation, maxOutputBytes);
+      if (lastMessage.tooLarge) {
+        await cleanupInvocationFiles(invocation);
+        resolve(
+          failure({
+            code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+            message: `Provider last-message capture exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics,
+          }),
+        );
+        return;
+      }
       await cleanupInvocationFiles(invocation);
       resolve({
         ok: true,
@@ -290,25 +306,106 @@ export function runProviderSubprocess(
   });
 }
 
-async function readLastMessage(invocation: ProviderInvocation) {
+async function readLastMessage(
+  invocation: ProviderInvocation,
+  maxBytes = DEFAULT_MAX_OUTPUT_BYTES,
+) {
   if (!invocation.last_message_file) return {};
-  try {
-    return {
-      contents: await readFile(invocation.last_message_file, 'utf8'),
-    };
-  } catch (error) {
-    return {
-      warning: `Could not read provider last-message file: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
+  const result = await readBoundedRegularFile(
+    invocation.last_message_file,
+    maxBytes,
+  );
+  if (result.ok) return { contents: result.contents };
+  if (result.reason === 'too_large') return { tooLarge: true };
+  return {
+    warning: `Could not read provider last-message file: ${result.message}`,
+  };
 }
 
 async function cleanupInvocationFiles(invocation: ProviderInvocation) {
-  if (!invocation.last_message_file) return;
+  if (
+    !invocation.last_message_file ||
+    invocation.cleanup_last_message_file === false
+  ) {
+    return;
+  }
   try {
     await rm(invocation.last_message_file, { force: true });
   } catch {
     // Best effort cleanup only; read/validation remains authoritative.
+  }
+}
+
+export type BoundedFileReadResult =
+  | { ok: true; contents: string; bytes: number }
+  | {
+      ok: false;
+      reason: 'too_large' | 'not_regular' | 'read_failed';
+      message: string;
+    };
+
+export async function readBoundedRegularFile(
+  filePath: string,
+  maxBytes: number,
+  options: { afterStat?: () => Promise<void> } = {},
+): Promise<BoundedFileReadResult> {
+  let handle;
+  try {
+    handle = await open(filePath, 'r');
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return {
+        ok: false,
+        reason: 'not_regular',
+        message: 'capture is not a regular file',
+      };
+    }
+    if (info.size > maxBytes) {
+      return {
+        ok: false,
+        reason: 'too_large',
+        message: `capture exceeds ${maxBytes} bytes`,
+      };
+    }
+    await options.afterStat?.();
+
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let position = 0;
+    while (total <= maxBytes) {
+      const remaining = maxBytes + 1 - total;
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        buffer.length,
+        position,
+      );
+      if (bytesRead === 0) break;
+      chunks.push(buffer.subarray(0, bytesRead));
+      total += bytesRead;
+      position += bytesRead;
+    }
+    if (total > maxBytes) {
+      return {
+        ok: false,
+        reason: 'too_large',
+        message: `capture exceeds ${maxBytes} bytes`,
+      };
+    }
+    return {
+      ok: true,
+      contents: Buffer.concat(chunks, total).toString('utf8'),
+      bytes: total,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'read_failed',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    await handle?.close();
   }
 }
 

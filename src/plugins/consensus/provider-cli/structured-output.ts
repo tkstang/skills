@@ -1,4 +1,4 @@
-import { readFile, rm, stat } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +20,7 @@ import {
   submitCaptureMaxBytes,
   submitCaptureFilePath,
 } from './submit-capture.js';
-import { runProviderSubprocess } from './subprocess.js';
+import { readBoundedRegularFile, runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
 import type { ProviderProcessResult } from './subprocess.js';
 import type {
@@ -40,12 +40,24 @@ export interface RunProviderTurnDependencies {
   ) => Promise<ProviderProcessResult>;
   parentEnv?: NodeJS.ProcessEnv;
   submitCommand?: string;
+  transport?: ProviderTurnTransportOptions;
+}
+
+export interface ProviderTurnTransportOptions {
+  submitCaptureEnabled?: boolean;
+  strategy?: StructuredOutputStrategy;
+  lastMessageFile?: string;
+  preserveLastMessageFile?: boolean;
 }
 
 export function selectStructuredOutputStrategy(
   adapter: ProviderAdapter,
-  options: { submitCaptureEnabled?: boolean } = {},
+  options: {
+    submitCaptureEnabled?: boolean;
+    strategy?: StructuredOutputStrategy;
+  } = {},
 ): StructuredOutputStrategy {
+  if (options.strategy) return options.strategy;
   if (
     options.submitCaptureEnabled &&
     adapter.capabilities.schema_strategies.includes('constrained_native') &&
@@ -132,26 +144,42 @@ export async function runProviderTurn(
     runtime_policy: defaultRuntimePolicy(request.runtime_policy),
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  const submitCaptureEnabled =
+    dependencies.transport?.submitCaptureEnabled ?? true;
   const strategy = selectStructuredOutputStrategy(adapter, {
-    submitCaptureEnabled: true,
+    submitCaptureEnabled,
+    strategy: dependencies.transport?.strategy,
   });
+  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      message: `Provider does not support structured-output strategy: ${strategy}.`,
+      terminalReason: 'structured_output_strategy',
+    });
+  }
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
-  const submitCapturePath = submitCaptureFilePath(
-    effectiveRequest.cwd ?? process.cwd(),
-  );
+  const submitCapturePath = submitCaptureEnabled
+    ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd())
+    : undefined;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
-  const submitCommand =
-    dependencies.submitCommand ?? buildConsensusSubmitCommand();
+  const submitCommand = submitCaptureEnabled
+    ? (dependencies.submitCommand ?? buildConsensusSubmitCommand())
+    : undefined;
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      CONSENSUS_SUBMIT_COMMAND: submitCommand,
-      CONSENSUS_SUBMIT_FILE: submitCapturePath,
-      [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-      CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
+      ...(submitCaptureEnabled && submitCommand && submitCapturePath
+        ? {
+            CONSENSUS_SUBMIT_COMMAND: submitCommand,
+            CONSENSUS_SUBMIT_FILE: submitCapturePath,
+            [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
+            CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
+          }
+        : {}),
     },
   });
   let validationFeedback: string | undefined;
@@ -160,14 +188,16 @@ export async function runProviderTurn(
 
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await cleanupSubmitCaptureFile(submitCapturePath);
+      if (submitCapturePath) {
+        await cleanupSubmitCaptureFile(submitCapturePath);
+      }
       const invocationRequest = {
         ...effectiveRequest,
         prompt: promptForStrategy({
           prompt: request.prompt,
           strategy,
           inlineJsonSchema,
-          submitCaptureEnabled: true,
+          submitCaptureEnabled,
           submitCommand,
           validationFeedback,
         }),
@@ -175,6 +205,9 @@ export async function runProviderTurn(
       const invocation = buildProviderInvocation(adapter, invocationRequest, {
         strategy,
         inlineJsonSchema,
+        lastMessageFile: dependencies.transport?.lastMessageFile,
+        preserveLastMessageFile:
+          dependencies.transport?.preserveLastMessageFile,
       });
       lastInvocation = invocation;
       const processResult = await runSubprocess(invocation, {
@@ -219,11 +252,9 @@ export async function runProviderTurn(
         });
       }
 
-      const submittedVerdict = await readSubmittedVerdict(
-        submitCapturePath,
-        schema,
-        maxSubmitBytes,
-      );
+      const submittedVerdict = submitCapturePath
+        ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes)
+        : ({ ok: false } as const);
       if (submittedVerdict.ok) {
         return successEnvelope({
           provider: request.provider,
@@ -343,7 +374,9 @@ export async function runProviderTurn(
         : undefined,
     });
   } finally {
-    await cleanupSubmitCaptureFile(submitCapturePath);
+    if (submitCapturePath) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+    }
   }
 }
 
@@ -417,11 +450,10 @@ async function readSubmittedVerdict(
   schema: unknown,
   maxBytes: number,
 ): Promise<SubmittedVerdictResult> {
-  let raw: string;
+  const capture = await readBoundedRegularFile(filePath, maxBytes);
+  if (!capture.ok) return { ok: false };
+  const raw = capture.contents;
   try {
-    const capture = await stat(filePath);
-    if (capture.size > maxBytes) return { ok: false };
-    raw = await readFile(filePath, 'utf8');
     assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };

@@ -72,6 +72,17 @@ process.stdin.on('end', () => {
     return;
   }
 
+  if (mode === 'last-message-sized') {
+    const [outputPath, size] = args;
+    if (!outputPath) {
+      process.stderr.write('missing output path');
+      process.exitCode = 64;
+      return;
+    }
+    writeFileSync(outputPath, 'x'.repeat(Number(size ?? 1024)));
+    return;
+  }
+
   if (mode === 'argv-json') {
     process.stdout.write(JSON.stringify(args));
     return;

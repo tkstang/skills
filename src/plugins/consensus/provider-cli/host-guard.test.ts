@@ -6,6 +6,7 @@ import {
   detectHostRuntime,
   evaluateHostGuard,
   hostContextFromEnv,
+  resolveExplicitHostContext,
 } from '../provider-cli/host-guard.js';
 import type {
   HostContext,
@@ -197,6 +198,50 @@ describe('provider host runtime guard', () => {
       depth: 1,
       max_depth: 2,
     });
+  });
+
+  it('resolves one explicit review host while preserving inherited depth', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: {
+          CONSENSUS_PARENT_HOST: 'codex',
+          CONSENSUS_RUN_ID: 'review-123',
+          CONSENSUS_DEPTH: '0',
+        },
+        maxDepth: 1,
+      }),
+    ).toEqual({
+      ok: true,
+      context: {
+        runtime: 'codex',
+        cwd: '/repo',
+        run_id: 'review-123',
+        depth: 0,
+        max_depth: 1,
+      },
+    });
+  });
+
+  it('blocks unknown and contradictory explicit review host identity', () => {
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: {},
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: false, reason: 'unknown_host' });
+
+    expect(
+      resolveExplicitHostContext({
+        runtime: 'codex',
+        cwd: '/repo',
+        env: { CLAUDECODE: '1', CODEX_SESSION_ID: 'session' },
+        maxDepth: 1,
+      }),
+    ).toMatchObject({ ok: false, reason: 'contradictory_host' });
   });
 
   it('marks blocked same-host preflight entries unavailable', async () => {

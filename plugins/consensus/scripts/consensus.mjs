@@ -3,7 +3,7 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { readFile as readFile4, stat as stat2 } from "node:fs/promises";
+import { readFile as readFile3, stat } from "node:fs/promises";
 
 // src/plugins/consensus/provider-cli/commands.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -429,7 +429,9 @@ import path2 from "node:path";
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
-    inlineJsonSchema: options.inlineJsonSchema
+    inlineJsonSchema: options.inlineJsonSchema,
+    lastMessageFile: options.lastMessageFile,
+    preserveLastMessageFile: options.preserveLastMessageFile
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -474,7 +476,7 @@ var buildClaudeInvocation = (request, options = {}) => {
 };
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
-  const lastMessageFile = codexLastMessageFile();
+  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
   const argv = ["exec", "--json", "--output-last-message", lastMessageFile];
   if (strategy === "constrained_native") {
     argv.push("--output-schema", request.schema_path);
@@ -499,7 +501,8 @@ var buildCodexInvocation = (request, options = {}) => {
     request,
     strategy,
     outputMode: "last_message_file",
-    lastMessageFile
+    lastMessageFile,
+    cleanupLastMessageFile: !options.preserveLastMessageFile
   });
 };
 var buildCursorInvocation = (request, options = {}) => {
@@ -522,7 +525,10 @@ function invocation(input) {
     output_mode: input.outputMode,
     strategy: input.strategy,
     redacted_command: [input.executable, ...input.redactedArgv ?? input.argv],
-    ...input.lastMessageFile ? { last_message_file: input.lastMessageFile } : {},
+    ...input.lastMessageFile ? {
+      last_message_file: input.lastMessageFile,
+      cleanup_last_message_file: input.cleanupLastMessageFile ?? true
+    } : {},
     shell: false
   };
 }
@@ -552,7 +558,7 @@ function defaultStrategy(adapter) {
 
 // src/plugins/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
-import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
+import { open, rm as rm2 } from "node:fs/promises";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
@@ -737,7 +743,23 @@ function runProviderSubprocess(invocation2, options = {}) {
         );
         return;
       }
-      const lastMessage = await readLastMessage(invocation2);
+      const lastMessage = await readLastMessage(invocation2, maxOutputBytes);
+      if (lastMessage.tooLarge) {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
+            message: `Provider last-message capture exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
       await cleanupInvocationFiles(invocation2);
       resolve({
         ok: true,
@@ -754,23 +776,84 @@ function runProviderSubprocess(invocation2, options = {}) {
     }
   });
 }
-async function readLastMessage(invocation2) {
+async function readLastMessage(invocation2, maxBytes = DEFAULT_MAX_OUTPUT_BYTES) {
   if (!invocation2.last_message_file) return {};
-  try {
-    return {
-      contents: await readFile2(invocation2.last_message_file, "utf8")
-    };
-  } catch (error) {
-    return {
-      warning: `Could not read provider last-message file: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
+  const result = await readBoundedRegularFile(
+    invocation2.last_message_file,
+    maxBytes
+  );
+  if (result.ok) return { contents: result.contents };
+  if (result.reason === "too_large") return { tooLarge: true };
+  return {
+    warning: `Could not read provider last-message file: ${result.message}`
+  };
 }
 async function cleanupInvocationFiles(invocation2) {
-  if (!invocation2.last_message_file) return;
+  if (!invocation2.last_message_file || invocation2.cleanup_last_message_file === false) {
+    return;
+  }
   try {
     await rm2(invocation2.last_message_file, { force: true });
   } catch {
+  }
+}
+async function readBoundedRegularFile(filePath, maxBytes, options = {}) {
+  let handle;
+  try {
+    handle = await open(filePath, "r");
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return {
+        ok: false,
+        reason: "not_regular",
+        message: "capture is not a regular file"
+      };
+    }
+    if (info.size > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    await options.afterStat?.();
+    const chunks = [];
+    let total = 0;
+    let position = 0;
+    while (total <= maxBytes) {
+      const remaining = maxBytes + 1 - total;
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        buffer.length,
+        position
+      );
+      if (bytesRead === 0) break;
+      chunks.push(buffer.subarray(0, bytesRead));
+      total += bytesRead;
+      position += bytesRead;
+    }
+    if (total > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    return {
+      ok: true,
+      contents: Buffer.concat(chunks, total).toString("utf8"),
+      bytes: total
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "read_failed",
+      message: error instanceof Error ? error.message : String(error)
+    };
+  } finally {
+    await handle?.close();
   }
 }
 function takeUtf8Prefix(input, maxBytes) {
@@ -1103,16 +1186,8 @@ function firstNonEmptyLine(value) {
 
 // src/plugins/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
-  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
-    return "claude";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
-    return "codex";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
-    return "cursor";
-  }
-  return "unknown";
+  const detected = detectedHostRuntimes(env);
+  return detected.size === 1 ? [...detected][0] : "unknown";
 }
 function hostContextFromEnv(env, cwd, maxDepth = 1) {
   return {
@@ -1193,6 +1268,19 @@ function allowed(hostRelation, guard, childEnv) {
 function parseNonNegativeInteger(value) {
   if (value === void 0 || !/^\d+$/.test(value)) return void 0;
   return Number(value);
+}
+function detectedHostRuntimes(env) {
+  const detected = /* @__PURE__ */ new Set();
+  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
+    detected.add("claude");
+  }
+  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
+    detected.add("codex");
+  }
+  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
+    detected.add("cursor");
+  }
+  return detected;
 }
 
 // src/plugins/consensus/provider-cli/types.ts
@@ -2382,7 +2470,7 @@ function matchesJsonType(value, type) {
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
-import { readFile as readFile3, rm as rm3, stat } from "node:fs/promises";
+import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
 import path5 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2435,6 +2523,7 @@ function submitCaptureFilePath(cwd, id = randomUUID3()) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.strategy) return options.strategy;
   if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
     return "prompt_only";
   }
@@ -2508,25 +2597,35 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  const submitCaptureEnabled = dependencies.transport?.submitCaptureEnabled ?? true;
   const strategy = selectStructuredOutputStrategy(adapter, {
-    submitCaptureEnabled: true
+    submitCaptureEnabled,
+    strategy: dependencies.transport?.strategy
   });
+  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Provider does not support structured-output strategy: ${strategy}.`,
+      terminalReason: "structured_output_strategy"
+    });
+  }
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
-  const submitCapturePath = submitCaptureFilePath(
-    effectiveRequest.cwd ?? process.cwd()
-  );
+  const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
-  const submitCommand = dependencies.submitCommand ?? buildConsensusSubmitCommand();
+  const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      CONSENSUS_SUBMIT_COMMAND: submitCommand,
-      CONSENSUS_SUBMIT_FILE: submitCapturePath,
-      [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-      CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+      ...submitCaptureEnabled && submitCommand && submitCapturePath ? {
+        CONSENSUS_SUBMIT_COMMAND: submitCommand,
+        CONSENSUS_SUBMIT_FILE: submitCapturePath,
+        [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
+        CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+      } : {}
     }
   });
   let validationFeedback;
@@ -2534,21 +2633,25 @@ async function runProviderTurn(request, dependencies = {}) {
   let exitClassification;
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await cleanupSubmitCaptureFile(submitCapturePath);
+      if (submitCapturePath) {
+        await cleanupSubmitCaptureFile(submitCapturePath);
+      }
       const invocationRequest = {
         ...effectiveRequest,
         prompt: promptForStrategy({
           prompt: request.prompt,
           strategy,
           inlineJsonSchema,
-          submitCaptureEnabled: true,
+          submitCaptureEnabled,
           submitCommand,
           validationFeedback
         })
       };
       const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
         strategy,
-        inlineJsonSchema
+        inlineJsonSchema,
+        lastMessageFile: dependencies.transport?.lastMessageFile,
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -2590,11 +2693,7 @@ async function runProviderTurn(request, dependencies = {}) {
           diagnostics: failureDiagnostics
         });
       }
-      const submittedVerdict = await readSubmittedVerdict(
-        submitCapturePath,
-        schema,
-        maxSubmitBytes
-      );
+      const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
       if (submittedVerdict.ok) {
         return successEnvelope({
           provider: request.provider,
@@ -2704,11 +2803,13 @@ async function runProviderTurn(request, dependencies = {}) {
       } : void 0
     });
   } finally {
-    await cleanupSubmitCaptureFile(submitCapturePath);
+    if (submitCapturePath) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+    }
   }
 }
 async function readJsonSchema(schemaPath) {
-  return JSON.parse(await readFile3(schemaPath, "utf8"));
+  return JSON.parse(await readFile2(schemaPath, "utf8"));
 }
 function preInvocationFailure(input) {
   return failureEnvelope({
@@ -2746,11 +2847,10 @@ function parseProviderJson(stdout) {
   }
 }
 async function readSubmittedVerdict(filePath, schema, maxBytes) {
-  let raw;
+  const capture = await readBoundedRegularFile(filePath, maxBytes);
+  if (!capture.ok) return { ok: false };
+  const raw = capture.contents;
   try {
-    const capture = await stat(filePath);
-    if (capture.size > maxBytes) return { ok: false };
-    raw = await readFile3(filePath, "utf8");
     assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };
@@ -3435,12 +3535,12 @@ function nodeIo() {
 }
 async function readUtf8File(filePath, maxBytes) {
   if (maxBytes !== void 0) {
-    const file = await stat2(filePath);
+    const file = await stat(filePath);
     if (file.size > maxBytes) {
       throw new SubmitCaptureLimitError(file.size, maxBytes);
     }
   }
-  const contents = await readFile4(filePath, "utf8");
+  const contents = await readFile3(filePath, "utf8");
   if (maxBytes !== void 0 && byteLength(contents) > maxBytes) {
     throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
   }

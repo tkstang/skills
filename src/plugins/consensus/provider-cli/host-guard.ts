@@ -8,6 +8,16 @@ import type {
 
 export type HostGuardResult = HostGuardAllowedResult | HostGuardBlockedResult;
 
+export type KnownHostRuntime = Exclude<HostRuntime, 'unknown'>;
+
+export type ExplicitHostContextResult =
+  | { ok: true; context: HostContext }
+  | {
+      ok: false;
+      reason: 'unknown_host' | 'contradictory_host';
+      message: string;
+    };
+
 export interface HostGuardAllowedResult {
   allowed: true;
   host_relation: NonNullable<ProviderDiagnostics['host_relation']>;
@@ -28,33 +38,50 @@ export interface HostGuardBlockedResult {
 export function detectHostRuntime(
   env: Record<string, string | undefined>,
 ): HostRuntime {
+  const detected = detectedHostRuntimes(env);
+  return detected.size === 1 ? [...detected][0] : 'unknown';
+}
+
+export function resolveExplicitHostContext(input: {
+  runtime: KnownHostRuntime;
+  cwd: string;
+  env: Record<string, string | undefined>;
+  maxDepth: number;
+}): ExplicitHostContextResult {
+  const detected = detectedHostRuntimes(input.env);
+  const declaredParent = input.env.CONSENSUS_PARENT_HOST;
   if (
-    env.CONSENSUS_PARENT_HOST === 'claude' ||
-    env.CLAUDECODE ||
-    env.CLAUDE_CODE_ENTRYPOINT ||
-    env.CLAUDE_CODE_SESSION_ID ||
-    env.CLAUDE_SESSION_ID
+    (declaredParent !== undefined &&
+      declaredParent !== 'claude' &&
+      declaredParent !== 'codex' &&
+      declaredParent !== 'cursor') ||
+    detected.size > 1 ||
+    (detected.size === 1 && !detected.has(input.runtime))
   ) {
-    return 'claude';
+    return {
+      ok: false,
+      reason: 'contradictory_host',
+      message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+    };
   }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'codex' ||
-    env.CODEX_SESSION_ID ||
-    env.CODEX_SANDBOX ||
-    env.OPENAI_CODEX_SESSION_ID
-  ) {
-    return 'codex';
+  if (detected.size === 0) {
+    return {
+      ok: false,
+      reason: 'unknown_host',
+      message: `Could not verify explicit host ${input.runtime} from runtime evidence.`,
+    };
   }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'cursor' ||
-    env.CURSOR_TRACE_ID ||
-    env.CURSOR_AGENT ||
-    env.CURSOR_SESSION_ID ||
-    env.CURSOR
-  ) {
-    return 'cursor';
-  }
-  return 'unknown';
+
+  return {
+    ok: true,
+    context: {
+      runtime: input.runtime,
+      cwd: input.cwd,
+      run_id: input.env.CONSENSUS_RUN_ID ?? 'local',
+      depth: parseNonNegativeInteger(input.env.CONSENSUS_DEPTH) ?? 0,
+      max_depth: input.maxDepth,
+    },
+  };
 }
 
 export function hostContextFromEnv(
@@ -157,4 +184,37 @@ function allowed(
 function parseNonNegativeInteger(value: string | undefined) {
   if (value === undefined || !/^\d+$/.test(value)) return undefined;
   return Number(value);
+}
+
+function detectedHostRuntimes(
+  env: Record<string, string | undefined>,
+): Set<KnownHostRuntime> {
+  const detected = new Set<KnownHostRuntime>();
+  if (
+    env.CONSENSUS_PARENT_HOST === 'claude' ||
+    env.CLAUDECODE ||
+    env.CLAUDE_CODE_ENTRYPOINT ||
+    env.CLAUDE_CODE_SESSION_ID ||
+    env.CLAUDE_SESSION_ID
+  ) {
+    detected.add('claude');
+  }
+  if (
+    env.CONSENSUS_PARENT_HOST === 'codex' ||
+    env.CODEX_SESSION_ID ||
+    env.CODEX_SANDBOX ||
+    env.OPENAI_CODEX_SESSION_ID
+  ) {
+    detected.add('codex');
+  }
+  if (
+    env.CONSENSUS_PARENT_HOST === 'cursor' ||
+    env.CURSOR_TRACE_ID ||
+    env.CURSOR_AGENT ||
+    env.CURSOR_SESSION_ID ||
+    env.CURSOR
+  ) {
+    detected.add('cursor');
+  }
+  return detected;
 }

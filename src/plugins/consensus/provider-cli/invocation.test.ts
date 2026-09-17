@@ -119,6 +119,32 @@ describe('provider invocation builders', () => {
     ]);
   });
 
+  it('uses a caller-owned Codex capture without scheduling its cleanup', () => {
+    const capturePath = '/external/reviews/run-123/codex-last-message.json';
+    const adapter = providerRegistry().get('codex')!;
+    const invocation = buildProviderInvocation(
+      adapter,
+      {
+        schema_version: 'v1',
+        provider: 'codex',
+        schema_path: 'schema.json',
+        prompt: 'Sensitive prompt text.',
+      },
+      {
+        strategy: 'prompt_only',
+        lastMessageFile: capturePath,
+        preserveLastMessageFile: true,
+      },
+    );
+
+    expect(invocation.last_message_file).toBe(capturePath);
+    expect(invocation.cleanup_last_message_file).toBe(false);
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining(['--output-last-message', capturePath]),
+    );
+    expect(invocation.argv).not.toContain('--output-schema');
+  });
+
   it('maps effective non-interactive runtime policies to provider controls', () => {
     const claude = buildInvocation('claude', 'provider_validated', {
       runtime_policy: defaultRuntimePolicy(),

@@ -219,6 +219,43 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.invocations[0]?.argv).not.toContain('--output-schema');
   });
 
+  it('disables every submit-sidecar lifecycle seam for review transport', async () => {
+    const capturePath = '/external/reviews/run-123/codex-last-message.json';
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: '{"verdict":"accept"}',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      transport: {
+        submitCaptureEnabled: false,
+        strategy: 'prompt_only',
+        lastMessageFile: capturePath,
+        preserveLastMessageFile: true,
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        strategy_used: 'prompt_only',
+        output_mode: 'last_message_file',
+      },
+    });
+    expect(subprocess.envs[0]).not.toHaveProperty('CONSENSUS_SUBMIT_COMMAND');
+    expect(subprocess.envs[0]).not.toHaveProperty('CONSENSUS_SUBMIT_FILE');
+    expect(subprocess.envs[0]).not.toHaveProperty('CONSENSUS_SUBMIT_SCHEMA');
+    expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
+    expect(subprocess.invocations[0]).toMatchObject({
+      last_message_file: capturePath,
+      cleanup_last_message_file: false,
+    });
+    expect(subprocess.invocations[0]?.argv).not.toContain('--output-schema');
+  });
+
   it('retries retryable provider exits and stops on timeout classifications', async () => {
     const subprocess = fakeSubprocess([
       processFailure('PROVIDER_EXIT', true, {
