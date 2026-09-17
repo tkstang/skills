@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: a7355e6ac8320159a4f6922b28c8c577757aebc9
+oat_last_commit: 7958bd57feca82072dd626d43cfeaa4be1649f11
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -58,23 +58,23 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md'
   handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (medium=1, minor=1). Run oat-project-review-receive for .oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md to disposition them before marking the final review row passed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation: 'run=14836d4a-5d65-43a1-9d78-ec3b9d300a4b scope=final type=code source=final-review-2026-09-17T074525Z.md handoff=corroborated'
+  receive_source_artifact: '.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md'
+  receive_archived_artifact: '.oat/projects/shared/consensus-review/reviews/archived/final-review-2026-09-17T074525Z.md'
+  receive_event_identity: 'scope=final type=code source=final-review-2026-09-17T074525Z.md'
+  receive_pre_head: 7958bd57feca82072dd626d43cfeaa4be1649f11
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-17T07:49:37Z'
+  updated_at: '2026-09-17T07:50:53Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:49:37Z'
+oat_project_state_updated: '2026-09-17T07:50:53Z'
 oat_generated: false
 ---
 
