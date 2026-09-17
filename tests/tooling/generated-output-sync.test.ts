@@ -268,6 +268,7 @@ describe('generated output drift guard', () => {
   });
 
   it('includes complete standalone outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('skills/consensus-review');
     expect(generatedOutputRoots).toContain('skills/must-we');
     expect(generatedOutputRoots).toContain('skills/next-steps');
     expect(generatedOutputRoots).toContain('skills/session-retro');
@@ -283,6 +284,7 @@ describe('generated output drift guard', () => {
   });
 
   it('includes complete plugin skill outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('plugins/consensus/skills/review');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/refine');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/create');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/observer');

@@ -14,6 +14,7 @@ import {
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -910,6 +911,39 @@ describe('declared skill packaging', () => {
 });
 
 describe('representative real installation boundaries', () => {
+  it('packages both review identities with the skill-owned runner closure', async () => {
+    const declaration = distributions.find(
+      (candidate) => candidate.owner === 'consensus-review',
+    );
+    expect(declaration).toBeDefined();
+
+    const built = await buildDeclaredDistributions({
+      repoRoot: repositoryRoot,
+      declarations: [declaration!],
+    });
+    expect(built.map((unit) => unit.target.output).toSorted()).toEqual([
+      'plugins/consensus/skills/review',
+      'skills/consensus-review',
+    ]);
+
+    for (const unit of built) {
+      const runtime = path.join(unit.stagedPath, 'scripts/review.mjs');
+      const installed = (await import(
+        `${pathToFileURL(runtime).href}?unit=${unit.target.name}`
+      )) as {
+        runReview: () => Promise<unknown>;
+      };
+      await expect(installed.runReview()).resolves.toEqual({
+        ok: false,
+        status: 'foundation_only',
+        invocation_count: 0,
+      });
+      expect(await readFile(runtime, 'utf8')).not.toContain('consensus-loop');
+    }
+
+    await cleanupBuiltDistributions(built);
+  });
+
   it('packages and executes prompt-only, shared-runtime, standalone-consensus, and complete-plugin units outside the checkout', async () => {
     const root = await fixtureRoot();
     const home = path.join(root, 'home');
