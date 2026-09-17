@@ -62,6 +62,17 @@ oat_implement_exit_gate:
   receive_completed: true
   failure: null
   updated_at: '2026-09-17T05:10:36Z'
+oat_post_implement_sequence:
+  status: pre_approval
+  source: configured
+  final_phase: p03
+  pre_approval: [summary, document, pr]
+  pre_approval_completed: []
+  approval: not_required
+  approval_source: null
+  post_approval: []
+  post_approval_completed: []
+  failure: null
 oat_dispatch_policy: # Project-scoped maximum; reusable candidate ladders remain config-owned
   mode: managed
   policy: frontier
@@ -124,7 +135,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-16T22:35:41.254Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-17T05:10:36Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-09-17T05:11:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
