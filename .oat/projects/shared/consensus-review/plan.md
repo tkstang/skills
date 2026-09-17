@@ -261,6 +261,7 @@ Fable's revision re-check also approved the scope and sequencing. p06-t02 and p0
 | final | code | fixes_completed | 2026-09-17 | reviews/archived/final-review-2026-09-17T071244Z.md | 8b84b4e0407772b9d859a0cb7778b0dbad7e3c18 | auto | - |
 | final | code | fixes_completed | 2026-09-17 | reviews/archived/final-review-2026-09-17T072611Z.md | 7caccdb5ab3e9cad6b2ce9f4b82281a0dd609375 | auto | - |
 | final | code | passed | 2026-09-17 | reviews/archived/final-review-2026-09-17T073411Z.md | 62cc7054eb02ed9bf71efa1f59a1256c74661d1d | auto | - |
+| final | code | received | 2026-09-17 | reviews/final-review-2026-09-17T074525Z.md | 1808b8266cb4fb62f57cf13f85f40e3807617c57 | gate | cursor-fable-5-1-high |
 
 Gate receipt completed with user approval on 2026-09-17 UTC. M1 was rejected because the template flag was required before completion; it is cleared now as the normal readiness transition. M2 and m2–m4 are resolved by four plan clarifications. For m1, retain the historical auto row and use `-` in future artifact-row provenance cells. Full dispositions are in implementation.md. The gate passed its Important threshold; `fixes_completed` records applied edits without claiming a new clean re-review. The user approved continuing the phase flow, so no additional gate or review was launched.
 
