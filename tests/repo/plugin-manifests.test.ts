@@ -21,6 +21,7 @@ const plugins = [
       'phone-a-friend',
       'plan',
       'refine',
+      'review',
     ],
     permissionDeclaration: 'verified',
     permissionEvidence: /verified .*2026-06-20/i,

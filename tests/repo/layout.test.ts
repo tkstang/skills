@@ -52,6 +52,7 @@ describe('repo-layout', () => {
 
     expect(standaloneSkills).toEqual([
       'complexity-review',
+      'consensus-review',
       'must-we',
       'next-steps',
       'session-export-transcript',

@@ -18,6 +18,22 @@ oat_dispatch_policy:
   mode: managed
   policy: high
   source: project-state
+oat_phase_recovery_policy:
+  default_attempt_limit: 10
+  phase_attempt_limits: {}
+  phase_attempt_usage:
+    p06:
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p06-recovered-001
+        original_request_id: impl-consensus-review-p06-run2-20260917T0055Z
+        original_task_id: p06-t02
+        original_commit: 52b267c1fab7eb7c6cb0fb25b50607d10e685576
+        discovered_by: pnpm run test
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 70cdd5c5673f56606a97df90445d4ae6231269c3
+        status: completed
 oat_phase: implement
 oat_phase_status: in_progress
 oat_workflow_mode: quick
