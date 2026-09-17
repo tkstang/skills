@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 1     | 1/1       |
-| Phase 3 | in progress | 1     | 0/1       |
+| Phase 3 | complete    | 1     | 1/1       |
 
-**Total:** 4/5 tasks completed
+**Total:** 5/5 tasks completed
 
 ---
 
@@ -160,19 +160,35 @@ collision regression covering checkout identity and installer bytes.
 
 ## Phase 3: Resolve final wording review finding
 
-**Status:** in progress
+**Status:** complete
 **Started:** 2026-09-17
+
+### Phase Summary (fill when phase is complete)
+
+**Outcome (what changed):**
+
+- The shared Node.js version check now uses an installer-neutral failure
+  message accurate for both supported entry paths.
+- A standalone-mode regression uses a mocked Node 21 and proves the message
+  does not name Consensus.
+
+**Verification:**
+
+- Eight focused `install.sh` tests, authored-test lint, Bash syntax, and range
+  whitespace checks passed.
 
 ### Task p03-t01: (review) Make the Node requirement message installer-neutral
 
-**Status:** pending
+**Status:** completed
+**Commit:** `266dd3c360b5779743d4bc634d2c7b92e7b86cb0`
 
 **Review finding:** m3 from the fresh final review. Standalone mode correctly
 requires Node.js 22 but reports that requirement as belonging specifically to
 the Consensus provider CLI.
 
-**Planned outcome:** Use one neutral installer message for both supported paths
-and cover the standalone old-Node failure with a focused regression.
+**Outcome:** `require_node_22` now reports that Node.js 22 is required to run
+"this installer". The focused regression exercises standalone arguments with a
+mocked old Node, asserts the neutral message, and rejects any Consensus wording.
 
 ---
 
@@ -551,6 +567,7 @@ Chronological log of implementation progress.
 - Final re-review passed with zero findings; all prior Medium and Minor dispositions are closed.
 - Configured cross-family exit gate passed at the Important threshold; four Minor findings were explicitly deferred and one quick-mode reference was aligned.
 - Operator-authorized closeout recovery committed the provider-mirror lint exclusions in `bbe37778`; the exact test, lint, type-check, and build commands all passed.
+- `p03-t01` completed in `266dd3c3`; the shared Node-version message is neutral and the standalone old-Node regression passes.
 
 ---
 
