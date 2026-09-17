@@ -5,7 +5,7 @@ description: 'How the consensus plugin uses provider-backed AI peers for converg
 
 # Consensus
 
-The consensus plugin uses provider-CLI-backed AI peers for three related
+The consensus plugin uses provider-CLI-backed AI peers for four related
 workflows: converging artifacts through peer deliberation, one bounded read-only
 review, single-round panel responses with side-by-side attribution, and one-shot
 advisory takes that the host dispositions. It also packages `observer` and `observer-collab`, the

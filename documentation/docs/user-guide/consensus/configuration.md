@@ -160,7 +160,7 @@ different models are rejected in the same list. A provider may appear in both
 `peers`, `panelists`, and `reviewers`, since those are separate lists.
 
 The Consensus plugin 0.2.0 and standalone `consensus-review` 0.1.7 are the
-first released forms that understand `defaults.reviewers`. Older binaries use
+first versions that understand `defaults.reviewers`. Older binaries use
 strict config parsing and reject this key; upgrade before adding it rather than
 expecting an older install to ignore it.
 
