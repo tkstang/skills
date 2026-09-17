@@ -41,7 +41,7 @@ This project added a first-party command for installing any declared generated s
 ## Notable Challenges
 
 - The skill-version gate initially blocked closeout because standalone assertions were placed beneath distributed Consensus source. Candidate-tree comparison established the intended net cancellation, after which the tests were relocated and both committed-range version checks passed with zero changed skills.
-- Repository-wide closeout lint followed `.claude/skills/**` and `.cursor/skills/**` symlinks into generated OAT mirrors. The user-authorized correction added those provider mirrors to `.oxlintrc.json`; the full test, lint, type-check, and build commands then passed.
+- Repository-wide closeout lint followed `.claude/skills/**` and `.cursor/skills/**` symlinks into generated OAT mirrors. The user-authorized correction added those provider mirrors to `.oxlintrc.json`; the later documentation sync aligned `.oxfmtrc.json` and root guidance in `b000f991`. The full test, lint, type-check, and build commands passed.
 - The first Node-message regression location repeated the version-gate issue during p03 review. Moving it into the standalone tooling suite resolved the Medium finding while retaining focused coverage.
 
 ## Tradeoffs Made
@@ -63,7 +63,10 @@ This project added a first-party command for installing any declared generated s
 - **m1:** Revisit direct invocation through the private Node helper only if that helper becomes a supported public interface.
 - **m2:** Document Git configuration isolation during the next installation-guide cleanup, or sooner if a proxy/private-CA user reports a problem; `--repository` already permits a local mirror.
 - **m4:** Improve fetch-timeout diagnostics if the bounded timeout is reproduced or support demand appears.
-- **m6:** Align the root guidance and `.oxfmtrc.json` exclusions during the next tooling/docs touch, or sooner if formatter traversal begins affecting provider skill mirrors.
+
+## Explainer Outcome
+
+- **project-recap:** skipped — the operator chose not to generate a final visual recap during completion.
 
 ## Workflow Observations
 

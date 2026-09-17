@@ -9,6 +9,12 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260917-constrain-the-payload | 2026-09-17 | accepted | Constrain the payload and source identity | - |
+| DR-260917-keep-installation-provider | 2026-09-17 | accepted | Keep installation provider-specific | - |
+| DR-260917-keep-verification-claims | 2026-09-17 | accepted | Keep verification claims narrow | - |
+| DR-260917-prefer-refusal-and-inspectable | 2026-09-17 | accepted | Prefer refusal and inspectable recovery | - |
+| DR-260917-require-explicit-installation | 2026-09-17 | accepted | Require explicit installation intent | - |
+| DR-260917-reuse-the-proven-installer | 2026-09-17 | accepted | Reuse the proven installer core | - |
 | DR-260914-declared-skill-distributions | 2026-09-14 | accepted | Declared skill distributions | - |
 | DR-260914-metadata-version-is-the-sole | 2026-09-14 | accepted | Metadata version is the sole skill version | - |
 | DR-260914-session-and-consensus-plugin | 2026-09-14 | accepted | Session and consensus plugin boundaries | - |
