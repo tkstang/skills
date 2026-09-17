@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p06 bounded fix iteration 1 completed both Important findings; main integration and review round 2 are next.
+**Status:** p06 bounded fix iteration 1 and current-main integration are complete with all repository gates green; review round 2 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -116,6 +116,15 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: 124 focused tests passed; build, build freshness, type-check, validation, affected-owner versions and scoped lint/format passed; full suite retained only the then-authorized refine baseline.
 - Worktree: clean; exactly one append-only fix commit.
 
+#### Current-main integration — completed
+
+- Merge commit: `9cfe41acd7749ccb5504d2bceee3ca510bcbf442` (`chore: merge main after p06 review fixes`)
+- Integrated main commits: `d3ad2848` compatibility-shim removal and changelog gate; `885ac7a5` lint/format ignore globs; `6eb5fd8c` host-stable refine peer ordering.
+- Reconciliation: retained the branch's newer refine `0.1.15`; bumped session-export-transcript to `2.0.2` and session-fork-to-destination to `0.2.8`; added all required `CHANGELOG.md` Unreleased version entries; regenerated owned outputs.
+- Verification: 138 test files passed with one skipped; 1,958 tests passed with one skipped; build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and diff checks passed.
+- Baseline disposition: the formerly authorized refine host-sensitive failure now passes under Codex after main's PR #89 fix. No p06 review finding or product behavior was changed by that test repair.
+- Worktree: clean.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -159,6 +168,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Same-target recovery attempt 1/10 committed the three bounded inventory corrections at `a1b2b427`; root independently confirmed the complete suite now retains only the exact authorized host-sensitive refine baseline. The completed marker was validated and cleared before p06 review.
 - 2026-09-17: Independent p06 review round 1 requested changes for two Important fail-open safety defects: canonical Codex capture confinement and malformed inherited depth. The artifact is committed as `fixes_added`; both findings return to the original implementer in bounded fix iteration 1/2.
 - 2026-09-17: Bounded fix iteration 1 completed I1 and I2 in one append-only commit with source and copied-installed-bundle regressions. The review event advances to `fixes_completed`; current main will be integrated at the clean boundary before review round 2.
+- 2026-09-17: Merged current `origin/main` at `9cfe41ac`, resolved the new skill-version changelog requirements, and regenerated affected distributions. The full suite and all repository gates are green; PR #89 removes the prior Codex-host refine baseline. Independent p06 review round 2 is next.
 
 ## Deviations from Plan / Design
 
@@ -176,6 +186,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Root-confirmed post-recovery full suite: 2,074 passed, one skipped and only the exact operator-approved refine host-sensitive assertion failed.
 - Build freshness, type-check and validation passed after recovery. Root phase review and later chained gates have not yet run.
 - Review fix iteration 1: 124 focused tests passed; build, build freshness, type-check, validation, affected-owner version checks and scoped lint/format passed. Root independently reran 72 boundary-focused tests successfully.
+- Post-main integration: 138 test files and 1,958 tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and diff checks passed; the former refine host-order baseline is resolved.
 
 ## Planning review received
 
