@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** all seven implementation tasks are complete and verified; final lifecycle review is next.
+**Status:** all seven implementation tasks are complete; final review round 1 requested one Important and one Medium fix, and bounded fix iteration 1/2 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -227,6 +227,20 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Receipt alternate: Codex independent receipt alternate using `oat-review-receive` 1.4.1; clean, all-severity and diagnostic fixtures behaved as specified.
 - Disposition: all implementation tasks complete; prepare committed final-review baseline and run the single final lifecycle review required by the p08 HiLL checkpoint.
 
+#### Final Review Round 1 — changes requested
+
+- Request ID: `review-consensus-review-final-20260917T053248Z`
+- Artifact: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md)
+- Reviewed head: `b5fe65d87ed417fa967302270d6640fb99e4536a`
+- Verdict: changes requested; Critical 0, Important 1, Medium 1, Minor 0
+- Reconnaissance: attempted; two packet-incomplete recon lanes refused before reading or writing, one renderer/packaging lane completed, and the primary reviewer reconciled all three lanes.
+- I1 accepted: publish Markdown and export artifacts atomically without leaving partial final paths, and report diagnostic paths only after successful persistence.
+- M1 accepted: read request files through a bounded allocation even when another process grows the open file after the initial stat.
+- Dispatch target and axes: `oat-reviewer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=final action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+- Verification: 226 focused tests, build freshness, type-check and range diff checks passed; deterministic probes reproduced M1 and direct code/contract inspection verified I1. The unchanged `.claude/skills/**` symlink traversal remains a separate repository-wide lint baseline issue.
+- Disposition: route both accepted same-module findings to the p08 implementer in one bounded final-review fix iteration 1/2, then re-review the corrected range.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -310,6 +324,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: The p08-t02 premerge pass exposed one stale p08-t01 release-test expectation for Consensus plugin 0.2.0. Recovery attempt 2/10 corrected it at `9a286249`; focused and full premerge checks passed before and after commit. Root accepted that the exact 100%-identity backlog archive rename landed early in the recovery commit as a commit-organization deviation, settled the ledger without rewriting history, and left all archive metadata/content in p08-t02.
 - 2026-09-17: p08-t02 used the current `oat-review-receive` 1.4.1 skill with an independent Codex alternate in a disposable destination. Completed clean and all-severity fixtures normalized exactly as expected; the defective diagnostic was rejected and not offered for receipt. The exact backlog item was closed and archived, current-state/roadmap/index surfaces were refreshed, and only its consumed kickoff handoff was removed. Live provider, external-install, native-continuation, and fresh-session discovery acceptance remain unverified.
 - 2026-09-17: p08-t02 committed at `aad79ef5`; root independently reran focused, premerge, version/internal/PJM and production docs gates. All seven tasks are complete, the task pointer is cleared, and the terminal implementation baseline is ready for final lifecycle review.
+- 2026-09-17: Final review round 1 requested one Important atomic-publication fix and one Medium bounded-read fix. Root accepts both as implementation defects; none are deferred or dismissed, and the p08 implementer receives one bounded same-module fix iteration before final re-review.
 
 ## Deviations from Plan / Design
 

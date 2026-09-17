@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: aad79ef577c037887ff8990875d352bff1ce7fe8
+oat_last_commit: f93786eb74cb49b301db134efda23867652e4b08
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -37,20 +37,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T05:29:00Z'
+oat_project_state_updated: '2026-09-17T05:45:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** all seven implementation tasks are complete and independently verified. Final lifecycle review is next; the implementation exit gate and final HiLL approval remain pending.
+**Status:** all seven implementation tasks are complete. Final review round 1 requested one Important and one Medium fix; bounded final-review fix iteration 1/2 is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Implementation — tasks complete; awaiting final lifecycle review. p06 and p07 passed phase review, p08 completed both tasks and its acceptance exercise, and the final-phase checkpoint now routes to one `final` review rather than a duplicate p08 review. No publication, global installation or live provider acceptance has completed.
+Implementation — tasks complete; final review fixes in progress. Round 1 found atomic-publication and bounded-request-read defects in the shared Review implementation. Both are accepted for one integrated fix iteration before final re-review. No publication, global installation or live provider acceptance has completed.
 
 ## Artifacts
 
@@ -62,6 +62,7 @@ Implementation — tasks complete; awaiting final lifecycle review. p06 and p07 
 - p08-t01: interactive rendering, scope selection and documentation committed at `6b65fe8c`; bounded determinism recovery committed at `0831b0b6` and settled at attempt 1/10.
 - p08 recovery 2: stale Consensus manifest expectation corrected at `9a286249`; the immutable recovery commit also moved the exact p08-t02 backlog item into its archive with no content change. Remaining closure metadata stays in the planned p08-t02 work.
 - p08-t02: deterministic receipt evidence and PJM closure committed at `aad79ef5`; the exact backlog item is closed/archived, only its consumed handoff was removed, and adjacent work remains open.
+- Final review round 1: [final-review-2026-09-17T053248Z.md](reviews/final-review-2026-09-17T053248Z.md) at `b5fe65d8` requested one Important atomic-publication fix and one Medium bounded-read fix; both are accepted for bounded iteration 1/2.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -76,11 +77,11 @@ Implementation — tasks complete; awaiting final lifecycle review. p06 and p07 
 
 ## Next Milestone
 
-Run the required final lifecycle code review against the committed terminal implementation baseline, then process any findings before the configured implementation exit gate and final HiLL approval. No live provider acceptance may be inferred or run without separate authorization.
+Apply both accepted final-review findings in one append-only fix commit, rerun focused and repository gates, and perform final review round 2. The configured implementation exit gate and final HiLL approval remain pending. No live provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
-p08 terminal verification confirmed 92 focused tests, full premerge with 2,010 passed and one skipped, build/type/freshness/validation/smoke, 11 skill-version/changelog impacts, 72 internal flags, declared PJM health, current-OAT MDX/index generation and a 52-page production docs build. Recovery usage is settled at 2/10 with `pending_attempt: null`.
+Final review round 1 independently passed 226 focused tests, build freshness, type-check and range diff checks, then requested changes with 0 Critical, 1 Important, 1 Medium and 0 Minor findings. It classified the unchanged `.claude/skills/**` symlink traversal as a separate repository-wide lint baseline issue. Recovery usage remains settled at 2/10 with `pending_attempt: null`.
 
 ## Progress
 
@@ -89,7 +90,7 @@ p08 terminal verification confirmed 92 focused tests, full premerge with 2,010 p
 - ✓ All seven implementation tasks complete
 - ✓ Phase p06 and p07 reviews passed
 - ✓ p08 receipt and delivery acceptance complete
-- ⧗ Awaiting final lifecycle review
+- ⧗ Final lifecycle review fixes in progress
 - ⧗ Implementation exit gate and final HiLL approval pending
 
 ## Operational Notes
