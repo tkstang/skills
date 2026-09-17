@@ -26,8 +26,17 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p08:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: p08-manifest-version-test-002
+        original_request_id: impl-consensus-review-p08-20260917T0439Z
+        original_task_id: p08-t01
+        original_commit: 6b65fe8c0e6b46a0d7720677fb199972fdf2c377
+        discovered_by: pnpm run premerge
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: a675f7c7efbd811d6f96fb3c8b28e6fe6ed51ef4
+        status: completed
 oat_phase: implement
 oat_phase_status: in_progress
 oat_workflow_mode: quick
