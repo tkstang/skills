@@ -28,6 +28,8 @@ import {
   inside,
   nearestExistingPath,
 } from '../../../plugins/consensus/shared/cli-helpers-core.js';
+import { captureScopeState, compareScopeState } from './scope.js';
+import type { CapturedReviewScope, ScopeStateSnapshot } from './scope.js';
 
 export interface ReviewFoundationResult {
   ok: false;
@@ -47,6 +49,10 @@ export interface ReviewTransportRequest {
   effort?: string;
   maxRuntimeSec?: number;
   maxOutputBytes?: number;
+  scopeGuard?: {
+    scope: CapturedReviewScope;
+    before: ScopeStateSnapshot;
+  };
 }
 
 export interface ReviewPreflightInput {
@@ -65,6 +71,7 @@ export interface ReviewRunDependencies {
     request: ConsensusCliRunRequest,
     dependencies: RunProviderTurnDependencies,
   ) => Promise<ConsensusCliRunEnvelope>;
+  scanScopeState?: typeof captureScopeState;
 }
 
 export type ReviewRunResult =
@@ -153,6 +160,27 @@ export async function runReview(
   const claimedTransport = await claimReviewTransport(input, transport.options);
   if (!claimedTransport.ok) {
     return preflightFailure(claimedTransport.reason, claimedTransport.message);
+  }
+
+  if (input.scopeGuard) {
+    let after: ScopeStateSnapshot;
+    try {
+      after = await (dependencies.scanScopeState ?? captureScopeState)(
+        input.scopeGuard.scope,
+      );
+    } catch (error) {
+      return preflightFailure(
+        'scope_comparison_failed',
+        `Review scope could not be revalidated before dispatch: ${fsMessage(error)}.`,
+      );
+    }
+    const comparison = compareScopeState(input.scopeGuard.before, after);
+    if (!comparison.stable) {
+      return preflightFailure(
+        'scope_drift',
+        `Review scope changed before dispatch: ${comparison.differences.join('; ')}.`,
+      );
+    }
   }
 
   const request: ConsensusCliRunRequest = {

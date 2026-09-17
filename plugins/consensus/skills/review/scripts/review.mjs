@@ -5,8 +5,8 @@
 import { pathToFileURL } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
-import { lstat as lstat2, open as open2, realpath, stat, unlink } from "node:fs/promises";
-import path6 from "node:path";
+import { lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
+import path7 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
@@ -1877,6 +1877,242 @@ async function nearestExistingPath(targetPath) {
   return await nearestExistingPath(parent);
 }
 
+// src/skills/consensus-review/src/scope.ts
+import { execFile } from "node:child_process";
+import { createHash, randomUUID as randomUUID3 } from "node:crypto";
+import { chmod, lstat as lstat2, mkdir, open as open2, realpath, stat } from "node:fs/promises";
+import os from "node:os";
+import path6 from "node:path";
+import { promisify } from "node:util";
+var execFileAsync = promisify(execFile);
+var REVIEW_SCOPE_LIMITS = {
+  maxSelectedFiles: 100,
+  maxEvidenceBytes: 2 * 1024 * 1024,
+  maxGitOutputBytes: 4 * 1024 * 1024
+};
+async function captureScopeState(scope) {
+  const [head, index, status] = await Promise.all([
+    gitText(scope.canonicalWorktree, ["rev-parse", "--verify", "HEAD"]),
+    gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha256),
+    gitBytes(scope.canonicalWorktree, [
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all"
+    ]).then((value) => value.toString("base64"))
+  ]);
+  const selected = [];
+  for (const relativePath of scope.selectedPaths) {
+    selected.push(
+      stateFromVersion(
+        await captureWorktreeVersion(
+          scope.canonicalWorktree,
+          relativePath,
+          false,
+          false
+        ),
+        "worktree"
+      )
+    );
+  }
+  for (const documentPath of scope.externalDocuments) {
+    selected.push(
+      stateFromVersion(
+        await captureAbsoluteFile(documentPath, "live"),
+        "external"
+      )
+    );
+  }
+  return { head, index, status, selected };
+}
+function compareScopeState(before, after) {
+  const limitation = "Content changes outside the selected set may go undetected when Git status is unchanged; ignored, unselected, external, and transient write-then-revert activity are not fully monitored.";
+  if (after instanceof Error) {
+    return {
+      checked: false,
+      stable: false,
+      differences: [`after_scan_failed: ${after.message}`],
+      limitation
+    };
+  }
+  const differences = [];
+  if (before.head !== after.head) differences.push("HEAD changed");
+  if (before.index !== after.index) differences.push("index changed");
+  if (before.status !== after.status) differences.push("Git status changed");
+  const prior = new Map(
+    before.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
+  );
+  const next = new Map(
+    after.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
+  );
+  for (const key of /* @__PURE__ */ new Set([...prior.keys(), ...next.keys()])) {
+    if (prior.get(key) !== next.get(key)) {
+      differences.push(`selected path changed: ${key}`);
+    }
+  }
+  return {
+    checked: true,
+    stable: differences.length === 0,
+    differences,
+    limitation
+  };
+}
+async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
+  const normalized = normalizeRepositoryPath(relativePath);
+  const requested = path6.resolve(root, normalized);
+  if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
+  let info;
+  try {
+    info = await lstat2(requested);
+  } catch (error) {
+    if (isMissing(error) && !requirePresent) {
+      return deletedVersion(normalized, "live");
+    }
+    throw new Error(
+      `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
+      { cause: error }
+    );
+  }
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error(`scope_path_not_regular: ${normalized}`);
+  }
+  const canonical = await realpath(requested);
+  if (!inside(root, canonical)) throw new Error(`path_escape: ${normalized}`);
+  const bytes = await boundedRead(canonical);
+  return versionFromBytes(
+    normalized,
+    "live",
+    info.mode & 511,
+    bytes,
+    includeText
+  );
+}
+async function captureAbsoluteFile(canonicalPath, source) {
+  const info = await lstat2(canonicalPath).catch((error) => {
+    if (isMissing(error)) return null;
+    throw error;
+  });
+  if (!info) return deletedVersion(canonicalPath, source);
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error(`scope_path_not_regular: ${canonicalPath}`);
+  }
+  const bytes = await boundedRead(canonicalPath);
+  return versionFromBytes(
+    canonicalPath,
+    source,
+    info.mode & 511,
+    bytes,
+    true
+  );
+}
+async function boundedRead(filePath) {
+  const info = await stat(filePath);
+  if (info.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw new Error(`scope_too_large: ${filePath}`);
+  }
+  const handle = await open2(filePath, "r");
+  try {
+    const current = await handle.stat();
+    if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+      throw new Error(`scope_too_large: ${filePath}`);
+    }
+    const buffer = Buffer.alloc(current.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const read = await handle.read(
+        buffer,
+        offset,
+        buffer.length - offset,
+        offset
+      );
+      if (read.bytesRead === 0) break;
+      offset += read.bytesRead;
+    }
+    const final = await handle.stat();
+    if (final.size !== current.size || offset !== current.size) {
+      throw new Error(`scope_changed_during_read: ${filePath}`);
+    }
+    return buffer;
+  } finally {
+    await handle.close();
+  }
+}
+function versionFromBytes(filePath, source, mode, bytes, includeText) {
+  if (bytes.includes(0))
+    throw new Error(`binary_scope_not_supported: ${filePath}`);
+  return {
+    source,
+    path: filePath,
+    kind: "file",
+    mode,
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    text: includeText ? bytes.toString("utf8") : null
+  };
+}
+function deletedVersion(filePath, source) {
+  return {
+    source,
+    path: filePath,
+    kind: "deleted",
+    mode: null,
+    bytes: 0,
+    sha256: null,
+    text: null
+  };
+}
+function stateFromVersion(version, location) {
+  return {
+    path: version.path,
+    location,
+    kind: version.kind,
+    mode: version.mode,
+    bytes: version.bytes,
+    sha256: version.sha256
+  };
+}
+async function gitText(cwd, args) {
+  return (await gitBytes(cwd, args)).toString("utf8").trim();
+}
+async function gitBytes(cwd, args) {
+  const result = await execFileAsync("git", args, {
+    cwd,
+    encoding: "buffer",
+    maxBuffer: REVIEW_SCOPE_LIMITS.maxGitOutputBytes,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: "2",
+      GIT_CONFIG_KEY_0: "diff.external",
+      GIT_CONFIG_VALUE_0: "",
+      GIT_CONFIG_KEY_1: "core.attributesFile",
+      GIT_CONFIG_VALUE_1: "/dev/null"
+    }
+  });
+  return result.stdout;
+}
+function normalizeRepositoryPath(candidate) {
+  if (!candidate || candidate.includes("\0") || path6.isAbsolute(candidate)) {
+    throw new Error(`scope_path_invalid: ${candidate}`);
+  }
+  const normalized = path6.normalize(candidate);
+  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path6.sep}`)) {
+    throw new Error(`path_escape: ${candidate}`);
+  }
+  return normalized.split(path6.sep).join("/");
+}
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+function stateKey(value) {
+  return `${value.location}:${value.path}`;
+}
+function isMissing(error) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+function fsMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // src/skills/consensus-review/src/run.ts
 async function runReview(input, dependencies = {}) {
   if (!input) return foundationOnly();
@@ -1931,6 +2167,26 @@ async function runReview(input, dependencies = {}) {
   const claimedTransport = await claimReviewTransport(input, transport.options);
   if (!claimedTransport.ok) {
     return preflightFailure(claimedTransport.reason, claimedTransport.message);
+  }
+  if (input.scopeGuard) {
+    let after;
+    try {
+      after = await (dependencies.scanScopeState ?? captureScopeState)(
+        input.scopeGuard.scope
+      );
+    } catch (error) {
+      return preflightFailure(
+        "scope_comparison_failed",
+        `Review scope could not be revalidated before dispatch: ${fsMessage2(error)}.`
+      );
+    }
+    const comparison = compareScopeState(input.scopeGuard.before, after);
+    if (!comparison.stable) {
+      return preflightFailure(
+        "scope_drift",
+        `Review scope changed before dispatch: ${comparison.differences.join("; ")}.`
+      );
+    }
   }
   const request = {
     schema_version: "v1",
@@ -1992,7 +2248,7 @@ async function reviewTransport(input) {
       }
     };
   }
-  if (!input.codexCapturePath || !path6.isAbsolute(input.codexCapturePath)) {
+  if (!input.codexCapturePath || !path7.isAbsolute(input.codexCapturePath)) {
     return {
       ok: false,
       reason: "capture_not_external",
@@ -2017,20 +2273,20 @@ async function claimReviewTransport(input, options) {
   if (!capture.ok) return capture;
   let handle;
   try {
-    handle = await open2(capture.path, "wx", 384);
+    handle = await open3(capture.path, "wx", 384);
     await handle.close();
   } catch (error) {
     await handle?.close().catch(() => void 0);
     if (handle) await unlink(capture.path).catch(() => void 0);
     return captureFailure(
       "capture_destination_unsafe",
-      `Codex review capture could not be claimed exclusively: ${fsMessage(error)}.`
+      `Codex review capture could not be claimed exclusively: ${fsMessage2(error)}.`
     );
   }
   try {
     const [info, canonical] = await Promise.all([
-      lstat2(capture.path),
-      realpath(capture.path)
+      lstat3(capture.path),
+      realpath2(capture.path)
     ]);
     if (info.isSymbolicLink() || !info.isFile() || canonical !== capture.path || (info.mode & 63) !== 0) {
       await unlink(capture.path).catch(() => void 0);
@@ -2043,7 +2299,7 @@ async function claimReviewTransport(input, options) {
     await unlink(capture.path).catch(() => void 0);
     return captureFailure(
       "capture_destination_unsafe",
-      `Codex review capture identity could not be verified: ${fsMessage(error)}.`
+      `Codex review capture identity could not be verified: ${fsMessage2(error)}.`
     );
   }
   return {
@@ -2052,24 +2308,24 @@ async function claimReviewTransport(input, options) {
   };
 }
 async function validateCodexCapture(input) {
-  const capturePath = path6.resolve(input.codexCapturePath);
+  const capturePath = path7.resolve(input.codexCapturePath);
   let canonicalWorktree;
   try {
-    canonicalWorktree = await realpath(input.cwd);
+    canonicalWorktree = await realpath2(input.cwd);
   } catch (error) {
     return captureFailure(
       "capture_boundary_invalid",
-      `Reviewed worktree identity could not be resolved: ${fsMessage(error)}.`
+      `Reviewed worktree identity could not be resolved: ${fsMessage2(error)}.`
     );
   }
   let targetInfo = null;
   try {
-    targetInfo = await lstat2(capturePath);
+    targetInfo = await lstat3(capturePath);
   } catch (error) {
-    if (!isMissing(error)) {
+    if (!isMissing2(error)) {
       return captureFailure(
         "capture_destination_unsafe",
-        `Codex review capture could not be inspected: ${fsMessage(error)}.`
+        `Codex review capture could not be inspected: ${fsMessage2(error)}.`
       );
     }
   }
@@ -2086,7 +2342,7 @@ async function validateCodexCapture(input) {
     } catch (error) {
       return captureFailure(
         "capture_destination_unsafe",
-        `Codex review capture identity could not be compared: ${fsMessage(error)}.`
+        `Codex review capture identity could not be compared: ${fsMessage2(error)}.`
       );
     }
     if (protectedAlias) {
@@ -2100,20 +2356,20 @@ async function validateCodexCapture(input) {
       "Codex review capture must not already exist."
     );
   }
-  const parent = path6.dirname(capturePath);
+  const parent = path7.dirname(capturePath);
   let existing;
   let canonicalExisting;
   let existingInfo;
   try {
     existing = await nearestExistingPath(parent);
     [canonicalExisting, existingInfo] = await Promise.all([
-      realpath(existing),
-      lstat2(existing)
+      realpath2(existing),
+      lstat3(existing)
     ]);
   } catch (error) {
     return captureFailure(
       "capture_destination_unsafe",
-      `Codex review capture parent could not be resolved: ${fsMessage(error)}.`
+      `Codex review capture parent could not be resolved: ${fsMessage2(error)}.`
     );
   }
   if (!existingInfo.isDirectory()) {
@@ -2122,13 +2378,13 @@ async function validateCodexCapture(input) {
       "Codex review capture parent must be a directory."
     );
   }
-  const canonicalParent = path6.resolve(
+  const canonicalParent = path7.resolve(
     canonicalExisting,
-    path6.relative(existing, parent)
+    path7.relative(existing, parent)
   );
-  const canonicalCapture = path6.join(
+  const canonicalCapture = path7.join(
     canonicalParent,
-    path6.basename(capturePath)
+    path7.basename(capturePath)
   );
   if (inside(canonicalWorktree, canonicalCapture)) {
     return captureFailure(
@@ -2136,13 +2392,13 @@ async function validateCodexCapture(input) {
       "Codex review capture must remain outside the reviewed worktree."
     );
   }
-  if (path6.resolve(existing) !== canonicalExisting || path6.resolve(parent) !== canonicalParent) {
+  if (path7.resolve(existing) !== canonicalExisting || path7.resolve(parent) !== canonicalParent) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture path must not contain symbolic-link aliases."
     );
   }
-  if (path6.resolve(existing) !== path6.resolve(parent)) {
+  if (path7.resolve(existing) !== path7.resolve(parent)) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture requires an existing private run directory."
@@ -2161,7 +2417,7 @@ async function validateCodexCapture(input) {
   } catch (error) {
     return captureFailure(
       "capture_destination_unsafe",
-      `Protected review input identity could not be resolved: ${fsMessage(error)}.`
+      `Protected review input identity could not be resolved: ${fsMessage2(error)}.`
     );
   }
   if (protectedPaths.includes(canonicalCapture)) {
@@ -2174,19 +2430,19 @@ async function validateCodexCapture(input) {
 }
 async function aliasesProtectedInput(capturePath, input) {
   try {
-    const captureInfo = await stat(capturePath);
+    const captureInfo = await stat2(capturePath);
     for (const protectedPath of [input.schemaPath, input.cwd]) {
       try {
-        const protectedInfo = await stat(protectedPath);
+        const protectedInfo = await stat2(protectedPath);
         if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
           return true;
         }
       } catch (error) {
-        if (!isMissing(error)) throw error;
+        if (!isMissing2(error)) throw error;
       }
     }
   } catch (error) {
-    if (!isMissing(error)) throw error;
+    if (!isMissing2(error)) throw error;
   }
   return false;
 }
@@ -2194,9 +2450,9 @@ async function canonicalProtectedPaths(input) {
   const protectedPaths = [];
   for (const protectedPath of [input.schemaPath, input.cwd]) {
     try {
-      protectedPaths.push(await realpath(protectedPath));
+      protectedPaths.push(await realpath2(protectedPath));
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (!isMissing2(error)) throw error;
     }
   }
   return protectedPaths;
@@ -2204,10 +2460,10 @@ async function canonicalProtectedPaths(input) {
 function captureFailure(reason, message) {
   return { ok: false, reason, message };
 }
-function isMissing(error) {
+function isMissing2(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
-function fsMessage(error) {
+function fsMessage2(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function preflightFailure(reason, message) {
