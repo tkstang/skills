@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** Not started. This is a resume record, not an execution authorization.
+**Status:** Implementation started at p06-t01 after user-approved resume-state reconciliation.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md. No task was implemented or completed.
 
 ## Progress Overview
@@ -44,7 +44,8 @@ None; implementation has not started.
 
 ## Implementation Log
 
-No implementation activity. Planning revision does not count as completed product work.
+- 2026-09-17: User approved reconciling the stale `state.md` task pointer with the authoritative plan and implementation record. Execution resumes at p06-t01; no product task had started before this repair.
+- 2026-09-17: HiLL checkpoint configuration resolved from workflow preferences to final phase p08, with automatic checkpoint review enabled.
 
 ## Deviations from Plan / Design
 
