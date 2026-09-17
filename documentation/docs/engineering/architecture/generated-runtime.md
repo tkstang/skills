@@ -20,8 +20,6 @@ source, never a generated payload.
   files.
 - `tests/tooling/generated-output-sync.test.ts` runs the drift guard as part of
   `pnpm test`.
-- `pnpm run sync:transcript-core` is a compatibility command for the same
-  generated-output build.
 
 TypeScript, Vitest, and esbuild are developer tooling only. Installed skills
 still run committed Node ESM with no dependency installation step.

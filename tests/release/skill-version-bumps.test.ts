@@ -26,6 +26,32 @@ metadata:
 `;
 }
 
+const BASE_CHANGELOG = `# Changelog
+
+## [Unreleased]
+
+### Changed
+
+- Seeded baseline entry.
+
+## [0.1.0] - 2026-01-01
+
+### Added
+
+- Initial release.
+`;
+
+/** Write CHANGELOG.md with `entry` appended inside `## [Unreleased]`. */
+async function writeChangelogEntry(root: string, entry: string) {
+  await writeFile(
+    path.join(root, 'CHANGELOG.md'),
+    BASE_CHANGELOG.replace(
+      '- Seeded baseline entry.\n',
+      `- Seeded baseline entry.\n${entry}\n`,
+    ),
+  );
+}
+
 /** Init a temp git repo with one committed skill; returns root + base sha. */
 async function initRepo(
   baseVersion = '1.0.0',
@@ -44,6 +70,7 @@ async function initRepo(
     path.join(root, 'src/skills/demo/scripts/run.mjs'),
     'export const value = 1;\n',
   );
+  await writeFile(path.join(root, 'CHANGELOG.md'), BASE_CHANGELOG);
 
   await git(root, ['add', '-A']);
   await git(root, ['commit', '-q', '-m', 'base']);
@@ -83,6 +110,7 @@ describe('validateChangedSkillVersions', () => {
       path.join(root, 'src/skills/demo/SKILL.md'),
       skillFrontmatter('demo', '1.0.1'),
     );
+    await writeChangelogEntry(root, '- `demo` 1.0.1 changes its script.');
     await git(root, ['commit', '-aqm', 'change script with bump']);
 
     const result = await validateChangedSkillVersions(root, {
@@ -149,6 +177,7 @@ describe('validateChangedSkillVersions', () => {
       path.join(root, 'src/skills/demo/SKILL.md'),
       skillFrontmatter('demo', '1.0.0'),
     );
+    await writeChangelogEntry(root, '- `demo` 1.0.0 finalizes the release.');
     await git(root, ['commit', '-aqm', 'finalize release']);
 
     const result = await validateChangedSkillVersions(root, {
@@ -334,5 +363,194 @@ metadata:
     await expect(
       validateChangedSkillVersions(root, { baseRef: 'missing-base' }),
     ).rejects.toThrow();
+  });
+
+  it('accepts a version bump accompanied by an Unreleased changelog entry', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.1.0'),
+    );
+    await writeChangelogEntry(root, '- `demo` 1.1.0 does a new thing.');
+    await git(root, ['commit', '-aqm', 'bump with changelog']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.bumpedSkills).toEqual(['demo']);
+    expect(result.findings).toEqual([]);
+  });
+
+  it('flags a version bump with no changelog entry', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.1.0'),
+    );
+    await git(root, ['commit', '-aqm', 'bump without changelog']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('<changelog>');
+    expect(result.findings[0].message).toMatch(
+      /skill demo 1\.1\.0 changed version.*no new changelog entry/s,
+    );
+    expect(result.findings[0].message).toMatch(
+      /add an entry under ## \[Unreleased\] in CHANGELOG\.md/,
+    );
+  });
+
+  it('flags a bump whose new Unreleased entry does not name the skill and version', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.1.0'),
+    );
+    await writeChangelogEntry(
+      root,
+      '- `demo` now does a new thing.\n- `other-skill` 1.1.0 unrelated.\n- `demo` 11.1.0 and 1.1.01 are not the bumped version.',
+    );
+    await git(root, ['commit', '-aqm', 'bump with entry missing version']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('<changelog>');
+    expect(result.findings[0].message).toMatch(
+      /skill demo 1\.1\.0 changed version/,
+    );
+  });
+
+  it('flags a changelog edit that lands outside the Unreleased section', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.1.0'),
+    );
+    await writeFile(
+      path.join(root, 'CHANGELOG.md'),
+      BASE_CHANGELOG.replace(
+        '- Initial release.\n',
+        '- Initial release.\n- `demo` 1.1.0 filed against the released version.\n',
+      ),
+    );
+    await git(root, ['commit', '-aqm', 'bump with misfiled changelog']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('<changelog>');
+  });
+
+  it('requires no changelog entry when no version changed', async () => {
+    const { root, baseSha } = await initRepo();
+
+    await writeFile(path.join(root, 'README.md'), '# demo repo\n');
+    await git(root, ['add', '-A']);
+    await git(root, ['commit', '-qm', 'unrelated change']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+    });
+
+    expect(result.bumpedSkills).toEqual([]);
+    expect(result.findings).toEqual([]);
+  });
+
+  it('flags a plugin release version bump with no changelog entry', async () => {
+    const { root, baseSha } = await initRepo();
+    const manifest = path.join(
+      root,
+      'plugins/consensus/.claude-plugin/plugin.json',
+    );
+
+    await mkdir(path.dirname(manifest), { recursive: true });
+    await writeFile(
+      manifest,
+      `${JSON.stringify({ name: 'consensus', version: '0.1.0' }, null, 2)}\n`,
+    );
+    await git(root, ['add', '-A']);
+    await git(root, ['commit', '-qm', 'add plugin manifest']);
+    const withManifest = (await git(root, ['rev-parse', 'HEAD'])).trim();
+    expect(withManifest).not.toBe(baseSha);
+
+    await writeFile(
+      manifest,
+      `${JSON.stringify({ name: 'consensus', version: '0.2.0' }, null, 2)}\n`,
+    );
+    await git(root, ['commit', '-aqm', 'bump plugin release']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: withManifest,
+    });
+
+    expect(result.bumpedPlugins).toEqual(['consensus']);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('<changelog>');
+    expect(result.findings[0].message).toMatch(
+      /plugin consensus 0\.2\.0 changed version/,
+    );
+  });
+
+  it('accepts a release that moves Unreleased entries under a new version heading', async () => {
+    const { root } = await initRepo();
+    const manifest = path.join(
+      root,
+      'plugins/consensus/.claude-plugin/plugin.json',
+    );
+
+    await mkdir(path.dirname(manifest), { recursive: true });
+    await writeFile(
+      manifest,
+      `${JSON.stringify({ name: 'consensus', version: '0.1.0' }, null, 2)}\n`,
+    );
+    await writeFile(path.join(root, 'CHANGELOG.md'), BASE_CHANGELOG);
+    await git(root, ['add', '-A']);
+    await git(root, ['commit', '-qm', 'add plugin manifest and changelog']);
+    const withManifest = (await git(root, ['rev-parse', 'HEAD'])).trim();
+
+    await writeFile(
+      manifest,
+      `${JSON.stringify({ name: 'consensus', version: '0.2.0' }, null, 2)}\n`,
+    );
+    await writeFile(
+      path.join(root, 'CHANGELOG.md'),
+      `# Changelog
+
+## [Unreleased]
+
+## [0.2.0] - 2026-09-16
+
+### Changed
+
+- Seeded baseline entry.
+
+## [0.1.0] - 2026-01-01
+
+### Added
+
+- Initial release.
+`,
+    );
+    await git(root, ['commit', '-aqm', 'release consensus 0.2.0']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: withManifest,
+    });
+
+    expect(result.bumpedPlugins).toEqual(['consensus']);
+    expect(result.findings).toEqual([]);
   });
 });

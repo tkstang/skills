@@ -23,6 +23,12 @@ layouts and provider adapters.
   versions.
 - Treat cross-provider testing as a release requirement: validate Claude Code, Cursor, Codex Git/local, and `npx skills add` install paths before claiming support in docs or release notes.
 - Update tests and `scripts/validate.ts` when changing repository invariants.
+- Prefer clean breaks: do not add backward-compatibility machinery (aliases,
+  wrapper commands, compatibility READMEs, legacy name maps, deprecated flags)
+  without explicit user approval recorded in the same change.
+- Add a `## [Unreleased]` entry to `CHANGELOG.md` in the same change whenever you
+  bump a skill or plugin version or change user-facing behavior, naming the
+  affected skills and their new versions.
 
 ## Verification
 

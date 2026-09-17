@@ -87,12 +87,6 @@ export const generatedOutputs: GeneratedOutput[] = [
     output: 'plugins/consensus/scripts/consensus.mjs',
     bundle: true,
   },
-  {
-    id: 'coding-session-handoff-cli',
-    source: 'src/tools/coding-session-handoff/cli.ts',
-    output: 'tools/coding-session-handoff/coding-session-handoff.mjs',
-    bundle: true,
-  },
 ];
 
 function usage() {

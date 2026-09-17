@@ -80,7 +80,6 @@ describe('repo-layout', () => {
       path.posix.join('skills', 'session-observer-collab'),
       path.posix.join('skills', 'session-observer-collab', 'references'),
       path.posix.join('skills', 'session-observer-collab', 'scripts'),
-      path.posix.join('shared', 'transcript-core'),
       path.posix.join('skills', 'session-export-transcript'),
       path.posix.join('skills', 'session-fork-to-destination'),
       path.posix.join('skills', 'session-retro'),

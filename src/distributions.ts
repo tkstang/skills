@@ -273,13 +273,10 @@ export const distributions: readonly DistributionDeclaration[] = [
   },
 ];
 
-// Historical identity only. These paths must never be rendered as aliases or
-// generated compatibility payloads.
-export const legacySkillOwners = {
-  'export-session-transcript': 'session-export-transcript',
-  'coding-session-handoff': 'session-fork-to-destination',
-} as const;
-
-export const obsoleteDistributionOutputs = Object.freeze(
-  Object.keys(legacySkillOwners).map((name) => `skills/${name}`),
-);
+// Clean-break enforcement, not compatibility: these renamed-away output paths
+// must never reappear. The build removes them and `--check` fails if they exist.
+// No alias, redirect, wrapper, or generated payload is produced for them.
+export const obsoleteDistributionOutputs = Object.freeze([
+  'skills/export-session-transcript',
+  'skills/coding-session-handoff',
+]);

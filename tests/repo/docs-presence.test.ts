@@ -550,15 +550,11 @@ describe('docs-presence', () => {
     const sharedTranscriptDecision = await read(
       '.oat/repo/reference/decisions/DR-260604-shared-transcript-knowledge.md',
     );
-    const sharedTranscriptCore = await read('shared/transcript-core/README.md');
     const contributing = await read('CONTRIBUTING.md');
     const releasing = await read('RELEASING.md');
     const liveE2eWorkflow = await read('.github/workflows/live-e2e.yml');
     const hooksAndSafety = await read(
       'documentation/docs/engineering/contributing/development/hooks-and-safety.md',
-    );
-    const handoffToolReadme = await read(
-      'tools/coding-session-handoff/README.md',
     );
     const exportTranscriptFormats = await read(
       'skills/session-export-transcript/references/transcript-formats.md',
@@ -568,24 +564,14 @@ describe('docs-presence', () => {
     // (Engineering → Architecture), not the README.
     expect(docs).toMatch(/[Gg]enerated installation units/);
     expect(docs).toMatch(/src\/shared\/transcript\/runtimes\.ts/);
-    expect(docs).toMatch(/sync:transcript-core/);
     expect(docs).toMatch(/scripts\/build-generated\.ts/);
     expect(rootAgents).toMatch(/canonical owners under `src\/skills\/`/);
-    expect(rootAgents).toMatch(
-      /pnpm run sync:transcript-core.*compatibility wrapper/,
-    );
     expect(rootAgents).toMatch(/pnpm tsx scripts\/apply-internal-flags\.ts/);
     expect(consensusAgents).toMatch(/src\/plugins\/consensus\//);
     expect(consensusAgents).toMatch(/src\/skills\/<name>\//);
     expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\//);
     expect(testAgents).toMatch(
       /tests\/tooling\/generated-output-sync\.test\.ts/,
-    );
-    expect(sharedTranscriptCore).toMatch(
-      /src\/shared\/transcript\/runtimes\.ts/,
-    );
-    expect(sharedTranscriptCore).not.toMatch(
-      /shared\/transcript-core\/runtimes\.mjs/,
     );
     expect(exportTranscriptFormats).toMatch(
       /src\/shared\/transcript\/runtimes\.ts/,
@@ -612,12 +598,6 @@ describe('docs-presence', () => {
     expect(hooksAndSafety).toMatch(
       /pnpm tsx scripts\/apply-internal-flags\.ts/,
     );
-    expect(handoffToolReadme).toMatch(
-      /The new `session-fork-to-destination` skill/,
-    );
-    expect(handoffToolReadme).toMatch(
-      /older executor in `coding-session-handoff\.mjs`/,
-    );
     for (const maintained of [
       rootAgents,
       contributing,
@@ -625,9 +605,7 @@ describe('docs-presence', () => {
       liveE2eWorkflow,
       consensusAgents,
       testAgents,
-      sharedTranscriptCore,
       hooksAndSafety,
-      handoffToolReadme,
     ]) {
       expect(maintained).not.toMatch(/scripts\/validate\.mjs/);
       expect(maintained).not.toMatch(/src\/consensus\//);
