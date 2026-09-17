@@ -1,6 +1,6 @@
 ---
 oat_current_task: p07-t03
-oat_last_commit: 4a83ce7878afc487e42598567a647572c3dbe2f9
+oat_last_commit: cc8c0af36d39f6f60bb6bfbc3f0ce01a1882bcef
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,20 +34,20 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T04:18:00Z'
+oat_project_state_updated: '2026-09-17T04:31:00Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** p07 review round 1 requested fixes for two Important and three Medium findings. All five are accepted for bounded fix iteration 1/2.
+**Status:** p07 bounded fix iteration 1/2 completed all five review findings in one green append-only commit. Independent review round 2 is next.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
 
 ## Current Phase
 
-Quick workflow, p06 accepted. p07 implementation is complete, but independent review found five in-scope contract gaps. All return to the original p07 implementer in bounded fix iteration 1/2. No publication, global installation, live provider acceptance or p08 work has completed.
+Quick workflow, p06 accepted. p07 implementation and bounded fix iteration 1 are complete; all focused/full and repository gates pass. Independent review round 2 is next. No publication, global installation, live provider acceptance or p08 work has completed.
 
 ## Artifacts
 
@@ -55,7 +55,7 @@ Quick workflow, p06 accepted. p07 implementation is complete, but independent re
 - Design is the behavioral source of truth: three selectors, skill-owned executable, external state, selected-file drift comparison, honest findings/provenance.
 - Plan: seven tasks in three sequential phases. Original draft tasks are retired with a coverage map, not renumbered or marked complete. First active task is p06-t01.
 - Implementation: p06 task implementation committed at `f4fee75f` and `52b267c1`; bounded inventory recovery committed at `a1b2b427`; review fixes committed at `8a7871af`; current main integrated at `9cfe41ac`. Review round 2 passed at `ae059dfb` with zero findings and the full repository suite green.
-- p07 implementation: scope/drift at `e40b46c2`, reviewer selection/config at `e75963bd`, and one-run validation/persistence at `a580a322`. Review round 1 at `4a83ce78` requested fixes for stale capture baselines, provenance honesty, unborn repositories, audit identities and output-failure diagnostics.
+- p07 implementation: scope/drift at `e40b46c2`, reviewer selection/config at `e75963bd`, and one-run validation/persistence at `a580a322`. Review round 1 at `4a83ce78` requested five fixes; all were completed at `cc8c0af3` with no recovery event.
 - Spec: not used in quick mode.
 
 ## Review Posture
@@ -70,11 +70,11 @@ Quick workflow, p06 accepted. p07 implementation is complete, but independent re
 
 ## Next Milestone
 
-Return all five accepted findings to the original p07 implementer in one append-only fix commit, verify, and re-review. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
+Run independent p07 review round 2 over the corrected range. The final-phase p08 HiLL checkpoint and automatic checkpoint review remain active.
 
 ## Verification
 
-p07 review round 1 independently confirmed 69 focused tests and structural gates, then reproduced stale capture-to-baseline acceptance and unborn-repository rejection with no-provider probes. Verdict: changes requested with 0 Critical, 2 Important, 3 Medium and 0 Minor findings. Phase recovery remains unused; fix iteration 1/2 is next.
+p07 fix iteration 1 independently passes 115 focused tests and the full 1,994-test suite with one skipped. Build freshness, type-check, validation, the consensus-review `0.1.6` version/changelog gate, smoke and range diff checks pass. Exactly one append-only fix commit exists and the worktree is clean.
 
 ## Operational Notes
 

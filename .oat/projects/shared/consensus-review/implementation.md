@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: Consensus Review
 
-**Status:** p07 review round 1 requested two Important and three Medium fixes; bounded fix iteration 1/2 is next.
+**Status:** p07 bounded fix iteration 1/2 completed all five findings; review round 2 is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -176,6 +176,21 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Verification: 69 focused tests plus build freshness, type-check, validation, 11-owner version/changelog gate and diff checks passed; deterministic probes reproduced I1 and M1.
 - Disposition: route all five findings to the original p07 implementer in bounded fix iteration 1/2, then re-review.
 
+#### Fix Iteration 1 — completed
+
+- Continuation event: `cont-consensus-review-p07-review-fix-1`
+- Fix base: `40560cb8787723904b07ff8614ec2581bbfa257b`
+- Fix commit: `cc8c0af36d39f6f60bb6bfbc3f0ce01a1882bcef` (`fix(p07): close review contract gaps`)
+- I1: fixed with capture-to-baseline identity revalidation and zero-invocation regression coverage.
+- I2: fixed with bounded author evidence, partial coverage, honest unknown defaults and selected/passed versus independently observed reviewer identity separation.
+- M1: fixed with unborn files/internal-document/external-document support and first-commit drift detection.
+- M2: fixed with persisted resolved ref, merge-base/blob and bounded before/after comparison identities.
+- M3: fixed with a single no-rerun diagnostic attempt after result persistence failure, including double-failure reporting.
+- Dispatch target and axes: unchanged `oat-phase-implementer-gpt-5-6-sol-high`, `gpt-5.6-sol/high`
+- Dispatch stamp: `Dispatch: scope=p07-review-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Verification: 115 focused and 1,994 full-suite tests passed with one skipped; build, build freshness, type-check, validation, consensus-review `0.1.6` version/changelog gate, smoke, scoped lint/format and range diff checks passed.
+- Worktree: clean; exactly one append-only fix commit.
+
 ### Recovery Event p06-recovered-001
 
 - Phase/task: p06 / p06-t02
@@ -223,6 +238,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - 2026-09-17: Independent p06 review round 2 passed at `ae059dfb` with zero findings. Both prior Important transport-boundary findings are verified fixed, full and focused suites are green, and p06 is accepted; execution advances to p07-t01.
 - 2026-09-17: p07 completed in exactly three planned commits with no recovery events. Root independently confirmed focused and full suites plus all repository gates; the clean task head advances to independent p07 review.
 - 2026-09-17: Independent p07 review round 1 requested changes for two Important and three Medium contract gaps. Root accepts all five; none are deferred or dismissed, and the original implementer receives bounded fix iteration 1/2.
+- 2026-09-17: Bounded p07 fix iteration 1 completed I1, I2 and M1–M3 in one append-only commit. Root independently confirmed 115 focused and 1,994 full-suite tests plus all repository gates; the review event advances to `fixes_completed` for round 2.
 
 ## Deviations from Plan / Design
 
@@ -242,6 +258,7 @@ Record actual outcomes, files, verification and deviations as execution proceeds
 - Review fix iteration 1: 124 focused tests passed; build, build freshness, type-check, validation, affected-owner version checks and scoped lint/format passed. Root independently reran 72 boundary-focused tests successfully.
 - Post-main integration: 138 test files and 1,958 tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and diff checks passed; the former refine host-order baseline is resolved.
 - p07 phase verification: 69 focused tests and 1,989 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the 11-skill version/changelog gate, smoke and phase-range diff checks passed; the worktree is clean.
+- p07 review fix iteration 1: 115 focused tests and 1,994 full-suite tests passed with one skipped and no failures. Build freshness, type-check, validation, the consensus-review `0.1.6` version/changelog gate, smoke and fix-range diff checks passed.
 
 ## Planning review received
 
