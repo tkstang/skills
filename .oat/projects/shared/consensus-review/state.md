@@ -1,6 +1,6 @@
 ---
-oat_current_task: p09-t05
-oat_last_commit: 8b84b4e0407772b9d859a0cb7778b0dbad7e3c18
+oat_current_task: null
+oat_last_commit: 6c02517a20f07bd2859a70ec9f372dfc3d88e55b
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -68,19 +68,19 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'implementation_changed_after_gate'
-  updated_at: '2026-09-17T07:14:57Z'
+  updated_at: '2026-09-17T07:19:49Z'
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-16T22:48:40.664Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-17T07:14:57Z'
+oat_project_state_updated: '2026-09-17T07:19:49Z'
 oat_generated: false
 ---
 
 # Project State: Consensus Review
 
-**Status:** fresh final review passed its blocking threshold and auto-converted two Minor lifecycle-artifact findings as p09-t05 and p09-t06. The prior configured gate generation remains stale.
+**Status:** the fresh final review's two Minor lifecycle-artifact fixes are complete and awaiting final re-review. The prior configured gate generation remains stale.
 **Started:** 2026-09-16
 **Baseline:** planning PR #84, `08f59459`; recheck main and PR #86 before implementation.
 **Branch:** `feat/consensus-review`.
@@ -118,7 +118,7 @@ Implementation — configured-gate remediation. Original p06–p08 tasks and lif
 
 ## Next Milestone
 
-Implement p09-t05 and p09-t06, rerun final review, then configured exit-gate attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
+Rerun final review, then configured exit-gate attempt 2/2. Final HiLL approval remains pending at p09. No product live-provider acceptance may be inferred or run without separate authorization.
 
 ## Verification
 
@@ -136,7 +136,8 @@ Post-remediation terminal premerge passed 142 test files with one skipped and 2,
 - ✓ Configured exit-gate remediation p09 implementation (4/4)
 - ✓ Independent p09 review passed (0 Critical, 0 Important)
 - ✓ Nonblocking p09 evidence clarification complete
-- ⧗ Final-review Minor artifact alignment (0/2)
+- ✓ Final-review Minor artifact alignment (2/2)
+- ⧗ Final re-review pending
 - ⧗ Exit-gate re-run and final HiLL approval pending
 
 ## Operational Notes

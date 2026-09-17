@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-17
-oat_current_task_id: p09-t05
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: Consensus Review
 
-**Status:** independent p09 review and its nonblocking evidence cleanup are complete. The post-gate final review passed its blocking threshold and auto-converted two Minor lifecycle-artifact fixes; p09-t05 is next, with a fresh final re-review afterward.
+**Status:** the post-gate final review's two Minor lifecycle-artifact fixes are complete; fresh final re-review is next.
 **Planning revision:** User-approved smaller v1; old task IDs are retired with coverage mappings in plan.md.
 
 ## Progress Overview
@@ -19,9 +19,9 @@ oat_generated: false
 | p06 — Installable, safe foundation | completed | 2 | 2/2 |
 | p07 — Scope, selection, one run | completed | 3 | 3/3 |
 | p08 — Rendering, interaction, acceptance | completed | 2 | 2/2 |
-| p09 — Configured gate fixes | in_progress | 6 | 4/6 |
+| p09 — Configured gate fixes | review_pending | 6 | 6/6 |
 
-**Total:** 11/13 task commits completed. The fresh final review passed with two auto-converted Minor artifact-alignment tasks; configured exit-gate attempt 2/2 remains after their implementation and final re-review.
+**Total:** 13/13 task commits completed. The fresh final review's two Minor artifact-alignment tasks are fixed; final re-review and configured exit-gate attempt 2/2 remain.
 
 ## Tasks
 
@@ -38,8 +38,8 @@ oat_generated: false
 | p09-t02 | done | `160661cbf470d16b507cfe7cc8df25be5f7eafe3` | 51 focused tests plus validation, build, type-check, freshness, version/changelog and scoped static checks passed. |
 | p09-t03 | done | `25b075bbb15be4b9df62c9a67a66f9bb0785baac` | 64 focused renderer/receipt/packaging tests plus exact fixture hashes, build, type-check, freshness and version gates passed. |
 | p09-t04 | done | `bbdb284780b9b336859af11a2317866407eb3271` | 87 focused Review/run/packaging tests plus FIFO/symlink/regular regressions, build, type-check, validation, freshness and static gates passed. |
-| p09-t05 | pending | - | Align stale current-status prose after completed p09 review. |
-| p09-t06 | pending | - | Reconcile durable project references with archived backlog and consumed handoff. |
+| p09-t05 | done | `738e566c601fb65f9e54562b5fa6491ae544f29a` | Current lifecycle prose now agrees that p09 review is complete; exact-file formatting and diff checks passed. |
+| p09-t06 | done | `6c02517a20f07bd2859a70ec9f372dfc3d88e55b` | Archived backlog links resolve, deleted handoff links are absent, immutable consumption provenance is retained and plan validation passes. |
 
 Record actual outcomes, files, verification and deviations as execution proceeds. The current task pointer always identifies the next task to do.
 
@@ -376,6 +376,16 @@ No finding is deferred or rejected. Blocking-gate auto-disposition converts all 
 - m2 → p09-t06 (`artifact_alignment_required`): repoint the backlog references to the archived item and replace removed handoff links with immutable consumed-handoff provenance.
 
 Both Minor findings are small, in-scope artifact alignment and are auto-converted under the review's `auto` invocation. Nothing is deferred or rejected. The review event remains `fixes_added` until both commits complete and a fresh final re-review passes.
+
+#### Post-Gate Final Review Fixes — completed
+
+- Continuation event: `cont-consensus-review-final-post-gate-minors-1`
+- p09-t05: `738e566c601fb65f9e54562b5fa6491ae544f29a` (`docs(p09-t05): align completed review status`)
+- p09-t06: `6c02517a20f07bd2859a70ec9f372dfc3d88e55b` (`docs(p09-t06): reconcile consumed pjm references`)
+- m1: fixed by removing stale current-status claims that p09 review remained pending.
+- m2: fixed by linking the archived backlog item and replacing deleted handoff links with immutable consumption provenance at `aad79ef5`.
+- Verification: exact two-commit/file boundaries, all retained local links, absent deleted-handoff links, plan validation, exact-file formatting and range diff checks passed; tracked worktree clean.
+- Disposition: advance this exact final-review event to `fixes_completed` and re-review final scope.
 
 ### Recovery Event p06-recovered-001
 
