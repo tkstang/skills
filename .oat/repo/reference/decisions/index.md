@@ -9,6 +9,11 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260917-deterministic-review-contract | 2026-09-17 | accepted | Deterministic review contract | - |
+| DR-260917-explicit-v1-review-selectors | 2026-09-17 | accepted | Explicit v1 review selectors | - |
+| DR-260917-host-aware-single-review | 2026-09-17 | accepted | Host-aware single review | - |
+| DR-260917-scoped-external-review-state | 2026-09-17 | accepted | Scoped external review state | - |
+| DR-260917-skill-owned-review-executable | 2026-09-17 | accepted | Skill-owned Review executable | - |
 | DR-260914-declared-skill-distributions | 2026-09-14 | accepted | Declared skill distributions | - |
 | DR-260914-metadata-version-is-the-sole | 2026-09-14 | accepted | Metadata version is the sole skill version | - |
 | DR-260914-session-and-consensus-plugin | 2026-09-14 | accepted | Session and consensus plugin boundaries | - |
