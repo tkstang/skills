@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { distributions, legacySkillOwners } from '../src/distributions.js';
+import { distributions } from '../src/distributions.js';
 import { isStableSemver, isValidSemver } from './bump-version.js';
 import { discoverSkillDirectories } from './lib/discover-skills.js';
 import type { DistributionDeclaration } from './lib/packaging.js';
@@ -300,8 +300,10 @@ export async function validateChangedSkillVersions(
   await git(['rev-parse', '--verify', `${baseRef}^{commit}`]);
 
   const declarations = options.declarations ?? distributions;
+  // No repository-wide rename map: every merged rename is already on the base
+  // ref. Callers may still inject one for an explicitly older base.
   const legacyOwners: Readonly<Record<string, string>> =
-    options.legacyOwners ?? legacySkillOwners;
+    options.legacyOwners ?? {};
   const changedFiles = await changedFilesSince(git, baseRef);
   const impact = affectedOwners(changedFiles, declarations, legacyOwners);
   const findings: VersionFinding[] = impact.ownerlessOutputs.map((file) => ({

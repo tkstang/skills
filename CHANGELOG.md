@@ -43,6 +43,11 @@
 
 ### Removed
 
+- The `legacySkillOwners` rename map in `src/distributions.ts`. Skill-version
+  validation no longer carries a repository-wide pre-rename attribution table;
+  both renames are on `main`, and a caller can still inject `legacyOwners` for
+  an explicitly older base. The clean-break guard on the renamed-away output
+  paths stays, now as an explicit `obsoleteDistributionOutputs` list.
 - The paused, unverified `coding-session-handoff` executor: its CLI, handoff,
   provider, reconcile, and behavior-gate source and tests, the generated
   `tools/coding-session-handoff/coding-session-handoff.mjs`, its build
