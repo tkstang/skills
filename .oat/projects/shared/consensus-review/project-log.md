@@ -104,6 +104,10 @@ Post-gate final review sequence PASSED round 3 at 62cc7054 with findings=critica
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:1,minor:1 exit=0 status=ok artifact=.oat/projects/shared/consensus-review/reviews/final-review-2026-09-17T074525Z.md run=14836d4a-5d65-43a1-9d78-ec3b9d300a4b
 
+### 2026-09-18 · structural · oat-project-retro · project-retro
+
+retro artifact=.oat/projects/shared/consensus-review/references/project-retro.md evidence_used=active-review-markdown,archived-review-markdown,gate-receipts,lifecycle-artifacts,project-log,session-transcript evidence_unavailable=oat-execution-learnings promotions=1 upstream=4 apply=skipped filing=performed
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
