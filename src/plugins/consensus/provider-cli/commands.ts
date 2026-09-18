@@ -96,7 +96,10 @@ export interface ConfigScopedEnvelope {
 export type ConfigFieldSource = 'user' | 'project';
 
 export type ConfigFieldSources = Partial<
-  Record<'peers' | 'panelists' | 'panel-size' | 'roles', ConfigFieldSource>
+  Record<
+    'peers' | 'panelists' | 'panel-size' | 'reviewers' | 'roles',
+    ConfigFieldSource
+  >
 >;
 
 export interface ConfigEffectiveEnvelope {
@@ -120,8 +123,8 @@ export interface ConfigListEnvelope {
   ok: true;
   scopes: ['user', 'project', 'effective'];
   writable_scopes: ['user', 'project'];
-  keys: ['peers', 'panelists', 'panel-size', 'roles', 'all'];
-  workflows: ['convergence', 'panel'];
+  keys: ['peers', 'panelists', 'panel-size', 'reviewers', 'roles', 'all'];
+  workflows: ['convergence', 'panel', 'review'];
 }
 
 export interface ConfigSetEnvelope {
@@ -167,11 +170,11 @@ export function helpText() {
   return `Usage: consensus <command> --json
 
 Commands:
-  config get --json [--scope user|project|effective] [--workflow convergence|panel] [--cwd <path>]
+  config get --json [--scope user|project|effective] [--workflow convergence|panel|review] [--cwd <path>]
   config list --json [--cwd <path>]
-  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>] [--reviewers <a,b>]
       [--panel-size <n>] [--from-file <path>] [--cwd <path>]
-  config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|reviewers|roles|all] [--cwd <path>]
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
@@ -417,8 +420,8 @@ function runConfigList(): ConfigListEnvelope {
     ok: true,
     scopes: ['user', 'project', 'effective'],
     writable_scopes: ['user', 'project'],
-    keys: ['peers', 'panelists', 'panel-size', 'roles', 'all'],
-    workflows: ['convergence', 'panel'],
+    keys: ['peers', 'panelists', 'panel-size', 'reviewers', 'roles', 'all'],
+    workflows: ['convergence', 'panel', 'review'],
   };
 }
 
@@ -484,7 +487,7 @@ async function runConfigSet(
   const patch = parseConfigSetPatch(command);
   if (!command.fromFile && !configDefaultsHasValues(patch)) {
     throw new ConsensusCliUsageError(
-      'config set requires --peers, --panelists, --panel-size, or --from-file',
+      'config set requires --peers, --panelists, --panel-size, --reviewers, or --from-file',
     );
   }
 
@@ -568,6 +571,7 @@ function effectiveFieldSources(
     ['peers', 'peers'],
     ['panelists', 'panelists'],
     ['panel-size', 'panel_size'],
+    ['reviewers', 'reviewers'],
     ['roles', 'roles'],
   ] as const;
   for (const [key, field] of fields) {
@@ -600,6 +604,7 @@ function mergeConfigFields(
   if (source.peers !== undefined) target.peers = source.peers;
   if (source.panelists !== undefined) target.panelists = source.panelists;
   if (source.panel_size !== undefined) target.panel_size = source.panel_size;
+  if (source.reviewers !== undefined) target.reviewers = source.reviewers;
   if (source.roles !== undefined) target.roles = source.roles;
 }
 
@@ -647,6 +652,9 @@ function parseConfigSetPatch(
   if (command.panelSize !== undefined) {
     patch.panel_size = command.panelSize;
   }
+  if (command.reviewers !== undefined) {
+    patch.reviewers = parseAgentSpecList(command.reviewers);
+  }
   return patch;
 }
 
@@ -673,6 +681,7 @@ function configDefaultsHasValues(
     (defaults.peers !== undefined ||
       defaults.panelists !== undefined ||
       defaults.panel_size !== undefined ||
+      defaults.reviewers !== undefined ||
       defaults.roles !== undefined)
   );
 }

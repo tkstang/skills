@@ -1,23 +1,17 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-09-16
-**Status:** Post-PR #83 alignment: the observer investigation completed in PR #85; Consensus Review and the parallel installer remain confirmed. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
+**Last updated:** 2026-09-17
+**Status:** Consensus Review is complete on its delivery branch; the first-party installer remains the confirmed immediate lane. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
 
 ## Planning model
 
-The [current-state snapshot](current-state.md) records merged capability; this page records direction, not delivery claims. Each active item appears below. The [full review](backlog/reviews/backlog-and-roadmap-review.md) explains value, effort, dependencies, and implementation evidence.
+The [current-state snapshot](current-state.md) records merged capability and explicitly labeled branch delivery; this page records direction, not delivery claims. Each active item appears below. The [full review](backlog/reviews/backlog-and-roadmap-review.md) explains value, effort, dependencies, and implementation evidence.
 
-Completed source colocation, Session packaging, skill promotion, docs IA/visuals, typed configuration documentation, and the observer re-arm investigation are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
+Completed source colocation, Session packaging, skill promotion, docs IA/visuals, typed configuration documentation, observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
 
 ## Now
 
-### Reliability and bounded review
-
-- **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope.** Next high-priority feature: one dispatched read-only reviewer invocation with explicit scope/provenance, owned JSON output, and an OAT-compatible Markdown adapter. New reviewer defaults belong in its own config key. Different provider does not guarantee different model family. Unsupported read-only policy must not be silently weakened.
-
-Review uses a quick workflow with lightweight design, Astra leading and Fable reviewing; it does not wait on convergence settings or helper extraction.
-
-### Confirmed independent onboarding lane
+### Confirmed onboarding lane
 
 - **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills.** Pinned generated payloads, project-scope destinations, integrity/error handling, and install documentation. The user explicitly approved parallel kickoff; multi-host/live acceptance remains part of the scope. Owner/start are not yet claimed.
 
@@ -25,13 +19,10 @@ Release/discovery verification for already-merged distributions can proceed inde
 
 ## Next
 
-The following order is proposed, not yet operator-confirmed: Consensus runtime maintenance, then inbox messaging, then session fidelity. Live-submit diagnosis is an independent authorization-gated slot. The maintenance project groups model propagation, atomic writes, and helper extraction into independently shippable phases; none is a prerequisite for Review.
+The following order is proposed, not yet operator-confirmed: inbox messaging, then session fidelity. Live-submit diagnosis is an independent authorization-gated slot.
 
-### Consensus correctness and maintainability
+### Consensus correctness
 
-- **BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows.** Documentation is merged; fix propagation and supported resume behavior across five wrappers, then update the limitation in the same shipping change. Reserved roles and per-skill defaults are outside scope.
-- **BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic.** Small independent crash-safety change with existing helper/failure-test patterns.
-- **BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing.** Optional preparation for Review or later shared cleanup; not a blocker. Serialize shared Consensus source/output edits or integrate after rebasing.
 - **BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch.** Keep the diagnosis visible; live observation needs a separately approved bounded provider run. Rebase the September 7 plan to current source paths and effective policy before executing it.
 
 ### Provider-neutral collaboration and evidence

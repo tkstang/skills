@@ -43,9 +43,10 @@ export type ParsedConfigKey =
   | 'peers'
   | 'panelists'
   | 'panel-size'
+  | 'reviewers'
   | 'roles'
   | 'all';
-export type ParsedConfigWorkflow = 'convergence' | 'panel';
+export type ParsedConfigWorkflow = 'convergence' | 'panel' | 'review';
 
 export interface ParsedConfigGetCommand {
   kind: 'config-get';
@@ -69,6 +70,7 @@ export interface ParsedConfigSetCommand {
   peers?: string;
   panelists?: string;
   panelSize?: number;
+  reviewers?: string;
   fromFile?: string;
 }
 
@@ -314,6 +316,7 @@ function parseConfigSetCommand(
       '--peers',
       '--panelists',
       '--panel-size',
+      '--reviewers',
       '--from-file',
     ]),
     valueFlags: new Set([
@@ -322,6 +325,7 @@ function parseConfigSetCommand(
       '--peers',
       '--panelists',
       '--panel-size',
+      '--reviewers',
       '--from-file',
     ]),
   });
@@ -339,6 +343,11 @@ function parseConfigSetCommand(
     command,
     'panelists',
     singleValue(parsed.flags, '--panelists'),
+  );
+  assignIfDefined(
+    command,
+    'reviewers',
+    singleValue(parsed.flags, '--reviewers'),
   );
   assignIfDefined(
     command,
@@ -397,6 +406,7 @@ function parseConfigKey(value: string): ParsedConfigKey {
     value === 'peers' ||
     value === 'panelists' ||
     value === 'panel-size' ||
+    value === 'reviewers' ||
     value === 'roles' ||
     value === 'all'
   ) {
@@ -406,7 +416,9 @@ function parseConfigKey(value: string): ParsedConfigKey {
 }
 
 function parseConfigWorkflow(value: string): ParsedConfigWorkflow {
-  if (value === 'convergence' || value === 'panel') return value;
+  if (value === 'convergence' || value === 'panel' || value === 'review') {
+    return value;
+  }
   throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
 }
 

@@ -8,6 +8,16 @@ import type {
 
 export type HostGuardResult = HostGuardAllowedResult | HostGuardBlockedResult;
 
+export type KnownHostRuntime = Exclude<HostRuntime, 'unknown'>;
+
+export type ExplicitHostContextResult =
+  | { ok: true; context: HostContext }
+  | {
+      ok: false;
+      reason: 'unknown_host' | 'contradictory_host' | 'invalid_depth';
+      message: string;
+    };
+
 export interface HostGuardAllowedResult {
   allowed: true;
   host_relation: NonNullable<ProviderDiagnostics['host_relation']>;
@@ -28,33 +38,79 @@ export interface HostGuardBlockedResult {
 export function detectHostRuntime(
   env: Record<string, string | undefined>,
 ): HostRuntime {
-  if (
-    env.CONSENSUS_PARENT_HOST === 'claude' ||
-    env.CLAUDECODE ||
-    env.CLAUDE_CODE_ENTRYPOINT ||
-    env.CLAUDE_CODE_SESSION_ID ||
-    env.CLAUDE_SESSION_ID
-  ) {
-    return 'claude';
-  }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'codex' ||
-    env.CODEX_SESSION_ID ||
-    env.CODEX_SANDBOX ||
-    env.OPENAI_CODEX_SESSION_ID
-  ) {
-    return 'codex';
-  }
-  if (
-    env.CONSENSUS_PARENT_HOST === 'cursor' ||
-    env.CURSOR_TRACE_ID ||
-    env.CURSOR_AGENT ||
-    env.CURSOR_SESSION_ID ||
-    env.CURSOR
-  ) {
-    return 'cursor';
-  }
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) return declaredParent;
+  if (hasClaudeHostMarker(env)) return 'claude';
+  if (hasCodexHostMarker(env)) return 'codex';
+  if (hasCursorHostMarker(env)) return 'cursor';
   return 'unknown';
+}
+
+export function resolveExplicitHostContext(input: {
+  runtime: KnownHostRuntime;
+  cwd: string;
+  env: Record<string, string | undefined>;
+  maxDepth: number;
+}): ExplicitHostContextResult {
+  const declaredParent = input.env.CONSENSUS_PARENT_HOST;
+  const knownParent = knownHostRuntime(declaredParent);
+  if (declaredParent !== undefined && !knownParent) {
+    return {
+      ok: false,
+      reason: 'contradictory_host',
+      message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+    };
+  }
+  if (knownParent) {
+    if (knownParent !== input.runtime) {
+      return {
+        ok: false,
+        reason: 'contradictory_host',
+        message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+      };
+    }
+  } else {
+    const detected = detectedHostRuntimes(input.env);
+    if (
+      detected.size > 1 ||
+      (detected.size === 1 && !detected.has(input.runtime))
+    ) {
+      return {
+        ok: false,
+        reason: 'contradictory_host',
+        message: `Explicit host ${input.runtime} contradicts detected host evidence.`,
+      };
+    }
+    if (detected.size === 0) {
+      return {
+        ok: false,
+        reason: 'unknown_host',
+        message: `Could not verify explicit host ${input.runtime} from runtime evidence.`,
+      };
+    }
+  }
+
+  const inheritedDepth = input.env.CONSENSUS_DEPTH;
+  const depth =
+    inheritedDepth === undefined ? 0 : parseNonNegativeInteger(inheritedDepth);
+  if (depth === undefined || depth > input.maxDepth) {
+    return {
+      ok: false,
+      reason: 'invalid_depth',
+      message: `Inherited consensus depth must be a safe integer between 0 and ${input.maxDepth}.`,
+    };
+  }
+
+  return {
+    ok: true,
+    context: {
+      runtime: input.runtime,
+      cwd: input.cwd,
+      run_id: input.env.CONSENSUS_RUN_ID ?? 'local',
+      depth,
+      max_depth: input.maxDepth,
+    },
+  };
 }
 
 export function hostContextFromEnv(
@@ -156,5 +212,56 @@ function allowed(
 
 function parseNonNegativeInteger(value: string | undefined) {
   if (value === undefined || !/^\d+$/.test(value)) return undefined;
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function detectedHostRuntimes(
+  env: Record<string, string | undefined>,
+): Set<KnownHostRuntime> {
+  const detected = new Set<KnownHostRuntime>();
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) detected.add(declaredParent);
+  if (hasClaudeHostMarker(env)) {
+    detected.add('claude');
+  }
+  if (hasCodexHostMarker(env)) {
+    detected.add('codex');
+  }
+  if (hasCursorHostMarker(env)) {
+    detected.add('cursor');
+  }
+  return detected;
+}
+
+function knownHostRuntime(
+  value: string | undefined,
+): KnownHostRuntime | undefined {
+  return value === 'claude' || value === 'codex' || value === 'cursor'
+    ? value
+    : undefined;
+}
+
+function hasClaudeHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CLAUDECODE ||
+    env.CLAUDE_CODE_ENTRYPOINT ||
+    env.CLAUDE_CODE_SESSION_ID ||
+    env.CLAUDE_SESSION_ID,
+  );
+}
+
+function hasCodexHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID,
+  );
+}
+
+function hasCursorHostMarker(env: Record<string, string | undefined>) {
+  return Boolean(
+    env.CURSOR_TRACE_ID ||
+    env.CURSOR_AGENT ||
+    env.CURSOR_SESSION_ID ||
+    env.CURSOR,
+  );
 }

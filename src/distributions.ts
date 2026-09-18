@@ -41,6 +41,28 @@ export const pluginReleaseTargets: readonly PluginReleaseTarget[] = [
 // Authored owners declare their installation targets here as they migrate
 // under src/skills. Generated payloads remain derivative build output.
 export const distributions: readonly DistributionDeclaration[] = [
+  {
+    owner: 'consensus-review',
+    source: 'src/skills/consensus-review',
+    allowedSourceRoots: [
+      'src/plugins/consensus/config',
+      'src/plugins/consensus/provider-cli',
+      'src/plugins/consensus/shared',
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'consensus-review',
+        output: 'skills/consensus-review',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'consensus',
+        name: 'review',
+        output: 'plugins/consensus/skills/review',
+      },
+    ],
+  },
   ...(
     [
       'create',

@@ -4,6 +4,9 @@
 
 ### Added
 
+- `consensus-review` 0.1.7 completes the three-selector non-interactive CLI, deterministic OAT-compatible Markdown rendering, absolute artifact handoffs, explicit post-drift export, and host-facing scope-selection workflow; the `consensus` plugin 0.2.0 adds plugin-local `review` and is the first plugin release supporting strict `defaults.reviewers` configuration (older binaries reject that key).
+- `consensus-review` 0.1.5 adds bounded branch, selected-file, and document scope capture; canonical external run state; ordered reviewer configuration and selection; bounded request prompts; one-shot deep result validation and host-owned JSON persistence; and selected-path drift evidence with explicit coverage limits.
+- Review-default configuration propagation updates `create` 0.1.13, `decide` 0.1.13, `evaluate` 0.1.17, `panel` 0.1.10, `phone-a-friend` 0.1.9, `plan` 0.1.13, `refine` 0.1.16, `session-observer` 1.0.44, `session-observer-collab` 1.0.33, and `session-fork-to-destination` 0.2.9.
 - `pnpm run validate:skill-versions` now also requires a new line under `## [Unreleased]` in `CHANGELOG.md` whenever a canonical skill `metadata.version` or a plugin release version changes, so a bump cannot ship without release notes.
 - `next-steps` 1.0.0 standalone skill for contextual, justified recommendations
   that do not execute the proposed work.
@@ -37,6 +40,7 @@
 
 ### Changed
 
+- `consensus-review` 0.1.13 emits OAT's `Critical` / `High` / `Medium` / `Low` review tiers and matching `C` / `H` / `M` / `L` finding IDs; retired `important` and `minor` severities are rejected instead of producing artifacts that current OAT review receivers fail closed on.
 - Clean-break session names: `export-session-transcript` is now
   `session-export-transcript`, and `coding-session-handoff` is now
   `session-fork-to-destination`. No aliases, redirects, wrappers, or old-name
@@ -73,6 +77,15 @@
 
 ### Fixed
 
+- `consensus-review` 0.1.12 rejects symlink and non-regular request files before opening them, and uses no-follow nonblocking open flags before bounded regular-file reads.
+- `consensus-review` 0.1.11 binds the deterministic clean and all-severity receipt fixtures byte-for-byte to `renderReviewMarkdown`, so receiver evidence cannot drift from renderer output.
+- Review host verification now treats a matching inherited parent as authoritative despite unrelated ambient markers, rejects explicit mismatches, and retains exact-single-marker verification when no parent is inherited (`consensus-review` 0.1.10, `create` 0.1.15, `decide` 0.1.15, `evaluate` 0.1.19, `panel` 0.1.12, `phone-a-friend` 0.1.11, `plan` 0.1.15, `refine` 0.1.18).
+- Mixed host-marker shells now preserve explicit `CONSENSUS_PARENT_HOST` precedence and the established Claude → Codex → Cursor fallback priority, so recursion-depth child state remains enforced (`consensus-review` 0.1.9, `create` 0.1.14, `decide` 0.1.14, `evaluate` 0.1.18, `panel` 0.1.11, `phone-a-friend` 0.1.10, `plan` 0.1.14, `refine` 0.1.17).
+- `consensus-review` 0.1.8 now publishes canonical and exported Markdown atomically without overwrite, reports diagnostic paths only after successful persistence, and bounds growing request-file reads to 256 KiB plus one detection byte.
+- `consensus-review` 0.1.6 now rejects capture-to-baseline scope drift before dispatch, preserves bounded author provenance without presenting requested reviewer options as observed, supports file and document scopes without a first commit, records resolved Git and comparison identities, and writes one labeled diagnostic after final-result persistence failures.
+- `consensus-review` 0.1.2 now fails closed when Codex capture paths resolve through symlinks, alias protected inputs, or reuse pre-existing targets, and when inherited consensus depth is malformed or out of range; source and copied-installed-bundle regressions cover both boundaries.
+- The shared p06 provider-runtime hardening is propagated with explicit version impact to `create` 0.1.12, `decide` 0.1.12, `evaluate` 0.1.16, `panel` 0.1.9, `phone-a-friend` 0.1.8, `plan` 0.1.12, and `refine` 0.1.15.
+- Generated-runtime and installation-owner reconciliation after the clean-break main merge updates `session-observer` 1.0.43, `session-observer-collab` 1.0.32, `session-export-transcript` 2.0.2, and `session-fork-to-destination` 0.2.8.
 - Refine's peer-model forwarding tests no longer inherit the host markers of the process running the suite, so the built-in default peer order (`detectHost` puts the detected host first) is fixed rather than chosen by whether the runner is a Claude Code or Codex shell (`refine` 0.1.14).
 - The consensus wrapper subprocess path now supports caller-supplied deadlines with SIGTERM→SIGKILL escalation, guards stdin against failed-spawn writes, and force-settles with stdio teardown when a descendant process holds the pipes open after kill (`refine` 0.1.7, `evaluate` 0.1.8, `panel` 0.1.2; shared-runtime consumers `create`/`decide`/`plan` 0.1.5). No default timeout is wired yet — deadlines apply where a caller passes one.
 - The `session-observer` watch loop caches transcript classification and metadata by file signature (path, mtime, size), eliminating full re-reads of unchanged transcripts on every poll tick (`session-observer` 1.0.7, `session-export-transcript` 1.0.4).

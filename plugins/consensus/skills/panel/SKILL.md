@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --question "<text>" | --question-file <question.md> [--panelists <provider-id,provider-id>] [--panel-size <n>]
 metadata:
   author: thomas.stang
-  version: '0.1.7'
+  version: '0.1.12'
 ---
 
 # Panel

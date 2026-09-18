@@ -22,9 +22,8 @@ Conventions:
 
 ## Current handoffs
 
-The September 16 confirmed stack replaces the July research/loop-quality kickoff. The former handoffs and the consumed observer handoff were removed; they remain recoverable in Git history.
+The September 16 confirmed stack replaces the July research/loop-quality kickoff. The former handoffs and the consumed observer and Consensus Review handoffs were removed; they remain recoverable in Git history.
 
-- [Consensus Review — BL-260916-add-consensus-review-cross](BL-260916-add-consensus-review-cross.md): quick workflow with lightweight design; Astra leads, Fable reviews.
 - [First-party standalone installer — BL-260916-add-a-first-party-install](BL-260916-add-a-first-party-install.md): approved independent parallel lane; user selects owner.
 
 Later candidates are listed in the full review and alignment but have no kickoff handoffs until selected.

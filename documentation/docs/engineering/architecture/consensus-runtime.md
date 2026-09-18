@@ -108,6 +108,16 @@ single verdict or from round count alone.
 
 ## Related workflows outside the loop
 
+`review` is outside the loop and owns a distinct one-reviewer path. Its
+canonical skill owns the executable and build closure, and the standalone
+`consensus-review` and Consensus plugin-local `review` forms ship the same
+generated runtime. The executable calls the shared provider-turn transport for
+one attempt with submit capture disabled, then applies Review's own deep
+validation, selected-scope drift comparison, external run-state persistence,
+and deterministic Markdown rendering. It does not add a `consensus review`
+dispatcher command or import `runConsensusLoop`. See
+[Review](../../user-guide/consensus/review.md) for the user contract.
+
 `panel` uses the provider CLI but owns a separate one-shot multi-panelist path.
 It preserves independently attributed responses and does not ask panelists to
 converge through `runConsensusLoop`. The current wrapper invokes ready panelists

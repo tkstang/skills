@@ -1,21 +1,21 @@
 ---
 title: 'Consensus'
-description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, panel responses, and one-shot advisory takes, including create, decide, plan, refine, evaluate, panel, phone-a-friend, iteration modes, and current limitations.'
+description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and one-shot advisory takes.'
 ---
 
 # Consensus
 
-The consensus plugin uses provider-CLI-backed AI peers for three related
-workflows: converging artifacts through peer deliberation, single-round panel
-responses with side-by-side attribution, and one-shot advisory takes that the
-host dispositions. It also packages `observer` and `observer-collab`, the
+The consensus plugin uses provider-CLI-backed AI peers for four related
+workflows: converging artifacts through peer deliberation, one bounded read-only
+review, single-round panel responses with side-by-side attribution, and one-shot
+advisory takes that the host dispositions. It also packages `observer` and `observer-collab`, the
 plugin-local forms of the standalone session observation skills. The peers are invoked through the generated consensus CLI; the
 converging wrappers parse your document, run the peers through structured verdict
 rounds, and write a markdown deliberation artifact with the final output,
 resolution metadata, and a deliberation log.
 
 The peer-workflow scope stays intentionally narrow: five converging skills, one
-panel skill, and one advisory skill. The plugin additionally ships two
+panel skill, one review skill, and one advisory skill. The plugin additionally ships two
 session-observation skills because observing and collaborating across providers
 belong with consensus behavior.
 
@@ -35,6 +35,9 @@ belong with consensus behavior.
 - **[`evaluate`](evaluate.md)** — judges an artifact against a rubric, with
   unified findings, per-peer reasoning, and dissent preserved in the
   deliberation log.
+- **[`review`](review.md)** — asks one independent reviewer to inspect a branch
+  diff, selected files, or one document and writes validated OAT-compatible
+  findings without applying them.
 - **[`panel`](panel.md)** — asks multiple provider-backed panelists the same
   question and writes side-by-side attributed responses while the host stays a
   neutral moderator.
@@ -321,6 +324,7 @@ validation does not make their advice trustworthy or authorize following it.
 - [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
+- [Review](review.md) - `review` usage: three bounded selectors, one read-only reviewer invocation, OAT-compatible artifacts, and detection limits.
 - [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
 - [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
 - [Observer](../skills/session-observer.md) - Read and watch a pinned peer session; also available standalone as `session-observer`.

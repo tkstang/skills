@@ -8,9 +8,9 @@ const repoRoot = new URL('../..', import.meta.url);
 const plugins = [
   {
     name: 'consensus',
-    version: '0.1.1',
+    version: '0.2.0',
     description:
-      'Consensus create, decide, plan, refine, evaluate, panel, phone-a-friend, observer, and observer-collab skills for peer deliberation, attributed panels, advisory consultation, and session observation.',
+      'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.',
     skills: [
       'create',
       'decide',
@@ -21,6 +21,7 @@ const plugins = [
       'phone-a-friend',
       'plan',
       'refine',
+      'review',
     ],
     permissionDeclaration: 'verified',
     permissionEvidence: /verified .*2026-06-20/i,
@@ -115,6 +116,7 @@ describe('plugin-manifests', () => {
     expect(consensus.interface?.displayName).toBe('Consensus');
     expect(JSON.stringify(consensus.interface)).toMatch(/decide/i);
     expect(JSON.stringify(consensus.interface)).toMatch(/phone-a-friend/i);
+    expect(JSON.stringify(consensus.interface)).toMatch(/review/i);
     expect(JSON.stringify(consensus.interface)).toMatch(/observer-collab/i);
 
     const session = await readJson('plugins/session/.codex-plugin/plugin.json');

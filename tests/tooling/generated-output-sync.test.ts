@@ -266,6 +266,7 @@ describe('generated output drift guard', () => {
   });
 
   it('includes complete standalone outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('skills/consensus-review');
     expect(generatedOutputRoots).toContain('skills/must-we');
     expect(generatedOutputRoots).toContain('skills/next-steps');
     expect(generatedOutputRoots).toContain('skills/session-retro');
@@ -281,6 +282,7 @@ describe('generated output drift guard', () => {
   });
 
   it('includes complete plugin skill outputs in generated roots', () => {
+    expect(generatedOutputRoots).toContain('plugins/consensus/skills/review');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/refine');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/create');
     expect(generatedOutputRoots).toContain('plugins/consensus/skills/observer');
@@ -330,6 +332,32 @@ describe('generated output drift guard', () => {
     }
   });
 
+  it('excludes generated provider skill mirrors from static lint', async () => {
+    const oxlint = JSON.parse(
+      await readFile(new URL('../../.oxlintrc.json', import.meta.url), 'utf8'),
+    );
+    const patterns: string[] = oxlint.ignorePatterns;
+    for (const providerMirror of [
+      '.claude/skills/oat-project-implement/scripts/run.mjs',
+      '.cursor/skills/oat-project-implement/scripts/run.mjs',
+    ]) {
+      expect(
+        patterns.some((pattern) =>
+          matchesIgnorePattern(pattern, providerMirror),
+        ),
+        `.oxlintrc.json ignorePatterns must cover ${providerMirror}`,
+      ).toBe(true);
+    }
+    expect(
+      patterns.some((pattern) =>
+        matchesIgnorePattern(
+          pattern,
+          'src/skills/oat-project-implement/scripts/run.mjs',
+        ),
+      ),
+    ).toBe(false);
+  });
+
   it('excludes generated roots from lint-staged tasks', () => {
     const task = lintStagedConfig['*.{ts,mts,mjs,js}'];
     for (const root of generatedOutputRoots) {
@@ -345,6 +373,19 @@ describe('generated output drift guard', () => {
       'oxlint --fix "src/example.ts"',
       'oxfmt --write "src/example.ts"',
     ]);
+  });
+
+  it('excludes fixtures from lint-staged formatting tasks', () => {
+    expect(
+      lintStagedConfig['*.md']([
+        'tests/fixtures/consensus-review-receipt/clean-review.md',
+      ]),
+    ).toEqual([]);
+    expect(
+      lintStagedConfig['*.json']([
+        'tests/fixtures/consensus-review-receipt/diagnostic.json',
+      ]),
+    ).toEqual([]);
   });
 
   it('uses the TypeScript generator in CI selectors', async () => {

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { fixtureBin, repoRoot } from '../../../../tests/helpers/process.mjs';
 import type { ProviderInvocation } from '../provider-cli/invocation.js';
-import { runProviderSubprocess } from '../provider-cli/subprocess.js';
+import {
+  readBoundedRegularFile,
+  runProviderSubprocess,
+} from '../provider-cli/subprocess.js';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 
@@ -184,6 +187,71 @@ describe('bounded provider subprocess runner', () => {
       await expect(readFile(outputPath, 'utf8')).rejects.toMatchObject({
         code: 'ENOENT',
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('bounds last-message reads and preserves caller-owned captures', async () => {
+    const dir = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-last-message-bounded-'),
+    );
+    const outputPath = path.join(dir, 'last-message.json');
+
+    try {
+      const oversized = await runProviderSubprocess(
+        {
+          ...invocation(['last-message-sized', outputPath, '64']),
+          output_mode: 'last_message_file',
+          last_message_file: outputPath,
+          cleanup_last_message_file: false,
+        },
+        {
+          maxOutputBytes: 16,
+          timeoutSec: 5,
+        },
+      );
+      expect(oversized).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+      });
+      expect(Buffer.byteLength(await readFile(outputPath, 'utf8'))).toBe(64);
+
+      const retained = await runProviderSubprocess(
+        {
+          ...invocation(['last-message', outputPath]),
+          output_mode: 'last_message_file',
+          last_message_file: outputPath,
+          cleanup_last_message_file: false,
+        },
+        {
+          maxOutputBytes: 1024,
+          timeoutSec: 5,
+        },
+      );
+      expect(retained).toMatchObject({
+        ok: true,
+        last_message: '{"verdict":"accept"}\n',
+      });
+      await expect(readFile(outputPath, 'utf8')).resolves.toContain('accept');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a capture that grows beyond its bound after the initial stat', async () => {
+    const dir = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-growing-capture-'),
+    );
+    const outputPath = path.join(dir, 'capture.json');
+
+    try {
+      await writeFile(outputPath, '12345678');
+      await expect(
+        readBoundedRegularFile(outputPath, 16, {
+          afterStat: async () => appendFile(outputPath, 'x'.repeat(32)),
+        }),
+      ).resolves.toMatchObject({ ok: false, reason: 'too_large' });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

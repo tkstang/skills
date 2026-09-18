@@ -1,16 +1,16 @@
 # consensus plugin
 
-Status: v0.1.
+Status: v0.2.
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows
 and cross-provider session observation. It ships the peer workflows `create`,
-`decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend`, plus
+`decide`, `plan`, `refine`, `evaluate`, `review`, `panel`, and `phone-a-friend`, plus
 plugin-local `observer` and `observer-collab` forms of the canonical
 `session-observer` and `session-observer-collab` skills.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The peer-workflow scope is intentionally narrow: seven peer skills, three
+The peer-workflow scope is intentionally narrow: eight peer skills, three
 iteration modes selected with `--iteration`, a configurable synthesizer, an
 agency-gated escalation ladder, sequential sections by default for refine,
 opt-in host-mediated parallel section orchestration, single-round neutral panel
@@ -19,6 +19,22 @@ grouped here because observing and collaborating across providers is consensus
 behavior; they do not invoke the peer-deliberation loop. Future work may add
 `consensus-research`, a whole-document harmonization pass, multi-round panel
 discussion, and deliberation metrics/cost caps.
+
+### Review
+
+Run one bounded read-only review from either generated skill directory:
+
+```bash
+node plugins/consensus/skills/review/scripts/review.mjs base_branch=origin/main --host codex
+node plugins/consensus/skills/review/scripts/review.mjs --files src/example.ts --host codex
+node plugins/consensus/skills/review/scripts/review.mjs --document docs/design.md --host codex
+```
+
+Review supports exactly branch diff, selected files, or one document. It makes
+one provider invocation, persists private state externally, compares selected
+state, and writes validated JSON plus OAT-compatible Markdown. It does not use
+the convergence loop or apply findings. See `skills/review/SKILL.md` and the
+[Review guide](https://tkstang.github.io/skills/user-guide/consensus/review/).
 
 ## Local Git Repository Install
 
@@ -241,8 +257,8 @@ schema contract and manual QA walkthrough, see
 
 ## Permissions
 
-The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
-`phone-a-friend` skills need permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `review`,
+`panel`, and `phone-a-friend` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight/submit when exposed as a command.

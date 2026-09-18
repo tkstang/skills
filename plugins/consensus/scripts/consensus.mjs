@@ -3,7 +3,7 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { readFile as readFile4, stat as stat2 } from "node:fs/promises";
+import { readFile as readFile3, stat } from "node:fs/promises";
 
 // src/plugins/consensus/provider-cli/commands.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -21,9 +21,21 @@ import {
   writeFile
 } from "node:fs/promises";
 import path from "node:path";
+
+// src/plugins/consensus/provider-cli/types.ts
+var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+
+// src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
 var CONFIG_KEYS = /* @__PURE__ */ new Set(["schema_version", "defaults"]);
-var DEFAULTS_KEYS = /* @__PURE__ */ new Set(["peers", "panelists", "panel_size", "roles"]);
+var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
+  "peers",
+  "panelists",
+  "panel_size",
+  "reviewers",
+  "roles"
+]);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -60,6 +72,13 @@ function parseConsensusDefaults(value) {
   }
   if (value.panel_size !== void 0) {
     defaults.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.reviewers !== void 0) {
+    defaults.reviewers = parseAgentList(value.reviewers, {
+      label: "Consensus config reviewers",
+      minLength: 1,
+      knownProvidersOnly: true
+    });
   }
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
@@ -107,6 +126,8 @@ async function clearConsensusConfig(input) {
     delete defaults.panelists;
   } else if (key === "panel-size") {
     delete defaults.panel_size;
+  } else if (key === "reviewers") {
+    delete defaults.reviewers;
   } else if (key === "roles") {
     delete defaults.roles;
   } else {
@@ -150,7 +171,25 @@ async function resolveConsensusComposition(input) {
   if (input.workflow === "convergence") {
     return resolveConvergenceComposition(input, candidates);
   }
+  if (input.workflow === "review") {
+    return resolveReviewComposition(input, candidates);
+  }
   return resolvePanelComposition(input, candidates);
+}
+function resolveReviewComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.reviewers !== void 0
+  );
+  const reviewers = candidate?.config.defaults?.reviewers ?? [
+    { provider: "claude" },
+    { provider: "codex" }
+  ];
+  return {
+    source: candidate?.source ?? "built-in",
+    workflow: "review",
+    agents: reviewers,
+    warnings: inventoryWarnings(reviewers, input.inventory)
+  };
 }
 async function loadCandidates(input) {
   const candidates = [];
@@ -304,6 +343,15 @@ function parseAgentList(value, options) {
   const agents = value.map(
     (item, index) => parseAgentRef(item, `${options.label}[${index}]`)
   );
+  if (options.knownProvidersOnly) {
+    for (const agent of agents) {
+      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+        throw new Error(
+          `${options.label} contains unsupported provider: ${agent.provider}`
+        );
+      }
+    }
+  }
   assertUniqueProviders(agents, options.label);
   return agents;
 }
@@ -384,7 +432,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
@@ -429,7 +477,9 @@ import path2 from "node:path";
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
-    inlineJsonSchema: options.inlineJsonSchema
+    inlineJsonSchema: options.inlineJsonSchema,
+    lastMessageFile: options.lastMessageFile,
+    preserveLastMessageFile: options.preserveLastMessageFile
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -474,7 +524,7 @@ var buildClaudeInvocation = (request, options = {}) => {
 };
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
-  const lastMessageFile = codexLastMessageFile();
+  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
   const argv = ["exec", "--json", "--output-last-message", lastMessageFile];
   if (strategy === "constrained_native") {
     argv.push("--output-schema", request.schema_path);
@@ -499,7 +549,8 @@ var buildCodexInvocation = (request, options = {}) => {
     request,
     strategy,
     outputMode: "last_message_file",
-    lastMessageFile
+    lastMessageFile,
+    cleanupLastMessageFile: !options.preserveLastMessageFile
   });
 };
 var buildCursorInvocation = (request, options = {}) => {
@@ -522,7 +573,10 @@ function invocation(input) {
     output_mode: input.outputMode,
     strategy: input.strategy,
     redacted_command: [input.executable, ...input.redactedArgv ?? input.argv],
-    ...input.lastMessageFile ? { last_message_file: input.lastMessageFile } : {},
+    ...input.lastMessageFile ? {
+      last_message_file: input.lastMessageFile,
+      cleanup_last_message_file: input.cleanupLastMessageFile ?? true
+    } : {},
     shell: false
   };
 }
@@ -552,7 +606,7 @@ function defaultStrategy(adapter) {
 
 // src/plugins/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
-import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
+import { open, rm as rm2 } from "node:fs/promises";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
@@ -737,7 +791,23 @@ function runProviderSubprocess(invocation2, options = {}) {
         );
         return;
       }
-      const lastMessage = await readLastMessage(invocation2);
+      const lastMessage = await readLastMessage(invocation2, maxOutputBytes);
+      if (lastMessage.tooLarge) {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
+            message: `Provider last-message capture exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
       await cleanupInvocationFiles(invocation2);
       resolve({
         ok: true,
@@ -754,23 +824,84 @@ function runProviderSubprocess(invocation2, options = {}) {
     }
   });
 }
-async function readLastMessage(invocation2) {
+async function readLastMessage(invocation2, maxBytes = DEFAULT_MAX_OUTPUT_BYTES) {
   if (!invocation2.last_message_file) return {};
-  try {
-    return {
-      contents: await readFile2(invocation2.last_message_file, "utf8")
-    };
-  } catch (error) {
-    return {
-      warning: `Could not read provider last-message file: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
+  const result = await readBoundedRegularFile(
+    invocation2.last_message_file,
+    maxBytes
+  );
+  if (result.ok) return { contents: result.contents };
+  if (result.reason === "too_large") return { tooLarge: true };
+  return {
+    warning: `Could not read provider last-message file: ${result.message}`
+  };
 }
 async function cleanupInvocationFiles(invocation2) {
-  if (!invocation2.last_message_file) return;
+  if (!invocation2.last_message_file || invocation2.cleanup_last_message_file === false) {
+    return;
+  }
   try {
     await rm2(invocation2.last_message_file, { force: true });
   } catch {
+  }
+}
+async function readBoundedRegularFile(filePath, maxBytes, options = {}) {
+  let handle;
+  try {
+    handle = await open(filePath, "r");
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return {
+        ok: false,
+        reason: "not_regular",
+        message: "capture is not a regular file"
+      };
+    }
+    if (info.size > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    await options.afterStat?.();
+    const chunks = [];
+    let total = 0;
+    let position = 0;
+    while (total <= maxBytes) {
+      const remaining = maxBytes + 1 - total;
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        buffer.length,
+        position
+      );
+      if (bytesRead === 0) break;
+      chunks.push(buffer.subarray(0, bytesRead));
+      total += bytesRead;
+      position += bytesRead;
+    }
+    if (total > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    return {
+      ok: true,
+      contents: Buffer.concat(chunks, total).toString("utf8"),
+      bytes: total
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "read_failed",
+      message: error instanceof Error ? error.message : String(error)
+    };
+  } finally {
+    await handle?.close();
   }
 }
 function takeUtf8Prefix(input, maxBytes) {
@@ -1103,15 +1234,11 @@ function firstNonEmptyLine(value) {
 
 // src/plugins/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
-  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
-    return "claude";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
-    return "codex";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
-    return "cursor";
-  }
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) return declaredParent;
+  if (hasClaudeHostMarker(env)) return "claude";
+  if (hasCodexHostMarker(env)) return "codex";
+  if (hasCursorHostMarker(env)) return "cursor";
   return "unknown";
 }
 function hostContextFromEnv(env, cwd, maxDepth = 1) {
@@ -1192,11 +1319,27 @@ function allowed(hostRelation, guard, childEnv) {
 }
 function parseNonNegativeInteger(value) {
   if (value === void 0 || !/^\d+$/.test(value)) return void 0;
-  return Number(value);
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : void 0;
 }
-
-// src/plugins/consensus/provider-cli/types.ts
-var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+function knownHostRuntime(value) {
+  return value === "claude" || value === "codex" || value === "cursor" ? value : void 0;
+}
+function hasClaudeHostMarker(env) {
+  return Boolean(
+    env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID
+  );
+}
+function hasCodexHostMarker(env) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID
+  );
+}
+function hasCursorHostMarker(env) {
+  return Boolean(
+    env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR
+  );
+}
 
 // src/plugins/consensus/provider-cli/args.ts
 var ConsensusCliUsageError = class extends Error {
@@ -1347,6 +1490,7 @@ function parseConfigSetCommand(tokens) {
       "--peers",
       "--panelists",
       "--panel-size",
+      "--reviewers",
       "--from-file"
     ]),
     valueFlags: /* @__PURE__ */ new Set([
@@ -1355,6 +1499,7 @@ function parseConfigSetCommand(tokens) {
       "--peers",
       "--panelists",
       "--panel-size",
+      "--reviewers",
       "--from-file"
     ])
   });
@@ -1371,6 +1516,11 @@ function parseConfigSetCommand(tokens) {
     command,
     "panelists",
     singleValue(parsed.flags, "--panelists")
+  );
+  assignIfDefined(
+    command,
+    "reviewers",
+    singleValue(parsed.flags, "--reviewers")
   );
   assignIfDefined(
     command,
@@ -1415,13 +1565,15 @@ function parseConfigWriteScope(value) {
   throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
 }
 function parseConfigKey(value) {
-  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "roles" || value === "all") {
+  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "reviewers" || value === "roles" || value === "all") {
     return value;
   }
   throw new ConsensusCliUsageError(`Invalid config key: ${value}`);
 }
 function parseConfigWorkflow(value) {
-  if (value === "convergence" || value === "panel") return value;
+  if (value === "convergence" || value === "panel" || value === "review") {
+    return value;
+  }
   throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
 }
 function parsePreflightCommand(tokens) {
@@ -2382,7 +2534,7 @@ function matchesJsonType(value, type) {
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
-import { readFile as readFile3, rm as rm3, stat } from "node:fs/promises";
+import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
 import path5 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2435,6 +2587,7 @@ function submitCaptureFilePath(cwd, id = randomUUID3()) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.strategy) return options.strategy;
   if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
     return "prompt_only";
   }
@@ -2508,25 +2661,35 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  const submitCaptureEnabled = dependencies.transport?.submitCaptureEnabled ?? true;
   const strategy = selectStructuredOutputStrategy(adapter, {
-    submitCaptureEnabled: true
+    submitCaptureEnabled,
+    strategy: dependencies.transport?.strategy
   });
+  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Provider does not support structured-output strategy: ${strategy}.`,
+      terminalReason: "structured_output_strategy"
+    });
+  }
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
-  const submitCapturePath = submitCaptureFilePath(
-    effectiveRequest.cwd ?? process.cwd()
-  );
+  const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
-  const submitCommand = dependencies.submitCommand ?? buildConsensusSubmitCommand();
+  const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      CONSENSUS_SUBMIT_COMMAND: submitCommand,
-      CONSENSUS_SUBMIT_FILE: submitCapturePath,
-      [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-      CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+      ...submitCaptureEnabled && submitCommand && submitCapturePath ? {
+        CONSENSUS_SUBMIT_COMMAND: submitCommand,
+        CONSENSUS_SUBMIT_FILE: submitCapturePath,
+        [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
+        CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+      } : {}
     }
   });
   let validationFeedback;
@@ -2534,21 +2697,25 @@ async function runProviderTurn(request, dependencies = {}) {
   let exitClassification;
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await cleanupSubmitCaptureFile(submitCapturePath);
+      if (submitCapturePath) {
+        await cleanupSubmitCaptureFile(submitCapturePath);
+      }
       const invocationRequest = {
         ...effectiveRequest,
         prompt: promptForStrategy({
           prompt: request.prompt,
           strategy,
           inlineJsonSchema,
-          submitCaptureEnabled: true,
+          submitCaptureEnabled,
           submitCommand,
           validationFeedback
         })
       };
       const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
         strategy,
-        inlineJsonSchema
+        inlineJsonSchema,
+        lastMessageFile: dependencies.transport?.lastMessageFile,
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -2590,11 +2757,7 @@ async function runProviderTurn(request, dependencies = {}) {
           diagnostics: failureDiagnostics
         });
       }
-      const submittedVerdict = await readSubmittedVerdict(
-        submitCapturePath,
-        schema,
-        maxSubmitBytes
-      );
+      const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
       if (submittedVerdict.ok) {
         return successEnvelope({
           provider: request.provider,
@@ -2704,11 +2867,13 @@ async function runProviderTurn(request, dependencies = {}) {
       } : void 0
     });
   } finally {
-    await cleanupSubmitCaptureFile(submitCapturePath);
+    if (submitCapturePath) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+    }
   }
 }
 async function readJsonSchema(schemaPath) {
-  return JSON.parse(await readFile3(schemaPath, "utf8"));
+  return JSON.parse(await readFile2(schemaPath, "utf8"));
 }
 function preInvocationFailure(input) {
   return failureEnvelope({
@@ -2746,11 +2911,10 @@ function parseProviderJson(stdout) {
   }
 }
 async function readSubmittedVerdict(filePath, schema, maxBytes) {
-  let raw;
+  const capture = await readBoundedRegularFile(filePath, maxBytes);
+  if (!capture.ok) return { ok: false };
+  const raw = capture.contents;
   try {
-    const capture = await stat(filePath);
-    if (capture.size > maxBytes) return { ok: false };
-    raw = await readFile3(filePath, "utf8");
     assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };
@@ -2891,11 +3055,11 @@ function helpText() {
   return `Usage: consensus <command> --json
 
 Commands:
-  config get --json [--scope user|project|effective] [--workflow convergence|panel] [--cwd <path>]
+  config get --json [--scope user|project|effective] [--workflow convergence|panel|review] [--cwd <path>]
   config list --json [--cwd <path>]
-  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>] [--reviewers <a,b>]
       [--panel-size <n>] [--from-file <path>] [--cwd <path>]
-  config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|reviewers|roles|all] [--cwd <path>]
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
@@ -3105,8 +3269,8 @@ function runConfigList() {
     ok: true,
     scopes: ["user", "project", "effective"],
     writable_scopes: ["user", "project"],
-    keys: ["peers", "panelists", "panel-size", "roles", "all"],
-    workflows: ["convergence", "panel"]
+    keys: ["peers", "panelists", "panel-size", "reviewers", "roles", "all"],
+    workflows: ["convergence", "panel", "review"]
   };
 }
 async function runConfigGet(command, io, options) {
@@ -3160,7 +3324,7 @@ async function runConfigSet(command, io) {
   const patch = parseConfigSetPatch(command);
   if (!command.fromFile && !configDefaultsHasValues(patch)) {
     throw new ConsensusCliUsageError(
-      "config set requires --peers, --panelists, --panel-size, or --from-file"
+      "config set requires --peers, --panelists, --panel-size, --reviewers, or --from-file"
     );
   }
   const base = command.fromFile ? await readConfigFromFile(command.fromFile, io) : await readConsensusConfig({
@@ -3215,6 +3379,7 @@ function effectiveFieldSources(user, project) {
     ["peers", "peers"],
     ["panelists", "panelists"],
     ["panel-size", "panel_size"],
+    ["reviewers", "reviewers"],
     ["roles", "roles"]
   ];
   for (const [key, field] of fields) {
@@ -3239,6 +3404,7 @@ function mergeConfigFields(target, source) {
   if (source.peers !== void 0) target.peers = source.peers;
   if (source.panelists !== void 0) target.panelists = source.panelists;
   if (source.panel_size !== void 0) target.panel_size = source.panel_size;
+  if (source.reviewers !== void 0) target.reviewers = source.reviewers;
   if (source.roles !== void 0) target.roles = source.roles;
 }
 function configHasDefaults(config) {
@@ -3275,6 +3441,9 @@ function parseConfigSetPatch(command) {
   if (command.panelSize !== void 0) {
     patch.panel_size = command.panelSize;
   }
+  if (command.reviewers !== void 0) {
+    patch.reviewers = parseAgentSpecList(command.reviewers);
+  }
   return patch;
 }
 function configWithDefaultsPatch(base, patch) {
@@ -3289,7 +3458,7 @@ function configWithDefaultsPatch(base, patch) {
   return config;
 }
 function configDefaultsHasValues(defaults) {
-  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.roles !== void 0);
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0);
 }
 function parseAgentSpecList(value) {
   return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);
@@ -3435,12 +3604,12 @@ function nodeIo() {
 }
 async function readUtf8File(filePath, maxBytes) {
   if (maxBytes !== void 0) {
-    const file = await stat2(filePath);
+    const file = await stat(filePath);
     if (file.size > maxBytes) {
       throw new SubmitCaptureLimitError(file.size, maxBytes);
     }
   }
-  const contents = await readFile4(filePath, "utf8");
+  const contents = await readFile3(filePath, "utf8");
   if (maxBytes !== void 0 && byteLength(contents) > maxBytes) {
     throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
   }

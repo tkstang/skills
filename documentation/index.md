@@ -33,8 +33,8 @@
 - User Guide
   - [User Guide](user-guide/index.md) — Install and use the consensus and session plugins or their declared standalone skill forms.
   - Consensus
-    - [Consensus](user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, panel responses, and one-shot advisory takes, including create, decide, plan, refine, evaluate, panel, phone-a-friend, iteration modes, and current limitations.
-    - [Configuration](user-guide/consensus/configuration.md) — Shared consensus configuration: peer and panelist selection, default config paths, precedence, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.
+    - [Consensus](user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and one-shot advisory takes.
+    - [Configuration](user-guide/consensus/configuration.md) — Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, and provider diagnostics.
     - [Create](user-guide/consensus/create.md) — Run the create skill to produce a new artifact from a brief with independent peer drafts, synthesis, a deliberation log, and resolution metadata.
     - [Decide](user-guide/consensus/decide.md) — Run the decide skill to choose between options with independent peer decision drafts, synthesis, minimal agency, explicit dissent, and resolution metadata.
     - [Evaluate](user-guide/consensus/evaluate.md) — Run the evaluate skill to judge an artifact against a rubric with two AI peers, unified findings, embedded verdict records, and preserved dissent.
@@ -42,6 +42,7 @@
     - [Phone-a-friend](user-guide/consensus/phone-a-friend.md) — Use the phone-a-friend skill for one-shot advisory peer consultation with a structured take, explicit host disposition, and no deliberation loop.
     - [Plan](user-guide/consensus/plan.md) — Run the plan skill to turn a goal and inline constraints into structured markdown steps, dependencies, risks, a deliberation log, and resolution metadata.
     - [Refine](user-guide/consensus/refine.md) — Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.
+    - [Review](user-guide/consensus/review.md) — Run one bounded, read-only, provider-backed review and produce validated JSON plus OAT-compatible Markdown.
   - Getting Started
     - [Getting Started](user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
   - Plugins

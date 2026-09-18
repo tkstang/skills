@@ -314,6 +314,7 @@ describe('release-versioning', () => {
   it('SKILL_FILES pins the current shipped skill set (update deliberately on change)', () => {
     expect([...SKILL_FILES].toSorted()).toEqual([
       'src/skills/complexity-review/SKILL.md',
+      'src/skills/consensus-review/SKILL.md',
       'src/skills/create/SKILL.md',
       'src/skills/decide/SKILL.md',
       'src/skills/evaluate/SKILL.md',

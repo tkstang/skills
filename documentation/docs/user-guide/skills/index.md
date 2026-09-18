@@ -17,6 +17,7 @@ Choose by what the next session needs:
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Understand what to do next and why                                            | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Decide whether a requirement or proposal is necessary                         | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
+| Review one bounded branch diff, file set, or document independently           | [Consensus Review](../consensus/review.md)                    | Validated JSON and OAT-compatible Markdown with findings, provenance, checks, and explicit detection limits; no automatic fixes.                                        |
 | Learn from one skill invocation or a bounded session episode                  | [Session Retro](session-retro.md)                             | Evidence-backed findings and validation proposals; the review does not apply its own changes.                                                                           |
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
 | Keep a durable record of the conversation                                     | [Session Export Transcript](session-export-transcript.md)     | A sanitized Markdown transcript for reference. It is an archive, not a continuation packet or a session transfer.                                                       |
@@ -52,6 +53,9 @@ and standalone choices.
 - **complexity-review** — judge whether each schema, script, test, harness,
   agent pass, or abstraction in a plan or implementation earns its ongoing
   cost, and get the minimum sufficient version with reintroduction triggers.
+- **consensus-review** (consensus-local `review`) — run one bounded,
+  provider-backed read-only review and render receivable findings without
+  applying them.
 
 ## Contents
 
@@ -62,6 +66,7 @@ and standalone choices.
 
 ### Review and improve
 
+- [Consensus Review](../consensus/review.md) - Review a branch diff, selected files, or one document through one independent provider invocation.
 - [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
 - [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; available standalone or as Session `retro`.
 

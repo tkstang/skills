@@ -18,12 +18,15 @@ export interface ProviderInvocation {
   strategy: StructuredOutputStrategy;
   redacted_command: string[];
   last_message_file?: string;
+  cleanup_last_message_file?: boolean;
   shell: false;
 }
 
 export interface BuildProviderInvocationOptions {
   strategy?: StructuredOutputStrategy;
   inlineJsonSchema?: string;
+  lastMessageFile?: string;
+  preserveLastMessageFile?: boolean;
 }
 
 export type ProviderInvocationBuilder = (
@@ -39,6 +42,8 @@ export function buildProviderInvocation(
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
+    lastMessageFile: options.lastMessageFile,
+    preserveLastMessageFile: options.preserveLastMessageFile,
   });
 }
 
@@ -93,7 +98,7 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   options = {},
 ) => {
   const strategy = options.strategy ?? 'prompt_only';
-  const lastMessageFile = codexLastMessageFile();
+  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
   const argv = ['exec', '--json', '--output-last-message', lastMessageFile];
   if (strategy === 'constrained_native') {
     argv.push('--output-schema', request.schema_path);
@@ -124,6 +129,7 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     strategy,
     outputMode: 'last_message_file',
     lastMessageFile,
+    cleanupLastMessageFile: !options.preserveLastMessageFile,
   });
 };
 
@@ -154,6 +160,7 @@ function invocation(input: {
   strategy: StructuredOutputStrategy;
   outputMode: OutputMode;
   lastMessageFile?: string;
+  cleanupLastMessageFile?: boolean;
   stdin?: string;
 }): ProviderInvocation {
   return {
@@ -165,7 +172,10 @@ function invocation(input: {
     strategy: input.strategy,
     redacted_command: [input.executable, ...(input.redactedArgv ?? input.argv)],
     ...(input.lastMessageFile
-      ? { last_message_file: input.lastMessageFile }
+      ? {
+          last_message_file: input.lastMessageFile,
+          cleanup_last_message_file: input.cleanupLastMessageFile ?? true,
+        }
       : {}),
     shell: false,
   };

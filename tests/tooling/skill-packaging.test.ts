@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import {
   chmod,
   cp,
+  link,
   mkdir,
   mkdtemp,
   readFile,
@@ -14,6 +15,7 @@ import {
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -910,6 +912,205 @@ describe('declared skill packaging', () => {
 });
 
 describe('representative real installation boundaries', () => {
+  it('executes review transport from both copied installation units', async () => {
+    const declaration = distributions.find(
+      (candidate) => candidate.owner === 'consensus-review',
+    );
+    expect(declaration).toBeDefined();
+
+    const built = await buildDeclaredDistributions({
+      repoRoot: repositoryRoot,
+      declarations: [declaration!],
+    });
+    expect(built.map((unit) => unit.target.output).toSorted()).toEqual([
+      'plugins/consensus/skills/review',
+      'skills/consensus-review',
+    ]);
+
+    const root = await realpath(await fixtureRoot());
+    const bin = path.join(root, 'bin');
+    const home = path.join(root, 'home');
+    const reviewed = path.join(root, 'reviewed-worktree');
+    const state = path.join(root, 'state');
+    await Promise.all(
+      [bin, home, reviewed, state].map((directory) =>
+        mkdir(directory, { recursive: true }),
+      ),
+    );
+    await write(
+      root,
+      'bin/codex',
+      `#!/usr/bin/env node
+import { readFileSync, writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === '--version') {
+  process.stdout.write('codex-cli 999.0.0\\n');
+} else if (args[0] === 'exec' && args[1] === '--help') {
+  process.stdout.write('--json --output-last-message --output-schema\\n');
+} else if (args[0] === 'exec') {
+  const capture = args[args.indexOf('--output-last-message') + 1];
+  const prompt = readFileSync(0, 'utf8');
+  if (!capture || args.includes('--output-schema')) process.exit(64);
+  if (!args.includes('--sandbox') || !args.includes('read-only')) process.exit(65);
+  if (!args.includes('approval_policy="never"')) process.exit(66);
+  if (prompt.includes('Verdict submission:')) process.exit(67);
+  writeFileSync(capture, JSON.stringify({
+    schema_version: 'v1',
+    scope_token: 'fixture-scope',
+    verdict: 'pass',
+    summary: 'Installed runner executed the fake provider.',
+    findings: [],
+    questions: [],
+    limitations: [],
+    coverage: ['fixture'],
+    inspected_context: [],
+    checks: [],
+    reviewer_identity: { provider: 'codex' }
+  }));
+  process.stdout.write('{"type":"turn.completed"}\\n');
+} else {
+  process.exit(68);
+}
+`,
+    );
+    await chmod(path.join(bin, 'codex'), 0o755);
+    await write(
+      root,
+      'review-driver.mjs',
+      `const [runtime, schemaPath, capturePath, cwd] = process.argv.slice(2);
+const { runReview } = await import(runtime);
+const result = await runReview({
+  provider: 'codex',
+  prompt: 'Review the fixed installed-bundle fixture.',
+  schemaPath,
+  cwd,
+  host: 'codex',
+  allowSameProvider: true,
+  codexCapturePath: capturePath,
+});
+process.stdout.write(JSON.stringify(result));
+`,
+    );
+
+    const reviewedState = path.join(reviewed, '.review');
+    const reviewedAlias = path.join(root, 'reviewed-alias');
+    await mkdir(reviewedState, { mode: 0o700 });
+    await chmod(reviewedState, 0o700);
+    await symlink(reviewed, reviewedAlias, 'dir');
+
+    for (const unit of built) {
+      const installed = path.join(root, 'installed', unit.target.name);
+      await cp(unit.stagedPath, installed, { recursive: true });
+      const runtime = path.join(installed, 'scripts/review.mjs');
+      const schema = path.join(installed, 'schemas/review.schema.json');
+      const capture = path.join(
+        state,
+        unit.target.name,
+        'codex-last-message.json',
+      );
+      const runRoot = path.dirname(capture);
+      await mkdir(runRoot, { recursive: true, mode: 0o700 });
+      await chmod(runRoot, 0o700);
+
+      const execute = async (
+        capturePath: string,
+        depth = '0',
+      ): Promise<Record<string, unknown>> => {
+        const execution = await execFileAsync(
+          process.execPath,
+          [
+            path.join(root, 'review-driver.mjs'),
+            `${pathToFileURL(runtime).href}?unit=${unit.target.name}&capture=${encodeURIComponent(path.basename(capturePath))}`,
+            schema,
+            capturePath,
+            reviewed,
+          ],
+          {
+            cwd: root,
+            env: {
+              HOME: home,
+              PATH: `${bin}${path.delimiter}${path.dirname(process.execPath)}`,
+              CONSENSUS_PARENT_HOST: 'codex',
+              CONSENSUS_RUN_ID: `installed-${unit.target.name}`,
+              CONSENSUS_DEPTH: depth,
+            },
+          },
+        );
+        return JSON.parse(execution.stdout) as Record<string, unknown>;
+      };
+
+      const actualParent = path.join(root, `${unit.target.name}-actual-run`);
+      const linkedParent = path.join(root, `${unit.target.name}-linked-run`);
+      const symlinkTarget = path.join(
+        root,
+        `${unit.target.name}-symlink-target.json`,
+      );
+      const symlinkCapture = path.join(
+        root,
+        `${unit.target.name}-symlink-capture.json`,
+      );
+      const preExisting = path.join(runRoot, 'pre-existing.json');
+      const protectedAlias = path.join(runRoot, 'schema-alias.json');
+      await mkdir(actualParent, { mode: 0o700 });
+      await chmod(actualParent, 0o700);
+      await symlink(actualParent, linkedParent, 'dir');
+      await writeFile(symlinkTarget, '{}');
+      await symlink(symlinkTarget, symlinkCapture);
+      await writeFile(preExisting, '{}');
+      await link(schema, protectedAlias);
+
+      for (const unsafeCapture of [
+        path.join(linkedParent, 'last-message.json'),
+        symlinkCapture,
+        path.join(
+          reviewedAlias,
+          '.review',
+          `${unit.target.name}-last-message.json`,
+        ),
+        preExisting,
+        protectedAlias,
+      ]) {
+        expect(await execute(unsafeCapture)).toMatchObject({
+          ok: false,
+          status: 'preflight_failed',
+          invocation_count: 0,
+        });
+      }
+      expect(
+        await execute(path.join(runRoot, 'invalid-depth.json'), 'bad'),
+      ).toMatchObject({
+        ok: false,
+        status: 'preflight_failed',
+        reason: 'invalid_depth',
+        invocation_count: 0,
+      });
+
+      const validExecution = await execute(capture);
+      expect(validExecution, JSON.stringify(validExecution)).toMatchObject({
+        ok: true,
+        status: 'completed',
+        invocation_count: 1,
+        envelope: {
+          ok: true,
+          provider: 'codex',
+          diagnostics: {
+            strategy_used: 'prompt_only',
+            output_mode: 'last_message_file',
+          },
+        },
+      });
+      expect(JSON.parse(await readFile(capture, 'utf8'))).toMatchObject({
+        verdict: 'pass',
+      });
+      expect(await readFile(runtime, 'utf8')).not.toContain('consensus-loop');
+      expect(await readFile(runtime, 'utf8')).not.toMatch(
+        /from\s+['"](?:\.\.\/){2,}/,
+      );
+    }
+
+    await cleanupBuiltDistributions(built);
+  });
+
   it('packages and executes prompt-only, shared-runtime, standalone-consensus, and complete-plugin units outside the checkout', async () => {
     const root = await fixtureRoot();
     const home = path.join(root, 'home');
