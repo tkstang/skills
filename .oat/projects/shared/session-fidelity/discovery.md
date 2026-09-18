@@ -1,0 +1,122 @@
+---
+oat_status: in_progress
+oat_ready_for: null
+oat_blockers: []
+oat_last_updated: 2026-09-18
+oat_generated: false
+---
+
+# Discovery: session-fidelity
+
+## Initial Request
+
+Run `oat-project-quick-start session-fidelity` using **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter** as the brief. Produce discovery and an execution-ready plan; this invocation does not implement the feature.
+
+The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output, export sanitization, exact session identity, and checkpoint behavior must remain intact.
+
+## Clarifying Questions
+
+The supplied backlog and September 10 research packet provide substantive requirements. No additional project description is needed. No new user decisions have been inferred from the project name.
+
+The request is well-understood at the product level. A design-depth choice remains because the shared activity contract, correlation/delivery boundary, and Cursor integration need a current architectural sketch before executable tasks are finalized.
+
+## Solution Space
+
+The backlog selects a shared deterministic activity projection, separately opt-in at each existing consumer. Keep that direction. The historical research is design input, not evidence of shipped behavior or current client-format coverage.
+
+## Options Considered
+
+- **Shared extraction and bounded projection:** the backlog's intended approach; preserves native evidence and gives both consumers one activity vocabulary.
+- **Expand existing conversation entries only:** insufficient for physical source locators, multiple results, coverage, and independent sanitization. Do not widen the legacy entry union merely to carry activity.
+- **Build the shared-session-log substrate first:** outside this item. The activity contract is an input to that later project, not dependent on it.
+
+## Key Decisions
+
+These are requirements inherited from the backlog and existing repository decisions, not newly approved architecture:
+
+1. Add one explicit `--include-activity` flag to both skills. Preserve no-flag behavior and existing `--include-tools`/`--debug` behavior on surfaces that already support those flags.
+2. Retain the existing record reader's API and logical indices. Add detailed physical line/byte provenance and parse diagnostics without turning physical coordinates into observer checkpoints.
+3. Support Claude/Codex activity first, then Cursor through frame analysis. Cover Codex function/custom calls and results plus web-search evidence; preserve exact names, independent call/message IDs, parsed arguments, raw carriers, and ask-user attribution caveats.
+4. Correlate before selecting the delivered range so a late result can refer to an earlier call. Repeated commands and multiple result updates remain distinct; an absent result never implies success.
+5. Keep a separate optional activity envelope and explicit coverage states: `available`, `not-recorded`, `not-found`, `not-read`, `unsupported`, `malformed`, and `truncated`. Distinguish content availability from lifecycle completion.
+6. Preserve exporter-owned sanitization for default conversation exports. Label opt-in activity exports as activity/debug output; source content is data, and instruction bodies are not implicitly enabled.
+7. Preserve exact-pin, review/mark-read, catch-up, watch, Cursor delivery/revision, and collaboration ownership boundaries. Watch event logs remain metadata-only.
+8. Follow declared distributions and canonical source ownership. Historical module paths and exporter naming in the research must be translated to the current repository.
+
+## Constraints
+
+- Runtime remains dependency-free, using Node standard library APIs; repository tooling requires Node >=22 and pnpm.
+- Authored shared code belongs under `src/shared/transcript/`; consumer owners are `src/skills/session-observer/` and `src/skills/session-export-transcript/`.
+- Build generated distributions from canonical sources; never hand-edit generated payloads. Account for transitive skill-version impact, bump affected `metadata.version` fields, and add matching Unreleased changelog entries during implementation.
+- Sidecar access, if included, is limited to expected session artifacts or explicit approved roots. No arbitrary output-path following or same-directory predecessor guessing.
+- Count scopes and preview omissions must be explicit. Tail previews come from the actual available tail; truncation cannot silently conceal later failures.
+- Use recorded source evidence for status, exit codes, model/usage/lifecycle metadata, and subagent/MCP activity. Keep native status separate from inferred convenience fields.
+- Use deterministic sanitized fixtures for implementation verification. Existing research examples are authored examples, not captures proving support for currently installed clients.
+- Ship backlog close-out in the implementation PR only after all acceptance criteria pass. This planning run leaves the item open.
+
+## Success Criteria
+
+1. Detailed reading returns decoded records with physical line/byte locations and parse diagnostics; legacy `readRecords()` and logical-index behavior remain compatible.
+2. Shared typed extraction, classification, correlation, and pure bounded projection preserve source pointers and complete native content before presentation budgets apply.
+3. Claude and Codex calls/results retain exact native names and call IDs, parsed and original arguments, multiple updates, file/shell/MCP/subagent evidence, and honest outcomes. Codex function/custom and web-search coverage gaps are closed in the activity path.
+4. Both consumers accept the flag. Observer review, catch-up, and watch deliver activity with unchanged identity/checkpoint behavior; default digest/export output and sanitization remain unchanged.
+5. Cursor identity comes from frame analysis; observer v2 and exporter are verified independently. Missing result payloads are explicitly `not-recorded`, and frame revisions do not become duplicate invocations.
+6. Fixtures cover late and unmatched results, repeated calls, malformed/interrupted JSONL, large/multiblock outputs, Unicode offsets, later failures, ask-user attribution, and Cursor lifecycle/revision cases. Counts identify delivered, displayed, or captured scope.
+7. Activity exports clearly identify sensitive content and coverage limitations. Unsupported surfaces remain explicit; no claimed publish safety or hidden reasoning access.
+8. Canonical skill instructions, user guides, generated distributions, version fan-out, and changelog agree with tested behavior. Relevant focused checks and repository build/type/test/validate/smoke gates pass before implementation completion.
+
+## Out of Scope
+
+- Daemon, cross-session warehouse, shared merged-log implementation, or MCP server.
+- All 17 provider adapters from the research catalog.
+- Automatic skill rewriting or provider continuation/fork operations.
+- Exporter JSON format, a new `--activity-output` flag, or a new public tuning surface unless separately requested.
+- Recursive child-session ingestion, arbitrary sidecar traversal, automatic instruction-body inclusion, and speculative reconstruction of missing evidence.
+- Installation, release, marketplace/live-provider acceptance, and unrelated global skill updates.
+
+## Deferred Ideas
+
+- **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge:** consume the established activity contract in a later project.
+- Fuller activity artifacts and additional provider adapters remain future options, not requirements of this item.
+
+## Current Repository Evidence
+
+- `src/shared/transcript/runtimes.ts:971`: `readRecords()` skips blank/malformed lines and returns decoded objects, so its logical index is not a physical line number.
+- `src/shared/transcript/runtimes.ts:1747`: ordinary Codex `function_call_output` is dropped unless correlated to ask-user questions; current normalizer does not expose general custom-tool activity.
+- `src/skills/session-observer/src/lib/digest.ts:1079`: Cursor uses a dedicated digest path, while other runtimes use shared record normalization.
+- `src/skills/session-export-transcript/src/session-export-transcript.ts:579`: exporter reads records and normalizes separately before sanitization.
+- `src/distributions.ts:159` and `:229`: current observer/exporter canonical owners and generated standalone/plugin targets. Both already allow `src/shared/transcript`; imported activity modules should be included through the existing build import closure, without inventing a new registry architecture.
+- The bounded code audit confirms the exporter has no existing include-tools/debug flags to preserve; compatibility applies only where flags exist today. Observer Cursor v2 and exporter terminal-only normalization require distinct integration tests.
+
+## Open Questions
+
+- **Design depth:** straight to plan, lightweight design, or spec-driven promotion? Recommend lightweight design because the activity schema and delivery boundaries span shared runtime and two distinct consumer paths.
+- **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
+- **Metadata and sidecars:** identify the minimum recorded metadata covered in this increment, and decide whether any explicitly linked sidecar reads are necessary; absence or deferral must have accurate coverage states.
+- **Fixture provenance:** audit current committed fixtures and define which source-native shapes require new sanitized fixtures; do not claim live client coverage from authored research examples.
+
+## Assumptions
+
+- The backlog's four required stages and documentation/security criteria define this project's scope. The research's optional fifth-stage expansion is not automatically authorized scope.
+- The research's `export-session-transcript` references map to the current `session-export-transcript` owner; no compatibility alias is proposed.
+- Exact numeric budgets and schema field details can be resolved in lightweight design within the agreed bounded behavior.
+
+## Risks
+
+- **State regression:** mixing source and delivery indices can replay or skip evidence. Preserve existing state transitions and test late results and grow-in-place frames.
+- **False attribution:** mismatched call IDs, inferred success, or fabricated human answers can misstate activity. Retain native evidence, unmatched states, and the ask-user caveat.
+- **Privacy regression:** widening the default sanitizer or content-bearing telemetry would violate existing boundaries. Activity remains explicitly selected and separate from default export filtering and watch logs.
+- **Stale research paths:** September 10 packaging paths predate current source colocation. Use current owners and bundling declarations when generating tasks.
+
+## Next Steps
+
+Discovery is captured. Confirm design depth, then resolve the selected branch, generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
+
+## References
+
+- `.oat/repo/pjm/backlog/items/BL-260916-session-fidelity-opt.md`
+- `.oat/repo/reference/research/session-fidelity-2026-09-10/06-optional-activity-flag-design.md`
+- `.oat/repo/reference/research/session-fidelity-2026-09-10/07-implementation-plan-and-tests.md`
+- `.oat/repo/reference/research/session-fidelity-2026-09-10/11-source-audit-corrections-and-limitations.md`
+- `.oat/repo/reference/research/session-fidelity-2026-09-10/design/activity-contract.ts`
+- Existing decisions: DR-260724-stateful-work-requires-exact, DR-260724-separate-observation, DR-260724-content-availability-is-not, DR-260605-export-sanitization-is-two, DR-260603-watch-event-logs-are-metadata, and DR-260914-declared-skill-distributions.
