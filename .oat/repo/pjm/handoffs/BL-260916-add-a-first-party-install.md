@@ -6,19 +6,20 @@
 
 ## Objective and inputs
 
-Install declared generated standalone payloads from an explicit pinned tag into the chosen host's project-scope skills directory, verify the payload, and print the host invocation name. Do not copy authored `src/skills/` or silently install a user's global skills.
+Install declared generated standalone payloads from an explicit pinned tag into the chosen host's explicitly selected project or user scope, verify the payload, and print the host invocation name. User scope must be explicit and tests must use a temporary `HOME`; do not copy authored `src/skills/` or mutate the real user installation during implementation.
 
 Read:
 - The linked item and `install.sh` (currently a Consensus-wrapper installer, not a general skill installer).
 - `src/distributions.ts` and `scripts/lib/packaging.ts`.
+- The sibling `tkstang/personal-skills` repository's `scripts/install.ts`, `scripts/external/git-source.ts`, and `docs/installation.md` as proven prior art for explicit destinations, inventories, bounded Git reads, and test injection. Port only the public installer's required dependency-free subset; do not introduce a cross-repository runtime dependency.
 - `tests/release/` and `tests/tooling/` for installed-artifact/build patterns.
 - `documentation/docs/user-guide/installation.md`, `RELEASING.md`, and `documentation/AGENTS.md`.
 
 ## Required design and implementation boundary
 
-Pre-populate discovery from the ticket. Specify CLI shape, pinned ref resolution and authenticity/integrity meaning, complete payload inventory, host destination/invocation mapping, overwrite/refusal and partial-failure behavior. Preserve the current Consensus-wrapper installation contract unless a change is explicitly designed and tested.
+Pre-populate discovery from the ticket and the existing `personal-skills` installer. Specify CLI shape, explicit scope, pinned ref resolution and authenticity/integrity meaning, complete payload inventory, host destination/invocation mapping, overwrite/refusal and partial-failure behavior. Preserve the current Consensus-wrapper installation contract unless a change is explicitly designed and tested.
 
-Test missing tag/skill, invalid target, refusal to copy source, existing destination, and interrupted/failed copy without damaging an existing installation. Use temporary directories/local fixtures; production networking must not be required for unit tests.
+Test missing tag/skill, invalid target, refusal to copy source, existing destination, both scopes, and one injected failed-copy path without damaging an existing installation. Use temporary directories, a temporary `HOME`, and local Git fixtures; production networking must not be required for unit tests. Use a small programmatic filesystem seam rather than a shipped environment-driven race harness.
 
 Add the first-party procedure beside the third-party Skills CLI path. The release checklist must cover live host acceptance; actual live discovery/install checks require separate authority. If unavailable, state which acceptance evidence remains pending rather than closing prematurely.
 
