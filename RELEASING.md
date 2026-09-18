@@ -64,6 +64,40 @@ does not establish live provider discovery or permission behavior.
   (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
   verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.
 
+## First-party standalone acceptance
+
+Before advertising the first-party standalone installer for a release, confirm
+the pinned tag contains `install.sh`, `scripts/install-standalone.mjs`, and the
+current generated `skills/<name>/` payloads. The Installation guide uses
+`v0.1.2` as a planned example; a passing local test does not publish that tag.
+
+Run the focused installer suite with local tagged repositories and a temporary
+`HOME`. Record automated placement and payload verification separately from
+the live checks below. The installer resolves an exact tag and verifies copy
+fidelity; it does not verify signed provenance.
+
+For each row, record the pinned tag, selected skill, placement, payload
+verification result, printed invocation, host version, fresh-session discovery,
+and a bounded invocation with its permission behavior. Compare the printed
+path and invocation against the selected host and scope. Do not infer a
+passing row from another host or scope.
+
+| Host        | Scope   | Required live evidence                                                       |
+| ----------- | ------- | ---------------------------------------------------------------------------- |
+| Codex       | project | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Codex       | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Claude Code | project | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Claude Code | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Cursor      | project | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Cursor      | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
+
+Live host install, discovery, and invocation require explicit authorization.
+Use an isolated project for project scope. Mutation of the real user home is
+a separate step requiring explicit authorization even when project-scope live
+checks are approved. Record pending or waived checks with their reason; keep
+those host/scope claims unverified. Static tests with a temporary `HOME` do not
+establish real user-scope acceptance.
+
 ## Consensus v0.1.0 historical readiness snapshot
 
 Last updated: 2026-06-20.
