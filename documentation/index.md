@@ -5,6 +5,11 @@
   - [Engineering](engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Architecture
     - [Architecture](engineering/architecture/index.md) — The single-owner and generated-installation-unit architecture behind dependency-free shipped skills.
+    - Session Schemas
+      - [Native session schemas](engineering/architecture/session-schemas/index.md) — What Codex, Claude Code, and Cursor actually write to their session transcripts, as observed from recorded sessions, for anyone building a parser on them.
+      - [Claude Code session schema](engineering/architecture/session-schemas/claude-code.md) — The on-disk shape of Claude Code JSONL session transcripts as observed in a 2026-09-18 evidence snapshot, for engineers writing parsers against them.
+      - [Codex session schema](engineering/architecture/session-schemas/codex.md) — The Codex rollout transcript format as observed on 2026-09-18 — record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of each join.
+      - [Cursor session schema](engineering/architecture/session-schemas/cursor.md) — The Cursor agent-transcript JSONL format as observed, for engineers building parsers on these files.
     - [Consensus Runtime](engineering/architecture/consensus-runtime.md) — How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.
     - [Cursor Collaboration Reliability](engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.
     - [Build & Distribution](engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.

@@ -6,6 +6,7 @@
     "generated-runtime",
     "consensus-runtime",
     "transcript-core",
+    "session-schemas",
     "cursor-collaboration-reliability"
   ]
 }
