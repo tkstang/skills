@@ -81,7 +81,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-18T22:37:18.264056+00:00'
+oat_project_state_updated: '2026-09-18T23:16:39.974950+00:00'
 oat_generated: false
 ---
 
@@ -93,13 +93,13 @@ oat_generated: false
 
 ## Current Phase
 
-Lightweight design selected; overview drafted and awaiting collaborative validation.
+Full lightweight design drafted at the user’s request; Fable feedback incorporated and holistic validation pending.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (in_progress)
 - **Spec:** N/A (quick mode)
-- **Design:** `design.md` (in_progress; overview awaiting validation)
+- **Design:** `design.md` (in_progress; full draft awaiting holistic validation)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -109,7 +109,9 @@ Lightweight design selected; overview drafted and awaiting collaborative validat
 - ✓ Discovery captured; lightweight design recommended
 - ✓ Execution artifacts scaffolded
 - ✓ User selected lightweight design
-- ⧗ Awaiting overview validation
+- ✓ Full draft requested by user; Fable overview feedback incorporated
+- ✓ Observed user scope choices incorporated: locator fix, captured fixtures, schema docs
+- ⧗ Awaiting Fable full-draft review and holistic user validation
 
 ## Blockers
 

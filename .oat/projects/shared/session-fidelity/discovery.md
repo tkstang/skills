@@ -12,13 +12,13 @@ oat_generated: false
 
 Run `oat-project-quick-start session-fidelity` using **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter** as the brief. Produce discovery and an execution-ready plan; this invocation does not implement the feature.
 
-The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output, export sanitization, exact session identity, and checkpoint behavior must remain intact.
+The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output and export sanitization remain intact. The user subsequently added a correction to Codex native-session identity and safe cursor binding; that authorized fix is an explicit exception to preserving existing identity behavior.
 
 ## Clarifying Questions
 
 The supplied backlog and September 10 research packet provide substantive requirements. No additional project description is needed. No new user decisions have been inferred from the project name.
 
-The request is well-understood at the product level. The user selected lightweight design on 2026-09-18. The shared activity contract, correlation/delivery boundary, and Cursor integration will be resolved in a current architectural sketch before executable tasks are finalized. The saved `workflow.designMode=selective` maps to collaborative mode for quick-start.
+The request is well-understood at the product level. The user selected lightweight design on 2026-09-18. The shared activity contract, correlation/delivery boundary, and Cursor integration will be resolved in a current architectural sketch before executable tasks are finalized. The saved `workflow.designMode=selective` initially mapped to collaborative mode. The user subsequently requested a full draft, overriding section-by-section validation for this pass.
 
 ## Solution Space
 
@@ -32,7 +32,7 @@ The backlog selects a shared deterministic activity projection, separately opt-i
 
 ## Key Decisions
 
-These are requirements inherited from the backlog and existing repository decisions, not newly approved architecture:
+These requirements combine the backlog, existing repository decisions, and the observed user direction recorded below:
 
 1. Add one explicit `--include-activity` flag to both skills. Preserve no-flag behavior and existing `--include-tools`/`--debug` behavior on surfaces that already support those flags.
 2. Retain the existing record reader's API and logical indices. Add detailed physical line/byte provenance and parse diagnostics without turning physical coordinates into observer checkpoints.
@@ -43,18 +43,23 @@ These are requirements inherited from the backlog and existing repository decisi
 7. Preserve exact-pin, review/mark-read, catch-up, watch, Cursor delivery/revision, and collaboration ownership boundaries. Watch event logs remain metadata-only.
 8. Follow declared distributions and canonical source ownership. Historical module paths and exporter naming in the research must be translated to the current repository.
 
+9. The user explicitly added the Codex locator fix to this project (human-origin Claude record 309), then chose identity-rich source-local coverage and sanitized real-session fixtures and requested observed-schema documentation (record 457). Source reads and schema evidence gathering may proceed now; Fable coordinates the evidence lane.
+10. Native parent/child identity must propagate through discovery/cache/pins/state. Ambiguous or changed source bindings fail closed; unsafe legacy offsets require explicit scoped recovery instead of silent migration.
+
 ## Constraints
 
 - Runtime remains dependency-free, using Node standard library APIs; repository tooling requires Node >=22 and pnpm.
 - Authored shared code belongs under `src/shared/transcript/`; consumer owners are `src/skills/session-observer/` and `src/skills/session-export-transcript/`.
 - Build generated distributions from canonical sources; never hand-edit generated payloads. Account for transitive skill-version impact, bump affected `metadata.version` fields, and add matching Unreleased changelog entries during implementation.
-- Sidecar access, if included, is limited to expected session artifacts or explicit approved roots. No arbitrary output-path following or same-directory predecessor guessing.
+- This increment adds no sidecar reads; recorded child IDs, agent paths, and nicknames remain actionable references after the locator fix. No arbitrary output-path following or same-directory predecessor guessing.
 - Count scopes and preview omissions must be explicit. Tail previews come from the actual available tail; truncation cannot silently conceal later failures.
 - Use recorded source evidence for status, exit codes, model/usage/lifecycle metadata, and subagent/MCP activity. Keep native status separate from inferred convenience fields.
-- Use deterministic sanitized fixtures for implementation verification. Existing research examples are authored examples, not captures proving support for currently installed clients.
+- Use deterministic sanitized fixtures derived from observed local sessions for implementation verification, supplemented with authored edge cases. Existing research examples are authored examples, not captures proving support for currently installed clients.
 - Ship backlog close-out in the implementation PR only after all acceptance criteria pass. This planning run leaves the item open.
 
 ## Success Criteria
+
+- Added scope: native Codex parent/child pins select one source regardless of recency, safe source-bound state refuses wrong-file reuse, and evidence-backed native schema documentation covers the supported runtimes.
 
 1. Detailed reading returns decoded records with physical line/byte locations and parse diagnostics; legacy `readRecords()` and logical-index behavior remain compatible.
 2. Shared typed extraction, classification, correlation, and pure bounded projection preserve source pointers and complete native content before presentation budgets apply.
@@ -90,10 +95,10 @@ These are requirements inherited from the backlog and existing repository decisi
 
 ## Open Questions
 
-- **Design depth resolved:** user selected lightweight design. Section-by-section validation follows the saved interaction preference; the overview is awaiting confirmation.
+- **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; holistic validation is pending.
 - **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
-- **Metadata and sidecars:** identify the minimum recorded metadata covered in this increment, and decide whether any explicitly linked sidecar reads are necessary; absence or deferral must have accurate coverage states.
-- **Fixture provenance:** audit current committed fixtures and define which source-native shapes require new sanitized fixtures; do not claim live client coverage from authored research examples.
+- **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
+- **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable is gathering evidence in project references.
 
 ## Assumptions
 
@@ -110,7 +115,7 @@ These are requirements inherited from the backlog and existing repository decisi
 
 ## Next Steps
 
-Discovery is captured and lightweight design is selected. Validate the design sections, then generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
+Discovery is captured and lightweight design is selected. Review the whole design draft, then generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
 
 ## References
 
