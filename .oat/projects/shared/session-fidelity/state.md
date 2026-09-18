@@ -13,7 +13,7 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase: design
 oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
@@ -81,25 +81,25 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-18T22:32:37.717584+00:00'
+oat_project_state_updated: '2026-09-18T22:37:18.264056+00:00'
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Discovery
+**Status:** Lightweight design in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
 ## Current Phase
 
-Discovery captured from the backlog and research; awaiting design-depth selection before plan authoring.
+Lightweight design selected; overview drafted and awaiting collaborative validation.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (in_progress)
 - **Spec:** N/A (quick mode)
-- **Design:** N/A (quick mode unless lightweight design is needed)
+- **Design:** `design.md` (in_progress; overview awaiting validation)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -108,7 +108,8 @@ Discovery captured from the backlog and research; awaiting design-depth selectio
 - ✓ Backlog, research, current source seams, and relevant decisions inspected
 - ✓ Discovery captured; lightweight design recommended
 - ✓ Execution artifacts scaffolded
-- ⧗ Awaiting design-depth selection
+- ✓ User selected lightweight design
+- ⧗ Awaiting overview validation
 
 ## Blockers
 
@@ -116,4 +117,4 @@ None
 
 ## Next Milestone
 
-Complete discovery and generate a quick implementation plan
+Validate lightweight design, complete discovery, and generate a quick implementation plan

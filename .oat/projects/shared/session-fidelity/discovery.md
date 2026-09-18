@@ -18,7 +18,7 @@ The backlog calls for an opt-in rich activity view in `session-observer` and `se
 
 The supplied backlog and September 10 research packet provide substantive requirements. No additional project description is needed. No new user decisions have been inferred from the project name.
 
-The request is well-understood at the product level. A design-depth choice remains because the shared activity contract, correlation/delivery boundary, and Cursor integration need a current architectural sketch before executable tasks are finalized.
+The request is well-understood at the product level. The user selected lightweight design on 2026-09-18. The shared activity contract, correlation/delivery boundary, and Cursor integration will be resolved in a current architectural sketch before executable tasks are finalized. The saved `workflow.designMode=selective` maps to collaborative mode for quick-start.
 
 ## Solution Space
 
@@ -90,7 +90,7 @@ These are requirements inherited from the backlog and existing repository decisi
 
 ## Open Questions
 
-- **Design depth:** straight to plan, lightweight design, or spec-driven promotion? Recommend lightweight design because the activity schema and delivery boundaries span shared runtime and two distinct consumer paths.
+- **Design depth resolved:** user selected lightweight design. Section-by-section validation follows the saved interaction preference; the overview is awaiting confirmation.
 - **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
 - **Metadata and sidecars:** identify the minimum recorded metadata covered in this increment, and decide whether any explicitly linked sidecar reads are necessary; absence or deferral must have accurate coverage states.
 - **Fixture provenance:** audit current committed fixtures and define which source-native shapes require new sanitized fixtures; do not claim live client coverage from authored research examples.
@@ -110,7 +110,7 @@ These are requirements inherited from the backlog and existing repository decisi
 
 ## Next Steps
 
-Discovery is captured. Confirm design depth, then resolve the selected branch, generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
+Discovery is captured and lightweight design is selected. Validate the design sections, then generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
 
 ## References
 
