@@ -125,6 +125,14 @@ hook. Shared roots, generated outputs, plugin-shared areas, and rename history
 can affect more than the directly edited path; see the
 [version-impact table](conventions.md#skill-version-bump-on-edit).
 
+The same check also requires a changelog entry: for every canonical skill or
+plugin release whose version changes, `CHANGELOG.md` must gain a new line inside
+its `## [Unreleased]` section that names that skill or plugin together with its
+new version, so a version bump can never ship without release notes and an
+unrelated entry cannot stand in for the missing one. A release PR that moves the
+Unreleased entries under a new `## [x.y.z] - date` heading satisfies the check
+for the plugin at that version through the heading itself.
+
 ## Pre-push: OAT tooling internal-flag enforcement
 
 The OAT tooling skills mirrored under `.agents/skills/**` must stay hidden from
@@ -163,5 +171,24 @@ Format exclusions must stay in sync across `.oxfmtrc.json`, `.lintstagedrc.mjs`,
 and the CI `oxfmt --check` step in `.github/workflows/validate.yml`; generated
 `.mjs` lint exclusions must also stay in sync across `.oxlintrc.json`,
 `.lintstagedrc.mjs`, and the CI `oxlint` step.
+
+Because JSON config files cannot import TypeScript, the two `ignorePatterns`
+lists cannot read the build's distribution catalog the way `.lintstagedrc.mjs`
+does. They instead use collapsed globs: every directory under `skills/` and
+`plugins/*/skills/` is a generated installation or provider view, so `skills/**`
+and `plugins/*/skills/**` cover them all, and the two generated
+`plugins/consensus/scripts/*.mjs` bundles are listed by path. Only `src/skills/`
+is authored.
+
+The `covers generated roots in static lint and format configs` case in
+`tests/tooling/generated-output-sync.test.ts` guards the collapse by matching
+semantics rather than literal listing: every generated output root must be
+matched by some pattern in both configs, and those patterns must **not** match
+authored paths such as `src/skills/**`. A new generated root that escapes the
+globs and an over-broad glob that swallows authored source both fail the test.
+
+A single shared ignore file passed to both tools with `--ignore-path` is not an
+option: oxlint ignores the leading-slash anchor in such a file, so a `/skills/`
+entry would also exclude authored `src/skills/` and `.claude/skills/`.
 
 oxlint/oxfmt are **dev tooling** — they do not touch what shipped skills run.

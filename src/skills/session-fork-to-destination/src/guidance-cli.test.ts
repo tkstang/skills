@@ -202,10 +202,10 @@ describe('experimental guidance CLI', () => {
     },
   );
 
-  it('keeps the operator-facing docs explicit about the paused executor and unsupported Cursor transitions', async () => {
-    const toolReadme = await readFile(
+  it('keeps the operator-facing docs explicit about entry points and unsupported Cursor transitions', async () => {
+    const skill = await readFile(
       new URL(
-        '../../../../tools/coding-session-handoff/README.md',
+        '../../../../skills/session-fork-to-destination/SKILL.md',
         import.meta.url,
       ),
       'utf8',
@@ -218,26 +218,22 @@ describe('experimental guidance CLI', () => {
       'utf8',
     );
 
-    for (const document of [toolReadme, userGuide]) {
+    for (const document of [skill, userGuide]) {
       expect(document).toMatch(/no fork/i);
       expect(document).toMatch(/source-current/);
       expect(document).toMatch(/source-other/);
       expect(document).toMatch(/destination-fresh/);
       expect(document).toMatch(/Cursor/);
       expect(document).toMatch(/unsupported/i);
+      expect(document).toMatch(/alpha/i);
+      expect(document).not.toMatch(/not released|unreleased/i);
     }
-    expect(userGuide).toMatch(/alpha/i);
-    expect(userGuide).not.toMatch(/not released|unreleased/i);
-    expect(toolReadme).toMatch(/experimental/i);
-    expect(toolReadme).toMatch(/not released/i);
-    expect(toolReadme).toMatch(/paused/i);
-    expect(toolReadme).toMatch(/unverified/i);
   });
 
   it('uses explicit supported providers in public discovery examples', async () => {
-    const toolReadme = await readFile(
+    const skill = await readFile(
       new URL(
-        '../../../../tools/coding-session-handoff/README.md',
+        '../../../../skills/session-fork-to-destination/SKILL.md',
         import.meta.url,
       ),
       'utf8',
@@ -250,9 +246,13 @@ describe('experimental guidance CLI', () => {
       'utf8',
     );
 
-    for (const document of [toolReadme, userGuide]) {
+    for (const document of [skill, userGuide]) {
       expect(document).not.toMatch(/discover[^\n]*--provider all/);
-      expect(document).toMatch(/discover[^\n]*--provider (?:claude|codex)/);
+      // The skill's example wraps the command across lines, so the provider flag
+      // is allowed to follow the subcommand on a continuation line.
+      expect(document).toMatch(
+        /discover[\s\S]{0,160}--provider (?:claude|codex)/,
+      );
       expect(document).toMatch(/`--provider all`[^.]*fail(?:s)? closed/is);
     }
   });

@@ -1,22 +1,21 @@
 # Skills Repo Roadmap
 
 **Last updated:** 2026-09-16
-**Status:** Post-PR #83 alignment: observer investigation, Consensus Review and the parallel installer are confirmed. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
+**Status:** Post-PR #83 alignment: the observer investigation completed in PR #85; Consensus Review and the parallel installer remain confirmed. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
 
 ## Planning model
 
 The [current-state snapshot](current-state.md) records merged capability; this page records direction, not delivery claims. Each active item appears below. The [full review](backlog/reviews/backlog-and-roadmap-review.md) explains value, effort, dependencies, and implementation evidence.
 
-Completed source colocation, Session packaging, skill promotion, docs IA/visuals, and typed configuration documentation are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
+Completed source colocation, Session packaging, skill promotion, docs IA/visuals, typed configuration documentation, and the observer re-arm investigation are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
 
 ## Now
 
 ### Reliability and bounded review
 
-- **BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps.** Sol has started, per the user; keep it a bounded reproduction-first investigation. Establish whether a renderable peer message is lost across termination/restart; filtered raw-index gaps alone do not prove it. Existing catch-up and Monitor guidance must be accounted for before changing runtime.
 - **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope.** Next high-priority feature: one dispatched read-only reviewer invocation with explicit scope/provenance, owned JSON output, and an OAT-compatible Markdown adapter. New reviewer defaults belong in its own config key. Different provider does not guarantee different model family. Unsupported read-only policy must not be silently weakened.
 
-The observer investigation is **not a technical prerequisite** for Review. They may proceed concurrently. Review uses a quick workflow with lightweight design, Astra leading and Fable reviewing; it does not wait on convergence settings or helper extraction.
+Review uses a quick workflow with lightweight design, Astra leading and Fable reviewing; it does not wait on convergence settings or helper extraction.
 
 ### Confirmed independent onboarding lane
 

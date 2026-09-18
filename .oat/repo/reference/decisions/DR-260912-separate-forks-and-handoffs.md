@@ -52,6 +52,21 @@ it does not require completing those gates to implement read-only guidance.
 
 Native identity remains required to claim and safely manage a native fork; portable handoffs do not require native successor identity and must not claim native history or runtime-state continuity. Native forks inherit provider history; the current fork readiness marker is not a full portable handoff prompt. Research-backed activity enrichment is accepted direction, not implemented capability: preserve existing safe export defaults, make additional evidence explicit and opt-in, and do not replay historical tool calls or carry forward authorization. Reuse dependency-free canonical TypeScript and generated runtime outputs rather than introducing another parser or universal session service. Finish the current native-fork reviews and exact-version live gates independently of future packet enrichment or migration; no new provider operation, automatic retry, installation, or cleanup is authorized by this decision.
 
+### Follow-up: the paused executor was retired (2026-09-16)
+
+The paused automated executor was deleted rather than kept as unverified,
+non-shipping code: `src/tools/coding-session-handoff/{cli,handoff,providers,
+reconcile,behavior-gate}` and their tests, the generated
+`tools/coding-session-handoff/coding-session-handoff.mjs`, and that directory's
+README and capability matrix are gone, along with the executor's build
+declaration. Its behavior contracts survive only as test support for the
+guidance skill at
+`src/skills/session-fork-to-destination/src/helpers/behavior-contracts.ts`.
+Nothing above is rewritten: the executor's live gates were never passed, and
+retiring it does not change the two-skill boundary or authorize any provider
+operation. Reviving automated execution would be a new decision, not a
+restoration.
+
 ## Related decisions and evidence
 
 - [Exact identity for stateful work](DR-260724-stateful-work-requires-exact.md).

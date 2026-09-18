@@ -1,7 +1,7 @@
 ---
 id: BL-260916-honor-configured-peer-models
 title: Honor configured peer models and effort in convergence workflows
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - documentation
 assignee: null
 created: 2026-09-16T14:01:45.868Z
-updated: 2026-09-16T18:06:09Z
+updated: '2026-09-16T22:50:27Z'
 associated_issues: []
 external_plans: []
 ---

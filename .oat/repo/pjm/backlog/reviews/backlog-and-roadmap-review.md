@@ -6,6 +6,8 @@
 **Roadmap:** [Now / Next / Later](../../roadmap.md)
 **Purpose:** Rate value/effort, separate real dependencies from useful sequencing, and refresh the operating picture.
 
+> **Closeout update (2026-09-16):** The observer re-arm lane subsequently completed in PR #85 and its item moved to `backlog/archived/`. Observer-open counts and execution language below preserve this review's pre-closeout snapshot; the current roadmap and backlog index are authoritative for active work.
+
 The refreshed [priority alignment](priority-alignment.md) confirms the three immediate lanes: observer investigation (Sol started, per user), Consensus Review, and the parallel installer. Later ordering remains a recommendation, not operator approval. Recommendations here do not launch projects, authorize paid calls, or establish release/install status.
 
 ## 1. Executive Summary
@@ -42,7 +44,7 @@ Quadrants: High value + Low effort = Quick Win; High value + Medium/High effort,
 
 ### BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps
 
-[Canonical item](../items/BL-260916-session-observer-re-armed.md) · Stored priority / scope / estimate: **Medium / task / S** · Status: **open**
+[Canonical item](../archived/BL-260916-session-observer-re-armed.md) · Stored priority / scope / estimate: **Medium / task / S** · Status: **open**
 
 | Value | Effort | Quadrant | Rationale |
 | --- | --- | --- | --- |
@@ -306,7 +308,7 @@ The prior review described lanes; this map makes the actual grouping explicit. *
 
 | Priority / approval | Project candidate | Backlog membership | Grouping boundary |
 | --- | --- | --- | --- |
-| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../items/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
+| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
 | Now — approved | Consensus Review | [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) | Quick workflow + lightweight design; Astra leads, Fable reviews. No unrelated loop changes. |
 | Now — approved parallel | Standalone installer | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | Independent quick project; integrity, overwrite/ref semantics and host-specific destinations remain explicit. |
 | Next — proposed 1 | Consensus runtime maintenance | [BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows](../items/BL-260916-honor-configured-peer-models.md); [BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic](../items/BL-260723-make-remaining-consensus-loop.md); [BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing](../items/BL-260723-split-loop-free-cli-helpers.md) | One project, three independently verifiable phases/commits: model propagation, atomic writes, helper split. Shared runtime/output ownership justifies grouping, not a hard dependency; each can ship separately. Only helper extraction may move into Review if its design demonstrates direct need. |

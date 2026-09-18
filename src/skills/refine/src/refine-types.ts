@@ -1,5 +1,7 @@
 import type {
   ITERATION_MODES,
+  PeerAgent,
+  PeerSpec,
   runConsensusLoop,
 } from '../../../plugins/consensus/core/consensus-loop.js';
 
@@ -252,6 +254,8 @@ export interface PreflightResult extends JsonRecord {
   providerInventory?: NormalizedProviderInventoryEntry[];
   host?: HostId;
   peers: string[];
+  /** Per-peer model/effort selections resolved from consensus config. */
+  peerAgents?: PeerAgent[];
   warnings: JsonRecord[];
 }
 
@@ -379,6 +383,6 @@ export interface LoopInvocationPayload {
   section: ParsedSection;
   paths: SectionPaths;
   options: ParsedWrapperOptions;
-  peers: string[];
+  peers: readonly PeerSpec[];
   synthesizer?: string | null;
 }

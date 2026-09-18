@@ -76,9 +76,3 @@ regenerates expected output in check mode and fails on any divergence, and the
 same guard runs in `pnpm test` through `tests/tooling/generated-output-sync.test.ts`.
 Editing the canonical module without rebuilding the generated output breaks the
 suite.
-
-## Compatibility wrapper
-
-`pnpm run sync:transcript-core` remains as a compatibility command for existing
-habits and automation. It delegates to the same `scripts/build-generated.ts`
-owner as `pnpm run build`.

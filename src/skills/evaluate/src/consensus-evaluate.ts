@@ -22,7 +22,9 @@ import type {
   LoopRecord,
   LoopStatus,
   ParallelTurnPromptInput,
+  PeerAgent,
   PeerInvoker,
+  PeerSpec,
   PromptProfile,
   SynthesisPromptInput,
   SynthesizerInvoker,
@@ -34,6 +36,8 @@ import {
   parsePositiveInteger,
   validateProviderId,
   parsePeers,
+  peerAgentsFromComposition,
+  peerAgentsArgv,
   encodePromptBlockData,
   promptBlockData,
   parseProviderCliEnvelope,
@@ -231,6 +235,10 @@ function providerCliLoopInvokers({
           provider: turn.provider,
           schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
           prompt: turn.prompt,
+          // Configured peer model/effort ride along to `consensus run`; they
+          // are omitted when unselected so the provider CLI keeps its defaults.
+          ...(turn.model ? { model: turn.model } : {}),
+          ...(turn.effort ? { effort: turn.effort } : {}),
           env,
           cwd,
         },
@@ -704,7 +712,7 @@ function loopArgvForEvaluation({
 }: {
   paths: EvaluationStatePaths;
   options: NormalizedEvaluationRunInput;
-  peers: string[];
+  peers: readonly PeerSpec[];
   synthesizer: string | null;
 }) {
   const argv = [
@@ -712,8 +720,7 @@ function loopArgvForEvaluation({
     paths.input,
     '--goal',
     options.goal,
-    '--peers',
-    peers.join(','),
+    ...peerAgentsArgv(peers),
     '--max-rounds',
     String(options.maxRounds),
     '--agency',
@@ -954,16 +961,21 @@ export async function runConsensusEvaluate(
     normalized.peers === null
       ? await loadEvaluateProviderInventory({ env, cwd })
       : undefined;
-  const peers: string[] =
+  // Invocation `--peers` replaces the whole configured list (project > user >
+  // built-in), so a provider-only override carries no model/effort. Otherwise
+  // the resolved composition's model/effort ride through to peer dispatch.
+  const peerAgents: PeerAgent[] = peerAgentsFromComposition(
     normalized.peers ??
-    (
-      await resolveConsensusComposition({
-        workflow: 'convergence',
-        cwd,
-        env,
-        inventory,
-      })
-    ).agents.map((agent) => agent.provider);
+      (
+        await resolveConsensusComposition({
+          workflow: 'convergence',
+          cwd,
+          env,
+          inventory,
+        })
+      ).agents,
+  );
+  const peers: string[] = peerAgents.map((agent) => agent.provider);
   const synthesizer =
     normalized.iteration === 'parallel_synthesized'
       ? (normalized.synthesizer ?? peers[0])
@@ -984,7 +996,7 @@ export async function runConsensusEvaluate(
   const loopArgv = loopArgvForEvaluation({
     paths,
     options: normalized,
-    peers,
+    peers: peerAgents,
     synthesizer,
   });
 

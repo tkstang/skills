@@ -2,11 +2,11 @@
 
 // src/skills/refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 
 // src/plugins/consensus/core/consensus-loop.ts
-import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile3 } from "node:fs/promises";
-import path4 from "node:path";
+import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
@@ -884,6 +884,8 @@ async function invokeConsensusProviderCli({
   provider,
   schemaPath: schemaPath2,
   prompt,
+  model,
+  effort,
   env = process.env,
   cwd = process.cwd(),
   consensusCliPath,
@@ -895,7 +897,9 @@ async function invokeConsensusProviderCli({
     provider,
     schema_path: schemaPath2,
     prompt,
-    cwd
+    cwd,
+    ...model ? { model } : {},
+    ...effort ? { effort } : {}
   };
   const result = await runCommand(
     command,
@@ -1046,13 +1050,17 @@ function providerAuditFields(result) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 import {
-  lstat,
+  lstat as lstat2,
   mkdir as mkdir2,
   realpath,
   rename as rename2,
   unlink as unlink2,
   writeFile as writeFile2
 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat } from "node:fs/promises";
 import path3 from "node:path";
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -1075,12 +1083,82 @@ function validateProviderId(value, flag) {
   }
   return value;
 }
-function parsePeers(value) {
-  const peers = value.split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
+function isJsonRecord2(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// src/plugins/consensus/shared/cli-helpers.ts
+var PEER_AGENTS_OPTION = "--peer-agents";
+function parsePeerAgents(value) {
+  if (value.trimStart().startsWith("[")) {
+    return parsePeerAgentsJson(value, "--peers");
+  }
+  const specs = value.split(",").map((peer) => peer.trim()).filter(Boolean);
+  if (specs.length !== 2) {
     throw new Error("--peers must list exactly two peers");
   }
-  return peers.map((peer) => validateProviderId(peer, "--peers"));
+  return specs.map((spec) => parsePeerAgentSpec(spec));
+}
+function parsePeerAgentSpec(spec) {
+  const [provider, model, effort, ...extra] = spec.split(":");
+  if (extra.length > 0) {
+    throw new Error(
+      '--peers entries must use provider[:model[:effort]]; model ids containing ":" or "," must be passed with --peer-agents'
+    );
+  }
+  const agent = {
+    provider: validateProviderId(provider ?? "", "--peers")
+  };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+var PEER_AGENT_JSON_SHAPE = "a JSON array of two {provider, model?, effort?} objects";
+var PEER_AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+function parsePeerAgentsJson(value, option = PEER_AGENTS_OPTION) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `${option} must be ${PEER_AGENT_JSON_SHAPE}: ${error.message}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${option} must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  if (parsed.length !== 2) {
+    throw new Error(`${option} must list exactly two peers`);
+  }
+  return parsed.map((entry) => parsePeerAgentObject(entry, option));
+}
+function parsePeerAgentObject(entry, option) {
+  if (!isJsonRecord2(entry)) {
+    throw new Error(`${option} entries must be ${PEER_AGENT_JSON_SHAPE}`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (!PEER_AGENT_KEYS.has(key)) {
+      throw new Error(
+        `${option} entries must not carry an unknown key: ${key}`
+      );
+    }
+  }
+  const agent = {
+    provider: validateProviderId(
+      typeof entry.provider === "string" ? entry.provider : "",
+      option
+    )
+  };
+  for (const key of ["model", "effort"]) {
+    const field = entry[key];
+    if (field === void 0 || field === null) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`${option} ${key} must be a non-empty string`);
+    }
+    agent[key] = field;
+  }
+  return agent;
 }
 
 // src/plugins/consensus/core/loop-args.ts
@@ -1110,7 +1188,13 @@ function parseLoopArgs(argv) {
         parsed.goal = next();
         break;
       case "--peers":
-        parsed.peers = parsePeers(next());
+        parsed.peers = parsePeerAgents(next());
+        break;
+      // Lossless peer transport: the wrappers emit this alongside a
+      // provider-ids-only `--peers` so a model id containing the `:`/`,`
+      // delimiters (e.g. a Bedrock-style id ending in `:0`) survives dispatch.
+      case "--peer-agents":
+        parsed.peerAgents = parsePeerAgentsJson(next());
         break;
       case "--max-rounds":
         parsed.maxRounds = parsePositiveInteger(next(), "--max-rounds");
@@ -1152,14 +1236,15 @@ function parseLoopArgs(argv) {
     throw new Error("--agency must be minimal, moderate, or maximum");
   }
   required(parsed.sectionFile, "--section-file");
-  required(parsed.peers, "--peers");
+  const peerAgents = resolveParsedPeerAgents(parsed.peers, parsed.peerAgents);
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
   return {
     sectionFile: parsed.sectionFile,
     goal: parsed.goal,
-    peers: parsed.peers,
+    peers: peerAgents.map((agent) => agent.provider),
+    peerAgents,
     maxRounds: parsed.maxRounds,
     iteration: parsed.iteration,
     coldStart: parsed.coldStart,
@@ -1169,6 +1254,19 @@ function parseLoopArgs(argv) {
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
   };
+}
+function resolveParsedPeerAgents(peers, peerAgents) {
+  if (!peerAgents) return required(peers, "--peers");
+  if (peers) {
+    const fromPeers = peers.map((agent) => agent.provider).join(",");
+    const fromAgents = peerAgents.map((agent) => agent.provider).join(",");
+    if (fromPeers !== fromAgents) {
+      throw new Error(
+        `--peers (${fromPeers}) and --peer-agents (${fromAgents}) must list the same providers in the same order`
+      );
+    }
+  }
+  return peerAgents;
 }
 
 // src/plugins/consensus/core/loop-prompts.ts
@@ -1464,6 +1562,14 @@ function resolvePromptProfile(profile = void 0) {
 }
 
 // src/plugins/consensus/core/loop-rounds.ts
+function peerModelOptions(options, peerIndex) {
+  const agent = options.peerAgents?.[peerIndex];
+  if (!agent || agent.provider !== options.peers[peerIndex]) return {};
+  return {
+    ...agent.model ? { model: agent.model } : {},
+    ...agent.effort ? { effort: agent.effort } : {}
+  };
+}
 async function executeAlternatingTurn({
   turnIndex,
   options,
@@ -1493,7 +1599,8 @@ async function executeAlternatingTurn({
     round,
     turn,
     prompt,
-    artifact: currentArtifact
+    artifact: currentArtifact,
+    ...peerModelOptions(options, peerIndex)
   });
   const verdict = normalizeVerdict(
     peerResult.json,
@@ -1631,7 +1738,8 @@ async function executeParallelRound(context) {
         round,
         turn: baseTurn + peerIndex + 1,
         prompt,
-        artifact: currentArtifact
+        artifact: currentArtifact,
+        ...peerModelOptions(options, peerIndex)
       })
     );
   });
@@ -2096,9 +2204,8 @@ function detectEscalation(records, {
 
 // src/plugins/consensus/core/consensus-loop.ts
 async function writeSectionOutput(outputPath, artifact) {
-  await mkdir3(path4.dirname(outputPath), { recursive: true });
-  await writeFile3(outputPath, artifact);
-  await syncFileIfAvailable(outputPath);
+  await mkdir3(path5.dirname(outputPath), { recursive: true });
+  await atomicWriteFile(outputPath, artifact);
 }
 async function writeTerminalArtifacts(options, status, artifact, records) {
   await writeSectionOutput(options.outputSection, artifact);
@@ -2137,13 +2244,12 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   const normalizedRecords = seedRecords.map(
     (record) => withRecordMetadata(record, options)
   );
-  await mkdir3(path4.dirname(recordsPath), { recursive: true });
-  await writeFile3(
+  await mkdir3(path5.dirname(recordsPath), { recursive: true });
+  await atomicWriteFile(
     recordsPath,
     `${JSON.stringify(normalizedRecords, null, 2)}
 `
   );
-  await syncFileIfAvailable(recordsPath);
   return normalizedRecords;
 }
 async function appendIntervention({
@@ -2468,6 +2574,14 @@ async function runConsensusLoop(argv, runOptions = {}) {
       provider: turn.provider,
       schemaPath: peerSchemaPathForMode(options.iteration),
       prompt: turn.prompt,
+      // The turn already carries this peer's resolved selections (see
+      // peerModelOptions in loop-rounds.ts). Forward them, or the standalone
+      // consensus-loop.mjs dispatch — which always uses this default invoker
+      // — would send `model: null`/`effort: null` and silently drop the
+      // configured peer agent. Omitted when unselected so the provider CLI
+      // keeps its own defaults.
+      ...turn.model ? { model: turn.model } : {},
+      ...turn.effort ? { effort: turn.effort } : {},
       env,
       cwd
     },
@@ -2710,7 +2824,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
+if (process.argv[1] && path5.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);
@@ -2721,7 +2835,7 @@ if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath3(import.
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir as mkdir4,
   open as open2,
   readFile as readFile3,
@@ -2729,33 +2843,33 @@ import {
   rename as rename3,
   stat,
   unlink as unlink3,
-  writeFile as writeFile4
+  writeFile as writeFile3
 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-function isJsonRecord2(value) {
+function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 function asErrorLike2(error) {
-  return isJsonRecord2(error) ? error : {};
+  return isJsonRecord3(error) ? error : {};
 }
-function inside(root, target) {
-  const relative = path5.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path5.isAbsolute(relative);
+function inside2(root, target) {
+  const relative = path6.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
 }
-async function pathExists(targetPath) {
+async function pathExists2(targetPath) {
   try {
-    await lstat2(targetPath);
+    await lstat3(targetPath);
     return true;
   } catch (error) {
     if (asErrorLike2(error).code === "ENOENT") return false;
     throw error;
   }
 }
-async function nearestExistingPath(targetPath) {
-  let current = path5.resolve(targetPath);
-  while (!await pathExists(current)) {
-    const parent = path5.dirname(current);
+async function nearestExistingPath2(targetPath) {
+  let current = path6.resolve(targetPath);
+  while (!await pathExists2(current)) {
+    const parent = path6.dirname(current);
     if (parent === current) return current;
     current = parent;
   }
@@ -2851,19 +2965,19 @@ function validateParallelManifestShape(manifest) {
   }
 }
 function resolveManifestPathValue(value, basePath) {
-  return path6.isAbsolute(value) ? path6.resolve(value) : path6.resolve(basePath, value);
+  return path7.isAbsolute(value) ? path7.resolve(value) : path7.resolve(basePath, value);
 }
 async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
-  const root = path6.resolve(rootPath);
-  const target = path6.resolve(targetPath);
+  const root = path7.resolve(rootPath);
+  const target = path7.resolve(targetPath);
   const realRoot = await realpath3(root);
-  const existing = await nearestExistingPath(target);
+  const existing = await nearestExistingPath2(target);
   const realExisting = await realpath3(existing);
-  const realTarget = path6.resolve(
+  const realTarget = path7.resolve(
     realExisting,
-    path6.relative(existing, target)
+    path7.relative(existing, target)
   );
-  if (!inside(realRoot, realTarget)) {
+  if (!inside2(realRoot, realTarget)) {
     throw errorFactory(field, target, root);
   }
 }
@@ -2875,8 +2989,8 @@ async function resolveConfinedManifestPath(value, {
 }) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
-  const resolvedRoot = path6.resolve(root);
-  if (!inside(resolvedRoot, resolved)) {
+  const resolvedRoot = path7.resolve(root);
+  if (!inside2(resolvedRoot, resolved)) {
     throw errorFactory(field, resolved, resolvedRoot);
   }
   await assertPathResolvesInside(resolvedRoot, resolved, field, errorFactory);
@@ -2885,9 +2999,9 @@ async function resolveConfinedManifestPath(value, {
 async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
   const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
   const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
-  const defaultOutputPath = path6.resolve(`${inputPath}.consensus.md`);
+  const defaultOutputPath = path7.resolve(`${inputPath}.consensus.md`);
   if (outputPath === defaultOutputPath) {
-    const outputWriteRoot = path6.dirname(inputPath);
+    const outputWriteRoot = path7.dirname(inputPath);
     await assertPathResolvesInside(
       outputWriteRoot,
       outputPath,
@@ -2909,16 +3023,16 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
 }
 async function normalizeParallelManifest(manifest, options) {
   validateParallelManifestShape(manifest);
-  const cwd = path6.resolve(options.cwd);
-  const trustedRoot = path6.resolve(options.trustedRoot);
-  const manifestPath = path6.resolve(options.manifestPath);
+  const cwd = path7.resolve(options.cwd);
+  const trustedRoot = path7.resolve(options.trustedRoot);
+  const manifestPath = path7.resolve(options.manifestPath);
   const runDir = await resolveConfinedManifestPath(manifest.run_dir, {
     root: trustedRoot,
     base: cwd,
     field: "run_dir",
     errorFactory: pathConfinementError
   });
-  if (runDir !== path6.dirname(manifestPath)) {
+  if (runDir !== path7.dirname(manifestPath)) {
     throw manifestError(
       "parallel manifest run_dir must match the manifest file directory"
     );

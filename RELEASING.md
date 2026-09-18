@@ -146,7 +146,10 @@ live** (expected async lag) and stays a non-claim until it indexes.
 ## Versioning
 
 Update `CHANGELOG.md` and the selected plugin's provider/marketplace manifests
-together. Plugin versions and skill versions are separate release boundaries.
+together. Contributions land their notes under `## [Unreleased]`; releasing moves
+those entries under the new version heading with its release date, leaving
+`## [Unreleased]` empty for the next change. Plugin versions and skill versions
+are separate release boundaries.
 
 Use:
 
