@@ -40,6 +40,7 @@
 
 ### Changed
 
+- `consensus-review` 0.1.13 emits OAT's `Critical` / `High` / `Medium` / `Low` review tiers and matching `C` / `H` / `M` / `L` finding IDs; retired `important` and `minor` severities are rejected instead of producing artifacts that current OAT review receivers fail closed on.
 - Clean-break session names: `export-session-transcript` is now
   `session-export-transcript`, and `coding-session-handoff` is now
   `session-fork-to-destination`. No aliases, redirects, wrappers, or old-name

@@ -884,7 +884,7 @@ describe('deep review reply validation', () => {
       verdict: 'changes_requested',
       findings: [
         {
-          severity: 'important',
+          severity: 'high',
           title: 'Fixture finding',
           location: {
             path: 'reviewed.ts',
@@ -925,6 +925,15 @@ describe('deep review reply validation', () => {
     expect(
       validateReviewReply(
         { ...validPassReply(scope.token), findings: [reply.findings[0]] },
+        scope,
+      ),
+    ).toMatchObject({ ok: false });
+    expect(
+      validateReviewReply(
+        {
+          ...reply,
+          findings: [{ ...reply.findings[0], severity: 'important' }],
+        },
         scope,
       ),
     ).toMatchObject({ ok: false });

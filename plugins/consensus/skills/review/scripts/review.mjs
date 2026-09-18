@@ -3508,17 +3508,17 @@ function validateReviewReply(value, scope) {
   validateChecks(value.checks, errors);
   validateReviewerIdentity(value.reviewer_identity, errors);
   const blockingFindings = findings.filter(
-    (finding) => finding.severity === "critical" || finding.severity === "important"
+    (finding) => finding.severity === "critical" || finding.severity === "high"
   );
   const failedChecks = Array.isArray(value.checks) ? value.checks.some((check) => isRecord3(check) && check.status === "failed") : false;
   if (value.verdict === "pass" && (blockingFindings.length > 0 || failedChecks)) {
     errors.push(
-      "reply.verdict pass forbids critical/important findings and failed checks"
+      "reply.verdict pass forbids critical/high findings and failed checks"
     );
   }
   if (value.verdict === "changes_requested" && blockingFindings.length === 0) {
     errors.push(
-      "reply.verdict changes_requested requires a critical or important finding"
+      "reply.verdict changes_requested requires a critical or high finding"
     );
   }
   if (errors.length > 0) return { ok: false, errors };
@@ -3734,7 +3734,7 @@ function validateFindings(value, scope, errors) {
     );
     requireEnum(
       candidate.severity,
-      ["critical", "important", "medium", "minor"],
+      ["critical", "high", "medium", "low"],
       `${label}.severity`,
       errors
     );
@@ -4358,7 +4358,7 @@ function renderReviewMarkdown(aggregate) {
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
     `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? "unobserved")}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? "unobserved")})`,
-    `**Findings:** ${findings.critical.length} critical, ${findings.important.length} important, ${findings.medium.length} medium, ${findings.minor.length} minor`,
+    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low`,
     "",
     "## Request",
     "",
@@ -4395,9 +4395,9 @@ function renderReviewMarkdown(aggregate) {
     "## Findings",
     "",
     ...renderSeverity("Critical", "C", findings.critical),
-    ...renderSeverity("Important", "I", findings.important),
+    ...renderSeverity("High", "H", findings.high),
     ...renderSeverity("Medium", "M", findings.medium),
-    ...renderSeverity("Minor", "m", findings.minor),
+    ...renderSeverity("Low", "L", findings.low),
     "## Questions",
     "",
     ...renderStringList(aggregate.reply.questions),
@@ -4792,9 +4792,9 @@ function resolveFileSystem(overrides) {
 function groupFindings(findings) {
   return {
     critical: findings.filter((entry) => entry.severity === "critical"),
-    important: findings.filter((entry) => entry.severity === "important"),
+    high: findings.filter((entry) => entry.severity === "high"),
     medium: findings.filter((entry) => entry.severity === "medium"),
-    minor: findings.filter((entry) => entry.severity === "minor")
+    low: findings.filter((entry) => entry.severity === "low")
   };
 }
 function renderSeverity(heading, prefix, findings) {

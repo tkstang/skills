@@ -249,7 +249,7 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
     `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? 'unobserved')}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? 'unobserved')})`,
-    `**Findings:** ${findings.critical.length} critical, ${findings.important.length} important, ${findings.medium.length} medium, ${findings.minor.length} minor`,
+    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low`,
     '',
     '## Request',
     '',
@@ -290,9 +290,9 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     '## Findings',
     '',
     ...renderSeverity('Critical', 'C', findings.critical),
-    ...renderSeverity('Important', 'I', findings.important),
+    ...renderSeverity('High', 'H', findings.high),
     ...renderSeverity('Medium', 'M', findings.medium),
-    ...renderSeverity('Minor', 'm', findings.minor),
+    ...renderSeverity('Low', 'L', findings.low),
     '## Questions',
     '',
     ...renderStringList(aggregate.reply.questions),
@@ -741,9 +741,9 @@ function resolveFileSystem(
 function groupFindings(findings: ReviewFinding[]) {
   return {
     critical: findings.filter((entry) => entry.severity === 'critical'),
-    important: findings.filter((entry) => entry.severity === 'important'),
+    high: findings.filter((entry) => entry.severity === 'high'),
     medium: findings.filter((entry) => entry.severity === 'medium'),
-    minor: findings.filter((entry) => entry.severity === 'minor'),
+    low: findings.filter((entry) => entry.severity === 'low'),
   };
 }
 

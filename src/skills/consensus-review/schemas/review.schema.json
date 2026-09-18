@@ -70,7 +70,7 @@
       ],
       "properties": {
         "severity": {
-          "enum": ["critical", "important", "medium", "minor"]
+          "enum": ["critical", "high", "medium", "low"]
         },
         "title": { "type": "string", "minLength": 1, "maxLength": 512 },
         "location": { "$ref": "#/$defs/location" },

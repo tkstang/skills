@@ -11,7 +11,7 @@ oat_review_run_id: "receipt-clean-v1"
 **Worktree:** `/tmp/consensus-review-receipt/worktree`
 **Scope token:** `receipt-clean-token`
 **Reviewer:** claude (model unobserved, effort unobserved)
-**Findings:** 0 critical, 0 important, 0 medium, 0 minor
+**Findings:** 0 critical, 0 high, 0 medium, 0 low
 
 ## Request
 
@@ -47,7 +47,7 @@ No findings in the bounded fixture\.
 
 None
 
-### Important
+### High
 
 None
 
@@ -55,7 +55,7 @@ None
 
 None
 
-### Minor
+### Low
 
 None
 

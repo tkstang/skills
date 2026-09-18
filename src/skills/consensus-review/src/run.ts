@@ -247,7 +247,7 @@ export interface ReviewLocation {
 }
 
 export interface ReviewFinding {
-  severity: 'critical' | 'important' | 'medium' | 'minor';
+  severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   location?: ReviewLocation;
   anchor?: string;
@@ -768,8 +768,7 @@ export function validateReviewReply(
   validateReviewerIdentity(value.reviewer_identity, errors);
 
   const blockingFindings = findings.filter(
-    (finding) =>
-      finding.severity === 'critical' || finding.severity === 'important',
+    (finding) => finding.severity === 'critical' || finding.severity === 'high',
   );
   const failedChecks = Array.isArray(value.checks)
     ? value.checks.some((check) => isRecord(check) && check.status === 'failed')
@@ -779,12 +778,12 @@ export function validateReviewReply(
     (blockingFindings.length > 0 || failedChecks)
   ) {
     errors.push(
-      'reply.verdict pass forbids critical/important findings and failed checks',
+      'reply.verdict pass forbids critical/high findings and failed checks',
     );
   }
   if (value.verdict === 'changes_requested' && blockingFindings.length === 0) {
     errors.push(
-      'reply.verdict changes_requested requires a critical or important finding',
+      'reply.verdict changes_requested requires a critical or high finding',
     );
   }
   if (errors.length > 0) return { ok: false, errors };
@@ -1040,7 +1039,7 @@ function validateFindings(
     );
     requireEnum(
       candidate.severity,
-      ['critical', 'important', 'medium', 'minor'],
+      ['critical', 'high', 'medium', 'low'],
       `${label}.severity`,
       errors,
     );

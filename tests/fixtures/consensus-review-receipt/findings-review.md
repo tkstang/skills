@@ -11,7 +11,7 @@ oat_review_run_id: "receipt-findings-v1"
 **Worktree:** `/tmp/consensus-review-receipt/worktree`
 **Scope token:** `receipt-findings-token`
 **Reviewer:** claude (model unobserved, effort unobserved)
-**Findings:** 1 critical, 1 important, 1 medium, 1 minor
+**Findings:** 1 critical, 1 high, 1 medium, 1 low
 
 ## Request
 
@@ -52,9 +52,9 @@ The fixture contains four independently actionable findings\.
   - Suggestion: Resolve canonically and reject paths outside the declared root\.
   - Confidence: 0.99
 
-### Important
+### High
 
-- **I1: Preserve the explicit acceptance rule** (`anchor: Acceptance Criteria > Receipt`)
+- **H1: Preserve the explicit acceptance rule** (`anchor: Acceptance Criteria > Receipt`)
   - Claim: The document omits the diagnostic rejection requirement\.
   - Evidence: The receipt section describes completed reviews only\.
   - Suggestion: State that diagnostics are not receivable completed reviews\.
@@ -68,9 +68,9 @@ The fixture contains four independently actionable findings\.
   - Suggestion: Persist the stable fixture name with the normalized outcome\.
   - Confidence: 0.83
 
-### Minor
+### Low
 
-- **m1: Clarify retained state** (`anchor: Limitations > Retention`)
+- **L1: Clarify retained state** (`anchor: Limitations > Retention`)
   - Claim: Retention ownership is implied rather than stated\.
   - Evidence: The text names the directory but not the cleanup owner\.
   - Suggestion: Say that retention is operator\-managed\.

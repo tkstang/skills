@@ -151,9 +151,10 @@ describe('review CLI', () => {
       'utf8',
     );
     expect(markdown).toContain('### Critical');
-    expect(markdown).toContain('### Important');
+    expect(markdown).toContain('### High');
     expect(markdown).toContain('### Medium');
-    expect(markdown).toContain('### Minor');
+    expect(markdown).toContain('### Low');
+    expect(markdown).not.toMatch(/### (?:Important|Minor)/u);
     expect(markdown).toContain('C1: Escape \\[hostile\\] \\*title\\*');
     expect(markdown).not.toContain('[hostile] *title*');
     expect(await readFile(path.join(root, 'exported-review.md'), 'utf8')).toBe(
@@ -571,8 +572,8 @@ describe('review Markdown rendering', () => {
     const root = await temporaryRoot();
     const aggregate = aggregateFixture(root, path.join(root, 'state'));
     aggregate.reply.findings.push({
-      severity: 'important',
-      title: 'Important issue',
+      severity: 'high',
+      title: 'High issue',
       anchor: 'Section [two](bad)',
       claim: 'claim',
       evidence: 'evidence',
@@ -589,8 +590,8 @@ describe('review Markdown rendering', () => {
       confidence: 0.7,
     });
     aggregate.reply.findings.push({
-      severity: 'minor',
-      title: 'Minor issue',
+      severity: 'low',
+      title: 'Low issue',
       location: aggregate.reply.findings[0]!.location,
       claim: 'claim',
       evidence: 'evidence',
@@ -601,9 +602,11 @@ describe('review Markdown rendering', () => {
     const rendered = renderReviewMarkdown(aggregate);
 
     expect(rendered).toMatch(/\*\*C1:/u);
-    expect(rendered).toMatch(/\*\*I1:/u);
+    expect(rendered).toMatch(/\*\*H1:/u);
     expect(rendered).toMatch(/\*\*M1:/u);
-    expect(rendered).toMatch(/\*\*m1:/u);
+    expect(rendered).toMatch(/\*\*L1:/u);
+    expect(rendered).not.toMatch(/### (?:Important|Minor)/u);
+    expect(rendered).not.toMatch(/\*\*[Im][0-9]+:/u);
     expect(rendered).toContain('src/example.ts:1');
     expect(rendered).toContain('anchor: Section [two](bad)');
     expect(rendered).toContain('## Checks reported');
@@ -926,7 +929,7 @@ function receiptAggregateFixture(kind: 'clean' | 'findings'): ReviewAggregate {
         confidence: 0.99,
       },
       {
-        severity: 'important',
+        severity: 'high',
         title: 'Preserve the explicit acceptance rule',
         anchor: 'Acceptance Criteria > Receipt',
         claim: 'The document omits the diagnostic rejection requirement.',
@@ -951,7 +954,7 @@ function receiptAggregateFixture(kind: 'clean' | 'findings'): ReviewAggregate {
         confidence: 0.83,
       },
       {
-        severity: 'minor',
+        severity: 'low',
         title: 'Clarify retained state',
         anchor: 'Limitations > Retention',
         claim: 'Retention ownership is implied rather than stated.',
