@@ -129,6 +129,23 @@ function assertHash(value: unknown, label: string): asserts value is string {
   }
 }
 
+export function canonicalRecordHash(
+  record: Record<string, unknown> & { contentHash?: unknown },
+): string {
+  const { contentHash: _contentHash, ...content } = record;
+  return canonicalHash(content);
+}
+
+function assertRecordHash(
+  record: Record<string, unknown> & { contentHash?: unknown },
+  label: string,
+): void {
+  assertHash(record.contentHash, `${label} contentHash`);
+  if (record.contentHash !== canonicalRecordHash(record)) {
+    malformed(`${label} contentHash does not match content`);
+  }
+}
+
 function assertUuidValue(
   value: unknown,
   label: string,
@@ -154,6 +171,10 @@ function validateBinding(record: BindingRecord): void {
     assertUuidValue(ack.messageId, 'inherited messageId');
     assertHash(ack.messageHash, 'inherited messageHash');
   }
+  assertRecordHash(
+    record as unknown as Record<string, unknown> & { contentHash: string },
+    'binding',
+  );
 }
 
 function messageHash(record: MessageRecord): string {
@@ -204,6 +225,12 @@ function validateAuthoritativeRecord(
       assertBoundedString(candidate.label, 'collaboration label', 128);
       assertBoundedString(candidate.task, 'collaboration task', 2048);
       assertTimestamp(candidate.createdAt, 'collaboration createdAt');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'collaboration',
+      );
     } else if (segments.includes('members')) {
       const candidate = value as unknown as MemberRecord;
       assertAlias(candidate.alias);
@@ -225,6 +252,12 @@ function validateAuthoritativeRecord(
         candidate.initialBinding.generation !== 0
       )
         malformed('member initial binding identity is invalid');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'member',
+      );
     } else if (segments.includes('bindings')) {
       const candidate = value as unknown as BindingRecord;
       validateBinding(candidate);
@@ -239,6 +272,12 @@ function validateAuthoritativeRecord(
       assertGeneration(candidate.generation, 'departure generation');
       assertPin(candidate.pin);
       assertTimestamp(candidate.departedAt, 'departure departedAt');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'departure',
+      );
       if (
         candidate.participantId !== parent ||
         String(candidate.generation) !== basename
@@ -297,6 +336,12 @@ function validateAuthoritativeRecord(
       assertPin(candidate.recipient);
       assertGeneration(candidate.bindingGeneration, 'ack bindingGeneration');
       assertTimestamp(candidate.receivedAt, 'ack receivedAt');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'acknowledgment',
+      );
       assertUuidValue(grandparent, 'ack participant path');
       if (
         candidate.messageId !== basename ||
@@ -334,6 +379,12 @@ function validateAuthoritativeRecord(
       assertUuidValue(candidate.collaborationId, 'closed collaborationId');
       assertPin(candidate.closedBy);
       assertTimestamp(candidate.closedAt, 'closed closedAt');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'closed marker',
+      );
       if (candidate.collaborationId !== parent)
         malformed('closed path identity does not match collaboration');
     }

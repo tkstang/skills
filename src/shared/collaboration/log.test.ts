@@ -2,6 +2,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   symlink,
   unlink,
   writeFile,
@@ -151,6 +152,9 @@ describe('authoritative collaboration log', () => {
     await expect(getLogView(symlinked)).rejects.toMatchObject({
       code: 'UNSAFE_PATH',
     });
+    await expect(renderLog(symlinked)).rejects.toMatchObject({
+      code: 'UNSAFE_PATH',
+    });
 
     const owned = await fixture();
     const ownedView = await renderLog(owned);
@@ -163,6 +167,20 @@ describe('authoritative collaboration log', () => {
     await expect(getLogView(owned)).rejects.toMatchObject({
       code: 'RECORD_TOO_LARGE',
     });
+  });
+
+  test('rejects rendered-view reads and writes through an ancestor symlink', async () => {
+    const f = await fixture();
+    await renderLog(f);
+    const collaborations = path.join(f.root, 'collaborations');
+    const external = await mkdtemp(
+      path.join(tmpdir(), 'agent-messaging-external-'),
+    );
+    const moved = path.join(external, 'collaborations');
+    await rename(collaborations, moved);
+    await symlink(moved, collaborations);
+    await expect(getLogView(f)).rejects.toMatchObject({ code: 'UNSAFE_PATH' });
+    await expect(renderLog(f)).rejects.toMatchObject({ code: 'UNSAFE_PATH' });
   });
 
   test('allows the log cap boundary and rejects one over', async () => {

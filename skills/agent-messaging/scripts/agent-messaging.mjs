@@ -10,9 +10,7 @@ import { fileURLToPath } from "node:url";
 // src/shared/collaboration/log.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
 import {
-  chmod as chmod2,
   lstat as lstat3,
-  mkdir as mkdir2,
   open as open2,
   readFile as readFile2,
   realpath as realpath3,
@@ -143,6 +141,16 @@ function assertHash(value, label) {
     malformed(`${label} must be a SHA-256 hex digest`);
   }
 }
+function canonicalRecordHash(record) {
+  const { contentHash: _contentHash, ...content } = record;
+  return canonicalHash(content);
+}
+function assertRecordHash(record, label) {
+  assertHash(record.contentHash, `${label} contentHash`);
+  if (record.contentHash !== canonicalRecordHash(record)) {
+    malformed(`${label} contentHash does not match content`);
+  }
+}
 function assertUuidValue(value, label) {
   if (typeof value !== "string") malformed(`${label} must be a UUID`);
   assertUuid(value, label);
@@ -164,6 +172,10 @@ function validateBinding(record) {
     assertUuidValue(ack.messageId, "inherited messageId");
     assertHash(ack.messageHash, "inherited messageHash");
   }
+  assertRecordHash(
+    record,
+    "binding"
+  );
 }
 function messageHash(record) {
   return canonicalHash({
@@ -207,6 +219,10 @@ function validateAuthoritativeRecord(file, value) {
       assertBoundedString(candidate.label, "collaboration label", 128);
       assertBoundedString(candidate.task, "collaboration task", 2048);
       assertTimestamp(candidate.createdAt, "collaboration createdAt");
+      assertRecordHash(
+        candidate,
+        "collaboration"
+      );
     } else if (segments.includes("members")) {
       const candidate = value;
       assertAlias(candidate.alias);
@@ -222,6 +238,10 @@ function validateAuthoritativeRecord(file, value) {
       validateBinding(candidate.initialBinding);
       if (candidate.initialBinding.participantId !== candidate.participantId || candidate.initialBinding.generation !== 0)
         malformed("member initial binding identity is invalid");
+      assertRecordHash(
+        candidate,
+        "member"
+      );
     } else if (segments.includes("bindings")) {
       const candidate = value;
       validateBinding(candidate);
@@ -233,6 +253,10 @@ function validateAuthoritativeRecord(file, value) {
       assertGeneration(candidate.generation, "departure generation");
       assertPin(candidate.pin);
       assertTimestamp(candidate.departedAt, "departure departedAt");
+      assertRecordHash(
+        candidate,
+        "departure"
+      );
       if (candidate.participantId !== parent || String(candidate.generation) !== basename)
         malformed("departure path identity does not match record");
     } else if (segments.includes("inbox")) {
@@ -283,6 +307,10 @@ function validateAuthoritativeRecord(file, value) {
       assertPin(candidate.recipient);
       assertGeneration(candidate.bindingGeneration, "ack bindingGeneration");
       assertTimestamp(candidate.receivedAt, "ack receivedAt");
+      assertRecordHash(
+        candidate,
+        "acknowledgment"
+      );
       assertUuidValue(grandparent, "ack participant path");
       if (candidate.messageId !== basename || String(candidate.bindingGeneration) !== parent)
         malformed("ack path identity does not match record");
@@ -317,6 +345,10 @@ function validateAuthoritativeRecord(file, value) {
       assertUuidValue(candidate.collaborationId, "closed collaborationId");
       assertPin(candidate.closedBy);
       assertTimestamp(candidate.closedAt, "closed closedAt");
+      assertRecordHash(
+        candidate,
+        "closed marker"
+      );
       if (candidate.collaborationId !== parent)
         malformed("closed path identity does not match collaboration");
     }
@@ -564,6 +596,9 @@ function timestamp(value) {
     throw new TypeError("timestamp must be ISO-8601");
   return result;
 }
+function withContentHash(record) {
+  return { ...record, contentHash: canonicalRecordHash(record) };
+}
 async function canonicalWorktree(value) {
   if (!path3.isAbsolute(value)) throw new TypeError("worktree must be absolute");
   const info = await lstat2(value).catch(() => null);
@@ -596,13 +631,13 @@ async function openCollaboration(input) {
   assertBoundedString(input.task, "task", 2048);
   const createdAt = timestamp(input.now);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  const collaboration = {
+  const collaboration = withContentHash({
     schemaVersion: 1,
     id: input.collaborationId,
     label: input.label,
     task: input.task,
     createdAt
-  };
+  });
   await publishImmutableRecord(paths.collaboration, collaboration, {
     root: input.root
   });
@@ -618,7 +653,7 @@ async function joinCollaboration(input) {
   const createdAt = timestamp(input.now);
   const participantId = randomUUID2();
   const worktree = await canonicalWorktree(input.worktree);
-  const binding = {
+  const binding = withContentHash({
     schemaVersion: 1,
     participantId,
     generation: 0,
@@ -628,15 +663,15 @@ async function joinCollaboration(input) {
     reason: "initial join",
     createdAt,
     inheritedAckRefs: []
-  };
-  const member = {
+  });
+  const member = withContentHash({
     schemaVersion: 1,
     alias: input.alias,
     participantId,
     collaborationId: input.collaborationId,
     createdAt,
     initialBinding: binding
-  };
+  });
   const memberTarget = path3.join(paths.members, `${input.alias}.json`);
   const existingMember = await readJsonRecord(memberTarget).catch(
     (error) => {
@@ -677,6 +712,12 @@ async function joinCollaboration(input) {
           "COLLABORATION_CLOSED",
           "join recovered during closure and is inert"
         );
+      if (recovered.departed || recovered.binding.generation !== 0 || !pinsEqual(recovered.binding.pin, input.pin)) {
+        throw new MembershipError(
+          "STALE_BINDING",
+          `alias ${input.alias} initial binding is no longer current`
+        );
+      }
       return { member: recovered, closedRace: closedRace2 };
     }
     throw new MembershipError(
@@ -798,6 +839,12 @@ async function takeOverMembership(input) {
       "expected previous pin is not current"
     );
   }
+  if (current.binding.generation >= 63) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      "member already has the maximum 64 binding generations"
+    );
+  }
   const paths = collaborationPaths(input.root, input.collaborationId);
   const ackDirectory = path3.join(
     paths.acknowledgments,
@@ -810,9 +857,21 @@ async function takeOverMembership(input) {
   const ackRecords = await Promise.all(
     ackFiles.map((file) => readJsonRecord(file))
   );
-  if (ackRecords.some(
-    (ack) => ack.bindingGeneration !== current.binding.generation || !pinsEqual(ack.recipient, current.binding.pin)
-  )) {
+  const acknowledgedMessages = await Promise.all(
+    ackRecords.map(
+      (ack) => readJsonRecord(
+        path3.join(
+          paths.inbox,
+          current.member.participantId,
+          `${ack.messageId}.json`
+        )
+      )
+    )
+  );
+  if (ackRecords.some((ack, index) => {
+    const message = acknowledgedMessages[index];
+    return ack.bindingGeneration !== current.binding.generation || !pinsEqual(ack.recipient, current.binding.pin) || message?.contentHash !== ack.messageHash;
+  })) {
     throw new CollaborationError(
       "MALFORMED_RECORD",
       "acknowledgment identity does not match its binding"
@@ -829,7 +888,7 @@ async function takeOverMembership(input) {
       (candidate) => candidate.messageId === ack.messageId && candidate.messageHash === ack.messageHash
     ) === index
   );
-  const binding = {
+  const binding = withContentHash({
     schemaVersion: 1,
     participantId: current.member.participantId,
     generation: current.binding.generation + 1,
@@ -839,7 +898,7 @@ async function takeOverMembership(input) {
     reason: input.reason,
     createdAt: timestamp(input.now),
     inheritedAckRefs
-  };
+  });
   try {
     await publishImmutableRecord(
       path3.join(
@@ -886,13 +945,13 @@ async function leaveCollaboration(input) {
       "only the current binding may leave"
     );
   }
-  const departure = {
+  const departure = withContentHash({
     schemaVersion: 1,
     participantId: current.member.participantId,
     generation: current.binding.generation,
     pin: input.pin,
     departedAt: timestamp(input.now)
-  };
+  });
   const paths = collaborationPaths(input.root, input.collaborationId);
   const target = path3.join(
     paths.departures,
@@ -947,12 +1006,12 @@ async function closeCollaboration(input) {
       record: existing
     };
   }
-  const record = {
+  const record = withContentHash({
     schemaVersion: 1,
     collaborationId: input.collaborationId,
     closedBy: input.pin,
     closedAt: timestamp(input.now)
-  };
+  });
   return publishImmutableRecord(target, record, {
     root: input.root
   });
@@ -1122,18 +1181,47 @@ function renderMarkdown(collaboration, entries, digest) {
     ...sections.flatMap((section) => [section, ""])
   ].join("\n");
 }
-async function writeView(file, markdown) {
-  const directory = path4.dirname(file);
-  await mkdir2(directory, { recursive: true, mode: 448 });
-  await chmod2(directory, 448);
-  const info = await lstat3(directory);
-  if (!info.isDirectory() || info.isSymbolicLink()) {
+async function inspectPrivateDirectoryChain(root, directory) {
+  const absoluteRoot = path4.resolve(root);
+  const absoluteDirectory = path4.resolve(directory);
+  const relative = path4.relative(absoluteRoot, absoluteDirectory);
+  if (relative.startsWith("..") || path4.isAbsolute(relative)) {
     throw new CollaborationError(
       "UNSAFE_PATH",
-      "rendered log directory is unsafe"
+      "rendered log directory escapes the collaboration root"
     );
   }
-  await inspectRenderedView(file, path4.dirname(path4.dirname(file))).catch(
+  const expectedUid = process.getuid?.();
+  const paths = [
+    absoluteRoot,
+    ...relative.split(path4.sep).filter(Boolean).reduce((entries, segment) => {
+      entries.push(path4.join(entries.at(-1) ?? absoluteRoot, segment));
+      return entries;
+    }, [])
+  ];
+  for (const candidate of paths) {
+    const info = await lstat3(candidate);
+    if (!info.isDirectory() || info.isSymbolicLink() || expectedUid !== void 0 && info.uid !== expectedUid) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        "rendered log directory chain is unsafe"
+      );
+    }
+  }
+  const canonicalRoot = await realpath3(absoluteRoot);
+  const canonicalDirectory = await realpath3(absoluteDirectory);
+  const canonicalRelative = path4.relative(canonicalRoot, canonicalDirectory);
+  if (canonicalRelative.startsWith("..") || path4.isAbsolute(canonicalRelative)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log directory escapes the canonical root"
+    );
+  }
+}
+async function writeView(file, markdown, root) {
+  const directory = path4.dirname(file);
+  await inspectPrivateDirectoryChain(root, directory);
+  await inspectRenderedView(file, root).catch(
     (error) => {
       if (error.code !== "ENOENT") throw error;
     }
@@ -1150,6 +1238,12 @@ async function writeView(file, markdown) {
     await handle.close();
   }
   try {
+    await inspectPrivateDirectoryChain(root, directory);
+    await inspectRenderedView(file, root).catch(
+      (error) => {
+        if (error.code !== "ENOENT") throw error;
+      }
+    );
     await rename(temporary, file);
     const directoryHandle = await open2(directory, "r");
     try {
@@ -1175,7 +1269,7 @@ async function renderLog(input) {
     input.root,
     input.collaborationId
   ).renderedLog;
-  await writeView(file, markdown);
+  await writeView(file, markdown, input.root);
   const after = sourceDigest(
     await authoritativeEntries(input.root, input.collaborationId)
   );
@@ -1200,6 +1294,7 @@ async function getLogView(input) {
   return { path: file, markdown, digest, stale: renderedDigest !== digest };
 }
 async function inspectRenderedView(file, root, options = {}) {
+  await inspectPrivateDirectoryChain(root, path4.dirname(file));
   const info = await lstat3(file);
   if (!info.isFile() || info.isSymbolicLink()) {
     throw new CollaborationError(
@@ -1423,9 +1518,16 @@ async function currentRecipient(input) {
   return recipient;
 }
 async function acknowledged(input, recipient, message) {
-  if (recipient.binding.inheritedAckRefs.some(
-    (ack2) => ack2.messageId === message.id && ack2.messageHash === message.contentHash
-  )) {
+  const inherited = recipient.binding.inheritedAckRefs.find(
+    (ack2) => ack2.messageId === message.id
+  );
+  if (inherited) {
+    if (inherited.messageHash !== message.contentHash) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "inherited acknowledgment hash does not match its message"
+      );
+    }
     return true;
   }
   const ackPath = path5.join(
@@ -1447,7 +1549,22 @@ async function acknowledged(input, recipient, message) {
       "acknowledgment recipient does not match the current binding"
     );
   }
-  return ack.messageHash === message.contentHash;
+  if (ack.messageHash !== message.contentHash) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "acknowledgment hash does not match its message"
+    );
+  }
+  return true;
+}
+async function presentMessage(input, recipient, message) {
+  const closed = await isCollaborationClosed(input.root, input.collaborationId);
+  const raceStatus = closed ? "closed" : message.to.generation === recipient.binding.generation ? "current" : "recipient-reassigned";
+  return {
+    ...message,
+    raceStatus,
+    inert: raceStatus === "closed"
+  };
 }
 async function listInbox(input) {
   const recipient = await currentRecipient(input);
@@ -1465,25 +1582,10 @@ async function listInbox(input) {
     const priority = Number(right.priority === "high") - Number(left.priority === "high");
     return priority || left.createdAt.localeCompare(right.createdAt) || left.from.pin.runtime.localeCompare(right.from.pin.runtime) || left.from.pin.sessionId.localeCompare(right.from.pin.sessionId) || left.id.localeCompare(right.id);
   });
-  const closed = await isCollaborationClosed(input.root, input.collaborationId);
   const pending = [];
   const acked = [];
   for (const message of sorted) {
-    const senderCurrent = await resolveMemberByPin(
-      input.root,
-      input.collaborationId,
-      message.from.pin
-    ).catch((error) => {
-      if (error instanceof MembershipError && error.code === "NOT_CURRENT_MEMBER")
-        return null;
-      throw error;
-    });
-    const raceStatus = closed ? "closed" : message.to.generation !== recipient.binding.generation ? "recipient-superseded" : !senderCurrent || senderCurrent.departed || senderCurrent.binding.generation !== message.from.generation ? "sender-superseded" : "current";
-    const presented = {
-      ...message,
-      raceStatus,
-      inert: raceStatus !== "current"
-    };
+    const presented = await presentMessage(input, recipient, message);
     if (await acknowledged(input, recipient, message)) acked.push(presented);
     else pending.push(presented);
   }
@@ -1516,7 +1618,7 @@ async function listInbox(input) {
 async function readMessage(input) {
   assertUuid(input.messageId, "message ID");
   const recipient = await currentRecipient(input);
-  return readJsonRecord(
+  const message = await readJsonRecord(
     messagePath(
       input.root,
       input.collaborationId,
@@ -1525,6 +1627,7 @@ async function readMessage(input) {
     ),
     { maxBytes: MAX_BODY_BYTES + 4096 }
   );
+  return presentMessage(input, recipient, message);
 }
 async function acknowledgeMessage(input) {
   const recipient = await currentRecipient(input);
@@ -1543,20 +1646,24 @@ async function acknowledgeMessage(input) {
     }
   );
   if (existing) {
-    if (existing.messageHash !== message.contentHash)
+    if (existing.messageHash !== message.contentHash || existing.bindingGeneration !== recipient.binding.generation || !pinsEqual(existing.recipient, recipient.binding.pin))
       throw new CollaborationError(
-        "RECORD_CONFLICT",
-        "ack hash conflicts with message"
+        "MALFORMED_RECORD",
+        "acknowledgment identity or hash conflicts with the message"
       );
     return { ack: existing, duplicate: true };
   }
-  const ack = {
+  const ackWithoutHash = {
     schemaVersion: 1,
     messageId: message.id,
     messageHash: message.contentHash,
     recipient: recipient.binding.pin,
     bindingGeneration: recipient.binding.generation,
     receivedAt: timestamp3(input.now)
+  };
+  const ack = {
+    ...ackWithoutHash,
+    contentHash: canonicalRecordHash(ackWithoutHash)
   };
   await publishImmutableRecord(target, ack, { root: input.root });
   const current = await resolveMember(

@@ -21,6 +21,7 @@ export interface CollaborationRecord extends HasSchemaVersion {
   label: string;
   task: string;
   createdAt: string;
+  contentHash: string;
 }
 
 export interface MemberRecord extends HasSchemaVersion {
@@ -29,6 +30,7 @@ export interface MemberRecord extends HasSchemaVersion {
   collaborationId: string;
   createdAt: string;
   initialBinding: BindingRecord;
+  contentHash: string;
 }
 
 export interface AckReference {
@@ -45,6 +47,7 @@ export interface BindingRecord extends HasSchemaVersion {
   reason: string;
   createdAt: string;
   inheritedAckRefs: AckReference[];
+  contentHash: string;
 }
 
 export interface DepartureRecord extends HasSchemaVersion {
@@ -52,12 +55,14 @@ export interface DepartureRecord extends HasSchemaVersion {
   generation: number;
   pin: Pin;
   departedAt: string;
+  contentHash: string;
 }
 
 export interface ClosedRecord extends HasSchemaVersion {
   collaborationId: string;
   closedBy: Pin;
   closedAt: string;
+  contentHash: string;
 }
 
 export type MessageKind = 'request' | 'update';
@@ -90,6 +95,7 @@ export interface AckRecord extends HasSchemaVersion {
   recipient: Pin;
   bindingGeneration: number;
   receivedAt: string;
+  contentHash: string;
 }
 
 export interface LogEntryRecord extends HasSchemaVersion {
@@ -109,7 +115,8 @@ export type MessageRaceStatus =
   | 'current'
   | 'closed'
   | 'sender-superseded'
-  | 'recipient-superseded';
+  | 'recipient-superseded'
+  | 'recipient-reassigned';
 
 export interface InboxMessage extends MessageRecord {
   raceStatus: MessageRaceStatus;

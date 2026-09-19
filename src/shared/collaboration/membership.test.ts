@@ -171,6 +171,131 @@ describe('membership lifecycle', () => {
     ).toEqual(input.pin);
   });
 
+  test('rejects stale initial-join retries after takeover or departure', async () => {
+    const takeover = await fixture();
+    const old = { runtime: 'cursor' as const, sessionId: 'old-retry' };
+    const original = {
+      ...takeover,
+      alias: 'reviewer',
+      pin: old,
+      worktree: '/tmp/old-retry',
+    };
+    await joinCollaboration(original);
+    await takeOverMembership({
+      ...takeover,
+      alias: 'reviewer',
+      pin: { runtime: 'cursor', sessionId: 'successor' },
+      expectedPreviousPin: old,
+      reason: 'replace old session',
+      worktree: '/tmp/successor',
+    });
+    await expect(joinCollaboration(original)).rejects.toMatchObject({
+      code: 'STALE_BINDING',
+    });
+
+    const departed = await fixture();
+    const departing = { runtime: 'cursor' as const, sessionId: 'departing' };
+    const departureInput = {
+      ...departed,
+      alias: 'reviewer',
+      pin: departing,
+      worktree: '/tmp/departing',
+    };
+    await joinCollaboration(departureInput);
+    await leaveCollaboration({
+      ...departed,
+      alias: 'reviewer',
+      pin: departing,
+    });
+    await expect(joinCollaboration(departureInput)).rejects.toMatchObject({
+      code: 'STALE_BINDING',
+    });
+  });
+
+  test('concurrent orphan recovery resolves only generation zero', async () => {
+    const f = await fixture();
+    const input = {
+      ...f,
+      alias: 'reviewer',
+      pin: { runtime: 'cursor' as const, sessionId: 'orphan' },
+      worktree: '/tmp/orphan',
+    };
+    await expect(
+      joinCollaboration({
+        ...input,
+        hooks: { afterAliasPublish: () => Promise.reject(new Error('stop')) },
+      }),
+    ).rejects.toThrow('stop');
+    const recovered = await Promise.all([
+      joinCollaboration(input),
+      joinCollaboration(input),
+    ]);
+    expect(recovered.map((result) => result.member.binding.generation)).toEqual(
+      [0, 0],
+    );
+  });
+
+  test('caps bindings at generation 63 and keeps a competing winner readable', async () => {
+    const f = await fixture();
+    let current = f.driver;
+    for (let generation = 1; generation < 63; generation += 1) {
+      const next = {
+        runtime: 'codex' as const,
+        sessionId: `generation-${generation}`,
+      };
+      await takeOverMembership({
+        ...f,
+        alias: 'driver',
+        pin: next,
+        expectedPreviousPin: current,
+        reason: `generation ${generation}`,
+        worktree: `/tmp/generation-${generation}`,
+      });
+      current = next;
+    }
+    expect(
+      (await resolveMember(f.root, f.collaborationId, 'driver')).binding
+        .generation,
+    ).toBe(62);
+    const outcomes = await Promise.allSettled([
+      takeOverMembership({
+        ...f,
+        alias: 'driver',
+        pin: { runtime: 'codex', sessionId: 'generation-63-a' },
+        expectedPreviousPin: current,
+        reason: 'boundary a',
+        worktree: '/tmp/generation-63-a',
+      }),
+      takeOverMembership({
+        ...f,
+        alias: 'driver',
+        pin: { runtime: 'codex', sessionId: 'generation-63-b' },
+        expectedPreviousPin: current,
+        reason: 'boundary b',
+        worktree: '/tmp/generation-63-b',
+      }),
+    ]);
+    expect(
+      outcomes.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    const winner = await resolveMember(f.root, f.collaborationId, 'driver');
+    expect(winner.binding.generation).toBe(63);
+    await expect(
+      takeOverMembership({
+        ...f,
+        alias: 'driver',
+        pin: { runtime: 'codex', sessionId: 'generation-64' },
+        expectedPreviousPin: winner.binding.pin,
+        reason: 'one over',
+        worktree: '/tmp/generation-64',
+      }),
+    ).rejects.toMatchObject({ code: 'CAPACITY_EXCEEDED' });
+    expect(
+      (await resolveMember(f.root, f.collaborationId, 'driver')).binding
+        .generation,
+    ).toBe(63);
+  }, 30_000);
+
   test('marks close races during join and takeover as closed', async () => {
     const first = await fixture();
     await expect(

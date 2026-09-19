@@ -10,6 +10,7 @@ import {
 import { collaborationPaths } from './paths.js';
 import {
   canonicalHash,
+  canonicalRecordHash,
   CollaborationError,
   enumerateJsonRecords,
   publishImmutableRecord,
@@ -151,7 +152,7 @@ export async function sendMessage(input: SendMessageInput): Promise<{
   }
   await validateReply(input, sender);
   const withoutHash: Omit<MessageRecord, 'contentHash' | 'createdAt'> = {
-    schemaVersion: 1,
+    schemaVersion: 1 as const,
     id: input.id,
     collaborationId: input.collaborationId,
     from: {
@@ -287,12 +288,16 @@ async function acknowledged(
   recipient: ResolvedMember,
   message: MessageRecord,
 ): Promise<boolean> {
-  if (
-    recipient.binding.inheritedAckRefs.some(
-      (ack) =>
-        ack.messageId === message.id && ack.messageHash === message.contentHash,
-    )
-  ) {
+  const inherited = recipient.binding.inheritedAckRefs.find(
+    (ack) => ack.messageId === message.id,
+  );
+  if (inherited) {
+    if (inherited.messageHash !== message.contentHash) {
+      throw new CollaborationError(
+        'MALFORMED_RECORD',
+        'inherited acknowledgment hash does not match its message',
+      );
+    }
     return true;
   }
   const ackPath = path.join(
@@ -314,7 +319,31 @@ async function acknowledged(
       'acknowledgment recipient does not match the current binding',
     );
   }
-  return ack.messageHash === message.contentHash;
+  if (ack.messageHash !== message.contentHash) {
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      'acknowledgment hash does not match its message',
+    );
+  }
+  return true;
+}
+
+async function presentMessage(
+  input: InboxInput,
+  recipient: ResolvedMember,
+  message: MessageRecord,
+): Promise<InboxMessage> {
+  const closed = await isCollaborationClosed(input.root, input.collaborationId);
+  const raceStatus = closed
+    ? 'closed'
+    : message.to.generation === recipient.binding.generation
+      ? 'current'
+      : 'recipient-reassigned';
+  return {
+    ...message,
+    raceStatus,
+    inert: raceStatus === 'closed',
+  };
 }
 
 export async function listInbox(input: InboxInput): Promise<{
@@ -346,36 +375,10 @@ export async function listInbox(input: InboxInput): Promise<{
       left.id.localeCompare(right.id)
     );
   });
-  const closed = await isCollaborationClosed(input.root, input.collaborationId);
   const pending: InboxMessage[] = [];
   const acked: InboxMessage[] = [];
   for (const message of sorted) {
-    const senderCurrent = await resolveMemberByPin(
-      input.root,
-      input.collaborationId,
-      message.from.pin,
-    ).catch((error) => {
-      if (
-        error instanceof MembershipError &&
-        error.code === 'NOT_CURRENT_MEMBER'
-      )
-        return null;
-      throw error;
-    });
-    const raceStatus = closed
-      ? 'closed'
-      : message.to.generation !== recipient.binding.generation
-        ? 'recipient-superseded'
-        : !senderCurrent ||
-            senderCurrent.departed ||
-            senderCurrent.binding.generation !== message.from.generation
-          ? 'sender-superseded'
-          : 'current';
-    const presented: InboxMessage = {
-      ...message,
-      raceStatus,
-      inert: raceStatus !== 'current',
-    };
+    const presented = await presentMessage(input, recipient, message);
     if (await acknowledged(input, recipient, message)) acked.push(presented);
     else pending.push(presented);
   }
@@ -416,10 +419,10 @@ export async function listInbox(input: InboxInput): Promise<{
 
 export async function readMessage(
   input: InboxInput & { messageId: string },
-): Promise<MessageRecord> {
+): Promise<InboxMessage> {
   assertUuid(input.messageId, 'message ID');
   const recipient = await currentRecipient(input);
-  return readJsonRecord<MessageRecord>(
+  const message = await readJsonRecord<MessageRecord>(
     messagePath(
       input.root,
       input.collaborationId,
@@ -428,6 +431,7 @@ export async function readMessage(
     ),
     { maxBytes: MAX_BODY_BYTES + 4096 },
   );
+  return presentMessage(input, recipient, message);
 }
 
 export async function acknowledgeMessage(
@@ -449,20 +453,28 @@ export async function acknowledgeMessage(
     },
   );
   if (existing) {
-    if (existing.messageHash !== message.contentHash)
+    if (
+      existing.messageHash !== message.contentHash ||
+      existing.bindingGeneration !== recipient.binding.generation ||
+      !pinsEqual(existing.recipient, recipient.binding.pin)
+    )
       throw new CollaborationError(
-        'RECORD_CONFLICT',
-        'ack hash conflicts with message',
+        'MALFORMED_RECORD',
+        'acknowledgment identity or hash conflicts with the message',
       );
     return { ack: existing, duplicate: true };
   }
-  const ack: AckRecord = {
-    schemaVersion: 1,
+  const ackWithoutHash = {
+    schemaVersion: 1 as const,
     messageId: message.id,
     messageHash: message.contentHash,
     recipient: recipient.binding.pin,
     bindingGeneration: recipient.binding.generation,
     receivedAt: timestamp(input.now),
+  };
+  const ack: AckRecord = {
+    ...ackWithoutHash,
+    contentHash: canonicalRecordHash(ackWithoutHash),
   };
   await publishImmutableRecord(target, ack, { root: input.root });
   const current = await resolveMember(

@@ -1,4 +1,5 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import {
   mkdtemp,
   mkdir,
@@ -9,13 +10,21 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import {
+  closeCollaboration,
+  joinCollaboration,
+  openCollaboration,
+} from './membership.js';
+import { acknowledgeMessage, listInbox, sendMessage } from './messages.js';
 import { collaborationPaths, resolveCollaborationRoot } from './paths.js';
 import {
   CollaborationError,
   canonicalHash,
+  canonicalRecordHash,
   enumerateJsonRecords,
   publishImmutableRecord,
   readJsonRecord,
@@ -125,6 +134,113 @@ describe('collaboration storage primitives', () => {
     }
   });
 
+  test('rejects valid-shape forged binding, closure, and acknowledgment records', async () => {
+    const bindingFixture = await fixture();
+    const bindingCollaboration = crypto.randomUUID();
+    const driver = { runtime: 'codex' as const, sessionId: 'driver' };
+    const opened = await openCollaboration({
+      root: bindingFixture.root,
+      collaborationId: bindingCollaboration,
+      alias: 'driver',
+      pin: driver,
+      worktree: '/tmp/driver',
+      label: 'integrity',
+      task: 'reject corruption',
+    });
+    const bindingFile = path.join(
+      collaborationPaths(bindingFixture.root, bindingCollaboration).bindings,
+      opened.member.member.participantId,
+      '0.json',
+    );
+    const forgedBinding = JSON.parse(await readFile(bindingFile, 'utf8'));
+    forgedBinding.reason = 'forged';
+    await writeFile(bindingFile, `${JSON.stringify(forgedBinding)}\n`);
+    await expect(readJsonRecord(bindingFile)).rejects.toMatchObject({
+      code: 'MALFORMED_RECORD',
+    });
+
+    const closedFixture = await fixture();
+    const closedCollaboration = crypto.randomUUID();
+    await openCollaboration({
+      root: closedFixture.root,
+      collaborationId: closedCollaboration,
+      alias: 'driver',
+      pin: driver,
+      worktree: '/tmp/driver',
+      label: 'closed integrity',
+      task: 'reject closure corruption',
+    });
+    await closeCollaboration({
+      root: closedFixture.root,
+      collaborationId: closedCollaboration,
+      pin: driver,
+    });
+    const closedFile = collaborationPaths(
+      closedFixture.root,
+      closedCollaboration,
+    ).closed;
+    const forgedClosed = JSON.parse(await readFile(closedFile, 'utf8'));
+    forgedClosed.closedAt = '2020-01-01T00:00:00.000Z';
+    await writeFile(closedFile, `${JSON.stringify(forgedClosed)}\n`);
+    await expect(readJsonRecord(closedFile)).rejects.toMatchObject({
+      code: 'MALFORMED_RECORD',
+    });
+
+    const ackFixture = await fixture();
+    const ackCollaboration = crypto.randomUUID();
+    const reviewer = { runtime: 'cursor' as const, sessionId: 'reviewer' };
+    await openCollaboration({
+      root: ackFixture.root,
+      collaborationId: ackCollaboration,
+      alias: 'driver',
+      pin: driver,
+      worktree: '/tmp/driver',
+      label: 'ack integrity',
+      task: 'reject receipt corruption',
+    });
+    const joined = await joinCollaboration({
+      root: ackFixture.root,
+      collaborationId: ackCollaboration,
+      alias: 'reviewer',
+      pin: reviewer,
+      worktree: '/tmp/reviewer',
+    });
+    const messageId = crypto.randomUUID();
+    await sendMessage({
+      root: ackFixture.root,
+      collaborationId: ackCollaboration,
+      senderPin: driver,
+      recipientAlias: 'reviewer',
+      id: messageId,
+      subject: 'ack me',
+      body: 'body',
+    });
+    await acknowledgeMessage({
+      root: ackFixture.root,
+      collaborationId: ackCollaboration,
+      pin: reviewer,
+      messageId,
+    });
+    const ackFile = path.join(
+      collaborationPaths(ackFixture.root, ackCollaboration).acknowledgments,
+      joined.member.member.participantId,
+      '0',
+      `${messageId}.json`,
+    );
+    const forgedAck = JSON.parse(await readFile(ackFile, 'utf8'));
+    forgedAck.messageHash = '0'.repeat(64);
+    forgedAck.contentHash = canonicalRecordHash(forgedAck);
+    await writeFile(ackFile, `${JSON.stringify(forgedAck)}\n`);
+    await expect(
+      listInbox({
+        root: ackFixture.root,
+        collaborationId: ackCollaboration,
+        pin: reviewer,
+        includeAcknowledged: true,
+      }),
+    ).rejects.toMatchObject({ code: 'MALFORMED_RECORD' });
+  });
+
   test('reports publication-stage failures and preserves retry semantics', async () => {
     const { root } = await fixture();
     const beforeTarget = path.join(root, 'records', 'before.json');
@@ -167,32 +283,41 @@ describe('collaboration storage primitives', () => {
     const { root } = await fixture();
     const directory = path.join(root, 'records');
     await mkdir(directory, { recursive: true });
-    const script = String.raw`
-      const fs = require('node:fs');
-      const [directory, target, stage] = process.argv.slice(1);
-      const temporary = directory + '/.kill-' + stage + '.tmp';
-      const fd = fs.openSync(temporary, 'wx', 0o600);
-      fs.writeFileSync(fd, '{"schemaVersion":1,"id":"killed"}\n');
-      fs.fsyncSync(fd);
-      fs.closeSync(fd);
-      if (stage === 'after') fs.linkSync(temporary, target);
-      process.kill(process.pid, 'SIGKILL');
-    `;
-    const before = path.join(directory, 'before-kill.json');
-    const after = path.join(directory, 'after-kill.json');
-    expect(
-      spawnSync(process.execPath, ['-e', script, directory, before, 'before'])
-        .signal,
-    ).toBe('SIGKILL');
-    expect(
-      spawnSync(process.execPath, ['-e', script, directory, after, 'after'])
-        .signal,
-    ).toBe('SIGKILL');
-    await expect(readFile(before)).rejects.toMatchObject({ code: 'ENOENT' });
-    expect(JSON.parse(await readFile(after, 'utf8'))).toEqual({
-      schemaVersion: 1,
-      id: 'killed',
-    });
+    const helper = fileURLToPath(
+      new URL('./process-fixture.ts', import.meta.url),
+    );
+    for (const [stage, visible] of [
+      ['afterFileSync', false],
+      ['afterLink', true],
+      ['beforeDirectorySync', true],
+    ] as const) {
+      const target = path.join(directory, `${stage}.json`);
+      const record = { schemaVersion: 1 as const, id: crypto.randomUUID() };
+      const child = spawn(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          helper,
+          'publish',
+          JSON.stringify({ root, target, id: record.id, stage }),
+        ],
+        { stdio: ['pipe', 'pipe', 'pipe'] },
+      );
+      await once(child.stdout!, 'data');
+      child.kill('SIGKILL');
+      const [, signal] = await once(child, 'exit');
+      expect(signal).toBe('SIGKILL');
+      if (visible)
+        expect(JSON.parse(await readFile(target, 'utf8'))).toEqual(record);
+      else
+        await expect(readFile(target)).rejects.toMatchObject({
+          code: 'ENOENT',
+        });
+      expect(
+        (await publishImmutableRecord(target, record, { root })).created,
+      ).toBe(!visible);
+    }
   });
 
   test('bounds enumeration and ignores private temporary siblings', async () => {

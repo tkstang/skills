@@ -624,4 +624,83 @@ describe('agent messaging CLI', () => {
     expect(unsafe.code).toBe(1);
     expect(JSON.parse(unsafe.stderr).code).toBe('UNSAFE_PATH');
   });
+
+  test('status presents pre-takeover mail as actionable reassigned work', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'cli',
+      '--task',
+      'replay',
+    ]);
+    await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:old',
+      '--alias',
+      'reviewer',
+    ]);
+    const id = crypto.randomUUID();
+    await run([
+      'send',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--to',
+      'reviewer',
+      '--id',
+      id,
+      '--subject',
+      'pending',
+      '--body',
+      'still actionable',
+    ]);
+    await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:successor',
+      '--alias',
+      'reviewer',
+      '--succeeds',
+      'cursor:old',
+      '--reason',
+      'take over pending work',
+    ]);
+    const status = await run([
+      'status',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:successor',
+      '--json',
+    ]);
+    expect(JSON.parse(status.stdout).data.inbox.messages[0]).toMatchObject({
+      id,
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+  });
 });

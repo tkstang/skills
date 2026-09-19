@@ -82,6 +82,11 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.2 and `session` plugin 0.3.1 keep binding-cap winners
+  readable, reject stale initial joins, replay takeover mail as actionable,
+  contain rendered-log writes across ancestor symlinks, hash every
+  authoritative record, and exercise real process-isolated publication and
+  sender contention.
 - `agent-messaging` 1.0.1 and `session` plugin 0.3.0 complete the maintained
   product inventories, validate every authoritative schema-v1 record, recover
   interrupted initial joins, enforce bounded writers and history output, add

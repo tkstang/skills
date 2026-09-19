@@ -6,6 +6,7 @@ import { collaborationPaths, memberBindingDirectory } from './paths.js';
 import {
   CollaborationError,
   canonicalHash,
+  canonicalRecordHash,
   enumerateJsonRecords,
   publishImmutableRecord,
   readJsonRecord,
@@ -23,6 +24,7 @@ import {
   type CollaborationRecord,
   type DepartureRecord,
   type MemberRecord,
+  type MessageRecord,
   type Pin,
 } from './types.js';
 
@@ -64,6 +66,12 @@ function timestamp(value?: string): string {
   if (Number.isNaN(Date.parse(result)))
     throw new TypeError('timestamp must be ISO-8601');
   return result;
+}
+
+function withContentHash<T extends Record<string, unknown>>(
+  record: T,
+): T & { contentHash: string } {
+  return { ...record, contentHash: canonicalRecordHash(record) };
 }
 
 async function canonicalWorktree(value: string): Promise<string> {
@@ -109,13 +117,13 @@ export async function openCollaboration(
   assertBoundedString(input.task, 'task', 2048);
   const createdAt = timestamp(input.now);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  const collaboration: CollaborationRecord = {
-    schemaVersion: 1,
+  const collaboration: CollaborationRecord = withContentHash({
+    schemaVersion: 1 as const,
     id: input.collaborationId,
     label: input.label,
     task: input.task,
     createdAt,
-  };
+  });
   await publishImmutableRecord(paths.collaboration, collaboration, {
     root: input.root,
   });
@@ -134,8 +142,8 @@ export async function joinCollaboration(
   const createdAt = timestamp(input.now);
   const participantId = randomUUID();
   const worktree = await canonicalWorktree(input.worktree);
-  const binding: BindingRecord = {
-    schemaVersion: 1,
+  const binding: BindingRecord = withContentHash({
+    schemaVersion: 1 as const,
     participantId,
     generation: 0,
     pin: input.pin,
@@ -144,15 +152,15 @@ export async function joinCollaboration(
     reason: 'initial join',
     createdAt,
     inheritedAckRefs: [],
-  };
-  const member: MemberRecord = {
-    schemaVersion: 1,
+  });
+  const member: MemberRecord = withContentHash({
+    schemaVersion: 1 as const,
     alias: input.alias,
     participantId,
     collaborationId: input.collaborationId,
     createdAt,
     initialBinding: binding,
-  };
+  });
   const memberTarget = path.join(paths.members, `${input.alias}.json`);
   const existingMember = await readJsonRecord<MemberRecord>(memberTarget).catch(
     (error: NodeJS.ErrnoException) => {
@@ -196,6 +204,16 @@ export async function joinCollaboration(
           'COLLABORATION_CLOSED',
           'join recovered during closure and is inert',
         );
+      if (
+        recovered.departed ||
+        recovered.binding.generation !== 0 ||
+        !pinsEqual(recovered.binding.pin, input.pin)
+      ) {
+        throw new MembershipError(
+          'STALE_BINDING',
+          `alias ${input.alias} initial binding is no longer current`,
+        );
+      }
       return { member: recovered, closedRace };
     }
     throw new MembershipError(
@@ -336,6 +354,12 @@ export async function takeOverMembership(
       'expected previous pin is not current',
     );
   }
+  if (current.binding.generation >= 63) {
+    throw new CollaborationError(
+      'CAPACITY_EXCEEDED',
+      'member already has the maximum 64 binding generations',
+    );
+  }
   const paths = collaborationPaths(input.root, input.collaborationId);
   const ackDirectory = path.join(
     paths.acknowledgments,
@@ -348,12 +372,26 @@ export async function takeOverMembership(
   const ackRecords = await Promise.all(
     ackFiles.map((file) => readJsonRecord<AckRecord>(file)),
   );
+  const acknowledgedMessages = await Promise.all(
+    ackRecords.map((ack) =>
+      readJsonRecord<MessageRecord>(
+        path.join(
+          paths.inbox,
+          current.member.participantId,
+          `${ack.messageId}.json`,
+        ),
+      ),
+    ),
+  );
   if (
-    ackRecords.some(
-      (ack) =>
+    ackRecords.some((ack, index) => {
+      const message = acknowledgedMessages[index];
+      return (
         ack.bindingGeneration !== current.binding.generation ||
-        !pinsEqual(ack.recipient, current.binding.pin),
-    )
+        !pinsEqual(ack.recipient, current.binding.pin) ||
+        message?.contentHash !== ack.messageHash
+      );
+    })
   ) {
     throw new CollaborationError(
       'MALFORMED_RECORD',
@@ -374,8 +412,8 @@ export async function takeOverMembership(
           candidate.messageHash === ack.messageHash,
       ) === index,
   );
-  const binding: BindingRecord = {
-    schemaVersion: 1,
+  const binding: BindingRecord = withContentHash({
+    schemaVersion: 1 as const,
     participantId: current.member.participantId,
     generation: current.binding.generation + 1,
     pin: input.pin,
@@ -384,7 +422,7 @@ export async function takeOverMembership(
     reason: input.reason,
     createdAt: timestamp(input.now),
     inheritedAckRefs,
-  };
+  });
   try {
     await publishImmutableRecord(
       path.join(
@@ -437,13 +475,13 @@ export async function leaveCollaboration(
       'only the current binding may leave',
     );
   }
-  const departure: DepartureRecord = {
-    schemaVersion: 1,
+  const departure: DepartureRecord = withContentHash({
+    schemaVersion: 1 as const,
     participantId: current.member.participantId,
     generation: current.binding.generation,
     pin: input.pin,
     departedAt: timestamp(input.now),
-  };
+  });
   const paths = collaborationPaths(input.root, input.collaborationId);
   const target = path.join(
     paths.departures,
@@ -501,12 +539,12 @@ export async function closeCollaboration(
       record: existing,
     };
   }
-  const record: ClosedRecord = {
-    schemaVersion: 1,
+  const record: ClosedRecord = withContentHash({
+    schemaVersion: 1 as const,
     collaborationId: input.collaborationId,
     closedBy: input.pin,
     closedAt: timestamp(input.now),
-  };
+  });
   return publishImmutableRecord(target, record, {
     root: input.root,
   });

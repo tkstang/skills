@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
-  chmod,
   lstat,
-  mkdir,
   open,
   readFile,
   realpath,
@@ -231,18 +229,65 @@ function renderMarkdown(
   ].join('\n');
 }
 
-async function writeView(file: string, markdown: string): Promise<void> {
-  const directory = path.dirname(file);
-  await mkdir(directory, { recursive: true, mode: 0o700 });
-  await chmod(directory, 0o700);
-  const info = await lstat(directory);
-  if (!info.isDirectory() || info.isSymbolicLink()) {
+async function inspectPrivateDirectoryChain(
+  root: string,
+  directory: string,
+): Promise<void> {
+  const absoluteRoot = path.resolve(root);
+  const absoluteDirectory = path.resolve(directory);
+  const relative = path.relative(absoluteRoot, absoluteDirectory);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new CollaborationError(
       'UNSAFE_PATH',
-      'rendered log directory is unsafe',
+      'rendered log directory escapes the collaboration root',
     );
   }
-  await inspectRenderedView(file, path.dirname(path.dirname(file))).catch(
+  const expectedUid = process.getuid?.();
+  const paths = [
+    absoluteRoot,
+    ...relative
+      .split(path.sep)
+      .filter(Boolean)
+      .reduce<string[]>((entries, segment) => {
+        entries.push(path.join(entries.at(-1) ?? absoluteRoot, segment));
+        return entries;
+      }, []),
+  ];
+  for (const candidate of paths) {
+    const info = await lstat(candidate);
+    if (
+      !info.isDirectory() ||
+      info.isSymbolicLink() ||
+      (expectedUid !== undefined && info.uid !== expectedUid)
+    ) {
+      throw new CollaborationError(
+        'UNSAFE_PATH',
+        'rendered log directory chain is unsafe',
+      );
+    }
+  }
+  const canonicalRoot = await realpath(absoluteRoot);
+  const canonicalDirectory = await realpath(absoluteDirectory);
+  const canonicalRelative = path.relative(canonicalRoot, canonicalDirectory);
+  if (
+    canonicalRelative.startsWith('..') ||
+    path.isAbsolute(canonicalRelative)
+  ) {
+    throw new CollaborationError(
+      'UNSAFE_PATH',
+      'rendered log directory escapes the canonical root',
+    );
+  }
+}
+
+async function writeView(
+  file: string,
+  markdown: string,
+  root: string,
+): Promise<void> {
+  const directory = path.dirname(file);
+  await inspectPrivateDirectoryChain(root, directory);
+  await inspectRenderedView(file, root).catch(
     (error: NodeJS.ErrnoException) => {
       if (error.code !== 'ENOENT') throw error;
     },
@@ -259,6 +304,12 @@ async function writeView(file: string, markdown: string): Promise<void> {
     await handle.close();
   }
   try {
+    await inspectPrivateDirectoryChain(root, directory);
+    await inspectRenderedView(file, root).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') throw error;
+      },
+    );
     await rename(temporary, file);
     const directoryHandle = await open(directory, 'r');
     try {
@@ -294,7 +345,7 @@ export async function renderLog(input: {
     input.root,
     input.collaborationId,
   ).renderedLog;
-  await writeView(file, markdown);
+  await writeView(file, markdown, input.root);
   const after = sourceDigest(
     await authoritativeEntries(input.root, input.collaborationId),
   );
@@ -333,6 +384,7 @@ export async function inspectRenderedView(
   root: string,
   options: { expectedUid?: number; maxBytes?: number } = {},
 ): Promise<string> {
+  await inspectPrivateDirectoryChain(root, path.dirname(file));
   const info = await lstat(file);
   if (!info.isFile() || info.isSymbolicLink()) {
     throw new CollaborationError(

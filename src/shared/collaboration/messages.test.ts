@@ -1,6 +1,9 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
@@ -261,7 +264,112 @@ describe('addressed messages and acknowledgments', () => {
     expect(takeoverResult.raceStatus).toBe('recipient-superseded');
     expect(
       (await listInbox({ ...takeover, pin: successor })).messages[0],
-    ).toMatchObject({ inert: true, raceStatus: 'recipient-superseded' });
+    ).toMatchObject({ inert: false, raceStatus: 'recipient-reassigned' });
+  });
+
+  test('replays pre-takeover pending mail consistently through read and ack', async () => {
+    const f = await fixture();
+    const id = crypto.randomUUID();
+    await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      subject: 'pending before takeover',
+      body: 'must remain actionable',
+    });
+    const successor = { runtime: 'cursor' as const, sessionId: 'replay' };
+    await takeOverMembership({
+      ...f,
+      alias: 'reviewer',
+      pin: successor,
+      expectedPreviousPin: f.reviewer,
+      reason: 'resume pending work',
+      worktree: '/tmp/replay',
+    });
+    expect(
+      (await listInbox({ ...f, pin: successor })).messages[0],
+    ).toMatchObject({
+      id,
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+    expect(
+      await readMessage({ ...f, pin: successor, messageId: id }),
+    ).toMatchObject({
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+    await acknowledgeMessage({ ...f, pin: successor, messageId: id });
+    const after = await listInbox({
+      ...f,
+      pin: successor,
+      includeAcknowledged: true,
+    });
+    expect(after.messages).toHaveLength(0);
+    expect(after.acknowledged[0]).toMatchObject({
+      id,
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+  });
+
+  test('preserves concurrent sends from isolated source-runtime processes', async () => {
+    const f = await fixture();
+    const implementer = {
+      runtime: 'cursor' as const,
+      sessionId: 'process-impl',
+    };
+    await joinCollaboration({
+      ...f,
+      alias: 'implementer',
+      pin: implementer,
+      worktree: '/tmp/process-impl',
+    });
+    const helper = fileURLToPath(
+      new URL('./process-fixture.ts', import.meta.url),
+    );
+    const inputs = [
+      {
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'from driver process',
+        body: 'driver body',
+      },
+      {
+        ...f,
+        senderPin: implementer,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'from implementer process',
+        body: 'implementer body',
+      },
+    ];
+    const children = inputs.map((input) => {
+      const child = spawn(
+        process.execPath,
+        ['--import', 'tsx', helper, 'send', JSON.stringify(input)],
+        { stdio: ['pipe', 'pipe', 'pipe'] },
+      );
+      let stdout = '';
+      let stderr = '';
+      child.stdout!.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
+      child.stderr!.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
+      return { child, output: () => ({ stdout, stderr }) };
+    });
+    await Promise.all(children.map(({ child }) => once(child.stdout!, 'data')));
+    for (const { child } of children) child.stdin!.end('go\n');
+    for (const { child, output } of children) {
+      const [code] = await once(child, 'exit');
+      expect(code, output().stderr).toBe(0);
+      expect(output().stdout).toContain('"duplicate":false');
+    }
+    const inbox = await listInbox({ ...f, pin: f.reviewer });
+    expect(inbox.messages.map((message) => message.subject).toSorted()).toEqual(
+      ['from driver process', 'from implementer process'],
+    );
   });
 
   test('bounds combined pending and acknowledged output and accepts reordered acks', async () => {
