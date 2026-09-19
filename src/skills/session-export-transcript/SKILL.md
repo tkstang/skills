@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.21'
+  version: '2.0.22'
 ---
 
 # {{distribution.name}}
@@ -135,8 +135,11 @@ coverage, and diagnostics.
 The appendix is explicitly labelled **Sensitive activity/debug data**. Tool
 inputs, outputs, commands, paths, and identifiers may appear in its bounded
 previews even though the conversation section remains sanitized. Claude
-persisted-output sidecars, Cursor `agent-tools/` files, and child trajectories
-are not opened; recorded references appear as `not-read` coverage. Extraction
+persisted-output sidecars and Claude, Codex, or Cursor child transcripts are not
+opened, and neither are Cursor `agent-tools/` files. Schema v1 emits explicit
+`not-read` coverage only for persisted-output references recorded by Claude and
+child IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
 failure likewise produces `record-activity: not-read` plus an
 `ACTIVITY_EXTRACTION_ERROR` diagnostic rather than silently implying that no
 activity exists.
@@ -183,11 +186,14 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Success Criteria
 
-- [ ] `SKILL.md` exists, frontmatter valid, version 1.0.0.
+- [ ] `SKILL.md` exists with valid frontmatter and a quoted stable SemVer at
+      `metadata.version`.
 - [ ] The agent announces a random-hex marker before invoking the CLI.
-- [ ] Output contains only visible user/assistant messages — no tool calls/results,
-      system/developer text, environment/AGENTS.md/skill payloads, subagent
-      notifications, or the marker line.
+- [ ] Default output and the conversation section contain only visible
+      user/assistant messages — no tool calls/results, system/developer text,
+      environment/AGENTS.md/skill payloads, subagent notifications, or the
+      marker line. With `--include-activity`, the separate sanitized, bounded
+      activity appendix may intentionally include tool evidence.
 - [ ] Default output is `~/Downloads/<branch>.md`; `--out` and `--all` honored.
 - [ ] Exit codes 0 / 1 / 2 / 3 produced as documented.
 - [ ] No third-party dependencies; no network calls; no writes to transcripts.

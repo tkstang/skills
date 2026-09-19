@@ -83,8 +83,11 @@ diagnostics remain explicit.
 Activity previews can contain commands, paths, identifiers, tool inputs, and
 tool outputs even though the conversation section remains sanitized. The
 exporter does not open Claude persisted-output sidecars, Cursor `agent-tools/`
-files, or child transcripts. References to those surfaces appear as
-`not-read`; extraction failure appears as `record-activity: not-read` with an
+files, or Claude, Codex, or Cursor child transcripts. Schema v1 emits explicit
+`not-read` coverage for persisted-output references recorded by Claude and child
+IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
+failure appears as `record-activity: not-read` with an
 `ACTIVITY_EXTRACTION_ERROR` diagnostic.
 
 Cursor activity is retrospective. It includes settled calls and calls visible

@@ -12,8 +12,11 @@ where recorded. Cursor has no call IDs or result carriers, so its call identity
 is positional and its per-call outcome stays unknown.
 
 The reader does not follow persisted-output, `agent-tools/`, or child-transcript
-references. It emits explicit `not-read` coverage for those surfaces and for a
-failed activity extraction. Stateful Cursor activity becomes deliverable only
+references. Schema v1 emits explicit `not-read` coverage for persisted-output
+references recorded by Claude and child IDs recorded by Claude or Codex. Cursor
+`agent-tools/` and child-transcript surfaces are not opened and have no dedicated
+per-reference schema-v1 coverage entry. A failed activity extraction has its own
+explicit `not-read` coverage. Stateful Cursor activity becomes deliverable only
 at terminal settlement; stateless review may also show a snapshot-visible call
 as `pending-lifecycle` for retrospective inspection.
 

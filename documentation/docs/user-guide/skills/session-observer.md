@@ -86,10 +86,13 @@ not recorded, and leaves per-call outcome unknown.
 
 Activity is sensitive recorded data. Previews may contain commands, paths,
 identifiers, inputs, and outputs. Persisted-output files, Cursor
-`agent-tools/`, and child transcripts are not read; references to them produce
-explicit `not-read` coverage. Extraction failures likewise remain visible as
-`record-activity: not-read` plus `ACTIVITY_EXTRACTION_ERROR`. Empty or unread
-coverage is not proof that the session had no activity.
+`agent-tools/`, and child transcripts are not read. Schema v1 emits explicit
+`not-read` coverage for persisted-output references recorded by Claude and child
+IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
+failures likewise remain visible as `record-activity: not-read` plus
+`ACTIVITY_EXTRACTION_ERROR`. Empty or unread coverage is not proof that the
+session had no activity.
 
 ## Identity and provenance
 
@@ -204,6 +207,14 @@ node skills/session-observer/scripts/session-observer.mjs catch-up-then-watch \
 
 Use a runtime-wide reset only when every tracked session for that runtime should
 replay.
+
+If a watcher can no longer stat its selected transcript because the path is
+missing (`ENOENT` or `ENOTDIR`), it emits
+`WATCH_TRANSCRIPT_PATH_UNAVAILABLE`, preserves state, and tells you to reset
+only that session before re-arming it. Other stat errors, such as `EACCES`, emit
+`WATCH_TRANSCRIPT_STAT_FAILED` with the original error details and also preserve
+state. Repair the filesystem condition and retry; do not reset observer state
+when the path still exists.
 
 Do not use plain `watch` for this recovery. A plain watch intentionally advances
 past an unread startup baseline and emits `baseline-gap`; it does not render that

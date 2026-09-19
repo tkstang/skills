@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.68'
+  version: '1.0.69'
 ---
 
 # observer
@@ -135,11 +135,14 @@ unknown per-call outcome because Cursor records no result carrier.
 
 Treat activity as sensitive recorded data. Bounded previews can contain tool
 inputs, outputs, commands, paths, and identifiers. The reader does not open
-Claude persisted-output sidecars, Cursor `agent-tools/` files, or child
-transcripts; recorded references are surfaced as `not-read` coverage instead.
-An extraction failure also returns explicit `record-activity: not-read`
-coverage plus an `ACTIVITY_EXTRACTION_ERROR` diagnostic. Neither an empty report
-nor unavailable/unread coverage proves that no activity occurred.
+Claude persisted-output sidecars or Claude, Codex, or Cursor child transcripts,
+and it does not open Cursor `agent-tools/` files. Schema v1 emits explicit
+`not-read` coverage only for persisted-output references recorded by Claude and
+child IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. An extraction
+failure also returns explicit `record-activity: not-read` coverage plus an
+`ACTIVITY_EXTRACTION_ERROR` diagnostic. Neither an empty report nor
+unavailable/unread coverage proves that no activity occurred.
 
 ### Watch-only flags
 

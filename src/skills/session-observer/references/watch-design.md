@@ -47,6 +47,15 @@ Do not use a runtime-wide reset unless every tracked session for that runtime
 should replay. A watcher emits one stdout error event and exits nonzero on a
 binding failure; it leaves the saved state unchanged.
 
+Polling also distinguishes a missing transcript from an inspection failure. An
+`ENOENT` or `ENOTDIR` stat error emits
+`WATCH_TRANSCRIPT_PATH_UNAVAILABLE`, preserves state, and directs the operator
+to reset only the affected session before re-arming it. Any other stat error,
+including `EACCES`, emits `WATCH_TRANSCRIPT_STAT_FAILED` with the original error
+code and message, preserves state, and directs the operator to repair the
+filesystem condition before retrying. Do not reset observer state for a stat
+failure when the transcript path still exists.
+
 ---
 
 ## CLI Shape

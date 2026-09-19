@@ -174,15 +174,16 @@ the minimum observed size and the read-only reference pattern; nothing states it
 consequences:
 
 - **Not attributable to a specific call.** Recorded evidence never links a sidecar file
-  to the call that produced it; only a later read-back reference exists. For a v1
-  activity view these are an unread external surface, marked `not-read` when a read-back
-  reference is recorded.
+  to the call that produced it; only a later read-back reference exists. The v1
+  activity reader does not open this external surface and does not emit dedicated
+  per-reference coverage for Cursor `agent-tools/` read-back paths.
 - **Privacy-relevant.** They are a store of raw tool output outside the transcript, and
   any scrubbing or export policy that covers transcripts but not `agent-tools/` leaves
   that content exposed.
 
-`agent-tools/` is a second sidecar class alongside `subagents/`. Both are `not-read` in
-v1, and only `subagents/` has any recorded identity at all.
+`agent-tools/` is a second sidecar class alongside `subagents/`. The v1 reader opens
+neither surface and emits no dedicated per-reference coverage entry for either one;
+only `subagents/` has any recorded identity at all.
 
 ## Lifecycle and outcome
 
@@ -229,8 +230,10 @@ shared parsing layer in [Shared transcript-core](../transcript-core.md).
 
 **Consequence for parsers:** because the only tool-call identity is positional, and
 positions inside an open (still revisable) turn can shift, positional identities are
-stable only once a turn has ended. Activity derived from Cursor should be delivered for
-the terminal-settled prefix, not for the live tail.
+stable only once a turn has ended. Stateful activity delivery should therefore use the
+terminal-settled prefix rather than the live tail. Stateless review and export can
+still show calls visible in one source snapshot as snapshot-scoped
+`pending-lifecycle` evidence for retrospective inspection.
 
 ## Subagents
 
