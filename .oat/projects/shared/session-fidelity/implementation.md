@@ -22,14 +22,14 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | active  | 5     | 4/5       |
+| p01   | review pending | 5     | 5/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 5/19 implementation tasks completed.
+**Total:** 6/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -43,7 +43,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 1
 
-**Status:** in progress
+**Status:** implementation complete; review pending
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
@@ -71,9 +71,9 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ### Task p01-t05: Document and validate the identity layer
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; full identity-layer checks and review before activity.
+**Status:** completed
+**Commit:** d310dac8c6d76487a221aaa193481a643c0ea689
+**Verification:** phase agent and root independently ran the full Vitest suite: 2,119 passed, one skipped. Build, build:check, type-check, validate, smoke and four-owner skill-version validation passed; the phase agent also completed the 56-page documentation production build and restored its known `.oat/config.json` side effect byte-for-byte. Documentation covers tested identity/provenance behavior, inherited context, saved-position failures and scoped reset/re-arm. Full validation exposed one stale fork discovery test that expected a later Codex header to replace the first physical header; the expectation now follows the accepted first-header contract, with fork 0.2.12 and required changelog/generated fan-out. No runtime behavior changed in this task.
 
 ## Phase 2
 
@@ -326,10 +326,10 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
     "initialBase": "018958a0",
     "handle": "/root/p01_implement",
     "phaseBase": "455daba2807b1539da566ce863b613720ab79d82",
-    "finalHead": "09b69928bffd96687b5c3f5979bd59dc73fa73d8"
+    "finalHead": "d310dac8c6d76487a221aaa193481a643c0ea689"
   },
   "launch_status": "accepted",
-  "child_outcome": "in-progress",
+  "child_outcome": "completed-awaiting-review",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [
@@ -406,3 +406,7 @@ The original phase handle stopped mid-task when its provider usage window was ex
 - Bounded correction: allow content-derived automatic-control classification for legacy-absent Claude records only; explicit human remains human, peer/unknown remains unmarked, and task notification remains runtime notification. Other runtime defaults remain unchanged. Shared runtime source/test plus generated closure only.
 - Verification: committed-HEAD focused suite 213/213 and declared p01-t04 suite 459/459 passed in the phase report; root independently reran the full 459/459 suite, build:check, type-check and four-owner version validation. Root verified immutable history, clean tree, matching completed marker/request/task/target/attempt before clearing pending_attempt. used_attempts remains 4.
 - Next: p01-t05 after the required root tracking handshake.
+
+#### Phase p01 implementation handoff
+
+The original accepted phase handle completed all five planned tasks at `d310dac8c6d76487a221aaa193481a643c0ea689` from phase base `455daba2807b1539da566ce863b613720ab79d82`. Task commits remain append-only and in plan order, with four durably accounted recovery attempts and no pending marker. No optional nested dispatch occurred. The worktree was clean at handoff. Full phase verification passed; p01 remains review-pending and activity work is not authorized until root-owned review, accepted fixes and bookkeeping are committed.

@@ -1,6 +1,6 @@
 ---
 oat_current_task: p01-t05
-oat_last_commit: 70f6b2df111cbf28fe6f7cc49725f9e26590c895
+oat_last_commit: d310dac8c6d76487a221aaa193481a643c0ea689
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -99,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Identity implementation active at p01-t05
+**Status:** Identity implementation complete; p01 review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01-t04 and its bounded recovery are accepted through `70f6b2df`: explicit Claude provenance now survives envelope-shaped content, while legacy absent provenance retains existing validated-envelope behavior. Recovery usage is 4/10 with no pending attempt. The original phase agent may continue with p01-t05 after the root tracking handshake; activity remains unstarted.
+All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 with no pending attempt. Full identity validation passed, including 2,119 tests with one skipped, repository gates, smoke, generated freshness and the documentation build. Independent p01 review and Fable freshness review remain before the activity branch is created.
 
 ## Artifacts
 
@@ -113,7 +113,7 @@ p01-t04 and its bounded recovery are accepted through `70f6b2df`: explicit Claud
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (5/19 tasks completed; p01-t05 next)
+- **Implementation:** `implementation.md` (6/19 tasks completed; p01 review pending)
 
 ## Progress
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete p01-t05 documentation and full identity-layer validation, then run the required identity phase review.
+Complete the independent p01 review and Fable freshness review, resolve any blocking findings, then record the reviewed identity tip as `ACTIVITY_BASE`.
