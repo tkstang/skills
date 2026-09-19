@@ -15,15 +15,15 @@ oat_generated: false
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
-Critical or Important findings. Phase 2 review fixes are complete and await a
-fresh independent review before Phase 3.
+Critical or Important findings. Phase 2 passed fresh independent review with no
+Critical or Important findings. Phase 3 is next.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
-| Phase 2 | review_pending | 4     | 4/4       |
+| Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
@@ -63,7 +63,7 @@ fresh independent review before Phase 3.
 
 ## Phase 2: Finite activation and host delivery (4 tasks)
 
-**Status:** review_pending
+**Status:** completed
 **Started:** 2026-09-19
 
 ### Task p02-t01: Implement activation epochs, finite claims, and recovery
@@ -654,6 +654,49 @@ Phase 2 outcome so the fix continuation starts from a clean worktree.
 - Recovery: none. No live provider, configuration, installation, quota, push,
   PR, merge, or Cursor-adapter action occurred.
 
+#### Dispatch: p02 review round 2
+
+```yaml
+request_id: dispatch-agent-messaging-p02-review-2-20260919
+caller: oat-project-implement
+scope: phase:p02
+objective: Freshly re-review the complete Phase 2 implementation and round-one fixes.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: review-target
+selected_route: native
+payload:
+  prior_reviewed_head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
+  fix_commit: 0703f1e32391a1a498eb0274ac2da5d914d2352d
+  reviewed_head: 14f26df47fea4161f36f88c618596b827133cdf5
+  artifact: reviews/code-p02-rereview-2026-09-19T181232Z.md
+launch_status: accepted
+child_outcome: pass
+configured_invocation_evidence:
+  - resolver-report:p02-review-2
+  - "Dispatch: scope=p02-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=0,medium=2,minor=0
+  - reconnaissance:attempted
+  - review-cycles:2/3
+  - fix-rounds:1/3
+```
+
+The reviewer reported `Reconnaissance: attempted` with complete orchestration
+evidence. Its structural evidence is appended with the terminal Phase 2 outcome.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -690,6 +733,30 @@ It adds direct coverage for every finding, bumps agent-messaging to 1.0.8, and
 regenerates only its standalone and Session payloads. Root reproduced the full
 suite (2,201 passed, 1 skipped), `build:check`, `validate`, type-check, smoke,
 and skill-version validation. No recovery event was required.
+
+## Review Received: p02 round 2
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 2 re-review](reviews/code-p02-rereview-2026-09-19T181232Z.md)
+**Reviewed head:** `14f26df47fea4161f36f88c618596b827133cdf5`
+**Findings:** 0 Critical, 0 Important, 2 Medium, 0 Minor.
+**Status:** passed; Phase 2 accepted.
+
+The fresh reviewer independently verified all eight round-one findings as
+resolved and reproduced 86/86 focused tests plus the full repository gates. The
+two remaining Medium findings are non-blocking under the Phase 2 review policy
+and are carried to final review rather than opening another phase fix round.
+
+### Deferred Findings (Medium)
+
+- `p02-r2-M1` — Exact-expiry equality currently remains active because
+  `activationStatus` uses `>` rather than `>=`. Revisit at final review; the
+  trigger is any later activation-boundary edit or final acceptance hard-cap
+  validation.
+- `p02-r2-M2` — The common hook records `host-output-attempted` before its last
+  output veto, so a veto race can leave an overstated diagnostic. Revisit at
+  final review; the trigger is p03/p04 composition work that changes ownership
+  or output-attempt sequencing.
 
 ## Review Received: p01 round 1
 
@@ -981,13 +1048,13 @@ This is historical planning-review context; product code now exists.
 
 Phase 1 product verification is current through the user-authorized fix round 3,
 its packaging recovery, and the passing independent review. Phase 2 root
-transition verification is current through fix commit `0703f1e3`; fresh
-independent review is pending.
+transition verification is current through fix commit `0703f1e3` and the
+passing fresh independent review.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
-| 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Fix round 1 complete; fresh independent review pending |
+| 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
@@ -996,9 +1063,10 @@ independent review is pending.
 Phase 1 is implemented and independently accepted. Phase 2 implementation is
 complete and root-verified: finite delivery ownership, bounded Codex/Claude
 adapters, foreground request watch, both generated distributions, and honest
-probe evidence are green, and all eight blocking-review findings have fixes in
-`0703f1e3`. Fresh Phase 2 review, Phases 3–4, publication, installation, merge,
-and live acceptance remain incomplete.
+probe evidence are green, all eight blocking-review findings have fixes in
+`0703f1e3`, and fresh review passed. Two Medium findings are deferred to final
+review. Phases 3–4, publication, installation, merge, and live acceptance remain
+incomplete.
 
 ## References
 
