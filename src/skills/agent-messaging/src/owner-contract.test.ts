@@ -13,6 +13,7 @@ import {
 } from '../../session-observer-collab/src/lib/lease-state.mjs';
 import {
   assessAutomaticOwnership,
+  inspectClaudeStopInventory,
   inspectCodexStopInventory,
 } from './registration.js';
 
@@ -258,15 +259,17 @@ describe('observer owner contract', () => {
 
   test('recognizes only the exact verified Claude composed Monitor activation', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'owner-contract-'));
-    const inventory = await inspectCodexStopInventory(
-      path.join(root, 'missing-hooks.json'),
-    );
+    const settingsPath = path.join(root, 'settings.json');
+    await writeFile(settingsPath, '{}\n');
+    const inventory = await inspectClaudeStopInventory({
+      settingsPaths: [settingsPath],
+    });
     expect(
       await assessAutomaticOwnership({
         root,
         pin: { runtime: 'claude-code', sessionId: 'owner' },
         worktree: '/tmp/worktree',
-        inventory: { ...inventory, runtime: 'claude-code' },
+        inventory,
         requestedController: 'observer-collab',
       }),
     ).toMatchObject({
@@ -304,7 +307,7 @@ describe('observer owner contract', () => {
       root,
       pin: { runtime: 'claude-code', sessionId: 'owner' },
       worktree: '/tmp/worktree',
-      inventory: { ...inventory, runtime: 'claude-code' },
+      inventory,
       requestedController: 'observer-collab',
       requestedActivationId: activationId,
       requestedCollaborationId: collaborationId,
@@ -323,7 +326,7 @@ describe('observer owner contract', () => {
         root,
         pin: { runtime: 'claude-code', sessionId: 'owner' },
         worktree: '/tmp/worktree',
-        inventory: { ...inventory, runtime: 'claude-code' },
+        inventory,
         requestedController: 'observer-collab',
         requestedActivationId: '33333333-3333-4333-8333-333333333333',
         requestedCollaborationId: collaborationId,

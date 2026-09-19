@@ -139,6 +139,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.18 makes the Claude composed-ownership fixture use a
+  real resolved settings source instead of relabeling an empty Codex inventory,
+  preserving the fail-closed production inventory contract in the full suite.
+
 - `session-observer-collab` 1.0.44 aligns composed Claude Monitor polling at
   1000 ms, rejects relative state roots, and documents that selected requests
   must be acknowledged before re-arm can yield to observation.

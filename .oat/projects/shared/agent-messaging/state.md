@@ -20,6 +20,18 @@ oat_phase_recovery_policy:
     p01:
       used_attempts: 3
       pending_attempt: null
+    p05:
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p05-recovery-01-owner-contract-inventory
+        original_request_id: dispatch-agent-messaging-p05-20260919
+        original_task_id: p05-t03
+        original_commit: 7f545c7c5919d460e3d03a91eb710e07d5ecf47d
+        discovered_by: pnpm run worktree:validate
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: a8a2e81103c5035ba0351fd45263b8d954ffe4ee
+        status: completed
 oat_orchestration_retry_limit: 3
 oat_phase: implement
 oat_phase_status: in_progress
