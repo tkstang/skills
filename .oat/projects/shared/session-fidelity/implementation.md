@@ -590,6 +590,25 @@ Attempt `b6a66107-9461-4400-8fdc-fdcf8da6bc5f` was persisted before launch at `2
 
 Gate run `05d3cda3-7de8-475c-b831-9bdd011c51c7` was accepted by target `claude-fable-skip-permissions` and returned a corroborated, receive-eligible `ok` envelope. Review artifact `reviews/final-review-2026-09-19T190056Z.md` reports 0 Critical, 0 Important, 0 Medium and 6 Minor findings. The configured Important threshold passed; the review remains pending receipt and explicit disposition before the gate can become allowed.
 
+### Gate Review Received: final
+
+**Date:** 2026-09-19
+**Review artifact:** reviews/archived/final-review-2026-09-19T190056Z.md
+**Gate run:** `05d3cda3-7de8-475c-b831-9bdd011c51c7`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 6 Minor.
+
+This was a passing-gate judgment sweep. No blocking fix tasks were added. Each sub-threshold finding received an explicit disposition:
+
+- **m1 — Codex item/call relation:** deferred. The implemented native-string equality is fail-closed and no false link was observed, but the code and maintained schema guidance disagree. A follow-up should choose one authoritative native relation and update correlation, schema prose and its regression together rather than changing evidence semantics during closeout.
+- **m2 — nested web-search query carrier:** deferred. The reviewed evidence corpus contains no such response-item shape, so accepting a speculative carrier now could encode an invented provider contract. Revisit when a captured native example establishes the field location; until then the missing preview does not invent activity or outcomes.
+- **m3 — Cursor final record without a newline:** deferred. The edge case affects only explicitly selected activity exports and leaves the default exporter intact. Fixing it requires reconciling the conversation reader with the frame scanner and deserves a focused fixture rather than a closeout-only patch.
+- **m4 — Claude metadata-only watch deltas:** deferred. This is bounded output noise, not data loss or privacy exposure, and metadata is dropped first under byte pressure. Revisit if operators report noisy activity-only deliveries, with a regression for thinking-only assistant records.
+- **m5 — repeated observer reads and warnings:** deferred. This preserves the earlier p01 disposition: correctness is unchanged, and the existing `capturedRead` seam provides a contained optimization path when repeated parsing or duplicate warnings become operationally material.
+- **m6 — separate backlog discoverability:** deferred with the same follow-up trigger as m1–m5. The exact ledger is durable here and in the archived gate artifact. Creating a separately prioritized repository backlog item is intentionally left to explicit product-priority direction rather than being inferred from a nonblocking review sweep.
+
+The gate event is marked `passed` after these six explicit dispositions. Publication, merge, release, installation and live-provider acceptance remain outside this receive step.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md
