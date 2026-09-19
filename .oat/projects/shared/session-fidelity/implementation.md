@@ -732,6 +732,10 @@ Attempt `c40d1b63-f11b-4031-8e3e-8f7bb5458b2e` was persisted before launch at `2
 
 Gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` was accepted by target `claude-fable-skip-permissions`; its durable run marker is recorded while the configured review remains active.
 
+### Refreshed Exit Gate Result
+
+The corroborated result envelope for gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` is `ok` and receive-eligible. Review artifact `reviews/final-review-2026-09-19T221544Z.md` reports 0 Critical, 0 High, 1 Medium and 5 Low findings, so the configured High threshold passed. The gate's project-log append was finalized in a separate scoped commit after a transient shared-index-lock collision cleared normally.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md

@@ -89,15 +89,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:51192b0ce158e9a279e78354895ca10416141a556b991e4788e24ca1249caa6e
   freshness_head: 9cf1c9011141dec4b230cc894fcf707b1b5c0b2e
   freshness_fingerprint: sha256:effective-delta-v1:8c60fcbc30d1278cd73506ab05833a7296c6ff96e6e1aec5239ca21768a5398e
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: c40d1b63-f11b-4031-8e3e-8f7bb5458b2e
   launch_started_at: '2026-09-19T22:06:23Z'
   launch_result_receipt: .oat/projects/shared/session-fidelity/reviews/exit-gate-c40d1b63-f11b-4031-8e3e-8f7bb5458b2e-result.json
   gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/8e4a9161-9fd8-4732-9198-ee39329845ed.json
   gate_run_id: 8e4a9161-9fd8-4732-9198-ee39329845ed
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: ok
+  artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
+  handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -105,10 +105,10 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-19T22:06:23Z'
+  updated_at: '2026-09-19T22:18:00Z'
 oat_post_implement_sequence:
   status: complete
   source: configured
