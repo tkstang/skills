@@ -290,11 +290,18 @@ function askUserAnswerText(value) {
 function safeParseLine(line) {
   try {
     const parsed2 = JSON.parse(line);
-    if (!isObject(parsed2)) return { ok: false, reason: "not a JSON object" };
+    if (!isObject(parsed2)) {
+      return {
+        ok: false,
+        kind: "not-object",
+        reason: "not a JSON object"
+      };
+    }
     return { ok: true, value: parsed2 };
   } catch (err) {
     return {
       ok: false,
+      kind: "malformed",
       reason: err instanceof Error ? err.message : String(err)
     };
   }
@@ -503,32 +510,55 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     recordsInspected: parsed2.recordsInspected
   };
 }
-async function readRecords(transcriptPath) {
+async function readRecordsDetailedInternal(transcriptPath) {
   const raw = await readFile(transcriptPath, "utf8");
-  if (!raw) return [];
-  const lines = raw.split(/\r?\n/);
+  if (!raw) return { records: [], diagnostics: [], legacyWarnings: [] };
+  const lines = raw.split("\n");
   const records = [];
-  const fileEndsWithNewline = raw.endsWith("\n") || raw.endsWith("\r\n");
+  const diagnostics = [];
+  const legacyWarnings = [];
+  const fileEndsWithNewline = raw.endsWith("\n");
   const lastIndex = lines.length - 1;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const carrier = lines[i];
+    const line = carrier.trim();
     if (!line) continue;
     const result2 = safeParseLine(line);
     if (result2.ok) {
-      records.push(result2.value);
+      records.push({
+        record: result2.value,
+        recordIndex: records.length,
+        physicalLine: i + 1
+      });
       continue;
     }
     const isLastToken = i === lastIndex;
     if (isLastToken && !fileEndsWithNewline) {
-      console.warn(
+      diagnostics.push({
+        kind: "partial-tail",
+        physicalLine: i + 1
+      });
+      legacyWarnings.push(
         `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result2.reason}`
       );
     } else {
-      console.warn(
+      diagnostics.push({
+        kind: result2.kind,
+        physicalLine: i + 1
+      });
+      legacyWarnings.push(
         `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result2.reason}`
       );
     }
   }
+  return { records, diagnostics, legacyWarnings };
+}
+async function readRecords(transcriptPath) {
+  const detailed = await readRecordsDetailedInternal(transcriptPath);
+  for (const warning of detailed.legacyWarnings) {
+    console.warn(warning);
+  }
+  const records = detailed.records.map(({ record }) => record);
   return records;
 }
 function claudeSessionIdFromRecord(record) {
