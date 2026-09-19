@@ -2,6 +2,7 @@ import type {
   DetailedTranscriptRead,
   DetailedTranscriptRecord,
   JsonObject,
+  TranscriptSourceSnapshot,
 } from '../runtimes.js';
 
 export const ACTIVITY_SCHEMA_VERSION = 1 as const;
@@ -95,8 +96,10 @@ export interface ExtractedActivityEvent {
   nativeStatus?: string;
   origin?: string;
   turnId?: string;
-  /** Unmodified native call arguments/input. Presentation budgets apply later. */
+  /** Parsed or native-ready call arguments/input. Presentation budgets apply later. */
   arguments?: unknown;
+  /** Exact native string/object arguments carrier before documented parsing. */
+  originalArguments?: unknown;
   /** Unmodified native result/output. Presentation budgets apply later. */
   result?: unknown;
   /** Supported native item carrier. Reasoning and instruction bodies are absent. */
@@ -109,6 +112,7 @@ export interface ExtractedActivityEvent {
 
 export type ActivityDiagnosticCode =
   | 'ACTIVITY_EXTRACTION_ERROR'
+  | 'ARGUMENT_PARSE_ERROR'
   | 'AMBIGUOUS_NATIVE_CORRELATION'
   | 'POSSIBLE_SOURCE_TRUNCATION'
   | 'SOURCE_MALFORMED_RECORD'
@@ -147,6 +151,7 @@ export interface ExtractActivityInput {
 export interface ExtractedActivity {
   activitySchemaVersion: typeof ACTIVITY_SCHEMA_VERSION;
   source: ActivitySource;
+  sourceSnapshot: TranscriptSourceSnapshot;
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
@@ -224,6 +229,7 @@ export interface ProjectedActivityEvent {
   origin?: string;
   turnId?: string;
   inputPreview?: ActivityPreview;
+  originalInputPreview?: ActivityPreview;
   outputPreview?: ActivityPreview;
   metadataPreview?: ActivityPreview;
   outputPreviewOmitted?: 'exact-linked-duplicate-carrier';
@@ -239,6 +245,7 @@ export interface ActivityCallContext {
   nativeName?: string;
   category?: ActivityCategory;
   inputPreview?: ActivityPreview;
+  originalInputPreview?: ActivityPreview;
 }
 
 export interface ActivityScopedCounts {
@@ -262,6 +269,7 @@ export interface ActivityReport {
   activitySchemaVersion: typeof ACTIVITY_SCHEMA_VERSION;
   mode: ActivityProjectionMode;
   source: ActivitySource;
+  sourceSnapshot: TranscriptSourceSnapshot;
   deliveryRange: ActivityDeliveryRange;
   limits: ActivityProjectionLimits;
   renderedBytes: number;

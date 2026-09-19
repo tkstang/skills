@@ -525,8 +525,19 @@ async function readTailRecordsBounded(transcriptPath, options) {
   };
 }
 async function readRecordsDetailedInternal(transcriptPath) {
-  const raw = await readFile(transcriptPath, "utf8");
-  if (!raw) return { records: [], diagnostics: [], legacyWarnings: [] };
+  const rawBytes = await readFile(transcriptPath);
+  const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const sourceBytes = rawBytes.byteLength;
+  const raw = rawBytes.toString("utf8");
+  if (!raw) {
+    return {
+      records: [],
+      diagnostics: [],
+      legacyWarnings: [],
+      capturedAt,
+      sourceBytes
+    };
+  }
   const lines = raw.split("\n");
   const records = [];
   const diagnostics = [];
@@ -541,6 +552,7 @@ async function readRecordsDetailedInternal(transcriptPath) {
     if (result.ok) {
       records.push({
         record: result.value,
+        sourceCarrier: carrier,
         recordIndex: records.length,
         physicalLine: i + 1
       });
@@ -565,7 +577,7 @@ async function readRecordsDetailedInternal(transcriptPath) {
       );
     }
   }
-  return { records, diagnostics, legacyWarnings };
+  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
 }
 async function readRecords(transcriptPath) {
   const detailed = await readRecordsDetailedInternal(transcriptPath);

@@ -242,6 +242,14 @@ function projectEvent(
     ...(Object.hasOwn(event, 'arguments')
       ? { inputPreview: preview(event.arguments, limits.previewBytes) }
       : {}),
+    ...(Object.hasOwn(event, 'originalArguments')
+      ? {
+          originalInputPreview: preview(
+            event.originalArguments,
+            limits.previewBytes,
+          ),
+        }
+      : {}),
     ...(event.kind === 'result' && Object.hasOwn(event, 'result')
       ? { outputPreview: preview(event.result, limits.previewBytes) }
       : {}),
@@ -357,6 +365,14 @@ function buildReport(
                 ),
               }
             : {}),
+          ...(Object.hasOwn(group.call, 'originalArguments')
+            ? {
+                originalInputPreview: preview(
+                  group.call.originalArguments,
+                  limits.lateContextBytes,
+                ),
+              }
+            : {}),
         },
       ];
     })
@@ -372,6 +388,7 @@ function buildReport(
     activitySchemaVersion: activity.activitySchemaVersion,
     mode: options.mode,
     source: activity.source,
+    sourceSnapshot: activity.sourceSnapshot,
     deliveryRange: options.deliveryRange,
     limits,
     renderedBytes: 0,

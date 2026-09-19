@@ -126,6 +126,10 @@ export function extractActivity(
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
     source: input.source,
+    sourceSnapshot: {
+      capturedAt: input.read.capturedAt,
+      sourceBytes: input.read.sourceBytes,
+    },
     events,
     coverage: [...baseCoverage(events), ...coverage],
     diagnostics,

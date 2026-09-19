@@ -30,6 +30,11 @@ const CODEX_SOURCE: ActivitySource = {
   transcriptPath: `${FIXTURE_ROOT}codex/captured-activity.jsonl`,
 };
 
+const TEST_SNAPSHOT = {
+  capturedAt: '2026-09-19T00:00:00.000Z',
+  sourceBytes: 0,
+};
+
 function event(
   eventKey: string,
   kind: ExtractedActivityEvent['kind'],
@@ -57,6 +62,7 @@ function activity(
   return {
     activitySchemaVersion: 1,
     source,
+    sourceSnapshot: TEST_SNAPSHOT,
     events,
     coverage: [],
     diagnostics: [],
@@ -295,12 +301,14 @@ describe('explicit native correlation', () => {
     const extracted = extractActivity({
       source: CODEX_SOURCE,
       read: {
+        ...TEST_SNAPSHOT,
         records: [
           {
             record: {
               type: 'session_meta',
               payload: { id: CODEX_SOURCE.nativeSessionId },
             },
+            sourceCarrier: '{}',
             recordIndex: 0,
             physicalLine: 1,
           },
@@ -315,6 +323,7 @@ describe('explicit native correlation', () => {
                 arguments: '{}',
               },
             },
+            sourceCarrier: '{}',
             recordIndex: 1,
             physicalLine: 2,
           },
@@ -331,6 +340,7 @@ describe('explicit native correlation', () => {
                 },
               },
             },
+            sourceCarrier: '{}',
             recordIndex: 2,
             physicalLine: 3,
           },
@@ -459,6 +469,7 @@ describe('explicit native correlation', () => {
       extractActivity({
         source: CODEX_SOURCE,
         read: {
+          ...TEST_SNAPSHOT,
           records: [
             {
               record: {
@@ -474,6 +485,7 @@ describe('explicit native correlation', () => {
                   },
                 },
               },
+              sourceCarrier: '{}',
               recordIndex: 0,
               physicalLine: 1,
             },
@@ -488,6 +500,7 @@ describe('explicit native correlation', () => {
                   arguments: '{}',
                 },
               },
+              sourceCarrier: '{}',
               recordIndex: 1,
               physicalLine: 2,
             },

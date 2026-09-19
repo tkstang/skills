@@ -90,15 +90,24 @@ export interface TranscriptParseDiagnostic {
   physicalLine: number;
 }
 
+export interface TranscriptSourceSnapshot {
+  /** Wall-clock time immediately after the complete source read. */
+  capturedAt: string;
+  /** Exact number of bytes returned by that source read. */
+  sourceBytes: number;
+}
+
 export interface DetailedTranscriptRecord {
   record: JsonObject;
+  /** Original decoded source line, excluding LF and retaining any CR/BOM. */
+  sourceCarrier: string;
   /** Zero-based index among successfully decoded records. */
   recordIndex: number;
   /** One-based physical line in the JSONL carrier. */
   physicalLine: number;
 }
 
-export interface DetailedTranscriptRead {
+export interface DetailedTranscriptRead extends TranscriptSourceSnapshot {
   records: DetailedTranscriptRecord[];
   diagnostics: TranscriptParseDiagnostic[];
 }
@@ -1056,6 +1065,8 @@ export async function readTailRecordsBounded(
  *   dropped with a partial-tail diagnostic.
  * - Records split only on LF. JSON parsing treats CRLF's CR as trailing
  *   whitespace; U+2028/U+2029 remain data.
+ * - Successful records retain their exact decoded line carrier internally.
+ * - The result records a capture timestamp and exact byte length from this read.
  *
  * @param {string} transcriptPath
  * @returns {Promise<DetailedTranscriptRead>}
@@ -1063,8 +1074,19 @@ export async function readTailRecordsBounded(
 async function readRecordsDetailedInternal(
   transcriptPath: string,
 ): Promise<DetailedTranscriptReadInternal> {
-  const raw = await readFile(transcriptPath, 'utf8');
-  if (!raw) return { records: [], diagnostics: [], legacyWarnings: [] };
+  const rawBytes = await readFile(transcriptPath);
+  const capturedAt = new Date().toISOString();
+  const sourceBytes = rawBytes.byteLength;
+  const raw = rawBytes.toString('utf8');
+  if (!raw) {
+    return {
+      records: [],
+      diagnostics: [],
+      legacyWarnings: [],
+      capturedAt,
+      sourceBytes,
+    };
+  }
 
   const lines = raw.split('\n');
   const records: DetailedTranscriptRecord[] = [];
@@ -1090,6 +1112,7 @@ async function readRecordsDetailedInternal(
     if (result.ok) {
       records.push({
         record: result.value,
+        sourceCarrier: carrier,
         recordIndex: records.length,
         physicalLine: i + 1,
       });
@@ -1117,15 +1140,15 @@ async function readRecordsDetailedInternal(
     }
   }
 
-  return { records, diagnostics, legacyWarnings };
+  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
 }
 
 export async function readRecordsDetailed(
   transcriptPath: string,
 ): Promise<DetailedTranscriptRead> {
-  const { records, diagnostics } =
+  const { records, diagnostics, capturedAt, sourceBytes } =
     await readRecordsDetailedInternal(transcriptPath);
-  return { records, diagnostics };
+  return { records, diagnostics, capturedAt, sourceBytes };
 }
 
 /**

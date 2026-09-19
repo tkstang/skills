@@ -82,6 +82,7 @@ function eventLines(event: ProjectedActivityEvent): string[] {
       ? []
       : [`  - native evidence: ${markdownData(evidence)}`]),
     ...previewLine('input', event.inputPreview),
+    ...previewLine('original input', event.originalInputPreview),
     ...previewLine('output', event.outputPreview),
     ...previewLine('metadata', event.metadataPreview),
     ...(event.outputPreviewOmitted
@@ -103,6 +104,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     `- Runtime: ${report.source.runtime}`,
     `- Native session: ${markdownData(report.source.nativeSessionId)}`,
     `- Source: ${markdownData(report.source.transcriptPath)}`,
+    `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
     `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
     `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
     countLine(report.counts.capturedSource),
@@ -124,6 +126,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
       lines.push(
         `- ${markdownData(context.nativeName ?? context.callKey)}; ${context.availability}; ${locatorText(context.locator)}`,
         ...previewLine('input context', context.inputPreview),
+        ...previewLine('original input context', context.originalInputPreview),
       );
     }
   }

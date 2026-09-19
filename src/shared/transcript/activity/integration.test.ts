@@ -68,6 +68,7 @@ async function reportFromClaude(
 
 describe('captured activity pipeline', () => {
   it('preserves captured child ownership, native IDs, locators, and count scopes', async () => {
+    const sourceContent = await readFile(CODEX_FIXTURE, 'utf8');
     const report = await readActivityReport(CODEX_SOURCE, {
       mode: 'review',
       deliveryRange: deliveryRange(0, 14),
@@ -133,6 +134,22 @@ describe('captured activity pipeline', () => {
         failures: 2,
       },
     });
+    expect(report.sourceSnapshot.sourceBytes).toBe(
+      Buffer.byteLength(sourceContent, 'utf8'),
+    );
+    expect(Number.isNaN(Date.parse(report.sourceSnapshot.capturedAt))).toBe(
+      false,
+    );
+    expect(calls[0]?.originalInputPreview).toMatchObject({ truncated: false });
+    expect(calls[0]).not.toHaveProperty('arguments');
+    expect(calls[0]).not.toHaveProperty('originalArguments');
+    expect(calls[0]?.inputPreview?.text).toBe(
+      '{"cmd":"printf inherited-fixture"}',
+    );
+    expect(calls[0]?.originalInputPreview?.text).toBe(
+      '"{\\"cmd\\":\\"printf inherited-fixture\\"}"',
+    );
+    expect(JSON.stringify(report)).not.toContain('sourceCarrier');
   });
 
   it('projects a late captured result with bounded earlier call context', async () => {

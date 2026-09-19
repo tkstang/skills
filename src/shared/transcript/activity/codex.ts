@@ -37,6 +37,53 @@ const CODEX_OUTPUT_CAPS: Readonly<Record<string, number>> = {
   formatted_output: 40_109,
 };
 
+interface CodexCallArguments {
+  fields: {
+    arguments?: unknown;
+    originalArguments?: unknown;
+  };
+  diagnostics: ActivityDiagnostic[];
+}
+
+function codexCallArguments(
+  nativeType: 'function_call' | 'custom_tool_call',
+  payload: JsonObject,
+  locator: ReturnType<typeof recordLocator>,
+): CodexCallArguments {
+  const field = nativeType === 'function_call' ? 'arguments' : 'input';
+  if (!Object.hasOwn(payload, field)) {
+    return { fields: {}, diagnostics: [] };
+  }
+
+  const originalArguments = payload[field];
+  if (nativeType !== 'function_call' || typeof originalArguments !== 'string') {
+    return {
+      fields: { arguments: originalArguments, originalArguments },
+      diagnostics: [],
+    };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(originalArguments);
+    if (!isJsonObject(parsed)) throw new Error('arguments are not an object');
+    return {
+      fields: { arguments: parsed, originalArguments },
+      diagnostics: [],
+    };
+  } catch {
+    return {
+      fields: { originalArguments },
+      diagnostics: [
+        {
+          code: 'ARGUMENT_PARSE_ERROR',
+          locator,
+          field,
+        },
+      ],
+    };
+  }
+}
+
 function codexItemOutcome(item: JsonObject): ActivityOutcome {
   const statusOutcome = outcomeFromStatus(item.status);
   if (statusOutcome !== 'unknown') return statusOutcome;
@@ -206,8 +253,7 @@ function responseItemActivity(
     const nativeId = stringValue(payload.id);
     const nativeName = stringValue(payload.name);
     const nativeStatus = stringValue(payload.status);
-    const rawArguments =
-      nativeType === 'function_call' ? payload.arguments : payload.input;
+    const argumentEvidence = codexCallArguments(nativeType, payload, locator);
     return {
       events: [
         {
@@ -224,15 +270,11 @@ function responseItemActivity(
           ...(Object.hasOwn(payload, 'namespace')
             ? { metadata: { namespace: payload.namespace } }
             : {}),
-          ...((nativeType === 'function_call' &&
-            Object.hasOwn(payload, 'arguments')) ||
-          (nativeType === 'custom_tool_call' && Object.hasOwn(payload, 'input'))
-            ? { arguments: rawArguments }
-            : {}),
+          ...argumentEvidence.fields,
         },
       ],
       coverage: [],
-      diagnostics: [],
+      diagnostics: argumentEvidence.diagnostics,
     };
   }
 

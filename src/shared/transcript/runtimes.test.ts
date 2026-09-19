@@ -16,7 +16,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as shippedCursorAnalysis from '../../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import * as shippedCursorFrames from '../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
-import type { JsonObject, Runtime } from './runtimes.js';
+import type {
+  DetailedTranscriptRead,
+  JsonObject,
+  Runtime,
+} from './runtimes.js';
 import {
   claudeUserRecordProvenance,
   discoverPaths,
@@ -65,6 +69,14 @@ function expectDeepEqual(actual: unknown, expected: unknown, message?: string) {
 
 function expectOk(actual: unknown, message?: string): asserts actual {
   expect(actual, message).toBeTruthy();
+}
+
+function expectSourceSnapshot(
+  detailed: DetailedTranscriptRead,
+  source: string,
+): void {
+  expect(detailed.sourceBytes).toBe(Buffer.byteLength(source, 'utf8'));
+  expect(Number.isNaN(Date.parse(detailed.capturedAt))).toBe(false);
 }
 
 // ---------------------------------------------------------------------------
@@ -231,33 +243,37 @@ describe('readRecordsDetailed', () => {
     const transcriptPath = join(tmpDir, 'mixed-framing.jsonl');
     const unicodeText = 'alpha\u2028beta\u2029gamma';
     const escapedCarriage = 'escaped\rvalue';
-    await writeFile(
-      transcriptPath,
-      [
-        `\uFEFF${JSON.stringify({ type: 'first', text: unicodeText })}\r`,
-        ' \t\r',
-        '{"broken":',
-        '42',
-        `${JSON.stringify({ type: 'second', text: escapedCarriage })}\r`,
-        JSON.stringify({ type: 'final' }),
-      ].join('\n'),
-    );
+    const firstCarrier = `\uFEFF${JSON.stringify({ type: 'first', text: unicodeText })}\r`;
+    const secondCarrier = `${JSON.stringify({ type: 'second', text: escapedCarriage })}\r`;
+    const finalCarrier = JSON.stringify({ type: 'final' });
+    const source = [
+      firstCarrier,
+      ' \t\r',
+      '{"broken":',
+      '42',
+      secondCarrier,
+      finalCarrier,
+    ].join('\n');
+    await writeFile(transcriptPath, source);
 
     const detailed = await readRecordsDetailed(transcriptPath);
 
     expect(detailed.records).toEqual([
       {
         record: { type: 'first', text: unicodeText },
+        sourceCarrier: firstCarrier,
         recordIndex: 0,
         physicalLine: 1,
       },
       {
         record: { type: 'second', text: escapedCarriage },
+        sourceCarrier: secondCarrier,
         recordIndex: 1,
         physicalLine: 5,
       },
       {
         record: { type: 'final' },
+        sourceCarrier: finalCarrier,
         recordIndex: 2,
         physicalLine: 6,
       },
@@ -266,11 +282,25 @@ describe('readRecordsDetailed', () => {
       { kind: 'malformed', physicalLine: 3 },
       { kind: 'not-object', physicalLine: 4 },
     ]);
+    expectSourceSnapshot(detailed, source);
+    expect(JSON.stringify(detailed.diagnostics)).not.toContain('{"broken":');
     expect(Object.keys(detailed.records[0]).toSorted()).toEqual([
       'physicalLine',
       'record',
       'recordIndex',
+      'sourceCarrier',
     ]);
+  });
+
+  it('reports a timestamped zero-byte snapshot for an empty source', async () => {
+    const transcriptPath = join(tmpDir, 'empty-snapshot.jsonl');
+    await writeFile(transcriptPath, '');
+
+    const detailed = await readRecordsDetailed(transcriptPath);
+
+    expect(detailed.records).toEqual([]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, '');
   });
 
   it('distinguishes a malformed terminated line from a partial tail', async () => {
@@ -279,24 +309,44 @@ describe('readRecordsDetailed', () => {
     await writeFile(terminatedPath, '{"broken":\n');
     await writeFile(partialPath, '{"broken":');
 
-    await expect(readRecordsDetailed(terminatedPath)).resolves.toEqual({
-      records: [],
-      diagnostics: [{ kind: 'malformed', physicalLine: 1 }],
-    });
-    await expect(readRecordsDetailed(partialPath)).resolves.toEqual({
-      records: [],
-      diagnostics: [{ kind: 'partial-tail', physicalLine: 1 }],
-    });
+    const terminated = await readRecordsDetailed(terminatedPath);
+    const partial = await readRecordsDetailed(partialPath);
+    expect(terminated.records).toEqual([]);
+    expect(terminated.diagnostics).toEqual([
+      { kind: 'malformed', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(terminated, '{"broken":\n');
+    expect(partial.records).toEqual([]);
+    expect(partial.diagnostics).toEqual([
+      { kind: 'partial-tail', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(partial, '{"broken":');
+    expect(Object.keys(terminated.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
+    expect(Object.keys(partial.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
   });
 
   it('treats a whitespace-only no-newline tail, including a lone CR, as blank', async () => {
     const transcriptPath = join(tmpDir, 'whitespace-tail.jsonl');
     await writeFile(transcriptPath, `${JSON.stringify({ ok: true })}\n\r`);
 
-    await expect(readRecordsDetailed(transcriptPath)).resolves.toEqual({
-      records: [{ record: { ok: true }, recordIndex: 0, physicalLine: 1 }],
-      diagnostics: [],
-    });
+    const source = `${JSON.stringify({ ok: true })}\n\r`;
+    const detailed = await readRecordsDetailed(transcriptPath);
+    expect(detailed.records).toEqual([
+      {
+        record: { ok: true },
+        sourceCarrier: JSON.stringify({ ok: true }),
+        recordIndex: 0,
+        physicalLine: 1,
+      },
+    ]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, source);
   });
 
   it('keeps detailed reads silent and emits each legacy warning exactly once', async () => {

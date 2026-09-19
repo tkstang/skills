@@ -55,6 +55,10 @@ function activity(events: CorrelatedActivityEvent[]): CorrelatedActivity {
   return {
     activitySchemaVersion: 1,
     source: SOURCE,
+    sourceSnapshot: {
+      capturedAt: '2026-09-19T00:00:00.000Z',
+      sourceBytes: 0,
+    },
     events,
     coverage: [],
     diagnostics: [],
@@ -142,6 +146,7 @@ describe('activity projection budgets', () => {
           zeta: `prefix-${'😀'.repeat(900)}`,
           alpha: 'line one\nline two',
         },
+        originalArguments: ` {"zeta":"${'😀'.repeat(900)}"} `,
       }),
     ];
     const options = {
@@ -153,6 +158,7 @@ describe('activity projection budgets', () => {
     const second = projectActivity(activity(events), options);
     const serialized = renderActivityReport(first);
     const preview = first.events[0]?.inputPreview;
+    const originalPreview = first.events[0]?.originalInputPreview;
 
     expect(renderActivityReport(second)).toBe(serialized);
     expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
@@ -164,6 +170,12 @@ describe('activity projection budgets', () => {
     );
     expect(preview?.displayedBytes).toBeLessThanOrEqual(2 * 1024);
     expect(preview?.text.endsWith('\ufffd')).toBe(false);
+    expect(originalPreview?.truncated).toBe(true);
+    expect(originalPreview?.displayedBytes).toBe(
+      Buffer.byteLength(originalPreview?.text ?? '', 'utf8'),
+    );
+    expect(originalPreview?.displayedBytes).toBeLessThanOrEqual(2 * 1024);
+    expect(serialized).not.toContain('SyntaxError');
   });
 
   it('keeps failures and recent invocations, then renders them chronologically', () => {

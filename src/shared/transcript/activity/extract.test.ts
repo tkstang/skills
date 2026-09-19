@@ -25,11 +25,21 @@ const CODEX_SOURCE: ActivitySource = {
   transcriptPath: `${FIXTURE_ROOT}codex/captured-activity.jsonl`,
 };
 
+const TEST_SNAPSHOT = {
+  capturedAt: '2026-09-19T00:00:00.000Z',
+  sourceBytes: 0,
+};
+
 function detailed(
   record: JsonObject,
   recordIndex: number,
 ): DetailedTranscriptRecord {
-  return { record, recordIndex, physicalLine: recordIndex + 1 };
+  return {
+    record,
+    sourceCarrier: '{}',
+    recordIndex,
+    physicalLine: recordIndex + 1,
+  };
 }
 
 describe('Claude Code activity extraction', () => {
@@ -42,6 +52,10 @@ describe('Claude Code activity extraction', () => {
 
     expect(extracted.activitySchemaVersion).toBe(1);
     expect(extracted.source).toEqual(CLAUDE_SOURCE);
+    expect(extracted.sourceSnapshot).toEqual({
+      capturedAt: read.capturedAt,
+      sourceBytes: read.sourceBytes,
+    });
     expect(extracted.diagnostics).toEqual([]);
 
     const calls = extracted.events.filter((event) => event.kind === 'call');
@@ -171,7 +185,7 @@ describe('Claude Code activity extraction', () => {
 
     const extracted = extractActivity({
       source: CLAUDE_SOURCE,
-      read: { records, diagnostics: [] },
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
     });
     const results = extracted.events.filter((event) => event.kind === 'result');
     expect(results.map((event) => event.outcome)).toEqual([
@@ -211,6 +225,7 @@ describe('Claude Code activity extraction', () => {
     const extracted = extractActivity({
       source: CLAUDE_SOURCE,
       read: {
+        ...TEST_SNAPSHOT,
         records: [
           detailed(
             {
@@ -270,6 +285,7 @@ describe('Claude Code activity extraction', () => {
     const extracted = extractActivity({
       source: CLAUDE_SOURCE,
       read: {
+        ...TEST_SNAPSHOT,
         records: [
           detailed(
             {
@@ -342,7 +358,8 @@ describe('Codex activity extraction', () => {
       nativeId: 'fixture-item-inherited',
       nativeCallId: 'fixture-call-inherited',
       nativeName: 'exec_command',
-      arguments: '{"cmd":"printf inherited-fixture"}',
+      arguments: { cmd: 'printf inherited-fixture' },
+      originalArguments: '{"cmd":"printf inherited-fixture"}',
       locator: {
         recordIndex: 2,
         physicalLine: 3,
@@ -355,6 +372,7 @@ describe('Codex activity extraction', () => {
       nativeStatus: 'completed',
       outcome: 'pending',
       arguments: 'Obscured patch body.',
+      originalArguments: 'Obscured patch body.',
     });
 
     const results = extracted.events.filter((event) => event.kind === 'result');
@@ -401,6 +419,98 @@ describe('Codex activity extraction', () => {
     );
   });
 
+  it('parses only documented JSON argument strings and keeps content-free failures', () => {
+    const validCarrier = ' {"cmd":"printf parsed"} ';
+    const malformedCarrier = '{"cmd":"private malformed fragment"';
+    const customCarrier = { patch: 'fixture patch' };
+    const objectCarrier = { cmd: 'already decoded' };
+    const records = [
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'valid-call',
+            name: 'exec_command',
+            arguments: validCarrier,
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'malformed-call',
+            name: 'exec_command',
+            arguments: malformedCarrier,
+          },
+        },
+        1,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'custom_tool_call',
+            call_id: 'custom-call',
+            name: 'fixture_custom',
+            input: customCarrier,
+          },
+        },
+        2,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'object-call',
+            name: 'exec_command',
+            arguments: objectCarrier,
+          },
+        },
+        3,
+      ),
+    ];
+    const extracted = extractActivity({
+      source: CODEX_SOURCE,
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
+    });
+    const calls = extracted.events.filter((event) => event.kind === 'call');
+
+    expect(calls[0]).toMatchObject({
+      arguments: { cmd: 'printf parsed' },
+      originalArguments: validCarrier,
+    });
+    expect(calls[1]).not.toHaveProperty('arguments');
+    expect(calls[1]).toHaveProperty('originalArguments', malformedCarrier);
+    expect(calls[2]).toMatchObject({
+      arguments: customCarrier,
+      originalArguments: customCarrier,
+    });
+    expect(calls[3]).toMatchObject({
+      arguments: objectCarrier,
+      originalArguments: objectCarrier,
+    });
+    expect(extracted.diagnostics).toEqual([
+      {
+        code: 'ARGUMENT_PARSE_ERROR',
+        locator: {
+          recordIndex: 1,
+          physicalLine: 2,
+          jsonPointer: '/payload',
+        },
+        field: 'arguments',
+      },
+    ]);
+    expect(JSON.stringify(extracted.diagnostics)).not.toContain(
+      'private malformed fragment',
+    );
+    expect(JSON.stringify(extracted.diagnostics)).not.toContain('Unexpected');
+  });
+
   it('keeps web search evidence standalone and warns at observed output caps', () => {
     const cappedOutput = 'x'.repeat(1_048_608);
     const records = [
@@ -437,7 +547,7 @@ describe('Codex activity extraction', () => {
 
     const extracted = extractActivity({
       source: CODEX_SOURCE,
-      read: { records, diagnostics: [] },
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
     });
     expect(extracted.events[0]).toMatchObject({
       kind: 'call',
@@ -528,7 +638,7 @@ describe('Codex activity extraction', () => {
 
     const extracted = extractActivity({
       source: CODEX_SOURCE,
-      read: { records, diagnostics: [] },
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
     });
     expect(
       extracted.events.map((event) => [event.nativeType, event.outcome]),
@@ -587,7 +697,7 @@ describe('Codex activity extraction', () => {
 
     const extracted = extractActivity({
       source: CODEX_SOURCE,
-      read: { records, diagnostics: [] },
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
     });
     expect(extracted.events).toHaveLength(1);
     expect(extracted.events[0]).toMatchObject({
@@ -636,6 +746,7 @@ describe('activity extraction failure boundaries', () => {
     const extracted = extractActivity({
       source: CODEX_SOURCE,
       read: {
+        ...TEST_SNAPSHOT,
         records: [first, detailed(brokenRecord, 1), last],
         diagnostics: [],
       },
@@ -663,7 +774,7 @@ describe('activity extraction failure boundaries', () => {
     expect(() =>
       extractActivity({
         source: { ...CODEX_SOURCE, nativeSessionId: '' },
-        read: { records: [], diagnostics: [] },
+        read: { ...TEST_SNAPSHOT, records: [], diagnostics: [] },
       }),
     ).toThrow('Activity extraction requires an exact selected source');
   });
@@ -672,6 +783,7 @@ describe('activity extraction failure boundaries', () => {
     const extracted = extractActivity({
       source: CODEX_SOURCE,
       read: {
+        ...TEST_SNAPSHOT,
         records: [],
         diagnostics: [
           { kind: 'malformed', physicalLine: 3 },
