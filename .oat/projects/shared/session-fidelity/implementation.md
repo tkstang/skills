@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-review-fix-01
+oat_current_task_id: p02-review-02
 oat_generated: false
 ---
 
@@ -23,7 +23,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | review fixes required | 5     | 5/5       |
+| p02   | re-review pending | 5     | 5/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
@@ -77,7 +77,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** review fixes required
+**Status:** review fixes completed; re-review pending
 **ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
 **Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
 
@@ -754,3 +754,11 @@ Both findings are accepted as bounded contract corrections:
 - I2 `code_fix_required`: detailed reads must retain each original source carrier internally and return capture timestamp plus exact UTF-8 source byte length from the same completed read. `ActivityReport` carries only the bounded report-level snapshot metadata. Legacy `readRecords()` values and warning bytes remain unchanged; regressions cover empty, multibyte, CRLF, malformed and valid no-newline input while diagnostics remain kind-plus-line only.
 
 No project-log entry is appended before the fix child. Resume the original `sf-p02-implement-01` handle on exact target `oat-phase-implementer-gpt-5-6-sol-high` in `mode: fix` with continuation `p02-review-fix-01`. This uses review-fix round 1/2 and does not consume or alter p02 phase-recovery usage, which remains 3/10 with no pending attempt. After the bounded fix commit and root verification, dispatch a fresh p02 reviewer round.
+
+#### Review fix p02-review-fix-01
+
+The original `sf-p02-implement-01` handle resumed on exact target `oat-phase-implementer-gpt-5-6-sol-high` and completed the bounded review fix at authoritative Git commit `4df1cdabd13b7752927eec6c4c7f690a9aad5910`. Continuation linkage remained `p02-review-fix-01`; the review-fix round did not consume phase-recovery usage, which remains 3/10 with no pending attempt. The implementer report returned a stale divergent full SHA sharing the `4df1cdab` abbreviation; root reconciled the immutable one-parent commit directly from Git and used the authoritative full SHA above for all validation and review bookkeeping.
+
+Codex function-call JSON arguments now retain the exact original carrier alongside the parsed object, while custom/object carriers remain exact and malformed JSON retains the call with a content-free `ARGUMENT_PARSE_ERROR` locator. Detailed records retain the source carrier internally, and the same completed read supplies exact UTF-8 source bytes plus capture time; only bounded snapshot metadata reaches the activity report. Legacy decoded values and warning text remain compatible, and raw carriers do not enter projected reports or diagnostics.
+
+Implementer and root independently passed 185/185 focused p02 tests, type checking, build freshness, four-owner version validation and the 2/2 privacy canary. Repository validation, fixture privacy scanning and scoped formatting/linting also passed in the implementer run. A read-only closure audit verified both Important findings closed with no new Critical/Important regression and independently passed the 185 tests, type checking, build freshness, version validation and diff check. A fresh root-owned p02 reviewer must now assess the updated range.
