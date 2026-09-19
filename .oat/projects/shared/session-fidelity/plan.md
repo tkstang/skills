@@ -1,17 +1,17 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-implement
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_phase: plan
-oat_phase_status: complete
+oat_phase_status: in_progress
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_generated: false
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
-oat_template: false
+oat_template: true
 ---
 
 # Implementation Plan: session-fidelity
@@ -41,6 +41,10 @@ Record each code layer's exact base as `IDENTITY_BASE` or `ACTIVITY_BASE` in imp
 The user explicitly chose to fix Claude `origin.kind` now (Fable human record 1850). The identity layer includes native provenance for ordinary human messages and task notifications, preserving absent/unknown-field behavior and collaboration wake-envelope semantics. This is an intentional second change to default output, alongside Codex identity correction.
 
 The user also waived fixture approval and requested light obscuring (records 1850/1874). Use small recorded slices with practical redaction of credentials, private paths/identifiers and third-party personal content, plus removal of encrypted reasoning. Preserve useful ordinary commands and native semantics where safe. No mandatory human checkpoint, separate reviewer, cross-model gate, all-values-synthetic sanitizer or staging workflow is added. Inventory privacy canaries and the structure-only documentation snapshot remain unchanged.
+
+## Approved scope refinement — 2026-09-19
+
+The user approved the p01-t04/p01-t05 split and deferral of new detailed-reader byte ranges. Keep physical line/record-index locators, original carriers and parse diagnostics, existing Cursor byte offsets/continuity, source-size metadata, UTF-8 output budgets and framing regressions. Reintroduce per-record byte ranges only for a concrete consumer. The following amendment is pending a focused artifact check; earlier gate receipts remain historical evidence for the pre-amendment scope.
 
 ## Parallelism
 
@@ -118,17 +122,29 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Commit:** `fix(p01-t03): guard saved cursors against source identity changes`.
 
-### Task p01-t04: Correct Claude provenance and finalize the identity layer
+### Task p01-t04: Correct native Claude provenance atomically
 
-**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; observer `src/lib/session-classifier.ts`, `src/session-classifier.test.ts`, `src/digest.test.ts`, `src/cli.test.ts`; `src/skills/session-export-transcript/src/sanitize.ts`, `src/sanitize.test.ts`; `src/skills/session-fork-to-destination/src/preview.ts`, `src/preview.test.ts`; `src/skills/session-observer-collab/src/lib/completion-selection.mjs`, its `.d.mts` if types change, `src/completion.test.ts`, `src/wake-envelope-contract.test.ts`; affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`; `documentation/docs/user-guide/skills/session-observer.md`; observer reference guidance and collab recovery guidance where changed.
+**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; observer `src/lib/session-classifier.ts`, `src/session-classifier.test.ts`, `src/digest.test.ts`, `src/cli.test.ts`; `src/skills/session-export-transcript/src/sanitize.ts`, `src/sanitize.test.ts`; `src/skills/session-fork-to-destination/src/preview.ts`, `src/preview.test.ts`; `src/skills/session-observer-collab/src/lib/completion-selection.mjs`, its `.d.mts` if types change, `src/completion.test.ts`, `src/wake-envelope-contract.test.ts`; affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`.
 
-**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Keep the helper and its tightly coupled consumers in one atomic behavior change; version/changelog/generated updates belong in that same commit under the repository contract. Whole-layer verification closes this task without introducing a second implementation unit. Determine shared-runtime version fan-out using the validator source-root rule plus actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
+**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions. Keep the shared helper and all coupled consumer changes atomic, including focused tests, affected skill versions, the Unreleased changelog entry and owned generated output. Determine version fan-out using the validator source-root rule plus bundle diffs. Identity-layer user/recovery documentation and full validation belong to p01-t05.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run build`, `pnpm run test:vitest src/shared/transcript/runtimes.test.ts src/skills/session-observer/src/session-classifier.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/cli.test.ts src/skills/session-export-transcript/src/sanitize.test.ts src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer-collab/src`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run validate:skill-versions -- --base-ref "$IDENTITY_BASE"`; build docs with `pnpm --dir documentation build` if changed, checking `.oat/config.json` for the known generator side effect.
+**Verify:** `pnpm run build`, `pnpm run build:check`, then `pnpm run test:vitest src/shared/transcript/runtimes.test.ts src/skills/session-observer/src/session-classifier.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/cli.test.ts src/skills/session-export-transcript/src/sanitize.test.ts src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer-collab/src`.
 
-**Commit:** `fix(p01-t04): preserve native Claude provenance and finalize identity layer`.
+**Commit:** `fix(p01-t04): preserve native Claude provenance across consumers`.
+
+### Task p01-t05: Document and validate the identity layer
+
+**Files:** `documentation/docs/user-guide/skills/session-observer.md`; `src/skills/session-observer/SKILL.md`, `references/transcript-formats.md`, `references/watch-design.md`; `src/skills/session-observer-collab/SKILL.md` and its `references/runtime-codex.md`, `runtime-claude-code.md`, `runtime-cursor.md` where reset/re-arm guidance changes; corresponding generated documentation payloads and any required canonical version/changelog updates; project implementation/review evidence. No new runtime behavior.
+
+**Implement:** Document the tested identity and provenance behavior, inherited-context warnings, exact scoped reset/re-arm steps and observed client-version limits without hard-coded version gating. Keep docs aligned with all p01 changes; do not broaden the provenance implementation. Follow the existing source-root/version/changelog/generated-output contract for any canonical reference edits. Run the complete identity-layer validation against `IDENTITY_BASE`, record evidence, and complete its required review before activity begins. Include a complexity check of the actual identity diff in that existing review; do not add a new phase gate or human stop. Commit accepted fixes and bookkeeping before the root selects the activity base.
+
+**Format:** follow the file-scoped task execution contract above.
+
+**Verify:** `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test`, `pnpm run validate`, `pnpm run smoke`, `pnpm run validate:skill-versions -- --base-ref "$IDENTITY_BASE"`, and `pnpm --dir documentation build`; check `.oat/config.json` for the known docs-generator side effect. Root verifies the identity review disposition and recorded base/diff before p02-t01.
+
+**Commit:** `docs(p01-t05): document and validate the identity layer`.
 
 ## Phase 2: Detailed reads and shared activity contract
 
@@ -138,11 +154,11 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; small captured fixtures and authored edge cases under `src/shared/transcript/fixtures/session-fidelity/`, with README provenance.
 
-**Implement:** First, root verifies the completed identity layer and its review, creates and registers the activity branch with `gh stack` from the verified identity branch HEAD after review, accepted fixes and bookkeeping are committed, and records that full tip SHA as `ACTIVITY_BASE` in `implementation.md`. Require the p01-t04 completion commit to be an ancestor of that reviewed identity tip. Verify the identity-layer diff before source edits. Then return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Before building extractors, derive minimal slices from the approved local stores, with the user-requested light obscuring: remove credentials/tokens/encrypted reasoning and replace private paths/identifiers/third-party personal content while preserving useful safe native values and consistent IDs. Do not copy whole sessions or commit raw intermediate slices. Record client version/observation provenance, using unknown where no version is recorded. Inspect final fixture diffs and run practical private-term/credential checks as normal task verification, with no approval or independent review checkpoint. Use the existing snapshot inventory/canaries if needed; do not promote it to scripts/. Supplement captures with synthetic framing/error cases.
+**Implement:** First, root verifies the completed identity layer and its review, creates and registers the activity branch with `gh stack` from the verified identity branch HEAD after review, accepted fixes and bookkeeping are committed, and records that full tip SHA as `ACTIVITY_BASE` in `implementation.md`. Require the p01-t04 and p01-t05 completion commits to be ancestors of that reviewed identity tip. Verify the identity-layer diff before source edits. Then return detailed records with one-based physical lines, unchanged zero-based logical decoded indices and diagnostics, preserving readRecords output/warnings. Do not add per-record byte ranges. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Before building extractors, derive minimal slices from the approved local stores, with the user-requested light obscuring: remove credentials/tokens/encrypted reasoning and replace private paths/identifiers/third-party personal content while preserving useful safe native values and consistent IDs. Do not copy whole sessions or commit raw intermediate slices. Record client version/observation provenance, using unknown where no version is recorded. Inspect final fixture diffs and run practical private-term/credential checks as normal task verification, with no approval or independent review checkpoint. Use the existing snapshot inventory/canaries if needed; do not promote it to scripts/. Supplement captures with synthetic framing/error cases.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** Root checks `gh stack view --json` and the recorded `ACTIVITY_BASE` equals the reviewed identity branch tip, with p01-t04 an ancestor; then `pnpm run build`, `pnpm run build:check`, and `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
+**Verify:** Root checks `gh stack view --json` and the recorded `ACTIVITY_BASE` equals the reviewed identity branch tip, with p01-t04 and p01-t05 ancestors; then `pnpm run build`, `pnpm run build:check`, and `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
 
 **Commit:** `feat(p02-t01): add detailed transcript provenance and schema fixtures`.
 
@@ -326,14 +342,16 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T004303Z.md | -             | -          | -           |
 
+| plan | artifact | pending | 2026-09-19 | - | - | - | - |
+
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
 ## Implementation Complete
 
-**Planned total:** 7 phases, 18 tasks; 0 implemented.
+**Planned total:** 7 phases, 19 tasks; 0 implemented.
 
 - p00: 1 task — root-owned local stack arrangement.
-- p01: 4 tasks — native identity and safe state binding.
+- p01: 5 tasks — native identity, provenance, documentation and validation.
 - p02: 5 tasks — detailed reads and shared activity contract.
 - p03: 2 tasks — observer integration.
 - p04: 2 tasks — exporter integration and sanitization.

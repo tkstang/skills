@@ -35,7 +35,7 @@ The backlog selects a shared deterministic activity projection, separately opt-i
 These requirements combine the backlog, existing repository decisions, and the observed user direction recorded below:
 
 1. Add one explicit `--include-activity` flag to both skills. Preserve no-flag behavior and existing `--include-tools`/`--debug` behavior on surfaces that already support those flags.
-2. Retain the existing record reader's API and logical indices. Add detailed physical line/byte provenance and parse diagnostics without turning physical coordinates into observer checkpoints.
+2. Retain the existing record reader's API and logical indices. Add detailed physical-line and logical-record provenance and parse diagnostics without turning physical coordinates into observer checkpoints.
 3. Support Claude/Codex activity first, then Cursor through frame analysis. Cover Codex function/custom calls and results plus web-search evidence; preserve exact names, independent call/message IDs, parsed arguments, raw carriers, and ask-user attribution caveats.
 4. Correlate before selecting the delivered range so a late result can refer to an earlier call. Repeated commands and multiple result updates remain distinct; an absent result never implies success.
 5. Keep a separate optional activity envelope and explicit coverage states: `available`, `not-recorded`, `not-found`, `not-read`, `unsupported`, `malformed`, and `truncated`. Distinguish content availability from lifecycle completion.
@@ -63,7 +63,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 - Added scope: native Codex parent/child pins select one source regardless of recency, safe source-bound state refuses wrong-file reuse, and evidence-backed native schema documentation covers the supported runtimes.
 
-1. Detailed reading returns decoded records with physical line/byte locations and parse diagnostics; legacy `readRecords()` and logical-index behavior remain compatible.
+1. Detailed reading returns decoded records with physical-line locations and logical record indices and parse diagnostics; legacy `readRecords()` and logical-index behavior remain compatible.
 2. Shared typed extraction, classification, correlation, and pure bounded projection preserve source pointers and complete native content before presentation budgets apply.
 3. Claude and Codex calls/results retain exact native names and call IDs, parsed and original arguments, multiple updates, file/shell/MCP/subagent evidence, and honest outcomes. Codex function/custom and web-search coverage gaps are closed in the activity path.
 4. Both consumers accept the flag. Observer review, catch-up, and watch deliver activity with unchanged identity/checkpoint behavior; default digest/export output and sanitization remain unchanged.
@@ -88,7 +88,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 - Default Claude provenance is now in scope: human record 1850 requests the fix now. Lightweight captured-fixture obscuring without a user approval stop is the latest direction at records 1850/1874.
 
-- Complexity reductions: defer token accounting, inferred cross-stream associations, process linking, derived enrichments, grouped tool indexes and inventory-tool promotion. Keep native categories, exact-ID correlation, coverage, byte/line provenance and Cursor support required by the backlog.
+- Complexity reductions: defer token accounting, inferred cross-stream associations, process linking, derived enrichments, grouped tool indexes and inventory-tool promotion. Keep native categories, exact-ID correlation, coverage, line/record provenance and Cursor support required by the backlog.
 
 ## Current Repository Evidence
 
@@ -102,7 +102,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 ## Open Questions
 
 - **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; the completed draft proceeds to planning without a design HiLL gate; revised peer read-back is pending.
-- **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
+- **Contract detail:** settle stable event identity, result updates, count/range scope, source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
 - **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
 - **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable committed the evidence snapshot and maintained schema pages in `c970c876`; the project references now point to those durable locations.
 
@@ -124,7 +124,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Next Steps
 
-Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. The 18-task plan and matching pending implementation ledger are drafted; formal reviews must pass before readiness.
+Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. The plan and matching pending implementation ledger include the approved 19-task refinement; review evidence is recorded in plan.md.
 
 ## References
 
@@ -134,3 +134,7 @@ Discovery is captured and lightweight design is selected. Use the completed desi
 - `.oat/repo/reference/research/session-fidelity-2026-09-10/11-source-audit-corrections-and-limitations.md`
 - `.oat/repo/reference/research/session-fidelity-2026-09-10/design/activity-contract.ts`
 - Existing decisions: DR-260724-stateful-work-requires-exact, DR-260724-separate-observation, DR-260724-content-availability-is-not, DR-260605-export-sanitization-is-two, DR-260603-watch-event-logs-are-metadata, and DR-260914-declared-skill-distributions.
+
+## Approved post-handoff refinement — 2026-09-19
+
+The user approved the converged recommendation: split p01-t04 into an atomic provenance implementation and p01-t05 identity-layer documentation/validation; defer new per-record byte ranges until a concrete consumer exists. Keep physical line plus logical record index, all existing Cursor continuity offsets, source-size metadata, UTF-8 projection budgets and LF/Unicode/CRLF regressions. The backlog Stage 1 criterion is amended in the same change.

@@ -72,3 +72,7 @@ Fable reviewed the simplifications at human-visible record 2073 and reported no 
 ### Ready handoff — 2026-09-19
 
 Fable withdrew the template-flag concern after checking quick-start and confirmed no open design/plan findings (record 2104); later read-backs accepted the gate corrections and reviewed-tip branch base. The final retained gate passed at `40d0405e`; all findings and final precision corrections are dispositioned in implementation.md. High dispatch, disabled additional phase gates and retained lifecycle gates are unchanged. Fable also applied the user-requested tracked Cursor gate exclusions as `80982eed`, verified from shared configuration. No feature implementation or PR publication has started.
+
+### User-approved refinement — 2026-09-19
+
+After both peers converged, the user directly approved applying both recommendations. p01-t04 now retains the coupled provenance behavior, focused tests, generated output, versions and changelog; p01-t05 owns identity documentation and full validation/review. New reader byte ranges are deferred until a concrete consumer exists, with physical line/logical record identity retained. Existing Cursor continuity offsets, source-size metadata, UTF-8 budgets and framing regressions stay. This supersedes prior scope/task-count and rejection notes; the current plan has 19 pending tasks.

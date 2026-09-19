@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-No source implementation has started. The plan is ready after retained gate review and recorded finding dispositions. `oat_current_task_id` names the first planned task, not an active implementation.
+No source implementation has started. The approved pre-implementation refinement is awaiting its focused artifact check; prior gate findings remain dispositioned. `oat_current_task_id` names the first planned task, not an active implementation.
 
 ## Preparatory evidence
 
@@ -22,14 +22,14 @@ No source implementation has started. The plan is ready after retained gate revi
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | pending | 1     | 0/1       |
-| p01   | pending | 4     | 0/4       |
+| p01   | pending | 5     | 0/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 0/18 implementation tasks completed.
+**Total:** 0/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -63,11 +63,17 @@ No source implementation has started. The plan is ready after retained gate revi
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
-### Task p01-t04: Correct Claude provenance and finalize the identity layer
+### Task p01-t04: Correct native Claude provenance atomically
 
 **Status:** pending
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
+
+### Task p01-t05: Document and validate the identity layer
+
+**Status:** pending
+**Commit:** -
+**Verification:** not run; full identity-layer checks and review before activity.
 
 ## Phase 2
 
@@ -209,3 +215,9 @@ Root received the qualified artifact and resolved its four precision findings ag
 All four corrections were inspected against the cited contract and checked with targeted text assertions, the 18-task ledger comparison and diff/link checks. No further independent re-review of these final wording corrections is claimed; the review event remains `fixes_completed`. Both evaluated gate runs passed the configured threshold. All review findings have durable dispositions and no unresolved blocker remains, so quick-start completion proceeds. Implementation remains 0/18; next task is p00-t01.
 
 Fable committed the user-requested shared Cursor gate exclusions as `80982eed`; `oat gate target list --json` verifies all four are disabled from the shared layer, with Claude/Codex available. This config-only commit leaves the reviewed project artifacts unchanged. The final gate log auto-commit again hit an index lock; its appended entry is included in normal final bookkeeping.
+
+## User-approved plan amendment — 2026-09-19
+
+Direct approval: “if you have converged on path forward I agree.” Both peers recommended the same split and reader-scope reduction. p01-t04 retains atomic provenance behavior, consumer fixes, focused tests, generated outputs, versions and changelog. New p01-t05 owns identity documentation/full validation and the existing identity review. This supersedes the earlier rejection of separating finalization; the behavior/version boundary remains intact.
+
+New detailed-reader byte ranges are deferred until a concrete consumer needs them; backlog Stage 1 and current design/discovery are amended. Existing Cursor continuity offsets, UTF-8 output budgets, source-size metadata and framing tests remain. History and dated research snapshots are preserved as history, not rewritten to suggest the original review covered this change. Current execution totals are 19 tasks, all pending; task IDs outside the added p01-t05 remain stable.
