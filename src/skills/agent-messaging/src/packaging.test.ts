@@ -2,12 +2,15 @@ import { spawnSync } from 'node:child_process';
 import { access, cp, mkdtemp, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
 import { distributions } from '../../../distributions.js';
 
-const repoRoot = path.resolve(new URL('../../../..', import.meta.url).pathname);
+const repoRoot = path.resolve(
+  fileURLToPath(new URL('../../../..', import.meta.url)),
+);
 
 describe('agent messaging packaging', () => {
   test('declares standalone and session plugin forms with one shared source root', () => {
@@ -56,7 +59,7 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.21'");
+      ).toContain("version: '1.0.22'");
 
       await access(path.join(destination, 'scripts', 'watch.mjs'));
       await access(path.join(destination, 'scripts', 'probe.mjs'));

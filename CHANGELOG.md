@@ -139,6 +139,9 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.22 decodes URL-derived repository paths in its
+  standalone and Session payload packaging test before filesystem access.
+
 - `agent-messaging` 1.0.21 removes only owned entries from valid Codex hook
   arrays during uninstall, preserving primitive, array, absent-event, malformed,
   and unrelated configuration shapes.
