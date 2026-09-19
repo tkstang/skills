@@ -41,19 +41,125 @@ describe('agent messaging packaging', () => {
         path.join(tmpdir(), 'agent-messaging-installed-'),
       );
       await cp(source, destination, { recursive: true });
-      const result = spawnSync(
-        process.execPath,
-        [path.join(destination, 'scripts', 'agent-messaging.mjs'), '--help'],
-        {
-          encoding: 'utf8',
-          env: { HOME: destination, PATH: process.env.PATH },
-        },
+      const executable = path.join(
+        destination,
+        'scripts',
+        'agent-messaging.mjs',
       );
+      const result = spawnSync(process.execPath, [executable, '--help'], {
+        encoding: 'utf8',
+        env: { HOME: destination, PATH: process.env.PATH },
+      });
       expect(result.status).toBe(0);
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.0'");
+      ).toContain("version: '1.0.1'");
+
+      const root = path.join(destination, 'state');
+      const collaborationId = crypto.randomUUID();
+      const invoke = (args: string[]) => {
+        const invoked = spawnSync(process.execPath, [executable, ...args], {
+          encoding: 'utf8',
+          env: { HOME: destination, PATH: process.env.PATH },
+        });
+        expect(invoked.status, invoked.stderr).toBe(0);
+        return JSON.parse(invoked.stdout);
+      };
+      invoke([
+        'open',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'codex:driver',
+        '--alias',
+        'driver',
+        '--label',
+        'copied',
+        '--task',
+        'three participant exchange',
+        '--json',
+      ]);
+      const reviewer = invoke([
+        'join',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'cursor:reviewer',
+        '--alias',
+        'reviewer',
+        '--json',
+      ]);
+      invoke([
+        'join',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'claude-code:third',
+        '--alias',
+        'third',
+        '--json',
+      ]);
+      const originalId = crypto.randomUUID();
+      invoke([
+        'send',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'codex:driver',
+        '--to',
+        'reviewer',
+        '--id',
+        originalId,
+        '--subject',
+        'question',
+        '--body',
+        'review this',
+        '--json',
+      ]);
+      const reviewerId = reviewer.data.member.member.participantId;
+      invoke([
+        'send',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'cursor:reviewer',
+        '--to',
+        'driver',
+        '--id',
+        crypto.randomUUID(),
+        '--subject',
+        'reply',
+        '--body',
+        'reviewed',
+        '--reply-to',
+        `${reviewerId}/${originalId}`,
+        '--json',
+      ]);
+      const inbox = invoke([
+        'inbox',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'codex:driver',
+        '--json',
+      ]);
+      expect(inbox.data.messages[0].replyTo).toEqual({
+        participantId: reviewerId,
+        messageId: originalId,
+      });
     },
   );
 });

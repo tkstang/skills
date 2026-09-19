@@ -4,7 +4,6 @@
 // src/skills/agent-messaging/src/agent-messaging.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { lstat as lstat5 } from "node:fs/promises";
 import path6 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +15,7 @@ import {
   mkdir as mkdir2,
   open as open2,
   readFile as readFile2,
+  realpath as realpath3,
   rename,
   unlink as unlink2
 } from "node:fs/promises";
@@ -125,6 +125,206 @@ function assertSchema(record) {
     );
   }
 }
+function malformed(message) {
+  throw new CollaborationError("MALFORMED_RECORD", message);
+}
+function assertTimestamp(value, label) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+    malformed(`${label} must be an ISO-8601 timestamp`);
+  }
+}
+function assertGeneration(value, label) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    malformed(`${label} must be a non-negative safe integer`);
+  }
+}
+function assertHash(value, label) {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) {
+    malformed(`${label} must be a SHA-256 hex digest`);
+  }
+}
+function assertUuidValue(value, label) {
+  if (typeof value !== "string") malformed(`${label} must be a UUID`);
+  assertUuid(value, label);
+}
+function validateBinding(record) {
+  assertUuidValue(record.participantId, "binding participantId");
+  assertGeneration(record.generation, "binding generation");
+  assertPin(record.pin);
+  if (!path.isAbsolute(record.worktree))
+    malformed("binding worktree must be absolute");
+  if (record.previousPin !== null) assertPin(record.previousPin);
+  assertBoundedString(record.reason, "binding reason", 512);
+  assertTimestamp(record.createdAt, "binding createdAt");
+  if (!Array.isArray(record.inheritedAckRefs))
+    malformed("binding inheritedAckRefs must be an array");
+  for (const ack of record.inheritedAckRefs) {
+    if (!ack || typeof ack !== "object")
+      malformed("binding inherited ack must be an object");
+    assertUuidValue(ack.messageId, "inherited messageId");
+    assertHash(ack.messageHash, "inherited messageHash");
+  }
+}
+function messageHash(record) {
+  return canonicalHash({
+    schemaVersion: 1,
+    id: record.id,
+    collaborationId: record.collaborationId,
+    from: record.from,
+    to: record.to,
+    kind: record.kind,
+    priority: record.priority,
+    subject: record.subject,
+    body: record.body,
+    replyTo: record.replyTo
+  });
+}
+function logHash(record) {
+  return canonicalHash({
+    collaborationId: record.collaborationId,
+    id: record.id,
+    category: record.category,
+    title: record.title,
+    author: record.author,
+    whatHappened: record.whatHappened,
+    assessment: record.assessment,
+    skillImplication: record.skillImplication
+  });
+}
+function validateAuthoritativeRecord(file, value) {
+  const segments = path.resolve(file).split(path.sep);
+  const collaborationIndex = segments.lastIndexOf("collaborations");
+  const collaborationPathId = collaborationIndex >= 0 ? segments[collaborationIndex + 1] : void 0;
+  const basename = path.basename(file, ".json");
+  const parent = path.basename(path.dirname(file));
+  const grandparent = path.basename(path.dirname(path.dirname(file)));
+  try {
+    if (path.basename(file) === "collaboration.json") {
+      const candidate = value;
+      assertUuidValue(candidate.id, "collaboration id");
+      if (candidate.id !== parent)
+        malformed("collaboration path identity does not match id");
+      assertBoundedString(candidate.label, "collaboration label", 128);
+      assertBoundedString(candidate.task, "collaboration task", 2048);
+      assertTimestamp(candidate.createdAt, "collaboration createdAt");
+    } else if (segments.includes("members")) {
+      const candidate = value;
+      assertAlias(candidate.alias);
+      if (candidate.alias !== basename)
+        malformed("member path identity does not match alias");
+      assertUuidValue(candidate.participantId, "member participantId");
+      assertUuidValue(candidate.collaborationId, "member collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("member collaboration path identity does not match record");
+      assertTimestamp(candidate.createdAt, "member createdAt");
+      if (!candidate.initialBinding || typeof candidate.initialBinding !== "object")
+        malformed("member initialBinding is required");
+      validateBinding(candidate.initialBinding);
+      if (candidate.initialBinding.participantId !== candidate.participantId || candidate.initialBinding.generation !== 0)
+        malformed("member initial binding identity is invalid");
+    } else if (segments.includes("bindings")) {
+      const candidate = value;
+      validateBinding(candidate);
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename)
+        malformed("binding path identity does not match record");
+    } else if (segments.includes("departures")) {
+      const candidate = value;
+      assertUuidValue(candidate.participantId, "departure participantId");
+      assertGeneration(candidate.generation, "departure generation");
+      assertPin(candidate.pin);
+      assertTimestamp(candidate.departedAt, "departure departedAt");
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename)
+        malformed("departure path identity does not match record");
+    } else if (segments.includes("inbox")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "message id");
+      assertUuidValue(candidate.collaborationId, "message collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("message collaboration path identity does not match record");
+      if (!candidate.from || typeof candidate.from !== "object" || !candidate.to || typeof candidate.to !== "object")
+        malformed("message endpoints are required");
+      assertUuidValue(
+        candidate.from.participantId,
+        "message sender participantId"
+      );
+      assertGeneration(candidate.from.generation, "message sender generation");
+      assertPin(candidate.from.pin);
+      assertUuidValue(
+        candidate.to.participantId,
+        "message recipient participantId"
+      );
+      assertGeneration(candidate.to.generation, "message recipient generation");
+      if (!["request", "update"].includes(candidate.kind))
+        malformed("message kind is unsupported");
+      if (!["normal", "high"].includes(candidate.priority))
+        malformed("message priority is unsupported");
+      assertBoundedString(
+        candidate.subject,
+        "message subject",
+        MAX_SUBJECT_BYTES
+      );
+      assertBoundedString(candidate.body, "message body", MAX_BODY_BYTES, true);
+      if (candidate.replyTo !== null) {
+        if (!candidate.replyTo || typeof candidate.replyTo !== "object")
+          malformed("message replyTo is invalid");
+        assertUuidValue(candidate.replyTo.participantId, "reply participantId");
+        assertUuidValue(candidate.replyTo.messageId, "reply messageId");
+      }
+      assertTimestamp(candidate.createdAt, "message createdAt");
+      assertHash(candidate.contentHash, "message contentHash");
+      if (candidate.contentHash !== messageHash(candidate))
+        malformed("message contentHash does not match content");
+      if (candidate.to.participantId !== parent || candidate.id !== basename)
+        malformed("message path identity does not match record");
+    } else if (segments.includes("acks")) {
+      const candidate = value;
+      assertUuidValue(candidate.messageId, "ack messageId");
+      assertHash(candidate.messageHash, "ack messageHash");
+      assertPin(candidate.recipient);
+      assertGeneration(candidate.bindingGeneration, "ack bindingGeneration");
+      assertTimestamp(candidate.receivedAt, "ack receivedAt");
+      assertUuidValue(grandparent, "ack participant path");
+      if (candidate.messageId !== basename || String(candidate.bindingGeneration) !== parent)
+        malformed("ack path identity does not match record");
+    } else if (segments.includes("entries") && segments.includes("log")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "log entry id");
+      assertUuidValue(candidate.collaborationId, "log collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("log collaboration path identity does not match record");
+      assertBoundedString(candidate.category, "log category", 64);
+      assertBoundedString(candidate.title, "log title", 256);
+      assertPin(candidate.author);
+      assertTimestamp(candidate.authoredAt, "log authoredAt");
+      assertBoundedString(
+        candidate.whatHappened,
+        "log whatHappened",
+        16 * 1024
+      );
+      assertBoundedString(candidate.assessment, "log assessment", 2048);
+      assertBoundedString(
+        candidate.skillImplication,
+        "log skillImplication",
+        4096
+      );
+      assertHash(candidate.contentHash, "log contentHash");
+      if (candidate.contentHash !== logHash(candidate))
+        malformed("log contentHash does not match content");
+      if (candidate.id !== basename)
+        malformed("log path identity does not match id");
+    } else if (path.basename(file) === "closed.json") {
+      const candidate = value;
+      assertUuidValue(candidate.collaborationId, "closed collaborationId");
+      assertPin(candidate.closedBy);
+      assertTimestamp(candidate.closedAt, "closed closedAt");
+      if (candidate.collaborationId !== parent)
+        malformed("closed path identity does not match collaboration");
+    }
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError("MALFORMED_RECORD", error.message);
+  }
+}
 async function readJsonRecord(file, options = {}) {
   const info = await lstat(file).catch((error) => {
     if (isMissing(error)) throw error;
@@ -139,7 +339,8 @@ async function readJsonRecord(file, options = {}) {
       "record must be a regular file"
     );
   }
-  if (typeof process.getuid === "function" && info.uid !== process.getuid()) {
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== void 0 && info.uid !== expectedUid) {
     throw new CollaborationError(
       "UNSAFE_PATH",
       "record owner does not match the current user"
@@ -162,6 +363,7 @@ async function readJsonRecord(file, options = {}) {
     );
   }
   assertSchema(parsed);
+  validateAuthoritativeRecord(file, parsed);
   return parsed;
 }
 async function ensurePrivateDirectory(directory, root) {
@@ -370,9 +572,9 @@ async function canonicalWorktree(value) {
     throw new TypeError("worktree must be a directory");
   return realpath2(value);
 }
-async function isClosed(root, collaborationId) {
+async function isCollaborationClosed(root, collaborationId) {
   const file = collaborationPaths(root, collaborationId).closed;
-  return lstat2(file).then(
+  return readJsonRecord(file).then(
     () => true,
     (error) => {
       if (error.code === "ENOENT") return false;
@@ -381,7 +583,7 @@ async function isClosed(root, collaborationId) {
   );
 }
 async function assertOpen(root, collaborationId) {
-  if (await isClosed(root, collaborationId)) {
+  if (await isCollaborationClosed(root, collaborationId)) {
     throw new MembershipError(
       "COLLABORATION_CLOSED",
       "collaboration is closed"
@@ -415,38 +617,7 @@ async function joinCollaboration(input) {
   await readJsonRecord(paths.collaboration);
   const createdAt = timestamp(input.now);
   const participantId = randomUUID2();
-  const member = {
-    schemaVersion: 1,
-    alias: input.alias,
-    participantId,
-    collaborationId: input.collaborationId,
-    createdAt
-  };
   const worktree = await canonicalWorktree(input.worktree);
-  try {
-    await publishImmutableRecord(
-      path3.join(paths.members, `${input.alias}.json`),
-      member,
-      {
-        root: input.root
-      }
-    );
-  } catch (error) {
-    if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
-      throw error;
-    const existing = await resolveMember(
-      input.root,
-      input.collaborationId,
-      input.alias
-    );
-    if (pinsEqual(existing.binding.pin, input.pin) && existing.binding.generation === 0) {
-      return { member: existing, closedRace: false };
-    }
-    throw new MembershipError(
-      "STALE_BINDING",
-      `alias ${input.alias} already belongs to another participant`
-    );
-  }
   const binding = {
     schemaVersion: 1,
     participantId,
@@ -458,12 +629,71 @@ async function joinCollaboration(input) {
     createdAt,
     inheritedAckRefs: []
   };
+  const member = {
+    schemaVersion: 1,
+    alias: input.alias,
+    participantId,
+    collaborationId: input.collaborationId,
+    createdAt,
+    initialBinding: binding
+  };
+  const memberTarget = path3.join(paths.members, `${input.alias}.json`);
+  const existingMember = await readJsonRecord(memberTarget).catch(
+    (error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  );
+  if (!existingMember) {
+    const members = await enumerateJsonRecords(paths.members, {
+      maxEntries: 128
+    });
+    if (members.length >= 128) {
+      throw new CollaborationError(
+        "CAPACITY_EXCEEDED",
+        "collaboration already has 128 members"
+      );
+    }
+  }
+  try {
+    await publishImmutableRecord(memberTarget, member, { root: input.root });
+    await input.hooks?.afterAliasPublish?.();
+  } catch (error) {
+    if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
+      throw error;
+    const existing = await readJsonRecord(memberTarget);
+    if (pinsEqual(existing.initialBinding.pin, input.pin)) {
+      const recovered = await resolveMember(
+        input.root,
+        input.collaborationId,
+        input.alias
+      );
+      const closedRace2 = await isCollaborationClosed(
+        input.root,
+        input.collaborationId
+      );
+      if (closedRace2)
+        throw new MembershipError(
+          "COLLABORATION_CLOSED",
+          "join recovered during closure and is inert"
+        );
+      return { member: recovered, closedRace: closedRace2 };
+    }
+    throw new MembershipError(
+      "STALE_BINDING",
+      `alias ${input.alias} already belongs to another participant`
+    );
+  }
   await publishImmutableRecord(
     path3.join(memberBindingDirectory(paths, participantId), "0.json"),
     binding,
     { root: input.root }
   );
-  const closedRace = await isClosed(input.root, input.collaborationId);
+  await input.hooks?.afterBindingPublish?.();
+  const closedRace = await isCollaborationClosed(
+    input.root,
+    input.collaborationId
+  );
   if (closedRace) {
     throw new MembershipError(
       "COLLABORATION_CLOSED",
@@ -493,6 +723,16 @@ async function resolveMember(root, collaborationId, alias) {
     memberBindingDirectory(paths, member.participantId),
     { maxEntries: 64 }
   );
+  if (bindingFiles.length === 0) {
+    await publishImmutableRecord(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json"),
+      member.initialBinding,
+      { root }
+    );
+    bindingFiles.push(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json")
+    );
+  }
   const bindings = await Promise.all(
     bindingFiles.map((file) => readJsonRecord(file))
   );
@@ -506,8 +746,16 @@ async function resolveMember(root, collaborationId, alias) {
     member.participantId,
     `${binding.generation}.json`
   );
-  const departed = await lstat2(departureFile).then(
-    () => true,
+  const departed = await readJsonRecord(departureFile).then(
+    (departure) => {
+      if (!pinsEqual(departure.pin, binding.pin)) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "departure pin does not match its binding"
+        );
+      }
+      return true;
+    },
     (error) => {
       if (error.code === "ENOENT") return false;
       throw error;
@@ -562,6 +810,14 @@ async function takeOverMembership(input) {
   const ackRecords = await Promise.all(
     ackFiles.map((file) => readJsonRecord(file))
   );
+  if (ackRecords.some(
+    (ack) => ack.bindingGeneration !== current.binding.generation || !pinsEqual(ack.recipient, current.binding.pin)
+  )) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "acknowledgment identity does not match its binding"
+    );
+  }
   const inheritedAckRefs = [
     ...current.binding.inheritedAckRefs,
     ...ackRecords.map((ack) => ({
@@ -593,6 +849,7 @@ async function takeOverMembership(input) {
       binding,
       { root: input.root }
     );
+    await input.hooks?.afterBindingPublish?.();
   } catch (error) {
     if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
       throw new MembershipError(
@@ -602,7 +859,10 @@ async function takeOverMembership(input) {
     }
     throw error;
   }
-  const closedRace = await isClosed(input.root, input.collaborationId);
+  const closedRace = await isCollaborationClosed(
+    input.root,
+    input.collaborationId
+  );
   if (closedRace) {
     throw new MembershipError(
       "COLLABORATION_CLOSED",
@@ -726,7 +986,23 @@ async function appendLogEntry(input) {
   assertBoundedString(input.whatHappened, "what happened", 16 * 1024);
   assertBoundedString(input.assessment, "assessment", 2048);
   assertBoundedString(input.skillImplication, "skill implication", 4096);
-  await resolveMemberByPin(input.root, input.collaborationId, input.pin);
+  if (await isCollaborationClosed(input.root, input.collaborationId)) {
+    throw new MembershipError(
+      "COLLABORATION_CLOSED",
+      "collaboration log is closed"
+    );
+  }
+  const author = await resolveMemberByPin(
+    input.root,
+    input.collaborationId,
+    input.pin
+  );
+  if (author.departed) {
+    throw new MembershipError(
+      "MEMBER_DEPARTED",
+      "departed member cannot append to the log"
+    );
+  }
   const contentHash = canonicalHash(entryContent(input));
   const target = path4.join(
     collaborationPaths(input.root, input.collaborationId).logEntries,
@@ -746,6 +1022,15 @@ async function appendLogEntry(input) {
       );
     }
     return { entry: existing, duplicate: true };
+  }
+  const entries = await enumerateJsonRecords(path4.dirname(target), {
+    maxEntries: 4096
+  });
+  if (entries.length >= 4096) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      "collaboration log already has 4096 entries"
+    );
   }
   const entry = {
     schemaVersion: 1,
@@ -809,7 +1094,7 @@ function sourceDigest(entries) {
     }))
   );
 }
-function renderMarkdown(collaborationId, entries, digest) {
+function renderMarkdown(collaboration, entries, digest) {
   const sections = entries.map(
     (entry) => [
       `## ${entry.title}`,
@@ -826,7 +1111,11 @@ function renderMarkdown(collaborationId, entries, digest) {
     ].join("\n")
   );
   return [
-    `# Collaboration ${collaborationId}`,
+    `# ${collaboration.label}`,
+    "",
+    `- Collaboration: \`${collaboration.id}\``,
+    `- Created: ${collaboration.createdAt}`,
+    `- Task: ${collaboration.task}`,
     "",
     `<!-- source-set-digest: ${digest} -->`,
     "",
@@ -844,6 +1133,11 @@ async function writeView(file, markdown) {
       "rendered log directory is unsafe"
     );
   }
+  await inspectRenderedView(file, path4.dirname(path4.dirname(file))).catch(
+    (error) => {
+      if (error.code !== "ENOENT") throw error;
+    }
+  );
   const temporary = path4.join(
     directory,
     `.collaboration.md.tmp-${process.pid}-${randomUUID3()}`
@@ -871,8 +1165,12 @@ async function writeView(file, markdown) {
 }
 async function renderLog(input) {
   const entries = await authoritativeEntries(input.root, input.collaborationId);
+  const collaboration = await readJsonRecord(
+    collaborationPaths(input.root, input.collaborationId).collaboration
+  );
   const digest = sourceDigest(entries);
-  const markdown = renderMarkdown(input.collaborationId, entries, digest);
+  const markdown = renderMarkdown(collaboration, entries, digest);
+  await input.hooks?.afterSnapshot?.();
   const file = collaborationPaths(
     input.root,
     input.collaborationId
@@ -890,7 +1188,7 @@ async function getLogView(input) {
     input.root,
     input.collaborationId
   ).renderedLog;
-  const markdown = await readFile2(file, "utf8").catch(
+  const markdown = await inspectRenderedView(file, input.root).catch(
     (error) => {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -901,9 +1199,41 @@ async function getLogView(input) {
   )?.[1];
   return { path: file, markdown, digest, stale: renderedDigest !== digest };
 }
+async function inspectRenderedView(file, root, options = {}) {
+  const info = await lstat3(file);
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log must be a regular file"
+    );
+  }
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== void 0 && info.uid !== expectedUid) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log owner does not match the current user"
+    );
+  }
+  const maxBytes = options.maxBytes ?? 512 * 1024;
+  if (info.size > maxBytes) {
+    throw new CollaborationError(
+      "RECORD_TOO_LARGE",
+      `rendered log exceeds ${maxBytes} bytes`
+    );
+  }
+  const canonicalRoot = await realpath3(root);
+  const canonicalFile = await realpath3(file);
+  const relative = path4.relative(canonicalRoot, canonicalFile);
+  if (relative.startsWith("..") || path4.isAbsolute(relative)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log escapes the collaboration root"
+    );
+  }
+  return readFile2(file, "utf8");
+}
 
 // src/shared/collaboration/messages.ts
-import { lstat as lstat4 } from "node:fs/promises";
 import path5 from "node:path";
 function timestamp3(value) {
   const result = value ?? (/* @__PURE__ */ new Date()).toISOString();
@@ -912,16 +1242,12 @@ function timestamp3(value) {
   return result;
 }
 async function assertNotClosed(root, collaborationId) {
-  const closed = collaborationPaths(root, collaborationId).closed;
-  const exists = await lstat4(closed).then(
-    () => true,
-    (error) => {
-      if (error.code === "ENOENT") return false;
-      throw error;
-    }
-  );
-  if (exists)
-    throw new CollaborationError("RECORD_CONFLICT", "collaboration is closed");
+  if (await isCollaborationClosed(root, collaborationId)) {
+    throw new MembershipError(
+      "COLLABORATION_CLOSED",
+      "collaboration is closed"
+    );
+  }
 }
 function contentFields(message) {
   return message;
@@ -976,8 +1302,8 @@ async function sendMessage(input) {
     input.recipientAlias
   );
   if (sender.departed || recipient.departed)
-    throw new CollaborationError(
-      "RECORD_CONFLICT",
+    throw new MembershipError(
+      "MEMBER_DEPARTED",
       "departed members cannot send or receive"
     );
   if (sender.member.participantId === recipient.member.participantId) {
@@ -1023,7 +1349,21 @@ async function sendMessage(input) {
         "message ID already has different content"
       );
     }
-    return { message: existing, duplicate: true, staleAfterPublish: false };
+    return {
+      message: existing,
+      duplicate: true,
+      staleAfterPublish: false,
+      raceStatus: "current"
+    };
+  }
+  const inboxFiles = await enumerateJsonRecords(path5.dirname(target), {
+    maxEntries: 4096
+  });
+  if (inboxFiles.length >= 4096) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      "recipient inbox already has 4096 messages"
+    );
   }
   const message = {
     ...withoutHash,
@@ -1036,18 +1376,38 @@ async function sendMessage(input) {
     if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
       const winner = await readJsonRecord(target);
       if (winner.contentHash === contentHash) {
-        return { message: winner, duplicate: true, staleAfterPublish: false };
+        return {
+          message: winner,
+          duplicate: true,
+          staleAfterPublish: false,
+          raceStatus: "current"
+        };
       }
     }
     throw error;
   }
+  await input.hooks?.afterPublish?.();
+  const closedAfterPublish = await isCollaborationClosed(
+    input.root,
+    input.collaborationId
+  );
   const currentSender = await resolveMember(
     input.root,
     input.collaborationId,
     sender.member.alias
   );
-  const staleAfterPublish = currentSender.binding.generation !== sender.binding.generation;
-  return { message, duplicate: false, staleAfterPublish };
+  const refreshedRecipient = await resolveMember(
+    input.root,
+    input.collaborationId,
+    recipient.member.alias
+  );
+  const raceStatus = closedAfterPublish ? "closed" : currentSender.binding.generation !== sender.binding.generation ? "sender-superseded" : refreshedRecipient.binding.generation !== recipient.binding.generation ? "recipient-superseded" : "current";
+  return {
+    message,
+    duplicate: false,
+    staleAfterPublish: raceStatus !== "current",
+    raceStatus
+  };
 }
 async function currentRecipient(input) {
   const recipient = await resolveMemberByPin(
@@ -1056,8 +1416,8 @@ async function currentRecipient(input) {
     input.pin
   );
   if (recipient.departed)
-    throw new CollaborationError(
-      "RECORD_CONFLICT",
+    throw new MembershipError(
+      "MEMBER_DEPARTED",
       "departed member inbox is inert"
     );
   return recipient;
@@ -1080,7 +1440,14 @@ async function acknowledged(input, recipient, message) {
       throw error;
     }
   );
-  return ack?.messageHash === message.contentHash;
+  if (!ack) return false;
+  if (!pinsEqual(ack.recipient, recipient.binding.pin)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "acknowledgment recipient does not match the current binding"
+    );
+  }
+  return ack.messageHash === message.contentHash;
 }
 async function listInbox(input) {
   const recipient = await currentRecipient(input);
@@ -1098,26 +1465,52 @@ async function listInbox(input) {
     const priority = Number(right.priority === "high") - Number(left.priority === "high");
     return priority || left.createdAt.localeCompare(right.createdAt) || left.from.pin.runtime.localeCompare(right.from.pin.runtime) || left.from.pin.sessionId.localeCompare(right.from.pin.sessionId) || left.id.localeCompare(right.id);
   });
+  const closed = await isCollaborationClosed(input.root, input.collaborationId);
   const pending = [];
   const acked = [];
   for (const message of sorted) {
-    if (await acknowledged(input, recipient, message)) acked.push(message);
-    else pending.push(message);
+    const senderCurrent = await resolveMemberByPin(
+      input.root,
+      input.collaborationId,
+      message.from.pin
+    ).catch((error) => {
+      if (error instanceof MembershipError && error.code === "NOT_CURRENT_MEMBER")
+        return null;
+      throw error;
+    });
+    const raceStatus = closed ? "closed" : message.to.generation !== recipient.binding.generation ? "recipient-superseded" : !senderCurrent || senderCurrent.departed || senderCurrent.binding.generation !== message.from.generation ? "sender-superseded" : "current";
+    const presented = {
+      ...message,
+      raceStatus,
+      inert: raceStatus !== "current"
+    };
+    if (await acknowledged(input, recipient, message)) acked.push(presented);
+    else pending.push(presented);
   }
   const maxMessages = input.maxMessages ?? 8;
   const maxBytes = input.maxBytes ?? 48 * 1024;
-  const selected = [];
+  const selectedPending = [];
+  const selectedAcknowledged = [];
   let bytes = 0;
-  for (const message of pending) {
+  const candidates = [
+    ...pending.map((message) => ({ message, acknowledged: false })),
+    ...input.includeAcknowledged ? acked.map((message) => ({ message, acknowledged: true })) : []
+  ];
+  for (const candidate of candidates) {
+    const message = candidate.message;
     const size = Buffer.byteLength(message.body, "utf8");
-    if (selected.length >= maxMessages || bytes + size > maxBytes) break;
-    selected.push(message);
+    if (selectedPending.length + selectedAcknowledged.length >= maxMessages || bytes + size > maxBytes)
+      break;
+    if (candidate.acknowledged) selectedAcknowledged.push(message);
+    else selectedPending.push(message);
     bytes += size;
   }
   return {
-    messages: selected,
-    acknowledged: input.includeAcknowledged ? acked : [],
-    truncated: selected.length !== pending.length
+    messages: selectedPending,
+    acknowledged: selectedAcknowledged,
+    truncated: selectedPending.length !== pending.length || input.includeAcknowledged === true && selectedAcknowledged.length !== acked.length,
+    pendingTotal: pending.length,
+    acknowledgedTotal: acked.length
   };
 }
 async function readMessage(input) {
@@ -1187,7 +1580,7 @@ var HELP = `agent-messaging \u2014 durable addressed messaging between local cod
 Usage:
   node agent-messaging.mjs open --self <runtime:id> --alias <name> --label <label> --task <text>
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
-  node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin
+  node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
   node agent-messaging.mjs log append|show|render ...
 
@@ -1261,6 +1654,16 @@ function parsePin(value) {
   assertPin(pin);
   return pin;
 }
+function parseReplyTo(value) {
+  if (!value) return null;
+  const parts = value.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new TypeError("--reply-to must be <participantId>/<messageId>");
+  }
+  assertUuid(parts[0], "reply participant ID");
+  assertUuid(parts[1], "reply message ID");
+  return { participantId: parts[0], messageId: parts[1] };
+}
 function harnessPin(env) {
   if (env.AGENT_MESSAGING_SELF_PIN)
     return parsePin(env.AGENT_MESSAGING_SELF_PIN);
@@ -1304,6 +1707,8 @@ function success(operation, collaborationId, data) {
   return { ok: true, operation, collaborationId, data };
 }
 function exitFor(error) {
+  if (error instanceof MembershipError && ["COLLABORATION_CLOSED", "MEMBER_DEPARTED"].includes(error.code))
+    return 3;
   if (error instanceof TypeError || error instanceof MembershipError) return 2;
   if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT" && error.message.includes("closed"))
     return 3;
@@ -1396,7 +1801,8 @@ async function execute(parsed, io) {
       kind: optional(parsed, "kind") ?? "update",
       priority: optional(parsed, "priority") ?? "normal",
       subject: required(parsed, "subject"),
-      body
+      body,
+      replyTo: parseReplyTo(optional(parsed, "reply-to"))
     });
     return {
       operation: "send",
@@ -1460,10 +1866,16 @@ async function execute(parsed, io) {
   if (command === "status") {
     const pin = resolveSelf(parsed, io.env);
     const member = await resolveMemberByPin(root, collaborationId, pin);
+    if (member.departed) {
+      throw new MembershipError("MEMBER_DEPARTED", "member is inactive");
+    }
     const paths = collaborationPaths(root, collaborationId);
-    const closed = await lstat5(paths.closed).then(
+    const closed = await readJsonRecord(paths.closed).then(
       () => true,
-      () => false
+      (error) => {
+        if (error.code === "ENOENT") return false;
+        throw error;
+      }
     );
     const inbox = await listInbox({
       root,
@@ -1476,10 +1888,22 @@ async function execute(parsed, io) {
         message: error instanceof Error ? error.message : String(error)
       }
     }));
+    const logView = await getLogView({ root, collaborationId });
     return {
       operation: "status",
       collaborationId,
-      data: { root, paths, closed, member, inbox }
+      data: {
+        root,
+        paths,
+        closed,
+        member,
+        inbox,
+        logView: {
+          path: logView.path,
+          digest: logView.digest,
+          stale: logView.stale
+        }
+      }
     };
   }
   if (command === "leave") {

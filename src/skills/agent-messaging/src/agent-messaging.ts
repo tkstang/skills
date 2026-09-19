@@ -2,7 +2,6 @@
 
 import { randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
-import { lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,13 +29,18 @@ import {
   collaborationPaths,
   resolveCollaborationRoot,
 } from '../../../shared/collaboration/paths.js';
-import { CollaborationError } from '../../../shared/collaboration/records.js';
+import {
+  CollaborationError,
+  readJsonRecord,
+} from '../../../shared/collaboration/records.js';
 import {
   assertPin,
+  assertUuid,
   pinsEqual,
   type MessageKind,
   type MessagePriority,
   type Pin,
+  type ClosedRecord,
 } from '../../../shared/collaboration/types.js';
 
 export interface CliIo {
@@ -57,7 +61,7 @@ const HELP = `agent-messaging — durable addressed messaging between local codi
 Usage:
   node agent-messaging.mjs open --self <runtime:id> --alias <name> --label <label> --task <text>
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
-  node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin
+  node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
   node agent-messaging.mjs log append|show|render ...
 
@@ -137,6 +141,17 @@ function parsePin(value: string): Pin {
   return pin;
 }
 
+function parseReplyTo(value: string | undefined) {
+  if (!value) return null;
+  const parts = value.split('/');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new TypeError('--reply-to must be <participantId>/<messageId>');
+  }
+  assertUuid(parts[0], 'reply participant ID');
+  assertUuid(parts[1], 'reply message ID');
+  return { participantId: parts[0], messageId: parts[1] };
+}
+
 function harnessPin(env: NodeJS.ProcessEnv): Pin | null {
   if (env.AGENT_MESSAGING_SELF_PIN)
     return parsePin(env.AGENT_MESSAGING_SELF_PIN);
@@ -188,6 +203,11 @@ function success(
 }
 
 function exitFor(error: unknown): number {
+  if (
+    error instanceof MembershipError &&
+    ['COLLABORATION_CLOSED', 'MEMBER_DEPARTED'].includes(error.code)
+  )
+    return 3;
   if (error instanceof TypeError || error instanceof MembershipError) return 2;
   if (
     error instanceof CollaborationError &&
@@ -303,6 +323,7 @@ async function execute(
       priority: (optional(parsed, 'priority') ?? 'normal') as MessagePriority,
       subject: required(parsed, 'subject'),
       body,
+      replyTo: parseReplyTo(optional(parsed, 'reply-to')),
     });
     return {
       operation: 'send',
@@ -370,10 +391,16 @@ async function execute(
   if (command === 'status') {
     const pin = resolveSelf(parsed, io.env);
     const member = await resolveMemberByPin(root, collaborationId, pin);
+    if (member.departed) {
+      throw new MembershipError('MEMBER_DEPARTED', 'member is inactive');
+    }
     const paths = collaborationPaths(root, collaborationId);
-    const closed = await lstat(paths.closed).then(
+    const closed = await readJsonRecord<ClosedRecord>(paths.closed).then(
       () => true,
-      () => false,
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return false;
+        throw error;
+      },
     );
     const inbox = await listInbox({
       root,
@@ -386,10 +413,22 @@ async function execute(
         message: error instanceof Error ? error.message : String(error),
       },
     }));
+    const logView = await getLogView({ root, collaborationId });
     return {
       operation: 'status',
       collaborationId,
-      data: { root, paths, closed, member, inbox },
+      data: {
+        root,
+        paths,
+        closed,
+        member,
+        inbox,
+        logView: {
+          path: logView.path,
+          digest: logView.digest,
+          stale: logView.stale,
+        },
+      },
     };
   }
   if (command === 'leave') {

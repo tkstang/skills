@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -187,5 +187,441 @@ describe('agent messaging CLI', () => {
       '--json',
     ]);
     expect(JSON.parse(inbox.stdout).data.messages[0].body).toBe(body);
+  });
+
+  test('creates validated replies and rejects malformed or unrelated references', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    const opened = await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'cli',
+      '--task',
+      'reply',
+      '--json',
+    ]);
+    const driverId = JSON.parse(opened.stdout).data.member.member.participantId;
+    const joined = await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:reviewer',
+      '--alias',
+      'reviewer',
+      '--json',
+    ]);
+    const reviewerId = JSON.parse(joined.stdout).data.member.member
+      .participantId;
+    await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'claude-code:third',
+      '--alias',
+      'third',
+      '--json',
+    ]);
+    const originalId = crypto.randomUUID();
+    await run([
+      'send',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--to',
+      'reviewer',
+      '--id',
+      originalId,
+      '--subject',
+      'question',
+      '--body',
+      'answer me',
+      '--json',
+    ]);
+    const replyId = crypto.randomUUID();
+    expect(
+      (
+        await run([
+          'send',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'cursor:reviewer',
+          '--to',
+          'driver',
+          '--id',
+          replyId,
+          '--subject',
+          'answer',
+          '--body',
+          'done',
+          '--reply-to',
+          `${reviewerId}/${originalId}`,
+          '--json',
+        ])
+      ).code,
+    ).toBe(0);
+    const driverInbox = await run([
+      'inbox',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    expect(JSON.parse(driverInbox.stdout).data.messages[0].replyTo).toEqual({
+      participantId: reviewerId,
+      messageId: originalId,
+    });
+    expect(
+      (
+        await run([
+          'send',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'cursor:reviewer',
+          '--to',
+          'driver',
+          '--id',
+          crypto.randomUUID(),
+          '--subject',
+          'bad',
+          '--body',
+          'bad',
+          '--reply-to',
+          'malformed',
+          '--json',
+        ])
+      ).code,
+    ).toBe(2);
+    const unrelated = await run([
+      'send',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'claude-code:third',
+      '--to',
+      'driver',
+      '--id',
+      crypto.randomUUID(),
+      '--subject',
+      'bad',
+      '--body',
+      'bad',
+      '--reply-to',
+      `${reviewerId}/${originalId}`,
+      '--json',
+    ]);
+    expect(unrelated.code).toBe(1);
+    expect(JSON.parse(unrelated.stderr).code).toBe('RECORD_CONFLICT');
+    expect(driverId).toMatch(/[0-9a-f-]{36}/u);
+  });
+
+  test('keeps a published message when stdout is dropped', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'cli',
+      '--task',
+      'stdout',
+    ]);
+    await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:reviewer',
+      '--alias',
+      'reviewer',
+    ]);
+    const id = crypto.randomUUID();
+    const errors: string[] = [];
+    const code = await runAgentMessagingCli(
+      [
+        'send',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'codex:driver',
+        '--to',
+        'reviewer',
+        '--id',
+        id,
+        '--subject',
+        'queued',
+        '--body',
+        'durable',
+        '--json',
+      ],
+      {
+        env: {},
+        cwd: '/tmp/worktree',
+        readStdin: async () => '',
+        stdout: () => {
+          throw new Error('stdout closed');
+        },
+        stderr: (value) => errors.push(value),
+      },
+    );
+    expect(code).toBe(1);
+    expect(errors.join('')).toContain('stdout closed');
+    const inbox = await run([
+      'inbox',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:reviewer',
+      '--json',
+    ]);
+    expect(JSON.parse(inbox.stdout).data.messages[0].id).toBe(id);
+  });
+
+  test('uses exit 3 for closed or inactive commands and exit 2 for stale identity', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'cli',
+      '--task',
+      'exit',
+    ]);
+    await run([
+      'join',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:reviewer',
+      '--alias',
+      'reviewer',
+    ]);
+    await run([
+      'leave',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'cursor:reviewer',
+    ]);
+    for (const args of [
+      ['inbox', '--self', 'cursor:reviewer'],
+      [
+        'send',
+        '--self',
+        'codex:driver',
+        '--to',
+        'reviewer',
+        '--id',
+        crypto.randomUUID(),
+        '--subject',
+        'x',
+        '--body',
+        'x',
+      ],
+      ['close', '--self', 'cursor:reviewer'],
+    ]) {
+      expect(
+        (
+          await run([
+            ...args,
+            '--root',
+            root,
+            '--collab',
+            collaborationId,
+            '--json',
+          ])
+        ).code,
+      ).toBe(3);
+    }
+    expect(
+      (
+        await run([
+          'leave',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'cursor:stale',
+          '--json',
+        ])
+      ).code,
+    ).toBe(2);
+    await run([
+      'close',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+    ]);
+    expect(
+      (
+        await run([
+          'join',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'claude-code:late',
+          '--alias',
+          'late',
+          '--json',
+        ])
+      ).code,
+    ).toBe(3);
+    expect(
+      (
+        await run([
+          'join',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'claude-code:new',
+          '--alias',
+          'driver',
+          '--succeeds',
+          'codex:driver',
+          '--reason',
+          'late takeover',
+          '--json',
+        ])
+      ).code,
+    ).toBe(3);
+  });
+
+  test('status reports log digest staleness and fails unsafe closed-marker inspection', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'cli',
+      '--task',
+      'status',
+    ]);
+    await run(['log', 'render', '--root', root, '--collab', collaborationId]);
+    await run([
+      'log',
+      'append',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--id',
+      crypto.randomUUID(),
+      '--category',
+      'test',
+      '--title',
+      'Later',
+      '--what',
+      'changed',
+      '--assessment',
+      'stale',
+      '--implication',
+      'render again',
+    ]);
+    const status = await run([
+      'status',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    expect(JSON.parse(status.stdout).data.logView).toMatchObject({
+      stale: true,
+    });
+    expect(JSON.parse(status.stdout).data.logView.path).toContain(
+      'collaboration.md',
+    );
+    const marker = path.join(
+      root,
+      'collaborations',
+      collaborationId,
+      'closed.json',
+    );
+    await rm(marker, { force: true });
+    await mkdir(marker);
+    const unsafe = await run([
+      'status',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    expect(unsafe.code).toBe(1);
+    expect(JSON.parse(unsafe.stderr).code).toBe('UNSAFE_PATH');
   });
 });

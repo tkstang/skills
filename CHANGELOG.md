@@ -82,6 +82,12 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.1 and `session` plugin 0.3.0 complete the maintained
+  product inventories, validate every authoritative schema-v1 record, recover
+  interrupted initial joins, enforce bounded writers and history output, add
+  durable CLI reply references, report closure/takeover races and inactive exit
+  states, harden rendered-log inspection, and expand adversarial/copied-runtime
+  coverage.
 - `consensus-review` 0.1.12 rejects symlink and non-regular request files before opening them, and uses no-follow nonblocking open flags before bounded regular-file reads.
 - `consensus-review` 0.1.11 binds the deterministic clean and all-severity receipt fixtures byte-for-byte to `renderReviewMarkdown`, so receiver evidence cannot drift from renderer output.
 - Review host verification now treats a matching inherited parent as authoritative despite unrelated ambient markers, rejects explicit mismatches, and retains exact-single-marker verification when no parent is inherited (`consensus-review` 0.1.10, `create` 0.1.15, `decide` 0.1.15, `evaluate` 0.1.19, `panel` 0.1.12, `phone-a-friend` 0.1.11, `plan` 0.1.15, `refine` 0.1.18).

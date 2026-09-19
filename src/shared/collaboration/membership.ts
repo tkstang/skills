@@ -53,6 +53,10 @@ export interface JoinInput extends CommonMembershipInput {
   alias: string;
   pin: Pin;
   worktree: string;
+  hooks?: {
+    afterAliasPublish?: () => void | Promise<void>;
+    afterBindingPublish?: () => void | Promise<void>;
+  };
 }
 
 function timestamp(value?: string): string {
@@ -71,12 +75,12 @@ async function canonicalWorktree(value: string): Promise<string> {
   return realpath(value);
 }
 
-async function isClosed(
+export async function isCollaborationClosed(
   root: string,
   collaborationId: string,
 ): Promise<boolean> {
   const file = collaborationPaths(root, collaborationId).closed;
-  return lstat(file).then(
+  return readJsonRecord<ClosedRecord>(file).then(
     () => true,
     (error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return false;
@@ -89,7 +93,7 @@ async function assertOpen(
   root: string,
   collaborationId: string,
 ): Promise<void> {
-  if (await isClosed(root, collaborationId)) {
+  if (await isCollaborationClosed(root, collaborationId)) {
     throw new MembershipError(
       'COLLABORATION_CLOSED',
       'collaboration is closed',
@@ -129,44 +133,7 @@ export async function joinCollaboration(
   await readJsonRecord<CollaborationRecord>(paths.collaboration);
   const createdAt = timestamp(input.now);
   const participantId = randomUUID();
-  const member: MemberRecord = {
-    schemaVersion: 1,
-    alias: input.alias,
-    participantId,
-    collaborationId: input.collaborationId,
-    createdAt,
-  };
   const worktree = await canonicalWorktree(input.worktree);
-  try {
-    await publishImmutableRecord(
-      path.join(paths.members, `${input.alias}.json`),
-      member,
-      {
-        root: input.root,
-      },
-    );
-  } catch (error) {
-    if (
-      !(error instanceof CollaborationError) ||
-      error.code !== 'RECORD_CONFLICT'
-    )
-      throw error;
-    const existing = await resolveMember(
-      input.root,
-      input.collaborationId,
-      input.alias,
-    );
-    if (
-      pinsEqual(existing.binding.pin, input.pin) &&
-      existing.binding.generation === 0
-    ) {
-      return { member: existing, closedRace: false };
-    }
-    throw new MembershipError(
-      'STALE_BINDING',
-      `alias ${input.alias} already belongs to another participant`,
-    );
-  }
   const binding: BindingRecord = {
     schemaVersion: 1,
     participantId,
@@ -178,12 +145,74 @@ export async function joinCollaboration(
     createdAt,
     inheritedAckRefs: [],
   };
+  const member: MemberRecord = {
+    schemaVersion: 1,
+    alias: input.alias,
+    participantId,
+    collaborationId: input.collaborationId,
+    createdAt,
+    initialBinding: binding,
+  };
+  const memberTarget = path.join(paths.members, `${input.alias}.json`);
+  const existingMember = await readJsonRecord<MemberRecord>(memberTarget).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    },
+  );
+  if (!existingMember) {
+    const members = await enumerateJsonRecords(paths.members, {
+      maxEntries: 128,
+    });
+    if (members.length >= 128) {
+      throw new CollaborationError(
+        'CAPACITY_EXCEEDED',
+        'collaboration already has 128 members',
+      );
+    }
+  }
+  try {
+    await publishImmutableRecord(memberTarget, member, { root: input.root });
+    await input.hooks?.afterAliasPublish?.();
+  } catch (error) {
+    if (
+      !(error instanceof CollaborationError) ||
+      error.code !== 'RECORD_CONFLICT'
+    )
+      throw error;
+    const existing = await readJsonRecord<MemberRecord>(memberTarget);
+    if (pinsEqual(existing.initialBinding.pin, input.pin)) {
+      const recovered = await resolveMember(
+        input.root,
+        input.collaborationId,
+        input.alias,
+      );
+      const closedRace = await isCollaborationClosed(
+        input.root,
+        input.collaborationId,
+      );
+      if (closedRace)
+        throw new MembershipError(
+          'COLLABORATION_CLOSED',
+          'join recovered during closure and is inert',
+        );
+      return { member: recovered, closedRace };
+    }
+    throw new MembershipError(
+      'STALE_BINDING',
+      `alias ${input.alias} already belongs to another participant`,
+    );
+  }
   await publishImmutableRecord(
     path.join(memberBindingDirectory(paths, participantId), '0.json'),
     binding,
     { root: input.root },
   );
-  const closedRace = await isClosed(input.root, input.collaborationId);
+  await input.hooks?.afterBindingPublish?.();
+  const closedRace = await isCollaborationClosed(
+    input.root,
+    input.collaborationId,
+  );
   if (closedRace) {
     throw new MembershipError(
       'COLLABORATION_CLOSED',
@@ -224,6 +253,16 @@ export async function resolveMember(
     memberBindingDirectory(paths, member.participantId),
     { maxEntries: 64 },
   );
+  if (bindingFiles.length === 0) {
+    await publishImmutableRecord(
+      path.join(memberBindingDirectory(paths, member.participantId), '0.json'),
+      member.initialBinding,
+      { root },
+    );
+    bindingFiles.push(
+      path.join(memberBindingDirectory(paths, member.participantId), '0.json'),
+    );
+  }
   const bindings = await Promise.all(
     bindingFiles.map((file) => readJsonRecord<BindingRecord>(file)),
   );
@@ -237,8 +276,16 @@ export async function resolveMember(
     member.participantId,
     `${binding.generation}.json`,
   );
-  const departed = await lstat(departureFile).then(
-    () => true,
+  const departed = await readJsonRecord<DepartureRecord>(departureFile).then(
+    (departure) => {
+      if (!pinsEqual(departure.pin, binding.pin)) {
+        throw new CollaborationError(
+          'MALFORMED_RECORD',
+          'departure pin does not match its binding',
+        );
+      }
+      return true;
+    },
     (error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return false;
       throw error;
@@ -301,6 +348,18 @@ export async function takeOverMembership(
   const ackRecords = await Promise.all(
     ackFiles.map((file) => readJsonRecord<AckRecord>(file)),
   );
+  if (
+    ackRecords.some(
+      (ack) =>
+        ack.bindingGeneration !== current.binding.generation ||
+        !pinsEqual(ack.recipient, current.binding.pin),
+    )
+  ) {
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      'acknowledgment identity does not match its binding',
+    );
+  }
   const inheritedAckRefs = [
     ...current.binding.inheritedAckRefs,
     ...ackRecords.map((ack) => ({
@@ -335,6 +394,7 @@ export async function takeOverMembership(
       binding,
       { root: input.root },
     );
+    await input.hooks?.afterBindingPublish?.();
   } catch (error) {
     if (
       error instanceof CollaborationError &&
@@ -347,7 +407,10 @@ export async function takeOverMembership(
     }
     throw error;
   }
-  const closedRace = await isClosed(input.root, input.collaborationId);
+  const closedRace = await isCollaborationClosed(
+    input.root,
+    input.collaborationId,
+  );
   if (closedRace) {
     throw new MembershipError(
       'COLLABORATION_CLOSED',

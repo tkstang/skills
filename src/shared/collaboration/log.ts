@@ -5,12 +5,17 @@ import {
   mkdir,
   open,
   readFile,
+  realpath,
   rename,
   unlink,
 } from 'node:fs/promises';
 import path from 'node:path';
 
-import { resolveMemberByPin } from './membership.js';
+import {
+  isCollaborationClosed,
+  MembershipError,
+  resolveMemberByPin,
+} from './membership.js';
 import { collaborationPaths } from './paths.js';
 import {
   canonicalHash,
@@ -24,6 +29,7 @@ import {
   assertPin,
   assertUuid,
   type LogEntryRecord,
+  type CollaborationRecord,
   type Pin,
 } from './types.js';
 
@@ -71,7 +77,23 @@ export async function appendLogEntry(
   assertBoundedString(input.whatHappened, 'what happened', 16 * 1024);
   assertBoundedString(input.assessment, 'assessment', 2048);
   assertBoundedString(input.skillImplication, 'skill implication', 4096);
-  await resolveMemberByPin(input.root, input.collaborationId, input.pin);
+  if (await isCollaborationClosed(input.root, input.collaborationId)) {
+    throw new MembershipError(
+      'COLLABORATION_CLOSED',
+      'collaboration log is closed',
+    );
+  }
+  const author = await resolveMemberByPin(
+    input.root,
+    input.collaborationId,
+    input.pin,
+  );
+  if (author.departed) {
+    throw new MembershipError(
+      'MEMBER_DEPARTED',
+      'departed member cannot append to the log',
+    );
+  }
   const contentHash = canonicalHash(entryContent(input));
   const target = path.join(
     collaborationPaths(input.root, input.collaborationId).logEntries,
@@ -91,6 +113,15 @@ export async function appendLogEntry(
       );
     }
     return { entry: existing, duplicate: true };
+  }
+  const entries = await enumerateJsonRecords(path.dirname(target), {
+    maxEntries: 4096,
+  });
+  if (entries.length >= 4096) {
+    throw new CollaborationError(
+      'CAPACITY_EXCEEDED',
+      'collaboration log already has 4096 entries',
+    );
   }
   const entry: LogEntryRecord = {
     schemaVersion: 1,
@@ -168,7 +199,7 @@ function sourceDigest(entries: LogEntryRecord[]): string {
 }
 
 function renderMarkdown(
-  collaborationId: string,
+  collaboration: CollaborationRecord,
   entries: LogEntryRecord[],
   digest: string,
 ): string {
@@ -188,7 +219,11 @@ function renderMarkdown(
     ].join('\n'),
   );
   return [
-    `# Collaboration ${collaborationId}`,
+    `# ${collaboration.label}`,
+    '',
+    `- Collaboration: \`${collaboration.id}\``,
+    `- Created: ${collaboration.createdAt}`,
+    `- Task: ${collaboration.task}`,
     '',
     `<!-- source-set-digest: ${digest} -->`,
     '',
@@ -207,6 +242,11 @@ async function writeView(file: string, markdown: string): Promise<void> {
       'rendered log directory is unsafe',
     );
   }
+  await inspectRenderedView(file, path.dirname(path.dirname(file))).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') throw error;
+    },
+  );
   const temporary = path.join(
     directory,
     `.collaboration.md.tmp-${process.pid}-${randomUUID()}`,
@@ -236,6 +276,7 @@ async function writeView(file: string, markdown: string): Promise<void> {
 export async function renderLog(input: {
   root: string;
   collaborationId: string;
+  hooks?: { afterSnapshot?: () => void | Promise<void> };
 }): Promise<{
   path: string;
   markdown: string;
@@ -243,8 +284,12 @@ export async function renderLog(input: {
   staleAfterRender: boolean;
 }> {
   const entries = await authoritativeEntries(input.root, input.collaborationId);
+  const collaboration = await readJsonRecord<CollaborationRecord>(
+    collaborationPaths(input.root, input.collaborationId).collaboration,
+  );
   const digest = sourceDigest(entries);
-  const markdown = renderMarkdown(input.collaborationId, entries, digest);
+  const markdown = renderMarkdown(collaboration, entries, digest);
+  await input.hooks?.afterSnapshot?.();
   const file = collaborationPaths(
     input.root,
     input.collaborationId,
@@ -271,7 +316,7 @@ export async function getLogView(input: {
     input.root,
     input.collaborationId,
   ).renderedLog;
-  const markdown = await readFile(file, 'utf8').catch(
+  const markdown = await inspectRenderedView(file, input.root).catch(
     (error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return null;
       throw error;
@@ -281,4 +326,42 @@ export async function getLogView(input: {
     /<!-- source-set-digest: ([a-f0-9]{64}) -->/u,
   )?.[1];
   return { path: file, markdown, digest, stale: renderedDigest !== digest };
+}
+
+export async function inspectRenderedView(
+  file: string,
+  root: string,
+  options: { expectedUid?: number; maxBytes?: number } = {},
+): Promise<string> {
+  const info = await lstat(file);
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new CollaborationError(
+      'UNSAFE_PATH',
+      'rendered log must be a regular file',
+    );
+  }
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== undefined && info.uid !== expectedUid) {
+    throw new CollaborationError(
+      'UNSAFE_PATH',
+      'rendered log owner does not match the current user',
+    );
+  }
+  const maxBytes = options.maxBytes ?? 512 * 1024;
+  if (info.size > maxBytes) {
+    throw new CollaborationError(
+      'RECORD_TOO_LARGE',
+      `rendered log exceeds ${maxBytes} bytes`,
+    );
+  }
+  const canonicalRoot = await realpath(root);
+  const canonicalFile = await realpath(file);
+  const relative = path.relative(canonicalRoot, canonicalFile);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new CollaborationError(
+      'UNSAFE_PATH',
+      'rendered log escapes the collaboration root',
+    );
+  }
+  return readFile(file, 'utf8');
 }

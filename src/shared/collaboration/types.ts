@@ -28,6 +28,7 @@ export interface MemberRecord extends HasSchemaVersion {
   participantId: string;
   collaborationId: string;
   createdAt: string;
+  initialBinding: BindingRecord;
 }
 
 export interface AckReference {
@@ -102,6 +103,17 @@ export interface LogEntryRecord extends HasSchemaVersion {
   assessment: string;
   skillImplication: string;
   contentHash: string;
+}
+
+export type MessageRaceStatus =
+  | 'current'
+  | 'closed'
+  | 'sender-superseded'
+  | 'recipient-superseded';
+
+export interface InboxMessage extends MessageRecord {
+  raceStatus: MessageRaceStatus;
+  inert: boolean;
 }
 
 export function assertUuid(value: string, label = 'UUID'): void {

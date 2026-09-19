@@ -149,4 +149,90 @@ describe('membership lifecycle', () => {
       (await resolveMember(f.root, f.collaborationId, 'driver')).departed,
     ).toBe(true);
   });
+
+  test('recovers an initial join interrupted after alias publication', async () => {
+    const f = await fixture();
+    const input = {
+      ...f,
+      alias: 'reviewer',
+      pin: { runtime: 'cursor' as const, sessionId: 'recover' },
+      worktree: '/tmp/recover',
+    };
+    await expect(
+      joinCollaboration({
+        ...input,
+        hooks: { afterAliasPublish: () => Promise.reject(new Error('kill')) },
+      }),
+    ).rejects.toThrow('kill');
+    const recovered = await joinCollaboration(input);
+    expect(recovered.member.binding.generation).toBe(0);
+    expect(
+      (await resolveMember(f.root, f.collaborationId, 'reviewer')).binding.pin,
+    ).toEqual(input.pin);
+  });
+
+  test('marks close races during join and takeover as closed', async () => {
+    const first = await fixture();
+    await expect(
+      joinCollaboration({
+        ...first,
+        alias: 'racer',
+        pin: { runtime: 'cursor', sessionId: 'racer' },
+        worktree: '/tmp/racer',
+        hooks: {
+          afterAliasPublish: async () => {
+            await closeCollaboration({ ...first, pin: first.driver });
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'COLLABORATION_CLOSED' });
+
+    const second = await fixture();
+    const old = { runtime: 'cursor' as const, sessionId: 'old' };
+    await joinCollaboration({
+      ...second,
+      alias: 'reviewer',
+      pin: old,
+      worktree: '/tmp/old',
+    });
+    await expect(
+      takeOverMembership({
+        ...second,
+        alias: 'reviewer',
+        pin: { runtime: 'cursor', sessionId: 'new' },
+        expectedPreviousPin: old,
+        reason: 'race',
+        worktree: '/tmp/new',
+        hooks: {
+          afterBindingPublish: async () => {
+            await closeCollaboration({ ...second, pin: second.driver });
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'COLLABORATION_CLOSED' });
+  });
+
+  test('allows the member cap boundary and rejects one over', async () => {
+    const f = await fixture();
+    for (let index = 1; index < 128; index += 1) {
+      await joinCollaboration({
+        ...f,
+        alias: `member-${index}`,
+        pin: { runtime: 'codex', sessionId: `member-${index}` },
+        worktree: `/tmp/member-${index}`,
+      });
+    }
+    expect(
+      (await resolveMember(f.root, f.collaborationId, 'member-127')).binding
+        .generation,
+    ).toBe(0);
+    await expect(
+      joinCollaboration({
+        ...f,
+        alias: 'overflow',
+        pin: { runtime: 'codex', sessionId: 'overflow' },
+        worktree: '/tmp/overflow',
+      }),
+    ).rejects.toMatchObject({ code: 'CAPACITY_EXCEEDED' });
+  }, 20_000);
 });

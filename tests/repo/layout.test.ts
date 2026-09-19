@@ -51,6 +51,7 @@ describe('repo-layout', () => {
       .toSorted();
 
     expect(standaloneSkills).toEqual([
+      'agent-messaging',
       'complexity-review',
       'consensus-review',
       'must-we',
@@ -78,6 +79,7 @@ describe('repo-layout', () => {
     const requiredDirectories = [
       'skills',
       path.posix.join('skills', 'session-observer-collab'),
+      path.posix.join('skills', 'agent-messaging'),
       path.posix.join('skills', 'session-observer-collab', 'references'),
       path.posix.join('skills', 'session-observer-collab', 'scripts'),
       path.posix.join('skills', 'session-export-transcript'),
@@ -108,6 +110,7 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'session', 'skills', 'export-transcript'),
       path.posix.join('plugins', 'session', 'skills', 'fork-to-destination'),
       path.posix.join('plugins', 'session', 'skills', 'handoff'),
+      path.posix.join('plugins', 'session', 'skills', 'messaging'),
       path.posix.join('plugins', 'session', 'skills', 'retro'),
       path.posix.join('plugins', 'session', '.claude-plugin'),
       path.posix.join('plugins', 'session', '.cursor-plugin'),

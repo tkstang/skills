@@ -1,7 +1,8 @@
-import { lstat } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  isCollaborationClosed,
+  MembershipError,
   resolveMember,
   resolveMemberByPin,
   type ResolvedMember,
@@ -21,10 +22,12 @@ import {
   MAX_BODY_BYTES,
   MAX_SUBJECT_BYTES,
   type AckRecord,
+  type InboxMessage,
   type MessageKind,
   type MessagePriority,
   type MessageRecord,
   type Pin,
+  pinsEqual,
 } from './types.js';
 
 export interface SendMessageInput {
@@ -39,6 +42,7 @@ export interface SendMessageInput {
   body: string;
   replyTo?: { participantId: string; messageId: string } | null;
   now?: string;
+  hooks?: { afterPublish?: () => void | Promise<void> };
 }
 
 function timestamp(value?: string): string {
@@ -52,16 +56,12 @@ async function assertNotClosed(
   root: string,
   collaborationId: string,
 ): Promise<void> {
-  const closed = collaborationPaths(root, collaborationId).closed;
-  const exists = await lstat(closed).then(
-    () => true,
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return false;
-      throw error;
-    },
-  );
-  if (exists)
-    throw new CollaborationError('RECORD_CONFLICT', 'collaboration is closed');
+  if (await isCollaborationClosed(root, collaborationId)) {
+    throw new MembershipError(
+      'COLLABORATION_CLOSED',
+      'collaboration is closed',
+    );
+  }
 }
 
 function contentFields(
@@ -113,6 +113,11 @@ export async function sendMessage(input: SendMessageInput): Promise<{
   message: MessageRecord;
   duplicate: boolean;
   staleAfterPublish: boolean;
+  raceStatus:
+    | 'current'
+    | 'closed'
+    | 'sender-superseded'
+    | 'recipient-superseded';
 }> {
   assertUuid(input.collaborationId, 'collaboration ID');
   assertUuid(input.id, 'message ID');
@@ -137,8 +142,8 @@ export async function sendMessage(input: SendMessageInput): Promise<{
     input.recipientAlias,
   );
   if (sender.departed || recipient.departed)
-    throw new CollaborationError(
-      'RECORD_CONFLICT',
+    throw new MembershipError(
+      'MEMBER_DEPARTED',
       'departed members cannot send or receive',
     );
   if (sender.member.participantId === recipient.member.participantId) {
@@ -184,7 +189,21 @@ export async function sendMessage(input: SendMessageInput): Promise<{
         'message ID already has different content',
       );
     }
-    return { message: existing, duplicate: true, staleAfterPublish: false };
+    return {
+      message: existing,
+      duplicate: true,
+      staleAfterPublish: false,
+      raceStatus: 'current',
+    };
+  }
+  const inboxFiles = await enumerateJsonRecords(path.dirname(target), {
+    maxEntries: 4096,
+  });
+  if (inboxFiles.length >= 4096) {
+    throw new CollaborationError(
+      'CAPACITY_EXCEEDED',
+      'recipient inbox already has 4096 messages',
+    );
   }
   const message: MessageRecord = {
     ...withoutHash,
@@ -200,19 +219,44 @@ export async function sendMessage(input: SendMessageInput): Promise<{
     ) {
       const winner = await readJsonRecord<MessageRecord>(target);
       if (winner.contentHash === contentHash) {
-        return { message: winner, duplicate: true, staleAfterPublish: false };
+        return {
+          message: winner,
+          duplicate: true,
+          staleAfterPublish: false,
+          raceStatus: 'current',
+        };
       }
     }
     throw error;
   }
+  await input.hooks?.afterPublish?.();
+  const closedAfterPublish = await isCollaborationClosed(
+    input.root,
+    input.collaborationId,
+  );
   const currentSender = await resolveMember(
     input.root,
     input.collaborationId,
     sender.member.alias,
   );
-  const staleAfterPublish =
-    currentSender.binding.generation !== sender.binding.generation;
-  return { message, duplicate: false, staleAfterPublish };
+  const refreshedRecipient = await resolveMember(
+    input.root,
+    input.collaborationId,
+    recipient.member.alias,
+  );
+  const raceStatus = closedAfterPublish
+    ? 'closed'
+    : currentSender.binding.generation !== sender.binding.generation
+      ? 'sender-superseded'
+      : refreshedRecipient.binding.generation !== recipient.binding.generation
+        ? 'recipient-superseded'
+        : 'current';
+  return {
+    message,
+    duplicate: false,
+    staleAfterPublish: raceStatus !== 'current',
+    raceStatus,
+  };
 }
 
 export interface InboxInput {
@@ -231,8 +275,8 @@ async function currentRecipient(input: InboxInput): Promise<ResolvedMember> {
     input.pin,
   );
   if (recipient.departed)
-    throw new CollaborationError(
-      'RECORD_CONFLICT',
+    throw new MembershipError(
+      'MEMBER_DEPARTED',
       'departed member inbox is inert',
     );
   return recipient;
@@ -263,13 +307,22 @@ async function acknowledged(
       throw error;
     },
   );
-  return ack?.messageHash === message.contentHash;
+  if (!ack) return false;
+  if (!pinsEqual(ack.recipient, recipient.binding.pin)) {
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      'acknowledgment recipient does not match the current binding',
+    );
+  }
+  return ack.messageHash === message.contentHash;
 }
 
 export async function listInbox(input: InboxInput): Promise<{
-  messages: MessageRecord[];
-  acknowledged: MessageRecord[];
+  messages: InboxMessage[];
+  acknowledged: InboxMessage[];
   truncated: boolean;
+  pendingTotal: number;
+  acknowledgedTotal: number;
 }> {
   const recipient = await currentRecipient(input);
   const directory = path.join(
@@ -293,26 +346,71 @@ export async function listInbox(input: InboxInput): Promise<{
       left.id.localeCompare(right.id)
     );
   });
-  const pending: MessageRecord[] = [];
-  const acked: MessageRecord[] = [];
+  const closed = await isCollaborationClosed(input.root, input.collaborationId);
+  const pending: InboxMessage[] = [];
+  const acked: InboxMessage[] = [];
   for (const message of sorted) {
-    if (await acknowledged(input, recipient, message)) acked.push(message);
-    else pending.push(message);
+    const senderCurrent = await resolveMemberByPin(
+      input.root,
+      input.collaborationId,
+      message.from.pin,
+    ).catch((error) => {
+      if (
+        error instanceof MembershipError &&
+        error.code === 'NOT_CURRENT_MEMBER'
+      )
+        return null;
+      throw error;
+    });
+    const raceStatus = closed
+      ? 'closed'
+      : message.to.generation !== recipient.binding.generation
+        ? 'recipient-superseded'
+        : !senderCurrent ||
+            senderCurrent.departed ||
+            senderCurrent.binding.generation !== message.from.generation
+          ? 'sender-superseded'
+          : 'current';
+    const presented: InboxMessage = {
+      ...message,
+      raceStatus,
+      inert: raceStatus !== 'current',
+    };
+    if (await acknowledged(input, recipient, message)) acked.push(presented);
+    else pending.push(presented);
   }
   const maxMessages = input.maxMessages ?? 8;
   const maxBytes = input.maxBytes ?? 48 * 1024;
-  const selected: MessageRecord[] = [];
+  const selectedPending: InboxMessage[] = [];
+  const selectedAcknowledged: InboxMessage[] = [];
   let bytes = 0;
-  for (const message of pending) {
+  const candidates = [
+    ...pending.map((message) => ({ message, acknowledged: false })),
+    ...(input.includeAcknowledged
+      ? acked.map((message) => ({ message, acknowledged: true }))
+      : []),
+  ];
+  for (const candidate of candidates) {
+    const message = candidate.message;
     const size = Buffer.byteLength(message.body, 'utf8');
-    if (selected.length >= maxMessages || bytes + size > maxBytes) break;
-    selected.push(message);
+    if (
+      selectedPending.length + selectedAcknowledged.length >= maxMessages ||
+      bytes + size > maxBytes
+    )
+      break;
+    if (candidate.acknowledged) selectedAcknowledged.push(message);
+    else selectedPending.push(message);
     bytes += size;
   }
   return {
-    messages: selected,
-    acknowledged: input.includeAcknowledged ? acked : [],
-    truncated: selected.length !== pending.length,
+    messages: selectedPending,
+    acknowledged: selectedAcknowledged,
+    truncated:
+      selectedPending.length !== pending.length ||
+      (input.includeAcknowledged === true &&
+        selectedAcknowledged.length !== acked.length),
+    pendingTotal: pending.length,
+    acknowledgedTotal: acked.length,
   };
 }
 

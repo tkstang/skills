@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -6,6 +6,8 @@ import { describe, expect, test } from 'vitest';
 
 import {
   joinCollaboration,
+  closeCollaboration,
+  resolveMember,
   openCollaboration,
   takeOverMembership,
 } from './membership.js';
@@ -210,4 +212,112 @@ describe('addressed messages and acknowledgments', () => {
       }),
     ).rejects.toMatchObject({ code: 'MEMBER_NOT_FOUND' });
   });
+
+  test('reports deterministic close and takeover races after publication', async () => {
+    const closed = await fixture();
+    const closedResult = await sendMessage({
+      ...closed,
+      senderPin: closed.driver,
+      recipientAlias: 'reviewer',
+      id: crypto.randomUUID(),
+      subject: 'close race',
+      body: 'published first',
+      hooks: {
+        afterPublish: async () => {
+          await closeCollaboration({ ...closed, pin: closed.driver });
+        },
+      },
+    });
+    expect(closedResult).toMatchObject({
+      staleAfterPublish: true,
+      raceStatus: 'closed',
+    });
+    expect(
+      (await listInbox({ ...closed, pin: closed.reviewer })).messages[0],
+    ).toMatchObject({ inert: true, raceStatus: 'closed' });
+
+    const takeover = await fixture();
+    const successor = { runtime: 'cursor' as const, sessionId: 'successor' };
+    const takeoverResult = await sendMessage({
+      ...takeover,
+      senderPin: takeover.driver,
+      recipientAlias: 'reviewer',
+      id: crypto.randomUUID(),
+      subject: 'takeover race',
+      body: 'published first',
+      hooks: {
+        afterPublish: async () => {
+          await takeOverMembership({
+            ...takeover,
+            alias: 'reviewer',
+            pin: successor,
+            expectedPreviousPin: takeover.reviewer,
+            reason: 'race',
+            worktree: '/tmp/successor',
+          });
+        },
+      },
+    });
+    expect(takeoverResult.raceStatus).toBe('recipient-superseded');
+    expect(
+      (await listInbox({ ...takeover, pin: successor })).messages[0],
+    ).toMatchObject({ inert: true, raceStatus: 'recipient-superseded' });
+  });
+
+  test('bounds combined pending and acknowledged output and accepts reordered acks', async () => {
+    const f = await fixture();
+    const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
+    for (const [index, id] of ids.entries()) {
+      await sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id,
+        subject: `message ${index}`,
+        body: 'body',
+      });
+    }
+    await acknowledgeMessage({ ...f, pin: f.reviewer, messageId: ids[1]! });
+    await acknowledgeMessage({ ...f, pin: f.reviewer, messageId: ids[0]! });
+    const inbox = await listInbox({
+      ...f,
+      pin: f.reviewer,
+      includeAcknowledged: true,
+      maxMessages: 8,
+    });
+    expect(inbox.messages.length + inbox.acknowledged.length).toBe(8);
+    expect(inbox).toMatchObject({
+      pendingTotal: 8,
+      acknowledgedTotal: 2,
+      truncated: true,
+    });
+  });
+
+  test('allows the inbox cap boundary and rejects one over', async () => {
+    const f = await fixture();
+    const reviewer = await resolveMember(f.root, f.collaborationId, 'reviewer');
+    const directory = path.join(
+      f.root,
+      'collaborations',
+      f.collaborationId,
+      'inbox',
+      reviewer.member.participantId,
+    );
+    await mkdir(directory, { recursive: true });
+    await Promise.all(
+      Array.from({ length: 4096 }, (_, index) =>
+        writeFile(path.join(directory, `${index}.json`), '{}'),
+      ),
+    );
+    await expect(
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'overflow',
+        body: 'body',
+      }),
+    ).rejects.toMatchObject({ code: 'CAPACITY_EXCEEDED' });
+  }, 20_000);
 });

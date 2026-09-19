@@ -11,7 +11,23 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 
-import { SCHEMA_VERSION } from './types.js';
+import {
+  assertAlias,
+  assertBoundedString,
+  assertPin,
+  assertUuid,
+  MAX_BODY_BYTES,
+  MAX_SUBJECT_BYTES,
+  SCHEMA_VERSION,
+  type AckRecord,
+  type BindingRecord,
+  type ClosedRecord,
+  type CollaborationRecord,
+  type DepartureRecord,
+  type LogEntryRecord,
+  type MemberRecord,
+  type MessageRecord,
+} from './types.js';
 
 export type CollaborationErrorCode =
   | 'CAPACITY_EXCEEDED'
@@ -85,9 +101,251 @@ function assertSchema(
   }
 }
 
+function malformed(message: string): never {
+  throw new CollaborationError('MALFORMED_RECORD', message);
+}
+
+function assertTimestamp(
+  value: unknown,
+  label: string,
+): asserts value is string {
+  if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) {
+    malformed(`${label} must be an ISO-8601 timestamp`);
+  }
+}
+
+function assertGeneration(
+  value: unknown,
+  label: string,
+): asserts value is number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    malformed(`${label} must be a non-negative safe integer`);
+  }
+}
+
+function assertHash(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
+    malformed(`${label} must be a SHA-256 hex digest`);
+  }
+}
+
+function assertUuidValue(
+  value: unknown,
+  label: string,
+): asserts value is string {
+  if (typeof value !== 'string') malformed(`${label} must be a UUID`);
+  assertUuid(value, label);
+}
+
+function validateBinding(record: BindingRecord): void {
+  assertUuidValue(record.participantId, 'binding participantId');
+  assertGeneration(record.generation, 'binding generation');
+  assertPin(record.pin);
+  if (!path.isAbsolute(record.worktree))
+    malformed('binding worktree must be absolute');
+  if (record.previousPin !== null) assertPin(record.previousPin);
+  assertBoundedString(record.reason, 'binding reason', 512);
+  assertTimestamp(record.createdAt, 'binding createdAt');
+  if (!Array.isArray(record.inheritedAckRefs))
+    malformed('binding inheritedAckRefs must be an array');
+  for (const ack of record.inheritedAckRefs) {
+    if (!ack || typeof ack !== 'object')
+      malformed('binding inherited ack must be an object');
+    assertUuidValue(ack.messageId, 'inherited messageId');
+    assertHash(ack.messageHash, 'inherited messageHash');
+  }
+}
+
+function messageHash(record: MessageRecord): string {
+  return canonicalHash({
+    schemaVersion: 1,
+    id: record.id,
+    collaborationId: record.collaborationId,
+    from: record.from,
+    to: record.to,
+    kind: record.kind,
+    priority: record.priority,
+    subject: record.subject,
+    body: record.body,
+    replyTo: record.replyTo,
+  });
+}
+
+function logHash(record: LogEntryRecord): string {
+  return canonicalHash({
+    collaborationId: record.collaborationId,
+    id: record.id,
+    category: record.category,
+    title: record.title,
+    author: record.author,
+    whatHappened: record.whatHappened,
+    assessment: record.assessment,
+    skillImplication: record.skillImplication,
+  });
+}
+
+function validateAuthoritativeRecord(
+  file: string,
+  value: Record<string, unknown>,
+): void {
+  const segments = path.resolve(file).split(path.sep);
+  const collaborationIndex = segments.lastIndexOf('collaborations');
+  const collaborationPathId =
+    collaborationIndex >= 0 ? segments[collaborationIndex + 1] : undefined;
+  const basename = path.basename(file, '.json');
+  const parent = path.basename(path.dirname(file));
+  const grandparent = path.basename(path.dirname(path.dirname(file)));
+  try {
+    if (path.basename(file) === 'collaboration.json') {
+      const candidate = value as unknown as CollaborationRecord;
+      assertUuidValue(candidate.id, 'collaboration id');
+      if (candidate.id !== parent)
+        malformed('collaboration path identity does not match id');
+      assertBoundedString(candidate.label, 'collaboration label', 128);
+      assertBoundedString(candidate.task, 'collaboration task', 2048);
+      assertTimestamp(candidate.createdAt, 'collaboration createdAt');
+    } else if (segments.includes('members')) {
+      const candidate = value as unknown as MemberRecord;
+      assertAlias(candidate.alias);
+      if (candidate.alias !== basename)
+        malformed('member path identity does not match alias');
+      assertUuidValue(candidate.participantId, 'member participantId');
+      assertUuidValue(candidate.collaborationId, 'member collaborationId');
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed('member collaboration path identity does not match record');
+      assertTimestamp(candidate.createdAt, 'member createdAt');
+      if (
+        !candidate.initialBinding ||
+        typeof candidate.initialBinding !== 'object'
+      )
+        malformed('member initialBinding is required');
+      validateBinding(candidate.initialBinding);
+      if (
+        candidate.initialBinding.participantId !== candidate.participantId ||
+        candidate.initialBinding.generation !== 0
+      )
+        malformed('member initial binding identity is invalid');
+    } else if (segments.includes('bindings')) {
+      const candidate = value as unknown as BindingRecord;
+      validateBinding(candidate);
+      if (
+        candidate.participantId !== parent ||
+        String(candidate.generation) !== basename
+      )
+        malformed('binding path identity does not match record');
+    } else if (segments.includes('departures')) {
+      const candidate = value as unknown as DepartureRecord;
+      assertUuidValue(candidate.participantId, 'departure participantId');
+      assertGeneration(candidate.generation, 'departure generation');
+      assertPin(candidate.pin);
+      assertTimestamp(candidate.departedAt, 'departure departedAt');
+      if (
+        candidate.participantId !== parent ||
+        String(candidate.generation) !== basename
+      )
+        malformed('departure path identity does not match record');
+    } else if (segments.includes('inbox')) {
+      const candidate = value as unknown as MessageRecord;
+      assertUuidValue(candidate.id, 'message id');
+      assertUuidValue(candidate.collaborationId, 'message collaborationId');
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed('message collaboration path identity does not match record');
+      if (
+        !candidate.from ||
+        typeof candidate.from !== 'object' ||
+        !candidate.to ||
+        typeof candidate.to !== 'object'
+      )
+        malformed('message endpoints are required');
+      assertUuidValue(
+        candidate.from.participantId,
+        'message sender participantId',
+      );
+      assertGeneration(candidate.from.generation, 'message sender generation');
+      assertPin(candidate.from.pin);
+      assertUuidValue(
+        candidate.to.participantId,
+        'message recipient participantId',
+      );
+      assertGeneration(candidate.to.generation, 'message recipient generation');
+      if (!['request', 'update'].includes(candidate.kind))
+        malformed('message kind is unsupported');
+      if (!['normal', 'high'].includes(candidate.priority))
+        malformed('message priority is unsupported');
+      assertBoundedString(
+        candidate.subject,
+        'message subject',
+        MAX_SUBJECT_BYTES,
+      );
+      assertBoundedString(candidate.body, 'message body', MAX_BODY_BYTES, true);
+      if (candidate.replyTo !== null) {
+        if (!candidate.replyTo || typeof candidate.replyTo !== 'object')
+          malformed('message replyTo is invalid');
+        assertUuidValue(candidate.replyTo.participantId, 'reply participantId');
+        assertUuidValue(candidate.replyTo.messageId, 'reply messageId');
+      }
+      assertTimestamp(candidate.createdAt, 'message createdAt');
+      assertHash(candidate.contentHash, 'message contentHash');
+      if (candidate.contentHash !== messageHash(candidate))
+        malformed('message contentHash does not match content');
+      if (candidate.to.participantId !== parent || candidate.id !== basename)
+        malformed('message path identity does not match record');
+    } else if (segments.includes('acks')) {
+      const candidate = value as unknown as AckRecord;
+      assertUuidValue(candidate.messageId, 'ack messageId');
+      assertHash(candidate.messageHash, 'ack messageHash');
+      assertPin(candidate.recipient);
+      assertGeneration(candidate.bindingGeneration, 'ack bindingGeneration');
+      assertTimestamp(candidate.receivedAt, 'ack receivedAt');
+      assertUuidValue(grandparent, 'ack participant path');
+      if (
+        candidate.messageId !== basename ||
+        String(candidate.bindingGeneration) !== parent
+      )
+        malformed('ack path identity does not match record');
+    } else if (segments.includes('entries') && segments.includes('log')) {
+      const candidate = value as unknown as LogEntryRecord;
+      assertUuidValue(candidate.id, 'log entry id');
+      assertUuidValue(candidate.collaborationId, 'log collaborationId');
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed('log collaboration path identity does not match record');
+      assertBoundedString(candidate.category, 'log category', 64);
+      assertBoundedString(candidate.title, 'log title', 256);
+      assertPin(candidate.author);
+      assertTimestamp(candidate.authoredAt, 'log authoredAt');
+      assertBoundedString(
+        candidate.whatHappened,
+        'log whatHappened',
+        16 * 1024,
+      );
+      assertBoundedString(candidate.assessment, 'log assessment', 2048);
+      assertBoundedString(
+        candidate.skillImplication,
+        'log skillImplication',
+        4096,
+      );
+      assertHash(candidate.contentHash, 'log contentHash');
+      if (candidate.contentHash !== logHash(candidate))
+        malformed('log contentHash does not match content');
+      if (candidate.id !== basename)
+        malformed('log path identity does not match id');
+    } else if (path.basename(file) === 'closed.json') {
+      const candidate = value as unknown as ClosedRecord;
+      assertUuidValue(candidate.collaborationId, 'closed collaborationId');
+      assertPin(candidate.closedBy);
+      assertTimestamp(candidate.closedAt, 'closed closedAt');
+      if (candidate.collaborationId !== parent)
+        malformed('closed path identity does not match collaboration');
+    }
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError('MALFORMED_RECORD', (error as Error).message);
+  }
+}
+
 export async function readJsonRecord<T>(
   file: string,
-  options: { maxBytes?: number } = {},
+  options: { maxBytes?: number; expectedUid?: number } = {},
 ): Promise<T> {
   const info = await lstat(file).catch((error) => {
     if (isMissing(error)) throw error;
@@ -102,7 +360,8 @@ export async function readJsonRecord<T>(
       'record must be a regular file',
     );
   }
-  if (typeof process.getuid === 'function' && info.uid !== process.getuid()) {
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== undefined && info.uid !== expectedUid) {
     throw new CollaborationError(
       'UNSAFE_PATH',
       'record owner does not match the current user',
@@ -125,6 +384,7 @@ export async function readJsonRecord<T>(
     );
   }
   assertSchema(parsed);
+  validateAuthoritativeRecord(file, parsed);
   return parsed as T;
 }
 

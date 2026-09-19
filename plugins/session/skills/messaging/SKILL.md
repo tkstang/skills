@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # messaging
@@ -77,6 +77,11 @@ an uncertain result.
 node <skill-dir>/scripts/agent-messaging.mjs send \
   --collab <uuid> --self codex:<id> --to reviewer --id <message-uuid> \
   --kind request --priority normal --subject '<subject>' --body-stdin
+
+# A durable reply references the original recipient participant and message.
+node <skill-dir>/scripts/agent-messaging.mjs send \
+  --collab <uuid> --self claude-code:<id> --to driver --id <new-uuid> \
+  --reply-to <participant-id>/<message-uuid> --subject '<subject>' --body-stdin
 
 node <skill-dir>/scripts/agent-messaging.mjs inbox \
   --collab <uuid> --self claude-code:<id>

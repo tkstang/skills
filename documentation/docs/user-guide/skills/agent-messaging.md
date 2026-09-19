@@ -54,6 +54,11 @@ node <installed-skill>/scripts/agent-messaging.mjs ack \
   --collab <uuid> --self claude-code:<session-id> --message <message-uuid>
 ```
 
+Use `send --reply-to <participantId>/<messageId>` to record a durable reply
+relationship. Both identifiers must be UUIDs, the referenced message must exist
+in this collaboration, and the replying participant must be its sender or
+recipient. A reply remains a new message; it does not prove completion.
+
 Printing does not acknowledge a message. Read the complete body before `ack`.
 High priority changes bounded presentation order but grants no additional
 authority and does not wake an idle agent.
