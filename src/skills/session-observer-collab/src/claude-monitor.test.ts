@@ -24,8 +24,10 @@ async function fixture(maxContinuations = 2) {
   roots.push(root);
   const cwd = path.join(root, 'worktree');
   const transcript = path.join(root, 'peer.jsonl');
+  const claudeSettings = path.join(root, 'claude-settings.json');
   await mkdir(cwd);
   await writeFile(transcript, '{}\n{}\n{}\n');
+  await writeFile(claudeSettings, '{}\n');
   const collaborationId = crypto.randomUUID();
   const activationId = crypto.randomUUID();
   const self = { runtime: 'claude-code' as const, sessionId: 'claude-owner' };
@@ -90,6 +92,10 @@ async function fixture(maxContinuations = 2) {
       confirmedAt: new Date(START).toISOString(),
       oldMonitorStopped: true,
       standaloneWatcherStopped: true,
+    },
+    claudeInventorySources: {
+      settingsPaths: [claudeSettings],
+      installedPlugins: {},
     },
   });
   return {

@@ -133,6 +133,10 @@ export interface ActivationRecord extends HasSchemaVersion {
     oldMonitorStopped: true;
     standaloneWatcherStopped: true;
   } | null;
+  claudeInventorySources: {
+    settingsPaths: string[];
+    installedPlugins: Record<string, string>;
+  } | null;
   startedAt: string;
   hardExpiresAt: string;
   expiryMode: ExpiryMode;

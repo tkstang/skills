@@ -64,6 +64,7 @@ export interface EnableActivationInput {
   noObserverMonitorAttestation?: ActivationRecord['noObserverMonitorAttestation'];
   noObserverMonitorConfirmed?: boolean;
   composedMonitorAttestation?: ActivationRecord['composedMonitorAttestation'];
+  claudeInventorySources?: ActivationRecord['claudeInventorySources'];
   now?: Date;
   activationId?: string;
   humanProvenanceEvidence?: {
@@ -240,6 +241,24 @@ function validateActivation(record: ActivationRecord): ActivationRecord {
         throw new TypeError(
           'composed Monitor attestation time is outside activation',
         );
+    }
+    if (record.claudeInventorySources) {
+      if (record.pin.runtime !== 'claude-code')
+        throw new TypeError(
+          'Claude inventory sources require a Claude activation',
+        );
+      if (
+        !Array.isArray(record.claudeInventorySources.settingsPaths) ||
+        record.claudeInventorySources.settingsPaths.length === 0 ||
+        !record.claudeInventorySources.settingsPaths.every(path.isAbsolute) ||
+        !record.claudeInventorySources.installedPlugins ||
+        typeof record.claudeInventorySources.installedPlugins !== 'object' ||
+        Array.isArray(record.claudeInventorySources.installedPlugins) ||
+        !Object.values(record.claudeInventorySources.installedPlugins).every(
+          path.isAbsolute,
+        )
+      )
+        throw new TypeError('Claude inventory sources are invalid');
     }
     assertIntegerRange(
       record.maxContinuations,
@@ -607,6 +626,9 @@ export async function enableActivation(
           oldMonitorStopped: true,
           standaloneWatcherStopped: true,
         }
+      : null,
+    claudeInventorySources: input.claudeInventorySources
+      ? structuredClone(input.claudeInventorySources)
       : null,
     startedAt,
     hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),

@@ -9,6 +9,7 @@ import {
   inspectClaudeStopInventory,
   inspectCodexStopInventory,
   installCodexMessagingHooks,
+  resolveClaudeInventoryInput,
   uninstallCodexMessagingHooks,
 } from './registration.js';
 
@@ -250,5 +251,57 @@ describe('messaging hook registration', () => {
     });
     expect(inventory.unreadableSources).toEqual([unreadable]);
     expect(inventory.unresolvedPlugins).toEqual(['missing']);
+  });
+
+  test('resolves standard Claude settings and refuses when every source is absent', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'claude-defaults-'));
+    const home = path.join(root, 'home');
+    const cwd = path.join(root, 'project');
+    await mkdir(path.join(home, '.claude'), { recursive: true });
+    await mkdir(cwd);
+    const userSettings = path.join(home, '.claude', 'settings.json');
+    await writeFile(
+      userSettings,
+      JSON.stringify({
+        hooks: { Stop: [{ hooks: [{ command: 'node third-party.mjs' }] }] },
+      }),
+    );
+    const defaults = resolveClaudeInventoryInput({ cwd, env: { HOME: home } });
+    const inventory = await inspectClaudeStopInventory(defaults);
+    expect(inventory.resolvedSources).toEqual([userSettings]);
+    expect(inventory.registrations[0]?.command).toBe('node third-party.mjs');
+    expect(inventory.sourceSet).toEqual(defaults);
+
+    const absentRoot = await mkdtemp(path.join(tmpdir(), 'claude-absent-'));
+    const absent = await inspectClaudeStopInventory(
+      resolveClaudeInventoryInput({
+        cwd: absentRoot,
+        env: { HOME: path.join(absentRoot, 'home') },
+      }),
+    );
+    expect(
+      await assessAutomaticOwnership({
+        root: absentRoot,
+        pin: { runtime: 'claude-code', sessionId: 'session' },
+        worktree: absentRoot,
+        inventory: absent,
+      }),
+    ).toMatchObject({ automaticAllowed: false });
+  });
+
+  test('preserves explicit Claude inventory overrides as the resolved source set', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'claude-explicit-'));
+    const settings = path.join(root, 'settings.json');
+    await writeFile(settings, '{}\n');
+    const resolved = resolveClaudeInventoryInput({
+      cwd: root,
+      env: {},
+      settingsPaths: [settings],
+      installedPlugins: {},
+    });
+    expect((await inspectClaudeStopInventory(resolved)).sourceSet).toEqual({
+      settingsPaths: [settings],
+      installedPlugins: {},
+    });
   });
 });

@@ -17,6 +17,22 @@ marketplace/catalog-only copies are ignored. Missing optional files are empty;
 unreadable configured files and unresolved enabled plugins refuse automatic
 delivery.
 
+Without flags, `delivery inspect` and `delivery enable` resolve the user
+`~/.claude/settings.json`, project `.claude/settings.json`, project-local
+`.claude/settings.local.json`, and the platform managed-settings path. At least
+one settings source must exist. The immutable activation stores the exact
+resolved paths and installed-plugin roots; hooks, watch, registration, and the
+composed Monitor re-inspect that same set rather than accepting later
+environment drift.
+
+Use `--settings-paths <path-list>` to replace the standard settings list and
+`--installed-plugins '<json-name-to-absolute-root-map>'` when the acting host
+can enumerate enabled plugin installations. The environment equivalents are
+`AGENT_MESSAGING_CLAUDE_SETTINGS` and
+`AGENT_MESSAGING_CLAUDE_PLUGINS`. An enabled plugin without a resolved installed
+root refuses automatic delivery; marketplace/catalog data is never inferred as
+an installation.
+
 Session-scoped skill/agent frontmatter hooks are not enumerable from those
 files. This is disclosed as a visibility limit, not mislabeled as complete host
 enumeration or an unreadable-file error. The acting session must not arm a known

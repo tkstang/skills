@@ -117,17 +117,12 @@ async function pendingRequests(root, collaborationId, pin) {
   );
 }
 
-function defaultOwnershipVerification(input, env) {
+function defaultOwnershipVerification(input) {
   return async ({ activation, lease, now }) => {
-    const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? '')
-      .split(process.platform === 'win32' ? ';' : ':')
-      .filter(Boolean);
-    const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS
-      ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS)
-      : {};
     const inventory = await inspectClaudeStopInventory({
-      settingsPaths,
-      installedPlugins,
+      settingsPaths: activation.claudeInventorySources?.settingsPaths ?? [],
+      installedPlugins:
+        activation.claudeInventorySources?.installedPlugins ?? {},
     });
     const ownership = await assessAutomaticOwnership({
       root: input.root,
@@ -258,8 +253,7 @@ export async function runClaudeMonitor(input, dependencies = {}) {
     peerTranscript: canonicalPeer.peerCanonicalTranscriptPath,
   };
   const verifyOwnership =
-    dependencies.verifyOwnership ??
-    defaultOwnershipVerification(input, dependencies.env ?? process.env);
+    dependencies.verifyOwnership ?? defaultOwnershipVerification(input);
   const maxRuntimeMs = Number(input.maxRuntimeMs);
   const pollMs = Number(input.pollMs ?? DEFAULT_POLL_MS);
   if (

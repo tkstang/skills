@@ -80,7 +80,13 @@ function validateTiming(durationMs: number, pollMs: number): void {
   }
 }
 
-async function inventoryFor(input: WatchInput) {
+async function inventoryFor(
+  input: WatchInput,
+  claudeSources?: {
+    settingsPaths: string[];
+    installedPlugins: Record<string, string>;
+  } | null,
+) {
   const env = input.env ?? process.env;
   if (input.pin.runtime === 'codex') {
     return inspectCodexStopInventory(
@@ -93,13 +99,9 @@ async function inventoryFor(input: WatchInput) {
       'DELIVERY_INACTIVE',
       'this host has no verified standalone watch boundary',
     );
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? '')
-    .split(path.delimiter)
-    .filter(Boolean);
-  const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS
-    ? (JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) as Record<string, string>)
-    : {};
-  return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
+  return inspectClaudeStopInventory(
+    claudeSources ?? { settingsPaths: [], installedPlugins: {} },
+  );
 }
 
 async function acceptedOwnership(input: WatchInput, now: Date) {
@@ -127,7 +129,10 @@ async function acceptedOwnership(input: WatchInput, now: Date) {
     root: input.root,
     pin: input.pin,
     worktree: input.worktree,
-    inventory: await inventoryFor(input),
+    inventory: await inventoryFor(
+      input,
+      status.activation.claudeInventorySources,
+    ),
     acknowledgedFingerprint:
       status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
     requestedController: status.activation.controller,

@@ -32,6 +32,8 @@ async function fixture(
   const collaborationId = crypto.randomUUID();
   const driver = { runtime: 'cursor' as const, sessionId: 'driver' };
   const recipient = { runtime, sessionId: 'recipient' };
+  const claudeSettings = path.join(root, 'claude-settings.json');
+  await writeFile(claudeSettings, '{}\n');
   await openCollaboration({
     root,
     collaborationId,
@@ -56,6 +58,10 @@ async function fixture(
     expiryMode: 'fixed',
     noObserverMonitorConfirmed:
       runtime === 'claude-code' && confirmNoObserverMonitor,
+    claudeInventorySources:
+      runtime === 'claude-code'
+        ? { settingsPaths: [claudeSettings], installedPlugins: {} }
+        : null,
     ...activationOptions,
   });
   const messageId = crypto.randomUUID();
@@ -72,9 +78,16 @@ async function fixture(
   const env = {
     SESSION_OBSERVER_STATE_DIR: root,
     HOME: root,
-    AGENT_MESSAGING_CLAUDE_SETTINGS: '',
   };
-  return { root, collaborationId, recipient, activation, messageId, env };
+  return {
+    root,
+    collaborationId,
+    recipient,
+    activation,
+    messageId,
+    env,
+    claudeSettings,
+  };
 }
 
 async function addObserverOwner(root: string, hooksPath: string) {
@@ -541,6 +554,27 @@ describe('host delivery hooks', () => {
       { env: f.env },
     );
     expect(output).toMatchObject({ decision: 'block' });
+  });
+
+  test('Claude refuses a persisted inventory source changed after enable without environment setup', async () => {
+    const f = await fixture('claude-code');
+    await writeFile(
+      f.claudeSettings,
+      JSON.stringify({
+        hooks: { Stop: [{ hooks: [{ command: 'node changed.mjs' }] }] },
+      }),
+    );
+    expect(
+      await runClaudeCodeHook(
+        {
+          hook_event_name: 'Stop',
+          session_id: 'recipient',
+          cwd: '/tmp/recipient',
+          event_id: 'claude-changed-inventory',
+        },
+        { env: f.env },
+      ),
+    ).toBeNull();
   });
 
   test('Claude stays manual when the acting-session attestation is missing', async () => {

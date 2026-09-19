@@ -908,6 +908,16 @@ function validateActivation(record) {
           "composed Monitor attestation time is outside activation"
         );
     }
+    if (record.claudeInventorySources) {
+      if (record.pin.runtime !== "claude-code")
+        throw new TypeError(
+          "Claude inventory sources require a Claude activation"
+        );
+      if (!Array.isArray(record.claudeInventorySources.settingsPaths) || record.claudeInventorySources.settingsPaths.length === 0 || !record.claudeInventorySources.settingsPaths.every(path4.isAbsolute) || !record.claudeInventorySources.installedPlugins || typeof record.claudeInventorySources.installedPlugins !== "object" || Array.isArray(record.claudeInventorySources.installedPlugins) || !Object.values(record.claudeInventorySources.installedPlugins).every(
+        path4.isAbsolute
+      ))
+        throw new TypeError("Claude inventory sources are invalid");
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",
@@ -1744,13 +1754,16 @@ async function inspectCodexStopInventory(hooksPath) {
     fingerprint: fingerprint(registrations),
     unreadableSources,
     unresolvedPlugins: [],
-    visibilityLimits: []
+    visibilityLimits: [],
+    resolvedSources: config === null ? [] : [path8.resolve(hooksPath)],
+    sourceSet: null
   };
 }
 async function inspectClaudeStopInventory(input) {
   const registrations = [];
   const unreadableSources = [];
   const unresolvedPlugins = [];
+  const resolvedSources = [];
   const enabledPlugins = /* @__PURE__ */ new Set();
   for (const source of input.settingsPaths) {
     if (!path8.isAbsolute(source))
@@ -1762,6 +1775,7 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path8.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -1793,6 +1807,7 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path8.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -1810,7 +1825,17 @@ async function inspectClaudeStopInventory(input) {
     unresolvedPlugins,
     visibilityLimits: [
       "session-scoped skill and agent frontmatter hooks are not enumerable from loaded settings files"
-    ]
+    ],
+    resolvedSources,
+    sourceSet: {
+      settingsPaths: input.settingsPaths.map((source) => path8.resolve(source)),
+      installedPlugins: Object.fromEntries(
+        Object.entries(input.installedPlugins ?? {}).map(([name, root]) => [
+          name,
+          path8.resolve(root)
+        ])
+      )
+    }
   };
 }
 var SAFE_LEASE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/u;
@@ -1912,7 +1937,7 @@ async function assessAutomaticOwnership(input) {
       composedMonitorPeer: null
     };
   }
-  if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0) {
+  if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0 || input.inventory.runtime === "claude-code" && input.inventory.resolvedSources.length === 0) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
@@ -2074,14 +2099,14 @@ ${JSON.stringify(payload).replaceAll("<", "\\u003c")}
     notice: "Bodies exceeded the bounded host envelope; read each exact message before acknowledging it."
   });
 }
-async function inventoryFor(input, env) {
+async function inventoryFor(input, env, claudeSources) {
   if (input.runtime === "codex") {
     const hooksPath = env.AGENT_MESSAGING_HOOKS_PATH ?? path10.join(env.HOME ?? input.cwd, ".codex", "hooks.json");
     return inspectCodexStopInventory(hooksPath);
   }
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path10.delimiter).filter(Boolean);
-  const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
-  return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
+  return inspectClaudeStopInventory(
+    claudeSources ?? { settingsPaths: [], installedPlugins: {} }
+  );
 }
 async function handleBoundary(input, dependencies = {}) {
   assertBoundedString(input.sessionId, "native session ID", 128);
@@ -2108,7 +2133,11 @@ async function handleBoundary(input, dependencies = {}) {
   if (input.runtime === "claude-code" && (!activation.noObserverMonitorAttestation || activation.noObserverMonitorAttestation.epoch !== activation.epoch)) {
     return { output: null, envelope: null };
   }
-  const inventory = await inventoryFor(input, env);
+  const inventory = await inventoryFor(
+    input,
+    env,
+    activation.claudeInventorySources
+  );
   const ownership = await assessAutomaticOwnership({
     root,
     pin,
@@ -2154,7 +2183,11 @@ async function handleBoundary(input, dependencies = {}) {
   if (!finalStatus.active || finalStatus.activation?.id !== activation.id) {
     return { output: null, envelope: null };
   }
-  const finalInventory = await inventoryFor(input, env);
+  const finalInventory = await inventoryFor(
+    input,
+    env,
+    activation.claudeInventorySources
+  );
   const finalOwnership = await assessAutomaticOwnership({
     root,
     pin,
@@ -2182,7 +2215,11 @@ async function handleBoundary(input, dependencies = {}) {
       root,
       pin,
       worktree: input.cwd,
-      inventory: await inventoryFor(input, env),
+      inventory: await inventoryFor(
+        input,
+        env,
+        checked.activation.claudeInventorySources
+      ),
       acknowledgedFingerprint: checked.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
       requestedController: checked.activation.controller,
       now: checkedAt

@@ -133,6 +133,11 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.16 and `session-observer-collab` 1.0.40 resolve the
+  standard bounded Claude settings inventory by default, persist its exact
+  sources in each activation, and re-inspect the same sources at every delivery
+  boundary; absent, unreadable, unresolved, or changed inventories stay manual.
+
 - `agent-messaging` 1.0.14 and `session-observer-collab` 1.0.38 make shipped
   hook and Monitor entrypoints execute correctly through real or symlinked
   installation paths, including URL-escaped paths.

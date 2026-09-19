@@ -1285,6 +1285,16 @@ function validateActivation(record) {
           "composed Monitor attestation time is outside activation"
         );
     }
+    if (record.claudeInventorySources) {
+      if (record.pin.runtime !== "claude-code")
+        throw new TypeError(
+          "Claude inventory sources require a Claude activation"
+        );
+      if (!Array.isArray(record.claudeInventorySources.settingsPaths) || record.claudeInventorySources.settingsPaths.length === 0 || !record.claudeInventorySources.settingsPaths.every(path4.isAbsolute) || !record.claudeInventorySources.installedPlugins || typeof record.claudeInventorySources.installedPlugins !== "object" || Array.isArray(record.claudeInventorySources.installedPlugins) || !Object.values(record.claudeInventorySources.installedPlugins).every(
+        path4.isAbsolute
+      ))
+        throw new TypeError("Claude inventory sources are invalid");
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",
@@ -1573,6 +1583,7 @@ async function enableActivation(input) {
       oldMonitorStopped: true,
       standaloneWatcherStopped: true
     } : null,
+    claudeInventorySources: input.claudeInventorySources ? structuredClone(input.claudeInventorySources) : null,
     startedAt,
     hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),
     expiryMode,
@@ -3099,13 +3110,40 @@ async function inspectCodexStopInventory(hooksPath) {
     fingerprint: fingerprint(registrations),
     unreadableSources,
     unresolvedPlugins: [],
-    visibilityLimits: []
+    visibilityLimits: [],
+    resolvedSources: config === null ? [] : [path10.resolve(hooksPath)],
+    sourceSet: null
+  };
+}
+function resolveClaudeInventoryInput(input) {
+  const env = input.env ?? process.env;
+  const configRoot = env.CLAUDE_CONFIG_DIR ?? path10.join(env.HOME ?? input.cwd, ".claude");
+  const managed = process.platform === "darwin" ? "/Library/Application Support/ClaudeCode/managed-settings.json" : "/etc/claude-code/managed-settings.json";
+  const overridden = input.settingsPaths ?? (env.AGENT_MESSAGING_CLAUDE_SETTINGS ? env.AGENT_MESSAGING_CLAUDE_SETTINGS.split(path10.delimiter).filter(
+    Boolean
+  ) : null);
+  const settingsPaths = overridden ?? [
+    path10.join(configRoot, "settings.json"),
+    path10.join(input.cwd, ".claude", "settings.json"),
+    path10.join(input.cwd, ".claude", "settings.local.json"),
+    managed
+  ];
+  const installedPlugins = input.installedPlugins ?? (env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {});
+  return {
+    settingsPaths: settingsPaths.map((source) => path10.resolve(source)),
+    installedPlugins: Object.fromEntries(
+      Object.entries(installedPlugins).map(([name, root]) => [
+        name,
+        path10.resolve(root)
+      ])
+    )
   };
 }
 async function inspectClaudeStopInventory(input) {
   const registrations = [];
   const unreadableSources = [];
   const unresolvedPlugins = [];
+  const resolvedSources = [];
   const enabledPlugins = /* @__PURE__ */ new Set();
   for (const source of input.settingsPaths) {
     if (!path10.isAbsolute(source))
@@ -3117,6 +3155,7 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path10.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -3148,6 +3187,7 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path10.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -3165,7 +3205,17 @@ async function inspectClaudeStopInventory(input) {
     unresolvedPlugins,
     visibilityLimits: [
       "session-scoped skill and agent frontmatter hooks are not enumerable from loaded settings files"
-    ]
+    ],
+    resolvedSources,
+    sourceSet: {
+      settingsPaths: input.settingsPaths.map((source) => path10.resolve(source)),
+      installedPlugins: Object.fromEntries(
+        Object.entries(input.installedPlugins ?? {}).map(([name, root]) => [
+          name,
+          path10.resolve(root)
+        ])
+      )
+    }
   };
 }
 var SAFE_LEASE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/u;
@@ -3267,7 +3317,7 @@ async function assessAutomaticOwnership(input) {
       composedMonitorPeer: null
     };
   }
-  if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0) {
+  if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0 || input.inventory.runtime === "claude-code" && input.inventory.resolvedSources.length === 0) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
@@ -3490,7 +3540,7 @@ function validateTiming(durationMs, pollMs) {
     throw new TypeError("watch poll interval must be from 1ms through 60s");
   }
 }
-async function inventoryFor(input) {
+async function inventoryFor(input, claudeSources) {
   const env = input.env ?? process.env;
   if (input.pin.runtime === "codex") {
     return inspectCodexStopInventory(
@@ -3502,9 +3552,9 @@ async function inventoryFor(input) {
       "DELIVERY_INACTIVE",
       "this host has no verified standalone watch boundary"
     );
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path12.delimiter).filter(Boolean);
-  const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
-  return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
+  return inspectClaudeStopInventory(
+    claudeSources ?? { settingsPaths: [], installedPlugins: {} }
+  );
 }
 async function acceptedOwnership(input, now) {
   const status = await activationStatus(input.root, input.pin, now);
@@ -3518,7 +3568,10 @@ async function acceptedOwnership(input, now) {
     root: input.root,
     pin: input.pin,
     worktree: input.worktree,
-    inventory: await inventoryFor(input),
+    inventory: await inventoryFor(
+      input,
+      status.activation.claudeInventorySources
+    ),
     acknowledgedFingerprint: status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
     requestedController: status.activation.controller,
     now
@@ -3982,10 +4035,14 @@ async function execute(parsed, io) {
     }
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
       optional(parsed, "hooks-path") ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
-    ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
-      installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
-    });
+    ) : await inspectClaudeStopInventory(
+      resolveClaudeInventoryInput({
+        cwd: worktree,
+        env: io.env,
+        settingsPaths: optional(parsed, "settings-paths")?.split(path13.delimiter).filter(Boolean),
+        installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : void 0
+      })
+    );
     const ownership = await assessAutomaticOwnership({
       root,
       pin,
@@ -4057,7 +4114,8 @@ async function execute(parsed, io) {
         confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
         oldMonitorStopped: true,
         standaloneWatcherStopped: true
-      } : null
+      } : null,
+      claudeInventorySources: pin.runtime === "claude-code" ? inventory.sourceSet : null
     });
     return { operation: "delivery.enable", collaborationId, data };
   }
@@ -4144,10 +4202,14 @@ async function execute(parsed, io) {
     }
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
       optional(parsed, "hooks-path") ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
-    ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
-      installedPlugins: {}
-    });
+    ) : await inspectClaudeStopInventory(
+      resolveClaudeInventoryInput({
+        cwd: optional(parsed, "cwd") ?? io.cwd,
+        env: io.env,
+        settingsPaths: optional(parsed, "settings-paths")?.split(path13.delimiter).filter(Boolean),
+        installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : void 0
+      })
+    );
     return {
       operation: "delivery.inspect",
       collaborationId,
@@ -4179,10 +4241,12 @@ async function execute(parsed, io) {
     const hooksPath = optional(parsed, "hooks-path");
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
       hooksPath ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
-    ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
-      installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
-    });
+    ) : await inspectClaudeStopInventory(
+      activation.claudeInventorySources ?? {
+        settingsPaths: [],
+        installedPlugins: {}
+      }
+    );
     const ownership = await assessAutomaticOwnership({
       root,
       pin,

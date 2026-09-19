@@ -22,6 +22,7 @@ import {
   assessAutomaticOwnership,
   inspectClaudeStopInventory,
   inspectCodexStopInventory,
+  type HookInventory,
 } from '../registration.js';
 
 export type HookBoundary = 'prompt-start' | 'stop';
@@ -82,20 +83,20 @@ function boundedEnvelope(
   });
 }
 
-async function inventoryFor(input: BoundaryInput, env: NodeJS.ProcessEnv) {
+async function inventoryFor(
+  input: BoundaryInput,
+  env: NodeJS.ProcessEnv,
+  claudeSources?: HookInventory['sourceSet'],
+) {
   if (input.runtime === 'codex') {
     const hooksPath =
       env.AGENT_MESSAGING_HOOKS_PATH ??
       path.join(env.HOME ?? input.cwd, '.codex', 'hooks.json');
     return inspectCodexStopInventory(hooksPath);
   }
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? '')
-    .split(path.delimiter)
-    .filter(Boolean);
-  const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS
-    ? (JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) as Record<string, string>)
-    : {};
-  return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
+  return inspectClaudeStopInventory(
+    claudeSources ?? { settingsPaths: [], installedPlugins: {} },
+  );
 }
 
 export async function handleBoundary(
@@ -134,7 +135,11 @@ export async function handleBoundary(
   ) {
     return { output: null, envelope: null };
   }
-  const inventory = await inventoryFor(input, env);
+  const inventory = await inventoryFor(
+    input,
+    env,
+    activation.claudeInventorySources,
+  );
   const ownership = await assessAutomaticOwnership({
     root,
     pin,
@@ -199,7 +204,11 @@ export async function handleBoundary(
   if (!finalStatus.active || finalStatus.activation?.id !== activation.id) {
     return { output: null, envelope: null };
   }
-  const finalInventory = await inventoryFor(input, env);
+  const finalInventory = await inventoryFor(
+    input,
+    env,
+    activation.claudeInventorySources,
+  );
   const finalOwnership = await assessAutomaticOwnership({
     root,
     pin,
@@ -238,7 +247,11 @@ export async function handleBoundary(
       root,
       pin,
       worktree: input.cwd,
-      inventory: await inventoryFor(input, env),
+      inventory: await inventoryFor(
+        input,
+        env,
+        checked.activation.claudeInventorySources,
+      ),
       acknowledgedFingerprint:
         checked.activation.thirdPartyHookAcknowledgment
           ?.configurationFingerprint,

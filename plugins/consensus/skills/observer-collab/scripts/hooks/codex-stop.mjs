@@ -875,6 +875,16 @@ function validateActivation(record) {
           "composed Monitor attestation time is outside activation"
         );
     }
+    if (record.claudeInventorySources) {
+      if (record.pin.runtime !== "claude-code")
+        throw new TypeError(
+          "Claude inventory sources require a Claude activation"
+        );
+      if (!Array.isArray(record.claudeInventorySources.settingsPaths) || record.claudeInventorySources.settingsPaths.length === 0 || !record.claudeInventorySources.settingsPaths.every(path4.isAbsolute) || !record.claudeInventorySources.installedPlugins || typeof record.claudeInventorySources.installedPlugins !== "object" || Array.isArray(record.claudeInventorySources.installedPlugins) || !Object.values(record.claudeInventorySources.installedPlugins).every(
+        path4.isAbsolute
+      ))
+        throw new TypeError("Claude inventory sources are invalid");
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",

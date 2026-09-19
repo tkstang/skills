@@ -65,6 +65,7 @@ import {
   inspectClaudeStopInventory,
   inspectCodexStopInventory,
   installCodexMessagingHooks,
+  resolveClaudeInventoryInput,
   uninstallCodexMessagingHooks,
 } from './registration.js';
 import { watchInbox } from './watch.js';
@@ -487,17 +488,21 @@ async function execute(
             optional(parsed, 'hooks-path') ??
               path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
           )
-        : await inspectClaudeStopInventory({
-            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
-              .split(path.delimiter)
-              .filter(Boolean),
-            installedPlugins: optional(parsed, 'installed-plugins')
-              ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
-                  string,
-                  string
-                >)
-              : {},
-          });
+        : await inspectClaudeStopInventory(
+            resolveClaudeInventoryInput({
+              cwd: worktree,
+              env: io.env,
+              settingsPaths: optional(parsed, 'settings-paths')
+                ?.split(path.delimiter)
+                .filter(Boolean),
+              installedPlugins: optional(parsed, 'installed-plugins')
+                ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
+                    string,
+                    string
+                  >)
+                : undefined,
+            }),
+          );
     const ownership = await assessAutomaticOwnership({
       root,
       pin,
@@ -600,6 +605,8 @@ async function execute(
               standaloneWatcherStopped: true,
             }
           : null,
+      claudeInventorySources:
+        pin.runtime === 'claude-code' ? inventory.sourceSet : null,
     });
     return { operation: 'delivery.enable', collaborationId, data };
   }
@@ -693,12 +700,21 @@ async function execute(
             optional(parsed, 'hooks-path') ??
               path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
           )
-        : await inspectClaudeStopInventory({
-            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
-              .split(path.delimiter)
-              .filter(Boolean),
-            installedPlugins: {},
-          });
+        : await inspectClaudeStopInventory(
+            resolveClaudeInventoryInput({
+              cwd: optional(parsed, 'cwd') ?? io.cwd,
+              env: io.env,
+              settingsPaths: optional(parsed, 'settings-paths')
+                ?.split(path.delimiter)
+                .filter(Boolean),
+              installedPlugins: optional(parsed, 'installed-plugins')
+                ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
+                    string,
+                    string
+                  >)
+                : undefined,
+            }),
+          );
     return {
       operation: 'delivery.inspect',
       collaborationId,
@@ -740,17 +756,12 @@ async function execute(
             hooksPath ??
               path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
           )
-        : await inspectClaudeStopInventory({
-            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
-              .split(path.delimiter)
-              .filter(Boolean),
-            installedPlugins: optional(parsed, 'installed-plugins')
-              ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
-                  string,
-                  string
-                >)
-              : {},
-          });
+        : await inspectClaudeStopInventory(
+            activation.claudeInventorySources ?? {
+              settingsPaths: [],
+              installedPlugins: {},
+            },
+          );
     const ownership = await assessAutomaticOwnership({
       root,
       pin,

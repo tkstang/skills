@@ -42,6 +42,8 @@ async function fixture(
     sessionId: 'recipient',
   };
   const now = new Date();
+  const claudeSettings = path.join(root, 'claude-settings.json');
+  await writeFile(claudeSettings, '{}\n');
   await openCollaboration({
     root,
     collaborationId,
@@ -70,12 +72,15 @@ async function fixture(
     maxDurationMs: input.fixedDurationMs ?? 60_000,
     maxContinuations: input.maxContinuations,
     noObserverMonitorConfirmed: recipient.runtime === 'claude-code',
+    claudeInventorySources:
+      recipient.runtime === 'claude-code'
+        ? { settingsPaths: [claudeSettings], installedPlugins: {} }
+        : null,
     now,
   });
   const env = {
     SESSION_OBSERVER_STATE_DIR: root,
     HOME: root,
-    AGENT_MESSAGING_CLAUDE_SETTINGS: '',
   };
   return { root, collaborationId, driver, recipient, activation, env, now };
 }

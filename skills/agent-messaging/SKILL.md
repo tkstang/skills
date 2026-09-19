@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.15'
+  version: '1.0.16'
 ---
 
 # agent-messaging
@@ -136,7 +136,9 @@ the exact session's hook inventory and continuation owner:
 
 ```bash
 node <skill-dir>/scripts/agent-messaging.mjs delivery inspect \
-  --collab <uuid> --self codex:<id> --hooks-path <absolute-hooks.json>
+  --collab <uuid> --self claude-code:<id> \
+  --settings-paths <absolute-path-list> \
+  --installed-plugins '<json-name-to-absolute-root-map>'
 ```
 
 Unrelated Stop commands require `--acknowledge-stop-hooks <fingerprint>` on

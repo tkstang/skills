@@ -36,6 +36,11 @@ export interface HookInventory {
   unreadableSources: string[];
   unresolvedPlugins: string[];
   visibilityLimits: string[];
+  resolvedSources: string[];
+  sourceSet: {
+    settingsPaths: string[];
+    installedPlugins: Record<string, string>;
+  } | null;
 }
 
 export interface OwnershipAssessment {
@@ -242,6 +247,8 @@ export async function inspectCodexStopInventory(
     unreadableSources,
     unresolvedPlugins: [],
     visibilityLimits: [],
+    resolvedSources: config === null ? [] : [path.resolve(hooksPath)],
+    sourceSet: null,
   };
 }
 
@@ -250,12 +257,58 @@ export interface ClaudeInventoryInput {
   installedPlugins?: Record<string, string>;
 }
 
+export function resolveClaudeInventoryInput(input: {
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+  settingsPaths?: string[];
+  installedPlugins?: Record<string, string>;
+}): ClaudeInventoryInput {
+  const env = input.env ?? process.env;
+  const configRoot =
+    env.CLAUDE_CONFIG_DIR ?? path.join(env.HOME ?? input.cwd, '.claude');
+  const managed =
+    process.platform === 'darwin'
+      ? '/Library/Application Support/ClaudeCode/managed-settings.json'
+      : '/etc/claude-code/managed-settings.json';
+  const overridden =
+    input.settingsPaths ??
+    (env.AGENT_MESSAGING_CLAUDE_SETTINGS
+      ? env.AGENT_MESSAGING_CLAUDE_SETTINGS.split(path.delimiter).filter(
+          Boolean,
+        )
+      : null);
+  const settingsPaths = overridden ?? [
+    path.join(configRoot, 'settings.json'),
+    path.join(input.cwd, '.claude', 'settings.json'),
+    path.join(input.cwd, '.claude', 'settings.local.json'),
+    managed,
+  ];
+  const installedPlugins =
+    input.installedPlugins ??
+    (env.AGENT_MESSAGING_CLAUDE_PLUGINS
+      ? (JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) as Record<
+          string,
+          string
+        >)
+      : {});
+  return {
+    settingsPaths: settingsPaths.map((source) => path.resolve(source)),
+    installedPlugins: Object.fromEntries(
+      Object.entries(installedPlugins).map(([name, root]) => [
+        name,
+        path.resolve(root),
+      ]),
+    ),
+  };
+}
+
 export async function inspectClaudeStopInventory(
   input: ClaudeInventoryInput,
 ): Promise<HookInventory> {
   const registrations: StopRegistration[] = [];
   const unreadableSources: string[] = [];
   const unresolvedPlugins: string[] = [];
+  const resolvedSources: string[] = [];
   const enabledPlugins = new Set<string>();
   for (const source of input.settingsPaths) {
     if (!path.isAbsolute(source))
@@ -267,6 +320,7 @@ export async function inspectClaudeStopInventory(
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -298,6 +352,7 @@ export async function inspectClaudeStopInventory(
       unreadableSources.push(source);
       continue;
     }
+    if (config !== null) resolvedSources.push(path.resolve(source));
     for (const registration of stopRegistrations(config, source)) {
       const { command } = registration;
       registrations.push({
@@ -316,6 +371,16 @@ export async function inspectClaudeStopInventory(
     visibilityLimits: [
       'session-scoped skill and agent frontmatter hooks are not enumerable from loaded settings files',
     ],
+    resolvedSources,
+    sourceSet: {
+      settingsPaths: input.settingsPaths.map((source) => path.resolve(source)),
+      installedPlugins: Object.fromEntries(
+        Object.entries(input.installedPlugins ?? {}).map(([name, root]) => [
+          name,
+          path.resolve(root),
+        ]),
+      ),
+    },
   };
 }
 
@@ -587,7 +652,9 @@ export async function assessAutomaticOwnership(input: {
   }
   if (
     input.inventory.unreadableSources.length > 0 ||
-    input.inventory.unresolvedPlugins.length > 0
+    input.inventory.unresolvedPlugins.length > 0 ||
+    (input.inventory.runtime === 'claude-code' &&
+      input.inventory.resolvedSources.length === 0)
   ) {
     return {
       automaticAllowed: false,
