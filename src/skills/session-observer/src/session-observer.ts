@@ -640,6 +640,36 @@ async function emitObserveFailure(
   return emit(result.message, exitCode);
 }
 
+async function validateReviewMarkReadBinding(
+  runtime: Exclude<Runtime, 'cursor'>,
+  candidate: TranscriptCandidate,
+  json: boolean,
+): Promise<void> {
+  const existing = await stateLib
+    .getSession(runtime, candidate.sessionId)
+    .catch(() => null);
+  const validation = await stateLib.validateSavedPosition(
+    runtime,
+    candidate.sessionId,
+    candidate.transcriptPath,
+    existing,
+  );
+  if (validation.status !== 'blocked') return;
+  if (json) {
+    return emitJson(
+      {
+        identityBlocked: true,
+        runtime,
+        code: validation.code,
+        candidates: [candidate],
+        reasons: [validation.message],
+      },
+      1,
+    );
+  }
+  return emit(validation.message, 1);
+}
+
 async function emitCursorResult(
   args: CliArgs,
   result: CursorObserveSuccess,
@@ -954,6 +984,9 @@ async function runReview(args: CliArgs): Promise<void> {
         1,
       );
     }
+    if (markRead && pinnedRuntime !== 'cursor') {
+      await validateReviewMarkReadBinding(pinnedRuntime, pinned, json);
+    }
     // Build digest directly from the pinned candidate
     let digest;
     try {
@@ -1071,6 +1104,10 @@ async function runReview(args: CliArgs): Promise<void> {
   }
 
   const winner = rankResult.winner;
+
+  if (markRead && runtime !== 'cursor') {
+    await validateReviewMarkReadBinding(runtime, winner, json);
+  }
 
   // Get prior offset (review uses fromIndex=0 unless --mark-read was used before)
   const fromIndex = 0; // review always starts from 0

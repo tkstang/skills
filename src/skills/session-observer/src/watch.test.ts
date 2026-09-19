@@ -481,6 +481,166 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('saved-source mismatch emits a stdout error, exits nonzero, and leaves offsets byte-identical', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-saved-source-mismatch';
+      const sessionId = '13131313-aaaa-4131-8131-131313131313';
+      await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'selected source' },
+      ]);
+      const oldSource = join(home, 'old-source.jsonl');
+      await writeFile(
+        oldSource,
+        `${JSON.stringify({ sessionId, payload: { type: 'session_meta', cwd } })}\n`,
+        'utf8',
+      );
+      const statePath = join(stateDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              transcriptPath: oldSource,
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        }) + '\n',
+        'utf8',
+      );
+      const before = await readFile(statePath, 'utf8');
+      const stdout: string[] = [];
+
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'codex',
+            cwd,
+            session: `codex:${sessionId}`,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+          },
+          { writeStdout: (chunk: string) => stdout.push(chunk) },
+        ),
+      ).rejects.toThrow('SAVED_POSITION_PATH_MISMATCH');
+      const errorEvents = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'error',
+      );
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0]).toEqual(
+        expect.objectContaining({
+          type: 'error',
+          message: expect.stringMatching(
+            new RegExp(
+              `SAVED_POSITION_PATH_MISMATCH.*expected identity codex:${sessionId} at ${oldSource}.*observed identity codex:${sessionId}`,
+              'u',
+            ),
+          ),
+        }),
+      );
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+
+      const cli = await runCli(
+        [
+          'watch',
+          '--runtime',
+          'codex',
+          '--session',
+          `codex:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--json',
+          '--max-runtime-min',
+          '0.004',
+        ],
+        { ...process.env, HOME: home, STATE_DIR: stateDir },
+      );
+      expect(cli.status, `${cli.stderr}\n${cli.stdout}`).toBe(1);
+      const cliErrorEvents = parseJsonLines(cli.stdout).filter(
+        (event) => event.type === 'error',
+      );
+      expect(cliErrorEvents).toHaveLength(1);
+      expect(cliErrorEvents[0]).toEqual(
+        expect.objectContaining({
+          type: 'error',
+          message: expect.stringContaining('SAVED_POSITION_PATH_MISMATCH'),
+        }),
+      );
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+    });
+  });
+
+  test('live watcher path loss emits one stdout error and preserves its last committed offset', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-live-path-loss';
+      const sessionId = 'watch-live-path-loss';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'baseline message' },
+      ]);
+      const stdout: string[] = [];
+      let beforeFailure = '';
+      let removed = false;
+      let nowMs = Date.UTC(2026, 8, 18, 12, 0, 0);
+
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'claude-code',
+            cwd,
+            session: `claude-code:${sessionId}`,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.02,
+          },
+          {
+            writeStdout: (chunk: string) => stdout.push(chunk),
+            now: () => nowMs,
+            sleep: async (ms: number) => {
+              nowMs += ms;
+              if (removed) return;
+              beforeFailure = await readFile(
+                join(stateDir, 'state.json'),
+                'utf8',
+              );
+              await rm(transcriptPath);
+              removed = true;
+            },
+          },
+        ),
+      ).rejects.toThrow('WATCH_TRANSCRIPT_PATH_UNAVAILABLE');
+
+      const errorEvents = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'error',
+      );
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0].message).toContain(
+        `expected identity claude-code:${sessionId} at ${transcriptPath}; observed path unavailable`,
+      );
+      const beforeState = JSON.parse(beforeFailure);
+      const afterState = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(afterState.sessions[`claude-code:${sessionId}`]).toMatchObject({
+        lastRecordIndex:
+          beforeState.sessions[`claude-code:${sessionId}`].lastRecordIndex,
+        lastTotalRecords:
+          beforeState.sessions[`claude-code:${sessionId}`].lastTotalRecords,
+        transcriptPath:
+          beforeState.sessions[`claude-code:${sessionId}`].transcriptPath,
+        lastReadAt: beforeState.sessions[`claude-code:${sessionId}`].lastReadAt,
+        watchedByPid: null,
+      });
+    });
+  });
+
   test('catch-up-first emits unread backlog before watching', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-catch-up-first';

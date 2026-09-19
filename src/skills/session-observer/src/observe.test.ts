@@ -307,6 +307,114 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test.each([
+    { label: 'missing', storedPath: null, code: 'SAVED_POSITION_PATH_MISSING' },
+    {
+      label: 'mismatched',
+      storedPath: 'old-source.jsonl',
+      code: 'SAVED_POSITION_PATH_MISMATCH',
+    },
+  ])(
+    'fails closed on a $label nonzero saved transcript binding without changing state',
+    async ({ storedPath, code }) => {
+      await withTempSessionHome(async (home, stateDir) => {
+        const cwd = '/test/observe-saved-binding';
+        const sessionId = '12121212-aaaa-4121-8121-121212121212';
+        const selected = await writeNativeCodexTranscript(
+          home,
+          cwd,
+          'selected.jsonl',
+          sessionId,
+        );
+        if (storedPath) {
+          await writeFile(
+            join(home, storedPath),
+            await readFile(selected, 'utf8'),
+            'utf8',
+          );
+        }
+        const statePath = join(stateDir, 'state.json');
+        const state = {
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 3,
+              ...(storedPath ? { transcriptPath: join(home, storedPath) } : {}),
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        };
+        await writeFile(statePath, JSON.stringify(state, null, 2) + '\n');
+        const before = await readFile(statePath, 'utf8');
+
+        const result = await observeCatchUp({
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+        } as any);
+
+        expect(result).toMatchObject({
+          ok: false,
+          kind: 'identityBlocked',
+          exitCode: 1,
+          payload: { code },
+        });
+        expect(await readFile(statePath, 'utf8')).toBe(before);
+      });
+    },
+  );
+
+  test('preserves a valid nonzero legacy Codex offset on its original source', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-valid-legacy-binding';
+      const sessionId = 'legacy-codex-binding';
+      const transcriptPath = await writeCodexTranscript(
+        home,
+        cwd,
+        'legacy.jsonl',
+        sessionId,
+        [
+          { role: 'user', content: 'already consumed' },
+          { role: 'assistant', content: 'new legacy message' },
+        ],
+      );
+      const statePath = join(stateDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 2,
+              lastTotalRecords: 2,
+              transcriptPath,
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        }) + '\n',
+      );
+
+      const result: any = await observeCatchUp({
+        runtime: 'codex',
+        cwd,
+        session: `codex:${sessionId}`,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.fromIndex).toBe(2);
+      expect(result.digest.entries).toEqual([
+        expect.objectContaining({ text: 'new legacy message' }),
+      ]);
+    });
+  });
+
   test('uses snippet filtering before ranking candidates', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/observe-snippet';

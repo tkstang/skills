@@ -1659,6 +1659,74 @@ describe('--runtime auto', () => {
 });
 
 describe('Cursor CLI state and delivery composition', () => {
+  test('stateless review ignores saved offsets while --mark-read rejects a mismatched binding', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-binding-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '14141414-aaaa-4141-8141-141414141414';
+      const selected = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'selected.jsonl',
+        sessionId,
+      );
+      const oldSource = join(home, 'old-source.jsonl');
+      await writeFile(oldSource, await readFile(selected, 'utf8'), 'utf8');
+      const stateDir = join(home, '.state');
+      await mkdir(stateDir, { recursive: true });
+      const statePath = join(stateDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              transcriptPath: oldSource,
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        }) + '\n',
+        'utf8',
+      );
+      const before = await readFile(statePath, 'utf8');
+      const baseArgs = [
+        'review',
+        '--runtime',
+        'codex',
+        '--session',
+        `codex:${sessionId}`,
+        '--cwd',
+        cwd,
+        '--json',
+      ];
+
+      const stateless = spawnCli(baseArgs, { HOME: home, STATE_DIR: stateDir });
+      expect(stateless.status, `${stateless.stderr}\n${stateless.stdout}`).toBe(
+        0,
+      );
+      expect(JSON.parse(stateless.stdout).sessionId).toBe(sessionId);
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+
+      const marked = spawnCli([...baseArgs, '--mark-read'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(marked.status, `${marked.stderr}\n${marked.stdout}`).toBe(1);
+      expect(JSON.parse(marked.stdout)).toMatchObject({
+        identityBlocked: true,
+        code: 'SAVED_POSITION_PATH_MISMATCH',
+      });
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('pinned review renders digest v2 and advances only through --mark-read delivery finalization', async () => {
     const home = await realpath(
       await mkdtemp(join(tmpdir(), 'cli-cursor-review-v2-')),

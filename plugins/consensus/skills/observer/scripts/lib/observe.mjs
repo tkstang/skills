@@ -4627,6 +4627,7 @@ import {
   open as open5,
   readFile as readFile4,
   readdir as readdir2,
+  realpath as realpath2,
   rename as rename3,
   stat as stat3,
   unlink as unlink3
@@ -4964,6 +4965,134 @@ async function loadLegacyState() {
   } finally {
     await releaseLock2(lock, owner);
   }
+}
+function savedPositionResetMessage(code, runtime, sessionId, expectedPath, observedSessionId, observedPath) {
+  return `${code}: saved position expected identity ${runtime}:${sessionId} at ${expectedPath}; observed identity ${runtime}:${observedSessionId} at ${observedPath}. Run session-observer state reset --session ${runtime}:${sessionId} and retry.`;
+}
+async function validateSavedPosition(runtime, sessionId, selectedTranscriptPath, entry) {
+  let canonicalSelectedPath;
+  try {
+    canonicalSelectedPath = await realpath2(selectedTranscriptPath);
+  } catch {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry?.transcriptPath ?? "(missing)",
+        "(unavailable)",
+        selectedTranscriptPath
+      )
+    };
+  }
+  if (entry === null || entry.lastRecordIndex === 0) {
+    return { status: "new", canonicalTranscriptPath: canonicalSelectedPath };
+  }
+  let records;
+  try {
+    records = await readRecords(canonicalSelectedPath);
+  } catch {
+    records = null;
+  }
+  const meta = records ? extractMetaFromRecords(runtime, records, canonicalSelectedPath) : null;
+  const observedSessionId = meta?.sessionId ?? "(invalid)";
+  if (!Number.isSafeInteger(entry.lastRecordIndex) || entry.lastRecordIndex < 0 || typeof entry.transcriptPath !== "string" || entry.transcriptPath.length === 0) {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath ?? "(missing)",
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  let canonicalStoredPath;
+  try {
+    canonicalStoredPath = await realpath2(entry.transcriptPath);
+  } catch {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (canonicalStoredPath !== canonicalSelectedPath) {
+    const code = "SAVED_POSITION_PATH_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (!meta) {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (meta.sessionId !== sessionId) {
+    const code = "SAVED_POSITION_IDENTITY_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (entry.lastRecordIndex > records.length) {
+    const code = "SAVED_POSITION_TRANSCRIPT_SHRANK";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      ) + ` Stored next index ${entry.lastRecordIndex} exceeds observed record count ${records.length}.`
+    };
+  }
+  return { status: "valid", canonicalTranscriptPath: canonicalSelectedPath };
 }
 async function notifyMigrationBoundary(options, boundary) {
   await options.onBoundary?.(boundary);
@@ -5561,6 +5690,31 @@ async function sessionStateFor(runtime, sessionId) {
   } catch {
     return null;
   }
+}
+async function validatedSessionStateFor(runtime, candidate) {
+  const state = await sessionStateFor(runtime, candidate.sessionId);
+  const validation = await validateSavedPosition(
+    runtime,
+    candidate.sessionId,
+    candidate.transcriptPath,
+    state
+  );
+  if (validation.status === "blocked") {
+    return {
+      ok: false,
+      kind: "identityBlocked",
+      exitCode: 1,
+      payload: {
+        identityBlocked: true,
+        runtime,
+        code: validation.code,
+        candidates: [candidate],
+        reasons: [validation.message]
+      },
+      message: validation.message
+    };
+  }
+  return { state };
 }
 async function markReadIfNeeded(runtime, candidate, sessionState, digest) {
   if (!shouldMarkCatchUpRead(sessionState, digest)) return false;
@@ -6347,10 +6501,12 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args, deps) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, pinned, args, deps);
   }
-  const sessionState = await sessionStateFor(
+  const sessionStateResult = await validatedSessionStateFor(
     pinnedSession.runtime,
-    pinned.sessionId
+    pinned
   );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = watchedByPidWarnings(
     sessionState,
@@ -6494,7 +6650,12 @@ async function observeCatchUp(args, deps = {}) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, winner, args, deps, rankResult);
   }
-  const sessionState = await sessionStateFor(runtime, winner.sessionId);
+  const sessionStateResult = await validatedSessionStateFor(
+    runtime,
+    winner
+  );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = [
     ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),

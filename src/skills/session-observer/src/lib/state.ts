@@ -27,6 +27,7 @@ import {
   open,
   readFile,
   readdir,
+  realpath,
   rename,
   stat,
   unlink,
@@ -34,7 +35,11 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import type { Runtime } from '../../../../shared/transcript/runtimes.js';
+import {
+  extractMetaFromRecords,
+  readRecords,
+  type Runtime,
+} from '../../../../shared/transcript/runtimes.js';
 import {
   clearCursorState,
   CursorStateRecoveryRequiredError,
@@ -67,6 +72,21 @@ interface CursorCompatibilityEntry extends SessionStateEntry {
   runtime: 'cursor';
   cursorCompatibility: typeof CURSOR_COMPATIBILITY;
 }
+
+export type SavedPositionFailureCode =
+  | 'SAVED_POSITION_PATH_MISSING'
+  | 'SAVED_POSITION_PATH_MISMATCH'
+  | 'SAVED_POSITION_IDENTITY_INVALID'
+  | 'SAVED_POSITION_IDENTITY_MISMATCH'
+  | 'SAVED_POSITION_TRANSCRIPT_SHRANK';
+
+export type SavedPositionValidation =
+  | { status: 'new' | 'valid'; canonicalTranscriptPath: string }
+  | {
+      status: 'blocked';
+      code: SavedPositionFailureCode;
+      message: string;
+    };
 
 // ---------------------------------------------------------------------------
 // State dir resolution
@@ -601,6 +621,169 @@ export interface CursorCompatibilityWriteOptions extends LockContenderPublicatio
   onCompatibilityBoundary?(
     boundary: CursorCompatibilityWriteBoundary,
   ): void | Promise<void>;
+}
+
+function savedPositionResetMessage(
+  code: SavedPositionFailureCode,
+  runtime: Runtime,
+  sessionId: string,
+  expectedPath: string,
+  observedSessionId: string,
+  observedPath: string,
+): string {
+  return `${code}: saved position expected identity ${runtime}:${sessionId} at ${expectedPath}; observed identity ${runtime}:${observedSessionId} at ${observedPath}. Run session-observer state reset --session ${runtime}:${sessionId} and retry.`;
+}
+
+/**
+ * Validate a persisted nonzero record offset before it is reused. The stored
+ * and selected paths must resolve to the same physical source, and that source
+ * must still identify the same provider session. Zero offsets are safe to bind
+ * to the currently selected source.
+ */
+export async function validateSavedPosition(
+  runtime: Exclude<Runtime, 'cursor'>,
+  sessionId: string,
+  selectedTranscriptPath: string,
+  entry: SessionStateEntry | null,
+): Promise<SavedPositionValidation> {
+  let canonicalSelectedPath: string;
+  try {
+    canonicalSelectedPath = await realpath(selectedTranscriptPath);
+  } catch {
+    const code = 'SAVED_POSITION_IDENTITY_INVALID';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry?.transcriptPath ?? '(missing)',
+        '(unavailable)',
+        selectedTranscriptPath,
+      ),
+    };
+  }
+
+  if (entry === null || entry.lastRecordIndex === 0) {
+    return { status: 'new', canonicalTranscriptPath: canonicalSelectedPath };
+  }
+
+  let records;
+  try {
+    records = await readRecords(canonicalSelectedPath);
+  } catch {
+    records = null;
+  }
+  const meta = records
+    ? extractMetaFromRecords(runtime, records, canonicalSelectedPath)
+    : null;
+  const observedSessionId = meta?.sessionId ?? '(invalid)';
+
+  if (
+    !Number.isSafeInteger(entry.lastRecordIndex) ||
+    entry.lastRecordIndex < 0 ||
+    typeof entry.transcriptPath !== 'string' ||
+    entry.transcriptPath.length === 0
+  ) {
+    const code = 'SAVED_POSITION_PATH_MISSING';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath ?? '(missing)',
+        observedSessionId,
+        canonicalSelectedPath,
+      ),
+    };
+  }
+
+  let canonicalStoredPath: string;
+  try {
+    canonicalStoredPath = await realpath(entry.transcriptPath);
+  } catch {
+    const code = 'SAVED_POSITION_PATH_MISSING';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath,
+        observedSessionId,
+        canonicalSelectedPath,
+      ),
+    };
+  }
+  if (canonicalStoredPath !== canonicalSelectedPath) {
+    const code = 'SAVED_POSITION_PATH_MISMATCH';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath,
+      ),
+    };
+  }
+  if (!meta) {
+    const code = 'SAVED_POSITION_IDENTITY_INVALID';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath,
+      ),
+    };
+  }
+  if (meta.sessionId !== sessionId) {
+    const code = 'SAVED_POSITION_IDENTITY_MISMATCH';
+    return {
+      status: 'blocked',
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath,
+      ),
+    };
+  }
+
+  if (entry.lastRecordIndex > records!.length) {
+    const code = 'SAVED_POSITION_TRANSCRIPT_SHRANK';
+    return {
+      status: 'blocked',
+      code,
+      message:
+        savedPositionResetMessage(
+          code,
+          runtime,
+          sessionId,
+          canonicalStoredPath,
+          observedSessionId,
+          canonicalSelectedPath,
+        ) +
+        ` Stored next index ${entry.lastRecordIndex} exceeds observed record count ${records!.length}.`,
+    };
+  }
+
+  return { status: 'valid', canonicalTranscriptPath: canonicalSelectedPath };
 }
 
 async function notifyMigrationBoundary(

@@ -471,6 +471,35 @@ async function sessionStateFor(
   }
 }
 
+async function validatedSessionStateFor(
+  runtime: Exclude<Runtime, 'cursor'>,
+  candidate: TranscriptCandidate,
+): Promise<{ state: SessionStateEntry | null } | ObserveFailure> {
+  const state = await sessionStateFor(runtime, candidate.sessionId);
+  const validation = await stateLib.validateSavedPosition(
+    runtime,
+    candidate.sessionId,
+    candidate.transcriptPath,
+    state,
+  );
+  if (validation.status === 'blocked') {
+    return {
+      ok: false,
+      kind: 'identityBlocked',
+      exitCode: 1,
+      payload: {
+        identityBlocked: true,
+        runtime,
+        code: validation.code,
+        candidates: [candidate],
+        reasons: [validation.message],
+      },
+      message: validation.message,
+    };
+  }
+  return { state };
+}
+
 async function markReadIfNeeded(
   runtime: Runtime,
   candidate: TranscriptCandidate,
@@ -1532,10 +1561,12 @@ async function observePinnedSession(
     return observeCursorSession(cwd, pinned, args, deps);
   }
 
-  const sessionState = await sessionStateFor(
-    pinnedSession.runtime,
-    pinned.sessionId,
+  const sessionStateResult = await validatedSessionStateFor(
+    pinnedSession.runtime as Exclude<Runtime, 'cursor'>,
+    pinned,
   );
+  if ('ok' in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = watchedByPidWarnings(
     sessionState,
@@ -1713,7 +1744,12 @@ export async function observeCatchUp(
   if (runtime === 'cursor') {
     return observeCursorSession(cwd, winner, args, deps, rankResult);
   }
-  const sessionState = await sessionStateFor(runtime, winner.sessionId);
+  const sessionStateResult = await validatedSessionStateFor(
+    runtime as Exclude<Runtime, 'cursor'>,
+    winner,
+  );
+  if ('ok' in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = [
     ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),

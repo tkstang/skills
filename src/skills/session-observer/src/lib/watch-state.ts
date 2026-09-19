@@ -708,6 +708,14 @@ export async function recordWatcherTarget({
         const existingIndex = targets.findIndex(
           (existing) => existing.key === key,
         );
+        if (
+          existingIndex !== -1 &&
+          targets[existingIndex].transcriptPath !== target.transcriptPath
+        ) {
+          throw new Error(
+            `WATCH_TARGET_IDENTITY_MISMATCH: watcher ${watcher.pid} owns ${key} at ${targets[existingIndex].transcriptPath}; observed ${target.transcriptPath}. Stop and re-arm the watcher before changing its source.`,
+          );
+        }
         const baseTargetRecord: WatchTargetRecord = {
           key,
           runtime: target.runtime,

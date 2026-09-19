@@ -1,7 +1,7 @@
 // GENERATED skill payload for session-observer.
 
 // src/skills/session-observer/src/lib/watch.ts
-import { appendFile, lstat, mkdir as mkdir5, realpath as realpath2, stat as stat5 } from "node:fs/promises";
+import { appendFile, lstat, mkdir as mkdir5, realpath as realpath3, stat as stat5 } from "node:fs/promises";
 import { homedir as homedir6 } from "node:os";
 import { dirname as dirname3, isAbsolute as isAbsolute4, join as join6, relative as relative2, resolve as resolve2 } from "node:path";
 
@@ -4839,6 +4839,7 @@ import {
   open as open5,
   readFile as readFile4,
   readdir as readdir2,
+  realpath as realpath2,
   rename as rename3,
   stat as stat3,
   unlink as unlink3
@@ -5176,6 +5177,134 @@ async function loadLegacyState() {
   } finally {
     await releaseLock2(lock, owner);
   }
+}
+function savedPositionResetMessage(code, runtime, sessionId, expectedPath, observedSessionId, observedPath) {
+  return `${code}: saved position expected identity ${runtime}:${sessionId} at ${expectedPath}; observed identity ${runtime}:${observedSessionId} at ${observedPath}. Run session-observer state reset --session ${runtime}:${sessionId} and retry.`;
+}
+async function validateSavedPosition(runtime, sessionId, selectedTranscriptPath, entry) {
+  let canonicalSelectedPath;
+  try {
+    canonicalSelectedPath = await realpath2(selectedTranscriptPath);
+  } catch {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry?.transcriptPath ?? "(missing)",
+        "(unavailable)",
+        selectedTranscriptPath
+      )
+    };
+  }
+  if (entry === null || entry.lastRecordIndex === 0) {
+    return { status: "new", canonicalTranscriptPath: canonicalSelectedPath };
+  }
+  let records;
+  try {
+    records = await readRecords(canonicalSelectedPath);
+  } catch {
+    records = null;
+  }
+  const meta = records ? extractMetaFromRecords(runtime, records, canonicalSelectedPath) : null;
+  const observedSessionId = meta?.sessionId ?? "(invalid)";
+  if (!Number.isSafeInteger(entry.lastRecordIndex) || entry.lastRecordIndex < 0 || typeof entry.transcriptPath !== "string" || entry.transcriptPath.length === 0) {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath ?? "(missing)",
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  let canonicalStoredPath;
+  try {
+    canonicalStoredPath = await realpath2(entry.transcriptPath);
+  } catch {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (canonicalStoredPath !== canonicalSelectedPath) {
+    const code = "SAVED_POSITION_PATH_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (!meta) {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (meta.sessionId !== sessionId) {
+    const code = "SAVED_POSITION_IDENTITY_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (entry.lastRecordIndex > records.length) {
+    const code = "SAVED_POSITION_TRANSCRIPT_SHRANK";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      ) + ` Stored next index ${entry.lastRecordIndex} exceeds observed record count ${records.length}.`
+    };
+  }
+  return { status: "valid", canonicalTranscriptPath: canonicalSelectedPath };
 }
 async function notifyMigrationBoundary(options, boundary) {
   await options.onBoundary?.(boundary);
@@ -5662,6 +5791,31 @@ async function sessionStateFor(runtime, sessionId) {
   } catch {
     return null;
   }
+}
+async function validatedSessionStateFor(runtime, candidate) {
+  const state = await sessionStateFor(runtime, candidate.sessionId);
+  const validation = await validateSavedPosition(
+    runtime,
+    candidate.sessionId,
+    candidate.transcriptPath,
+    state
+  );
+  if (validation.status === "blocked") {
+    return {
+      ok: false,
+      kind: "identityBlocked",
+      exitCode: 1,
+      payload: {
+        identityBlocked: true,
+        runtime,
+        code: validation.code,
+        candidates: [candidate],
+        reasons: [validation.message]
+      },
+      message: validation.message
+    };
+  }
+  return { state };
 }
 async function markReadIfNeeded(runtime, candidate, sessionState, digest) {
   if (!shouldMarkCatchUpRead(sessionState, digest)) return false;
@@ -6448,10 +6602,12 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args, deps) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, pinned, args, deps);
   }
-  const sessionState = await sessionStateFor(
+  const sessionStateResult = await validatedSessionStateFor(
     pinnedSession.runtime,
-    pinned.sessionId
+    pinned
   );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = watchedByPidWarnings(
     sessionState,
@@ -6595,7 +6751,12 @@ async function observeCatchUp(args, deps = {}) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, winner, args, deps, rankResult);
   }
-  const sessionState = await sessionStateFor(runtime, winner.sessionId);
+  const sessionStateResult = await validatedSessionStateFor(
+    runtime,
+    winner
+  );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = [
     ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),
@@ -7078,6 +7239,11 @@ async function recordWatcherTarget({
       const existingIndex = targets.findIndex(
         (existing) => existing.key === key
       );
+      if (existingIndex !== -1 && targets[existingIndex].transcriptPath !== target.transcriptPath) {
+        throw new Error(
+          `WATCH_TARGET_IDENTITY_MISMATCH: watcher ${watcher.pid} owns ${key} at ${targets[existingIndex].transcriptPath}; observed ${target.transcriptPath}. Stop and re-arm the watcher before changing its source.`
+        );
+      }
       const baseTargetRecord = {
         key,
         runtime: target.runtime,
@@ -7688,7 +7854,7 @@ async function lstatIfExists(path) {
 async function assertRealPathWithinState(dir, realDir, candidate) {
   let realCandidate;
   try {
-    realCandidate = await realpath2(candidate);
+    realCandidate = await realpath3(candidate);
   } catch {
     throw eventLogBoundaryError(dir);
   }
@@ -7705,7 +7871,7 @@ async function assertEventLogPathSafe(dir, resolved) {
     throw eventLogReservedError();
   }
   await mkdir5(dir, { recursive: true });
-  const realDir = await realpath2(dir);
+  const realDir = await realpath3(dir);
   const parent = dirname3(resolved);
   const parentSegments = eventLogSegments(dir, parent);
   let current = dir;
@@ -8181,8 +8347,11 @@ async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
             }
           });
         }
+        continue;
       }
-      continue;
+      throw new Error(
+        `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`
+      );
     }
     const deadlineReady = target.runtime === "cursor" && target.pendingCandidateDeadline !== null && target.pendingCandidateDeadline !== void 0 && nowMs >= target.pendingCandidateDeadline;
     const recoveryVerificationNeeded = target.runtime === "cursor" && (target.lastStatus?.health === "error" || target.lastStatus?.health === "stale");
