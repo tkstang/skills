@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900
+oat_current_task: p07-t01
+oat_last_commit: 48b5087a5654d19837e301810b9052f6d49e2efa
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -38,6 +38,9 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p06:
       used_attempts: 1
+      pending_attempt: null
+    p07:
+      used_attempts: 0
       pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -108,19 +111,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T18:05:51+00:00"
+oat_project_state_updated: "2026-09-19T18:20:02+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Tasks complete; final lifecycle review pending
+**Status:** Final lifecycle review fixes pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p00 through p06 are passed. All 19 tasks are complete, the full local suite passed, the tracked backlog item is archived, and the fresh p06 review found no findings. The separate final lifecycle review is next.
+p00 through p06 are passed. The first final lifecycle review found one Important closeout-record alignment issue and one Medium watcher diagnostic issue. Both are queued as bounded p07 tasks; p07-t01 is next.
 
 ## Artifacts
 
@@ -128,7 +131,7 @@ p00 through p06 are passed. All 19 tasks are complete, the full local suite pass
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (19/19 tasks completed; p00 through p06 passed, final lifecycle review pending)
+- **Implementation:** `implementation.md` (19/21 tasks completed; p00 through p06 passed, p07 review fixes pending)
 
 ## Progress
 
@@ -146,6 +149,7 @@ p00 through p06 are passed. All 19 tasks are complete, the full local suite pass
 - ✓ Shared Cursor gate exclusions committed by Fable
 - ✓ Full local acceptance passed and BL-260916-session-fidelity-opt was closed and archived
 - ✓ Fresh p06 phase review passed with zero findings
+- ⧗ Final lifecycle review received; p07-t01 and p07-t02 queued
 
 ## Blockers
 
@@ -153,4 +157,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete the mandatory final lifecycle review, then resolve the configured implementation exit gate and close the implementation lifecycle.
+Execute both p07 review fixes, pass their phase review and narrowed final re-review, then resolve the configured implementation exit gate.

@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p07-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 19 planned implementation tasks and every phase review are complete. The full local acceptance suite is green; the separate final lifecycle review remains before exit-gate and close-out sequencing.
+The original 19 implementation tasks and phase reviews p00 through p06 are complete. The final lifecycle review added two bounded p07 fixes; p07-t01 is next.
 
 ## Preparatory evidence
 
@@ -28,8 +28,9 @@ All 19 planned implementation tasks and every phase review are complete. The ful
 | p04   | passed         | 2     | 2/2       |
 | p05   | passed         | 2     | 2/2       |
 | p06   | passed         | 2     | 2/2       |
+| p07   | pending        | 2     | 0/2       |
 
-**Total:** 19/19 implementation tasks completed.
+**Total:** 19/21 implementation tasks completed.
 
 ## Phase 0
 
@@ -401,9 +402,25 @@ Phase p06 passes. All 19 implementation tasks and all seven phase reviews are co
 - Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
 - Outstanding p06 items: none. Next: mandatory final lifecycle review and configured implementation exit gate.
 
+## Phase 7
+
+**Status:** pending
+
+### Task p07-t01: (review) Reconcile final closeout records
+
+**Status:** pending
+**Commit:** -
+**Verification:** pending; follow the received final-review task in `plan.md`.
+
+### Task p07-t02: (review) Preserve non-missing watch stat errors
+
+**Status:** pending
+**Commit:** -
+**Verification:** pending; follow the received final-review task in `plan.md`.
+
 ## Reviews
 
-Plan review and phases p00 through p06 passed. The mandatory final lifecycle review remains pending.
+Plan review and phases p00 through p06 passed. The first final lifecycle review found one Important artifact-alignment issue and one Medium watcher diagnostic issue; both are queued as p07 fixes.
 
 ## Final Summary (for PR/docs)
 
@@ -414,6 +431,27 @@ The main authored seams are `src/shared/transcript/activity/`, the detailed read
 Local acceptance passed type checking, generated-build freshness, 2,231 tests with one expected skip, repository validation, mocked end-to-end smoke, four-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Seven fresh phase reviews pass; p06 reports zero findings at every severity.
 
 The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting and Cursor settlement without widening the product scope. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
+
+### Review Received: final
+
+**Date:** 2026-09-19
+**Review artifact:** reviews/archived/final-review-2026-09-19T180659Z.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 1
+- Minor: 0
+
+**New tasks added:** p07-t01, p07-t02
+
+**Design drift / artifact alignment notes:**
+
+- I1: the shipped implementation is accepted as authoritative; stale plan/PJM closeout prose contradicts completed work and the current merged Consensus Review baseline. Task p07-t01 aligns those artifacts while retaining Session Fidelity's unpublished/unmerged boundary.
+- M1: the previously deferred p01 watcher `stat` diagnostic is promoted to p07-t02 because the final review found its reset guidance can misdirect recovery for a valid saved position.
+
+**Next:** execute p07 through `oat-project-implement`, mark this artifact-identified review event `fixes_completed`, and run a narrowed final re-review before the configured implementation exit gate.
 
 ## Planning Gate Review Received — 2026-09-19
 

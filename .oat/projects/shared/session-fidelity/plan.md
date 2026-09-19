@@ -324,6 +324,56 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Commit:** `chore(p06-t02): record session fidelity acceptance and backlog completion`.
 
+## Phase 7: Final review fixes
+
+**Layer:** activity. **Depends on:** the received final lifecycle review at `bc066ea6`.
+
+### Task p07-t01: (review) Reconcile final closeout records
+
+**Files:** `.oat/projects/shared/session-fidelity/plan.md`; `.oat/repo/pjm/current-state.md`; `.oat/repo/pjm/backlog/index.md`.
+
+**Step 1: Understand the issue**
+
+The final review found that the plan completion rollup still reports 3/19 tasks and that the PJM current-state/backlog overview still describes the merged Consensus Review baseline as branch-only. These tracked closeout surfaces contradict the completed implementation and current `origin/main` at `d74abe671561053154d3012e1b8edd11fc079dcf`.
+
+**Step 2: Implement fix**
+
+Update the plan completion rollup to the actual task/review state, refresh the verified repository baseline and Consensus Review merge posture, and retain the accurate boundary that Session Fidelity remains unpublished, unmerged, unreleased, uninstalled and not live-provider-accepted. Update the backlog reference to its archived path while touching the plan.
+
+**Step 3: Verify**
+
+Run `oat pjm doctor --json`, `git diff --check`, and the applicable exact-file Markdown formatting check. Confirm `git rev-parse origin/main` equals the recorded baseline and that the three closeout surfaces agree.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/session-fidelity/plan.md .oat/repo/pjm/current-state.md .oat/repo/pjm/backlog/index.md
+git commit -m "docs(p07-t01): reconcile final closeout records"
+```
+
+### Task p07-t02: (review) Preserve non-missing watch stat errors
+
+**Files:** `src/skills/session-observer/src/lib/watch.ts`; focused watcher tests; affected canonical version/changelog/generated outputs required by repository ownership rules.
+
+**Step 1: Understand the issue**
+
+The final review confirmed that `pollTargets()` maps every non-Cursor `stat` failure to missing-path reset guidance. `ENOENT` and `ENOTDIR` need that path, while permission, descriptor-exhaustion and transient I/O failures must preserve their real cause and must not instruct the operator to reset valid state.
+
+**Step 2: Implement fix**
+
+Retain `WATCH_TRANSCRIPT_PATH_UNAVAILABLE` and reset/re-arm guidance only for `ENOENT` and `ENOTDIR`. For other failures, preserve the original error code/message and advise retry or filesystem repair without state reset. Keep the single error event, watcher exit and unchanged saved offset behavior.
+
+**Step 3: Verify**
+
+Add an injected-`stat` regression for a non-missing failure proving one error event, unchanged state and no reset guidance. Run the focused watcher suite, type checking, build/build freshness, repository validation, affected-owner version validation against `ACTIVITY_BASE`, formatting/linting and `git diff --check`.
+
+**Step 4: Commit**
+
+```bash
+git add src/skills/session-observer CHANGELOG.md skills plugins
+git commit -m "fix(p07-t02): preserve non-missing watch stat errors"
+```
+
 ## Reviews
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
@@ -338,7 +388,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
 | p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
 | p02    | code     | passed          | 2026-09-19 | reviews/p02-review-2026-09-19T145413Z-round3.md            | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
-| final  | code     | received        | 2026-09-19 | reviews/final-review-2026-09-19T180659Z.md                  | bc066ea6a6f73bd417a28a7a65e99cad8a44f6d5 | auto       | -           |
+| final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T180659Z.md         | bc066ea6a6f73bd417a28a7a65e99cad8a44f6d5 | auto       | -           |
 | spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
 | design | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
 | p03    | code     | passed          | 2026-09-19 | reviews/p03-review-2026-09-19T155150Z.md                   | 7ec1fba9aecc53d6e41ea091df0cfc4399057332 | auto       | codex-high  |
@@ -358,7 +408,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation Complete
 
-**Planned total:** 7 phases, 19 tasks; 3 implemented.
+**Planned total:** 8 phases, 21 tasks; 19 implemented.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -367,8 +417,9 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p04: 2 tasks — exporter integration and sanitization.
 - p05: 2 tasks — Cursor settlement.
 - p06: 2 tasks — docs/distribution and acceptance.
+- p07: 2 tasks — final-review artifact alignment and watcher diagnostic correction.
 
-The schema documentation preparatory commit is complete separately. No feature implementation, implementation-code review approval, stack publication, merge or installation is claimed.
+The schema documentation preparatory commit and all original 19 implementation tasks are complete; phase reviews p00 through p06 passed. The final lifecycle review added two bounded p07 fixes, so final review approval remains pending. Stack publication, merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 
