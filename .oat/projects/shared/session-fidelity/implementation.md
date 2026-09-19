@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p00-t01
+oat_current_task_id: p01-t01
 oat_generated: false
 ---
 
@@ -21,7 +21,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
-| p00   | review  | 1     | 1/1       |
+| p00   | passed  | 1     | 1/1       |
 | p01   | pending | 5     | 0/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
@@ -33,7 +33,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ## Phase 0
 
-**Status:** awaiting root review
+**Status:** passed
 
 ### Task p00-t01: Arrange and verify the three review layers
 
@@ -222,10 +222,62 @@ Direct approval: “if you have converged on path forward I agree.” Both peers
 
 New detailed-reader byte ranges are deferred until a concrete consumer needs them; backlog Stage 1 and current design/discovery are amended. Existing Cursor continuity offsets, UTF-8 output budgets, source-size metadata and framing tests remain. History and dated research snapshots are preserved as history, not rewritten to suggest the original review covered this change. Current execution totals are 19 tasks, all pending; task IDs outside the added p01-t05 remain stable.
 
-
 ## Orchestration Runs
 
 ### Run 1 — implementation
+
+#### Dispatch sf-p00-review-01
+
+```json
+{
+  "request_id": "sf-p00-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p00",
+  "objective": "Verify local stack setup p00-t01",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 600,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p00",
+    "base": "170fc8a34da50fa14c31e0764c3769afc39bb603",
+    "taskCommit": "4e6c63fa",
+    "handle": "/root/p00_review"
+  },
+  "launch_status": "accepted",
+  "child_outcome": "completed-pass",
+  "configured_invocation_evidence": [
+    "resolver:review-target",
+    "native:materialized-role"
+  ],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": []
+}
+```
+
+Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
 
 - Tier: 1 native phase agents, sequential p00 → p01 → p02 → p03 → p04 → p05 → p06. Managed High; no additional phase gates. Configured HiLL default is final (`p06`), automatic review enabled. User explicitly authorized proceeding after the amendment.
 - Root-inline deviation for p00 only: plan assigns local Git arrangement to root; parent launcher evidence gpt-6-astra/high. No child target is claimed for this step. All code phases use freshly resolved materialized phase roles.
@@ -235,3 +287,7 @@ New detailed-reader byte ranges are deferred until a concrete consumer needs the
 - `IDENTITY_BASE=170fc8a34da50fa14c31e0764c3769afc39bb603`; identity created directly from bottom docs/planning tip.
 - Bottom content comparison base: `origin/main` at `d74abe671561053154d3012e1b8edd11fc079dcf`, an ancestor of starting HEAD; 28 files, docs/research/planning/config only, no runtime source feature diff. Local `main` is an older checked-out branch at `cf2024b6c009f7d44e381c1c3be15d3624d517fa`; gh-stack registers that trunk snapshot. Publication must reconcile that stale local trunk with the remote base without importing unrelated historical diff into PR review. No main checkout/reset/update was performed.
 - p00 verification: gh stack view JSON, exact identity parent, recovery-ref equality and diff against origin/main; existing documentation content unchanged.
+
+#### Root-inline phase p00
+
+Plan-required root Git arrangement at gpt-6-astra/high; task 4e6c63fa and tracking 1d650f13 verified. Independent reviewer sf-p00-review-01 passed at 1d650f130d7b56cb790fbed15733afd625990c20 with zero findings; reconnaissance not attempted, no Review Orchestration section. Artifact: reviews/p00-review-2026-09-19T014930Z.md. Fix loops: 0. Next p01-t01.

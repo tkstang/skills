@@ -1,6 +1,6 @@
 ---
-oat_current_task: p00-t01
-oat_last_commit: null
+oat_current_task: p01-t01
+oat_last_commit: 4e6c63faccbca3be1686d250e0ae0d01ca9f57fb
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -102,7 +102,7 @@ oat_generated: false
 
 ## Current Phase
 
-Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; local stack arrangement is in progress.
+Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; p00 passed independent review and p01 is next.
 
 ## Artifacts
 
@@ -133,4 +133,4 @@ None
 
 ## Next Milestone
 
-Begin authorized implementation at p00-t01 using oat-project-implement.
+Implement native identity and safe state binding, starting p01-t01.
