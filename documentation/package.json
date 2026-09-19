@@ -15,9 +15,9 @@
     "docs:format:check": "oxfmt --check 'docs/**/*.md'"
   },
   "dependencies": {
-    "@open-agent-toolkit/docs-config": "^0.1.27",
-    "@open-agent-toolkit/docs-theme": "^0.1.27",
-    "@open-agent-toolkit/docs-transforms": "^0.1.27",
+    "@open-agent-toolkit/docs-config": "^0.3.0",
+    "@open-agent-toolkit/docs-theme": "^0.3.0",
+    "@open-agent-toolkit/docs-transforms": "^0.3.0",
     "fumadocs-core": "^16.6.13",
     "fumadocs-mdx": "^14.2.9",
     "fumadocs-ui": "^16.6.13",
@@ -28,7 +28,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@open-agent-toolkit/cli": "^0.1.27",
+    "@open-agent-toolkit/cli": "^0.3.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/mdx": "^2.0.13",
     "@types/node": "^22.10.0",
