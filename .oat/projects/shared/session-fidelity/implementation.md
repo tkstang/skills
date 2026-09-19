@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p10-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-The first 26 implementation tasks and phase reviews p00 through p09 are complete. The narrowed final re-review and refreshed configured exit gate passed, and stack #97 was republished with matching ready remote heads. PR #96 then received one actionable effective-filter finding, queued as p10-t01 on the activity layer.
+All 27 implementation tasks are complete. Phase p10 corrected the effective legacy tool filters and accounting reported by activity mode; its independent phase review remains before refreshed lifecycle closeout and stack republication.
 
 ## Preparatory evidence
 
@@ -31,9 +31,9 @@ The first 26 implementation tasks and phase reviews p00 through p09 are complete
 | p07   | passed         | 2     | 2/2       |
 | p08   | passed         | 4     | 4/4       |
 | p09   | passed         | 1     | 1/1       |
-| p10   | in_progress    | 1     | 0/1       |
+| p10   | review_pending | 1     | 1/1       |
 
-**Total:** 26/27 implementation tasks completed.
+**Total:** 27/27 implementation tasks completed.
 
 ## Phase 0
 
@@ -582,11 +582,21 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Phase 10
 
-**Status:** in_progress
+**Status:** review_pending
 
 ### Task p10-t01: (review) Report effective legacy tool filters in activity mode
 
-**Status:** pending
+**Status:** completed
+**Commit:** 2c4ea64f725830ba7affce59eabce65bf651cc6f
+**Verification:** focused observer digest tests passed 61/61; build, build freshness, type-check, affected-owner version validation against `session-fidelity-identity`, repository validation and diff checks passed. Activity mode now reports both legacy tool filters as disabled and counts suppressed call/result entries, while explicit activity-off behavior remains unchanged. Required owner bumps and generated observer/collaboration/fork payloads are synchronized.
+
+### Orchestration Run p10 (implementation)
+
+- Implementation: request `session-fidelity-p10-impl-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, accepted commit `2c4ea64f725830ba7affce59eabce65bf651cc6f` over phase base `63ec6211f6e1f166fd0f70306323bb5e84cf2227`; p10 recovery usage 0/10 with no pending attempt.
+- Dispatch: `scope=p10 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`.
+- Optional nested dispatches: none.
+- Phase verification: passed; worktree clean and task commit boundary independently validated by root.
+- Outstanding p10 item: fresh root-owned phase review.
 
 ### Orchestration Run p07
 

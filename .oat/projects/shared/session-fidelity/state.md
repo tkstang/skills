@@ -1,6 +1,6 @@
 ---
-oat_current_task: p10-t01
-oat_last_commit: 3422c843c78430ab9492c30884d1a728b935eb7f
+oat_current_task: null
+oat_last_commit: 2c4ea64f725830ba7affce59eabce65bf651cc6f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -18,6 +18,9 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
+    p10:
+      used_attempts: 0
+      pending_attempt: null
     p09:
       used_attempts: 0
       pending_attempt: null
@@ -74,7 +77,7 @@ oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 oat_implement_exit_gate:
-  status: allowed
+  status: stale
   resolution: configured
   disposition: passed
   config_fingerprint: sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5
@@ -140,19 +143,19 @@ oat_pr_status: ready # null | ready | open | closed | merged — actual PR state
 oat_pr_url: https://github.com/tkstang/skills/pull/96 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T21:43:27+00:00"
+oat_project_state_updated: "2026-09-19T22:31:00+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** PR #96 effective-filter fix queued in p10
+**Status:** p10 implementation complete; independent phase review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-The first 26 tasks, phase reviews p00 through p09, the narrowed final lifecycle re-review, and the refreshed configured exit gate passed. Stack #97 is published and ready with matching remote heads. One newly selected PR #96 effective-filter finding is queued as p10-t01.
+All 27 implementation tasks are complete. Phase p10 fixes the selected PR #96 effective-filter finding in one verified commit; independent phase review and refreshed lifecycle closeout remain before the top stack layer is republished.
 
 ## Artifacts
 
@@ -160,8 +163,8 @@ The first 26 tasks, phase reviews p00 through p09, the narrowed final lifecycle 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (26/27 tasks complete; p10 effective-filter fix pending)
-- **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; remote heads match local before p10)
+- **Implementation:** `implementation.md` (27/27 tasks complete; p10 review pending)
+- **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; PR #96 remote head predates p10)
 
 ## Progress
 
@@ -194,7 +197,8 @@ The first 26 tasks, phase reviews p00 through p09, the narrowed final lifecycle 
 - ✓ Narrowed final lifecycle re-review passed with zero findings
 - ✓ Refreshed configured exit gate passed and was received
 - ✓ Restacked branches published with matching ready remote heads
-- ⧗ PR #96 effective-filter fix p10-t01 pending
+- ✓ PR #96 effective-filter fix p10-t01 implemented and locally verified
+- ⧗ Fresh p10 phase review pending
 
 ## Blockers
 
@@ -202,4 +206,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete p10-t01, independently review the focused activity-layer fix, and republish PR #96.
+Independently review p10, refresh lifecycle closeout evidence, and republish PR #96.
