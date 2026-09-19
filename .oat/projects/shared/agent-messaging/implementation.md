@@ -9,12 +9,13 @@ oat_generated: false
 
 # Implementation: agent-messaging
 
-**Started:** Not started
+**Started:** 2026-09-19
 **Last Updated:** 2026-09-19
 
-This file tracks implementation, not planning completion. The next plan task is
-p01-t01; the plan is ready, but execution awaits an authorized visible worktree.
-No product code, hooks or installed skills have been changed by this plan review.
+This file tracks implementation, not planning completion. The user authorized
+this existing `backlog-triage` worktree as the implementation worktree on
+2026-09-19. The next plan task is p01-t01. No product code, hooks or installed
+skills have been changed at this implementation baseline.
 
 ## Progress Overview
 
@@ -116,7 +117,25 @@ No product code, hooks or installed skills have been changed by this plan review
 
 <!-- orchestration-runs-start -->
 
-No implementation orchestration runs yet.
+### Run 1 — 2026-09-19
+
+#### Worktree override
+
+- Scope: all sequential implementation phases in this run.
+- Worktree: `/Users/tstang/orca/workspaces/skills/backlog-triage`.
+- Disposition: the user explicitly directed implementation to remain in this
+  existing worktree; no additional Codex task or worktree will be created.
+- Source of truth: the amended execution boundary in `plan.md` and this run
+  record supersede the earlier separate-worktree direction.
+
+#### Preflight
+
+- Tier: Tier 1, subagents available without additional authorization.
+- Dispatch policy: managed `high` from project state.
+- Checkpoints: final phase only (`p04`), with automatic checkpoint review enabled
+  from workflow configuration.
+- Schedule: `p01` → `p02` → `p03` → `p04`, sequential in this worktree.
+- Status: ready to dispatch Phase 1 from committed baseline.
 
 <!-- orchestration-runs-end -->
 
@@ -320,6 +339,7 @@ attestation boundaries; discovery/design/plan now agree. No product code exists.
 | -------------------- | ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | --------------------- |
 | Third gate I1/m2     | design.md, plan.md | Observer registration refusal; unspecified Claude inventory                  | Dormant hooks allowed, scoped third-party acknowledgment, explicit Claude attestation | User-approved usable and honest ownership boundary                     | Updated discovery/design/plan | Independent re-review |
 | Fourth gate I1/M1/m1 | design.md, plan.md | Claude composition implicit; broad inventory; triggered recovery unspecified | Dedicated p04-t01 Monitor, bounded inventory and explicit disarm recovery             | User-approved complete implementation path with conservative ownership | Updated discovery/design/plan | Independent re-review |
+| Run 1 worktree       | plan.md            | Create a separate visible Codex worktree before implementation                 | Implement in the existing `backlog-triage` worktree                                   | Explicit user direction on 2026-09-19                                  | Updated plan/implementation  | None                  |
 
 ## Test Results
 

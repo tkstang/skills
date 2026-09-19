@@ -6,6 +6,8 @@ oat_last_updated: 2026-09-19
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
+oat_plan_hill_phases: ["p04"]
+oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
@@ -40,9 +42,10 @@ No daemon, database, MCP server, third-party runtime dependency, or Git subproce
 
 ## Execution Boundaries
 
-- This checkout owns planning. Before implementation, create a visible Codex
-  project task/worktree on this machine, carrying the committed project and
-  approved baseline. Do not silently use a manual/hidden worktree or remote host.
+- The user explicitly designated this existing `backlog-triage` worktree for
+  implementation on 2026-09-19. Do not create another worktree unless the user
+  later requests one; this instruction supersedes the earlier separate-worktree
+  direction for this implementation run.
 - High is the managed dispatch ceiling in state.md. Independent configured gates
   must meet the user's Frontier requirement. Verify actual invocation evidence;
   no silent lower/default fallback. Keep reusable commands provider-neutral.
