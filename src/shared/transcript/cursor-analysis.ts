@@ -50,6 +50,19 @@ export interface CursorAssistantContentRecord extends CursorContentRecord {
   role: 'assistant';
 }
 
+/**
+ * A recorded Cursor tool invocation. Cursor's observed transcript surface has
+ * no call identifier or per-call result/outcome, so frame and block position
+ * are the only identity evidence retained here.
+ */
+export interface CursorToolRecord {
+  sourceFrameIndex: number;
+  blockIndex: number;
+  nativeType: 'tool_use';
+  nativeName?: string;
+  arguments?: unknown;
+}
+
 export interface CursorTurnAnalysis {
   turnId: string;
   fromFrameIndex: number;
@@ -57,6 +70,8 @@ export interface CursorTurnAnalysis {
   assistantRecords: CursorAssistantContentRecord[];
   humanRecordIndexes: number[];
   toolRecordIndexes: number[];
+  /** Additive raw-call accessor for activity extraction. */
+  toolRecords?: CursorToolRecord[];
   lifecycle: CursorLifecycleState;
   terminalFrameIndex: number | null;
   finalSubstantiveEntryKey: string | null;
@@ -90,6 +105,7 @@ interface ContentBlock {
   blockIndex: number;
   kind: 'text' | 'tool' | 'ask-user' | 'runtime-diagnostic' | 'unsupported';
   text: string;
+  toolRecord?: Omit<CursorToolRecord, 'sourceFrameIndex' | 'blockIndex'>;
 }
 
 interface MutableCursorTurn {
@@ -99,6 +115,7 @@ interface MutableCursorTurn {
   assistantRecords: CursorAssistantContentRecord[];
   humanRecordIndexes: number[];
   toolRecordIndexes: number[];
+  toolRecords: CursorToolRecord[];
   hasAutomaticControlInput: boolean;
   hasHumanInput: boolean;
 }
@@ -160,13 +177,24 @@ function contentBlocks(record: JsonObject): ContentBlock[] {
 
     const type = stringValue(block.type);
     if (type === 'tool_use') {
+      const nativeName = stringValue(block.name);
+      const toolRecord = {
+        nativeType: 'tool_use' as const,
+        ...(nativeName === null ? {} : { nativeName }),
+        ...(Object.hasOwn(block, 'input') ? { arguments: block.input } : {}),
+      };
       // A question put to the operator is conversation, not tool traffic: it
       // becomes rendered content rather than a filtered tool frame.
       const askUserText = cursorAskUserQuestionText(block);
       if (askUserText !== null) {
-        return { blockIndex, kind: 'ask-user', text: askUserText };
+        return {
+          blockIndex,
+          kind: 'ask-user',
+          text: askUserText,
+          toolRecord,
+        };
       }
-      return { blockIndex, kind: 'tool', text: '' };
+      return { blockIndex, kind: 'tool', text: '', toolRecord };
     }
 
     const text = stringValue(block.text) ?? stringValue(block.content) ?? '';
@@ -237,6 +265,7 @@ export function createCursorTurnAccumulator(
       assistantRecords: [],
       humanRecordIndexes: [],
       toolRecordIndexes: [],
+      toolRecords: [],
       hasAutomaticControlInput: false,
       hasHumanInput: false,
     };
@@ -261,6 +290,7 @@ export function createCursorTurnAccumulator(
       assistantRecords: current.assistantRecords,
       humanRecordIndexes: current.humanRecordIndexes,
       toolRecordIndexes: current.toolRecordIndexes,
+      toolRecords: current.toolRecords,
       lifecycle,
       terminalFrameIndex,
       finalSubstantiveEntryKey: finalSubstantive?.entryKey ?? null,
@@ -343,6 +373,15 @@ export function createCursorTurnAccumulator(
           turn.humanRecordIndexes.push(frame.frameIndex);
         }
         return;
+      }
+
+      for (const block of blocks) {
+        if (block.toolRecord === undefined) continue;
+        turn.toolRecords.push({
+          sourceFrameIndex: frame.frameIndex,
+          blockIndex: block.blockIndex,
+          ...block.toolRecord,
+        });
       }
 
       for (const block of blocks) {

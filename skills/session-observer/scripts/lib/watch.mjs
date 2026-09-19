@@ -3827,11 +3827,22 @@ function contentBlocks(record) {
     }
     const type = stringValue2(block.type);
     if (type === "tool_use") {
+      const nativeName = stringValue2(block.name);
+      const toolRecord = {
+        nativeType: "tool_use",
+        ...nativeName === null ? {} : { nativeName },
+        ...Object.hasOwn(block, "input") ? { arguments: block.input } : {}
+      };
       const askUserText = cursorAskUserQuestionText(block);
       if (askUserText !== null) {
-        return { blockIndex, kind: "ask-user", text: askUserText };
+        return {
+          blockIndex,
+          kind: "ask-user",
+          text: askUserText,
+          toolRecord
+        };
       }
-      return { blockIndex, kind: "tool", text: "" };
+      return { blockIndex, kind: "tool", text: "", toolRecord };
     }
     const text = stringValue2(block.text) ?? stringValue2(block.content) ?? "";
     if (type === "runtime_diagnostic" || type === "diagnostic") {
@@ -3879,6 +3890,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
       assistantRecords: [],
       humanRecordIndexes: [],
       toolRecordIndexes: [],
+      toolRecords: [],
       hasAutomaticControlInput: false,
       hasHumanInput: false
     };
@@ -3896,6 +3908,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
       assistantRecords: current.assistantRecords,
       humanRecordIndexes: current.humanRecordIndexes,
       toolRecordIndexes: current.toolRecordIndexes,
+      toolRecords: current.toolRecords,
       lifecycle,
       terminalFrameIndex,
       finalSubstantiveEntryKey: finalSubstantive?.entryKey ?? null
@@ -3968,6 +3981,14 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
           turn.humanRecordIndexes.push(frame.frameIndex);
         }
         return;
+      }
+      for (const block of blocks) {
+        if (block.toolRecord === void 0) continue;
+        turn.toolRecords.push({
+          sourceFrameIndex: frame.frameIndex,
+          blockIndex: block.blockIndex,
+          ...block.toolRecord
+        });
       }
       for (const block of blocks) {
         if (block.kind === "tool") continue;

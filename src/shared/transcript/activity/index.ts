@@ -19,7 +19,9 @@ export async function readActivityReport(
 
 export { classifyNativeName } from './classify.js';
 export { correlateActivity };
+export { extractCursorActivity } from './cursor.js';
 export { extractActivity };
 export { ACTIVITY_PROJECTION_LIMITS, projectActivity } from './project.js';
 export { renderActivityMarkdown, renderActivityReport } from './render.js';
 export type * from './types.js';
+export type * from './cursor.js';

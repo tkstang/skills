@@ -7,7 +7,7 @@ import type {
 
 export const ACTIVITY_SCHEMA_VERSION = 1 as const;
 
-export type ActivityRuntime = 'claude-code' | 'codex';
+export type ActivityRuntime = 'claude-code' | 'codex' | 'cursor';
 export type ActivityOutcome =
   | 'success'
   | 'error'
@@ -64,6 +64,10 @@ export interface ActivityLocator {
   recordIndex?: number;
   /** Provider ordinal when the selected record carries one. */
   ordinal?: number;
+  /** Cursor source frame containing the recorded block. */
+  sourceFrameIndex?: number;
+  /** Cursor terminal frame that made the call statefully deliverable. */
+  deliveryFrameIndex?: number;
 }
 
 export interface ActivityEventLocator extends ActivityLocator {
@@ -96,6 +100,16 @@ export interface ExtractedActivityEvent {
   nativeStatus?: string;
   origin?: string;
   turnId?: string;
+  /** Cursor call availability; absent for record-oriented runtimes. */
+  lifecycleAvailability?: 'settled' | 'pending-lifecycle';
+  /** Cursor turn outcome evidence, kept separate from per-call outcome. */
+  turnOutcome?:
+    | 'pending'
+    | 'success'
+    | 'aborted'
+    | 'error'
+    | 'cancelled'
+    | 'unknown';
   /** Parsed or native-ready call arguments/input. Presentation budgets apply later. */
   arguments?: unknown;
   /** Exact native string/object arguments carrier before documented parsing. */
