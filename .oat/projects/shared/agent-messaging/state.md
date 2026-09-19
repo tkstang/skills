@@ -18,8 +18,18 @@ oat_phase_recovery_policy:
   phase_attempt_limits: {}
   phase_attempt_usage:
     p01:
-      used_attempts: 2
-      pending_attempt: null
+      used_attempts: 3
+      pending_attempt:
+        attempt: 3
+        event_id: cont-agent-messaging-p01-fix-3-packaging-recovery
+        original_request_id: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+        original_task_id: p01-t05
+        original_commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
+        defect_class: test
+        discovered_by: pnpm run test:vitest src/shared/collaboration/records.test.ts src/shared/collaboration/membership.test.ts src/shared/collaboration/messages.test.ts src/shared/collaboration/log.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/packaging.test.ts tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-medium
+        reservation_head: 50455dca051d0d073592c5858d47a74fa16bf3cf
+        status: completed
 oat_orchestration_retry_limit: 3
 oat_phase: implement
 oat_phase_status: in_progress

@@ -54,7 +54,7 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain('version: "1.0.3"');
+      ).toContain("version: '1.0.3'");
 
       const root = path.join(destination, 'state');
       const collaborationId = crypto.randomUUID();
