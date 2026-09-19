@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFile,
+  cp,
   mkdtemp,
   mkdir,
   readFile,
@@ -8,10 +10,11 @@ import {
   rename,
   rm,
   stat,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -49,7 +52,7 @@ async function fixture() {
   await mkdir(cwd);
   await mkdir(join(transcriptStore, 'peer-1'), { recursive: true });
   await writeFile(transcript, '{}\n');
-  return { root, cwd, transcript, transcriptStore };
+  return { home, root, cwd, transcript, transcriptStore };
 }
 
 afterEach(async () =>
@@ -63,6 +66,7 @@ async function armLease(
   cwd: string,
   transcript: string,
   overrides: Record<string, string | number> = {},
+  now = START,
 ) {
   return arm(
     root,
@@ -79,7 +83,7 @@ async function armLease(
       loopCap: 2,
       ...overrides,
     },
-    START,
+    now,
   );
 }
 
@@ -151,12 +155,19 @@ async function armCursorFrameLease(
   frames: Array<Record<string, unknown>>,
   nextFrameIndex = 0,
   overrides: Record<string, string | number> = {},
+  now = START,
 ): Promise<any> {
   await writeCursorFrames(transcript, frames);
-  const armed = await armLease(root, cwd, transcript, {
-    peerRuntime: 'cursor',
-    ...overrides,
-  });
+  const armed = await armLease(
+    root,
+    cwd,
+    transcript,
+    {
+      peerRuntime: 'cursor',
+      ...overrides,
+    },
+    now,
+  );
   return writeLease(root, {
     ...armed.lease,
     peerCursor: nextFrameIndex,
@@ -258,6 +269,58 @@ function digestWithEntries(
 }
 
 describe('Cursor Stop continuation hook', () => {
+  test.each([
+    'skills/session-observer-collab',
+    'plugins/consensus/skills/observer-collab',
+  ])(
+    'executes the generated %s Cursor Stop hook through a symlinked bundle with an eligible lease',
+    async (relative) => {
+      const { home, root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Review the generated Cursor hook.'),
+          assistantFrame('The generated Cursor hook is ready.'),
+          terminalFrame('success'),
+        ],
+        0,
+        { waitMs: 100 },
+        Date.now(),
+      );
+      const installed = join(home, 'installed-observer');
+      const linked = join(home, 'linked-observer');
+      await cp(resolvePath(relative), installed, { recursive: true });
+      await symlink(installed, linked, 'dir');
+
+      const result = spawnSync(
+        process.execPath,
+        [join(linked, 'scripts', 'hooks', 'cursor-stop.mjs')],
+        {
+          cwd,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            HOME: home,
+            SESSION_OBSERVER_STATE_DIR: root,
+          },
+          input: JSON.stringify({
+            conversation_id: 'cursor-1',
+            generation_id: 'generation-1',
+            status: 'success',
+            loop_count: 0,
+          }),
+        },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        followup_message: expect.stringContaining('records="0-2"'),
+      });
+    },
+  );
+
   test.each([
     [
       'synthetic control',

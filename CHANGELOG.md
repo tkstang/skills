@@ -139,6 +139,15 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.46 makes every lifecycle command honor a
+  validated absolute `--root`, rejects command-specific unknown options, proves
+  generated Codex/Cursor Stop hooks through symlinked bundles, and cleans
+  Monitor packaging fixtures after execution.
+
+- `session-observer-collab` 1.0.45 lets private no-op cursor progress advance
+  from an armed lease; previously the composed Monitor stopped with `armed`
+  instead of continuing its finite poll.
+
 - `agent-messaging` 1.0.18 makes the Claude composed-ownership fixture use a
   real resolved settings source instead of relabeling an empty Codex inventory,
   preserving the fail-closed production inventory contract in the full suite.

@@ -49,6 +49,88 @@ import { captureCursorArmContinuity } from './lib/selected-prefix.mjs';
 
 export const CONTROL_SCHEMA_VERSION = 1;
 
+const COMMON_OPTIONS = ['root', 'json'];
+const COMMAND_OPTIONS = Object.freeze({
+  'collaboration-open': [
+    ...COMMON_OPTIONS,
+    'collab',
+    'self',
+    'alias',
+    'label',
+    'task',
+    'cwd',
+  ],
+  'collaboration-join': [...COMMON_OPTIONS, 'collab', 'self', 'alias', 'cwd'],
+  'log-append': [
+    ...COMMON_OPTIONS,
+    'collab',
+    'self',
+    'id',
+    'category',
+    'title',
+    'what',
+    'what-stdin',
+    'assessment',
+    'implication',
+  ],
+  'log-show': [...COMMON_OPTIONS, 'collab'],
+  'log-render': [...COMMON_OPTIONS, 'collab'],
+  install: [...COMMON_OPTIONS, 'runtime', 'command', 'session'],
+  arm: [
+    ...COMMON_OPTIONS,
+    'runtime',
+    'peer-runtime',
+    'session',
+    'peer-session',
+    'cwd',
+    'peer-transcript',
+    'peer-index-base',
+    'wait-ms',
+    'lease-ms',
+    'continuation-cap',
+    'loop-cap',
+    'cursor',
+    'collaboration-id',
+    'activation-id',
+    'confirm-old-monitor-stopped',
+    'confirm-standalone-watcher-stopped',
+  ],
+  disarm: [...COMMON_OPTIONS, 'session'],
+  status: [...COMMON_OPTIONS, 'session'],
+  prune: [...COMMON_OPTIONS, 'session'],
+  'codex-install': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'source-script-path',
+    'session',
+  ],
+  'codex-status': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'session',
+    'trust-records-path',
+    'hook-statuses-path',
+  ],
+  'codex-uninstall': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'session',
+    'confirmed',
+    'remove-script',
+  ],
+});
+const BOOLEAN_OPTIONS = new Set([
+  'json',
+  'confirmed',
+  'remove-script',
+  'what-stdin',
+  'confirm-old-monitor-stopped',
+  'confirm-standalone-watcher-stopped',
+]);
+
 function numberOption(value, name, min, max) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max)
@@ -59,22 +141,20 @@ function numberOption(value, name, min, max) {
 export function parseArgs(argv) {
   const [command, ...rest] = argv;
   const options = {};
+  const allowed = new Set(COMMAND_OPTIONS[command] ?? []);
   for (let i = 0; i < rest.length; i += 1) {
     const token = rest[i];
     if (!token.startsWith('--'))
       throw new Error(`unexpected argument: ${token}`);
     const [rawKey, inline] = token.slice(2).split('=', 2);
+    if (!allowed.has(rawKey))
+      throw new Error(
+        `unknown option for ${command ?? 'command'}: --${rawKey}`,
+      );
     const key = rawKey.replace(/-([a-z])/g, (_, letter) =>
       letter.toUpperCase(),
     );
-    if (
-      rawKey === 'json' ||
-      rawKey === 'confirmed' ||
-      rawKey === 'remove-script' ||
-      rawKey === 'what-stdin' ||
-      rawKey === 'confirm-old-monitor-stopped' ||
-      rawKey === 'confirm-standalone-watcher-stopped'
-    ) {
+    if (BOOLEAN_OPTIONS.has(rawKey)) {
       options[key] = true;
       continue;
     }
@@ -530,7 +610,10 @@ export async function run(
   readStdin = readStdinBounded,
 ) {
   const { command, options } = parseArgs(argv);
-  const root = stateRoot(env);
+  const root =
+    typeof options.root === 'string'
+      ? validateAbsolutePath(options.root, 'root')
+      : stateRoot(env);
   await mkdir(root, { recursive: true, mode: 0o700 });
   await chmod(root, 0o700);
   if (command === 'collaboration-open') {

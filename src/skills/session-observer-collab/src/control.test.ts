@@ -1588,4 +1588,41 @@ describe('collaboration lease controls', () => {
       } as NodeJS.ProcessEnv),
     ).toBe(join(home, 'xdg', 'session-observer', 'collab'));
   });
+
+  test('honors an explicit absolute root and rejects unknown or relative root options', async () => {
+    const { home, root, cwd, transcript } = await fixture();
+    const explicitRoot = join(home, 'explicit-root');
+    const args = [
+      'arm',
+      '--root',
+      explicitRoot,
+      '--runtime',
+      'codex',
+      '--peer-runtime',
+      'cursor',
+      '--session',
+      'explicit-owner',
+      '--peer-session',
+      'peer-1',
+      '--cwd',
+      cwd,
+      '--peer-transcript',
+      transcript,
+      '--lease-ms',
+      '60000',
+    ];
+
+    await expect(run(args, { HOME: home }, 1_000)).resolves.toMatchObject({
+      ok: true,
+      command: 'arm',
+    });
+    expect(await readLease(explicitRoot, 'explicit-owner')).not.toBeNull();
+    expect(await readLease(root, 'explicit-owner')).toBeNull();
+    await expect(
+      run([...args, '--unknown-option', 'value'], { HOME: home }, 1_000),
+    ).rejects.toThrow(/unknown option.*--unknown-option/iu);
+    await expect(
+      run(['status', '--root', 'relative'], { HOME: home }, 1_000),
+    ).rejects.toThrow(/root must be an absolute path/iu);
+  });
 });
