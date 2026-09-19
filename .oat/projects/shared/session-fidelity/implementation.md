@@ -495,3 +495,62 @@ The original `sf-p01-implement-01` handle resumed on exact target `oat-phase-imp
 The fix rejects an ID-less first physical Codex header before any later inherited native header can supply identity while preserving supported legacy identity on the first header. Exact lookup now rejects multiple distinct canonical Claude Code, Codex or Cursor sources after realpath aliases are deduplicated. Stateful catch-up reports saved-state read failure before producing a digest while retaining the existing output-ready contract for a later state-write failure. Unpinned exporter selection prefers Codex roots for both marker matches and marker-miss fallback. Changelog coverage and the four required owner versions were advanced: observer 1.0.48, collaboration 1.0.37, exporter 2.0.5 and fork 0.2.13; generated payloads were rebuilt.
 
 Implementer verification passed the 772-test focused p01 set, an 8-test override regression, the full 2126-pass/1-skip suite, build freshness, type checking, repository validation, smoke, four-owner version validation, formatting and linting. Root independently verified the single-parent commit and unchanged `.oat` range, reviewed the load-bearing diff, reran 335 focused tests, build freshness, type checking, four-owner version validation and changed-file formatting, and confirmed a clean tree. No deviation or blocker remains. A new root-owned reviewer must now assess the updated range before activity begins.
+
+#### Dispatch sf-p01-review-02
+
+```json
+{
+  "request_id": "sf-p01-review-02",
+  "caller": "oat-project-implement",
+  "scope": "p01-review-round-02",
+  "objective": "Re-review the complete p01 identity range after the bounded first-header, ambiguity, state-read and exporter-selection fixes",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p01",
+    "taskIds": ["p01-t01", "p01-t02", "p01-t03", "p01-t04", "p01-t05"],
+    "base": "455daba2807b1539da566ce863b613720ab79d82",
+    "reviewedHead": "e30972077667f616007209389a28010f5fa13424",
+    "fixCommit": "8affc30a56e8f4c33c6bc50a6d632d93d37baa01",
+    "priorArtifact": "reviews/p01-review-2026-09-19T120500Z.md",
+    "artifact": "reviews/p01-review-2026-09-19T122907Z-round2.md",
+    "handle": "/root/p01_review_round2"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": ["p01-review-fix-01"],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Identity and authority failures can silently select or authorize the wrong native session.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p01-review-round-02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
