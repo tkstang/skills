@@ -1,6 +1,6 @@
 ---
-oat_current_task: p11-t01
-oat_last_commit: 2c4ea64f725830ba7affce59eabce65bf651cc6f
+oat_current_task: null
+oat_last_commit: c8c40b92d928a1da2de852419ff978119b834d1e
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -18,6 +18,9 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
+    p11:
+      used_attempts: 0
+      pending_attempt: null
     p10:
       used_attempts: 0
       pending_attempt: null
@@ -76,6 +79,8 @@ oat_workflow_mode: quick # spec-driven | quick | import | lite
 oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
+oat_skill_gate_overrides:
+  oat-project-implement: disabled
 oat_implement_exit_gate:
   status: stale
   resolution: configured
@@ -149,13 +154,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** p11 lifecycle-artifact fix queued
+**Status:** p11 implementation complete; review and remote-feedback audit pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-The first 27 implementation tasks and phase reviews p00 through p10 passed. The post-p10 final lifecycle review added one bounded p11 task to align the generated summary, publication boundary and trailing whitespace before refreshed gate processing.
+All 28 implementation tasks are complete. Phase p11 aligned the generated summary, publication boundary and trailing whitespace in one verified commit; independent review remains while PR #95 and #96 remote feedback is audited.
 
 ## Artifacts
 
@@ -163,7 +168,7 @@ The first 27 implementation tasks and phase reviews p00 through p10 passed. The 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (27/28 tasks complete; p11 artifact alignment pending)
+- **Implementation:** `implementation.md` (28/28 tasks complete; p11 review pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; PR #96 remote head predates p10)
 
 ## Progress
@@ -201,7 +206,8 @@ The first 27 implementation tasks and phase reviews p00 through p10 passed. The 
 - ✓ Fresh p10 phase review passed with zero findings
 - ✓ Refreshed post-p10 full verification passed
 - ✓ Post-p10 final lifecycle review received with no blocking findings
-- ⧗ p11 lifecycle-artifact alignment pending
+- ✓ p11 lifecycle-artifact alignment implemented and locally verified
+- ⧗ Fresh p11 review and PR #95/#96 remote-feedback audit pending
 
 ## Blockers
 
@@ -209,4 +215,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete p11, run the narrowed final re-review and refreshed configured exit gate, then republish PR #96.
+Review p11, disposition all PR #95/#96 feedback, implement any valid findings, refresh lifecycle closeout and republish the stack.
