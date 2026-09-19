@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -267,6 +267,59 @@ describe('finite Claude composed Monitor', () => {
     ).toMatchObject([
       { status: 'outcome-unknown', observation: { fromIndex: 0, toIndex: 2 } },
     ]);
+  });
+
+  test('requires explicit re-arm before restarting from a triggered lease', async () => {
+    const item = await fixture();
+    expect(
+      (
+        await runClaudeMonitor(input(item), {
+          now: () => START + 2,
+          observe: async () => substantive(),
+          emit: async () => undefined,
+        })
+      ).reason,
+    ).toBe('observation-notified');
+    const restarted = await runClaudeMonitor(input(item), {
+      now: () => START + 3,
+      observe: async () => substantive(),
+    });
+    expect(restarted.reason).toBe('rearm-required');
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(1);
+  });
+
+  test('does not let the expected triggered state hide a final identity failure', async () => {
+    const item = await fixture();
+    const leasePath = path.join(
+      item.root,
+      'leases',
+      `${item.self.sessionId}.json`,
+    );
+    const result = await runClaudeMonitor(input(item), {
+      now: () => START + 2,
+      observe: async () => substantive(),
+      afterCursorClaim: async () => {
+        const lease = JSON.parse(await readFile(leasePath, 'utf8'));
+        await writeFile(
+          leasePath,
+          `${JSON.stringify({
+            ...lease,
+            ownerCwd: '/tmp/changed-worktree',
+            composedActivation: {
+              ...lease.composedActivation,
+              ownerCwd: '/tmp/changed-worktree',
+            },
+          })}\n`,
+        );
+      },
+      emit: async () => {
+        throw new Error('must not emit');
+      },
+    });
+    expect(result.reason).toBe('lease-cwd-mismatch');
   });
 
   test('a CAS loser wastes the shared slot and emits nothing', async () => {

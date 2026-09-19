@@ -153,7 +153,12 @@ function defaultOwnershipVerification(input) {
   };
 }
 
-async function exactComposition(input, now, expectedLeaseId = null) {
+async function exactComposition(
+  input,
+  now,
+  expectedLeaseId = null,
+  allowExpectedTriggered = false,
+) {
   const status = await activationStatus(input.root, input.self, new Date(now));
   const activation = status.activation;
   if (
@@ -213,8 +218,22 @@ async function exactComposition(input, now, expectedLeaseId = null) {
     transcript: input.peerTranscript,
     now,
   });
-  if (!inspected.eligible && lease.state !== 'triggered')
-    return { valid: false, reason: inspected.reason, status, lease };
+  if (!inspected.eligible) {
+    if (allowExpectedTriggered && inspected.reason === 'triggered') {
+      // claimAdapterTrigger intentionally transitions the exact lease before
+      // the final notification check.
+    } else {
+      return {
+        valid: false,
+        reason:
+          lease.state === 'triggered' && inspected.reason === 'triggered'
+            ? 'rearm-required'
+            : inspected.reason,
+        status,
+        lease,
+      };
+    }
+  }
   if (
     input.verifyOwnership &&
     !(await input.verifyOwnership({ activation, lease, now }))
@@ -420,6 +439,7 @@ export async function runClaudeMonitor(input, dependencies = {}) {
           { ...input, verifyOwnership },
           now(),
           leaseId,
+          true,
         );
         if (!final.valid)
           return { reason: final.reason, notification: null, iterations };

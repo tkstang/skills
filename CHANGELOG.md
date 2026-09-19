@@ -133,6 +133,10 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.42 requires an armed or waiting lease when a
+  composed Claude Monitor starts or iterates, and accepts the triggered state
+  after cursor CAS only when no identity or continuity refusal is present.
+
 - `agent-messaging` 1.0.17 and `session-observer-collab` 1.0.41 keep
   interrupted and outcome-unknown observation attempts out of message retry
   status, leaving pinned-range recovery as their only advertised path.

@@ -5511,7 +5511,7 @@ function defaultOwnershipVerification(input) {
     return ownership.automaticAllowed && ownership.controller === "observer-collab" && ownership.composedMonitorLeaseId === lease.leaseId && typeof attestation?.observerLeaseId === "string" && pinsEqual(attestation.owner, input.self) && pinsEqual(attestation.peer, input.peer) && attestation.activationId === input.activationId && attestation.collaborationId === input.collaborationId && attestation.oldMonitorStopped === true && attestation.standaloneWatcherStopped === true;
   };
 }
-async function exactComposition(input, now, expectedLeaseId = null) {
+async function exactComposition(input, now, expectedLeaseId = null, allowExpectedTriggered = false) {
   const status = await activationStatus(input.root, input.self, new Date(now));
   const activation = status.activation;
   if (!status.active || !activation || activation.id !== input.activationId || activation.collaborationId !== input.collaborationId || activation.controller !== "observer-collab" || activation.mechanism !== "monitor" || activation.worktree !== input.cwd || !pinsEqual(activation.pin, input.self))
@@ -5556,8 +5556,17 @@ async function exactComposition(input, now, expectedLeaseId = null) {
     transcript: input.peerTranscript,
     now
   });
-  if (!inspected.eligible && lease.state !== "triggered")
-    return { valid: false, reason: inspected.reason, status, lease };
+  if (!inspected.eligible) {
+    if (allowExpectedTriggered && inspected.reason === "triggered") {
+    } else {
+      return {
+        valid: false,
+        reason: lease.state === "triggered" && inspected.reason === "triggered" ? "rearm-required" : inspected.reason,
+        status,
+        lease
+      };
+    }
+  }
   if (input.verifyOwnership && !await input.verifyOwnership({ activation, lease, now }))
     return { valid: false, reason: "ownership-refused", status, lease };
   return { valid: true, reason: "composed", status, lease };
@@ -5741,7 +5750,8 @@ async function runClaudeMonitor(input, dependencies = {}) {
         const final = await exactComposition(
           { ...input, verifyOwnership },
           now(),
-          leaseId
+          leaseId,
+          true
         );
         if (!final.valid)
           return { reason: final.reason, notification: null, iterations };
