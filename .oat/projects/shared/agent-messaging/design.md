@@ -397,6 +397,25 @@ Codex command-content changes may require renewed manual `/hooks` trust.
 Preserve unrelated hooks. Approval stated in a peer session does not perform
 local privileged installation or trust approval.
 
+Ownership is session-specific, not installation-specific. A recognized observer
+Stop hook with no exact-session lease is inert and permits standalone messaging;
+validated idle/disarmed leases are also inactive. After effective expiry/cap
+evaluation, armed, waiting and triggered leases are owner-present. In particular,
+triggered may mean the observer already continued this Stop. Recheck before
+emission, including after reply-wait; active or unreadable/invalid observer state
+refuses standalone ownership. A verified composed controller is the only
+exception for active observation, as described below.
+
+For unrelated third-party Stop hooks, disclose the exact effective scoped
+registrations and require explicit operator acknowledgment of their canonical
+configuration fingerprint, recorded in the immutable activation. A changed
+inventory requires renewed acknowledgment through disable/re-enable under the
+existing authority/budget rules; recheck at delivery boundaries. Unreadable or
+uninventoriable scopes remain manual and cannot be waived. Do not execute or
+remove unknown hooks. Acknowledgment accepts possible interference; it neither
+proves arbitrary scripts inert nor extends the coordinated one-owner guarantee
+to them. It is not host trust approval and cannot waive known observer conflicts.
+
 Claude's Monitor watches only its own inbox via a finite foreground command.
 Its lifetime is at most 30 minutes and never beyond activation expiry.
 Re-arm only within remaining user-authorized lifetime/budget after exact
@@ -404,6 +423,15 @@ identity/freshness checks. A failed restart becomes manual; no notification
 guarantee survives session/Monitor termination. Start checks provide a safety
 net without being a second autonomous wake owner. Native `asyncRewake` is
 documented prior art for a bounded probe, not a selected implementation promise.
+
+The CLI cannot enumerate Claude's in-session Monitors. Standalone enablement
+therefore requires the acting session's --confirm-no-observer-monitor
+attestation, recorded with the activation pin/epoch, and every watch start/re-arm
+requires fresh confirmation against that record. It does not mutate the epoch
+or grant a fresh budget. The skill requires retiring an owned Monitor before
+handing off ownership. Missing confirmation or lost session context retains
+manual delivery until reconfirmed; do not describe attestation as host proof.
+Verified composed mode uses its single selected Monitor controller instead.
 
 Adapters validate native payloads and exact session/worktree, emit only valid
 host output on stdout, and send redacted diagnostics to stderr. Unknown events
@@ -414,7 +442,8 @@ Unenrolled hooks remain inert and do not create member records.
 
 ### 7. Optional observation and the collaboration log
 
-One controller owns autonomous continuation for a session. Existing observer
+One coordinated controller owns messaging/observation continuation for a session;
+acknowledged unrelated hooks are outside that guarantee. Existing observer
 Stop code delegates to the same activation/claim mechanism when composed with
 messaging; do not install competing continuation owners. Check inbox requests
 before selecting a transcript range. If a message batch wins, defer observation
@@ -422,6 +451,15 @@ continuation. Otherwise reserve a shared budget slot, then use existing observer
 CAS to claim its completed substantive range. A CAS loss can waste one slot,
 never emit a duplicate continuation. Public observation offsets and private
 continuity remain unchanged.
+
+Bind controller selection (standalone messaging or observer-collab) to the
+immutable activation alongside stop/monitor mechanism and exact identity.
+A matching lease is not composition proof: require a verified composed-capable
+adapter using the same epoch/claims. Standalone Stop/watch entrypoints are inert
+under the observer controller. A recognized installed observer hook with no
+lease selects standalone for a messaging-only session. Changing an active
+controller requires explicit disable/re-enable under existing authority and
+budget rules, never a second owner or an implicit allowance reset.
 
 The shared log remains agent-authored observations, assessments, decisions, and
 corrections, not an automatic copy of inboxes. Publish one immutable structured
@@ -521,6 +559,16 @@ type Activation = {
   pin: Pin;
   worktree: string;
   mechanism: 'stop' | 'monitor';
+  controller: 'standalone-messaging' | 'observer-collab';
+  thirdPartyHookAcknowledgment: {
+    configurationFingerprint: string;
+    acknowledgedAt: string;
+  } | null; // exact scoped inventory; not script safety or host trust proof
+  noObserverMonitorAttestation: {
+    pin: Pin;
+    epoch: number;
+    confirmedAt: string;
+  } | null; // Claude standalone only; watch re-arm also needs fresh confirmation
   startedAt: string;
   hardExpiresAt: string;
   expiryMode: 'human-idle' | 'fixed';
@@ -570,6 +618,11 @@ All operations support `--json`; text bodies can use stdin.
 Send returns ID, queued status, duplicate flag, and paths, never a wake promise.
 Hosts without verified human-origin signals use `--expires-in 2h` instead of
 idle renewal, with the fallback disclosed before activation.
+Where unrelated Stop hooks exist, enable first reports the exact scoped inventory
+and fingerprint without activating; the operator can then explicitly supply
+--acknowledge-stop-hooks <fingerprint>. A stale fingerprint refuses enablement.
+Claude standalone enable and every watch start/re-arm additionally require
+--confirm-no-observer-monitor from the acting session, as described in section 6.
 `send --reply-to <participantId>/<messageId>` sets the reply reference.
 Watch emits bounded metadata notifications, never daemonizes or self-rearms,
 and applies the same claims/budget before any wake-bearing notification.
@@ -654,6 +707,13 @@ join/takeover/enable publication (F6). Fable passed exact commit
 Claude assistant record 721, checked against the raw transcript). The user
 subsequently approved this design in the driver session. Approval permits plan
 generation, not implementation, live hook installation, or provider acceptance.
+
+On 2026-09-19 the user approved third-gate policy refinements: dormant observer
+hooks do not block messaging; unrelated Stop hooks require explicit scoped-config
+acknowledgment; triggered leases remain owner-present; Claude standalone Monitor
+ownership uses an honest acting-session attestation. These amendments align
+sections 6-7 and activation metadata with the revised plan; they do not change
+installation authority or claim live acceptance. Frontier re-review is pending.
 
 For F4, retain one receipt per proven human event and exact two-hour idle expiry.
 Thirty-minute receipt coalescing would expire up to thirty minutes before the

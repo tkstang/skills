@@ -135,6 +135,17 @@ These refinements were read and raw-record verified from the user's messages
 in Fable's pinned Claude session on 2026-09-18 (records 350, 408, and 472).
 They guide design; they do not authorize privileged installation in this session.
 
+On 2026-09-19 the user approved the plan gate's ownership clarification:
+recognized installed observer hooks without a same-session lease are inert;
+active or uncertain observer ownership still refuses standalone messaging.
+Inventoried unrelated Stop hooks may coexist after explicit operator
+acknowledgment of the current scoped configuration, not a claim that arbitrary
+scripts share the continuation budget. Configuration changes require renewed
+acknowledgment; unreadable inventory cannot be waived. Triggered observer leases
+remain owner-present at boundary checks. Claude standalone delivery requires the
+acting session to attest no observer Monitor is armed, with fresh confirmation
+on watch start/re-arm; this is not automatic Monitor discovery.
+
 ## Constraints
 
 - Node >=22; dependency-free shipped runtime with no required install step.

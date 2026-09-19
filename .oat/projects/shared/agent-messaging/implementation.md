@@ -177,21 +177,47 @@ and 247, final end_turn. No findings were deferred or rejected.
 **Subsequent verification:** Third gate reviewed e287517c and verified these four
 corrections. It returned a corroborated, receive-eligible blocked result with
 0 Critical, 1 Important, 1 Medium and 2 Minor findings:
-reviews/artifact-plan-review-2026-09-19T030934Z.md. The root confirmed that the
+reviews/archived/artifact-plan-review-2026-09-19T030934Z.md. The root confirmed that the
 observer hook allows stop when its exact session lease is missing, so the plan's
 registration-alone refusal is too broad. Third-party Stop-hook handling is a
-product-policy choice; no new disposition or correction has been applied yet.
+product-policy choice; the user subsequently approved the acknowledgment policy.
 
-**Next:** User direction on the ownership policy and approval of the third-round
-corrections. No implementation is authorized here.
+### Review Received: plan (third gate)
+
+**Date:** 2026-09-19
+**Review artifact:** [Third plan gate](reviews/archived/artifact-plan-review-2026-09-19T030934Z.md)
+**Findings:** 0 Critical, 1 Important, 1 Medium, 2 Minor.
+**User decision:** Approve the recommended ownership policy and all three other corrections.
+**Status:** fixes_completed; re-review pending. No tasks added or renumbered.
+
+All four are resolve_in_artifact:
+
+- I1 (Moderate scope): p02-t02 permits dormant recognized observer registrations,
+  refuses active/uncertain observer ownership, and requires explicit scoped-config
+  acknowledgment for unrelated hooks. Propagated to probes, watch, composition,
+  discovery and design, with activation metadata and boundary rechecks.
+- M1 (Minor scope): p03-t02 has two ordered implementation stages, messaging-side
+  controller support then observer integration, with green scoped tests between.
+- m1 (Minor scope): triggered leases remain owner-present; add a reply-wait
+  armed-to-triggered regression fixture.
+- m2 (Minor scope): Claude uses explicit acting-session no-observer-Monitor
+  attestation at enable and watch start/re-arm, not fictitious host enumeration.
+
+No deferrals or rejections. Frontier identity was corroborated from native Claude
+transcript f6953764-c455-4bce-aaaa-072771890652 (claude-fable-5-1, assistant
+lines 19 and 252, final end_turn). The blocked gate is not relabeled passed.
+
+**Next:** Re-review the approved artifact changes. No implementation is authorized here.
 
 ## Deviations from Plan / Design
 
-None. These edits assign already-approved behavior to tasks.
+The third review identified an over-broad ownership policy, not shipped code
+drift. The user approved the narrowed policy and explicit acknowledgment/
+attestation boundaries; discovery/design/plan now agree. No product code exists.
 
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| Task / Review    | Source Artifact    | Planned / Documented                                        | Actual / Accepted                                                                     | Reason                                             | Source of Truth               | Follow-up             |
+| ---------------- | ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------- | --------------------- |
+| Third gate I1/m2 | design.md, plan.md | Observer registration refusal; unspecified Claude inventory | Dormant hooks allowed, scoped third-party acknowledgment, explicit Claude attestation | User-approved usable and honest ownership boundary | Updated discovery/design/plan | Independent re-review |
 
 ## Test Results
 

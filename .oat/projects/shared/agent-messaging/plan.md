@@ -308,7 +308,8 @@ src/hooks.test.ts, src/registration.ts, src/registration.test.ts,
 src/owner-contract.test.ts,
 references/runtime-codex.md, references/runtime-claude-code.md.
 **Modify:** messaging build.json, CLI, skill instructions and packaging tests;
-shared activation/claims/diagnostics only for tested adapter contracts.
+shared types/activation/claims/diagnostics and activation tests only for tested
+adapter contracts, including acknowledgment and attestation metadata.
 
 **Implement:**
 
@@ -326,10 +327,11 @@ shared activation/claims/diagnostics only for tested adapter contracts.
 - Explicit opt-in registration/config generation, first-enable disclosure,
   exact-command trust notice, inactive-session no-op, scoped uninstall/disable
   preserving unrelated hooks. Claude session-scoped declarations where supported.
-  Before registration/enable and at automatic-delivery boundaries, detect an
-  effective observer-collab Stop registration or active observer lease for the
-  exact session. Refuse messaging automatic ownership with a manual-fallback
-  notice when another owner exists or its absence cannot be established.
+  Before registration/enable and at automatic-delivery boundaries, apply the
+  ownership truth table below for the exact session. Registration is not itself
+  ownership: a recognized observer hook without a same-session lease is inert
+  and permits standalone messaging. Refuse active or uncertain observer
+  ownership with a manual-fallback notice, including a lease armed after enable.
   Do not remove/replace the observer's hook or lease; composition is p03-t02.
   Apply the same refusal to the messaging watch owner in p02-t03.
 - Put the read-only owner detector in registration.ts. Inspect the effective
@@ -339,17 +341,40 @@ shared activation/claims/diagnostics only for tested adapter contracts.
   uses the explicitly supplied hooksPath (normally ~/.codex/hooks.json), with
   a caller-supplied absolute scriptPath, not a fixed launcher location. Resolve
   supported command forms without executing them; inspect the launcher for
-  session-observer-collab-codex-stop and its owned bundle manifest. Unreadable,
-  unknown or opaque potentially continuing registrations mean uncertain owner,
-  not absence. Host scopes that cannot be inventoried retain manual fallback.
+  session-observer-collab-codex-stop and its owned bundle manifest. Missing,
+  validated idle or disarmed exact-session leases do not confer ownership;
+  armed, waiting or triggered leases do. Unreadable/invalid observer state and
+  host scopes that cannot be inventoried retain manual fallback.
+  For inventoried but unrecognized third-party Stop commands, disclose the exact
+  scoped registrations and require explicit operator acknowledgment before
+  enablement via --acknowledge-stop-hooks <fingerprint>. Bind acknowledgment to
+  their canonical configuration fingerprint
+  in the immutable activation; a changed inventory requires disable/re-enable
+  and renewed acknowledgment under existing authority/budget rules. Recheck the
+  fingerprint at delivery boundaries. No acknowledgment means manual fallback.
+  Preserve those hooks; never execute them to classify them. Acknowledgment
+  accepts possible third-party continuation interference, not proof that those
+  hooks are inert, trustworthy or coordinated with the shared budget. It cannot
+  waive unreadable inventory or active/uncertain known observer ownership.
 - At the same resolved collaboration root, read the observer contract
   leases/<ownerSession>.json (native owner session ID, not the messaging hash).
   Match exact runtime/session/worktree. Current schema is 6; a validated lease
-  is active when effectiveLease semantics leave it armed/waiting after expiry
-  and continuation/loop caps are evaluated. Unknown schema or invalid identity/
+  is owner-present when effectiveLease semantics leave it armed, waiting or
+  triggered after expiry and continuation/loop caps are evaluated. In particular,
+  triggered remains owner-present at final validation during a reply-wait:
+  that observer may already have emitted this Stop's continuation. Only missing
+  or validated idle/disarmed state is inactive. Unknown schema or invalid identity/
   state is uncertainty, never absence. Do not migrate or write observer state.
   Claude's existing Monitor is not represented by that Codex/Cursor lease:
-  require a proven single-owner host inventory or keep automatic delivery manual.
+  require the acting session to confirm no observer Monitor is armed via
+  --confirm-no-observer-monitor at standalone delivery enable and every watch
+  start/re-arm. Record the initial attestation with its pin/epoch in activation;
+  a watch re-arm validates it and requires a fresh acting-session confirmation,
+  without editing the epoch or refreshing its allowance. This is an agent
+  attestation, not an enumerable host inventory or proof of exclusive ownership.
+  Missing confirmation or lost session context means manual until reconfirmed;
+  retire the owned Monitor before handing off ownership. Hooks do not invent
+  confirmations. p03-t02 replaces this only for verified composed ownership.
 - Pin that reader with owner-contract.test.ts: test-only imports of exported
   leasePath, LEASE_SCHEMA_VERSION, effectiveLease and codexStopCommand, plus
   an isolated launcher produced by installCodexStopBundle (its marker is private,
@@ -366,13 +391,19 @@ shared activation/claims/diagnostics only for tested adapter contracts.
 Native fixtures cover human/automatic turns, malformed payloads, continuation
 markers, identity mismatch, escaped bodies, oversize references, double callbacks,
 expiry, interruption, zero wait, 60s ceiling and unrelated hook preservation.
-Test existing observer Stop registration, active same-session observer lease,
-uncertain ownership and a conflict appearing after enable: no second automatic
-owner or continuation, while manual inbox access stays available. Test diagnostic
+Test recognized observer registration with no lease and idle/disarmed leases
+enables standalone; active same-session, triggered or uncertain observer state
+refuses. Test an armed-to-triggered transition during reply-wait final validation
+and a new lease after enable: no second coordinated owner or continuation.
+Third-party fixtures cover absent acknowledgment, acknowledged unchanged config,
+config changes after enable and unreadable inventory; no hook is removed or
+executed. Claude fixtures cover missing, wrong-pin and lost-context attestations,
+fresh watch re-arm confirmation and ownership handoff. Manual inbox access stays
+available. Test diagnostic
 write failures without human-prompt blocking or error-triggered continuation.
 Registration tests operate only in isolated fixture homes/configs.
 
-**Format:** pnpm exec oxfmt --write src/skills/agent-messaging src/shared/collaboration/activation.ts src/shared/collaboration/claims.ts src/shared/collaboration/diagnostics.ts
+**Format:** pnpm exec oxfmt --write src/skills/agent-messaging src/shared/collaboration/types.ts src/shared/collaboration/activation.ts src/shared/collaboration/activation.test.ts src/shared/collaboration/claims.ts src/shared/collaboration/diagnostics.ts
 
 **Commit:** feat(p02-t02): add bounded prompt and stop delivery adapters
 
@@ -389,6 +420,9 @@ the same still-valid activation and remaining budget, never a fresh allowance.
 Manual/start checks continue to expose all unacknowledged kinds regardless of
 notification attempt suppression. Native asyncRewake remains a probe candidate,
 not an automatic second implementation.
+Apply p02-t02's owner/acknowledgment checks on watch start and before emitting;
+Claude standalone watch also requires its explicit no-observer-Monitor
+confirmation on every start/re-arm. It never creates an activation or new budget.
 
 **Verify:** pnpm run test:vitest src/skills/agent-messaging/src/watch.test.ts src/shared/collaboration/claims.test.ts
 Updates do not wake; unchanged, overlapping, retried and reordered batches are
@@ -425,9 +459,12 @@ bounded adapter; do not fabricate an integration when the boundary is unavailabl
   quota budget, timeout and cleanup approval in the acting session. Without it,
   complete the probe tooling and report live rows unverified, leaving those
   automatic capabilities disabled/manual. Do not treat that as a passing live gate.
-- Before any phase-2 automatic-continuation probe, verify and record that no
-  other continuation owner applies to that session; refuse on conflict or
-  uncertainty. Phase-2 evidence describes standalone delivery only. Composed
+- Before any phase-2 automatic-continuation probe, apply p02-t02's truth table:
+  no active/uncertain observer owner, a readable hook inventory and acknowledgment
+  of exact third-party registrations where present; Claude uses the explicit
+  acting-session Monitor attestation. Record these limits rather than asserting
+  proof about arbitrary third-party hooks. Phase-2 evidence describes standalone
+  delivery only. Composed
   Stop/Monitor acceptance must run after p03-t02 under separate live authority.
 
 **Verify:** pnpm run test:vitest src/skills/agent-messaging/src/probe.test.ts src/skills/agent-messaging/src/hooks.test.ts
@@ -499,15 +536,19 @@ Cursor boundaries retain manual fallback. Both modes share expiry and finite
 budget, and neither can renew it through peer/automatic activity. Close/disable/
 takeover terminates the relevant delivery without deleting observation history.
 
-Replace p02's unconditional conflict refusal only for explicitly composed
+Replace p02's active-observer conflict refusal only for explicitly composed
 sessions. Bind the selected controller (standalone messaging or observer-collab)
 to the immutable activation epoch alongside its existing stop/monitor mechanism
 and exact session/member/worktree identity. A matching observer lease alone is
 not proof of composition: require a verified composed-capable observer adapter
 using that same epoch and shared claims. The observer controller may then own
 delivery enable and the single Stop/Monitor route; the standalone messaging
-Stop/watch entrypoints stay inert for that epoch. Unknown, mismatched, legacy or
-uncomposed registrations still refuse automatic delivery. Never switch owners
+Stop/watch entrypoints stay inert for that epoch. A messaging-only session with
+a recognized composed-capable observer hook but no lease selects standalone
+messaging. Active mismatched, legacy or uncomposed observer owners still refuse;
+unknown observer state remains uncertain. Unrelated third-party hooks retain
+p02-t02's explicit acknowledgment policy in both modes, not a blanket refusal
+and not inclusion in the coordinated single-owner guarantee. Never switch owners
 implicitly: changing an active controller requires explicit disable/re-enable
 under the existing authority and budget rules, not a second activation or owner.
 Update the CLI enable path, hooks, watch, registration and their p02 tests in
@@ -518,13 +559,26 @@ deduplicate by exact message ID in working context: an observed transcript quote
 of an already-presented ID is context, not another request. Do not fuzzy-match
 prose or advance public/private observer cursors because a message was acked.
 
+**Ordered implementation stages (one task; no renumbering):**
+
+1. Implement shared controller binding and the messaging-side enable/registration/
+   hooks/watch exception against an observer fixture. Run the five messaging
+   suites listed below plus shared activation/claims suites and require green
+   before stage 2. The fixture grants no installed capability: without a real
+   verified composed-capable adapter, active observer ownership stays fail-closed.
+2. Implement observer delegation, shared-slot-before-CAS and composition tests,
+   then both skills' instructions and runtime references. Run the complete
+   Verify list before the task's atomic commit. Isolate stage failures before
+   adding more integration work; do not commit a half-composed live capability.
+
 **Verify:** pnpm run test:vitest src/skills/session-observer-collab/src/messaging-composition.test.ts src/skills/session-observer-collab/src/codex-hook.test.ts src/skills/session-observer-collab/src/cursor-hook.test.ts src/skills/session-observer-collab/src/control.test.ts src/skills/session-observer-collab/src/wake-envelope-contract.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/hooks.test.ts src/skills/agent-messaging/src/registration.test.ts src/skills/agent-messaging/src/watch.test.ts src/skills/agent-messaging/src/owner-contract.test.ts src/shared/collaboration/activation.test.ts src/shared/collaboration/claims.test.ts
 Race message arrival versus observation selection, CAS failure, competing host
 callbacks and close/revoke. Assert inbox-first selection, exact shared cap,
 at-most-one continuation owner, no ack-driven observer cursor advancement, and
 three messaging peers without a third stateful observer.
 Enable succeeds with a verified composed observer controller; standalone Stop
-and watch cannot emit for its epoch. Uncomposed or mismatched owners still fail
+and watch cannot emit for its epoch. A recognized observer hook without a lease
+selects standalone. Active uncomposed or mismatched owners still fail
 closed. Race both bundles against one epoch and assert one shared budget/owner.
 Review both generated skill forms for the exact-ID dedup instruction and test
 that inbox presentation/ack never advances either observer cursor.
@@ -603,7 +657,7 @@ or hand-format a generated index.
 | plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T014304Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T021241Z.md | -             | -          | -           |
-| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T030934Z.md          | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T030934Z.md | -             | -          | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -659,6 +713,25 @@ The second review is archived, fixes_completed, pending re-review. Its native
 Claude transcript 7c6df088-35f6-47be-b380-71abd861dd71 confirms
 claude-fable-5-1 at assistant lines 19 and 247 (final end_turn); this corroborates
 the configured Frontier target without changing its invocation metadata.
+
+Third gate 09f3c2b9-f6ec-4cda-91f4-966ba80a9f20 verified the second corrections
+at e287517c, then returned 0 Critical, 1 Important, 1 Medium and 2 Minor.
+The user approved all four corrections, now resolve_in_artifact:
+I1 distinguishes dormant observer registration from active ownership and records
+explicit acknowledgment for inventoried third-party hooks; M1 stages p03-t02
+with green focused tests between stages; m1 counts triggered observer leases as
+owner-present; m2 names Claude's acting-session attestation and re-arm checks.
+Discovery/design carry the approved policy clarification. IDs/counts and gate
+configuration remain unchanged. The third event is fixes_completed, not passed;
+its native transcript f6953764-c455-4bce-aaaa-072771890652 corroborated
+claude-fable-5-1 (assistant lines 19 and 252, final end_turn).
+
+Correction-scoped inline self-review used discovery/design/plan/implementation
+and the actual observer lease semantics; no residual findings. Task inventory
+remains 12 unique IDs, all prior review events preserved, format and diff checks
+pass. Deliberate parent inheritance remains gpt-6-astra/high (current launcher
+turn_context), above the freshly resolved High gpt-5.6-sol/high threshold;
+ladder completeness=true. This self-review is not the independent gate.
 
 ## Implementation Complete
 

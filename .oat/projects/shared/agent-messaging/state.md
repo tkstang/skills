@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T03:12:38Z'
+oat_project_state_updated: '2026-09-19T12:42:17Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Four corrections verified; third gate blocked on the ownership policy, awaiting user direction.
+**Status:** Third-gate policy and all four corrections approved and applied; independent re-review pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 3 sequential phases, 12 tasks; approved corrections verified, third review has 1 Important, 1 Medium and 2 Minor findings; not implementation-ready.
+- **Plan:** plan.md — 3 sequential phases, 12 tasks; third review's 1 Important, 1 Medium and 2 Minor findings resolved in artifacts; not implementation-ready until re-review.
 - **Implementation:** implementation.md — initialized to 0/12 pending tasks; no implementation started.
 
 ## Progress
@@ -94,13 +94,17 @@ Fable reviews. No implementation or live hook installation is authorized here.
   verified all four corrections, but found an over-broad ownership refusal:
   an installed observer hook without a same-session lease is inert, while the
   current plan refuses it. Unknown third-party Stop hooks also disable the
-  activation; that policy needs user direction. Review artifact:
-  reviews/artifact-plan-review-2026-09-19T030934Z.md (commit 654e7b24).
+  activation; the user subsequently chose explicit acknowledgment. Review artifact:
+  reviews/archived/artifact-plan-review-2026-09-19T030934Z.md (original commit 654e7b24).
   Run 09f3c2b9-f6ec-4cda-91f4-966ba80a9f20 returned status=blocked,
   receiveEligible=true and a corroborated handoff (0 Critical, 1 Important,
   1 Medium, 2 Minor). Native Claude transcript f6953764-c455-4bce-aaaa-072771890652
   confirms claude-fable-5-1 at assistant lines 19 and 252, final end_turn.
-  These new findings are not yet dispositioned; no further corrections applied.
+  The user approved all four: dormant observer hooks allowed, active/uncertain
+  observer ownership guarded, third-party hook configuration acknowledged,
+  triggered leases owner-present, Claude Monitor attestation explicit, and
+  composition implemented in ordered tested stages. Discovery/design/plan agree.
+  All are fixes_completed pending independent re-review; no product code changed.
 
 ## Dispatch and Gate Review Policy
 
@@ -135,14 +139,13 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete. Third-gate ownership policy needs user direction before further edits.
-All three Frontier identities are corroborated; the latest gate is blocked.
+complete. Third-gate ownership policy is approved and its corrections applied.
+All three Frontier identities are corroborated; independent re-review is pending.
 No product implementation has started.
 
 ## Next Milestone
 
-Resolve the third review's ownership policy and remaining proposed corrections
-with the user, then re-review the approved edits.
+Re-review the third gate's approved ownership policy and artifact corrections.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
