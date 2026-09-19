@@ -1,17 +1,17 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-09-18
+oat_last_updated: 2026-09-19
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_generated: false
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: session-fidelity
@@ -54,7 +54,7 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Format every task:** run `pnpm exec oxfmt --write` with only that task's changed authored TypeScript/JavaScript/JSON/Markdown paths. Then run `pnpm exec oxlint` with only its changed authored TypeScript/JavaScript paths (omit when none). Never pass generated outputs, AGENTS files or the whole repository. For authored project Markdown only, use the same documented formatter with a temporary config outside the repository (for example, an automatically cleaned OS temporary directory), removing only the `.oat/**` ignore. Run `pnpm exec oxfmt --write --config <temporary-config>` on exact authored project paths. Do not format generated OAT indexes, dashboards, synced tooling, provider views or agent-instruction files. This is a file-scoped invocation satisfying the planning artifact hygiene contract; it does not change repository-wide formatting policy.
 
-**Generated outputs and versions:** any changed canonical skill directory requires its `metadata.version` increase and matching Unreleased changelog entry. Build with `pnpm run build` before CLI tests because they execute generated entrypoints. Inspect the generated diff for transitive consumers of changed shared modules and bump every affected skill owner before the layer is complete. Include the corresponding generated outputs in the same task commit when they change; do not install the branch globally. Never replace a whole plugin root.
+**Generated outputs and versions:** any changed canonical skill directory requires its `metadata.version` increase and matching Unreleased changelog entry. Build with `pnpm run build` before CLI tests because they execute generated entrypoints. The validator’s `allowedSourceRoots` rule is authoritative: changes anywhere under `src/shared/transcript/**` require version bumps and Unreleased changelog entries for every owner declaring that root (currently observer, collaboration, exporter and fork), even if a bundle is byte-identical. Also inspect generated diffs for additional affected owners. Build and check generated freshness whenever a task changes bundled source, and bump affected owners before the layer is complete. Include the corresponding generated outputs in the same task commit when they change; do not install the branch globally. Never replace a whole plugin root.
 
 **Commit every task:** stage only the named authored changes, necessary version/changelog updates and their owned generated outputs; use the exact Conventional Commit message listed. Record task results and commit in `implementation.md`. The listed commands are planned checks, not current pass claims.
 
@@ -90,7 +90,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; assert first-header identity and explicit contradictory-evidence failures.
+**Verify:** `pnpm run build`, `pnpm run build:check`, then `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; assert first-header identity and explicit contradictory-evidence failures.
 
 **Commit:** `fix(p01-t01): preserve native Codex thread identity`.
 
@@ -122,7 +122,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; observer `src/lib/session-classifier.ts`, `src/session-classifier.test.ts`, `src/digest.test.ts`, `src/cli.test.ts`; `src/skills/session-export-transcript/src/sanitize.ts`, `src/sanitize.test.ts`; `src/skills/session-fork-to-destination/src/preview.ts`, `src/preview.test.ts`; `src/skills/session-observer-collab/src/lib/completion-selection.mjs`, its `.d.mts` if types change, `src/completion.test.ts`, `src/wake-envelope-contract.test.ts`; affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`; `documentation/docs/user-guide/skills/session-observer.md`; observer reference guidance and collab recovery guidance where changed.
 
-**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Keep the helper and its tightly coupled consumers in one atomic behavior change; version/changelog/generated updates belong in that same commit under the repository contract. Whole-layer verification closes this task without introducing a second implementation unit. Determine shared-runtime version fan-out from actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
+**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Keep the helper and its tightly coupled consumers in one atomic behavior change; version/changelog/generated updates belong in that same commit under the repository contract. Whole-layer verification closes this task without introducing a second implementation unit. Determine shared-runtime version fan-out using the validator source-root rule plus actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -142,7 +142,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** Root checks `gh stack view --json` and the recorded `ACTIVITY_BASE` equals the reviewed identity branch tip, with p01-t04 an ancestor; then `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
+**Verify:** Root checks `gh stack view --json` and the recorded `ACTIVITY_BASE` equals the reviewed identity branch tip, with p01-t04 an ancestor; then `pnpm run build`, `pnpm run build:check`, and `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
 
 **Commit:** `feat(p02-t01): add detailed transcript provenance and schema fixtures`.
 
@@ -158,15 +158,15 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Commit:** `feat(p02-t02): extract source-attributed Claude and Codex activity`.
 
-### Task p02-t03: Correlate calls and classify ownership without guessing
+### Task p02-t03: Correlate calls and classify activity without guessing
 
 **Files:** New `src/shared/transcript/activity/correlate.ts`, `classify.ts`, `correlate.test.ts`; shared activity types/extractors.
 
-**Implement:** Pair only explicit native IDs in the same source scope; preserve repeated calls, ambiguous reuse, unmatched/multiple outputs and independent poll invocations. Inherited ordinal ranges are excluded from child invocation counts; absent/conflicting boundaries remain unknown. Cross-stream item outcomes remain standalone unless corroborated IDs link them. Do not infer cross-stream associations from turn/order/text. Exact corroborated native-ID links are allowed; otherwise item evidence stays standalone. Process handles establish pending evidence, not success; do not link polling calls into a process lifecycle in v1. Response-stream call counts and standalone item evidence counts remain separate.
+**Implement:** Pair only explicit native IDs in the same source scope; preserve repeated calls, ambiguous reuse, unmatched/multiple outputs and independent poll invocations. Inherited ordinal ranges are excluded from child invocation counts; absent/conflicting boundaries remain unknown. Cross-stream item outcomes remain standalone unless corroborated IDs link them. Do not infer cross-stream associations from turn/order/text. Exact corroborated native-ID links are allowed; otherwise item evidence stays standalone. Process handles establish pending evidence, not success; do not link polling calls into a process lifecycle in v1. Response-stream call counts and standalone item evidence counts remain separate. In `classify.ts`, add the small native-name lookup for shell/read/write/edit/grep/glob/search/fetch/task/ask/MCP/other categories, preserving exact native names. Unknown tools and unrecognized MCP names retain generic evidence rather than guessed semantics. Do not add derived command/path/URL enrichments or a grouped tool index.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run test:vitest src/shared/transcript/activity/correlate.test.ts src/shared/transcript/activity/extract.test.ts`; include late results, duplicates, process polls, inherited records and cross-stream ID nonmatches.
+**Verify:** `pnpm run test:vitest src/shared/transcript/activity/correlate.test.ts src/shared/transcript/activity/extract.test.ts`; include native category lookup and unknown MCP-name assertions in `correlate.test.ts`, plus late results, duplicates, process polls, inherited records and cross-stream ID nonmatches.
 
 **Commit:** `feat(p02-t03): correlate activity with explicit evidence and ownership`.
 
@@ -230,11 +230,11 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/skills/session-export-transcript/src/session-export-transcript.ts`, `src/cli.test.ts`; shared activity renderer; new exporter activity fixtures if needed.
 
-**Implement:** Parse --include-activity, reuse the captured read, and append source-attributed activity with the export preview policy. Keep the exporter Markdown-only and stateless. Label activity/debug content and coverage, retain exact names/raw carriers only through bounded previews, and report external results/children as unread. Preserve source order and logical-to-physical locators without claiming a public range-selection flag. Include the core default-sanitization regression alongside this feature; p04-t02 extends it with remaining adversarial cases.
+**Implement:** Parse --include-activity, reuse the captured read, and append source-attributed activity with the export preview policy. Keep the exporter Markdown-only and stateless. Label activity/debug content and coverage, retain exact names/raw carriers only through bounded previews, and report external results/children as unread. Preserve source order and logical-to-physical locators without claiming a public range-selection flag. `--all --include-activity` labels every generated artifact as an activity export with rendered bytes, preview caps, the 64 MiB safety limit and omitted counts; preserve default filenames and `--all` semantics. Include the core default-sanitization regression alongside this feature; p04-t02 extends it with remaining adversarial cases.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-export-transcript/src/cli.test.ts src/shared/transcript/activity/project.test.ts`; verify exported activity counts/previews and no observer state mutation.
+**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-export-transcript/src/cli.test.ts src/shared/transcript/activity/project.test.ts`; verify exported activity counts/previews, each `--all --include-activity` artifact’s label/limits and unchanged filenames, and no observer state mutation.
 
 **Commit:** `feat(p04-t01): export bounded source-attributed activity`.
 
@@ -286,7 +286,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/skills/session-observer/SKILL.md`, `src/skills/session-export-transcript/SKILL.md`, their transcript references; `documentation/docs/user-guide/skills/session-observer.md`, `session-export-transcript.md`; `documentation/docs/engineering/architecture/transcript-core.md`, schema pages where parser support is now proven; affected canonical versions, `CHANGELOG.md`, generated outputs.
 
-**Implement:** Document flags, budgets, unavailable/unread evidence, late call context, Cursor settlement and retrospective review. Keep existing native-format sample qualifiers. Inspect transitive generated changes and version all affected owners; include new runtime files through existing import closure, changing build declarations only if necessary. Check navigation/local maps when adding pages. Do not edit the dated research snapshot to reflect new behavior.
+**Implement:** Document flags, budgets, unavailable/unread evidence, late call context, Cursor settlement and retrospective review. Keep existing native-format sample qualifiers. Apply the validator source-root rule and inspect transitive generated changes; version all affected owners; include new runtime files through existing import closure, changing build declarations only if necessary. Check navigation/local maps when adding pages. Do not edit the dated research snapshot to reflect new behavior.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -323,10 +323,10 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p06    | code     | pending         | -          | -                                                           | -             | -          | -           |
 | plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
 | p00    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
-| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T004303Z.md          | -             | -          | -           |
+| plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T004303Z.md | -             | -          | -           |
 
-Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings are dispositioned in implementation.md; readiness stays disabled while the artifact corrections are verified. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
+Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
 ## Implementation Complete
 
@@ -340,7 +340,7 @@ Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77
 - p05: 2 tasks — Cursor settlement.
 - p06: 2 tasks — docs/distribution and acceptance.
 
-The schema documentation preparatory commit is complete separately. No feature implementation, review approval, stack publication, merge or installation is claimed.
+The schema documentation preparatory commit is complete separately. No feature implementation, implementation-code review approval, stack publication, merge or installation is claimed.
 
 ## References
 

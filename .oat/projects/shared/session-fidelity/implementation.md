@@ -2,14 +2,14 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-18
+oat_last_updated: 2026-09-19
 oat_current_task_id: p00-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-No source implementation has started. Setup choices are recorded; the plan is awaiting artifact review. `oat_current_task_id` names the first planned task, not an active implementation.
+No source implementation has started. The plan is ready after retained gate review and recorded finding dispositions. `oat_current_task_id` names the first planned task, not an active implementation.
 
 ## Preparatory evidence
 
@@ -85,7 +85,7 @@ No source implementation has started. Setup choices are recorded; the plan is aw
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
-### Task p02-t03: Correlate calls and classify ownership without guessing
+### Task p02-t03: Correlate calls and classify activity without guessing
 
 **Status:** pending
 **Commit:** -
@@ -193,3 +193,19 @@ Findings are identified below by their order within the artifact because it supp
 No implementation tasks added or completed. Plan stays unready pending verification of these dispositions. The gate’s project-log auto-commit hit an index lock; preserve the appended record in the normal review-bookkeeping commit.
 
 Final structured re-review at `08622012` confirmed M1 and Minor corrections plus both rejections. It identified one remaining Medium precision issue in M2: the branch base must include phase-review fixes/bookkeeping after the p01-t04 source commit. Corrected p02-t01 to branch from the reviewed identity HEAD, verify its full SHA equals `ACTIVITY_BASE`, and require p01-t04 as an ancestor. This is part of the accepted transition-ownership correction; no scope or task-count change. The retained gate is the final verification of the corrected bundle.
+
+## Final Planning Gate Received — 2026-09-19
+
+**Artifact:** reviews/archived/artifact-plan-review-2026-09-19T004303Z.md
+**Gate:** `a40ecbf5-e651-4bdc-8667-4d9d92eece59`, reviewed plan at `40d0405e`; configured target `claude-fable-skip-permissions`, Claude runtime, model identity not independently reported. `status: ok`, `receiveEligible: true`, corroborated handoff; Important threshold; 0 Critical, 0 Important, 1 Medium, 3 Minor. This was the second evaluated gate round; the earlier committed-baseline refusal was operational, not an evaluated round. The gate verifies all previous corrections and both rejections.
+
+Root received the qualified artifact and resolved its four precision findings against existing requirements (no added tasks):
+
+- M1 category lookup: `resolve_in_artifact`. p02-t03 now assigns the native category lookup, exact-name preservation and generic unknown/MCP fallback, with assertions in the existing correlate test file. Verified against design Classification and projection and the backlog classification requirement.
+- m1 build checks: `resolve_in_artifact`. p01-t01 and p02-t01 explicitly build/check bundles; the shared execution contract requires the same for any bundled source change.
+- m2 version fan-out: `resolve_in_artifact`. Source-root ownership is authoritative alongside actual bundle changes. Verified directly against `affectedOwners` in scripts/validate-skill-versions.ts and distribution declarations; all four transcript owners require bumps even for byte-identical bundles.
+- m3 multi-export: `resolve_in_artifact`. p04-t01 explicitly labels/tests every `--all --include-activity` output, its limits/counts and unchanged filenames.
+
+All four corrections were inspected against the cited contract and checked with targeted text assertions, the 18-task ledger comparison and diff/link checks. No further independent re-review of these final wording corrections is claimed; the review event remains `fixes_completed`. Both evaluated gate runs passed the configured threshold. All review findings have durable dispositions and no unresolved blocker remains, so quick-start completion proceeds. Implementation remains 0/18; next task is p00-t01.
+
+Fable committed the user-requested shared Cursor gate exclusions as `80982eed`; `oat gate target list --json` verifies all four are disabled from the shared layer, with Claude/Codex available. This config-only commit leaves the reviewed project artifacts unchanged. The final gate log auto-commit again hit an index lock; its appended entry is included in normal final bookkeeping.

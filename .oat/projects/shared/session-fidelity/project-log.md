@@ -48,6 +48,10 @@ target=cursor-fable-5-1-high threshold=important exit=1 status=review_failed run
 
 target=cursor-fable-5-1-high threshold=important findings=critical:0,important:0,medium:4,minor:3 exit=0 status=ok artifact=.oat/projects/shared/session-fidelity/reviews/artifact-plan-review-2026-09-19T003400Z.md run=ddd86035-011c-447a-bfac-9ac6191a89fe
 
+### 2026-09-19 · structural · oat gate review · plan
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:1,minor:3 exit=0 status=ok artifact=.oat/projects/shared/session-fidelity/reviews/artifact-plan-review-2026-09-19T004303Z.md run=a40ecbf5-e651-4bdc-8667-4d9d92eece59
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

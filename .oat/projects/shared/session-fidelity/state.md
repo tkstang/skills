@@ -14,7 +14,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -85,26 +85,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-19T00:15:40.985830+00:00'
+oat_project_state_updated: '2026-09-19T00:47:08.868478+00:00'
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Implementation plan drafted; review pending
+**Status:** Plan ready for implementation
 **Started:** 2026-09-18
-**Last Updated:** 2026-09-18
+**Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Design and 18-task plan drafted; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Claude native provenance is in scope and fixture approval is waived; formal plan review remains pending. No design HiLL gate is configured.
+Design and 18-task plan complete; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. No design HiLL gate is configured; implementation has not started.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
-- **Design:** `design.md` (complete; revised peer read-back requested)
-- **Plan:** `plan.md` (drafted; artifact review pending)
+- **Design:** `design.md` (complete; peer read-back received)
+- **Plan:** `plan.md` (complete; ready for oat-project-implement)
 - **Implementation:** `implementation.md` (18 pending tasks; implementation not started)
 
 ## Progress
@@ -119,7 +119,8 @@ Design and 18-task plan drafted; Fable read-back incorporated. High dispatch is 
 - ✓ Schema documentation committed by Fable as `c970c876`; editing turn released
 - ✓ User selected docs → identity → activity stack using `gh stack`
 - ✓ Fable read-back incorporated into design and the 18-task plan
-- ⧗ Formal plan review pending; all scope/setup choices recorded
+- ✓ Formal review and retained lifecycle gate received; findings dispositioned
+- ✓ Shared Cursor gate exclusions committed by Fable
 
 ## Blockers
 
@@ -127,4 +128,4 @@ None
 
 ## Next Milestone
 
-Review the updated 18-task plan and run the kept quick-start lifecycle gate
+Execute oat-project-implement from p00-t01 when implementation is requested
