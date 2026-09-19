@@ -1,10 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p01-t03
-    reason: 'p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.'
-    since: 2026-09-19
+oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_current_task_id: p01-t03
 oat_generated: false
@@ -25,7 +22,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | blocked | 5     | 2/5       |
+| p01   | active  | 5     | 2/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
@@ -46,7 +43,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ## Phase 1
 
-**Status:** blocked
+**Status:** in progress
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
@@ -62,10 +59,10 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ### Task p01-t03: Reject unsafe saved positions and watcher path changes
 
-**Status:** blocked after task commit
+**Status:** recovery resumed after task commit
 **Commit:** afffe4a594fc0712807ce2050a10da200d3d40df
 **Verification:** original task suite 304/304 and CLI 51/51, type-check, build:check, format/lint and version checks passed. Root transition review found review --mark-read swallowing state-read failures; its correction remains outstanding after a failed recovery assertion.
-**Blocker:** p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.
+**Recovery:** renewed user direction authorizes attempt 3 on the original accepted phase handle and exact target. Preserve attempts 1–2 and correct the assertion to require EISDIR/nonzero/no digest without requiring a pathname.
 
 ### Task p01-t04: Correct native Claude provenance atomically
 
@@ -271,10 +268,7 @@ New detailed-reader byte ranges are deferred until a concrete consumer needs the
   },
   "launch_status": "accepted",
   "child_outcome": "completed-pass",
-  "configured_invocation_evidence": [
-    "resolver:review-target",
-    "native:materialized-role"
-  ],
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
   "continuation_events": []
@@ -337,15 +331,12 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
   },
   "launch_status": "accepted",
   "child_outcome": "blocked-failed-recovery",
-  "configured_invocation_evidence": [
-    "resolver:review-target",
-    "native:materialized-role"
-  ],
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [
     "p01-t03-recovery-01 failed: expected stderr pathname absent from Node EISDIR text"
   ],
-  "continuation_events": [],
+  "continuation_events": ["p01-recovery-3-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -388,3 +379,7 @@ Task p01-t02 handoff verified: one immutable commit after 8a61c156, clean tree, 
 BLOCKED at 09b69928; three of five tasks executed, two accepted complete and p01-t03 blocked after commit. t04/t05 unstarted. No optional child, phase review, activity branch, final verification or exit gate occurred. Prior p01-t01 recovery remains recorded with its original accepted transition evidence; its later restatement does not replace that evidence.
 
 Concrete resume scope: on renewed user direction, use the same accepted phase handle/target, preserve the attempt count, reserve the next bounded correction attempt, remove the catch-all null fallback from validateReviewMarkReadBinding, assert EISDIR/nonzero/no-digest without requiring a pathname, run focused plus relevant phase checks, then resume p01-t04/t05. No plan redesign is needed. Root must not continue automatically: oat-project-implement references/phase-execution.md requires preserving the failed-attempt terminal-stop disposition and then stopping.
+
+#### Continuation p01-recovery-3-resume-01
+
+The user supplied renewed direction with “continue” after the reconciled failed-attempt stop. Resume the original accepted request `sf-p01-implement-01` on handle `/root/p01_implement` and exact target `oat-phase-implementer-gpt-5-6-sol-high`. Recovery usage stays 2/10 until the phase implementer atomically reserves attempt 3. Scope remains the bounded p01-t03 correction described above; no replacement, fallback, route change or plan redesign is authorized.

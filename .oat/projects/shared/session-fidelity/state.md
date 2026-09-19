@@ -1,10 +1,7 @@
 ---
 oat_current_task: p01-t03
 oat_last_commit: 09b69928bffd96687b5c3f5979bd59dc73fa73d8
-oat_blockers:
-  - task_id: p01-t03
-    reason: 'p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.'
-    since: 2026-09-19
+oat_blockers: []
 associated_issues:
   - type: backlog
     ref: BL-260916-session-fidelity-opt
@@ -94,21 +91,21 @@ oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
-oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
+oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-19T02:45:13.588994+00:00'
+oat_project_state_updated: "2026-09-19T02:45:13.588994+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Implementation blocked at failed recovery boundary
+**Status:** Implementation resumed for bounded p01-t03 recovery
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Identity implementation is blocked at p01-t03 after a failed bounded recovery check. The original task commit passes its declared checks, but review --mark-read still swallows state-read errors. The attempted correction was restored because a new EISDIR assertion incorrectly required a pathname. The invoked workflow requires a terminal stop. Recovery usage is 2/10; failed marker reconciled and cleared, stop disposition retained. p01-t04/t05 and activity remain unstarted. See implementation.md for exact commits and resume scope.
+Identity implementation resumed at p01-t03 after the user supplied renewed direction. The original task commit passes its declared checks, but review --mark-read still swallows state-read errors. Recovery usage remains 2/10 with no pending attempt; the original accepted phase handle and exact target will reserve attempt 3 for the bounded correction. p01-t04/t05 and activity remain unstarted. See implementation.md for exact commits and resume scope.
 
 ## Artifacts
 
@@ -116,7 +113,7 @@ Identity implementation is blocked at p01-t03 after a failed bounded recovery ch
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (3/19 tasks completed; p01-t03 blocked after commit)
+- **Implementation:** `implementation.md` (3/19 tasks completed; p01-t03 recovery resumed)
 
 ## Progress
 
@@ -135,8 +132,8 @@ Identity implementation is blocked at p01-t03 after a failed bounded recovery ch
 
 ## Blockers
 
-p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.
+None. The prior failed-attempt stop was satisfied by renewed user direction; its evidence and consumed attempt remain preserved.
 
 ## Next Milestone
 
-Receive direction to resume the bounded p01-t03 correction with its assertion fixed, then continue implementation through the remaining phases and configured gates.
+Complete the bounded p01-t03 correction on the original phase handle, then continue p01-t04/t05 and the remaining configured lifecycle.
