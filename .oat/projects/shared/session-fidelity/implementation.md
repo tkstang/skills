@@ -610,8 +610,8 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
     "handle": "/root/p02_implement",
     "finalHead": null
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending",
+  "launch_status": "accepted",
+  "child_outcome": "accepted-awaiting-phase-base",
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
