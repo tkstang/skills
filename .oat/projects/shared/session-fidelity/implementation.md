@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-review-fix-01
+oat_current_task_id: p01-review-round-02
 oat_generated: false
 ---
 
@@ -22,7 +22,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | fixes required | 5     | 5/5       |
+| p01   | re-review pending | 5     | 5/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
@@ -43,7 +43,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 1
 
-**Status:** implementation complete; review pending
+**Status:** implementation and bounded review fix complete; re-review pending
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
@@ -487,3 +487,11 @@ Fable performed the promised read-only freshness review in pinned session `claud
 - Notification-only acknowledgement idea: `rejected_with_rationale`. The approved p01-t04 contract deliberately preserves substantive assistant completion after a runtime notification; activity work may revisit presentation without changing authority.
 
 No project-log entry is appended before the fix child. Resume the original `sf-p01-implement-01` handle with only the accepted bounded fix set, then run a fresh narrowed reviewer round.
+
+#### Review fix p01-review-fix-01
+
+The original `sf-p01-implement-01` handle resumed on exact target `oat-phase-implementer-gpt-5-6-sol-high` and completed the bounded fix at `8affc30a56e8f4c33c6bc50a6d632d93d37baa01`. Continuation linkage remained `p01-review-fix-01`; the review-fix round did not consume phase-recovery usage, which remains 4/10 with no pending attempt.
+
+The fix rejects an ID-less first physical Codex header before any later inherited native header can supply identity while preserving supported legacy identity on the first header. Exact lookup now rejects multiple distinct canonical Claude Code, Codex or Cursor sources after realpath aliases are deduplicated. Stateful catch-up reports saved-state read failure before producing a digest while retaining the existing output-ready contract for a later state-write failure. Unpinned exporter selection prefers Codex roots for both marker matches and marker-miss fallback. Changelog coverage and the four required owner versions were advanced: observer 1.0.48, collaboration 1.0.37, exporter 2.0.5 and fork 0.2.13; generated payloads were rebuilt.
+
+Implementer verification passed the 772-test focused p01 set, an 8-test override regression, the full 2126-pass/1-skip suite, build freshness, type checking, repository validation, smoke, four-owner version validation, formatting and linting. Root independently verified the single-parent commit and unchanged `.oat` range, reviewed the load-bearing diff, reran 335 focused tests, build freshness, type checking, four-owner version validation and changed-file formatting, and confirmed a clean tree. No deviation or blocker remains. A new root-owned reviewer must now assess the updated range before activity begins.

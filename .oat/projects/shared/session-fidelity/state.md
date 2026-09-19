@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-review-fix-01
-oat_last_commit: d310dac8c6d76487a221aaa193481a643c0ea689
+oat_current_task: p01-review-round-02
+oat_last_commit: 8affc30a56e8f4c33c6bc50a6d632d93d37baa01
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -93,19 +93,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T02:45:13.588994+00:00"
+oat_project_state_updated: "2026-09-19T12:27:54+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Identity review fixes required
+**Status:** Identity re-review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 with no pending attempt. Formal review of `455daba2..39630714` found one Important first-header gap. Fable's read-only freshness review found a second Important duplicate-source gap plus nonblocking follow-ups. Root validation added three acceptance fixes: fail closed on catch-up state-read errors, complete the p01-t02/t03 changelog, and prefer roots for unpinned exporter selection. Activity remains unstarted until the original phase handle fixes this bounded set and narrowed re-review passes.
+All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. The original phase handle closed the formal first-header gap, Fable's cross-runtime ambiguity finding, catch-up state-read failure, exporter root preference, and changelog/version fanout. Implementer and root verification pass. Activity remains unstarted until a fresh root-owned narrowed re-review passes.
 
 ## Artifacts
 
@@ -113,7 +113,7 @@ All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 wi
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (6/19 tasks completed; p01 review fixes required)
+- **Implementation:** `implementation.md` (6/19 tasks completed; p01 re-review pending)
 
 ## Progress
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p01 review fixes on the original phase handle, pass narrowed re-review, then record the reviewed identity tip as `ACTIVITY_BASE`.
+Pass the fresh p01 narrowed re-review, then record the reviewed identity tip as `ACTIVITY_BASE`.
