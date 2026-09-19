@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p03-review-fix-2
+oat_current_task_id: p03-review-3
 oat_generated: false
 ---
 
@@ -17,8 +17,8 @@ this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 review fix round 1 resolved all four
-prior findings, but fresh re-review found one Important controller-boundary
-race; bounded fix round 2/3 is active.
+prior findings, and fix round 2 resolves the remaining Important
+controller-boundary race. The final bounded Phase 3 re-review is pending.
 
 ## Progress Overview
 
@@ -26,7 +26,7 @@ race; bounded fix round 2/3 is active.
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
-| Phase 3 | fixes_active | 3     | 3/3       |
+| Phase 3 | review_pending | 3     | 3/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
 **Total:** 12/13 tasks completed
@@ -849,6 +849,25 @@ and one launch was unavailable at the native thread limit, with the reviewer
 covering that deterministic lane inline. Structural evidence remains deferred
 until the terminal Phase 3 outcome.
 
+### Review Fix Event cont-agent-messaging-p03-review-fix-2
+
+- Phase: p03
+- Original request: dispatch-agent-messaging-p03-20260919
+- Review artifact: reviews/code-p03-rereview-2026-09-19T192712Z.md
+- Reviewed head: 8e461d899975956e57d56481c96b9b4c60a2533e
+- Fix base: 9bfc485a4068204cfdb9396085dc89f22255f161
+- Disposition: fixes_completed; final bounded independent re-review pending
+- Attempt: 2/3
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Dispatch stamp: `Dispatch: scope=p03-fix-2 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Fix commit: e2342f644e625608204d381a62aaea8c4d84c8a2
+- Findings addressed: 0 Critical, 1 Important, 0 Medium, 0 Minor.
+- Verification: root reproduced 55/55 direct race tests, the full suite (2,216
+  passed, 1 skipped), `build:check`, type-check, validation, smoke, two-skill
+  version validation, and diff checks.
+- Recovery: none. No live provider, configuration, installation, quota, push,
+  PR, merge, or backlog action occurred.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -909,6 +928,13 @@ runtime rechecks. A stale standalone callback could accept newly appeared
 observer ownership and emit outside its activation's controller. Fix round 2/3
 is accepted in scope under p03-t02 and must add both Stop and foreground-watch
 race fixtures before the final bounded Phase 3 re-review.
+
+Fix round 2 completed in `e2342f644e625608204d381a62aaea8c4d84c8a2`.
+Every standalone Stop initial/final/retry assessment and foreground-watch
+initial/final/pre-output assessment now pins the activation's immutable
+controller. Complete post-activation observer-owner races prove zero output and
+retained finite state. Root reproduced the focused and full repository gates;
+the final bounded Phase 3 re-review is pending.
 
 ## Review Received: p02 round 1
 
