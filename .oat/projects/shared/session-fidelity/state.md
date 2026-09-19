@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t02-recovery-01
-oat_last_commit: 05240ee2ce2cb877de0b2a2d365f82e1e110b6d9
+oat_current_task: p04-review
+oat_last_commit: 7214653b859166fd2cdc55faebe2559afa85fb70
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -32,16 +32,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p04:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p04-t02-recovery-01
-        original_request_id: sf-p04-implement-01
-        original_task_id: p04-t02
-        original_commit: d054880562f23c14e3bfe7538a6cd414c54311e1
-        discovered_by: root transition audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: a9e7e32d7260c8ae2a6c00dc24842063f6e991e7
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -117,13 +108,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Export sanitizer recovery in progress
+**Status:** Export activity review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p03 are passed. p04-t02 produced `d0548805`, but transition audit found one Important final-format budget gap: hostile Markdown punctuation can expand observer text activity beyond its declared 32 KiB cap after projection. Bounded p04 recovery attempt 1/10 is authorized to make final text rendering participate in activity budgeting.
+p01 through p03 are passed. p04 implementation is complete through recovery `7214653b`: exporter activity is bounded and labeled, adversarial Markdown stays inert, and observer Markdown/JSON budgets now measure their actual final format. p04 recovery usage is 1/10 with no pending marker. Formal phase review is next.
 
 ## Artifacts
 
@@ -131,7 +122,7 @@ p01 through p03 are passed. p04-t02 produced `d0548805`, but transition audit fo
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (14/19 tasks completed; p01 through p03 passed, p04 in progress)
+- **Implementation:** `implementation.md` (15/19 tasks completed; p01 through p03 passed, p04 review pending)
 
 ## Progress
 
@@ -154,4 +145,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p04-t02 recovery attempt 1/10, then run the p04 phase review.
+Run the fresh root-owned p04 phase review over the immutable exporter range.

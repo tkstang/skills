@@ -131,7 +131,7 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ## Phase 4
 
-**Status:** pending
+**Status:** in progress
 
 ### Task p04-t01: Add opt-in activity to Markdown export
 
@@ -141,9 +141,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p04-t02: Protect default sanitization and content boundaries
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** d054880562f23c14e3bfe7538a6cd414c54311e1; recovery 7214653b859166fd2cdc55faebe2559afa85fb70
+**Verification:** Adversarial coverage proves default exports exclude hidden instructions/reasoning/tool evidence, activity remains explicitly labeled data, hostile Markdown/control structure is inert, secret-like visible conversation policy is unchanged, oversized output is clipped and unread tails/sidecars remain unavailable. Bounded recovery attempt 1/10 adds required final-format projection accounting so observer Markdown and compact JSON each remain within their declared cap with honest omissions. Root passed 302 focused tests, type checking, build freshness and four-owner version validation. Fresh closure audit found 0 Critical/Important findings and independently reproduced bounded hostile-punctuation Markdown and JSON output.
 
 ## Phase 5
 
@@ -1130,7 +1130,7 @@ Phase p03 passes. No optional external phase review gate is configured, and p03 
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": [],
+  "continuation_events": ["p04-t02-recovery-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "phase scope analysis",
@@ -1144,3 +1144,18 @@ Dispatch: scope=p04 action=implementation role=implementer producer=unknown prov
 #### Continuation p04-t02-recovery-resume-01
 
 Root transition audit of immutable p04-t02 commit `d054880562f23c14e3bfe7538a6cd414c54311e1` found one Important final-format projection gap: non-export reports are budgeted as compact JSON, but observer text subsequently applies expanding Markdown escaping and can emit far beyond the declared 32 KiB guard. The original `sf-p04-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p04-t02-recovery-01` may reserve cumulative p04 attempt 1/10 only after this continuation is committed. Scope is limited to making the final observer text representation participate in activity byte budgeting, preserving JSON/export semantics, and adding hostile-punctuation watch/review text regressions; phase review remains unauthorized until recovery is settled.
+
+#### Recovery Event p04-t02-recovery-01
+
+- Phase/task: p04 / p04-t02
+- Original request: `sf-p04-implement-01`
+- Original commit: `d054880562f23c14e3bfe7538a6cd414c54311e1`
+- Defect class: composition
+- Discovered by: root transition audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Recovery commit: `7214653b859166fd2cdc55faebe2559afa85fb70`
+- Verification: root passed 302 phase-focused tests, type checking, generated freshness and four-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and reproduced bounded hostile-punctuation output in Markdown and compact JSON with honest omissions.
+- Reason: final activity projection now budgets the actual selected render format rather than measuring compact JSON before later Markdown expansion.
