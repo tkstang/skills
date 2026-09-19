@@ -9,6 +9,20 @@ Condensed reference for the Claude Code, Codex, and Cursor JSONL record shapes t
 Claude slash-command records). The export-owned `scripts/lib/sanitize.mjs` adds the
 **content** layer that drops hidden injected payloads recorded as ordinary text.
 
+## Optional activity appendix
+
+`--include-activity` uses the same captured transcript snapshot as the sanitized
+conversation, then appends a separate source-attributed activity report. This
+does not change the native-format qualifications below: Claude Code and Codex
+use recorded IDs where available, while Cursor calls are identified only by
+frame and block position and have no recorded result carrier or per-call
+outcome.
+
+The appendix never follows persisted-output, `agent-tools/`, or child-transcript
+references. Those surfaces remain explicit `not-read` coverage. Cursor export
+is retrospective and may contain both `settled` and `pending-lifecycle` calls
+visible in the one snapshot.
+
 ---
 
 ## File location patterns

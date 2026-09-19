@@ -50,6 +50,7 @@
 
 ### Changed
 
+- `session-observer` 1.0.67 and `session-export-transcript` 2.0.21 document and package the opt-in activity contract across canonical skill guidance, transcript references, and the documentation site: mode-specific budgets, one-read/stateless behavior, late-call context, explicit unread/unavailable evidence, Cursor settlement and retrospective pending-lifecycle review, and sensitive-data boundaries.
 - `consensus-review` 0.1.13 emits OAT's `Critical` / `High` / `Medium` / `Low` review tiers and matching `C` / `H` / `M` / `L` finding IDs; retired `important` and `minor` severities are rejected instead of producing artifacts that current OAT review receivers fail closed on.
 - Clean-break session names: `export-session-transcript` is now
   `session-export-transcript`, and `coding-session-handoff` is now

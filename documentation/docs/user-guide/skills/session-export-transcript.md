@@ -17,6 +17,8 @@ owner and one `metadata.version`.
 - Names the output after the current git branch (`/` replaced with `-`) and
   writes it by default to `~/Downloads`.
 - Supports Claude Code, Codex, and Cursor transcript stores.
+- Optionally appends bounded, source-attributed activity with
+  `--include-activity`.
 
 Only visible user/assistant messages survive: tool calls, tool results,
 system/developer instructions, environment/AGENTS.md/skill payloads, subagent
@@ -50,6 +52,8 @@ wrong session.
   newest-for-cwd fallback).
 - `--session <id>` exports a specific session id.
 - `--all` exports every session for the cwd, one file each.
+- `--include-activity` appends a labelled activity report to each selected
+  export; it is off by default.
 - `--runtime <claude-code|codex|cursor|auto>` selects the runtime (default
   `auto`: env hint, then best-effort detection).
 - `--out <path>` overrides the output file or directory (also accepted
@@ -60,6 +64,32 @@ selector. The highest-precedence flag present wins and lower-precedence flags ar
 ignored. With no selector, exactly one cwd candidate is selected; multiple
 candidates exit with an ambiguity message that asks for `--match`, `--session`,
 or `--all`.
+
+## Optional activity appendix
+
+`--include-activity` leaves the sanitized conversation pipeline intact and
+adds a separate **Sensitive activity/debug data** section. Each selected
+session is captured once, and both the conversation and activity sections are
+derived from that snapshot. Export is stateless: it does not read or advance
+Session Observer offsets, and `--all` does not change output filenames.
+
+The export activity budget is 64 MiB for the rendered report, with no
+invocation-count cap and a 2 KiB preview per value. The shared projection also
+reserves 256 bytes for late-call context, although a normal full-session export
+starts at zero and includes the call itself. Source and delivery ranges,
+locators, captured/delivered/displayed counts, omissions, coverage, and
+diagnostics remain explicit.
+
+Activity previews can contain commands, paths, identifiers, tool inputs, and
+tool outputs even though the conversation section remains sanitized. The
+exporter does not open Claude persisted-output sidecars, Cursor `agent-tools/`
+files, or child transcripts. References to those surfaces appear as
+`not-read`; extraction failure appears as `record-activity: not-read` with an
+`ACTIVITY_EXTRACTION_ERROR` diagnostic.
+
+Cursor activity is retrospective. It includes settled calls and calls visible
+in the snapshot with `pending-lifecycle`, identifies them by frame and block
+position, reports results as not recorded, and leaves per-call outcome unknown.
 
 ## Selection and sanitization flow
 
