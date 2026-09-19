@@ -47,6 +47,10 @@ const FIXTURES_CURSOR = join(
   __dirname,
   '../../skills/session-observer/src/fixtures/cursor',
 );
+const SESSION_FIDELITY_CODEX_FIXTURES = join(
+  __dirname,
+  'fixtures/session-fidelity/codex',
+);
 
 function expectEqual<T>(actual: T, expected: T, message?: string) {
   expect(actual, message).toBe(expected);
@@ -633,10 +637,76 @@ describe('extractMeta (codex)', () => {
     expectEqual(meta.sessionId, 'codex-payload-cwd-001');
     expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
   });
+
+  it('uses the first physical session header for a root rollout', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-00-00-11111111-1111-4111-8111-111111111111.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '11111111-1111-4111-8111-111111111111',
+      recordedCwd: '/workspace/root',
+      nativeSessionId: '11111111-1111-4111-8111-111111111111',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+    });
+  });
+
+  it('keeps child, root, and direct parent identity distinct from inherited headers', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-01-00-22222222-2222-4222-8222-222222222222.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '22222222-2222-4222-8222-222222222222',
+      recordedCwd: '/workspace/child',
+      nativeSessionId: '22222222-2222-4222-8222-222222222222',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+      parentSessionId: '33333333-3333-4333-8333-333333333333',
+      subagentHistoryStartOrdinal: 12,
+    });
+  });
+
+  it('keeps fork lineage separate from root and direct-parent lineage', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-02-00-44444444-4444-4444-8444-444444444444.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '44444444-4444-4444-8444-444444444444',
+      recordedCwd: '/workspace/fork',
+      nativeSessionId: '44444444-4444-4444-8444-444444444444',
+      rootSessionId: '44444444-4444-4444-8444-444444444444',
+      forkedFromSessionId: '33333333-3333-4333-8333-333333333333',
+    });
+  });
+
+  it('rejects a first-header identity that contradicts a recognized rollout filename', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-03-00-66666666-6666-4666-8666-666666666666.jsonl',
+      ),
+    );
+
+    expect(meta).toBeNull();
+  });
 });
 
 describe('exact provider lineage metadata', () => {
-  it('exposes Codex native, optional root, fork, and cwd fields without changing legacy sessionId', () => {
+  it('uses the first Codex header identity instead of a legacy caller id', () => {
     const meta = extractMetaFromRecords(
       'codex',
       [
@@ -656,16 +726,13 @@ describe('exact provider lineage metadata', () => {
     );
 
     expect(meta).toEqual({
-      sessionId: 'legacy-caller-id',
+      sessionId: 'native-child-id',
       recordedCwd: '/repo/target',
       nativeSessionId: 'native-child-id',
       rootSessionId: 'root-id',
       forkedFromSessionId: 'native-parent-id',
     });
-    expect(
-      new Set([meta?.sessionId, meta?.nativeSessionId, meta?.rootSessionId])
-        .size,
-    ).toBe(3);
+    expect(new Set([meta?.nativeSessionId, meta?.rootSessionId]).size).toBe(2);
   });
 
   it('does not mistake Codex message payload IDs for native session IDs', () => {
@@ -711,7 +778,7 @@ describe('exact provider lineage metadata', () => {
     });
   });
 
-  it('omits contradictory or malformed optional lineage fields', () => {
+  it('accepts inherited parent headers after the physical Codex identity header', () => {
     const codex = extractMetaFromRecords(
       'codex',
       [
@@ -720,8 +787,14 @@ describe('exact provider lineage metadata', () => {
       ],
       '/private/fallback.jsonl',
     );
-    expect(codex).toEqual({ sessionId: 'fallback', recordedCwd: '/repo' });
+    expect(codex).toEqual({
+      sessionId: 'one',
+      recordedCwd: '/repo',
+      nativeSessionId: 'one',
+    });
+  });
 
+  it('omits contradictory or malformed optional Claude lineage fields', () => {
     const claude = extractMetaFromRecords(
       'claude-code',
       [

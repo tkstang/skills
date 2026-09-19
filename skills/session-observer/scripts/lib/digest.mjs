@@ -307,23 +307,46 @@ function consistentNonEmptyString(values) {
   }
   return observed;
 }
-function codexLineageMetadata(records) {
-  const sessionMetadata = records.filter(
+var CODEX_ROLLOUT_FILENAME_PATTERN = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexRolloutFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
+}
+function firstCodexSessionHeader(records) {
+  return records.find(
     (record) => record.type === "session_meta" && isObject(record.payload)
   );
-  const payloads = sessionMetadata.map(
-    (record) => record.payload
-  );
-  const nativeValues = payloads.filter((payload) => Object.hasOwn(payload, "id")).map((payload) => payload.id);
-  const rootValues = payloads.filter((payload) => Object.hasOwn(payload, "session_id")).map((payload) => payload.session_id);
-  const forkValues = payloads.filter((payload) => Object.hasOwn(payload, "forked_from_id")).map((payload) => payload.forked_from_id);
-  const nativeSessionId = consistentNonEmptyString(nativeValues);
-  const rootSessionId = consistentNonEmptyString(rootValues);
-  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+}
+function codexDirectParentValues(payload) {
+  const values = [];
+  if (Object.hasOwn(payload, "parent_thread_id")) {
+    values.push(payload.parent_thread_id);
+  }
+  const source = isObject(payload.source) ? payload.source : void 0;
+  const subagent = source && isObject(source.subagent) ? source.subagent : void 0;
+  const threadSpawn = subagent && isObject(subagent.thread_spawn) ? subagent.thread_spawn : void 0;
+  if (threadSpawn && Object.hasOwn(threadSpawn, "parent_thread_id")) {
+    values.push(threadSpawn.parent_thread_id);
+  }
+  return values;
+}
+function codexLineageMetadata(firstHeader) {
+  const payload = firstHeader.payload;
+  if (!Object.hasOwn(payload, "id")) return {};
+  const nativeSessionId = consistentNonEmptyString([payload.id]);
+  if (nativeSessionId === void 0) return null;
+  const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  const parentValues = codexDirectParentValues(payload);
+  const parentSessionId = consistentNonEmptyString(parentValues);
+  if (parentValues.length > 0 && parentSessionId === void 0) return null;
+  const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  const historyBoundary = payload.subagent_history_start_ordinal;
+  const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
   return {
-    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+    nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },
-    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId }
+    ...parentSessionId === void 0 ? {} : { parentSessionId },
+    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId },
+    ...subagentHistoryStartOrdinal === void 0 ? {} : { subagentHistoryStartOrdinal }
   };
 }
 function claudeRecordLineage(records) {
@@ -388,7 +411,15 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     };
   }
   if (runtime === "codex") {
-    let sessionId;
+    const firstHeader = firstCodexSessionHeader(records);
+    const lineage = firstHeader ? codexLineageMetadata(firstHeader) : {};
+    if (lineage === null) return null;
+    const nativeSessionId = lineage.nativeSessionId;
+    const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
+      return null;
+    }
+    let sessionId = nativeSessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {
@@ -406,7 +437,7 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
     }
-    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
+    return { sessionId, recordedCwd, ...lineage };
   }
   if (runtime === "cursor") {
     const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
