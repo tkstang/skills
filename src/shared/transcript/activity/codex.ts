@@ -62,9 +62,30 @@ function selectedCompactionMetadata(payload: JsonObject): JsonObject {
 function selectedSessionMetadata(payload: JsonObject): JsonObject {
   const cliVersion = stringValue(payload.cli_version);
   const modelProvider = stringValue(payload.model_provider);
+  const nativeSessionId = stringValue(payload.id);
+  const directParentThreadId = stringValue(payload.parent_thread_id);
+  const source = isJsonObject(payload.source) ? payload.source : undefined;
+  const subagent =
+    source && isJsonObject(source.subagent) ? source.subagent : undefined;
+  const threadSpawn =
+    subagent && isJsonObject(subagent.thread_spawn)
+      ? subagent.thread_spawn
+      : undefined;
+  const nestedParentThreadId = threadSpawn
+    ? stringValue(threadSpawn.parent_thread_id)
+    : undefined;
+  const parentThreadId = directParentThreadId ?? nestedParentThreadId;
+  const subagentHistoryStartOrdinal = numberValue(
+    payload.subagent_history_start_ordinal,
+  );
   return {
     ...(cliVersion === undefined ? {} : { cliVersion }),
     ...(modelProvider === undefined ? {} : { modelProvider }),
+    ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+    ...(parentThreadId === undefined ? {} : { parentThreadId }),
+    ...(subagentHistoryStartOrdinal === undefined
+      ? {}
+      : { subagentHistoryStartOrdinal }),
   };
 }
 
@@ -325,6 +346,7 @@ function itemCompletedActivity(
   }
 
   const nativeId = stringValue(item.id);
+  const nativeCallId = stringValue(item.call_id);
   const nativeStatus = stringValue(item.status);
   const turnId = stringValue(payload.turn_id);
   const childNativeId = stringValue(item.agent_thread_id);
@@ -368,6 +390,7 @@ function itemCompletedActivity(
         locator,
         outcome: codexItemOutcome(item),
         ...(nativeId === undefined ? {} : { nativeId }),
+        ...(nativeCallId === undefined ? {} : { nativeCallId }),
         ...(nativeStatus === undefined ? {} : { nativeStatus }),
         ...(turnId === undefined ? {} : { turnId }),
         nativeValue: item,

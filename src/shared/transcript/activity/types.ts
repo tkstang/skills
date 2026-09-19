@@ -21,6 +21,20 @@ export type ActivityEventKind =
   | 'notification'
   | 'lifecycle'
   | 'compaction';
+export type ActivityCategory =
+  | 'shell'
+  | 'read'
+  | 'write'
+  | 'edit'
+  | 'grep'
+  | 'glob'
+  | 'search'
+  | 'fetch'
+  | 'task'
+  | 'ask'
+  | 'mcp'
+  | 'other';
+export type ActivityOwnership = 'owned' | 'inherited' | 'unknown';
 export type ActivityCoverageStatus =
   | 'available'
   | 'not-recorded'
@@ -95,6 +109,7 @@ export interface ExtractedActivityEvent {
 
 export type ActivityDiagnosticCode =
   | 'ACTIVITY_EXTRACTION_ERROR'
+  | 'AMBIGUOUS_NATIVE_CORRELATION'
   | 'POSSIBLE_SOURCE_TRUNCATION'
   | 'SOURCE_MALFORMED_RECORD'
   | 'SOURCE_NOT_OBJECT'
@@ -105,6 +120,7 @@ export interface ActivityDiagnostic {
   locator: ActivityLocator;
   field?: string;
   bytes?: number;
+  nativeId?: string;
 }
 
 export type ActivityDataClass =
@@ -134,6 +150,35 @@ export interface ExtractedActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+}
+
+export interface CorrelatedActivityEvent extends ExtractedActivityEvent {
+  ownership: ActivityOwnership;
+  category?: ActivityCategory;
+  relatedCallKey?: string;
+}
+
+export interface ActivityCorrelationCounts {
+  responseStreamCalls: {
+    captured: number;
+    counted: number;
+    owned: number;
+    inherited: number;
+    unknown: number;
+  };
+  results: {
+    matched: number;
+    unmatched: number;
+  };
+  itemEvidence: {
+    linked: number;
+    standalone: number;
+  };
+}
+
+export interface CorrelatedActivity extends Omit<ExtractedActivity, 'events'> {
+  events: CorrelatedActivityEvent[];
+  correlationCounts: ActivityCorrelationCounts;
 }
 
 export interface ExtractedRecordActivity {

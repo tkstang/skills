@@ -4,6 +4,7 @@
 
 ### Added
 
+- `session-observer` 1.0.52, `session-observer-collab` 1.0.41, `session-export-transcript` 2.0.9, and `session-fork-to-destination` 0.2.17 add internal exact-ID activity correlation, native tool categories, Codex inherited-history ownership, and separate response-stream and standalone-item evidence counts without inferred links.
 - `session-observer` 1.0.50, `session-observer-collab` 1.0.39, `session-export-transcript` 2.0.7, and `session-fork-to-destination` 0.2.15 add internal schema-v1 Claude Code and Codex activity extraction with source attribution, stable physical and logical locators, and bounded diagnostics; extraction preserves native call arguments without reading sidecars or enabling a consumer.
 - `session-observer` 1.0.49, `session-observer-collab` 1.0.38, `session-export-transcript` 2.0.6, and `session-fork-to-destination` 0.2.14 add shared detailed transcript reads with stable physical-line diagnostics and zero-based decoded-record positions while preserving legacy reader output and warnings; lightly obscured Claude Code, Codex, and Cursor activity fixtures record the observed native carriers without raw session content.
 - `consensus-review` 0.1.7 completes the three-selector non-interactive CLI, deterministic OAT-compatible Markdown rendering, absolute artifact handoffs, explicit post-drift export, and host-facing scope-selection workflow; the `consensus` plugin 0.2.0 adds plugin-local `review` and is the first plugin release supporting strict `defaults.reviewers` configuration (older binaries reject that key).
