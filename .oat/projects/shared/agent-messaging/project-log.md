@@ -68,6 +68,10 @@ p01 blocked after final review: verdict=blocking findings=0-critical/3-important
 
 p01 resumed by explicit user authorization for one additional bounded correction and fresh review; scope=3-important-findings artifact=reviews/code-p01-final-review-2026-09-19T152245Z.md retry-limit=3 id=p01-extra-fix-authorized-20260919
 
+### 2026-09-19 · structural · oat-project-implement · p01
+
+p01 accepted after user-authorized review: verdict=pass findings=0-critical/0-important/1-medium/0-minor review-cycles=4 fix-rounds=3 recovery-attempts=3 artifact=reviews/code-p01-authorized-review-2026-09-19T161151Z.md supersedes-blocked-outcome=p01-final-review-057cc67a id=p01-pass-d3cd0e9c
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

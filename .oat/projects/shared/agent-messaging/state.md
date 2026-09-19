@@ -34,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T16:11:14Z'
+oat_project_state_updated: '2026-09-19T16:23:50Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** User-authorized Phase 1 fix round 3 is complete; fresh independent review is pending before p02-t01.
+**Status:** Phase 1 passed independent review; p02-t01 is next.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,9 +49,10 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation and the user-authorized third fix round are committed and
-verified. A fresh independent review is the active boundary before p02-t01.
-Live hook installation remains separately authorized.
+Phase 1 implementation and the user-authorized third fix round are committed,
+verified, and independently accepted with 0 Critical and 0 Important findings.
+Phase 2 finite activation is next. Live hook installation remains separately
+authorized.
 
 ## Artifacts
 
@@ -59,7 +60,7 @@ Live hook installation remains separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; fresh Phase 1 review is pending.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 passed and p02-t01 is next.
 
 ## Progress
 
@@ -172,7 +173,11 @@ Live hook installation remains separately authorized.
 - **Authorized fix verification:** Root reproduced 69 focused tests, 25 isolated
   generated-output tests, the full suite (2,127 passed, 1 skipped), generated
   freshness, validation, type-check, smoke, and version validation. Recovery
-  attempt 3/10 is settled; fresh independent review remains pending.
+  attempt 3/10 is settled.
+- **Phase 1 authorized review:** Reviewed through `d3cd0e9c` and passed with
+  0 Critical, 0 Important, 1 Medium, and 0 Minor findings. Artifact:
+  `reviews/code-p01-authorized-review-2026-09-19T161151Z.md`. The Medium stale
+  summary finding is resolved in review-receive bookkeeping; Phase 1 is accepted.
 
 ## Dispatch and Gate Review Policy
 
@@ -203,12 +208,9 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-No implementation blocker is currently known. The prior three Important
-findings have bounded fixes and root-reproduced verification; Phase 1 remains
-gated on the one fresh independent review explicitly authorized by the user.
+No implementation blocker is currently known.
 
 ## Next Milestone
 
-Obtain the authorized fresh independent Phase 1 review on the settled
-fix/recovery head. Do not begin p02-t01 and do not create another worktree unless
-that review passes.
+Start p02-t01 in this existing worktree under the approved sequential plan. Live
+hook installation remains a separate authorization boundary.

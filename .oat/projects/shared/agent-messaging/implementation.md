@@ -14,15 +14,14 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. The user-authorized Phase 1 correction and bounded packaging
-recovery are complete. A fresh independent review is pending; Phase 2 has not
-begun.
+2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
+Critical or Important findings. Phase 2 is next and has not begun.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | re_review_pending | 5     | 5/5       |
+| Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -31,7 +30,7 @@ begun.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** re_review_pending
+**Status:** completed
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -476,6 +475,51 @@ consumed for this round.
 - Reason: commit-hook quote normalization left two packaging assertions stale;
   the bounded recovery aligned the assertion without changing runtime behavior.
 
+#### Dispatch: p01 authorized review round 4
+
+```yaml
+request_id: dispatch-agent-messaging-p01-review-4-1c3284c2-04fa-4b68-9e69-2b5f73b4a8ab
+caller: oat-project-implement
+scope: phase:p01
+objective: Independently review the full Phase 1 implementation after the user-authorized third fix round.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: review-target
+selected_route: native
+payload:
+  prior_reviewed_head: 057cc67a527c18e81d1cd7aaba8b925df4d746c3
+  fix_commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
+  recovery_commit: bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78
+  reviewed_head: d3cd0e9c8a12b3057b2c403ce9587bc81402ef66
+  artifact: reviews/code-p01-authorized-review-2026-09-19T161151Z.md
+launch_status: accepted
+child_outcome: pass
+configured_invocation_evidence:
+  - resolver-report:p01-review-4
+  - "Dispatch: scope=p01-review-4 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=0,medium=1,minor=0
+  - reconnaissance:not-attempted
+  - review_cycles:4/4-user-authorized
+  - fix_rounds:3/3-user-authorized
+```
+
+No project-log review-orchestration entry was added because the reviewer
+reported reconnaissance as `not-attempted`; exactly one valid signal was
+consumed for this round.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -562,6 +606,19 @@ Fix round 3 completed in `50455dca051d0d073592c5858d47a74fa16bf3cf`.
 Its post-commit packaging assertion drift was recovered in append-only commit
 `bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78`. All three authorized findings are
 resolved with root-reproduced verification; the authorized fresh review remains.
+
+## Review Received: p01 authorized round 4
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 1 authorized review](reviews/code-p01-authorized-review-2026-09-19T161151Z.md)
+**Reviewed head:** `d3cd0e9c8a12b3057b2c403ce9587bc81402ef66`
+**Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
+**Status:** passed; Phase 1 accepted.
+
+The independent reviewer reproduced the root-containment, reserved-root, and
+actual-process crash-recovery controls; all passed. The sole Medium finding was
+stale trailing Test Results/Final Summary text in this artifact and is resolved
+in the review-receive bookkeeping below. No product finding remains open.
 
 ## Review Received: plan
 
@@ -764,21 +821,23 @@ This is historical planning-review context; product code now exists.
 
 ## Test Results
 
-Phase 1 product verification is current through review-fix round 1. The second
-bounded fix round is active and must rerun the complete gate before re-review.
+Phase 1 product verification is current through the user-authorized fix round 3,
+its packaging recovery, and the passing independent review.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | 87 focused + full suite (2,108 tests); build/check/validate/type/smoke | all | 0 | Phase implementation and review-fix round 1 |
+| 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
-Phase 1 is implemented but not yet accepted: re-review round 2 found six
-Important issues and the final bounded Phase 1 fix round is active. Phases 2–4,
-publication, installation, merge, and live acceptance remain incomplete.
+Phase 1 is implemented and independently accepted: immutable collaboration
+storage, membership, durable addressed mail and receipts, authoritative logs,
+manual CLI behavior, both generated distributions, and adversarial crash/path
+proof are green. Phases 2–4, publication, installation, merge, and live
+acceptance remain incomplete.
 
 ## References
 
