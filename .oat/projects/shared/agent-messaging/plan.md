@@ -6,7 +6,7 @@ oat_last_updated: 2026-09-19
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p04"]
+oat_plan_hill_phases: ['p04']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
@@ -825,27 +825,27 @@ distributions or the generated documentation inventory.
 
 ## Reviews
 
-| Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------- |
-| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-review-2026-09-19T140258Z.md                | 8866df01da3041e49d8b530e7e5d005059783330 | subagent   | -           |
-| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-rereview-2026-09-19T1445Z.md                | 67b811def41104d75a05d6175229e6e5539ccc9d | subagent   | -           |
-| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-final-review-2026-09-19T152245Z.md           | 057cc67a527c18e81d1cd7aaba8b925df4d746c3 | subagent   | -           |
-| p01    | code     | passed          | 2026-09-19 | reviews/code-p01-authorized-review-2026-09-19T161151Z.md      | d3cd0e9c8a12b3057b2c403ce9587bc81402ef66 | subagent   | -           |
-| p02    | code     | fixes_completed | 2026-09-19 | reviews/code-p02-review-2026-09-19T172855Z.md                 | a54d9baf2e618ae3885cf8053e3719f558b3ef45 | subagent   | -           |
-| p02    | code     | passed          | 2026-09-19 | reviews/code-p02-rereview-2026-09-19T181232Z.md               | 14f26df47fea4161f36f88c618596b827133cdf5 | subagent   | -           |
-| final  | code     | pending         | -          | -                                                           | -             | -          | -           |
-| spec   | artifact | pending         | -          | -                                                           | -             | -          | -           |
-| design | artifact | pending         | -          | -                                                           | -             | -          | -           |
-| p03    | code     | fixes_completed | 2026-09-19 | reviews/code-p03-review-2026-09-19T190153Z.md                 | d6bd6d6a2894fb7de3368c8c92af51a5842b717b | subagent   | -           |
-| p03    | code     | fixes_completed | 2026-09-19 | reviews/code-p03-rereview-2026-09-19T192712Z.md               | 8e461d899975956e57d56481c96b9b4c60a2533e | subagent   | -           |
-| p03    | code     | passed          | 2026-09-19 | reviews/code-p03-final-review-2026-09-19T194903Z.md            | d1b3fe166adc76e3be78bfb1a21c7ee8adfd7c8c | subagent   | -           |
-| plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T014304Z.md | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T021241Z.md | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T030934Z.md | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -             | -          | -           |
-| p04    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md | -             | -          | -           |
+| Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target                   |
+| ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | ----------------------------- |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-review-2026-09-19T140258Z.md               | 8866df01da3041e49d8b530e7e5d005059783330 | subagent   | -                             |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-rereview-2026-09-19T1445Z.md               | 67b811def41104d75a05d6175229e6e5539ccc9d | subagent   | -                             |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-final-review-2026-09-19T152245Z.md         | 057cc67a527c18e81d1cd7aaba8b925df4d746c3 | subagent   | -                             |
+| p01    | code     | passed          | 2026-09-19 | reviews/code-p01-authorized-review-2026-09-19T161151Z.md    | d3cd0e9c8a12b3057b2c403ce9587bc81402ef66 | subagent   | -                             |
+| p02    | code     | fixes_completed | 2026-09-19 | reviews/code-p02-review-2026-09-19T172855Z.md               | a54d9baf2e618ae3885cf8053e3719f558b3ef45 | subagent   | -                             |
+| p02    | code     | passed          | 2026-09-19 | reviews/code-p02-rereview-2026-09-19T181232Z.md             | 14f26df47fea4161f36f88c618596b827133cdf5 | subagent   | -                             |
+| final  | code     | received        | 2026-09-19 | reviews/final-review-2026-09-19T204112Z.md                  | 30b4d45aebc314a4fcfbbe53eedbc6bcfd1d5fc0 | gate       | claude-fable-skip-permissions |
+| spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -                             |
+| design | artifact | pending         | -          | -                                                           | -                                        | -          | -                             |
+| p03    | code     | fixes_completed | 2026-09-19 | reviews/code-p03-review-2026-09-19T190153Z.md               | d6bd6d6a2894fb7de3368c8c92af51a5842b717b | subagent   | -                             |
+| p03    | code     | fixes_completed | 2026-09-19 | reviews/code-p03-rereview-2026-09-19T192712Z.md             | 8e461d899975956e57d56481c96b9b4c60a2533e | subagent   | -                             |
+| p03    | code     | passed          | 2026-09-19 | reviews/code-p03-final-review-2026-09-19T194903Z.md         | d1b3fe166adc76e3be78bfb1a21c7ee8adfd7c8c | subagent   | -                             |
+| plan   | artifact | passed          | 2026-09-19 | -                                                           | -                                        | -          | -                             |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T014304Z.md | -                                        | -          | -                             |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T021241Z.md | -                                        | -          | -                             |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T030934Z.md | -                                        | -          | -                             |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -                                        | -          | -                             |
+| p04    | code     | pending         | -          | -                                                           | -                                        | -          | -                             |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md | -                                        | -          | -                             |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
