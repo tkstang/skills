@@ -147,7 +147,7 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ## Phase 5
 
-**Status:** pending
+**Status:** in progress
 
 ### Task p05-t01: Extract stable Cursor call evidence
 
@@ -157,9 +157,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p05-t02: Integrate Cursor settlement with observer and export
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
+**Verification:** Observer catch-up/watch use prior and new existing terminal checkpoints to select settled activity independently of conversation range, producing one activity-only settlement delta and no replay across polls or later flag enablement. Stateless review/export recover pending and settled evidence; source/delivery coordinates and turn-level unsuccessful outcomes remain honest. Existing atomic reservation/commit ordering, metadata-only logs, early conversation delivery and collaboration confirmed-completion gating are preserved. Root passed the 358-test phase suite, type checking, build freshness and four-owner version validation. Fresh transition audit found 0 Critical/Important findings and additionally passed the full 2,231-test repository suite with one skip.
 
 ## Phase 6
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t02
-oat_last_commit: 6921b610fbbf5926cfcda45e26acac5800fb1302
+oat_current_task: p05-review
+oat_last_commit: ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -111,13 +111,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Cursor activity extraction ready
+**Status:** Cursor activity review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p04 are passed. p05-t01 now extracts only recorded Cursor call evidence with positional identity, separate source/delivery coordinates, conservative turn-level outcomes and explicit pending lifecycle. Its transition audit found zero Critical/Important findings. p05-t02 integrates settlement through existing terminal checkpoints.
+p01 through p04 are passed. p05 implementation is complete through `ef3c4c9b`: Cursor activity uses recorded positional identity and existing terminal checkpoints, emits settled activity once, preserves early conversation delivery, and cannot replay flag-off consumption. p05 recovery usage remains 0/10. Formal phase review is next.
 
 ## Artifacts
 
@@ -125,7 +125,7 @@ p01 through p04 are passed. p05-t01 now extracts only recorded Cursor call evide
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (16/19 tasks completed; p01 through p04 passed, p05 in progress)
+- **Implementation:** `implementation.md` (17/19 tasks completed; p01 through p04 passed, p05 review pending)
 
 ## Progress
 
@@ -148,4 +148,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p05-t02 Cursor activity delivery through existing terminal checkpoints.
+Run the fresh root-owned p05 phase review over Cursor extraction and settlement delivery.
