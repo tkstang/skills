@@ -1,6 +1,6 @@
 ---
-oat_status: in_progress
-oat_ready_for: oat-project-implement
+oat_status: complete
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_current_task_id: null
@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-All 29 implementation tasks, phase reviews p00 through p12, the full combined suite and the final independent lifecycle review are complete. The final review found zero Critical, High, Medium or Low issues and confirmed the local identity/activity heads are ready for publication and remote-thread resolution.
+All 29 implementation tasks, phase reviews p00 through p12, the full combined suite and the final independent lifecycle review are complete. The final review found zero Critical, High, Medium or Low issues. The reviewed identity fix and rebased activity layer are published, and every PR #95/#96 review thread has a documented disposition, reply and resolution.
 
 The user explicitly disabled further external gate reviews for this closeout and authorized independent subagent review, implementation of every accepted PR #95/#96 finding, GitHub replies, thread resolution and stack republication. The project-level `oat-project-implement` gate override records that direction; independent phase and final reviews remain required.
 
@@ -17,7 +17,7 @@ The user explicitly disabled further external gate reviews for this closeout and
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- The agreed docs → identity → activity stack was published as PRs #94, #95, and #96. PR #94 has merged. PRs #95 and #96 remain ready on prior remote heads; the reviewed p12 identity fix and cascade-rebased activity head await publication. Release, installation, global synchronization, and live-provider acceptance have not occurred.
+- The agreed docs → identity → activity stack was published as PRs #94, #95, and #96. PR #94 has merged. PRs #95 and #96 are ready for review on the corrected, cascade-rebased heads, with all review threads resolved. Release, installation, global synchronization, and live-provider acceptance have not occurred.
 
 ## Progress Overview
 

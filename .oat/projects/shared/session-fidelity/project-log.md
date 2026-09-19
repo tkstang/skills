@@ -100,6 +100,10 @@ Phase p11 passed after one artifact-alignment commit and one independent zero-fi
 
 Phase p12 passed on the identity layer after one implementation commit and one independent zero-finding review; activity was cascade-rebased; artifact reviews/p12-review-2026-09-19T230338Z.md; event sf-p12-outcome-20260919T230338Z.
 
+### 2026-09-19 · structural · oat-project-implement · complete
+
+sf-remote-closeout-20260919: p12 fixes published; PR #95 and #96 review threads replied to and resolved; clean remote receive artifacts recorded; configured gate project-disabled by user; independent final review passed.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
