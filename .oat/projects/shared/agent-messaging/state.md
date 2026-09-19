@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: 12a79e63
+oat_current_task: null
+oat_last_commit: cd76aa885369468bf68ee5604359b2a791934bce
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -22,16 +22,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p05:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p05-recovery-01-owner-contract-inventory
-        original_request_id: dispatch-agent-messaging-p05-20260919
-        original_task_id: p05-t03
-        original_commit: 7f545c7c5919d460e3d03a91eb710e07d5ecf47d
-        discovered_by: pnpm run worktree:validate
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: a8a2e81103c5035ba0351fd45263b8d954ffe4ee
-        status: completed
+      pending_attempt: null
 oat_orchestration_retry_limit: 3
 oat_phase: implement
 oat_phase_status: in_progress
@@ -52,7 +43,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** Final review is blocking; 12 Phase 5 repair tasks are queued.
+**Status:** All 25 tasks are complete; final Frontier re-review is pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -68,8 +59,9 @@ in Phase 3. Phase 3 passed its final bounded review with no findings. Phase 4
 implemented and locally verified the finite Claude composed Monitor, shared
 inbox/observation budget, docs/distributions, and conditional backlog closeout.
 The first final Frontier review found 3 Important, 5 Medium, and 4 Minor issues.
-All 12 are assigned to Phase 5, starting at p05-t01. Live hook installation and
-live acceptance remain separately authorized.
+All 12 are fixed in Phase 5, with bounded recovery attempt 1/10 settled after
+root validation. Live hook installation and live acceptance remain separately
+authorized.
 
 ## Artifacts
 
@@ -77,7 +69,7 @@ live acceptance remain separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — 5 sequential phases, 25 tasks; Phase 5 contains every first-final-review finding.
-- **Implementation:** implementation.md — Run 1 has 13/25 tasks complete; Phase 5 fixes are in progress.
+- **Implementation:** implementation.md — Run 1 has 25/25 tasks complete; final Frontier re-review is pending.
 
 ## Progress
 
@@ -257,6 +249,16 @@ live acceptance remain separately authorized.
   p05-t01 through p05-t12; no finding is deferred. The gate artifact and project
   log receipts are committed at `7a9ced3d` and `12a79e63`. No live/provider,
   install, publish, push, PR, or merge action occurred.
+- **Phase 5 implementation:** Twelve ordered commits from `ca6d5d15` through
+  `a8a2e811` resolve every final-review finding. Full validation exposed one
+  stale owner-contract fixture; append-only recovery `cd76aa88` corrected it.
+  Root verified the original request/commit, exact recovery parent and target,
+  13-commit phase range, canonical recovery event, 18 focused tests, generated
+  freshness, and the clean terminal marker before settling the ledger at
+  `used_attempts: 1`, `pending_attempt: null`. Final worktree validation passed
+  2,249 tests with 1 skipped plus build, validate, type-check, smoke,
+  skill-version, internal-flag, PJM, and documentation gates. No live/provider,
+  install, publish, push, PR, or merge action occurred.
 
 ## Dispatch and Gate Review Policy
 
@@ -291,6 +293,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Execute Phase 5 tasks p05-t01 through p05-t12, reproduce the repository gates,
-then use the second and final configured Frontier review attempt. Live hook
-installation remains a separate authorization boundary.
+Commit root phase-transition bookkeeping, then use the second and final
+configured Frontier review attempt. Live hook installation remains a separate
+authorization boundary.

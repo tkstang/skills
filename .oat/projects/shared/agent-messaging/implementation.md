@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -18,8 +18,8 @@ this existing `backlog-triage` worktree as the implementation worktree on
 Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 passed its final bounded independent
 review with no findings. The first final Frontier review found 3 Important,
-5 Medium, and 4 Minor issues. All 12 are Phase 5 repair tasks; 13 of 25 tasks
-are complete.
+5 Medium, and 4 Minor issues. All 12 Phase 5 repair tasks are complete and
+root-verified; 25 of 25 tasks are complete pending final re-review.
 
 ## Progress Overview
 
@@ -29,9 +29,9 @@ are complete.
 | Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | completed | 3     | 3/3       |
 | Phase 4 | review_pending | 1     | 1/1       |
-| Phase 5 | in_progress | 12    | 0/12      |
+| Phase 5 | review_pending | 12    | 12/12     |
 
-**Total:** 13/25 tasks completed
+**Total:** 25/25 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -122,23 +122,25 @@ are complete.
 
 ## Phase 5: Final review fixes and proof completion (12 tasks)
 
-**Status:** in_progress
+**Status:** review_pending
 **Started:** 2026-09-19
 
 | Task | Finding | Status | Commit |
 | ---- | ------- | ------ | ------ |
-| p05-t01 | final-I1 symlink-safe entrypoints | in_progress | - |
-| p05-t02 | final-m2 shared ownership inventory | pending | - |
-| p05-t03 | final-I2 bounded Claude inventory | pending | - |
-| p05-t04 | final-M1 observation retry status | pending | - |
-| p05-t05 | final-M2 triggered lease boundaries | pending | - |
-| p05-t06 | final-M3 Monitor diagnostics and invocation | pending | - |
-| p05-t07 | final-m3 polling and input hygiene | pending | - |
-| p05-t08 | final-I3 Phase 4 proof completion | pending | - |
-| p05-t09 | final-M4 plugin and release docs | pending | - |
-| p05-t10 | final-M5 live-acceptance follow-up | pending | - |
-| p05-t11 | final-m1 design data model alignment | pending | - |
-| p05-t12 | final-m4 completed-history restoration | pending | - |
+| p05-t01 | final-I1 symlink-safe entrypoints | completed | ca6d5d15 |
+| p05-t02 | final-m2 shared ownership inventory | completed | c127f2f5 |
+| p05-t03 | final-I2 bounded Claude inventory | completed | 7f545c7c |
+| p05-t04 | final-M1 observation retry status | completed | f2227518 |
+| p05-t05 | final-M2 triggered lease boundaries | completed | 6e776c53 |
+| p05-t06 | final-M3 Monitor diagnostics and invocation | completed | 45bf9e4f |
+| p05-t07 | final-m3 polling and input hygiene | completed | c4c0e7d5 |
+| p05-t08 | final-I3 Phase 4 proof completion | completed | 7c10bb4f |
+| p05-t09 | final-M4 plugin and release docs | completed | 461c301f |
+| p05-t10 | final-M5 live-acceptance follow-up | completed | e237f93a |
+| p05-t11 | final-m1 design data model alignment | completed | 6ea0c55e |
+| p05-t12 | final-m4 completed-history restoration | completed | a8a2e811 |
+
+**Recovery commit:** cd76aa885369468bf68ee5604359b2a791934bce
 
 ## Orchestration Runs
 
@@ -973,6 +975,83 @@ diagnostics:
   - live-provider-actions:none
 ```
 
+#### Dispatch: p05 final-review fixes
+
+```yaml
+request_id: dispatch-agent-messaging-p05-20260919
+caller: oat-project-implement
+scope: phase:p05
+objective: Resolve all twelve first-final-review findings with one commit per task.
+action: implementation
+role_name: oat-phase-implementer-gpt-5-6-sol-high
+role_class: implementer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:phase-files-task-commits-and-planned-pjm-follow-up
+role_selector: oat-phase-implementer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: project-state
+selected_route: native
+payload:
+  phase_base: 32f09ae4e1cbf6a7f4091c99e7e6b3a15394613c
+  final_head: cd76aa885369468bf68ee5604359b2a791934bce
+  commits:
+    - ca6d5d15fc6b6c7b98b19ecfd59a2b6339f62235
+    - c127f2f5f4d771a7456235bfefc5e18090a290e1
+    - 7f545c7c5919d460e3d03a91eb710e07d5ecf47d
+    - f22275185d9774f411ab1f3ad22fc4935fdf7e5d
+    - 6e776c5374c125e05fdfdcf47328e3761c4d5be5
+    - 45bf9e4f2dbd66e2200006ed2a49dd9fedb7acaf
+    - c4c0e7d5808b00e4e540aa92eb4230becf1e898b
+    - 7c10bb4f8ae592eba601af8e3d41837f06a687d1
+    - 461c301f05b773ec61f1585244106bc6d5afbbae
+    - e237f93a232084ed59f0251186db139aac22e468
+    - 6ea0c55ebd050d0b7cb1834aa2d8ed4a9f850b68
+    - a8a2e81103c5035ba0351fd45263b8d954ffe4ee
+  recovery_commit: cd76aa885369468bf68ee5604359b2a791934bce
+launch_status: accepted
+child_outcome: done
+configured_invocation_evidence:
+  - resolver-report:p05
+  - "Dispatch: scope=p05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - tasks:12/12
+  - focused-proof:153-passed
+  - recovery-focused:18-passed
+  - full-suite:2249-passed,1-skipped
+  - docs-build:54-pages
+  - worktree-validate:passed
+  - recovery-attempts:1/10
+  - live-provider-actions:none
+```
+
+### Recovery Event p05-recovery-01-owner-contract-inventory
+
+- Phase/task: p05 / p05-t03
+- Original request: dispatch-agent-messaging-p05-20260919
+- Original commit: 7f545c7c5919d460e3d03a91eb710e07d5ecf47d
+- Defect class: test
+- Discovered by: pnpm run worktree:validate
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: cd76aa885369468bf68ee5604359b2a791934bce
+- Verification: focused owner-contract and packaging suites 18/18; post-commit
+  worktree validation passed with 2,249 passing and 1 skipped; skill-version and
+  internal-flag gates passed.
+- Reason: the full suite exposed a stale test fixture that relabeled an empty
+  Codex inventory as Claude, conflicting with p05-t03's fail-closed resolved
+  source contract. Recovery uses a real resolved Claude settings source, updates
+  the coupled version assertion, bumps agent-messaging to 1.0.18, and refreshes
+  only its owned generated outputs.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -1006,6 +1085,16 @@ diagnostics:
 - PJM doctor was green before and after the plan-authorized closeout;
   `BL-260619-inter-agent-direct-messaging` is closed and archived. Live
   host/install acceptance remains explicitly unverified and separate.
+- Phase 5 resolved all 12 first-final-review findings in 12 ordered commits.
+  Entrypoints are symlink-safe; Claude inventory sources are resolved, persisted,
+  and rechecked; observation and message status are distinct; Monitor lease,
+  diagnostics, invocation, polling, and input boundaries are explicit; and the
+  missing acceptance matrix now executes the real critical paths. Plugin/release
+  docs, design models, PJM ownership, and historical text are aligned.
+- Full phase validation found one stale owner-contract fixture after 2,248 tests.
+  Bounded recovery attempt 1/10 fixed it in `cd76aa88`; root verified the exact
+  append-only range, recovery parent, 18 focused tests, generated freshness, and
+  the completed ledger marker. Final validation passed 2,249 tests with 1 skipped.
 
 ## Review Received: final round 1
 
@@ -1416,9 +1505,9 @@ This is historical planning-review context; product code now exists.
 
 ## Test Results
 
-Phase verification is current through Phase 4 commit `b9904d62` and the clean
-worktree validation run. The first final Frontier review is received and
-blocking; Phase 5 fixes and a second configured final review remain.
+Phase verification is current through Phase 5 recovery commit `cd76aa88` and a
+clean worktree validation run. The first final Frontier review's 12 findings are
+fixed; the second configured final review remains.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
@@ -1426,12 +1515,12 @@ blocking; Phase 5 fixes and a second configured final review remain.
 | 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
 | 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint | all | 0 | Accepted after final bounded independent review |
 | 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Tasks complete; final review fixes queued |
-| 5     | pending | - | - | 12 first-final-review fixes |
+| 5     | 153 focused proof + 18 recovery-focused; full suite (2,249 tests); build/check/validate/type/smoke/version/internal-flags/docs/worktree validation | all | 0 | Tasks complete; final re-review pending |
 
 ## Final Summary (for PR/docs)
 
-The original 13 implementation tasks are complete; 12 first-final-review repair
-tasks are now in progress. The project currently ships a
+All 25 implementation tasks are complete, including all 12 first-final-review
+repairs. The project now ships a
 dependency-free shared collaboration container with addressed messages,
 receipts, immutable logs/rendered views, finite activation and claims, bounded
 Codex/Claude host adapters, a request-only watch, content-bound observer
@@ -1441,11 +1530,12 @@ two skill roots; owned standalone, Session, and Consensus payloads plus the docs
 site were regenerated from those sources.
 
 Verification includes every phase's focused suites, a clean final worktree run
-with 2,225 passing tests and 1 skipped, generated freshness, type-check,
+with 2,249 passing tests and 1 skipped, generated freshness, type-check,
 validation, smoke, version validation, scoped formatting/lint, and a 54-page
 documentation build. `BL-260619-inter-agent-direct-messaging` is closed and
-archived after green PJM preflight/postflight. The first final review is blocking
-until Phase 5 is complete; one configured final re-review remains. Publication, push/PR/merge,
+archived after green PJM preflight/postflight, while
+`BL-260919-verify-live-agent-messaging` owns separately authorized live
+acceptance. One configured final re-review remains. Publication, push/PR/merge,
 user/global installation, provider configuration, and live host acceptance were
 not performed and remain separate authorization/evidence boundaries.
 

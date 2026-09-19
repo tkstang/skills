@@ -1132,7 +1132,7 @@ relabel it passed. Final implementation Frontier review remains required.
 - Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
 - Phase 5: 12 tasks — all first final-review findings and complete proof.
 
-**Total: 25 tasks. Completed: 13/25. Current task: p05-t01.**
+**Total: 25 tasks. Completed: 25/25. Next: final Frontier re-review.**
 Planning approval is not implementation, live acceptance, release or merge.
 
 ## References
