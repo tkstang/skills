@@ -335,7 +335,11 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
   "diagnostics": [
     "p01-t03-recovery-01 failed: expected stderr pathname absent from Node EISDIR text"
   ],
-  "continuation_events": ["p01-recovery-3-resume-01", "p01-t04-usage-resume-01"],
+  "continuation_events": [
+    "p01-recovery-3-resume-01",
+    "p01-t04-usage-resume-01",
+    "p01-review-fix-01"
+  ],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
