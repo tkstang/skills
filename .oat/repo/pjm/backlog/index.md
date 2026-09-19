@@ -13,6 +13,7 @@
 - **Independent collaboration projects:** **BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)** now targets provider-neutral recipient inboxes, not a daemon or harness-specific messaging API. **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter** precedes **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge**. Messaging is independent of both. **BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh** remains separate consumer-ownership work.
 - **Deferred investment:** research, deliberation metrics/similarity, harmonization, multi-round panel, idle integrations, and reserved host-native/group-convergence capabilities remain open. The roadmap maps every active item; historical research and external plans need current-path/contract checks before execution.
 - **Release boundary:** merged payloads and manifest versions do not prove a tagged release, global installation, marketplace/search listing, or live provider acceptance. Follow the per-plugin release checklist independently of future Review/installer work.
+- **CI reliability:** **BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test** tracks a timing-dependent `watch.test.ts` case that failed once on an unrelated docs-only PR (#92) and passed on re-run. Sequence it after the session-fidelity stack, which edits the same test file.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -21,6 +22,7 @@
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260916-session-fidelity-opt | Session fidelity: opt-in --include-activity for observer and exporter | open | medium | feature | L |
+| BL-260919-stabilize-the-watcher-sigterm | Stabilize the watcher SIGTERM re-arm test | open | medium | task | S |
 | BL-260619-shared-session-log-substrate | Stateless multi-session activity merge | open | medium | initiative | L |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
