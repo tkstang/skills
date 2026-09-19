@@ -497,6 +497,33 @@ git add .oat/projects/shared/session-fidelity/summary.md
 git commit -m "docs(p09-t01): align project summary with p08"
 ```
 
+## Phase 10: PR #96 effective-filter review fix
+
+**Layer:** activity (`session-fidelity-activity`). **Depends on:** CodeRabbit discussion `r4054625077` on PR #96, originally reviewed at `3b580feb3401cfece7bf297ff16ccfda24b45a66` and revalidated after stack #97 was republished at `ed95ea1f4069d910394b2dc3e71b0638fe704075`.
+
+### Task p10-t01: (review) Report effective legacy tool filters in activity mode
+
+**Files:** `src/skills/session-observer/src/lib/digest.ts`; `src/skills/session-observer/src/digest.test.ts`; affected canonical skill version owners and `CHANGELOG.md`; owned generated standalone/plugin payloads selected by the distribution build.
+
+**Step 1: Understand the issue**
+
+PR #96 review finding `m1` identified that activity mode forces legacy tool-call and tool-result entries off during normalization but returns the caller's raw `includeToolCalls` and `includeToolResults` flags and uses those raw values for `accounting.filtered`. A caller using `--include-activity --debug` can therefore receive filters that claim the legacy markers were enabled and zero filtered tool entries even though the markers were suppressed.
+
+**Step 2: Implement fix**
+
+Derive `effectiveIncludeToolCalls` and `effectiveIncludeToolResults` once from `includeActivity` and the caller flags. Use those effective values for legacy normalization, the returned `filters` object, and `accounting.filtered.toolCalls`/`toolResults`. Add a focused regression proving activity mode reports both effective flags false and counts the suppressed legacy entries while leaving flag-off/default behavior unchanged. Run the distribution build, inspect generated diffs (including collaboration's bundled stop hook), bump every canonical owner required by the source-root/version validator, and add the matching Unreleased changelog entry. Do not hand-edit generated payloads.
+
+**Step 3: Verify**
+
+Run `pnpm run test:vitest src/skills/session-observer/src/digest.test.ts`, `pnpm run build`, `pnpm run build:check`, `pnpm run type-check`, `pnpm run validate:skill-versions -- --base-ref session-fidelity-identity`, `pnpm run validate`, and `git diff --check`. Confirm generated output is fresh, the new regression covers the reported mismatch, and only required owner versions/changelog entries change.
+
+**Step 4: Commit**
+
+```bash
+git add src/skills/session-observer CHANGELOG.md skills plugins
+git commit -m "fix(p10-t01): report effective activity filters"
+```
+
 ## Reviews
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
@@ -534,6 +561,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p09    | code     | passed          | 2026-09-19 | reviews/p09-review-2026-09-19T215345Z.md                    | 59549f2f273ff2fa62daad6c47bcd0aa5bd6883f | auto       | codex-high  |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T220057Z.md         | b51a106d14ee3d25884b5b24fa8f8949da301f90 | manual     | -           |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T221544Z.md         | 5dd3627c4552bc40e6b68122cf22b3824897c394 | gate       | claude-fable-skip-permissions |
+| github-pr #96 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md | 3b580feb3401cfece7bf297ff16ccfda24b45a66 | -          | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -541,7 +569,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 10 phases, 26 tasks. All tasks and every phase review through p09 passed.
+**Planned total:** 11 phases, 27 tasks. The first 26 tasks and every phase review through p09 passed; p10 contains one PR #96 review fix.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -553,8 +581,9 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p07: 2 tasks — final-review artifact alignment and watcher diagnostic correction.
 - p08: 4 tasks — planning-status alignment, withdrawn parser-guidance cleanup, detached MCP-result opacity, and LF-framing documentation correction.
 - p09: 1 task — align the generated project summary with p08 and the current publication boundary.
+- p10: 1 task — align reported legacy tool filters and filtered counts with activity-mode suppression.
 
-The schema documentation preparatory commit and all 26 implementation tasks are complete; phase reviews p00 through p09 passed. Phase p08 resolved all four PR #94 findings on the bottom layer and the two upper layers were cascade-rebased. Phase p09 aligned the generated summary with those changes and the current publication boundary. Final re-review, configured exit-gate processing, and stack republication remain. Merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and the first 26 implementation tasks are complete; phase reviews p00 through p09 and the refreshed configured exit gate passed. Stack #97 is published and ready. Phase p10 must resolve the newly selected PR #96 effective-filter finding on the activity layer and republish the top branch. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 

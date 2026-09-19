@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p10-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 26 implementation tasks and phase reviews p00 through p09 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. Phase p09 aligned the generated summary with those corrections and the current publication boundary. Final re-review and the configured exit gate remain before stack republication.
+The first 26 implementation tasks and phase reviews p00 through p09 are complete. The narrowed final re-review and refreshed configured exit gate passed, and stack #97 was republished with matching ready remote heads. PR #96 then received one actionable effective-filter finding, queued as p10-t01 on the activity layer.
 
 ## Preparatory evidence
 
@@ -31,8 +31,9 @@ All 26 implementation tasks and phase reviews p00 through p09 are complete. Phas
 | p07   | passed         | 2     | 2/2       |
 | p08   | passed         | 4     | 4/4       |
 | p09   | passed         | 1     | 1/1       |
+| p10   | in_progress    | 1     | 0/1       |
 
-**Total:** 26/26 implementation tasks completed.
+**Total:** 26/27 implementation tasks completed.
 
 ## Phase 0
 
@@ -579,6 +580,14 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Review: artifact `reviews/p09-review-2026-09-19T215345Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `8e4389edced64da445efba90bee69d10d603b8f0..59549f2f273ff2fa62daad6c47bcd0aa5bd6883f`.
 - Outstanding p09 items: none. Next: final lifecycle re-review and configured exit gate.
 
+## Phase 10
+
+**Status:** in_progress
+
+### Task p10-t01: (review) Report effective legacy tool filters in activity mode
+
+**Status:** pending
+
 ### Orchestration Run p07
 
 - Outcome: passed after two final-review fix commits, no recovery attempts and one fresh root-owned review round.
@@ -758,6 +767,20 @@ The configured High-threshold gate passed. Its nonblocking findings received the
 - **L5 — tracked raw gate logs include machine-local paths:** deferred. The existing files are required by persisted gate receipt provenance and contain no credentials or tokens; future gate tooling should store or render these artifacts without machine-local paths rather than deleting an active receipt.
 
 The six earlier Low follow-ups remain explicitly deferred under their recorded triggers. No blocking finding or unresolved deferred Medium from an earlier cycle remains. The gate event is marked passed after these dispositions; stack publication may proceed.
+
+### Remote Review Received: github-pr #96
+
+**Date:** 2026-09-19
+**Review artifact:** `reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md`
+**Reviewed head:** `3b580feb3401cfece7bf297ff16ccfda24b45a66`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 1 Minor.
+
+**New tasks added:** p10-t01.
+
+The finding remains valid after stack #97 republication. Activity mode correctly suppresses duplicate legacy markers, but its returned filter flags and filtered counts describe the caller request instead of the effective normalization behavior. No finding was deferred or dismissed.
+
+**Next:** execute p10-t01 through `oat-project-implement`, review the focused fix, and republish PR #96.
 
 ## Planning Gate Review Received — 2026-09-19
 
