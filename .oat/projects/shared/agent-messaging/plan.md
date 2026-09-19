@@ -1229,17 +1229,18 @@ relabel it passed. Final implementation Frontier review remains required.
 
 ## Implementation Status
 
-**Planned, not implemented:**
+**Implementation status:**
 
-- Phase 1: 5 tasks — independent storage, membership, messages, logs and CLI.
-- Phase 2: 4 tasks — finite activation, host adapters, watch and acceptance probes.
-- Phase 3: 3 tasks — shared observer logs, Stop composition and distribution docs.
-- Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
-- Phase 5: 12 tasks — all first final-review findings and complete proof.
+- Phase 1: 5 tasks implemented — independent storage, membership, messages, logs and CLI.
+- Phase 2: 4 tasks implemented — finite activation, host adapters, watch and acceptance probes.
+- Phase 3: 3 tasks implemented — shared observer logs, Stop composition and distribution docs.
+- Phase 4: 1 task implemented — dedicated Claude composed Monitor and final acceptance.
+- Phase 5: 12 tasks implemented — all first final-review findings and complete proof.
 - Phase 6: 9 tasks — remote review and Linux CI fixes, now in progress.
 
 **Total: 34 tasks. Completed: 25/34. Final Frontier review: passed; remote fixes in progress.**
-Planning approval is not implementation, live acceptance, release or merge.
+Final lifecycle approval remains pending. Completed implementation and review do
+not imply live acceptance, release or merge.
 
 ## References
 
