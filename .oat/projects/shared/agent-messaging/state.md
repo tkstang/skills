@@ -25,7 +25,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
 oat_orchestration_retry_limit: 3
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -33,8 +33,8 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_docs_updated: complete
-oat_pr_status: ready
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: "https://github.com/tkstang/skills/pull/98"
 oat_implement_exit_gate:
   status: allowed
   disposition: passed
@@ -54,7 +54,7 @@ oat_implement_exit_gate:
     low: 4
   judgment_sweep_commit: dd22025c005d89033a72b23f443985bb88cb78f6
 oat_post_implement_sequence:
-  status: pre_approval
+  status: awaiting_approval
   source: configured
   final_phase: p05
   pre_approval:
@@ -64,6 +64,7 @@ oat_post_implement_sequence:
   pre_approval_completed:
     - summary
     - document
+    - pr
   approval: pending
   approval_source: null
   post_approval: []
@@ -71,32 +72,19 @@ oat_post_implement_sequence:
   failure: null
 oat_project_created: "2026-09-18T23:40:44.126Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-19T22:45:15Z"
+oat_project_state_updated: "2026-09-19T22:46:30Z"
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** All 25 tasks are complete; final Frontier review passed.
+**Status:** PR open; awaiting human review and final lifecycle approval.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Implementation of independent three-or-more-agent messaging across local
-repositories/worktrees, shared collaboration storage, and bounded delivery.
-The user explicitly designated this existing worktree for the sequential run.
-Phase 1 is independently accepted. Phase 2 implementation is committed and
-root-verified. Fix round 1/3 resolved its 7 Important and 1 Medium review
-findings; fresh independent review passed, and both remaining Mediums were fixed
-in Phase 3. Phase 3 passed its final bounded review with no findings. Phase 4
-implemented and locally verified the finite Claude composed Monitor, shared
-inbox/observation budget, docs/distributions, and conditional backlog closeout.
-The first final Frontier review found 3 Important, 5 Medium, and 4 Minor issues.
-All 12 are fixed in Phase 5, with bounded recovery attempt 1/10 settled after
-root validation. The second configured Frontier gate passed and its one Medium
-and four Low findings are dispositioned. Live hook installation and live
-acceptance remain separately authorized.
+Implementation — PR open; completion may run before or after merge.
 
 ## Artifacts
 
@@ -108,6 +96,8 @@ acceptance remain separately authorized.
 
 ## Progress
 
+- ✓ PR created
+- ⧗ Awaiting human review
 - Scope committed as 5f0fce74; generated sync committed as 6ef6b5f7.
 - Shared project scaffold and active-project pointer created.
 - Discovery backfilled from the conversation, canonical contracts, vault note,
@@ -340,6 +330,8 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Commit final review-receive bookkeeping, then continue the configured
-pre-approval closeout sequence. Live hook installation, push, PR, merge, and
-live acceptance remain separate authorization boundaries.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- Complete before merge: run `oat-project-complete` now, then merge the PR.
+- Merge before completion: merge the PR, then run `oat-project-complete`.
