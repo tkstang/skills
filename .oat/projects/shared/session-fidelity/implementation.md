@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-review
+oat_current_task_id: p02-review-fix-01
 oat_generated: false
 ---
 
@@ -23,7 +23,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | review pending | 5     | 5/5       |
+| p02   | review fixes required | 5     | 5/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
@@ -77,7 +77,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** implementation complete; review pending
+**Status:** review fixes required
 **ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
 **Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
 
@@ -728,12 +728,12 @@ Root transition audit of immutable p02-t04 commit `5440c56a06f19f3a4bd437b4aa94b
     "artifact": "reviews/p02-review-2026-09-19T141151Z.md",
     "handle": "/root/p02_review"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "completed-fix-required",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": [],
+  "continuation_events": ["p02-review-fix-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -743,3 +743,14 @@ Root transition audit of immutable p02-t04 commit `5440c56a06f19f3a4bd437b4aa94b
 ```
 
 Dispatch: scope=p02-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+#### Phase p02 review round 1 — fixes required
+
+Formal artifact `reviews/p02-review-2026-09-19T141151Z.md` reviewed `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535..0887c010eb37486f15fceafe5f6adf0d0e1202fa`: 0 Critical, 2 Important, 0 Medium, 0 Minor. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Independent review verification passed 183/183 focused tests, type checking, build freshness, four-owner version validation, the 2/2 schema privacy canary and a targeted fixture privacy scan.
+
+Both findings are accepted as bounded contract corrections:
+
+- I1 `code_fix_required`: Codex `function_call` and applicable custom carriers must retain the original string/object carrier alongside a parsed representation. Invalid documented JSON string arguments keep the call and emit a stable content-free diagnostic at its locator. Tests must cover valid object parsing, malformed JSON, original-carrier retention and projection budgets without parser-message leakage.
+- I2 `code_fix_required`: detailed reads must retain each original source carrier internally and return capture timestamp plus exact UTF-8 source byte length from the same completed read. `ActivityReport` carries only the bounded report-level snapshot metadata. Legacy `readRecords()` values and warning bytes remain unchanged; regressions cover empty, multibyte, CRLF, malformed and valid no-newline input while diagnostics remain kind-plus-line only.
+
+No project-log entry is appended before the fix child. Resume the original `sf-p02-implement-01` handle on exact target `oat-phase-implementer-gpt-5-6-sol-high` in `mode: fix` with continuation `p02-review-fix-01`. This uses review-fix round 1/2 and does not consume or alter p02 phase-recovery usage, which remains 3/10 with no pending attempt. After the bounded fix commit and root verification, dispatch a fresh p02 reviewer round.
