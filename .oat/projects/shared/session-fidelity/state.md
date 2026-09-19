@@ -1,5 +1,5 @@
 ---
-oat_current_task: p05-review
+oat_current_task: p06-t01
 oat_last_commit: ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
 oat_blockers: []
 associated_issues:
@@ -34,6 +34,9 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p05:
+      used_attempts: 0
+      pending_attempt: null
+    p06:
       used_attempts: 0
       pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
@@ -111,13 +114,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Cursor activity review pending
+**Status:** Documentation and acceptance ready
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p04 are passed. p05 implementation is complete through `ef3c4c9b`: Cursor activity uses recorded positional identity and existing terminal checkpoints, emits settled activity once, preserves early conversation delivery, and cannot replay flag-off consumption. p05 recovery usage remains 0/10. Formal phase review is next.
+p01 through p05 are passed. The fresh p05 phase review found zero findings across 492 tests and all structural gates. Cursor activity uses recorded positional identity and existing terminal checkpoints, emits settled activity once, preserves early conversation delivery, and cannot replay flag-off consumption. The configured HiLL list is empty, so final documentation begins at p06-t01 without a pause.
 
 ## Artifacts
 
@@ -125,7 +128,7 @@ p01 through p04 are passed. p05 implementation is complete through `ef3c4c9b`: C
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (17/19 tasks completed; p01 through p04 passed, p05 review pending)
+- **Implementation:** `implementation.md` (17/19 tasks completed; p01 through p05 passed, p06 ready)
 
 ## Progress
 
@@ -148,4 +151,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the fresh root-owned p05 phase review over Cursor extraction and settlement delivery.
+Implement p06-t01 documentation and generated package closure for the tested feature.
