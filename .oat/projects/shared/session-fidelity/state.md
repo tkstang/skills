@@ -1,5 +1,5 @@
 ---
-oat_current_task: p06-t01
+oat_current_task: p06-t01-recovery-01
 oat_last_commit: ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
 oat_blockers: []
 associated_issues:
@@ -114,13 +114,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Documentation and acceptance ready
+**Status:** Documentation version recovery in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p05 are passed. The fresh p05 phase review found zero findings across 492 tests and all structural gates. Cursor activity uses recorded positional identity and existing terminal checkpoints, emits settled activity once, preserves early conversation delivery, and cannot replay flag-off consumption. The configured HiLL list is empty, so final documentation begins at p06-t01 without a pause.
+p01 through p05 are passed. p06-t01 produced `41887b16`, but transition audit found one Important dependent-owner version gap: observer/exporter documentation source roots also require collaboration/fork version bumps and changelog attribution. Bounded p06 recovery attempt 1/10 is authorized to close that exact fanout.
 
 ## Artifacts
 
@@ -151,4 +151,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p06-t01 documentation and generated package closure for the tested feature.
+Complete bounded p06-t01 recovery attempt 1/10, then run final acceptance.

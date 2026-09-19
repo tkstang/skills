@@ -291,6 +291,10 @@ Phase p05 passes. The plan metadata names p06 as a HiLL phase, but the project s
 
 Dispatch: scope=p06 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
 
+#### Continuation p06-t01-recovery-resume-01
+
+Root transition audit of immutable p06-t01 commit `41887b160994707c33ffaddc17c7f4ff83460bf5` found one Important dependent-owner version closure gap. Changes under the observer/exporter canonical source roots also affect `session-observer-collab` and `session-fork-to-destination`, but those canonical versions and the Unreleased attribution were not advanced, so validation against the task parent fails. The original `sf-p06-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p06-t01-recovery-01` may reserve cumulative p06 attempt 1/10 only after this continuation is committed. Scope is limited to the two dependent canonical version bumps, changelog attribution, regenerated distribution closure and exact per-task-base validation; p06-t02 remains unauthorized until recovery is settled.
+
 ## Phase 6
 
 **Status:** pending
