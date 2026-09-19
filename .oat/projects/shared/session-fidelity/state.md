@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-t01-recovery-01
-oat_last_commit: ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
+oat_current_task: p06-t02
+oat_last_commit: 2eb89eff78d0858edb68d27041cc26c1a2a668e6
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -38,16 +38,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p06:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p06-t01-recovery-01
-        original_request_id: sf-p06-implement-01
-        original_task_id: p06-t01
-        original_commit: 41887b160994707c33ffaddc17c7f4ff83460bf5
-        discovered_by: root transition audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 967c715dd119a0c525ac2f836f505956ca957fbc
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -123,13 +114,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Documentation version recovery in progress
+**Status:** Final acceptance in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p05 are passed. p06-t01 produced `41887b16`, but transition audit found one Important dependent-owner version gap: observer/exporter documentation source roots also require collaboration/fork version bumps and changelog attribution. Bounded p06 recovery attempt 1/10 is authorized to close that exact fanout.
+p01 through p05 are passed. p06-t01 plus recovery `2eb89eff` document the tested feature and close all four canonical/generated owners; recovery usage is 1/10 with no pending marker. Final local acceptance and backlog lifecycle closure begin at p06-t02.
 
 ## Artifacts
 
@@ -137,7 +128,7 @@ p01 through p05 are passed. p06-t01 produced `41887b16`, but transition audit fo
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (17/19 tasks completed; p01 through p05 passed, p06 ready)
+- **Implementation:** `implementation.md` (18/19 tasks completed; p01 through p05 passed, p06 acceptance in progress)
 
 ## Progress
 
@@ -160,4 +151,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p06-t01 recovery attempt 1/10, then run final acceptance.
+Run complete local acceptance, review stack deltas, and close the tracked backlog item only if every criterion passes.

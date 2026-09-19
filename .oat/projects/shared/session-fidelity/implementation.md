@@ -280,7 +280,7 @@ Phase p05 passes. The plan metadata names p06 as a HiLL phase, but the project s
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": [],
+  "continuation_events": ["p06-t01-recovery-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "phase scope analysis",
@@ -295,15 +295,30 @@ Dispatch: scope=p06 action=implementation role=implementer producer=unknown prov
 
 Root transition audit of immutable p06-t01 commit `41887b160994707c33ffaddc17c7f4ff83460bf5` found one Important dependent-owner version closure gap. Changes under the observer/exporter canonical source roots also affect `session-observer-collab` and `session-fork-to-destination`, but those canonical versions and the Unreleased attribution were not advanced, so validation against the task parent fails. The original `sf-p06-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p06-t01-recovery-01` may reserve cumulative p06 attempt 1/10 only after this continuation is committed. Scope is limited to the two dependent canonical version bumps, changelog attribution, regenerated distribution closure and exact per-task-base validation; p06-t02 remains unauthorized until recovery is settled.
 
+#### Recovery Event p06-t01-recovery-01
+
+- Phase/task: p06 / p06-t01
+- Original request: `sf-p06-implement-01`
+- Original commit: `41887b160994707c33ffaddc17c7f4ff83460bf5`
+- Defect class: composition
+- Discovered by: root transition audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Recovery commit: `2eb89eff78d0858edb68d27041cc26c1a2a668e6`
+- Verification: root passed build freshness and exact task-parent four-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and confirmed documentation/config were untouched.
+- Reason: collaboration and fork now carry new canonical/generated versions with exact Unreleased attribution for the documentation source-root fanout.
+
 ## Phase 6
 
 **Status:** pending
 
 ### Task p06-t01: Document and build the tested feature
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 41887b160994707c33ffaddc17c7f4ff83460bf5; recovery 2eb89eff78d0858edb68d27041cc26c1a2a668e6
+**Verification:** Canonical observer/exporter skills, transcript references, user guides and engineering schema/core pages document flags, final-format budgets, one-capture derivation, lifecycle/count accounting, unread/unavailable evidence, Cursor settlement and retrospective review without changing native evidence qualifiers or the dated research snapshot. Docs build, build freshness and four-owner validation pass; `.oat/config.json` was restored to its exact pre-build hash after the known generator rewrite. Bounded recovery attempt 1/10 closes dependent collaboration/fork versions and changelog attribution. Fresh closure audit found 0 Critical/Important findings.
 
 ### Task p06-t02: Verify acceptance and close tracked work
 
