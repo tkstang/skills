@@ -45,6 +45,24 @@ async function fixture() {
   return { root, collaborationId, driver, reviewer };
 }
 
+async function within<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+  label: string,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${milliseconds}ms`)),
+      milliseconds,
+    );
+    timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 describe('addressed messages and acknowledgments', () => {
   test('concurrent senders preserve every immutable recipient message', async () => {
     const f = await fixture();
@@ -357,20 +375,56 @@ describe('addressed messages and acknowledgments', () => {
       let stderr = '';
       child.stdout!.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
       child.stderr!.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
-      return { child, output: () => ({ stdout, stderr }) };
+      const exited = once(child, 'exit') as Promise<
+        [number | null, NodeJS.Signals | null]
+      >;
+      const ready = Promise.race([
+        once(child.stdout!, 'data').then((values) => {
+          const chunk = values[0] as Buffer;
+          if (!chunk.toString().includes('ready')) {
+            throw new Error(
+              `child emitted an invalid barrier: ${chunk.toString()}`,
+            );
+          }
+        }),
+        exited.then(([code, signal]) => {
+          throw new Error(
+            `child exited before barrier: code=${String(code)} signal=${String(signal)}`,
+          );
+        }),
+      ]);
+      return { child, exited, ready, output: () => ({ stdout, stderr }) };
     });
-    await Promise.all(children.map(({ child }) => once(child.stdout!, 'data')));
-    for (const { child } of children) child.stdin!.end('go\n');
-    for (const { child, output } of children) {
-      const [code] = await once(child, 'exit');
-      expect(code, output().stderr).toBe(0);
-      expect(output().stdout).toContain('"duplicate":false');
+    try {
+      await within(
+        Promise.all(children.map(({ ready }) => ready)),
+        20_000,
+        'sender process barriers',
+      );
+      for (const { child } of children) child.stdin!.end('go\n');
+      const exits = await within(
+        Promise.all(children.map(({ exited }) => exited)),
+        20_000,
+        'sender process completion',
+      );
+      for (const [index, [code]] of exits.entries()) {
+        const output = children[index]!.output();
+        expect(code, output.stderr).toBe(0);
+        expect(output.stdout).toContain('"duplicate":false');
+      }
+    } finally {
+      for (const { child } of children) {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL');
+        }
+      }
+      await Promise.allSettled(children.map(({ exited }) => exited));
     }
     const inbox = await listInbox({ ...f, pin: f.reviewer });
     expect(inbox.messages.map((message) => message.subject).toSorted()).toEqual(
       ['from driver process', 'from implementer process'],
     );
-  });
+  }, 45_000);
 
   test('bounds combined pending and acknowledged output and accepts reordered acks', async () => {
     const f = await fixture();
