@@ -42,6 +42,9 @@ No daemon, database, MCP server, third-party runtime dependency, or Git subproce
 - High is the managed dispatch ceiling in state.md. Independent configured gates
   must meet the user's Frontier requirement. Verify actual invocation evidence;
   no silent lower/default fallback. Keep reusable commands provider-neutral.
+- Additional cross-runtime per-phase gates are disabled by explicit user choice.
+  Built-in root phase reviews and the configured final gate still run. Keep the
+  configured lifecycle gates enabled; no project gate override is added.
 - Live hook installation/trust, global skill installation, paid provider calls,
   publication, push, and merge need their own explicit authority. Do not infer
   any of those from design/plan approval.
@@ -455,8 +458,10 @@ references. Record clean breaks and actual versions in Unreleased.
 
 - pnpm run build; inspect generated diffs, then pnpm run build:check
 - pnpm run test; pnpm run type-check; pnpm run validate; pnpm run smoke
-- pnpm run validate:skill-versions -- --base-ref <recorded-implementation-base>
-  (implementation root records the actual Git base before the first source edit).
+- pnpm run validate:skill-versions -- --base-ref d74abe671561053154d3012e1b8edd11fc079dcf
+  (verified merge base of this branch and origin/main at planning time; before
+  source edits, the implementation root verifies ancestry and records any
+  deliberate replacement after a rebase rather than silently changing the base).
 - pnpm --dir documentation build; verify local maps/links/sidebar and inspect
   any affected diagrams at desktop/mobile in both themes per documentation rules.
 - Scoped oxlint/oxfmt checks on changed authored paths, no generated formatting.
@@ -480,21 +485,29 @@ formatter's stdin mode, then apply its result without touching managed blocks.
 
 ## Reviews
 
-| Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -    | -        | -             | -          | -           |
-| p02    | code     | pending | -    | -        | -             | -          | -           |
-| final  | code     | pending | -    | -        | -             | -          | -           |
-| spec   | artifact | pending | -    | -        | -             | -          | -           |
-| design | artifact | pending | -    | -        | -             | -          | -           |
-| p03    | code     | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
+| Scope  | Type     | Status  | Date       | Artifact | Reviewed Head | Invocation | Gate Target |
+| ------ | -------- | ------- | ---------- | -------- | ------------- | ---------- | ----------- |
+| p01    | code     | pending | -          | -        | -             | -          | -           |
+| p02    | code     | pending | -          | -        | -             | -          | -           |
+| final  | code     | pending | -          | -        | -             | -          | -           |
+| spec   | artifact | pending | -          | -        | -             | -          | -           |
+| design | artifact | pending | -          | -        | -             | -          | -           |
+| p03    | code     | pending | -          | -        | -             | -          | -           |
+| plan   | artifact | passed  | 2026-09-19 | -        | -             | auto       | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
 user approval; it is documented in design.md and is not fabricated as an OAT
-review artifact. Plan artifact auto-review and configured gate review are pending.
-Keep High dispatch and independent Frontier gate selection distinct.
+review artifact. Plan artifact auto-review passed after one local correction:
+the version-validation command now names the verified base instead of a shell
+placeholder. Structured review returned no residual findings; no review artifact
+was written for this inline pass. The configured independent gate remains pending.
+
+Dispatch: selection_reason=inherit; route=planning-parent-inline;
+parent=gpt-6-astra/high (launcher turn_context); reviewer-threshold=gpt-5.6-sol/high
+(High project resolver, complete ladder); scope=artifact:plan;
+output=structured; child-launch=none. Inherited self-review does not replace
+independent Frontier gate review. Additional phase gates were explicitly declined.
 
 ## Implementation Complete
 
