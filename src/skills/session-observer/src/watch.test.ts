@@ -2691,6 +2691,118 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('retains fully omitted activity and advances without replay', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-activity-fully-omitted';
+      const sessionId = 'watch-activity-fully-omitted';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'fully omitted baseline' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 19, 12, 15, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          quietEmpty: true,
+          json: true,
+          eventLog: 'fully-omitted-events.jsonl',
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              appended = true;
+              await appendClaudeMessage(transcriptPath, sessionId, [
+                {
+                  type: 'tool_use',
+                  id: `fully-omitted-private-${'x'.repeat(40 * 1024)}`,
+                  name: 'Read',
+                  input: { file_path: 'fully-omitted-private-input.md' },
+                },
+              ]);
+            }
+          },
+        },
+      );
+
+      const deltas = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(result.eventCount).toBe(1);
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        activityOnly: true,
+        digest: {
+          activityOnly: true,
+          entries: [],
+          activity: {
+            counts: {
+              deliveredRange: { countedInvocations: 1 },
+              displayed: { countedInvocations: 0 },
+            },
+            omitted: {
+              calls: 1,
+              byteLimitGroups: 1,
+            },
+            events: [],
+            callContexts: [],
+          },
+        },
+      });
+      const eventLog = await readFile(
+        join(stateDir, 'fully-omitted-events.jsonl'),
+        'utf8',
+      );
+      expect(eventLog).toContain('"activityOnly":true');
+      expect(eventLog).not.toContain('fully-omitted-private');
+      expect(eventLog).not.toContain('"digest"');
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        2,
+      );
+
+      const replayStdout: string[] = [];
+      let replayNowMs = Date.UTC(2026, 8, 19, 12, 20, 0);
+      const replay = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          writeStdout: (chunk: string) => replayStdout.push(chunk),
+          now: () => replayNowMs,
+          sleep: async (ms: number) => {
+            replayNowMs += ms;
+          },
+        },
+      );
+      expect(replay.eventCount).toBe(0);
+      expect(
+        parseJsonLines(replayStdout.join('')).some(
+          (event) => event.type === 'delta',
+        ),
+      ).toBe(false);
+    });
+  });
+
   test('emits one activity-only diagnostic for one malformed source change', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/watch-activity-diagnostic';

@@ -261,6 +261,20 @@ function activityCoverageSignal(digest: SessionDigest): boolean {
   );
 }
 
+function activityAccountingSignal(digest: SessionDigest): boolean {
+  const activity = digest.activity;
+  if (!activity) return false;
+  const delivered = activity.counts.deliveredRange;
+  return (
+    delivered.calls > 0 ||
+    delivered.countedInvocations > 0 ||
+    delivered.results > 0 ||
+    delivered.items > 0 ||
+    delivered.failures > 0 ||
+    Object.values(activity.omitted).some((count) => count > 0)
+  );
+}
+
 function prepareActivityDelta(
   digest: SessionDigest,
   target: WatchTarget,
@@ -277,7 +291,8 @@ function prepareActivityDelta(
   const hasNewCoverage =
     activityCoverageSignal(digest) &&
     target.lastActivityDiagnosticSignature !== signature;
-  const renderable = hasEvents || hasNewCoverage;
+  const renderable =
+    hasEvents || hasNewCoverage || activityAccountingSignal(digest);
   const activityOnly = renderable && digest.accounting.rendered.count === 0;
   if (activityOnly) digest.activityOnly = true;
   else delete digest.activityOnly;
