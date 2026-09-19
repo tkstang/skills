@@ -324,6 +324,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
 | p00    | code     | pending         | -          | -                                                           | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
+| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T004303Z.md          | -             | -          | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings are dispositioned in implementation.md; readiness stays disabled while the artifact corrections are verified. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
