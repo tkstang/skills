@@ -728,6 +728,10 @@ The prior allowed generation is stale because p08 and p09 changed the effective 
 
 Attempt `c40d1b63-f11b-4031-8e3e-8f7bb5458b2e` was persisted before launch at `2026-09-19T22:06:23Z`. The configured command will write its structured stdout envelope to `reviews/exit-gate-c40d1b63-f11b-4031-8e3e-8f7bb5458b2e-result.json`; acceptance and result fields remain unset until corroborated after invocation.
 
+### Refreshed Exit Gate Accepted
+
+Gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` was accepted by target `claude-fable-skip-permissions`; its durable run marker is recorded while the configured review remains active.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md
