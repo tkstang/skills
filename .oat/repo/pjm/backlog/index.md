@@ -4,7 +4,7 @@
 
 ## Curated Overview
 
-- **September 19 state:** 13 active items remain after Session Fidelity and five earlier September items were closed and archived. See the historical [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The September 16 alignment mapped 19 items in 16 candidate projects; later ordering remains proposed.
+- **September 19 state:** 27 active items remain after Session Fidelity and five earlier September items were closed and archived. See the historical [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The September 16 alignment mapped 19 items in 16 candidate projects; later ordering remains proposed.
 - **Merged baseline:** PR #83 completed the documentation IA/visuals and typed config reference; canonical source colocation, Session packaging, Must We?, Next Steps, and Session Retro are already on main. Transitive skill-version validation is implemented and archived, not a future prerequisite.
 - **Immediate workflow:** **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** is the remaining approved onboarding lane; owner/start are not claimed.
 - **Completed bounded review:** **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope** is merged on `origin/main` through PR #91 and archived. Local deterministic receipt evidence passed; release, external installation, and live provider acceptance remain unverified.

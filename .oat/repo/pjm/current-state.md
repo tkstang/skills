@@ -56,7 +56,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Active planning
 
-There are **13 active item files** after closing and archiving Session Fidelity in addition to the completed observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review. Those records remain in completed history rather than active planning.
+There are **27 active item files** after closing and archiving Session Fidelity in addition to the completed observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review. Those records remain in completed history rather than active planning.
 
 The confirmed immediate lane is now **BL-260916-add-a-first-party-install — First-party standalone installer** (approved, owner/start not claimed). Consensus Review is merged on `origin/main` and archived from the active backlog; release, global installation, and live acceptance remain separate boundaries. The September 16 alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
