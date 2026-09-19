@@ -146,6 +146,15 @@ remain owner-present at boundary checks. Claude standalone delivery requires the
 acting session to attest no observer Monitor is armed, with fresh confirmation
 on watch start/re-arm; this is not automatic Monitor discovery.
 
+The user then approved the fourth gate's follow-ups: implement a dedicated
+finite Claude composed Monitor (not deferred), with one shared inbox/observation
+budget and no wrapping of the unbounded base watcher. Bound Claude's file
+inventory to loaded settings and enabled installed plugins, disclosing session-
+only hook visibility limits. Keep triggered-lease refusal conservative and
+offer explicit scoped disarm recovery. Publish the full activation record shape
+before live probes. This adds one final task/phase without renumbering existing
+tasks; final acceptance and backlog closure follow the new Monitor task.
+
 ## Constraints
 
 - Node >=22; dependency-free shipped runtime with no required install step.

@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T12:53:12Z'
+oat_project_state_updated: '2026-09-19T13:09:29Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Approved corrections verified; fourth gate blocked on Claude composed delivery scope, awaiting user direction.
+**Status:** Fourth-gate scope choice and corrections approved and applied; independent re-review pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,8 +49,8 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 3 sequential phases, 12 tasks; fourth gate verified approved corrections but found 1 Important, 1 Medium and 3 Minor findings; not implementation-ready.
-- **Implementation:** implementation.md — initialized to 0/12 pending tasks; no implementation started.
+- **Plan:** plan.md — 4 sequential phases, 13 tasks; fourth gate's findings resolved in artifacts, with a dedicated Claude composed-Monitor task; not implementation-ready until re-review.
+- **Implementation:** implementation.md — initialized to 0/13 pending tasks; no implementation started.
 
 ## Progress
 
@@ -109,16 +109,21 @@ Fable reviews. No implementation or live hook installation is authorized here.
   Fourth gate c94b55d0-0138-409d-aca6-ed4703fa8c99 reviewed that exact commit
   and verified the four corrections. It returned status=blocked,
   receiveEligible=true and a matched handoff: 0 Critical, 1 Important, 1 Medium,
-  3 Minor. Review artifact reviews/artifact-plan-review-2026-09-19T125014Z.md
-  is committed at e0cd3890. Native Claude transcript
+  3 Minor. Review artifact reviews/archived/artifact-plan-review-2026-09-19T125014Z.md
+  was originally committed at e0cd3890. Native Claude transcript
   51f413a7-4496-47a2-82e0-7b76ae8f2fb7 confirms claude-fable-5-1 at
   assistant lines 19 and 253, final end_turn, with the matching run ID.
   Root verified the Claude observer Monitor uses the base skill's unbounded
   watcher, outside the proposed composition task. Choosing a dedicated composed
-  Monitor implementation versus explicit deferral needs user direction.
+  Monitor implementation versus explicit deferral was returned to the user.
   Remaining findings concern Claude inventory limits, triggered-lease recovery,
   full activation shape from first publication and the amended baseline pointer.
-  No fourth-round semantic corrections or new tasks have been applied.
+  The user approved the dedicated Monitor and all proposed corrections. They
+  are now applied: p04-t01 owns the finite composed Claude command, shared
+  budget, real source seams, verification and final acceptance; existing task
+  IDs are preserved. Claude inventory is bounded, triggered recovery remains
+  explicit disarm, full activation shape starts in p02-t01, and the baseline
+  pointer names the approved amendment. Independent re-review is pending.
 
 ## Dispatch and Gate Review Policy
 
@@ -153,15 +158,14 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete. Third-gate policy corrections are independently verified. The fourth
-gate is blocked on Claude composed-delivery scope; user direction is required.
+complete. Fourth-gate scope and corrections are approved and applied, awaiting
+independent re-review rather than implementation readiness.
 All four Frontier identities are corroborated.
 No product implementation has started.
 
 ## Next Milestone
 
-Resolve fourth-gate Claude composition scope and remaining finding dispositions
-with the user before editing the artifacts again.
+Re-review the approved Claude composed-Monitor task and fourth-gate corrections.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.

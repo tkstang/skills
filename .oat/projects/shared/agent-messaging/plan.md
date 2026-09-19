@@ -27,7 +27,9 @@ separate cursors and shares one autonomous continuation owner and finite budget.
 
 **Approved baseline:** [design.md](design.md), peer-reviewed at e95a0d91 and
 approved by the user after selecting High dispatch with Frontier gate review.
-Design approval bookkeeping is committed at 2d399c33. This plan is a draft;
+Design approval bookkeeping is committed at 2d399c33; the user-approved
+2026-09-19 ownership-policy amendment is committed at c0a61d53. Carry the latest
+complete committed project, not either historical baseline alone. This plan is a draft;
 only its completed review and gate disposition may make it implementation-ready.
 
 **Stack:** Node >=22, TypeScript, Node standard library, colocated Vitest tests;
@@ -57,10 +59,11 @@ No daemon, database, MCP server, third-party runtime dependency, or Git subproce
 
 ## Parallelism
 
-p01 -> p02 -> p03 is sequential. p02 consumes p01's schemas, membership and
+p01 -> p02 -> p03 -> p04 is sequential. p02 consumes p01's schemas, membership and
 publication primitive; p03 consumes both and modifies the same shared runtime,
 distribution declaration, generated outputs, skill versions, and changelog.
-These phases are not independent write sets. Bounded read-only reconnaissance
+p04 adds the dedicated Claude composed Monitor on p03's controller contract and
+shares its observer/runtime/docs owners. These phases are not independent write sets. Bounded read-only reconnaissance
 may run alongside implementation; phase ownership and reviews remain with root.
 
 ## Common Task Contract
@@ -264,6 +267,12 @@ activation.test.ts, claims.test.ts, diagnostics.test.ts.
   epochs and direct hashed lookup. Terminated means revoked, expired,
   collaboration closed, binding superseded, or departed. Corrupt/unknown state
   never proves termination. Re-enable must exclusively follow a terminated epoch.
+  Publish the full design Activation schema-v1 shape from this first task:
+  controller is standalone-messaging and thirdPartyHookAcknowledgment and
+  noObserverMonitorAttestation are nullable fields. Later adapters populate
+  metadata and composition selects controller values for new epochs; neither
+  changes schema-v1 shape nor rewrites existing immutable records. Test phase-2
+  records remain readable/terminable after composition support is added.
 - Proven human-only two-hour idle renewal, 24-hour absolute cap, fixed-expiry
   fallback when provenance is unproven, visible expiry/re-enable notice.
   Chronologically validate activity receipts so a late prompt cannot resurrect
@@ -332,19 +341,29 @@ adapter contracts, including acknowledgment and attestation metadata.
   ownership: a recognized observer hook without a same-session lease is inert
   and permits standalone messaging. Refuse active or uncertain observer
   ownership with a manual-fallback notice, including a lease armed after enable.
-  Do not remove/replace the observer's hook or lease; composition is p03-t02.
+  Do not remove/replace the observer's hook or lease; Stop composition is
+  p03-t02 and Claude Monitor composition is p04-t01.
   Apply the same refusal to the messaging watch owner in p02-t03.
 - Put the read-only owner detector in registration.ts. Inspect the effective
-  Stop registrations for the acting host/session, including user, project and
-  plugin/session scopes that host actually loads; record that bounded config
-  inventory in its runtime reference. Codex's existing observer registration
+  Stop registrations from each host's explicitly bounded inventory; record the
+  inventory and visibility limits in its runtime reference. For Claude, inspect
+  loaded user/project/local/managed settings plus hook declarations of enabled
+  plugins resolved to installed versions, respecting configured scope and
+  enablement. Do not scan marketplace/catalog-only copies as active hooks.
+  Missing optional settings are empty; unreadable configured sources, unresolved
+  enabled plugins or unsupported source resolution mean manual fallback.
+  Session-scoped skill/agent frontmatter hooks are outside that file inventory,
+  not an unreadable file error. Disclose this limit on first enable; the acting
+  session must not arm a known competing observer/Monitor through such hooks.
+  Do not claim global enumeration or allow this exclusion to waive a known
+  observer conflict. Codex's existing observer registration
   uses the explicitly supplied hooksPath (normally ~/.codex/hooks.json), with
   a caller-supplied absolute scriptPath, not a fixed launcher location. Resolve
   supported command forms without executing them; inspect the launcher for
   session-observer-collab-codex-stop and its owned bundle manifest. Missing,
   validated idle or disarmed exact-session leases do not confer ownership;
   armed, waiting or triggered leases do. Unreadable/invalid observer state and
-  host scopes that cannot be inventoried retain manual fallback.
+  required inventory sources that cannot be read retain manual fallback.
   For inventoried but unrecognized third-party Stop commands, disclose the exact
   scoped registrations and require explicit operator acknowledgment before
   enablement via --acknowledge-stop-hooks <fingerprint>. Bind acknowledgment to
@@ -359,12 +378,20 @@ adapter contracts, including acknowledgment and attestation metadata.
 - At the same resolved collaboration root, read the observer contract
   leases/<ownerSession>.json (native owner session ID, not the messaging hash).
   Match exact runtime/session/worktree. Current schema is 6; a validated lease
-  is owner-present when effectiveLease semantics leave it armed, waiting or
-  triggered after expiry and continuation/loop caps are evaluated. In particular,
+  uses effectiveLease for armed/waiting expiry and continuation/loop caps.
+  Triggered is a separate conservative owner-present state; effectiveLease
+  does not expire it, and messaging must not silently do so. In particular,
   triggered remains owner-present at final validation during a reply-wait:
   that observer may already have emitted this Stop's continuation. Only missing
   or validated idle/disarmed state is inactive. Unknown schema or invalid identity/
   state is uncertainty, never absence. Do not migrate or write observer state.
+  Explain this conservative refusal and print the exact scoped recovery command:
+  node <observer-collab-skill>/scripts/collab-control.mjs disarm --session
+  <native-owner-session> (with the same resolved root). The acting session may
+  explicitly disarm after its current continuation finishes; never automatically
+  disarm/prune to enable messaging. Test expired-triggered refusal, byte-unchanged
+  lease state and successful enable after explicit scoped disarm, without
+  removing hooks or affecting another session.
   Claude's existing Monitor is not represented by that Codex/Cursor lease:
   require the acting session to confirm no observer Monitor is armed via
   --confirm-no-observer-monitor at standalone delivery enable and every watch
@@ -374,7 +401,7 @@ adapter contracts, including acknowledgment and attestation metadata.
   attestation, not an enumerable host inventory or proof of exclusive ownership.
   Missing confirmation or lost session context means manual until reconfirmed;
   retire the owned Monitor before handing off ownership. Hooks do not invent
-  confirmations. p03-t02 replaces this only for verified composed ownership.
+  confirmations. p04-t01 replaces this only for verified Claude composed ownership.
 - Pin that reader with owner-contract.test.ts: test-only imports of exported
   leasePath, LEASE_SCHEMA_VERSION, effectiveLease and codexStopCommand, plus
   an isolated launcher produced by installCodexStopBundle (its marker is private,
@@ -397,7 +424,10 @@ refuses. Test an armed-to-triggered transition during reply-wait final validatio
 and a new lease after enable: no second coordinated owner or continuation.
 Third-party fixtures cover absent acknowledgment, acknowledged unchanged config,
 config changes after enable and unreadable inventory; no hook is removed or
-executed. Claude fixtures cover missing, wrong-pin and lost-context attestations,
+executed. Claude inventory fixtures include enabled-plugin Stop hooks, disabled
+or catalog-only copies ignored, unreadable settings refused and session-only
+hooks disclosed as a visibility limit rather than an unreadable-file failure.
+Claude fixtures cover missing, wrong-pin and lost-context attestations,
 fresh watch re-arm confirmation and ownership handoff. Manual inbox access stays
 available. Test diagnostic
 write failures without human-prompt blocking or error-triggered continuation.
@@ -465,7 +495,8 @@ bounded adapter; do not fabricate an integration when the boundary is unavailabl
   acting-session Monitor attestation. Record these limits rather than asserting
   proof about arbitrary third-party hooks. Phase-2 evidence describes standalone
   delivery only. Composed
-  Stop/Monitor acceptance must run after p03-t02 under separate live authority.
+  Stop acceptance must run after p03-t02 and composed Monitor acceptance after
+  p04-t01, each under separate live authority.
 
 **Verify:** pnpm run test:vitest src/skills/agent-messaging/src/probe.test.ts src/skills/agent-messaging/src/hooks.test.ts
 Tests prove opt-in enforcement, bounded time/count budgets, sanitized receipts,
@@ -479,7 +510,7 @@ Phase exit runs all p02 suites plus build:check, type-check and validate.
 
 **Commit:** test(p02-t04): add explicit host delivery acceptance probes
 
-## Phase 3: Observer composition and complete distribution (3 tasks)
+## Phase 3: Observer Stop composition and distribution docs (3 tasks)
 
 ### Task p03-t01: Put observer collaboration logs in the shared container
 
@@ -531,8 +562,12 @@ When messaging wins, defer observation; otherwise reserve a shared slot before
 observer CAS. A CAS loss spends at most the reserved slot and emits nothing.
 Keep observer public/private cursor semantics and its N=2 boundary unchanged.
 Prevent competing standalone/observer Stop registrations from both becoming
-owners. Reuse the verified Claude notification owner where composed; unknown
-Cursor boundaries retain manual fallback. Both modes share expiry and finite
+owners. This task implements Codex and any verified Cursor Stop composition;
+Claude composed Monitor is owned by p04-t01. Until that task passes, a Claude
+observer controller request reports composed-monitor-unavailable and refuses
+automatic enablement, preserving manual/start inbox checks. Do not substitute
+the existing unbounded observer Monitor or claim its wakes spend shared slots.
+Unknown Cursor boundaries retain manual fallback. Implemented composed modes share expiry and finite
 budget, and neither can renew it through peer/automatic activity. Close/disable/
 takeover terminates the relevant delivery without deleting observation history.
 
@@ -552,7 +587,7 @@ and not inclusion in the coordinated single-owner guarantee. Never switch owners
 implicitly: changing an active controller requires explicit disable/re-enable
 under the existing authority and budget rules, not a second activation or owner.
 Update the CLI enable path, hooks, watch, registration and their p02 tests in
-this task, preserving standalone refusal cases while adding composed cases.
+this task, preserving standalone refusal cases while adding Stop-composed cases.
 
 Teach both skills to inspect addressed inbox requests before observation and
 deduplicate by exact message ID in working context: an observed transcript quote
@@ -582,12 +617,14 @@ selects standalone. Active uncomposed or mismatched owners still fail
 closed. Race both bundles against one epoch and assert one shared budget/owner.
 Review both generated skill forms for the exact-ID dedup instruction and test
 that inbox presentation/ack never advances either observer cursor.
+Explicitly test Claude composed enable remains unavailable until p04-t01's
+adapter exists; a recipe around the legacy base watcher is not capability proof.
 
 **Format:** pnpm exec oxfmt --write src/skills/session-observer-collab src/skills/agent-messaging src/shared/collaboration
 
 **Commit:** feat(p03-t02): share bounded continuation ownership with observation
 
-### Task p03-t03: Finish docs, release surfaces, and project-wide verification
+### Task p03-t03: Prepare docs, release surfaces, and distribution verification
 
 **Modify:** documentation/docs/user-guide/skills/agent-messaging.md,
 session-observer-collab.md, skills/index.md and meta.json;
@@ -599,7 +636,7 @@ documentation/docs/engineering/architecture/index.md and meta.json.
 canonical skill versions and maintained plugin manifests when a release bump is
 required; tests/tooling/generated-output-sync.test.ts for new distribution
 invariants. Generated outputs/inventory are produced only by owning commands.
-Backlog lifecycle files are modified only if the acceptance criteria are met.
+Final acceptance and backlog closure belong to p04-t01 after Claude composition.
 
 **Implement:** Document N>=3 messaging alone, cross-repository paths, exact self
 identity, explicit takeover, receipts versus actions, bounded start/stop/manual/
@@ -608,6 +645,8 @@ expiry/capacity/retention, and per-host evidence. Explain why messages can wait
 without automatic attention; never promise exactly-once actions. Reconcile
 standalone Session messaging and existing Consensus observer-collab distribution
 references. Record clean breaks and actual versions in Unreleased.
+Label Claude composed Monitor as pending p04-t01, not already supported; that
+task updates these same docs from its verified evidence before final acceptance.
 
 **Verify:**
 
@@ -625,13 +664,8 @@ references. Record clean breaks and actual versions in Unreleased.
 - Review the live matrix: unverified rows remain unverified/manual; do not run the
   unrelated paid Consensus live gate. Run only explicitly authorized messaging
   acceptance probes.
-- If all messaging backlog acceptance criteria are met, follow PJM adoption
-  preflight and close/archive BL-260619-inter-agent-direct-messaging in the same
-  shipping change, regenerate its managed index, and update completion history.
-  Otherwise leave it open and report the unmet criterion rather than closing it.
-- After task commit, the implementation root runs pnpm run worktree:validate on
-  the clean visible worktree and performs final Frontier gate review. PR/push/
-  merge remain separate actions.
+- Leave the messaging backlog open and final Frontier gate pending p04-t01.
+  This distribution check does not close out the newly approved Claude work.
 
 **Format:** pnpm exec oxfmt --write documentation/docs/user-guide/skills/agent-messaging.md documentation/docs/user-guide/skills/session-observer-collab.md documentation/docs/user-guide/skills/index.md documentation/docs/user-guide/skills/meta.json documentation/docs/user-guide/plugins/session/index.md documentation/docs/engineering/architecture/agent-messaging.md documentation/docs/engineering/architecture/index.md documentation/docs/engineering/architecture/meta.json plugins/consensus/README.md RELEASING.md src/distributions.ts CHANGELOG.md tests/tooling/generated-output-sync.test.ts
 Also format changed canonical version files and maintained manifests; never the
@@ -643,6 +677,107 @@ path and a non-ignored virtual .md filename; never redirect output over the inpu
 or hand-format a generated index.
 
 **Commit:** docs(p03-t03): document and verify agent messaging delivery
+
+## Phase 4: Claude composed Monitor and final acceptance (1 task)
+
+### Task p04-t01: Add the single finite Claude composed Monitor
+
+**Create:** src/skills/session-observer-collab/src/claude-monitor.mjs and
+claude-monitor.d.mts; src/claude-monitor.test.ts and src/claude-monitor-packaging.test.ts.
+**Modify:** observer-collab build.json, SKILL.md, src/generated-runtime.d.ts,
+src/collab-control.mjs/.d.mts, src/lib/lease-state.mjs/.d.mts,
+src/lib/runtime-adapter.mjs/.d.mts, src/control.test.ts,
+src/messaging-composition.test.ts, src/runtime-claude-code-reference.test.ts,
+references/runtime-claude-code.md; messaging SKILL.md, CLI, registration, watch,
+their tests and references/runtime-claude-code.md plus live-acceptance.md;
+shared collaboration claims/types and tests only for composed observation keys.
+**Modify:** the two user skill pages and architecture page created in p03-t03,
+src/distributions.ts if the new entrypoint requires a declaration, affected
+canonical versions and CHANGELOG.md. Regenerate owned skill/plugin payloads and
+documentation/index.md through their owning builds. No base observer source
+change or base-skill version bump is planned: its existing non-mutating reader
+is already a permitted bundled dependency of observer-collab.
+
+**Implement:**
+
+- Ship node <observer-collab-skill>/scripts/claude-monitor.mjs with explicit
+  collaboration UUID, self pin, exact peer pin/transcript/cwd, activation ID,
+  and finite max-runtime <=30 minutes, bounded additionally by activation and
+  observer-lease expiry. It is a foreground command for a proven harness
+  Monitor, not a native Stop hook, daemon or shell around catch-up-then-watch.
+  Emit one bounded structured automatic notification at most, then exit; the
+  acting agent may explicitly start another finite run within the same epoch's
+  remaining lifetime/budget. Never self-rearm or spawn a replacement process.
+- Extend the observer lease owner runtime and adjacent declarations to accept
+  claude-code for this new adapter, preserving existing Codex/Cursor schemas and
+  records. Initial/re-arm control validates the exact owner, peer, private cursor
+  and same immutable observer-collab/monitor activation. Re-arm preserves the
+  current private cursor and shared slot history; it cannot reset the messaging
+  budget, revive expiry or implicitly switch the peer. Do not call the generic
+  arm path with default cursor zero. No automatic migration of the old Monitor.
+- Before enable and every run, the acting session explicitly confirms the old
+  observer-only Monitor and any standalone messaging watcher are stopped. Bind
+  that confirmation to exact epoch/pins; uncertain or lost context remains
+  manual. Use p02's bounded hook inventory/acknowledgment contract and attestations,
+  not a claim that the CLI enumerates harness Monitors. Advertise composed
+  capability only for the new verified entrypoint; p03's unavailable label is
+  replaced here. Standalone messaging Stop/watch remains inert for this epoch.
+- Poll inbox requests first through p01/p02 shared APIs. If selected, use the
+  existing request-batch event key and event -> slot -> message claims sequence;
+  do not inspect/advance the observer cursor for that message attempt.
+- For transcript candidates, call the existing buildDigest from the permitted
+  session-observer source using the exact peer runtime, transcript, session and
+  private cursor, without observeCatchUp or base watcher execution (both would
+  consume public state too early). Reuse selectCompletedContinuation and the
+  selected-prefix/continuity helpers, including observeCursorCompletion for
+  Cursor peers. Metadata/no-op progress may advance only the private cursor via
+  advanceAdapterCursor without a wake or shared slot; public offsets stay intact.
+- For a substantive observation, derive a domain-separated event key from
+  activation, exact owner/peer pins, selected range/index base and verified
+  selected-prefix identity, not wall clock or re-arm lease ID. Recheck inbox
+  priority immediately before committing that selection. Reserve an exclusive
+  event claim and shared slot before claimAdapterTrigger's private-cursor CAS.
+  A CAS loser emits nothing and may waste its reserved slot. These are
+  observation claims, not fabricated mailbox messages or acknowledgments.
+  Recheck exact activation, closure, owner, inventory acknowledgment, deadline
+  and peer continuity immediately before either notification. Shared slot history
+  bounds message and observation wakes together across races and re-arm.
+- Notification contains type, activation/attempt identity and bounded message
+  IDs or exact peer range, not uncontrolled transcript prose. The receiving skill
+  revalidates, checks inbox first, reads the exact referenced range through normal
+  observer workflow and applies exact-ID dedup. Public observer offsets change
+  only through that explicit observer read, never merely because mail was acked.
+  Heartbeats, quiet intervals, errors and termination print no wake-bearing
+  stdout; redacted diagnostics use the existing diagnostic path/stderr.
+- Document explicit interruption/re-arm, disarm and closeout; preserve history.
+  Keep observation-only use unchanged outside a composed activation. A live
+  Claude composed receipt remains separately authorized and is required before
+  marking that host/version wake tier live-supported.
+
+**Verify:** pnpm run test:vitest src/skills/session-observer-collab/src/claude-monitor.test.ts src/skills/session-observer-collab/src/claude-monitor-packaging.test.ts src/skills/session-observer-collab/src/messaging-composition.test.ts src/skills/session-observer-collab/src/control.test.ts src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/registration.test.ts src/skills/agent-messaging/src/watch.test.ts src/shared/collaboration/claims.test.ts src/shared/collaboration/activation.test.ts
+Use synthetic transcripts and fake clocks: request-only wake with a quiet peer,
+observation-only wake, simultaneous request/range inbox priority, no-op quiet
+progress, duplicate runners, CAS loss, same-range re-arm dedup, exhaustion,
+expiry/revocation/takeover, changed peer prefix, truncation, wrong identity,
+old-Monitor-not-stopped refusal and interrupted output. Both wake kinds share
+one cap; mail never advances either observer cursor; monitor transcript selection
+changes private state only. Copied standalone and plugin bundles execute with
+Node alone outside the repo and no base watcher process or public-state writes.
+Test both existing phase-2 activation fixtures and all supported peer runtimes.
+
+Repeat p03-t03's complete repository/build/docs/version checks after this task's
+changes. Then, if every backlog acceptance criterion is met, run PJM adoption
+preflight, close/archive BL-260619-inter-agent-direct-messaging and regenerate
+its managed index in the same shipping change. Otherwise keep it open and
+report unmet criteria. After task commit, root runs pnpm run worktree:validate
+on the clean visible worktree and performs final Frontier review. No PR/push/
+merge, global install or live provider probe is implicitly authorized.
+
+**Format:** pnpm exec oxfmt --write src/skills/session-observer-collab src/skills/agent-messaging src/shared/collaboration src/distributions.ts CHANGELOG.md documentation/docs/user-guide/skills/agent-messaging.md documentation/docs/user-guide/skills/session-observer-collab.md documentation/docs/engineering/architecture/agent-messaging.md
+Use p03-t03's exact stdin command for any changed backlog prose before archiving;
+never format generated distributions or the generated documentation inventory.
+
+**Commit:** feat(p04-t01): compose bounded Claude inbox and observation notifications
 
 ## Reviews
 
@@ -658,7 +793,8 @@ or hand-format a generated index.
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T014304Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T021241Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T030934Z.md | -             | -          | -           |
-| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T125014Z.md          | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -             | -          | -           |
+| p04    | code     | pending         | -          | -                                                           | -             | -          | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -734,15 +870,34 @@ pass. Deliberate parent inheritance remains gpt-6-astra/high (current launcher
 turn_context), above the freshly resolved High gpt-5.6-sol/high threshold;
 ladder completeness=true. This self-review is not the independent gate.
 
+Fourth gate c94b55d0-0138-409d-aca6-ed4703fa8c99 verified c0a61d53's approved
+corrections, then found the Claude composed implementation gap (I1), inventory
+boundary (M1), triggered recovery (m1), activation shape (m2) and baseline
+pointer (m3). The user approved the dedicated Monitor and root's other remedies.
+All are resolved in artifacts; m1 retains conservative refusal with explicit
+disarm instead of the review's unsafe expiry-only release suggestion. A dedicated
+p04-t01 adds the requested implementation scope without renumbering prior tasks;
+final acceptance/backlog closure now follows it. The review is archived with
+fixes_completed, not passed. Its exact runtime was claude-fable-5-1 in correlated
+transcript 51f413a7-4496-47a2-82e0-7b76ae8f2fb7 (lines 19/253, final end_turn).
+
+Correction-scoped inherited inline review checked the amended task boundaries,
+source seams, activation shape, ownership recovery, verification commands and
+tracking consistency. No residual findings. All 12 existing task IDs and review
+events are preserved; p04-t01 is the sole new task. Deliberate parent inheritance
+remains gpt-6-astra/high, above the resolved High gpt-5.6-sol/high threshold with
+a complete ladder. Independent Frontier re-review remains required.
+
 ## Implementation Complete
 
 **Planned, not implemented:**
 
 - Phase 1: 5 tasks — independent storage, membership, messages, logs and CLI.
 - Phase 2: 4 tasks — finite activation, host adapters, watch and acceptance probes.
-- Phase 3: 3 tasks — shared observer logs, one continuation owner and final checks.
+- Phase 3: 3 tasks — shared observer logs, Stop composition and distribution docs.
+- Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
 
-**Total: 12 tasks. Completed: 0/12. First task: p01-t01.**
+**Total: 13 tasks. Completed: 0/13. First task: p01-t01.**
 Planning approval is not implementation, live acceptance, release or merge.
 
 ## References

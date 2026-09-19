@@ -23,8 +23,9 @@ No product code, hooks or installed skills have been changed by this plan review
 | Phase 1 | pending | 5     | 0/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
+| Phase 4 | pending | 1     | 0/1       |
 
-**Total:** 0/12 tasks completed
+**Total:** 0/13 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -81,7 +82,7 @@ No product code, hooks or installed skills have been changed by this plan review
 **Status:** pending
 **Commit:** -
 
-## Phase 3: Observer composition and complete distribution (3 tasks)
+## Phase 3: Observer Stop composition and distribution docs (3 tasks)
 
 **Status:** pending
 **Started:** -
@@ -96,7 +97,17 @@ No product code, hooks or installed skills have been changed by this plan review
 **Status:** pending
 **Commit:** -
 
-### Task p03-t03: Finish docs, release surfaces, and project-wide verification
+### Task p03-t03: Prepare docs, release surfaces, and distribution verification
+
+**Status:** pending
+**Commit:** -
+
+## Phase 4: Claude composed Monitor and final acceptance (1 task)
+
+**Status:** pending
+**Started:** -
+
+### Task p04-t01: Add the single finite Claude composed Monitor
 
 **Status:** pending
 **Commit:** -
@@ -210,12 +221,12 @@ lines 19 and 252, final end_turn). The blocked gate is not relabeled passed.
 **Subsequent verification:** Fourth gate reviewed c0a61d53 and verified these
 corrections. It returned a corroborated, receive-eligible blocked result with
 0 Critical, 1 Important, 1 Medium and 3 Minor findings. Artifact:
-reviews/artifact-plan-review-2026-09-19T125014Z.md (commit e0cd3890).
+reviews/archived/artifact-plan-review-2026-09-19T125014Z.md (original commit e0cd3890).
 Frontier identity is verified in native Claude transcript
 51f413a7-4496-47a2-82e0-7b76ae8f2fb7: claude-fable-5-1, assistant lines
 19 and 253, final end_turn, matching run ID c94b55d0-0138-409d-aca6-ed4703fa8c99.
 
-Fourth-round findings remain undispositioned pending user confirmation:
+Fourth-round findings and the root's proposed resolutions, subsequently approved:
 
 - I1: Claude composed delivery lacks an owned implementation path. Root verified
   the current Monitor uses base session-observer catch-up-then-watch, outside
@@ -231,8 +242,36 @@ Fourth-round findings remain undispositioned pending user confirmation:
 - m2: Publish the full schema-v1 activation shape in p02-t01 before live probes.
 - m3: Point the approved-baseline header to the user-approved c0a61d53 amendment.
 
-**Next:** User direction on Claude composition and approval of proposed
-fourth-round dispositions. No implementation is authorized here.
+### Review Received: plan (fourth gate)
+
+**Date:** 2026-09-19
+**Review artifact:** [Fourth plan gate](reviews/archived/artifact-plan-review-2026-09-19T125014Z.md)
+**User decision:** Approve the dedicated Claude composed Monitor and other
+proposed corrections, including conservative explicit disarm recovery.
+**Status:** fixes_completed; independent re-review pending.
+
+- I1 (Moderate scope), resolve_in_artifact: add the explicitly user-approved
+  p04-t01 implementation task, with an owned finite command, actual bundled
+  reader/CAS seams, tests, packaging and final acceptance. Existing IDs stay
+  unchanged; 4 sequential phases / 13 pending tasks. This is a plan-completeness
+  amendment, not a code-review fix queue or authorization to implement now.
+- M1 (Minor scope), resolve_in_artifact: define Claude settings/enabled-plugin
+  inventory, unresolved-source refusal, session-only visibility limits and tests.
+- m1 (Minor scope), resolve_in_artifact with alternative remedy: retain triggered
+  refusal even after expiry and document explicit scoped disarm; reject automatic
+  expiry release because it does not establish same-Stop continuation safety.
+- m2 (Minor scope), resolve_in_artifact: publish complete schema-v1 activation
+  metadata from p02-t01, preserving records from earlier live probes.
+- m3 (Negligible scope), resolve_in_artifact: name c0a61d53 as the approved
+  ownership amendment and carry the latest complete project into implementation.
+
+Bounded read-only source recon used native explorer claude_watcher_seam on
+gpt-5.6-terra/high (intelligent-recon floor; available native selector). Root
+verified buildDigest, private cursor/CAS helpers and permitted observer source
+roots before drafting; root retained all dispositions and artifact writes.
+No findings deferred. No product source or installed state changed.
+
+**Next:** Independent re-review of the amended artifact bundle.
 
 ## Deviations from Plan / Design
 
@@ -240,9 +279,10 @@ The third review identified an over-broad ownership policy, not shipped code
 drift. The user approved the narrowed policy and explicit acknowledgment/
 attestation boundaries; discovery/design/plan now agree. No product code exists.
 
-| Task / Review    | Source Artifact    | Planned / Documented                                        | Actual / Accepted                                                                     | Reason                                             | Source of Truth               | Follow-up             |
-| ---------------- | ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------- | --------------------- |
-| Third gate I1/m2 | design.md, plan.md | Observer registration refusal; unspecified Claude inventory | Dormant hooks allowed, scoped third-party acknowledgment, explicit Claude attestation | User-approved usable and honest ownership boundary | Updated discovery/design/plan | Independent re-review |
+| Task / Review        | Source Artifact    | Planned / Documented                                                         | Actual / Accepted                                                                     | Reason                                                                 | Source of Truth               | Follow-up             |
+| -------------------- | ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | --------------------- |
+| Third gate I1/m2     | design.md, plan.md | Observer registration refusal; unspecified Claude inventory                  | Dormant hooks allowed, scoped third-party acknowledgment, explicit Claude attestation | User-approved usable and honest ownership boundary                     | Updated discovery/design/plan | Independent re-review |
+| Fourth gate I1/M1/m1 | design.md, plan.md | Claude composition implicit; broad inventory; triggered recovery unspecified | Dedicated p04-t01 Monitor, bounded inventory and explicit disarm recovery             | User-approved complete implementation path with conservative ownership | Updated discovery/design/plan | Independent re-review |
 
 ## Test Results
 
@@ -253,6 +293,7 @@ No product tests run: this review changes planning artifacts only.
 | 1     | -         | -      | -      | -        |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
+| 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 

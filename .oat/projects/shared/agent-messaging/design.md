@@ -399,22 +399,39 @@ local privileged installation or trust approval.
 
 Ownership is session-specific, not installation-specific. A recognized observer
 Stop hook with no exact-session lease is inert and permits standalone messaging;
-validated idle/disarmed leases are also inactive. After effective expiry/cap
-evaluation, armed, waiting and triggered leases are owner-present. In particular,
+validated idle/disarmed leases are also inactive. effectiveLease evaluates
+expiry/caps for armed/waiting only; triggered is separately treated as
+owner-present even after expiry. In particular,
 triggered may mean the observer already continued this Stop. Recheck before
 emission, including after reply-wait; active or unreadable/invalid observer state
 refuses standalone ownership. A verified composed controller is the only
 exception for active observation, as described below.
+The refusal explains this conservative policy and supplies the exact scoped
+observer `disarm --session <native-owner-session>` command at the same state
+root. Explicit disarm after the current continuation finishes releases ownership;
+messaging never automatically disarms or prunes the lease. Expiry alone is not
+proof that the current Stop has not already continued.
 
 For unrelated third-party Stop hooks, disclose the exact effective scoped
 registrations and require explicit operator acknowledgment of their canonical
 configuration fingerprint, recorded in the immutable activation. A changed
 inventory requires renewed acknowledgment through disable/re-enable under the
 existing authority/budget rules; recheck at delivery boundaries. Unreadable or
-uninventoriable scopes remain manual and cannot be waived. Do not execute or
+unresolved required inventory sources remain manual and cannot be waived. Do not execute or
 remove unknown hooks. Acknowledgment accepts possible interference; it neither
 proves arbitrary scripts inert nor extends the coordinated one-owner guarantee
 to them. It is not host trust approval and cannot waive known observer conflicts.
+
+Claude's bounded file inventory is loaded user, project, local and managed
+settings plus enabled plugins' installed hook declarations. Resolve enablement
+and installed versions, not marketplace/catalog copies. Missing optional files
+are empty; unreadable configured files or unresolved enabled plugins refuse.
+Session-scoped skill/agent frontmatter hooks are outside that inventory; disclose
+this visibility limit rather than treating it as unreadable configuration or
+claiming complete host enumeration. Known observer conflicts still refuse, and
+the acting session must not arm competing observers through the excluded scope.
+This source boundary follows the [Claude hook locations](https://code.claude.com/docs/en/hooks#hook-locations)
+and [settings scopes](https://code.claude.com/docs/en/settings), checked 2026-09-19.
 
 Claude's Monitor watches only its own inbox via a finite foreground command.
 Its lifetime is at most 30 minutes and never beyond activation expiry.
@@ -460,6 +477,41 @@ under the observer controller. A recognized installed observer hook with no
 lease selects standalone for a messaging-only session. Changing an active
 controller requires explicit disable/re-enable under existing authority and
 budget rules, never a second owner or an implicit allowance reset.
+
+Claude composition has its own observer-collab-owned command,
+`scripts/claude-monitor.mjs`, not the base observer's unbounded
+`catch-up-then-watch`. It runs in a proven harness Monitor and emits at most one
+bounded notification before exit. A run lasts at most 30 minutes and no later
+than activation or observer-lease expiry. Explicit re-arm retains the exact
+epoch, pins, private cursor and spent slots; no daemon or self-rearm. Before
+handoff, the acting session confirms the old observation Monitor and standalone
+messaging watcher are stopped. Lost context or uncertain ownership stays manual.
+
+The new adapter extends observer-collab's owner-runtime contract to claude-code;
+existing Codex/Cursor state remains unchanged. It polls shared inbox requests
+first. A request uses the existing request-batch claims and never advances an
+observer cursor. Otherwise it reads transcript candidates in-process with
+`buildDigest`, completion selection and selected-prefix/continuity helpers;
+Cursor peers retain their existing completion reader. It never calls
+`observeCatchUp` or runs the base watcher, which would consume public state
+before notification. No-op progress may advance the private lease cursor only.
+
+For substantive observation, hash the activation, exact owner/peer pins and
+verified selected range/index-base/prefix into an observation event key. A
+re-arm lease ID or clock is not event identity. Recheck inbox priority, claim
+the event and a shared slot, then CAS the private observer cursor using
+`claimAdapterTrigger`. A CAS loss emits nothing and may waste a slot. Final
+activation/identity/deadline/continuity and acknowledgment checks precede output.
+Observation claims are not mailbox messages. Both notification kinds spend the
+same immutable slot namespace; re-arm cannot reset it. No heartbeat, no-op or
+error is wake-bearing stdout. The receiving skill revalidates and explicitly
+reads the referenced peer range; only that normal read advances public offsets.
+
+The new command and its declarations/tests belong to observer-collab; bundle
+its already-permitted base-observer reader rather than modify the base skill.
+Standalone messaging still has no observer runtime dependency. Until this
+adapter exists, Claude composed automatic enable reports unavailable; normal
+manual/start checks remain. Its live wake tier needs its own authorized receipt.
 
 The shared log remains agent-authored observations, assessments, decisions, and
 corrections, not an automatic copy of inboxes. Publish one immutable structured
@@ -588,7 +640,11 @@ type Claim = {
 ```
 
 Common metadata records include schema version, UUID/key, author pin, timestamp,
-and canonical content hash. Hash send fields plus resolved identities, excluding
+and canonical content hash. The first activation publisher writes this complete
+schema-v1 shape, including standalone controller and nullable acknowledgment/
+attestation fields. Later tasks populate values for new epochs; they do not
+change schema-v1 shape or rewrite phase-2 live-probe records. Common records use
+the same validation conventions. Hash send fields plus resolved identities, excluding
 server-created receipt timestamps and the hash itself. A reply reference must
 exist in the same collaboration and involve the replying participant. Reject
 unknown kinds, invalid integers/IDs, self-send, stale bindings, and malformed
@@ -650,6 +706,9 @@ after closure; they do not reopen delivery.
 - Bundle shared runtime into existing observer-collab outputs (standalone and
   consensus plugin). Teach first-enable disclosure, exact identity, takeover,
   request versus update, receipts, deterministic log use, and closeout.
+- Add observer-collab's composed Claude Monitor entrypoint, adjacent declaration
+  and build declaration. Reuse its existing permission to bundle base observer
+  readers; no subprocess watcher, new runtime dependency or base-skill edits.
 - Bump affected canonical versions, regenerate distributions, update changelog
   and user/engineering docs. Test protocol parity across independently bundled
   CLI/hooks. No compatibility aliases or global installs implied by this work.
@@ -660,8 +719,10 @@ after closure; they do not reopen delivery.
    checks, and three-participant crash/concurrency tests.
 2. Codex/Claude adapters and bounded notification, time-boxed current Cursor
    probes, first-enable disclosure, and separately authorized live acceptance.
-3. Existing collaboration-log integration, composed observation/shared budget,
-   final packaging/docs, and regression coverage.
+3. Existing collaboration-log integration, Codex/verified-Cursor Stop composition,
+   distribution docs, and regression coverage.
+4. Dedicated finite Claude composed Monitor, final docs/acceptance and backlog
+   closure. Existing task IDs are preserved; this is an additional final phase.
 
 These slices are not an execution-ready task plan.
 
@@ -669,19 +730,20 @@ These slices are not an execution-ready task plan.
 
 Quick mode has no separate spec; map discovery criteria to concrete tests:
 
-| Contract            | Verification and essential cases                                                                                                                                                    |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Independent N>=3    | Multi-process tests with no observer installed; same worktree, sibling worktrees, and different repositories                                                                        |
-| Membership/takeover | Alias collision, duplicate generation race, exact pin conflict, dead/replaced session, pending-mail inheritance, stale ack/send, no silent redirect                                 |
-| Publication/dedup   | Kill before/after temp sync/link/dir sync; same-ID retry; conflicting ID; no overwrites, partial records, or hidden temp consumption                                                |
-| Receipts/order      | Discarded output, priority leaves unacked holes, approximate cross-sender order labeled, wrong recipient rejected, reply not completion                                             |
-| Claims/budgets      | Concurrent duplicate hooks, different events claiming one request, all slots contended, kill after each claim stage, no cap overshoot, explicit retry after pre-slot crash          |
-| Start/Stop/Monitor  | Human/automatic turns, own continuation, unknown event identity, interruption, expiry, late arrival, close racing output, Monitor expiry/re-arm within remaining budget             |
-| Log                 | Concurrent authors, immutable entries, duplicate/conflicting IDs, stale concurrent render detected, rebuild from authoritative set                                                  |
-| Observation         | Inbox priority, deferred transcript selection, failed CAS wastes at most one slot, unchanged public/private cursors, N=2 observation boundary                                       |
-| Safety              | Symlinks, wrong owner, malformed/oversized files, directory limits, unknown schema, wrapper injection, shell characters, mismatched root overrides                                  |
-| Distribution        | Copied standalone payload runs with Node alone; protocol fixtures across CLI/hook bundles; optional/required skill references correct                                               |
-| Live support        | Separate version/surface/event evidence for install/trust/invocation, real context injection, bounded continuation, restart, interruption, unrelated-session inertness, and cleanup |
+| Contract            | Verification and essential cases                                                                                                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Independent N>=3    | Multi-process tests with no observer installed; same worktree, sibling worktrees, and different repositories                                                                                    |
+| Membership/takeover | Alias collision, duplicate generation race, exact pin conflict, dead/replaced session, pending-mail inheritance, stale ack/send, no silent redirect                                             |
+| Publication/dedup   | Kill before/after temp sync/link/dir sync; same-ID retry; conflicting ID; no overwrites, partial records, or hidden temp consumption                                                            |
+| Receipts/order      | Discarded output, priority leaves unacked holes, approximate cross-sender order labeled, wrong recipient rejected, reply not completion                                                         |
+| Claims/budgets      | Concurrent duplicate hooks, different events claiming one request, all slots contended, kill after each claim stage, no cap overshoot, explicit retry after pre-slot crash                      |
+| Start/Stop/Monitor  | Human/automatic turns, own continuation, unknown event identity, interruption, expiry, late arrival, close racing output, Monitor expiry/re-arm within remaining budget                         |
+| Log                 | Concurrent authors, immutable entries, duplicate/conflicting IDs, stale concurrent render detected, rebuild from authoritative set                                                              |
+| Observation         | Inbox priority, deferred transcript selection, failed CAS wastes at most one slot, unchanged public/private cursors, N=2 observation boundary                                                   |
+| Claude composition  | Quiet-peer request wakes; observation wakes share the same cap; request/range race; non-mutating candidate reads; private no-op progress; explicit re-arm and old-owner handoff; copied bundles |
+| Safety              | Symlinks, wrong owner, malformed/oversized files, directory limits, unknown schema, wrapper injection, shell characters, mismatched root overrides                                              |
+| Distribution        | Copied standalone payload runs with Node alone; protocol fixtures across CLI/hook bundles; optional/required skill references correct                                                           |
+| Live support        | Separate version/surface/event evidence for install/trust/invocation, real context injection, bounded continuation, restart, interruption, unrelated-session inertness, and cleanup             |
 
 Use temp directories, fake clocks, deterministic IDs, and child-process fault
 injection. No real transcript reads, live hook edits, or API spend in automated
@@ -714,6 +776,13 @@ acknowledgment; triggered leases remain owner-present; Claude standalone Monitor
 ownership uses an honest acting-session attestation. These amendments align
 sections 6-7 and activation metadata with the revised plan; they do not change
 installation authority or claim live acceptance. Frontier re-review is pending.
+
+After the fourth gate, the user approved implementing the dedicated Claude
+composed Monitor rather than deferring it, bounding Claude's file inventory,
+explicit disarm recovery for triggered leases, publishing the full activation
+shape from the first epoch, and updating the approved-baseline pointer. These
+approved refinements are reflected above and in p04-t01; no product code has
+been implemented. The next independent gate reviews the amended bundle.
 
 For F4, retain one receipt per proven human event and exact two-hour idle expiry.
 Thirty-minute receipt coalescing would expire up to thirty minutes before the
