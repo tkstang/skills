@@ -77,6 +77,11 @@
 
 ### Fixed
 
+- `session-observer` 1.0.46, `session-observer-collab` 1.0.35,
+  `session-export-transcript` 2.0.4, and `session-fork-to-destination` 0.2.11
+  distinguish native Claude human input from runtime task notifications across
+  observer rendering and ranking, collaboration continuation, transcript
+  export, and fork previews.
 - Codex transcript identity now uses the first physical `session_meta` header,
   corroborates recognized rollout filenames, and keeps root, direct-parent,
   fork, and inherited-history lineage separate (`session-observer` 1.0.45,

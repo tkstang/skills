@@ -115,6 +115,10 @@ describe('bounded sanitized session preview', () => {
           toolName: 'shell',
         }),
         entry('user', 'automatic metadata', { origin: 'automatic-control' }),
+        entry('user', 'background task completed', {
+          origin: 'runtime-notification',
+          displayRole: 'runtime-notification',
+        }),
         entry('user', 'hello'),
         entry('assistant', 'hi'),
       ]),

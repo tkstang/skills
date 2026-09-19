@@ -48,6 +48,7 @@ function isSyntheticForEngagement(entry: DigestEntry): boolean {
   return (
     entry.kind === 'command_message' ||
     entry.origin === 'automatic-control' ||
+    entry.origin === 'runtime-notification' ||
     isHiddenBootstrapUserText(entry.text)
   );
 }

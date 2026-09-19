@@ -86,11 +86,20 @@ export interface CursorIdentityEvidence {
 }
 
 export type DigestEntryRole = 'user' | 'assistant';
-export type DigestEntryDisplayRole = 'queued-user' | 'automatic-control';
+export type DigestEntryDisplayRole =
+  | 'queued-user'
+  | 'automatic-control'
+  | 'runtime-notification';
 export type DigestEntryOrigin =
   | 'human'
   | 'automatic-control'
+  | 'runtime-notification'
   | 'runtime-diagnostic';
+export type ClaudeUserRecordProvenance =
+  | 'legacy-absent'
+  | 'human'
+  | 'runtime-notification'
+  | 'unmarked';
 export type AutomaticControlIndexBase =
   | 'zero-based-jsonl-record-index'
   | 'zero-based-jsonl-frame-index';
@@ -146,6 +155,7 @@ interface ClaudeContentOptions {
   includeToolResults: boolean;
   includeCommandMessages: boolean;
   toolNameById: Map<string, string>;
+  userProvenance: ClaudeUserRecordProvenance;
   /**
    * Claude records the structured answer payload on the record, not on the
    * tool_result block. Threaded through so the ask-user branch can read it.
@@ -393,8 +403,9 @@ function messageEntry(
   text: string,
   recordIndex: number,
   displayRole?: DigestEntryDisplayRole,
+  origin?: DigestEntryOrigin,
 ): DigestEntry {
-  if (role === 'user') {
+  if (role === 'user' && origin !== 'runtime-notification') {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -414,7 +425,45 @@ function messageEntry(
     recordIndex,
     kind: 'message',
     ...(displayRole ? { displayRole } : {}),
+    ...(origin ? { origin } : {}),
   };
+}
+
+/**
+ * Classify native provenance on an ordinary Claude user record. Only the
+ * top-level `origin.kind` is authoritative: attachment provenance describes
+ * the attachment transport rather than the user record itself.
+ */
+export function claudeUserRecordProvenance(
+  record: JsonObject,
+): ClaudeUserRecordProvenance {
+  const origin = isObject(record.origin) ? asString(record.origin.kind) : null;
+  if (origin === null || origin === undefined) return 'legacy-absent';
+  if (origin === 'human') return 'human';
+  if (origin === 'task-notification') return 'runtime-notification';
+  return 'unmarked';
+}
+
+function claudeEntryProvenance(
+  provenance: ClaudeUserRecordProvenance,
+): Pick<DigestEntry, 'displayRole' | 'origin'> {
+  if (provenance === 'human') return { origin: 'human' };
+  if (provenance === 'runtime-notification') {
+    return {
+      displayRole: 'runtime-notification',
+      origin: 'runtime-notification',
+    };
+  }
+  return {};
+}
+
+function claudeAskUserAnswerProvenance(
+  provenance: ClaudeUserRecordProvenance,
+): Pick<DigestEntry, 'displayRole' | 'origin'> {
+  if (provenance === 'legacy-absent' || provenance === 'human') {
+    return { origin: 'human' };
+  }
+  return claudeEntryProvenance(provenance);
 }
 
 /**
@@ -1468,8 +1517,7 @@ function claudeAskUserAnswerEntry(
         recordIndex,
         kind: 'ask_user',
         toolName,
-        // Claude has no auto-resolution: a recorded answer is the operator's.
-        origin: 'human',
+        ...claudeAskUserAnswerProvenance(opts.userProvenance),
       };
     }
   }
@@ -1491,7 +1539,7 @@ function claudeAskUserAnswerEntry(
     recordIndex,
     kind: 'ask_user',
     toolName,
-    origin: 'human',
+    ...claudeAskUserAnswerProvenance(opts.userProvenance),
   };
 }
 
@@ -1510,13 +1558,22 @@ function claudeEntriesFromContent(
   recordIndex: number,
   opts: ClaudeContentOptions,
 ): DigestEntry[] {
+  const provenance = claudeEntryProvenance(opts.userProvenance);
   if (typeof content === 'string') {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: 'command_message' }];
     }
-    return [messageEntry(role, content, recordIndex)];
+    return [
+      messageEntry(
+        role,
+        content,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+      ),
+    ];
   }
   if (!Array.isArray(content)) return [];
 
@@ -1585,7 +1642,17 @@ function claudeEntriesFromContent(
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: 'command_message' }];
     }
-    return text ? [messageEntry(role, text, recordIndex)] : [];
+    return text
+      ? [
+          messageEntry(
+            role,
+            text,
+            recordIndex,
+            provenance.displayRole,
+            provenance.origin,
+          ),
+        ]
+      : [];
   });
 }
 
@@ -1684,6 +1751,8 @@ function normalizeClaudeCode(
       includeCommandMessages,
       toolNameById,
       toolUseResult: record.toolUseResult,
+      userProvenance:
+        role === 'user' ? claudeUserRecordProvenance(record) : 'legacy-absent',
     });
   });
 }

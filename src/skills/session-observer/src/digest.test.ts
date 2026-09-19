@@ -991,6 +991,53 @@ describe('buildDigest', () => {
     }
   });
 
+  test('labels native Claude task notifications without treating them as human input', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-claude-origin-'));
+    try {
+      const transcriptPath = join(tmpDir, 'notification.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'user',
+            sessionId: 'claude-notification',
+            origin: { kind: 'task-notification' },
+            message: {
+              role: 'user',
+              content: 'Background task completed with status success.',
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId: 'claude-notification',
+            message: { role: 'assistant', content: 'Result reviewed.' },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+
+      const digest = await buildDigest('claude-code', transcriptPath);
+      expect(digest.entries[0]).toMatchObject({
+        role: 'user',
+        kind: 'message',
+        origin: 'runtime-notification',
+        displayRole: 'runtime-notification',
+      });
+      expect(digest.engagement).toMatchObject({
+        status: 'unengaged',
+        genuineUserMessages: 0,
+        syntheticUserMessages: 1,
+      });
+      expect(renderMarkdown(digest)).toContain('### Runtime notification');
+      expect(JSON.parse(renderJson(digest)).entries[0]).toMatchObject({
+        origin: 'runtime-notification',
+      });
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('renders queued Claude input once across review and catch-up digests', async () => {
     for (const mode of ['review', 'catch-up'] as const) {
       const digest = await buildDigest('claude-code', queuedMidTurnClaude, {
@@ -1474,6 +1521,7 @@ describe('buildDigest', () => {
       for (let i = 0; i < 12; i++) {
         records.push({
           sessionId: 'sess-large-fallback',
+          ...(i === 0 ? { origin: { kind: 'task-notification' } } : {}),
           message: {
             role: i % 2 === 0 ? 'user' : 'assistant',
             content: `${i}:${longText}`,
@@ -1506,18 +1554,13 @@ describe('buildDigest', () => {
         {
           transcriptPath,
           indexBase: 'zero-based-jsonl-record-index',
-          recordIndex: 0,
-        },
-        {
-          transcriptPath,
-          indexBase: 'zero-based-jsonl-record-index',
           recordIndex: 2,
         },
       ]);
       expect(digest.entries[0].text).toBe(`4:${longText}`);
       expect(renderMarkdown(digest)).toContain('User-message recovery');
       expect(renderMarkdown(digest)).toContain(
-        `${transcriptPath} records 0, 2 (zero-based JSONL indices).`,
+        `${transcriptPath} records 2 (zero-based JSONL indices).`,
       );
       expect(JSON.parse(renderJson(digest)).accounting.recovery).toEqual(
         digest.accounting.recovery,

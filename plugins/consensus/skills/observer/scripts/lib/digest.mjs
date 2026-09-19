@@ -133,8 +133,8 @@ function parseAutomaticControlXmlEnvelope(text) {
 function parseAutomaticControlEnvelope(text) {
   return parseAutomaticControlXmlEnvelope(text) ?? parseAutomaticControlJsonEnvelope(text);
 }
-function messageEntry(role, text, recordIndex, displayRole) {
-  if (role === "user") {
+function messageEntry(role, text, recordIndex, displayRole, origin) {
+  if (role === "user" && origin !== "runtime-notification") {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -153,8 +153,32 @@ function messageEntry(role, text, recordIndex, displayRole) {
     text,
     recordIndex,
     kind: "message",
-    ...displayRole ? { displayRole } : {}
+    ...displayRole ? { displayRole } : {},
+    ...origin ? { origin } : {}
   };
+}
+function claudeUserRecordProvenance(record) {
+  const origin = isObject(record.origin) ? asString(record.origin.kind) : null;
+  if (origin === null || origin === void 0) return "legacy-absent";
+  if (origin === "human") return "human";
+  if (origin === "task-notification") return "runtime-notification";
+  return "unmarked";
+}
+function claudeEntryProvenance(provenance) {
+  if (provenance === "human") return { origin: "human" };
+  if (provenance === "runtime-notification") {
+    return {
+      displayRole: "runtime-notification",
+      origin: "runtime-notification"
+    };
+  }
+  return {};
+}
+function claudeAskUserAnswerProvenance(provenance) {
+  if (provenance === "legacy-absent" || provenance === "human") {
+    return { origin: "human" };
+  }
+  return claudeEntryProvenance(provenance);
 }
 function truncate(str, limit) {
   if (str.length <= limit) return str;
@@ -488,8 +512,7 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
         recordIndex,
         kind: "ask_user",
         toolName,
-        // Claude has no auto-resolution: a recorded answer is the operator's.
-        origin: "human"
+        ...claudeAskUserAnswerProvenance(opts.userProvenance)
       };
     }
   }
@@ -501,17 +524,26 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
     recordIndex,
     kind: "ask_user",
     toolName,
-    origin: "human"
+    ...claudeAskUserAnswerProvenance(opts.userProvenance)
   };
 }
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
+  const provenance = claudeEntryProvenance(opts.userProvenance);
   if (typeof content === "string") {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: "command_message" }];
     }
-    return [messageEntry(role, content, recordIndex)];
+    return [
+      messageEntry(
+        role,
+        content,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin
+      )
+    ];
   }
   if (!Array.isArray(content)) return [];
   return content.flatMap((block) => {
@@ -569,7 +601,15 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: "command_message" }];
     }
-    return text ? [messageEntry(role, text, recordIndex)] : [];
+    return text ? [
+      messageEntry(
+        role,
+        text,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin
+      )
+    ] : [];
   });
 }
 function normalizeClaudeCode(records, opts) {
@@ -629,7 +669,8 @@ function normalizeClaudeCode(records, opts) {
       includeToolResults,
       includeCommandMessages,
       toolNameById,
-      toolUseResult: record.toolUseResult
+      toolUseResult: record.toolUseResult,
+      userProvenance: role === "user" ? claudeUserRecordProvenance(record) : "legacy-absent"
     });
   });
 }
@@ -909,7 +950,7 @@ function isHiddenBootstrapUserText(text) {
 }
 function isSyntheticForEngagement(entry) {
   if (entry.role !== "user") return false;
-  return entry.kind === "command_message" || entry.origin === "automatic-control" || isHiddenBootstrapUserText(entry.text);
+  return entry.kind === "command_message" || entry.origin === "automatic-control" || entry.origin === "runtime-notification" || isHiddenBootstrapUserText(entry.text);
 }
 function publicBootstrapIndexes(indexes) {
   return [...indexes].toSorted((a, b) => a - b);
@@ -1041,7 +1082,7 @@ function omittedUserMessageRecoveryPointers(entriesBeforeTailSlice, retainedEntr
   const pointers = [];
   for (const entry of entriesBeforeTailSlice) {
     const recoveryRecordIndex = entry.sourceRecordIndex ?? entry.recordIndex;
-    if (retained.has(entry) || entry.role !== "user" || entry.origin === "automatic-control" || seenRecordIndexes.has(recoveryRecordIndex)) {
+    if (retained.has(entry) || entry.role !== "user" || entry.origin === "automatic-control" || entry.origin === "runtime-notification" || seenRecordIndexes.has(recoveryRecordIndex)) {
       continue;
     }
     seenRecordIndexes.add(recoveryRecordIndex);
@@ -1894,7 +1935,7 @@ function renderMarkdown(digest) {
   } else {
     for (const group of groups) {
       const role = group[0].role;
-      const header = group[0].displayRole === "queued-user" ? "### User (queued mid-turn)" : group[0].displayRole === "automatic-control" ? "### Hook/control (automatic)" : role === "user" ? "### User" : "### Assistant";
+      const header = group[0].displayRole === "queued-user" ? "### User (queued mid-turn)" : group[0].displayRole === "automatic-control" ? "### Hook/control (automatic)" : group[0].displayRole === "runtime-notification" ? "### Runtime notification" : role === "user" ? "### User" : "### Assistant";
       parts.push(header);
       parts.push("");
       for (const entry of group) {

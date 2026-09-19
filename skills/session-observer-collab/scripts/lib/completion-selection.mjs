@@ -160,6 +160,9 @@ function validateDigest(input) {
 function isAutomatic(entry) {
   return entry.origin === "automatic-control" || entry.displayRole === "automatic-control" || entry.automaticControl?.automatic === true;
 }
+function isRuntimeNotification(entry) {
+  return entry.origin === "runtime-notification" || entry.displayRole === "runtime-notification";
+}
 function completedTurns(entries, fromIndex) {
   const turns = [];
   let start = fromIndex;
@@ -189,7 +192,7 @@ function completedTurns(entries, fromIndex) {
     current = [];
   }
   const incompleteFrom = current.some(
-    (entry) => entry.role === "user" && !isAutomatic(entry)
+    (entry) => entry.role === "user" && !isAutomatic(entry) && !isRuntimeNotification(entry)
   ) ? start : null;
   return { turns, incompleteFrom };
 }

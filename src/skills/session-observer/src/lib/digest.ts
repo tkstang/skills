@@ -136,6 +136,7 @@ function omittedUserMessageRecoveryPointers(
       retained.has(entry) ||
       entry.role !== 'user' ||
       entry.origin === 'automatic-control' ||
+      entry.origin === 'runtime-notification' ||
       seenRecordIndexes.has(recoveryRecordIndex)
     ) {
       continue;
@@ -1371,9 +1372,11 @@ export function renderMarkdown(digest: SessionDigest): string {
           ? '### User (queued mid-turn)'
           : group[0].displayRole === 'automatic-control'
             ? '### Hook/control (automatic)'
-            : role === 'user'
-              ? '### User'
-              : '### Assistant';
+            : group[0].displayRole === 'runtime-notification'
+              ? '### Runtime notification'
+              : role === 'user'
+                ? '### User'
+                : '### Assistant';
       parts.push(header);
       parts.push('');
       for (const entry of group) {

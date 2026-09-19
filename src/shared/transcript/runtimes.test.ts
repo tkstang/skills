@@ -18,6 +18,7 @@ import * as shippedCursorAnalysis from '../../../skills/session-observer/scripts
 import * as shippedCursorFrames from '../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
 import type { JsonObject, Runtime } from './runtimes.js';
 import {
+  claudeUserRecordProvenance,
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,
@@ -1126,6 +1127,55 @@ describe('normalizeEntries (claude-code)', () => {
       }),
     ]);
   });
+
+  it('classifies only top-level native Claude provenance and preserves legacy records', () => {
+    expect(claudeUserRecordProvenance({ origin: { kind: 'human' } })).toBe(
+      'human',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'task-notification' } }),
+    ).toBe('runtime-notification');
+    expect(claudeUserRecordProvenance({})).toBe('legacy-absent');
+    expect(claudeUserRecordProvenance({ origin: { kind: 'peer' } })).toBe(
+      'unmarked',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'future-kind' } }),
+    ).toBe('unmarked');
+    expect(
+      claudeUserRecordProvenance({
+        attachment: { origin: { kind: 'human' } },
+      }),
+    ).toBe('legacy-absent');
+  });
+
+  it('marks human and task-notification records without upgrading peer or unknown provenance', async () => {
+    const recordsWithProvenance = await readRecords(
+      fixturePath('claude-code', 'native-provenance.jsonl'),
+    );
+    const userEntries = normalizeEntries(
+      'claude-code',
+      recordsWithProvenance,
+      {},
+    ).filter((entry) => entry.role === 'user');
+
+    expect(userEntries).toEqual([
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Human direction.',
+        origin: 'human',
+      }),
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Background task completed.',
+        origin: 'runtime-notification',
+        displayRole: 'runtime-notification',
+      }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1609,6 +1659,45 @@ describe('normalizeEntries — ask-user exchanges', () => {
     expectOk(
       answer.text.includes('"Ship it?"="Ship"'),
       `fallback must preserve the answer, got: ${answer.text}`,
+    );
+  });
+
+  it('claude-code: attributes ask-user answers only to native human or legacy records', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const withOrigin = (kind: string) =>
+      records.map((record) => {
+        const message = record.message as JsonObject | undefined;
+        return message?.role === 'user'
+          ? { ...record, origin: { kind } }
+          : record;
+      });
+    const answersFor = (input: JsonObject[]) =>
+      normalizeEntries('claude-code', input, {}).filter(
+        (entry) => entry.role === 'user' && entry.kind === 'ask_user',
+      );
+
+    expect(answersFor(records).every((entry) => entry.origin === 'human')).toBe(
+      true,
+    );
+    expect(
+      answersFor(withOrigin('human')).every(
+        (entry) => entry.origin === 'human',
+      ),
+    ).toBe(true);
+    expect(
+      answersFor(withOrigin('peer')).every(
+        (entry) => entry.origin === undefined,
+      ),
+    ).toBe(true);
+    expect(answersFor(withOrigin('task-notification'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          origin: 'runtime-notification',
+          displayRole: 'runtime-notification',
+        }),
+      ]),
     );
   });
 

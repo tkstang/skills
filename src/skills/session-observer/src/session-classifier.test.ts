@@ -113,6 +113,40 @@ describe('classifyTranscriptRecords — ask-user engagement', () => {
   });
 });
 
+describe('classifyTranscriptRecords — native Claude provenance', () => {
+  const recordsFor = (kind?: string): JsonObject[] => [
+    {
+      type: 'user',
+      ...(kind ? { origin: { kind } } : {}),
+      message: { role: 'user', content: 'Recorded user-role content.' },
+    },
+    {
+      type: 'assistant',
+      message: { role: 'assistant', content: 'Substantive completion.' },
+    },
+  ];
+
+  test.each([
+    ['human', 'engaged', 1, 0],
+    [undefined, 'engaged', 1, 0],
+    ['task-notification', 'unengaged', 0, 1],
+    ['peer', 'engaged', 1, 0],
+    ['future-kind', 'engaged', 1, 0],
+  ] as const)(
+    'classifies %s provenance while preserving unmarked-message behavior',
+    (kind, status, genuineUserMessages, syntheticUserMessages) => {
+      expect(
+        classifyTranscriptRecords('claude-code', recordsFor(kind)),
+      ).toMatchObject({
+        status,
+        genuineUserMessages,
+        syntheticUserMessages,
+        hasAssistantAndUser: status === 'engaged',
+      });
+    },
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Classifier → ranking integration
 //
@@ -208,6 +242,41 @@ describe('classifier metrics feed candidate ranking', () => {
     expect(classification.hasAssistantAndUser).toBe(true);
     // Still not counted as a free-form user message.
     expect(classification.genuineUserMessages).toBe(0);
+  });
+
+  test('a newer task notification does not outrank an older human session', () => {
+    const human = classifyTranscriptRecords('claude-code', [
+      {
+        type: 'user',
+        origin: { kind: 'human' },
+        message: { role: 'user', content: 'Please verify the release.' },
+      },
+      {
+        type: 'assistant',
+        message: { role: 'assistant', content: 'Verified.' },
+      },
+    ]);
+    const notification = classifyTranscriptRecords('claude-code', [
+      {
+        type: 'user',
+        origin: { kind: 'task-notification' },
+        message: { role: 'user', content: 'Background task completed.' },
+      },
+      {
+        type: 'assistant',
+        message: { role: 'assistant', content: 'Result recorded.' },
+      },
+    ]);
+
+    const result: any = rank(
+      [
+        candidateFrom('sess-human-older', human, 600),
+        candidateFrom('sess-notification-newer', notification, 30),
+      ],
+      TARGET_CWD,
+    );
+
+    expect(result.winner?.sessionId).toBe('sess-human-older');
   });
 
   test('a prompt-only session competes as an engaged candidate', async () => {
