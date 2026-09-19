@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.6'
+  version: '1.0.7'
 ---
 
 # agent-messaging
@@ -166,6 +166,13 @@ Updates remain visible in the manual inbox but do not wake the watch. Re-arm
 uses the same activation and remaining continuation slots. Claude requires a
 fresh `--confirm-no-observer-monitor` on every watch start; native Stop and a
 standalone Monitor are mutually exclusive activation mechanisms.
+
+Host acceptance is a separate opt-in boundary. `delivery probe-plan` records
+the exact host version, surface, argv, session, worktree, event provenance, and
+finite budgets but never invokes a live provider. Read
+[host delivery acceptance](references/live-acceptance.md) for the evidence
+matrix and approval requirements. Cursor remains manual-only; see
+[Cursor runtime](references/runtime-cursor.md).
 
 ## Collaboration log and status
 

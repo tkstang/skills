@@ -54,9 +54,10 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.6'");
+      ).toContain("version: '1.0.7'");
 
       await access(path.join(destination, 'scripts', 'watch.mjs'));
+      await access(path.join(destination, 'scripts', 'probe.mjs'));
 
       for (const hook of ['codex.mjs', 'claude-code.mjs']) {
         const hookResult = spawnSync(

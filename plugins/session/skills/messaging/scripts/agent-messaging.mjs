@@ -4,7 +4,7 @@
 // src/skills/agent-messaging/src/agent-messaging.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
 import { realpathSync } from "node:fs";
-import path11 from "node:path";
+import path12 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
@@ -2718,10 +2718,78 @@ async function acknowledgeMessage(input) {
   return { ack, duplicate: false };
 }
 
+// src/skills/agent-messaging/src/probe.ts
+import { cpus, platform, arch } from "node:os";
+import path9 from "node:path";
+import { performance } from "node:perf_hooks";
+function integerInRange(value, label, minimum, maximum) {
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum)
+    throw new TypeError(`${label} must be from ${minimum} through ${maximum}`);
+}
+function createHostProbePlan(input) {
+  if (!input.optIn)
+    throw new TypeError("probe creation requires explicit opt-in");
+  if (!["codex", "claude-code", "cursor"].includes(input.host))
+    throw new TypeError("probe host is unsupported");
+  if (![
+    "prompt-start",
+    "stop-continuation",
+    "idle-notification",
+    "human-renewal"
+  ].includes(input.boundary))
+    throw new TypeError("probe boundary is unsupported");
+  assertBoundedString(input.id, "probe ID", 128);
+  assertUuid(input.collaborationId, "probe collaboration ID");
+  assertPin(input.session);
+  if (input.session.runtime !== input.host)
+    throw new TypeError("probe host must match the exact session runtime");
+  assertBoundedString(input.hostVersion, "host version", 128);
+  assertBoundedString(input.surface, "host surface", 256);
+  assertBoundedString(input.eventProvenance, "event provenance", 256);
+  if (!path9.isAbsolute(input.worktree))
+    throw new TypeError("probe worktree must be absolute");
+  if (input.command.length === 0 || input.command.length > 16)
+    throw new TypeError("probe command must contain 1 through 16 arguments");
+  for (const argument of input.command)
+    assertBoundedString(argument, "probe command argument", 1024, true);
+  integerInRange(input.timeoutMs, "probe timeout milliseconds", 1, 6e4);
+  const maxEvents = input.maxEvents ?? 1;
+  const maxAttempts = input.maxAttempts ?? 1;
+  integerInRange(maxEvents, "probe event budget", 1, 4);
+  integerInRange(maxAttempts, "probe attempt budget", 1, 2);
+  if (input.host === "cursor" && maxAttempts > 2)
+    throw new TypeError(
+      "Cursor probes allow one initial attempt and one retry"
+    );
+  const authorizationComplete = Boolean(
+    input.liveAuthorization && Object.values(input.liveAuthorization).every((value) => value === true)
+  );
+  return {
+    schemaVersion: 1,
+    id: input.id,
+    collaborationId: input.collaborationId,
+    host: input.host,
+    hostVersion: input.hostVersion,
+    surface: input.surface,
+    command: [...input.command],
+    boundary: input.boundary,
+    session: input.session,
+    worktree: path9.resolve(input.worktree),
+    eventProvenance: input.eventProvenance,
+    timeoutMs: input.timeoutMs,
+    maxEvents,
+    maxAttempts,
+    authorizationComplete,
+    execution: authorizationComplete ? "live-authorized" : "fixture-only",
+    capability: input.host === "cursor" || !authorizationComplete ? "manual-fallback" : "probe-candidate",
+    ownershipPreflightRequired: true
+  };
+}
+
 // src/skills/agent-messaging/src/registration.ts
 import { createHash as createHash4 } from "node:crypto";
 import { lstat as lstat4, mkdir as mkdir2, readFile as readFile3, rename as rename2, writeFile } from "node:fs/promises";
-import path9 from "node:path";
+import path10 from "node:path";
 var OBSERVER_LEASE_SCHEMA_VERSION = 6;
 var OBSERVER_LAUNCHER_OWNER = "session-observer-collab-codex-stop";
 var OBSERVER_BUNDLE_MANIFEST = ".session-observer-collab-bundle.json";
@@ -2766,26 +2834,26 @@ function commandScript(command) {
 }
 async function recognizedObserverLauncher(command) {
   const script = commandScript(command);
-  if (!script || !path9.isAbsolute(script)) return false;
+  if (!script || !path10.isAbsolute(script)) return false;
   const launcher = await readFile3(script, "utf8").catch(() => null);
   const marker = launcher?.match(
     new RegExp(`^// ${OBSERVER_LAUNCHER_OWNER}:([a-f0-9]{24})$`, "mu")
   );
   if (!launcher || !marker) return false;
-  const supportRoot = path9.join(
-    path9.dirname(script),
-    `.${path9.basename(script)}.support`,
+  const supportRoot = path10.join(
+    path10.dirname(script),
+    `.${path10.basename(script)}.support`,
     marker[1]
   );
   const manifest = await readFile3(
-    path9.join(supportRoot, OBSERVER_BUNDLE_MANIFEST),
+    path10.join(supportRoot, OBSERVER_BUNDLE_MANIFEST),
     "utf8"
   ).then((bytes) => JSON.parse(bytes)).catch(() => null);
   if (!manifest || manifest.owner !== OBSERVER_LAUNCHER_OWNER || manifest.version !== marker[1] || JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES)) {
     return false;
   }
   return Promise.all(
-    OBSERVER_BUNDLE_FILES.map((file) => lstat4(path9.join(supportRoot, file)))
+    OBSERVER_BUNDLE_FILES.map((file) => lstat4(path10.join(supportRoot, file)))
   ).then(
     (entries) => entries.every((entry) => entry.isFile() && !entry.isSymbolicLink()),
     () => false
@@ -2793,7 +2861,7 @@ async function recognizedObserverLauncher(command) {
 }
 async function recognizedMessagingLauncher(command) {
   const script = commandScript(command);
-  if (!script || !path9.isAbsolute(script)) return false;
+  if (!script || !path10.isAbsolute(script)) return false;
   const info = await lstat4(script).catch(() => null);
   if (!info || !info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 * 1024) {
     return false;
@@ -2814,7 +2882,7 @@ async function readConfig(file) {
   );
 }
 async function inspectCodexStopInventory(hooksPath) {
-  if (!path9.isAbsolute(hooksPath))
+  if (!path10.isAbsolute(hooksPath))
     throw new TypeError("Codex hooks path must be absolute");
   const unreadableSources = [];
   let config = null;
@@ -2847,7 +2915,7 @@ async function inspectClaudeStopInventory(input) {
   const unresolvedPlugins = [];
   const enabledPlugins = /* @__PURE__ */ new Set();
   for (const source of input.settingsPaths) {
-    if (!path9.isAbsolute(source))
+    if (!path10.isAbsolute(source))
       throw new TypeError("Claude settings paths must be absolute");
     let config = null;
     try {
@@ -2875,11 +2943,11 @@ async function inspectClaudeStopInventory(input) {
   }
   for (const name of enabledPlugins) {
     const pluginRoot = input.installedPlugins?.[name];
-    if (!pluginRoot || !path9.isAbsolute(pluginRoot)) {
+    if (!pluginRoot || !path10.isAbsolute(pluginRoot)) {
       unresolvedPlugins.push(name);
       continue;
     }
-    const source = path9.join(pluginRoot, "hooks", "hooks.json");
+    const source = path10.join(pluginRoot, "hooks", "hooks.json");
     let config = null;
     try {
       config = await readConfig(source);
@@ -2908,7 +2976,7 @@ async function inspectClaudeStopInventory(input) {
   };
 }
 async function inspectObserverLease(input) {
-  const file = path9.join(input.root, "leases", `${input.pin.sessionId}.json`);
+  const file = path10.join(input.root, "leases", `${input.pin.sessionId}.json`);
   let info;
   try {
     info = await lstat4(file);
@@ -2925,7 +2993,7 @@ async function inspectObserverLease(input) {
   } catch {
     return "uncertain";
   }
-  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || lease.ownerCwd !== path9.resolve(input.worktree) || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
+  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || lease.ownerCwd !== path10.resolve(input.worktree) || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
     lease.state
   ) || !Number.isSafeInteger(lease.continuationCount) || !Number.isSafeInteger(lease.continuationCap) || !Number.isSafeInteger(lease.loopCount) || !Number.isSafeInteger(lease.loopCap) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || Number.isNaN(Date.parse(lease.armedAt)) || Number.isNaN(Date.parse(lease.expiresAt)) || Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs) {
     return "uncertain";
@@ -2992,12 +3060,12 @@ function shellQuote(value) {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 function codexMessagingCommand(scriptPath) {
-  if (!path9.isAbsolute(scriptPath))
+  if (!path10.isAbsolute(scriptPath))
     throw new TypeError("messaging hook script path must be absolute");
-  return `node -- ${shellQuote(path9.resolve(scriptPath))}`;
+  return `node -- ${shellQuote(path10.resolve(scriptPath))}`;
 }
 async function writeJsonAtomic(file, value) {
-  await mkdir2(path9.dirname(file), { recursive: true, mode: 448 });
+  await mkdir2(path10.dirname(file), { recursive: true, mode: 448 });
   const temporary = `${file}.tmp-${process.pid}-${Date.now()}`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}
 `, {
@@ -3006,7 +3074,7 @@ async function writeJsonAtomic(file, value) {
   await rename2(temporary, file);
 }
 async function installCodexMessagingHooks(input) {
-  if (!path9.isAbsolute(input.hooksPath))
+  if (!path10.isAbsolute(input.hooksPath))
     throw new TypeError("Codex hooks path must be absolute");
   const config = await readConfig(input.hooksPath) ?? {};
   const hooks = config.hooks && typeof config.hooks === "object" && !Array.isArray(config.hooks) ? structuredClone(config.hooks) : {};
@@ -3025,7 +3093,7 @@ async function installCodexMessagingHooks(input) {
   return { changed, exactCommand: command };
 }
 async function uninstallCodexMessagingHooks(input) {
-  if (!path9.isAbsolute(input.hooksPath))
+  if (!path10.isAbsolute(input.hooksPath))
     throw new TypeError("Codex hooks path must be absolute");
   const config = await readConfig(input.hooksPath);
   if (!config || typeof config !== "object" || Array.isArray(config))
@@ -3066,7 +3134,7 @@ function claudeSessionHookDeclaration(scriptPath) {
 }
 
 // src/skills/agent-messaging/src/watch.ts
-import path10 from "node:path";
+import path11 from "node:path";
 var MAX_WATCH_DURATION_MS = 30 * 60 * 1e3;
 var DEFAULT_WATCH_POLL_MS = 1e3;
 function validateTiming(durationMs, pollMs) {
@@ -3081,7 +3149,7 @@ async function inventoryFor(input) {
   const env = input.env ?? process.env;
   if (input.pin.runtime === "codex") {
     return inspectCodexStopInventory(
-      env.AGENT_MESSAGING_HOOKS_PATH ?? path10.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
+      env.AGENT_MESSAGING_HOOKS_PATH ?? path11.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
     );
   }
   if (input.pin.runtime !== "claude-code")
@@ -3089,13 +3157,13 @@ async function inventoryFor(input) {
       "DELIVERY_INACTIVE",
       "this host has no verified standalone watch boundary"
     );
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path10.delimiter).filter(Boolean);
+  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path11.delimiter).filter(Boolean);
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
 async function deliveryKeys(input, activationId, participantId, messages) {
   const files = await enumerateJsonRecords(
-    path10.join(
+    path11.join(
       collaborationPaths(input.root, input.collaborationId).directory,
       "retries",
       participantId
@@ -3120,7 +3188,7 @@ async function deliveryKeys(input, activationId, participantId, messages) {
 }
 async function acceptedOwnership(input, now) {
   const status = await activationStatus(input.root, input.pin, now);
-  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path10.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
+  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path11.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
     return { status, allowed: false };
   }
   if (input.pin.runtime === "claude-code" && (!input.confirmNoObserverMonitor || !status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {
@@ -3139,7 +3207,7 @@ async function acceptedOwnership(input, now) {
 async function watchInbox(input, dependencies) {
   const pollMs = input.pollMs ?? DEFAULT_WATCH_POLL_MS;
   validateTiming(input.durationMs, pollMs);
-  if (!path10.isAbsolute(input.worktree))
+  if (!path11.isAbsolute(input.worktree))
     throw new TypeError("watch worktree must be absolute");
   const currentTime = dependencies.now ?? (() => /* @__PURE__ */ new Date());
   const sleep = dependencies.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
@@ -3270,7 +3338,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
-  node agent-messaging.mjs delivery enable|disable|activity|retry|watch ...
+  node agent-messaging.mjs delivery enable|disable|activity|retry|watch|probe-plan ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -3317,7 +3385,8 @@ function parse(argv) {
       "all",
       "body-stdin",
       "what-stdin",
-      "confirm-no-observer-monitor"
+      "confirm-no-observer-monitor",
+      "probe-opt-in"
     ].includes(name)) {
       flags.set(name, true);
       continue;
@@ -3412,9 +3481,9 @@ function resolveSelf(parsed, env) {
 function rootFor(parsed, env) {
   const explicit = optional(parsed, "root");
   if (explicit) {
-    if (!path11.isAbsolute(explicit))
+    if (!path12.isAbsolute(explicit))
       throw new TypeError("--root must be absolute");
-    return path11.resolve(explicit);
+    return path12.resolve(explicit);
   }
   return resolveCollaborationRoot(env);
 }
@@ -3566,9 +3635,9 @@ async function execute(parsed, io) {
       throw new TypeError("--expiry-mode must be fixed or human-idle");
     const worktree = optional(parsed, "cwd") ?? io.cwd;
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      optional(parsed, "hooks-path") ?? path11.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      optional(parsed, "hooks-path") ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path11.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
       installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
     });
     const ownership = await assessAutomaticOwnership({
@@ -3675,6 +3744,31 @@ async function execute(parsed, io) {
     );
     return { operation: "delivery.watch", collaborationId, data };
   }
+  if (command === "delivery" && subcommand === "probe-plan") {
+    const pin = resolveSelf(parsed, io.env);
+    const commandArguments = JSON.parse(required(parsed, "command"));
+    if (!Array.isArray(commandArguments) || !commandArguments.every((value) => typeof value === "string")) {
+      throw new TypeError("--command must be a JSON string array");
+    }
+    const data = createHostProbePlan({
+      optIn: parsed.flags.has("probe-opt-in"),
+      id: required(parsed, "probe-id"),
+      collaborationId,
+      host: pin.runtime,
+      hostVersion: required(parsed, "host-version"),
+      surface: required(parsed, "surface"),
+      command: commandArguments,
+      boundary: required(parsed, "boundary"),
+      session: pin,
+      worktree: optional(parsed, "cwd") ?? io.cwd,
+      eventProvenance: required(parsed, "event-provenance"),
+      timeoutMs: integer(parsed, "timeout-ms", 3e4),
+      maxEvents: integer(parsed, "max-events", 1),
+      maxAttempts: integer(parsed, "max-attempts", 1),
+      liveAuthorization: null
+    });
+    return { operation: "delivery.probe-plan", collaborationId, data };
+  }
   if (command === "delivery" && subcommand === "inspect") {
     const pin = resolveSelf(parsed, io.env);
     if (pin.runtime === "cursor") {
@@ -3688,9 +3782,9 @@ async function execute(parsed, io) {
       };
     }
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      optional(parsed, "hooks-path") ?? path11.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      optional(parsed, "hooks-path") ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path11.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
       installedPlugins: {}
     });
     return {
@@ -3716,9 +3810,9 @@ async function execute(parsed, io) {
     const worktree = optional(parsed, "cwd") ?? io.cwd;
     const hooksPath = optional(parsed, "hooks-path");
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      hooksPath ?? path11.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      hooksPath ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path11.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
       installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
     });
     const ownership = await assessAutomaticOwnership({
@@ -3930,7 +4024,7 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     return exitFor(error);
   }
 }
-if (process.argv[1] && realpathSync(path11.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path12.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runAgentMessagingCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });

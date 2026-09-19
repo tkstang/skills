@@ -20,6 +20,47 @@ async function run(argv: string[], env: NodeJS.ProcessEnv = {}) {
 }
 
 describe('agent messaging CLI', () => {
+  test('generates an explicit non-executing host probe plan', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    const args = [
+      'delivery',
+      'probe-plan',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:recipient',
+      '--probe-id',
+      'codex-stop-fixture',
+      '--host-version',
+      'fixture-1.0',
+      '--surface',
+      'fixture hook',
+      '--command',
+      '["/fixture/codex","--probe"]',
+      '--boundary',
+      'stop-continuation',
+      '--event-provenance',
+      'fixture native event ID',
+      '--timeout-ms',
+      '1000',
+      '--json',
+    ];
+    const refused = await run(args);
+    expect(refused.code).toBe(2);
+    expect(JSON.parse(refused.stderr).message).toContain('explicit opt-in');
+    const planned = await run([...args, '--probe-opt-in']);
+    expect(planned.code).toBe(0);
+    expect(JSON.parse(planned.stdout).data).toMatchObject({
+      collaborationId,
+      execution: 'fixture-only',
+      capability: 'manual-fallback',
+      authorizationComplete: false,
+    });
+  });
+
   test('enables, reports, disables, and re-enables finite delivery epochs', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
     const collaborationId = crypto.randomUUID();

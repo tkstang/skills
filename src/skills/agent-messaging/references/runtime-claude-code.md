@@ -43,4 +43,5 @@ peer messages, replays, and notifications never renew.
 Prompt context and Stop output use the same 6,000-character attributed,
 untrusted envelope as Codex. Oversized bodies become exact full-read commands.
 Errors cannot block a human prompt or create a Stop loop. Fixture evidence is
-not live acceptance; `live-acceptance.md` owns separately authorized receipts.
+not live acceptance; [host delivery acceptance](live-acceptance.md) owns
+separately authorized receipts.

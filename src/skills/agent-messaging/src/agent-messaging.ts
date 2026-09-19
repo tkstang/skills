@@ -56,6 +56,11 @@ import {
   type ClosedRecord,
 } from '../../../shared/collaboration/types.js';
 import {
+  createHostProbePlan,
+  type ProbeBoundary,
+  type ProbeHost,
+} from './probe.js';
+import {
   assessAutomaticOwnership,
   claudeSessionHookDeclaration,
   inspectClaudeStopInventory,
@@ -103,7 +108,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
-  node agent-messaging.mjs delivery enable|disable|activity|retry|watch ...
+  node agent-messaging.mjs delivery enable|disable|activity|retry|watch|probe-plan ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -154,6 +159,7 @@ function parse(argv: readonly string[]): Parsed {
         'body-stdin',
         'what-stdin',
         'confirm-no-observer-monitor',
+        'probe-opt-in',
       ].includes(name)
     ) {
       flags.set(name, true);
@@ -584,6 +590,34 @@ async function execute(
       },
     );
     return { operation: 'delivery.watch', collaborationId, data };
+  }
+  if (command === 'delivery' && subcommand === 'probe-plan') {
+    const pin = resolveSelf(parsed, io.env);
+    const commandArguments = JSON.parse(required(parsed, 'command')) as unknown;
+    if (
+      !Array.isArray(commandArguments) ||
+      !commandArguments.every((value) => typeof value === 'string')
+    ) {
+      throw new TypeError('--command must be a JSON string array');
+    }
+    const data = createHostProbePlan({
+      optIn: parsed.flags.has('probe-opt-in'),
+      id: required(parsed, 'probe-id'),
+      collaborationId,
+      host: pin.runtime as ProbeHost,
+      hostVersion: required(parsed, 'host-version'),
+      surface: required(parsed, 'surface'),
+      command: commandArguments,
+      boundary: required(parsed, 'boundary') as ProbeBoundary,
+      session: pin,
+      worktree: optional(parsed, 'cwd') ?? io.cwd,
+      eventProvenance: required(parsed, 'event-provenance'),
+      timeoutMs: integer(parsed, 'timeout-ms', 30_000),
+      maxEvents: integer(parsed, 'max-events', 1),
+      maxAttempts: integer(parsed, 'max-attempts', 1),
+      liveAuthorization: null,
+    });
+    return { operation: 'delivery.probe-plan', collaborationId, data };
   }
   if (command === 'delivery' && subcommand === 'inspect') {
     const pin = resolveSelf(parsed, io.env);

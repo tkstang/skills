@@ -47,4 +47,4 @@ delivery proof; diagnostics are bounded and redacted on stderr/storage.
 UserPromptSubmit/Stop command. `delivery unregister` removes only that command.
 Command content changes may require renewed `/hooks` trust. Neither operation
 proves invocation or live delivery. Live acceptance remains opt-in and is
-recorded separately in `live-acceptance.md`.
+recorded separately in [host delivery acceptance](live-acceptance.md).

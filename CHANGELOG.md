@@ -4,6 +4,11 @@
 
 ### Added
 
+- `agent-messaging` 1.0.7 adds explicit bounded host-probe plans, sanitized
+  receipt and owned-cleanup contracts, a fixture-tested 4,096-receipt validation
+  benchmark, and an honest host acceptance matrix; live Codex, Claude Code, and
+  Cursor rows remain unverified/manual, and no Cursor adapter is fabricated.
+
 - `agent-messaging` 1.0.6 adds a finite foreground request-only watch with
   deterministic batch claims, shared continuation slots, ownership rechecks,
   a 30-minute/activation-expiry cap, explicit Claude Monitor reconfirmation,
