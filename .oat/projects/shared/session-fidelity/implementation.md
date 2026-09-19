@@ -441,8 +441,8 @@ Phase p06 passes. All 19 implementation tasks and all seven phase reviews are co
     "handle": "/root/p07_implement",
     "finalHead": null
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "running",
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
