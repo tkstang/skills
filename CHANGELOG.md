@@ -4,6 +4,11 @@
 
 ### Added
 
+- `agent-messaging` 1.0.0 adds a dependency-free manual mailbox and immutable
+  collaboration log for three or more local coding-agent sessions, shipped as
+  a standalone skill and Session plugin-local `messaging` with exact identity,
+  explicit takeover, addressed messages, recipient acknowledgments, and
+  retained closeout history.
 - `consensus-review` 0.1.7 completes the three-selector non-interactive CLI, deterministic OAT-compatible Markdown rendering, absolute artifact handoffs, explicit post-drift export, and host-facing scope-selection workflow; the `consensus` plugin 0.2.0 adds plugin-local `review` and is the first plugin release supporting strict `defaults.reviewers` configuration (older binaries reject that key).
 - `consensus-review` 0.1.5 adds bounded branch, selected-file, and document scope capture; canonical external run state; ordered reviewer configuration and selection; bounded request prompts; one-shot deep result validation and host-owned JSON persistence; and selected-path drift evidence with explicit coverage limits.
 - Review-default configuration propagation updates `create` 0.1.13, `decide` 0.1.13, `evaluate` 0.1.17, `panel` 0.1.10, `phone-a-friend` 0.1.9, `plan` 0.1.13, `refine` 0.1.16, `session-observer` 1.0.44, `session-observer-collab` 1.0.33, and `session-fork-to-destination` 0.2.9.

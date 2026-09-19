@@ -174,6 +174,24 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'agent-messaging',
+    source: 'src/skills/agent-messaging',
+    allowedSourceRoots: ['src/shared/collaboration'],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'agent-messaging',
+        output: 'skills/agent-messaging',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'messaging',
+        output: 'plugins/session/skills/messaging',
+      },
+    ],
+  },
+  {
     owner: 'session-retro',
     source: 'src/skills/session-retro',
     optionalSkills: [

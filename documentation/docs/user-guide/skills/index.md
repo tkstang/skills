@@ -22,6 +22,7 @@ Choose by what the next session needs:
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
 | Keep a durable record of the conversation                                     | [Session Export Transcript](session-export-transcript.md)     | A sanitized Markdown transcript for reference. It is an archive, not a continuation packet or a session transfer.                                                       |
 | Continue native history within the same provider in another existing worktree | [Session Fork to Destination](session-fork-to-destination.md) | Alpha, destination-safe instructions for a native fork. Preparation does not create a fork, transfer worktree changes, or move native state across providers.           |
+| Exchange addressed questions, blockers, and handoffs among local sessions     | [Agent Messaging](agent-messaging.md)                         | Durable per-recipient messages, explicit acknowledgments, exact takeover, and a shared log without transcript access or automatic delivery.                             |
 
 These skills are grouped by user-facing behavior. The grouping does not mean
 that they share one implementation, and it does not require installing an
@@ -50,6 +51,9 @@ and standalone choices.
 - **session-observer-collab** — coordinate a user and two mutually observing
   agent sessions with exact pins, bounded wake behavior, and explicit
   authority and closeout rules.
+- **agent-messaging** (session-local `messaging`) — exchange durable addressed
+  messages among three or more local sessions with explicit receipts and a
+  shared collaboration log; this slice uses manual inbox checks.
 - **complexity-review** — judge whether each schema, script, test, harness,
   agent pass, or abstraction in a plan or implementation earns its ongoing
   cost, and get the minimum sufficient version with reintroduction triggers.
@@ -78,5 +82,6 @@ and standalone choices.
 
 ### Observe and collaborate
 
+- [Agent Messaging](agent-messaging.md) - Exchange addressed messages among local sessions without sharing transcripts; manual checks only in this slice.
 - [Session Observer](session-observer.md) - Review a peer coding agent's session with tool-free digests, per-session read offsets, and foreground watch mode.
 - [Collaborative Observer](session-observer-collab.md) - Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.
