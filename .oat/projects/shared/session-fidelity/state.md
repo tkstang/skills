@@ -98,17 +98,26 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
   handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation:
+    gate_run_id: 8e4a9161-9fd8-4732-9198-ee39329845ed
+    handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
+    source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
+    scope: final
+    type: code
+    source_filename: final-review-2026-09-19T221544Z.md
+  receive_source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
+  receive_archived_artifact: .oat/projects/shared/session-fidelity/reviews/archived/final-review-2026-09-19T221544Z.md
+  receive_event_identity:
+    scope: final
+    type: code
+    source_filename: final-review-2026-09-19T221544Z.md
+  receive_pre_head: 3f7bfd62c71472ea62c5570aa237e7d9017641bf
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-19T22:18:00Z'
+  updated_at: '2026-09-19T22:19:40Z'
 oat_post_implement_sequence:
   status: complete
   source: configured

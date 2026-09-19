@@ -736,6 +736,10 @@ Gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` was accepted by target `claude-f
 
 The corroborated result envelope for gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` is `ok` and receive-eligible. Review artifact `reviews/final-review-2026-09-19T221544Z.md` reports 0 Critical, 0 High, 1 Medium and 5 Low findings, so the configured High threshold passed. The gate's project-log append was finalized in a separate scoped commit after a transient shared-index-lock collision cleared normally.
 
+### Refreshed Exit Gate Receive Intent
+
+Receive correlation for gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` is persisted with source artifact `reviews/final-review-2026-09-19T221544Z.md`, collision-free archive destination `reviews/archived/final-review-2026-09-19T221544Z.md`, event identity `final/code/final-review-2026-09-19T221544Z.md`, and pre-receive head `3f7bfd62c71472ea62c5570aa237e7d9017641bf`.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md
