@@ -115,7 +115,7 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ## Phase 3
 
-**Status:** pending
+**Status:** in progress
 
 ### Task p03-t01: Expose activity in observer review and catch-up
 
@@ -913,3 +913,62 @@ Phase p02 passes. No optional external phase review gate is configured, and p02 
 - Reviews: round 1 found two Important issues, round 2 closed those and found two Important projection issues, and round 3 passed with zero findings. Artifacts: `reviews/p02-review-2026-09-19T141151Z.md`, `reviews/p02-review-2026-09-19T143548Z-round2.md`, `reviews/p02-review-2026-09-19T145413Z-round3.md`.
 - Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
 - Outstanding p02 items: none. The deferred p01 watcher stat diagnostic remains outside p02. Next: p03-t01 observer review/catch-up integration.
+
+#### Dispatch sf-p03-implement-01
+
+```json
+{
+  "request_id": "sf-p03-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p03",
+  "objective": "Integrate opt-in activity into observer review, catch-up and watch delivery without cursor drift or collaboration wake authority",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementer",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "phase-source-and-tests",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 7200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p03",
+    "taskIds": ["p03-t01", "p03-t02"],
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "activityBase": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "dispatchBase": "173eb98d57f91a30a651fc4c4978e68d8136fcc6",
+    "phaseBase": "173eb98d57f91a30a651fc4c4978e68d8136fcc6",
+    "handle": "/root/p03_implement",
+    "finalHead": null
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "phase scope analysis",
+  "classification_reason": "Observer cursor advancement and collaboration wake boundaries make missed or duplicated delivery expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
