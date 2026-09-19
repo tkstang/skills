@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t01-activity-base
-oat_last_commit: 8affc30a56e8f4c33c6bc50a6d632d93d37baa01
+oat_current_task: p02-t02
+oat_last_commit: d8f991fd27a16dea7f439aa1a93f066c03db6ec0
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -105,7 +105,7 @@ oat_generated: false
 
 ## Current Phase
 
-All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. Fresh review of `455daba2..d4069b77` passed with 0 Critical, 0 Important and one nonblocking Medium watcher-diagnostic follow-up. Root created the local `session-fidelity-activity` stack branch and recorded the reviewed identity tip `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535` as `ACTIVITY_BASE`; p02 source work has not started.
+p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 is complete at `d8f991fd`: detailed reads, stable physical-line diagnostics and minimal obscured native fixtures pass focused reader, build, type, version and privacy checks. The shared Claude/Codex activity extractor is next.
 
 ## Artifacts
 
@@ -113,7 +113,7 @@ All five p01 tasks and the accepted review fixes are implemented through `8affc3
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (6/19 tasks completed; p01 passed)
+- **Implementation:** `implementation.md` (7/19 tasks completed; p01 passed, p02 in progress)
 
 ## Progress
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Dispatch p02 on the activity branch and begin p02-t01 from the recorded `ACTIVITY_BASE`.
+Implement p02-t02 native Claude and Codex activity extraction from the verified detailed-reader contract.

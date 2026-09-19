@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t01-activity-base
+oat_current_task_id: p02-t02
 oat_generated: false
 ---
 
@@ -23,13 +23,13 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | pending | 5     | 0/5       |
+| p02   | in progress | 5     | 1/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 6/19 implementation tasks completed.
+**Total:** 7/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -85,9 +85,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p02-t01: Add captured fixtures and LF-only detailed source reading
 
-**Status:** activity base established; implementation pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** d8f991fd27a16dea7f439aa1a93f066c03db6ec0
+**Verification:** detailed reads preserve legacy decoded records and warnings across 48 fixtures while adding stable `malformed`, `not-object` and `partial-tail` diagnostics, one-based physical lines and zero-based decoded indices without retaining raw lines or byte offsets. Minimal obscured Claude Code 2.1.278, Codex 0.154.0 and Cursor version-unknown captures include provenance and inherited-history ownership. Fable's read-only feedback closed raw parser-message leakage before commit. Implementer and root independently passed 127 focused tests, build freshness, type checking, four-owner version validation and the 2/2 schema privacy canary; root also verified valid object-only JSONL and no credential, email or private-home-path patterns in the captures.
 
 ### Task p02-t02: Extract native Claude and Codex activity
 
