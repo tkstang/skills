@@ -1779,7 +1779,7 @@ async function handleBoundary(input, dependencies = {}) {
   const status = await activationStatus(root, pin, now);
   if (!status.activation || !status.active)
     return { output: null, envelope: null };
-  if (status.activation.worktree !== path9.resolve(input.cwd) || status.activation.controller !== "standalone-messaging") {
+  if (status.activation.worktree !== path9.resolve(input.cwd) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "stop") {
     return { output: null, envelope: null };
   }
   if (input.runtime === "claude-code" && (!status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {

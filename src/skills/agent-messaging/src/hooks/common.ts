@@ -111,7 +111,8 @@ export async function handleBoundary(
     return { output: null, envelope: null };
   if (
     status.activation.worktree !== path.resolve(input.cwd) ||
-    status.activation.controller !== 'standalone-messaging'
+    status.activation.controller !== 'standalone-messaging' ||
+    status.activation.mechanism !== 'stop'
   ) {
     return { output: null, envelope: null };
   }

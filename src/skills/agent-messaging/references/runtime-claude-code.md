@@ -2,10 +2,11 @@
 
 ## Capability labels
 
-The bundled `scripts/hooks/claude-code.mjs` adapter and generated session hook
-declaration are fixture-tested only. Presence does not prove installation,
-permission, invocation, recipient context, continuation, Monitor wake, or
-cleanup. A later finite foreground watch is a notification source, not a daemon.
+The bundled `scripts/hooks/claude-code.mjs` adapter, generated session hook
+declaration, and finite foreground watch are fixture-tested only. Presence does
+not prove installation, permission, invocation, recipient context,
+continuation, Monitor wake, or cleanup. The watch is a request-only notification
+source, not a daemon or proof of native async wake support.
 
 ## Bounded inventory
 
@@ -28,6 +29,8 @@ therefore requires `--confirm-no-observer-monitor` from the exact acting session
 The immutable activation records its pin and epoch. This is an attestation, not
 host proof. Lost context remains manual. Every finite watch start/re-arm requires
 fresh confirmation without changing the epoch or replenishing its budget.
+The watch also rechecks inventory and ownership before each output, lasts no
+more than 30 minutes or the activation expiry, and never self-rearms.
 
 ## Boundary contract
 

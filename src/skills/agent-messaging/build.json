@@ -2,6 +2,7 @@
   "runtime": [
     "src/agent-messaging.ts",
     "src/hooks/codex.ts",
-    "src/hooks/claude-code.ts"
+    "src/hooks/claude-code.ts",
+    "src/watch.ts"
   ]
 }

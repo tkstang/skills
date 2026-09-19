@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.5'
+  version: '1.0.6'
 ---
 
 # messaging
@@ -151,6 +151,21 @@ node <skill-dir>/scripts/agent-messaging.mjs delivery register \
   --collab <uuid> --self codex:<id> --hooks-path <absolute-hooks.json> \
   --script-path <absolute-installed-hook.mjs>
 ```
+
+For request-only foreground notifications, create the activation with
+`--mechanism monitor`, then start a finite watch. A watch lasts at most 30
+minutes and never creates a daemon, new activation, or replacement budget:
+
+```bash
+node <skill-dir>/scripts/agent-messaging.mjs delivery watch \
+  --collab <uuid> --self codex:<id> --duration 5m --poll-ms 1000
+```
+
+The notification contains attributed request metadata, never message bodies.
+Updates remain visible in the manual inbox but do not wake the watch. Re-arm
+uses the same activation and remaining continuation slots. Claude requires a
+fresh `--confirm-no-observer-monitor` on every watch start; native Stop and a
+standalone Monitor are mutually exclusive activation mechanisms.
 
 ## Collaboration log and status
 

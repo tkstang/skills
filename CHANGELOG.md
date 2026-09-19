@@ -4,6 +4,11 @@
 
 ### Added
 
+- `agent-messaging` 1.0.6 adds a finite foreground request-only watch with
+  deterministic batch claims, shared continuation slots, ownership rechecks,
+  a 30-minute/activation-expiry cap, explicit Claude Monitor reconfirmation,
+  and no daemon, self-rearm, or automatic provider claim.
+
 - `agent-messaging` 1.0.5 adds fail-closed Codex and Claude Code prompt/Stop
   adapters, exact-session observer ownership detection, scoped third-party hook
   fingerprints, Claude Monitor attestation, explicit registration generation,

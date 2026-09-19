@@ -1,12 +1,6 @@
-#!/usr/bin/env node
 // GENERATED skill payload for agent-messaging.
 
-// src/skills/agent-messaging/src/hooks/codex.ts
-import path10 from "node:path";
-import { fileURLToPath } from "node:url";
-
-// src/skills/agent-messaging/src/hooks/common.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+// src/skills/agent-messaging/src/watch.ts
 import path9 from "node:path";
 
 // src/shared/collaboration/activation.ts
@@ -605,35 +599,6 @@ async function enumerateJsonRecords(directory, options) {
 }
 
 // src/shared/collaboration/paths.ts
-function requireAbsolute(value, name) {
-  if (!path2.isAbsolute(value)) {
-    throw new CollaborationError("INVALID_ROOT", `${name} must be absolute`);
-  }
-  return path2.resolve(value);
-}
-function resolveCollaborationRoot(env = process.env) {
-  if (env.SESSION_OBSERVER_STATE_DIR) {
-    return requireAbsolute(
-      env.SESSION_OBSERVER_STATE_DIR,
-      "SESSION_OBSERVER_STATE_DIR"
-    );
-  }
-  if (env.XDG_STATE_HOME) {
-    return path2.join(
-      requireAbsolute(env.XDG_STATE_HOME, "XDG_STATE_HOME"),
-      "session-observer",
-      "collab"
-    );
-  }
-  const home = env.HOME || homedir();
-  return path2.join(
-    requireAbsolute(home, "HOME"),
-    ".local",
-    "state",
-    "session-observer",
-    "collab"
-  );
-}
 function collaborationPaths(root, collaborationId) {
   if (!path2.isAbsolute(root))
     throw new CollaborationError("INVALID_ROOT", "root must be absolute");
@@ -1056,50 +1021,6 @@ async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
     notice: null
   };
 }
-async function recordHumanActivity(input) {
-  const status = await activationStatus(
-    input.root,
-    input.pin,
-    input.now ?? /* @__PURE__ */ new Date()
-  );
-  if (!status.activation || !status.active)
-    throw new DeliveryError(
-      "DELIVERY_INACTIVE",
-      status.notice ?? "delivery activation is inactive"
-    );
-  if (status.activation.expiryMode !== "human-idle")
-    throw new DeliveryError(
-      "DELIVERY_CONFLICT",
-      "fixed-expiry activation cannot be renewed"
-    );
-  assertBoundedString(input.eventKey, "human event key", 256);
-  const base = {
-    schemaVersion: SCHEMA_VERSION,
-    activationId: status.activation.id,
-    eventKey: input.eventKey,
-    observedAt: (input.now ?? /* @__PURE__ */ new Date()).toISOString()
-  };
-  const record = {
-    ...base,
-    contentHash: canonicalRecordHash(
-      base
-    )
-  };
-  const safeKey2 = await import("node:crypto").then(
-    ({ createHash: createHash5 }) => createHash5("sha256").update(`human\0${input.eventKey}`).digest("hex")
-  );
-  await publishImmutableRecord(
-    path4.join(
-      activationDirectory(input.root, input.pin),
-      "activity",
-      status.activation.id,
-      `${safeKey2}.json`
-    ),
-    record,
-    { root: input.root }
-  );
-  return record;
-}
 
 // src/shared/collaboration/claims.ts
 import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
@@ -1112,6 +1033,14 @@ function deliveryKey(input) {
   if (!Number.isSafeInteger(input.retryGeneration) || input.retryGeneration < 0)
     throw new TypeError("retry generation must be a non-negative integer");
   return `${input.messageId}:${input.retryGeneration}`;
+}
+function watchBatchEventKey(input) {
+  assertUuid(input.activationId, "activation ID");
+  const keys = input.deliveryKeys.map(deliveryKey).toSorted();
+  return safeKey(
+    "agent-messaging-watch-batch-v1",
+    `${input.activationId}\0${input.bindingGeneration}\0${keys.join("\0")}`
+  );
 }
 function baseClaim(input, activationId, token, attemptedAt) {
   assertBoundedString(input.eventKey, "event key", 256);
@@ -1261,6 +1190,67 @@ async function claimDelivery(input) {
     owned,
     duplicateEvent: false,
     activeAfterClaim: after.active && after.activation?.id === activation.id
+  };
+}
+async function deliveryClaimStatus(input) {
+  const status = await activationStatus(input.root, input.pin);
+  if (!status.activation)
+    return {
+      spentSlots: 0,
+      remainingSlots: 0,
+      interruptedAttempts: [],
+      outcomeUnknown: []
+    };
+  const base = path5.join(
+    activationDirectory(input.root, input.pin),
+    "claims",
+    status.activation.id
+  );
+  const [eventFiles, slotFiles, messageFiles] = await Promise.all([
+    enumerateJsonRecords(path5.join(base, "events"), {
+      root: input.root,
+      maxEntries: 4096
+    }),
+    enumerateJsonRecords(path5.join(base, "slots"), {
+      root: input.root,
+      maxEntries: status.activation.maxContinuations
+    }),
+    enumerateJsonRecords(path5.join(base, "messages"), {
+      root: input.root,
+      maxEntries: 4096
+    })
+  ]);
+  const [events, slots, messages] = await Promise.all([
+    Promise.all(
+      eventFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    ),
+    Promise.all(
+      slotFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    ),
+    Promise.all(
+      messageFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    )
+  ]);
+  const interruptedAttempts = events.filter(
+    (event) => !slots.some((slot) => slot.token === event.token) || !messages.some((message) => message.token === event.token)
+  ).map((event) => event.token);
+  const outcomeUnknown = events.filter(
+    (event) => messages.some((message) => message.token === event.token)
+  ).map((event) => event.token);
+  return {
+    spentSlots: slots.length,
+    remainingSlots: Math.max(
+      0,
+      status.activation.maxContinuations - slots.length
+    ),
+    interruptedAttempts,
+    outcomeUnknown
   };
 }
 
@@ -1723,214 +1713,197 @@ async function assessAutomaticOwnership(input) {
   };
 }
 
-// src/skills/agent-messaging/src/hooks/common.ts
-function boundedEnvelope(messages, collaborationId, pin) {
-  const full = messages.map((message) => ({
-    id: message.id,
-    from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
-    kind: message.kind,
-    priority: message.priority,
-    subject: message.subject,
-    body: message.body,
-    untrusted: true
-  }));
-  const wrap = (payload) => `<agent_messaging_context automatic="true" untrusted="true">
-${JSON.stringify(payload).replaceAll("<", "\\u003c")}
-</agent_messaging_context>`;
-  const complete = wrap({ collaborationId, messages: full });
-  if (complete.length <= 6e3) return complete;
-  return wrap({
-    collaborationId,
-    messages: messages.map((message) => ({
-      id: message.id,
-      from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
-      kind: message.kind,
-      priority: message.priority,
-      subject: message.subject,
-      readCommand: `node <skill-dir>/scripts/agent-messaging.mjs inbox --collab ${collaborationId} --self ${pin.runtime}:${pin.sessionId} --message ${message.id}`
-    })),
-    notice: "Bodies exceeded the bounded host envelope; read each exact message before acknowledging it."
-  });
-}
-async function inventoryFor(input, env) {
-  if (input.runtime === "codex") {
-    const hooksPath = env.AGENT_MESSAGING_HOOKS_PATH ?? path9.join(env.HOME ?? input.cwd, ".codex", "hooks.json");
-    return inspectCodexStopInventory(hooksPath);
+// src/skills/agent-messaging/src/watch.ts
+var MAX_WATCH_DURATION_MS = 30 * 60 * 1e3;
+var DEFAULT_WATCH_POLL_MS = 1e3;
+function validateTiming(durationMs, pollMs) {
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > MAX_WATCH_DURATION_MS) {
+    throw new TypeError("watch duration must be from 1ms through 30 minutes");
   }
+  if (!Number.isSafeInteger(pollMs) || pollMs <= 0 || pollMs > 6e4) {
+    throw new TypeError("watch poll interval must be from 1ms through 60s");
+  }
+}
+async function inventoryFor(input) {
+  const env = input.env ?? process.env;
+  if (input.pin.runtime === "codex") {
+    return inspectCodexStopInventory(
+      env.AGENT_MESSAGING_HOOKS_PATH ?? path9.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
+    );
+  }
+  if (input.pin.runtime !== "claude-code")
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      "this host has no verified standalone watch boundary"
+    );
   const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path9.delimiter).filter(Boolean);
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
-async function handleBoundary(input, dependencies = {}) {
-  assertBoundedString(input.sessionId, "native session ID", 128);
-  if (!path9.isAbsolute(input.cwd))
-    throw new TypeError("native cwd must be absolute");
-  if (input.continuationActive || !input.eventId)
-    return { output: null, envelope: null };
-  assertBoundedString(input.eventId, "native event ID", 128);
-  const env = dependencies.env ?? process.env;
-  const currentTime = dependencies.now ?? (() => /* @__PURE__ */ new Date());
-  const now = currentTime();
-  const root = resolveCollaborationRoot(env);
-  const pin = {
-    runtime: input.runtime,
-    sessionId: input.sessionId
-  };
-  const status = await activationStatus(root, pin, now);
-  if (!status.activation || !status.active)
-    return { output: null, envelope: null };
-  if (status.activation.worktree !== path9.resolve(input.cwd) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "stop") {
-    return { output: null, envelope: null };
+async function deliveryKeys(input, activationId, participantId, messages) {
+  const files = await enumerateJsonRecords(
+    path9.join(
+      collaborationPaths(input.root, input.collaborationId).directory,
+      "retries",
+      participantId
+    ),
+    { root: input.root, maxEntries: 4096 }
+  );
+  const generations = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const retry = await readJsonRecord(file, { root: input.root });
+    if (retry.activationId !== activationId || retry.participantId !== participantId) {
+      continue;
+    }
+    generations.set(
+      retry.messageId,
+      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration)
+    );
   }
-  if (input.runtime === "claude-code" && (!status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {
-    return { output: null, envelope: null };
+  return messages.map((message) => ({
+    messageId: message.id,
+    retryGeneration: generations.get(message.id) ?? 0
+  }));
+}
+async function acceptedOwnership(input, now) {
+  const status = await activationStatus(input.root, input.pin, now);
+  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path9.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
+    return { status, allowed: false };
   }
-  const inventory = await inventoryFor(input, env);
+  if (input.pin.runtime === "claude-code" && (!input.confirmNoObserverMonitor || !status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {
+    return { status, allowed: false };
+  }
   const ownership = await assessAutomaticOwnership({
-    root,
-    pin,
-    worktree: input.cwd,
-    inventory,
+    root: input.root,
+    pin: input.pin,
+    worktree: input.worktree,
+    inventory: await inventoryFor(input),
     acknowledgedFingerprint: status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
     now
   });
-  if (!ownership.automaticAllowed) return { output: null, envelope: null };
-  if (input.boundary === "prompt-start" && input.provenHuman) {
-    await recordHumanActivity({
-      root,
-      pin,
-      eventKey: input.eventId,
-      now
-    }).catch(() => void 0);
-  }
-  let inbox = await listInbox({
-    root,
-    collaborationId: status.activation.collaborationId,
-    pin
-  });
-  let eligible = input.boundary === "stop" ? inbox.messages.filter((message) => message.kind === "request") : inbox.messages;
-  if (eligible.length === 0 && input.boundary === "stop" && status.activation.waitMs > 0) {
-    await (dependencies.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))))(status.activation.waitMs);
-    inbox = await listInbox({
-      root,
-      collaborationId: status.activation.collaborationId,
-      pin
+  return { status, allowed: ownership.automaticAllowed };
+}
+async function watchInbox(input, dependencies) {
+  const pollMs = input.pollMs ?? DEFAULT_WATCH_POLL_MS;
+  validateTiming(input.durationMs, pollMs);
+  if (!path9.isAbsolute(input.worktree))
+    throw new TypeError("watch worktree must be absolute");
+  const currentTime = dependencies.now ?? (() => /* @__PURE__ */ new Date());
+  const sleep = dependencies.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const startedAt = currentTime().getTime();
+  const requestedDeadline = startedAt + input.durationMs;
+  const maximumIterations = Math.ceil(input.durationMs / pollMs) + 1;
+  let notifications = 0;
+  let claimedRequests = 0;
+  let iterations = 0;
+  let reason = "duration-complete";
+  while (iterations < maximumIterations) {
+    if (dependencies.signal?.aborted) {
+      reason = "interrupted";
+      break;
+    }
+    const now = currentTime();
+    const ownership = await acceptedOwnership(input, now);
+    const activation = ownership.status.activation;
+    if (!activation || !ownership.status.active) {
+      reason = "activation-inactive";
+      break;
+    }
+    if (!ownership.allowed) {
+      reason = "ownership-refused";
+      break;
+    }
+    const expiry = Date.parse(ownership.status.effectiveExpiresAt);
+    const deadline = Math.min(requestedDeadline, expiry);
+    if (now.getTime() >= deadline) break;
+    const claims = await deliveryClaimStatus({
+      root: input.root,
+      pin: input.pin
     });
-    eligible = inbox.messages.filter((message) => message.kind === "request");
-  }
-  if (eligible.length === 0) return { output: null, envelope: null };
-  const finalNow = currentTime();
-  const finalStatus = await activationStatus(root, pin, finalNow);
-  if (!finalStatus.active || finalStatus.activation?.id !== status.activation.id) {
-    return { output: null, envelope: null };
-  }
-  const finalInventory = await inventoryFor(input, env);
-  const finalOwnership = await assessAutomaticOwnership({
-    root,
-    pin,
-    worktree: input.cwd,
-    inventory: finalInventory,
-    acknowledgedFingerprint: status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
-    now: finalNow
-  });
-  if (!finalOwnership.automaticAllowed) return { output: null, envelope: null };
-  const attemptId = randomUUID5();
-  const eventKey = `${input.runtime}:${input.boundary}:${input.eventId}`;
-  const claim = await claimDelivery({
-    root,
-    pin,
-    eventKey,
-    deliveryKeys: eligible.map((message) => ({
-      messageId: message.id,
-      retryGeneration: 0
-    })),
-    token: attemptId,
-    now: finalNow
-  });
-  if (!claim.slot || claim.owned.length === 0 || !claim.activeAfterClaim)
-    return { output: null, envelope: null };
-  const ownedIds = new Set(claim.owned.map((message) => message.messageId));
-  const envelope = boundedEnvelope(
-    eligible.filter((message) => ownedIds.has(message.id)),
-    status.activation.collaborationId,
-    pin
-  );
-  await publishDeliveryDiagnostic({
-    root,
-    pin,
-    diagnostic: {
-      attemptId,
-      activationId: status.activation.id,
-      eventKey,
-      boundary: input.boundary,
-      recordedAt: finalNow.toISOString(),
-      stage: "output-attempted",
-      outcomeCode: "host-output-attempted",
-      errorCode: null
+    if (claims.remainingSlots === 0) {
+      reason = "budget-exhausted";
+      break;
     }
-  }).catch(() => dependencies.diagnostic?.("diagnostic-write-failed"));
-  const output = input.boundary === "stop" ? { decision: "block", reason: envelope } : {
-    hookSpecificOutput: {
-      hookEventName: "UserPromptSubmit",
-      additionalContext: envelope
-    }
-  };
-  return { output, envelope };
-}
-
-// src/skills/agent-messaging/src/hooks/codex.ts
-async function runCodexHook(event, dependencies = {}) {
-  const boundary = event.hook_event_name === "UserPromptSubmit" ? "prompt-start" : event.hook_event_name === "Stop" ? "stop" : null;
-  if (!boundary || typeof event.session_id !== "string" || typeof event.cwd !== "string" || !path10.isAbsolute(event.cwd)) {
-    return null;
-  }
-  const eventId = typeof event.event_id === "string" ? event.event_id : typeof event.prompt_id === "string" ? event.prompt_id : null;
-  return (await handleBoundary(
-    {
-      runtime: "codex",
-      sessionId: event.session_id,
-      cwd: event.cwd,
-      boundary,
-      eventId,
-      provenHuman: boundary === "prompt-start" && event.is_human === true && eventId !== null,
-      continuationActive: event.stop_hook_active === true
-    },
-    dependencies
-  )).output;
-}
-async function readStdin() {
-  const chunks = [];
-  let bytes = 0;
-  for await (const chunk of process.stdin) {
-    const buffer = Buffer.from(chunk);
-    bytes += buffer.length;
-    if (bytes > 64 * 1024) throw new Error("HOOK_INPUT_TOO_LARGE");
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-async function runCodexHookMain() {
-  try {
-    const output = await runCodexHook(
-      JSON.parse(await readStdin()),
-      {
-        diagnostic: (message) => process.stderr.write(`${message}
-`)
+    iterations += 1;
+    const inbox = await listInbox({
+      root: input.root,
+      collaborationId: input.collaborationId,
+      pin: input.pin,
+      maxMessages: 4096,
+      maxBytes: Number.MAX_SAFE_INTEGER
+    });
+    const requests = inbox.messages.filter(
+      (message) => message.kind === "request" && !message.inert
+    );
+    if (requests.length > 0) {
+      const keys = await deliveryKeys(
+        input,
+        activation.id,
+        activation.participantId,
+        requests
+      );
+      const eventKey = watchBatchEventKey({
+        activationId: activation.id,
+        bindingGeneration: activation.bindingGeneration,
+        deliveryKeys: keys
+      });
+      let finalOwnership = true;
+      const claim = await claimDelivery({
+        root: input.root,
+        pin: input.pin,
+        eventKey,
+        deliveryKeys: keys,
+        now,
+        hooks: {
+          afterEventClaim: dependencies.afterEventClaim,
+          beforeFinalValidation: async () => {
+            const final = await acceptedOwnership(input, currentTime());
+            finalOwnership = final.allowed && final.status.activation?.id === activation.id;
+          }
+        }
+      });
+      if (finalOwnership && claim.activeAfterClaim && claim.owned.length > 0) {
+        const owned = new Set(claim.owned.map((item) => item.messageId));
+        const selected = requests.filter((message) => owned.has(message.id));
+        await publishDeliveryDiagnostic({
+          root: input.root,
+          pin: input.pin,
+          diagnostic: {
+            attemptId: claim.event.token,
+            activationId: activation.id,
+            eventKey,
+            boundary: "watch",
+            recordedAt: currentTime().toISOString(),
+            stage: "output-attempted",
+            outcomeCode: "watch-notification-attempted",
+            errorCode: null
+          }
+        }).catch(() => void 0);
+        await dependencies.emit({
+          type: "agent-messaging-request-notification",
+          collaborationId: input.collaborationId,
+          activationId: activation.id,
+          eventKey,
+          untrusted: true,
+          requests: selected.map((message) => ({
+            id: message.id,
+            from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
+            priority: message.priority,
+            subject: message.subject
+          }))
+        });
+        notifications += 1;
+        claimedRequests += selected.length;
       }
-    );
-    if (output) process.stdout.write(`${JSON.stringify(output)}
-`);
-  } catch (error) {
-    process.stderr.write(
-      `${error instanceof Error ? error.name : "HOOK_ERROR"}
-`
-    );
+    }
+    const remaining = deadline - currentTime().getTime();
+    if (remaining <= 0) break;
+    await sleep(Math.min(pollMs, remaining));
   }
-}
-if (process.argv[1] && path10.resolve(process.argv[1]) === path10.resolve(fileURLToPath(import.meta.url))) {
-  runCodexHookMain().catch(() => void 0);
+  return { reason, notifications, claimedRequests, iterations };
 }
 export {
-  runCodexHook,
-  runCodexHookMain
+  DEFAULT_WATCH_POLL_MS,
+  MAX_WATCH_DURATION_MS,
+  watchInbox
 };

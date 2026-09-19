@@ -63,6 +63,7 @@ import {
   installCodexMessagingHooks,
   uninstallCodexMessagingHooks,
 } from './registration.js';
+import { watchInbox } from './watch.js';
 
 export interface CliIo {
   env: NodeJS.ProcessEnv;
@@ -102,7 +103,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
-  node agent-messaging.mjs delivery enable|disable|activity|retry ...
+  node agent-messaging.mjs delivery enable|disable|activity|retry|watch ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -561,6 +562,28 @@ async function execute(
         messageId: required(parsed, 'message'),
       }),
     };
+  }
+  if (command === 'delivery' && subcommand === 'watch') {
+    const pin = resolveSelf(parsed, io.env);
+    const data = await watchInbox(
+      {
+        root,
+        collaborationId,
+        pin,
+        worktree: optional(parsed, 'cwd') ?? io.cwd,
+        durationMs: duration(optional(parsed, 'duration'), 5 * 60 * 1000),
+        pollMs: integer(parsed, 'poll-ms', 1000),
+        confirmNoObserverMonitor: parsed.flags.has(
+          'confirm-no-observer-monitor',
+        ),
+        env: io.env,
+      },
+      {
+        emit: (notification) =>
+          io.stdout(`${JSON.stringify({ notification })}\n`),
+      },
+    );
+    return { operation: 'delivery.watch', collaborationId, data };
   }
   if (command === 'delivery' && subcommand === 'inspect') {
     const pin = resolveSelf(parsed, io.env);
