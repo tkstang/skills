@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: 7214653b859166fd2cdc55faebe2559afa85fb70
+oat_current_task: p05-t02
+oat_last_commit: 6921b610fbbf5926cfcda45e26acac5800fb1302
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -117,7 +117,7 @@ oat_generated: false
 
 ## Current Phase
 
-p01 through p04 are passed. The fresh p04 phase review found zero findings across 277 tests and all structural gates. Exporter activity is bounded and labeled, adversarial Markdown stays inert, and observer Markdown/JSON budgets measure their actual final format. No external phase gate or p04 HiLL checkpoint applies. Cursor extraction begins at p05-t01.
+p01 through p04 are passed. p05-t01 now extracts only recorded Cursor call evidence with positional identity, separate source/delivery coordinates, conservative turn-level outcomes and explicit pending lifecycle. Its transition audit found zero Critical/Important findings. p05-t02 integrates settlement through existing terminal checkpoints.
 
 ## Artifacts
 
@@ -125,7 +125,7 @@ p01 through p04 are passed. The fresh p04 phase review found zero findings acros
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (15/19 tasks completed; p01 through p04 passed, p05 ready)
+- **Implementation:** `implementation.md` (16/19 tasks completed; p01 through p04 passed, p05 in progress)
 
 ## Progress
 
@@ -148,4 +148,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p05-t01 stable Cursor activity extraction from recorded frame evidence.
+Implement p05-t02 Cursor activity delivery through existing terminal checkpoints.

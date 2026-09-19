@@ -151,9 +151,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p05-t01: Extract stable Cursor call evidence
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 6921b610fbbf5926cfcda45e26acac5800fb1302
+**Verification:** Cursor extraction uses recorded frame/block positional identity, separates source and terminal delivery coordinates, keeps per-call outcome unknown while retaining turn lifecycle, defers open turns in stateful delivery and emits snapshot-scoped pending lifecycle only for stateless reads. Malformed safe-prefix, repair, replacement and grow-in-place cases are covered without inventing IDs/results/version/usage. Root passed the required 52 Cursor tests, type checking, build freshness and four-owner version validation. Fresh transition audit found 0 Critical/Important findings and confirmed no p05-t02 scope spill.
 
 ### Task p05-t02: Integrate Cursor settlement with observer and export
 
