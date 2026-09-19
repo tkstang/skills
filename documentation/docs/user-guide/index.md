@@ -16,12 +16,12 @@ What ships today:
   audit trails; `panel` collects attributed perspectives; `phone-a-friend`
   asks one peer for a one-shot advisory take;
   `observer` and `observer-collab` provide plugin-local session observation.
-- **Session plugin** — `retro`, `handoff`, `export-transcript`, and
-  `fork-to-destination` cover bounded review, continuation, sanitized export,
-  and alpha destination-side fork guidance.
+- **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`, and
+  `fork-to-destination` cover addressed coordination, bounded review,
+  continuation, sanitized export, and alpha destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names; `next-steps`, `must-we`, and `complexity-review`
-  remain standalone only.
+  `session-*` names except for `agent-messaging`; `next-steps`, `must-we`, and
+  `complexity-review` remain standalone only.
 
 Plugin and standalone entries share canonical guides rather than duplicate
 documentation. Pick by the task you want to accomplish, then use the guide's

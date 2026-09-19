@@ -47,7 +47,7 @@
   - Getting Started
     - [Getting Started](user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
   - Plugins
-    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for continuity and retrospective review.
+    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, and retrospective review.
     - Session
       - [Session](user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, prepare an alpha native fork, or review a session.
   - Skills
