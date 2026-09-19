@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t04
+oat_current_task_id: p02-t04-recovery-01
 oat_generated: false
 ---
 
@@ -617,7 +617,8 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
   "diagnostics": [],
   "continuation_events": [
     "p02-t02-recovery-resume-01",
-    "p02-t03-recovery-resume-01"
+    "p02-t03-recovery-resume-01",
+    "p02-t04-recovery-resume-01"
   ],
   "task_class": "consequential",
   "model_class_floor": "consequential",
@@ -666,3 +667,7 @@ Root transition audit of immutable p02-t03 commit `8bc62b0bf9bdbc3f8ba095c61b2fd
 - Recovery commit: 4e2932e7262bb90ad7dcd9dd51c365b1a1ef615a
 - Verification: root passed 41 focused correlate/extract tests, type-check, build freshness and four-owner version validation; closure audit found no Critical/Important issue.
 - Reason: bounded ownership and classifier corrections passed declared checks while preserving immutable task history and conservative linkage.
+
+#### Continuation p02-t04-recovery-resume-01
+
+Root transition audit of immutable p02-t04 commit `5440c56a06f19f3a4bd437b4aa94b07510f37245` found one Important preview-suppression gap. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t04-recovery-01` may reserve cumulative p02 attempt 3/10 only after this continuation is committed. Scope is limited to suppressing a linked item preview only when a retained linked result actually has an output carrier/preview, with a missing-result-output failure regression; p02-t05 remains unauthorized.
