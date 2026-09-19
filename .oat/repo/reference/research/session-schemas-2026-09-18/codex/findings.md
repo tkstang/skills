@@ -13,9 +13,9 @@ re-checked by the root reviewer on a separate 500-file sample (files modified si
 - 333 files / 307,938 records; 22 `cli_version` values (0.142.4–0.155.1);
   2026-07-02 → 2026-09-18; stratified by version with forced inclusion of sessions
   containing subagents, custom/function calls, web search, MCP, failures, aborts,
-  and compaction. The worker reported 17 malformed lines (0.006%); a root re-check
-  that splits on the LF byte only found 0 malformed lines in 300 recent files, so those
-  17 are attributed to `readline` breaking on U+2028/U+2029 inside strings. 0 unreadable files.
+  and compaction. The worker reported 17 malformed lines (0.006%); the abandoned scanner
+  treated U+2028/U+2029 inside strings as record boundaries, while a root re-check that
+  splits on the LF byte only found 0 malformed lines in 300 recent files. 0 unreadable files.
 - Counts in this document come from the worker's stratified sample and its own
   structural passes. `inventory.json` beside this file is a separate, fully
   reproducible snapshot (newest 300 files by mtime, `inventory.mjs`, no post-processing).

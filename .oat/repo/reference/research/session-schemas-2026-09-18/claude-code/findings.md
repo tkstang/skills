@@ -48,11 +48,10 @@ version-gated record shape was found** (exceptions noted per row in section 1).
 > **Reviewer note (root, 2026-09-18): cause confirmed — this is a reader artifact, not
 > a transcript property.** Splitting strictly on the LF byte yields **0 malformed
 > lines** across 300 recent files (256,296 lines), and an earlier re-check found 0
-> across 153 parent, 718 subagent, and 1,861 workflow files. Node's `readline` (and any
-> splitter that treats U+2028/U+2029 as line terminators) reports ~290 "malformed"
-> lines on the same files, because those code points occur unescaped inside JSON
-> string values. Records ARE one per LF-terminated line. The durable lesson is for
-> readers: split on `\n` bytes only, never with `readline`, and keep a fixture whose
+> across 153 parent, 718 subagent, and 1,861 workflow files. The abandoned scanner
+> treated U+2028/U+2029 inside JSON string values as record boundaries and reported
+> ~290 "malformed" lines on the same files. Records ARE one per LF-terminated line.
+> The durable lesson is for readers: split on `\n` bytes only, and keep a fixture whose
 > string values contain U+2028, U+2029, and `\r`.
 
 ---

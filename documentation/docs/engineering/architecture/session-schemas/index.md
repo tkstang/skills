@@ -47,8 +47,8 @@ these files, and they change between client releases.
 ## Reader requirements that follow from the evidence
 
 - Split records on the LF byte only. U+2028 and U+2029 occur unescaped inside string
-  values; line splitters that honour them (Node's `readline` does) report valid records
-  as malformed.
+  values; the abandoned scanner treated them as record boundaries and reported valid
+  records as malformed, while LF-byte splitting parsed the sampled records.
 - Do not assume one header per file (Codex child files can carry an inherited parent
   header) or one record per logical message (Claude Code writes one assistant record
   per content block).

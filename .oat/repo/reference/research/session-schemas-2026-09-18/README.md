@@ -84,10 +84,9 @@ by `inventory.mjs` and applied by hand to the findings:
 ## Corrections made during review
 
 - **"Multi-line records" is a reader artifact, not a format property.** One worker
-  reported ~290 Claude Code lines that fail `JSON.parse`. The cause is Node's
-  `readline`, which also breaks lines on U+2028/U+2029; those code points occur
-  unescaped inside transcript strings. Splitting on the LF byte yields zero malformed
-  lines. Readers must split on `\n` bytes only.
+  reported ~290 Claude Code lines that fail `JSON.parse`. The abandoned scanner treated
+  U+2028/U+2029 inside transcript strings as record boundaries. Splitting on the LF byte
+  yields zero malformed lines. Readers must split on `\n` bytes only.
 - An early statement in the collaboration that no Claude Code sidecar directories
   exist was wrong (a shell glob error). `tool-results/` and `subagents/` directories
   are present and documented in `claude-code/findings.md`.

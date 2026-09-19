@@ -431,12 +431,11 @@ one machine, not a statement that the shape cannot exist.
 | Version-gated record _shapes_                                                                     | whole sample; narrower ranges only on low-frequency host-specific classes, which sampling explains |
 
 **Withdrawn worker claim: multi-line records.** An initial scanner reported records
-spanning 2–9 physical lines. The cause is confirmed: that scanner used Node's `readline`,
-which also breaks lines on U+2028 and U+2029, and those code points occur unescaped
-inside transcript string values. Splitting on the LF byte only yields **0 malformed
-lines** across 300 recent files (256,296 lines). Records are one per LF-terminated line.
-**Do not build multi-line record recovery.** Split on `\n` bytes only, never with
-`readline`, and keep a fixture whose string values contain U+2028, U+2029 and `\r`.
+spanning 2–9 physical lines. That abandoned scanner treated U+2028 and U+2029 inside
+transcript string values as record boundaries. Splitting on the LF byte only yields **0
+malformed lines** across 300 recent files (256,296 lines). Records are one per
+LF-terminated line. **Do not build multi-line record recovery.** Split on `\n` bytes
+only, and keep a fixture whose string values contain U+2028, U+2029 and `\r`.
 
 ## 12. Fixture checklist
 

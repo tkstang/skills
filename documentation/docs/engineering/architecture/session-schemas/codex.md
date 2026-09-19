@@ -21,9 +21,9 @@ the other providers see [Claude Code](claude-code.md) and [Cursor](cursor.md); t
 > spanning 0.142.4–0.155.1, with record dates from 2026-07-02 to 2026-09-18. The sample
 > was stratified by version, with forced inclusion of sessions containing subagents,
 > custom and function calls, web search, MCP, failures, aborts, and compaction. No
-> file was unreadable. A worker pass that used Node's `readline` reported 17 lines as
-> malformed; splitting on the LF byte only yields 0, because U+2028 and U+2029 occur
-> unescaped inside string values. **Readers must split on `\n` bytes only.** There is no published schema behind
+> file was unreadable. An abandoned scanner reported 17 lines as malformed after
+> treating U+2028 and U+2029 inside string values as record boundaries; splitting on
+> the LF byte only yields 0. **Readers must split on `\n` bytes only.** There is no published schema behind
 > any of this, so **"not observed" never means "does not exist"** — it means this sample
 > did not contain it. Treat every count as a property of the sample, not of Codex.
 
