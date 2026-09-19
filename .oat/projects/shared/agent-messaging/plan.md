@@ -485,15 +485,16 @@ formatter's stdin mode, then apply its result without touching managed blocks.
 
 ## Reviews
 
-| Scope  | Type     | Status  | Date       | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---------- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -          | -        | -             | -          | -           |
-| p02    | code     | pending | -          | -        | -             | -          | -           |
-| final  | code     | pending | -          | -        | -             | -          | -           |
-| spec   | artifact | pending | -          | -        | -             | -          | -           |
-| design | artifact | pending | -          | -        | -             | -          | -           |
-| p03    | code     | pending | -          | -        | -             | -          | -           |
-| plan   | artifact | passed  | 2026-09-19 | -        | -             | auto       | -           |
+| Scope  | Type     | Status   | Date       | Artifact                                           | Reviewed Head | Invocation | Gate Target |
+| ------ | -------- | -------- | ---------- | -------------------------------------------------- | ------------- | ---------- | ----------- |
+| p01    | code     | pending  | -          | -                                                  | -             | -          | -           |
+| p02    | code     | pending  | -          | -                                                  | -             | -          | -           |
+| final  | code     | pending  | -          | -                                                  | -             | -          | -           |
+| spec   | artifact | pending  | -          | -                                                  | -             | -          | -           |
+| design | artifact | pending  | -          | -                                                  | -             | -          | -           |
+| p03    | code     | pending  | -          | -                                                  | -             | -          | -           |
+| plan   | artifact | passed   | 2026-09-19 | -                                                  | -             | auto       | -           |
+| plan   | artifact | received | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T014304Z.md | -             | -          | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
