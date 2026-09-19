@@ -144,8 +144,15 @@ c079e4e6-8818-465d-841a-4518c7e405ec, assistant lines 19 and 266, ending with
 end_turn and containing the exact gate run ID. Frontier identity is corroborated.
 No deferred/rejected findings or design departures.
 
-**Next:** Re-review the revised plan before marking
-planning complete. Review bookkeeping is not authorization to implement.
+**Subsequent verification:** The independent second gate reviewed eec9583b and
+confirmed all seven corrections. Its four additional findings are recorded in
+reviews/artifact-plan-review-2026-09-19T021241Z.md; none has been dispositioned or
+applied yet. Counts: 0 Critical, 0 Important, 2 Medium, 2 Minor. The gate returned
+status=ok, receiveEligible=true and a corroborated handoff; it passed the
+Important threshold, not a zero-finding check.
+
+**Next:** Obtain user disposition of the second review before further plan edits.
+Review bookkeeping is not authorization to implement.
 
 ## Deviations from Plan / Design
 

@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T02:02:46Z'
+oat_project_state_updated: '2026-09-19T02:16:11Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Seven approved plan-review corrections applied; re-review pending.
+**Status:** Seven approved corrections verified by re-review; four follow-up plan findings await approval.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 3 sequential phases, 12 tasks; seven approved review corrections applied, re-review pending, not implementation-ready.
+- **Plan:** plan.md — 3 sequential phases, 12 tasks; first seven corrections verified, second gate has 2 Medium and 2 Minor findings awaiting user disposition; not implementation-ready.
 - **Implementation:** implementation.md — initialized to 0/12 pending tasks; no implementation started.
 
 ## Progress
@@ -79,6 +79,14 @@ Fable reviews. No implementation or live hook installation is authorized here.
   receive-eligible handoff. Legacy-plan-only scope. The envelope omitted runtime
   identity, but root verified claude-fable-5-1 in its correlated Claude transcript
   c079e4e6-8818-465d-841a-4518c7e405ec (assistant lines 19 and 266, final end_turn).
+- Corrections committed at eec9583b. Second gate reviewed that exact baseline,
+  confirmed all seven prior corrections and reported 0 Critical, 0 Important,
+  2 Medium and 2 Minor findings. Its review artifact is
+  reviews/artifact-plan-review-2026-09-19T021241Z.md (commit 318527e1).
+  Run a5a5f137-5011-4d64-81af-c4db88d3f3e7 returned status=ok,
+  receiveEligible=true and a matched handoff. Native Claude transcript
+  7c6df088-35f6-47be-b380-71abd861dd71 reports claude-fable-5-1 at assistant
+  lines 19 and 247, final end_turn. No further plan corrections applied yet.
 
 ## Dispatch and Gate Review Policy
 
@@ -113,12 +121,13 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete. Revised-plan re-review remains a readiness condition, not a product
-implementation failure. First-gate Frontier identity is now corroborated.
+complete. Second-gate findings need user disposition before further plan edits.
+Both gates' Frontier identities are corroborated; neither result claims a
+zero-finding independent pass. No product implementation has started.
 
 ## Next Milestone
 
-Re-review the corrected three-phase plan against the approved design.
+Receive the second review after the user decides its four proposed corrections.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
