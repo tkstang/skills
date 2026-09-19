@@ -114,9 +114,9 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: null
-  updated_at: '2026-09-19T19:29:10Z'
+  updated_at: '2026-09-19T19:43:20Z'
 oat_post_implement_sequence:
-  status: pre_approval
+  status: complete
   source: configured
   final_phase: p07
   pre_approval:
@@ -126,29 +126,30 @@ oat_post_implement_sequence:
   pre_approval_completed:
     - summary
     - document
-  approval: pending
+    - pr
+  approval: not_required
   approval_source: null
   post_approval: []
   post_approval_completed: []
   failure: null
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: https://github.com/tkstang/skills/pull/96 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T19:29:10+00:00"
+oat_project_state_updated: "2026-09-19T19:43:20+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Summary and documentation complete; stacked PR publication pending
+**Status:** Draft PR stack open; implementation completion bookkeeping pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p00 through p07, the narrowed final lifecycle re-review and the configured implementation exit gate are passed. The summary and approved documentation corrections are committed; the configured closeout sequence is waiting at its `pr` publication step.
+p00 through p07, the narrowed final lifecycle re-review and the configured implementation exit gate are passed. The configured summary, documentation and PR sequence is complete; draft PRs #94 through #96 are open in GitHub stack #97.
 
 ## Artifacts
 
@@ -157,6 +158,7 @@ p00 through p07, the narrowed final lifecycle re-review and the configured imple
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
 - **Implementation:** `implementation.md` (21/21 tasks completed; p00 through p07, final lifecycle re-review and configured exit gate passed; closeout pending)
+- **Pull requests:** #94 docs → #95 identity → #96 activity (draft stack #97)
 
 ## Progress
 
@@ -185,4 +187,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the configured stacked PR step after explicit publication authorization.
+Finish implementation completion bookkeeping, then monitor the draft stack's CI and review state.

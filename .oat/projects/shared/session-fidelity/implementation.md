@@ -9,13 +9,13 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-All 21 implementation tasks and phase reviews p00 through p07 are complete. The narrowed final lifecycle re-review is next.
+All 21 implementation tasks, phase reviews p00 through p07, the narrowed final lifecycle re-review, the configured implementation exit gate, and the configured summary/document/PR closeout sequence are complete. Three draft PRs are open as GitHub stack #97.
 
 ## Preparatory evidence
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- At this historical snapshot, stack layers were agreed, but local stack arrangement, PR publication, merge and installation had not occurred.
+- The agreed docs → identity → activity stack is published as draft PRs #94, #95, and #96. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
 
 ## Progress Overview
 
@@ -608,6 +608,16 @@ This was a passing-gate judgment sweep. No blocking fix tasks were added. Each s
 - **m6 — separate backlog discoverability:** deferred with the same follow-up trigger as m1–m5. The exact ledger is durable here and in the archived gate artifact. Creating a separately prioritized repository backlog item is intentionally left to explicit product-priority direction rather than being inferred from a nonblocking review sweep.
 
 The gate event is marked `passed` after these six explicit dispositions. Publication, merge, release, installation and live-provider acceptance remain outside this receive step.
+
+### Stacked Pull Requests Published
+
+GitHub stack #97 preserves the reviewed delivery boundaries:
+
+1. [PR #94](https://github.com/tkstang/skills/pull/94) — `docs(session-fidelity): document native session evidence` (`main` ← `session-fidelity`)
+2. [PR #95](https://github.com/tkstang/skills/pull/95) — `fix(session-fidelity): bind observer state to native session identity` (`session-fidelity` ← `session-fidelity-identity`)
+3. [PR #96](https://github.com/tkstang/skills/pull/96) — `feat(session-fidelity): add opt-in session activity` (`session-fidelity-identity` ← `session-fidelity-activity`)
+
+All three PRs opened as drafts with Conventional Commit titles and layer-specific descriptions. GitHub reports the saved bases and remote heads matching the local stack; CI is running. No merge, release, installation, or live-provider action was performed.
 
 ## Planning Gate Review Received — 2026-09-19
 
