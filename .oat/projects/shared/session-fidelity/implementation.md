@@ -135,9 +135,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p04-t01: Add opt-in activity to Markdown export
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 05240ee2ce2cb877de0b2a2d365f82e1e110b6d9
+**Verification:** The additive exporter flag reuses one detailed snapshot for sanitized conversation and bounded activity, preserves stateless Markdown output, default filenames and `--all` selection, labels every activity artifact with limits/omissions, retains source order and locators, and reports external output/child trajectories as unread. Cursor fails before enumeration or write until p05. Root passed 46 focused exporter/projection tests, type checking, build freshness and two-owner version validation. Fresh transition audit found 0 Critical/Important findings and confirmed no observer-state mutation or p04-t02 scope spill.
 
 ### Task p04-t02: Protect default sanitization and content boundaries
 

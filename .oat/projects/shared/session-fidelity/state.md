@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: 7ec1fba9aecc53d6e41ea091df0cfc4399057332
+oat_current_task: p04-t02
+oat_last_commit: 05240ee2ce2cb877de0b2a2d365f82e1e110b6d9
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -114,7 +114,7 @@ oat_generated: false
 
 ## Current Phase
 
-p01 through p03 are passed. The fresh p03 phase review found zero findings across 387 tests and all structural gates. Review/direct catch-up and watch now expose bounded activity for Claude/Codex, Cursor remains explicitly unavailable until p05, and collaboration wake authority remains conversation-only. No external phase gate or p03 HiLL checkpoint applies. Export integration begins at p04-t01.
+p01 through p03 are passed. p04-t01 now exports bounded source-attributed activity from one captured snapshot while preserving filenames, statelessness and no-flag behavior; its transition audit found zero Critical/Important findings. p04-t02 extends the sanitizer boundary coverage before phase review.
 
 ## Artifacts
 
@@ -122,7 +122,7 @@ p01 through p03 are passed. The fresh p03 phase review found zero findings acros
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (13/19 tasks completed; p01 through p03 passed, p04 ready)
+- **Implementation:** `implementation.md` (14/19 tasks completed; p01 through p03 passed, p04 in progress)
 
 ## Progress
 
@@ -145,4 +145,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p04-t01 bounded source-attributed activity in Markdown export.
+Implement p04-t02 adversarial export sanitization and activity-boundary coverage.
