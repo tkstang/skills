@@ -539,8 +539,8 @@ Implementer verification passed the 772-test focused p01 set, an 8-test override
     "artifact": "reviews/p01-review-2026-09-19T122907Z-round2.md",
     "handle": "/root/p01_review_round2"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending",
+  "launch_status": "accepted",
+  "child_outcome": "running",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
