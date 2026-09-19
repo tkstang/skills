@@ -232,6 +232,65 @@ Phase p05 passes. The plan metadata names p06 as a HiLL phase, but the project s
 - Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
 - Outstanding p05 items: none. Next: p06-t01 documentation and package closure.
 
+#### Dispatch sf-p06-implement-01
+
+```json
+{
+  "request_id": "sf-p06-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p06",
+  "objective": "Document and package the tested session-fidelity feature, then support final acceptance and tracked-work closure",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementer",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "phase-source-and-tests",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 7200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p06",
+    "taskIds": ["p06-t01", "p06-t02"],
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "activityBase": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "dispatchBase": "76ad9a84969ce79ad52c8ffda6648ece4afcaad5",
+    "phaseBase": null,
+    "handle": "/root/p06_implement",
+    "finalHead": null
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "phase scope analysis",
+  "classification_reason": "Final documentation, generated distribution closure, acceptance evidence and backlog lifecycle make omissions expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p06 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
 ## Phase 6
 
 **Status:** pending
