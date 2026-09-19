@@ -15,15 +15,15 @@ oat_generated: false
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
-Critical or Important findings. Phase 2 implementation is complete and awaits
-independent review before Phase 3 begins.
+Critical or Important findings. Phase 2 implementation is complete; its
+independent review is blocking, and bounded fixes are active before Phase 3.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
-| Phase 2 | review_pending | 4     | 4/4       |
+| Phase 2 | fixes_in_progress | 4     | 4/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
@@ -63,7 +63,7 @@ independent review before Phase 3 begins.
 
 ## Phase 2: Finite activation and host delivery (4 tasks)
 
-**Status:** review_pending
+**Status:** fixes_in_progress
 **Started:** 2026-09-19
 
 ### Task p02-t01: Implement activation epochs, finite claims, and recovery
@@ -588,6 +588,51 @@ Dispatch policy: high; selected=high; cap=high (codex, enforced — variant
   and user/global installation were not performed. Codex, Claude Code, and
   Cursor live rows remain explicitly unverified/manual; no Cursor adapter exists.
 
+#### Dispatch: p02 review round 1
+
+```yaml
+request_id: dispatch-agent-messaging-p02-review-20260919
+caller: oat-project-implement
+scope: phase:p02
+objective: Independently review Phase 2 implementation against the approved plan and repository contracts.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+task_class: hard-reasoning
+model_class_floor: hard-reasoning
+floor_satisfaction: satisfied
+selection_source: review-target
+selected_route: native
+payload:
+  phase_base: 430513596486dfdf083943055b51a8799d46e973
+  reviewed_head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
+  artifact: reviews/code-p02-review-2026-09-19T172855Z.md
+launch_status: accepted
+child_outcome: blocking
+configured_invocation_evidence:
+  - resolver-report:p02-review
+  - "Dispatch: scope=p02-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=7,medium=1,minor=0
+  - reconnaissance:attempted
+  - review-cycles:1/3
+```
+
+The reviewer reported `Reconnaissance: attempted` with complete orchestration
+evidence. Its single structural project-log entry is deferred until the terminal
+Phase 2 outcome so the fix continuation starts from a clean worktree.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -602,8 +647,22 @@ Dispatch policy: high; selected=high; cap=high (codex, enforced — variant
   reproduced the full repository and Phase 1 verification before re-review.
 - Phase 2 implemented finite activation/claim recovery, fail-closed Codex and
   Claude adapters, a foreground-only request watcher, and bounded acceptance
-  probes in four planned commits. Root reproduced the full repository gates;
-  independent review is pending.
+  probes in four planned commits. Root reproduced the full repository gates.
+
+## Review Received: p02 round 1
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 2 code review](reviews/code-p02-review-2026-09-19T172855Z.md)
+**Reviewed head:** `a54d9baf2e618ae3885cf8053e3719f558b3ef45`
+**Findings:** 0 Critical, 7 Important, 1 Medium, 0 Minor.
+**Status:** fixes_added; bounded fix loop round 1/3 pending.
+
+The blocking findings cover fresh final-boundary revalidation, Stop retry
+generation consumption, proven human-origin renewal, complete observer lease
+validation, complete hook-configuration fingerprints, confined/allowlisted
+diagnostics, and cancellable/quiescent probe timeouts. The Medium finding adds
+on-read activation hard-cap relationship validation. All eight are accepted as
+in-scope fixes under existing Phase 2 tasks; no task IDs are added or renumbered.
 
 ## Review Received: p01 round 1
 
@@ -895,13 +954,12 @@ This is historical planning-review context; product code now exists.
 
 Phase 1 product verification is current through the user-authorized fix round 3,
 its packaging recovery, and the passing independent review. Phase 2 root
-transition verification is current through `9738a11c`; independent review is
-pending.
+transition verification is current through `9738a11c`; review fixes are active.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
-| 2     | 65 focused + full suite (2,180 tests); build/check/validate/type/smoke/version | all | 0 | Implementation complete; independent review pending |
+| 2     | 65 focused + full suite (2,180 tests); build/check/validate/type/smoke/version | all | 0 | Review fixes active after blocking independent review |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
@@ -910,8 +968,9 @@ pending.
 Phase 1 is implemented and independently accepted. Phase 2 implementation is
 complete and root-verified: finite delivery ownership, bounded Codex/Claude
 adapters, foreground request watch, both generated distributions, and honest
-probe evidence are green. Phase 2 independent review, Phases 3–4, publication,
-installation, merge, and live acceptance remain incomplete.
+probe evidence are green, but the blocking Phase 2 review has eight accepted
+fixes in progress. Phases 3–4, publication, installation, merge, and live
+acceptance remain incomplete.
 
 ## References
 
