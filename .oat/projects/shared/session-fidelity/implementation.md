@@ -972,3 +972,7 @@ Phase p02 passes. No optional external phase review gate is configured, and p02 
 ```
 
 Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+#### Continuation p03-t01-recovery-resume-01
+
+Root transition audit of immutable p03-t01 commit `820465752eb5de4b7527fa8c96901f7ef090ecb2` found two Important interim flag-honesty gaps. The original `sf-p03-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p03-t01-recovery-01` may reserve cumulative p03 attempt 1/10 only after this continuation is committed. Scope is limited to explicitly rejecting `--include-activity` for Cursor review/catch-up until p05 and for watch/catch-up-then-watch until p03-t02, with clear CLI regressions. p03-t02 implementation remains unauthorized until the recovery is settled.

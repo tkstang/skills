@@ -1,5 +1,5 @@
 ---
-oat_current_task: p03-t01
+oat_current_task: p03-t01-recovery-01
 oat_last_commit: 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec
 oat_blockers: []
 associated_issues:
@@ -99,19 +99,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T12:27:54+00:00"
+oat_project_state_updated: "2026-09-19T15:22:00+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Observer integration ready
+**Status:** Observer integration recovery in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 and p02 are passed. The shared activity layer is complete through `30fc6f35`; p02 recovery usage is 3/10 with no pending marker. Three fresh root-owned review rounds closed four Important findings, and the governance-final artifact reports zero findings with all verification green. No external phase gate or p02 HiLL checkpoint applies. Observer review/catch-up integration begins at p03-t01.
+p01 and p02 are passed. p03-t01 produced `82046575`, but root transition audit found two Important flag-honesty gaps: Cursor review/catch-up and both watch modes can silently omit requested activity. A bounded p03 recovery is authorized to reject those unavailable combinations explicitly before p03-t02 adds watch support and p05 adds Cursor support.
 
 ## Artifacts
 
@@ -142,4 +142,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p03-t01 observer review and catch-up activity integration without changing flag-off output.
+Complete bounded p03-t01 recovery attempt 1/10, then continue the same phase handle with p03-t02.
