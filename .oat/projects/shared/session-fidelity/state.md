@@ -146,13 +146,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Phase p09 passed; final lifecycle re-review pending
+**Status:** Final lifecycle re-review passed; configured exit gate pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All 26 tasks and phase reviews p00 through p09 passed. Phase p09 fixed the stale generated-summary claim and passed independent review. The prior configured exit gate remains stale, and the locally rebased stack awaits final re-review, fresh gate processing, and republication.
+All 26 tasks, phase reviews p00 through p09, and the narrowed final lifecycle re-review passed. Phase p09 fixed the stale generated-summary claim. The prior configured exit gate remains stale, and the locally rebased stack awaits fresh gate processing and republication.
 
 ## Artifacts
 
@@ -160,7 +160,7 @@ All 26 tasks and phase reviews p00 through p09 passed. Phase p09 fixed the stale
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (26/26 tasks and phase reviews complete; final lifecycle re-review pending)
+- **Implementation:** `implementation.md` (26/26 tasks, phase reviews and final lifecycle re-review complete; configured exit gate pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; rewritten local heads not yet republished)
 
 ## Progress
@@ -191,7 +191,8 @@ All 26 tasks and phase reviews p00 through p09 passed. Phase p09 fixed the stale
 - ✓ Fresh p08 phase review passed with zero findings
 - ✓ Identity and activity layers cascade-rebased onto the corrected bottom layer
 - ✓ p09 generated-summary alignment completed and independently reviewed
-- ⧗ Final lifecycle re-review, configured exit gate and stack republication pending
+- ✓ Narrowed final lifecycle re-review passed with zero findings
+- ⧗ Configured exit gate and stack republication pending
 
 ## Blockers
 
@@ -199,4 +200,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Re-review the corrected closeout record, run the configured exit gate, republish stack #97, and verify the ready PRs and remote review state.
+Run the configured exit gate, republish stack #97, and verify the ready PRs and remote review state.
