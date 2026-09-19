@@ -28,7 +28,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** Discovery validated; full design draft revised after Fable's first review.
+**Status:** Discovery validated; design findings addressed for exact-commit re-review.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
@@ -44,7 +44,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
-- **Design:** design.md — complete draft, revised once after peer review; approval pending.
+- **Design:** design.md — F1–F6 disposition recorded; exact-commit peer re-review pending.
 - **Plan:** plan.md — scaffold only, not implementation-ready.
 - **Implementation:** implementation.md — scaffold only; no implementation started.
 
@@ -59,6 +59,10 @@ Fable reviews. No implementation or live hook installation is authorized here.
   added explicit takeover, cross-repo membership, first-enable disclosure,
   bounded Claude notification, Cursor probes, and human-only idle expiry.
 - Vault hooks reference written and linked in Harnesses/README and AI Resources MOC.
+- Addressed Fable's review of aaa5322e: all terminal activation conditions,
+  event/slot/message claim ordering, deterministic request-only watch keys,
+  explicit takeover authority, and close/admission races. Retained exact idle
+  expiry rather than approximate receipt coalescing; latency verification planned.
 
 ## Operational Notes
 
@@ -76,7 +80,9 @@ watcher or automatic lease was armed. Current revision awaits peer/user review.
 
 ## Next Milestone
 
-Review the committed design's immutable claim races, takeover receipt snapshot,
-and host-specific human-prompt provenance. Resolve feedback before plan generation.
+Fable checks the revised design at its exact commit. Prepare the three-phase
+plan while preserving pending review/readiness. Dispatch ladder is complete;
+the project dispatch policy is unresolved and requires an operator choice before
+plan artifact review/readiness.
 The full-draft choice overrides workflow.designMode=selective for this run only;
 the reusable preference remains unchanged. Keep the plan unready.

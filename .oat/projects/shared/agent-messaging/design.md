@@ -113,8 +113,11 @@ without overwriting the winner. A retry of the identical join succeeds
 idempotently. Existing aliases are never implicitly redirected.
 
 A replacement session uses `join --alias reviewer --succeeds <old-pin>`.
-It must name the expected current binding, be explicitly authorized for takeover,
-and publish the next immutable binding generation exclusively. Concurrent
+It requires explicit human direction in the acting session and must name the
+expected current binding. The skill enforces that authority boundary; the CLI
+validates the exact `--succeeds` pin, records the reason, and publishes the next
+immutable binding generation exclusively. A flag is not cryptographic proof
+of human consent. Concurrent
 successors race for the same generation; only one wins. The winning record
 includes the reason and previous binding, so takeover is itself durable history.
 The takeover record captures a bounded snapshot of valid acknowledgment IDs
@@ -128,7 +131,8 @@ Agents must disclose takeover to peers, append its interpretation to the
 collaboration log, inspect pending mail, and obtain a new activation. Old
 activations do not grant the successor
 automatic authority. The old binding cannot send, acknowledge, activate, or
-take over again once superseded. A send or ack already in flight can still
+take over again once superseded; its next check reports the replacement and
+terminated activation. A send or ack already in flight can still
 publish: final readers validate binding generations and report that race
 rather than treating stale ownership as current.
 
@@ -286,8 +290,14 @@ expiry at enablement (default two hours, selectable up to 24). Do not infer
 human supervision from a prompt-shaped callback. Renewal changes neither the
 activation ID nor its consumed budget slots.
 
-To enable again, require the previous epoch to be revoked or expired, then
-exclusively publish its successor generation. Concurrent enablers target the
+An activation is **terminated** when any of these validated conditions holds:
+explicit revocation, effective expiry, collaboration closure, superseded member
+binding, or departure of that binding. To enable again, require the previous
+epoch to be terminated, then exclusively publish its successor generation.
+This allows activation in another open collaboration after closure, takeover,
+or departure without first disabling an already terminated epoch. Missing,
+corrupt, or unknown state is not proof of termination and fails closed.
+Concurrent enablers target the
 same successor and only one wins. A hook reads only its exact session namespace,
 selects the highest valid contiguous epoch, and validates identity/worktree,
 membership, revocation, closure, expiry, and mechanism. Missing or inconsistent
@@ -298,25 +308,48 @@ Each automatic check follows this order:
 1. Read a bounded snapshot; select eligible pending requests. Verify the host
    boundary and current activation.
 2. Exclusively publish the activation's event claim. A duplicate event cannot
-   independently emit another continuation.
-3. Exclusively publish per-message attempt claims. Only the process whose claim
+   independently emit another continuation. Record the attempt token and proposed
+   delivery keys so interrupted pre-message attempts remain inspectable/retryable.
+3. Exclusively occupy one free numbered budget slot from 1 through the configured
+   maximum. A slot contains the event/attempt token and **proposed** delivery
+   keys, not a claim that those messages were owned or presented. Existing slots
+   are never removed or reused. Exhaustion stops here without claiming messages.
+4. Exclusively publish per-message attempt claims. Only the process whose claim
    token owns a message may include it. Do not wake for a batch with no owned
-   messages.
-4. Exclusively occupy one free numbered budget slot from 1 through the configured
-   maximum. A slot contains the event/batch token and owned message IDs. Existing
-   slots are never removed or reused.
+   messages; the already reserved slot may be wasted. Derive the actual owned
+   subset from these immutable claims, never from the slot's proposed list.
 5. Recheck epoch, revocation, closure, exact membership, and host continuation
    constraints. On failure, emit nothing; the spent slot is not refunded.
 6. Emit one bounded host response. Do not acknowledge mail automatically.
 
+Reserve a slot before message claims so budget exhaustion or a crash during slot
+reservation does not make messages ineligible to other events. Event-first
+ordering suppresses duplicate callbacks before they spend slots. Its tradeoff is
+conservative under-delivery: a crash after the event claim suppresses replay of
+that same event, including an unchanged Monitor batch. A later distinct host
+boundary may still claim messages that have no message claim; explicit retry
+provides recovery without waiting for a different batch.
+
 Crashes at any intermediate point can suppress an automatic retry or waste a
 slot, but queued unacknowledged content remains available to manual/start checks.
-Slot count cannot exceed the finite namespace. A claimed event or message
-without a slot is an interrupted attempt, not a delivered message.
+Slot count cannot exceed the finite namespace. An event claim without a slot,
+or a slot without message claims, is an interrupted attempt, not delivery.
 `delivery retry --message` explicitly creates a retry generation keyed by the
 prior attempt, permitting a new claim without restoring budget. Competing
 retries for the same prior attempt are exclusive/idempotent. Retry after an
-aborted pre-slot claim must be supported, not just after emitted output.
+aborted pre-slot or pre-message claim must be supported using the event's
+proposed delivery keys, not just after emitted output. Retry never bypasses
+the one-continuation-per-Stop-chain limit or restores consumed slots.
+
+For Monitor/watch, which has no native host event ID, derive `eventKey` as a
+domain-separated hash of the activation ID, exact binding generation, and
+sorted delivery keys of the selected eligible **request** batch. Each delivery
+key includes message ID and its explicit retry generation. Repeated polling or
+re-arming with the same batch therefore reuses the same event key; a retry
+generation creates a distinct key. Per-message claims still arbitrate overlapping
+batches. Updates never produce wake-bearing watch events and wait for a regular
+start/manual check. Hash native host IDs and all derived keys before using them
+as path segments; no wall-clock/random poll token stands in for event identity.
 
 At Stop, allow at most one continuation per host turn/chain. Use native event
 identity where available. If the host lacks a stable event ID, derive the chain
@@ -413,6 +446,10 @@ Close is idempotent, preserves history, rejects new admissions/activations, and
 prevents subsequent delivery checks from claiming work. Sends/acks already in
 flight may publish after the marker; status labels them closed/in-flight, and
 they cannot reactivate delivery. Closure cannot recall context already emitted.
+Join, takeover, and enable also recheck `closed.json` after publication. If closure
+won that race, report the published record as closed/in-flight, not successful
+active membership/delivery. Readers treat it as inert; do not delete it, reopen
+the collaboration, or automatically retry in a new group.
 Agents revalidate active state before acting on automatic envelopes.
 
 Leaving publishes a generation-specific departure marker and revokes that
@@ -606,10 +643,20 @@ oversized injection, and omission of an idle tier. This revision replaces the
 shared lock with immutable claims, uses direct per-session activation lookup,
 bounds hook envelopes separately, and includes finite Claude notification.
 
-The user approved human-only idle renewal plus an absolute cap. Do not enable
-renewal without trustworthy human/automatic discrimination; disclose fixed
-expiry as fallback. Fable and the user have not yet reviewed this
-revision's exclusive-claim/takeover races; no consensus or approval is claimed.
+Fable reviewed commit `aaa5322e`: the original four blockers were resolved, with
+one required termination correction and five refinements. This revision defines
+termination across all five terminal conditions (F1), reserves budget before
+message claims with explicit crash recovery (F2), defines request-only watch
+event keys (F3), clarifies human takeover authority (F5), and rechecks close after
+join/takeover/enable publication (F6). Exact-commit re-review is pending.
+
+For F4, retain one receipt per proven human event and exact two-hour idle expiry.
+Thirty-minute receipt coalescing would expire up to thirty minutes before the
+approved last-human-activity deadline. Defer that policy-changing optimization;
+phase 2 must measure worst-case bounded validation at 4,096 receipts and preserve
+exact expiry if an optimization is necessary. Native prompt identity is a probe
+requirement, not an assumed supported field. Do not enable renewal without
+trustworthy human/automatic discrimination; disclose fixed expiry as fallback.
 
 The live driver identity probe returned no match while diagnostic locate found
 two transcripts carrying the same Codex session ID. Messaging uses exact native
@@ -632,4 +679,7 @@ repair is separate unless composed integration proves it necessary.
 Author's four-check pass completed: no template placeholders; architecture,
 commands, and tests reconciled; scoped to one local phased project; ambiguous
 receipt/takeover and expiry rules made explicit. The design remains unapproved
-and the plan remains a scaffold pending review of this revision.
+and the plan remains a scaffold pending review of this revision. Regression
+coverage must include all terminal predecessor conditions, corrupt predecessor
+fail-closed behavior, every claim-stage crash, unchanged/overlapping/retried watch
+batches, and close racing admission or activation.
