@@ -66,18 +66,22 @@ describe('Claude Code activity extraction', () => {
     ]);
     expect(results[0].result).toEqual({
       content: [{ type: 'text', text: 'Obscured file content.' }],
-      toolUseResult: {
-        type: 'text',
-        file: { filePath: '/fixture/project/example.txt' },
-      },
     });
     expect(results[2].result).toEqual({
       content: 'Obscured MCP result.',
-      toolUseResult: [
-        { type: 'text', text: 'Obscured structured MCP content.' },
-      ],
     });
-    expect(results[1].externalReference).toEqual({
+    const topLevelResults = extracted.events.filter(
+      (event) => event.nativeType === 'toolUseResult',
+    );
+    expect(topLevelResults).toHaveLength(3);
+    expect(topLevelResults[0].result).toEqual({
+      type: 'text',
+      file: { filePath: '/fixture/project/example.txt' },
+    });
+    expect(topLevelResults[2].result).toEqual([
+      { type: 'text', text: 'Obscured structured MCP content.' },
+    ]);
+    expect(topLevelResults[1].externalReference).toEqual({
       kind: 'persisted-output',
       availability: 'not-read',
       path: '/fixture/project/tool-results/fixture-result.txt',
@@ -90,7 +94,7 @@ describe('Claude Code activity extraction', () => {
       locator: {
         recordIndex: 2,
         physicalLine: 3,
-        jsonPointer: '/message/content/0',
+        jsonPointer: '/toolUseResult',
       },
     });
 
@@ -173,24 +177,93 @@ describe('Claude Code activity extraction', () => {
     expect(results.map((event) => event.outcome)).toEqual([
       'error',
       'unknown',
-      'pending',
+      'unknown',
     ]);
     expect(results.map((event) => event.result)).toEqual([
-      { content: '', toolUseResult: '' },
-      { content: [], toolUseResult: 'Obscured string carrier.' },
-      {
-        content: [],
-        toolUseResult: {
-          status: 'async_launched',
-          agentId: 'fixture-child',
-        },
-      },
+      { content: '' },
+      { content: [] },
+      { content: [] },
     ]);
-    expect(results[2].childReference).toEqual({
+    const topLevelResults = extracted.events.filter(
+      (event) => event.nativeType === 'toolUseResult',
+    );
+    expect(topLevelResults.map((event) => event.result)).toEqual([
+      '',
+      'Obscured string carrier.',
+      { status: 'async_launched', agentId: 'fixture-child' },
+    ]);
+    expect(topLevelResults[2]).toMatchObject({
+      locator: {
+        recordIndex: 2,
+        physicalLine: 3,
+        jsonPointer: '/toolUseResult',
+      },
+      outcome: 'pending',
+    });
+    expect(topLevelResults[2].childReference).toEqual({
       nativeId: 'fixture-child',
       status: 'async_launched',
       trajectoryAvailability: 'not-read',
     });
+  });
+
+  it('locates one top-level carrier independently from multiple content results', () => {
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        records: [
+          detailed(
+            {
+              type: 'user',
+              message: {
+                role: 'user',
+                content: [
+                  {
+                    type: 'tool_result',
+                    tool_use_id: 'toolu-first',
+                    content: 'first',
+                  },
+                  {
+                    type: 'tool_result',
+                    tool_use_id: 'toolu-second',
+                    content: 'second',
+                  },
+                ],
+              },
+              toolUseResult: { interrupted: true, status: 'failed' },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    const contentResults = extracted.events.filter(
+      (event) => event.nativeType === 'tool_result',
+    );
+    expect(contentResults.map((event) => event.outcome)).toEqual([
+      'unknown',
+      'unknown',
+    ]);
+    expect(contentResults.map((event) => event.locator.jsonPointer)).toEqual([
+      '/message/content/0',
+      '/message/content/1',
+    ]);
+    expect(extracted.events).toContainEqual(
+      expect.objectContaining({
+        kind: 'item',
+        nativeType: 'toolUseResult',
+        outcome: 'cancelled',
+        nativeStatus: 'interrupted',
+        locator: {
+          recordIndex: 0,
+          physicalLine: 1,
+          jsonPointer: '/toolUseResult',
+        },
+        result: { interrupted: true, status: 'failed' },
+      }),
+    );
   });
 
   it('extracts structural turn and compaction markers without token counts', () => {
@@ -579,7 +652,7 @@ describe('activity extraction failure boundaries', () => {
     ]);
     expect(extracted.coverage).toContainEqual({
       dataClass: 'record-activity',
-      status: 'malformed',
+      status: 'not-read',
       captured: 0,
       locator: { recordIndex: 1, physicalLine: 2, jsonPointer: '' },
     });

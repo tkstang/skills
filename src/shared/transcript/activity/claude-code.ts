@@ -15,16 +15,16 @@ import type {
   ExtractedRecordActivity,
 } from './types.js';
 
-function claudeResultOutcome(
-  block: Record<string, unknown>,
-  toolUseResult: unknown,
-): ActivityOutcome {
+function claudeResultOutcome(block: Record<string, unknown>): ActivityOutcome {
   if (block.is_error === true) return 'error';
   if (block.is_error === false) return 'success';
-  if (isJsonObject(toolUseResult)) {
-    return outcomeFromStatus(toolUseResult.status);
-  }
   return 'unknown';
+}
+
+function topLevelResultOutcome(toolUseResult: unknown): ActivityOutcome {
+  if (!isJsonObject(toolUseResult)) return 'unknown';
+  if (toolUseResult.interrupted === true) return 'cancelled';
+  return outcomeFromStatus(toolUseResult.status);
 }
 
 function externalReference(toolUseResult: unknown) {
@@ -51,6 +51,65 @@ function childReference(toolUseResult: unknown) {
     ...(nickname === undefined ? {} : { nickname }),
     ...(status === undefined ? {} : { status }),
     trajectoryAvailability: 'not-read' as const,
+  };
+}
+
+function topLevelToolUseResultActivity(
+  source: ActivitySource,
+  detailed: DetailedTranscriptRecord,
+  origin?: string,
+): ExtractedRecordActivity {
+  const { record } = detailed;
+  if (!Object.hasOwn(record, 'toolUseResult')) {
+    return { events: [], coverage: [], diagnostics: [] };
+  }
+  const toolUseResult = record.toolUseResult;
+  const locator = recordLocator(detailed, '/toolUseResult');
+  const persisted = externalReference(toolUseResult);
+  const child = childReference(toolUseResult);
+  const status = isJsonObject(toolUseResult)
+    ? toolUseResult.interrupted === true
+      ? 'interrupted'
+      : stringValue(toolUseResult.status)
+    : undefined;
+  return {
+    events: [
+      {
+        eventKey: eventKey(source, locator),
+        kind: 'item',
+        nativeType: 'toolUseResult',
+        locator,
+        outcome: topLevelResultOutcome(toolUseResult),
+        ...(status === undefined ? {} : { nativeStatus: status }),
+        ...(origin === undefined ? {} : { origin }),
+        result: toolUseResult,
+        ...(persisted === undefined ? {} : { externalReference: persisted }),
+        ...(child === undefined ? {} : { childReference: child }),
+      },
+    ],
+    coverage: [
+      ...(persisted
+        ? [
+            {
+              dataClass: 'persisted-output' as const,
+              status: 'not-read' as const,
+              captured: 1,
+              locator,
+            },
+          ]
+        : []),
+      ...(child
+        ? [
+            {
+              dataClass: 'child-trajectory' as const,
+              status: 'not-read' as const,
+              captured: 1,
+              locator,
+            },
+          ]
+        : []),
+    ],
+    diagnostics: [],
   };
 }
 
@@ -186,44 +245,19 @@ export function extractClaudeRecord(
 
       if (blockType === 'tool_result') {
         const nativeCallId = stringValue(candidate.tool_use_id);
-        const persisted = externalReference(record.toolUseResult);
-        const child = childReference(record.toolUseResult);
-        const result = {
-          ...(Object.hasOwn(candidate, 'content')
-            ? { content: candidate.content }
-            : {}),
-          ...(Object.hasOwn(record, 'toolUseResult')
-            ? { toolUseResult: record.toolUseResult }
-            : {}),
-        };
+        const result = Object.hasOwn(candidate, 'content')
+          ? { content: candidate.content }
+          : {};
         events.push({
           eventKey: eventKey(source, locator),
           kind: 'result',
           nativeType: blockType,
           locator,
-          outcome: claudeResultOutcome(candidate, record.toolUseResult),
+          outcome: claudeResultOutcome(candidate),
           ...(nativeCallId === undefined ? {} : { nativeCallId }),
           result,
           ...(provenance === 'legacy-absent' ? {} : { origin: provenance }),
-          ...(persisted === undefined ? {} : { externalReference: persisted }),
-          ...(child === undefined ? {} : { childReference: child }),
         });
-        if (persisted) {
-          coverage.push({
-            dataClass: 'persisted-output',
-            status: 'not-read',
-            captured: 1,
-            locator,
-          });
-        }
-        if (child) {
-          coverage.push({
-            dataClass: 'child-trajectory',
-            status: 'not-read',
-            captured: 1,
-            locator,
-          });
-        }
         return;
       }
 
@@ -237,6 +271,14 @@ export function extractClaudeRecord(
       }
     });
   }
+
+  const topLevelResult = topLevelToolUseResultActivity(
+    source,
+    detailed,
+    provenance === 'legacy-absent' ? undefined : provenance,
+  );
+  events.push(...topLevelResult.events);
+  coverage.push(...topLevelResult.coverage);
 
   if (provenance === 'runtime-notification') {
     const locator = recordLocator(detailed, '/origin/kind');

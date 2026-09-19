@@ -71,7 +71,7 @@ function extractionFailure(locator: ActivityLocator): ExtractedRecordActivity {
     coverage: [
       {
         dataClass: 'record-activity',
-        status: 'malformed',
+        status: 'not-read',
         captured: 0,
         locator,
       },
