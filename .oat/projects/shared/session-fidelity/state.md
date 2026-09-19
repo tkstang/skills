@@ -1,5 +1,5 @@
 ---
-oat_current_task: p09-t01
+oat_current_task: null
 oat_last_commit: 3422c843c78430ab9492c30884d1a728b935eb7f
 oat_blockers: []
 associated_issues:
@@ -18,6 +18,9 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
+    p09:
+      used_attempts: 0
+      pending_attempt: null
     p08:
       used_attempts: 1
       pending_attempt: null
@@ -143,13 +146,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Final-review summary alignment queued in p09
+**Status:** Phase p09 passed; final lifecycle re-review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-The first 25 tasks and phase reviews p00 through p08 passed. Final review found one stale generated-summary claim, queued as p09-t01. The prior configured exit gate remains stale, and the locally rebased stack awaits fresh closeout and republication.
+All 26 tasks and phase reviews p00 through p09 passed. Phase p09 fixed the stale generated-summary claim and passed independent review. The prior configured exit gate remains stale, and the locally rebased stack awaits final re-review, fresh gate processing, and republication.
 
 ## Artifacts
 
@@ -157,7 +160,7 @@ The first 25 tasks and phase reviews p00 through p08 passed. Final review found 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (25/26 tasks complete; p09 summary alignment pending)
+- **Implementation:** `implementation.md` (26/26 tasks and phase reviews complete; final lifecycle re-review pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; rewritten local heads not yet republished)
 
 ## Progress
@@ -187,7 +190,8 @@ The first 25 tasks and phase reviews p00 through p08 passed. Final review found 
 - ✓ All four PR #94 review fixes completed on the bottom layer
 - ✓ Fresh p08 phase review passed with zero findings
 - ✓ Identity and activity layers cascade-rebased onto the corrected bottom layer
-- ⧗ p09 summary alignment, final re-review, configured exit gate and stack republication pending
+- ✓ p09 generated-summary alignment completed and independently reviewed
+- ⧗ Final lifecycle re-review, configured exit gate and stack republication pending
 
 ## Blockers
 
@@ -195,4 +199,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete p09-t01, re-review the corrected closeout record, run the configured exit gate, republish stack #97, and verify the ready PRs and remote review state.
+Re-review the corrected closeout record, run the configured exit gate, republish stack #97, and verify the ready PRs and remote review state.

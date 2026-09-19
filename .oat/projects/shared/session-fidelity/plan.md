@@ -530,7 +530,8 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | github-pr #94 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-94-review-2026-09-19T203657Z.md | 737d23e6211554864f401288e1d36ac2383c9c7b | -          | -           |
 | github-pr #94 | code     | fixes_completed | 2026-09-19 | reviews/archived/remote-pr-94-review-2026-09-19T203657Z.md | edfbb685040769b6f564bdb2a9eba50160c412b5 | auto       | -           |
 | p08    | code     | passed          | 2026-09-19 | reviews/p08-review-2026-09-19T211301Z.md                    | edfbb685040769b6f564bdb2a9eba50160c412b5 | auto       | codex-high  |
-| final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T213154Z.md         | 11acfec58445850dea6adb99f860ec402f55fb59 | manual     | -           |
+| final  | code     | fixes_completed | 2026-09-19 | reviews/archived/final-review-2026-09-19T213154Z.md         | 59549f2f273ff2fa62daad6c47bcd0aa5bd6883f | manual     | -           |
+| p09    | code     | passed          | 2026-09-19 | reviews/p09-review-2026-09-19T215345Z.md                    | 59549f2f273ff2fa62daad6c47bcd0aa5bd6883f | auto       | codex-high  |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -538,7 +539,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 10 phases, 26 tasks. The first 25 tasks and every phase review through p08 passed; p09 contains one final-review artifact-alignment task.
+**Planned total:** 10 phases, 26 tasks. All tasks and every phase review through p09 passed.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -551,7 +552,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p08: 4 tasks — planning-status alignment, withdrawn parser-guidance cleanup, detached MCP-result opacity, and LF-framing documentation correction.
 - p09: 1 task — align the generated project summary with p08 and the current publication boundary.
 
-The schema documentation preparatory commit and the first 25 implementation tasks are complete; phase reviews p00 through p08 passed. Phase p08 resolved all four PR #94 findings on the bottom layer and the two upper layers were cascade-rebased. Phase p09 must align the stale generated summary before final re-review, configured exit-gate processing, and stack republication. Merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and all 26 implementation tasks are complete; phase reviews p00 through p09 passed. Phase p08 resolved all four PR #94 findings on the bottom layer and the two upper layers were cascade-rebased. Phase p09 aligned the generated summary with those changes and the current publication boundary. Final re-review, configured exit-gate processing, and stack republication remain. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 

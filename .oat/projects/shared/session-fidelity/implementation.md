@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p09-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-The first 25 implementation tasks and phase reviews p00 through p08 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. Final review found one stale generated-summary claim, now queued as p09-t01 before re-review, the configured exit gate, and stack republication.
+All 26 implementation tasks and phase reviews p00 through p09 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. Phase p09 aligned the generated summary with those corrections and the current publication boundary. Final re-review and the configured exit gate remain before stack republication.
 
 ## Preparatory evidence
 
@@ -30,9 +30,9 @@ The first 25 implementation tasks and phase reviews p00 through p08 are complete
 | p06   | passed         | 2     | 2/2       |
 | p07   | passed         | 2     | 2/2       |
 | p08   | passed         | 4     | 4/4       |
-| p09   | in_progress    | 1     | 0/1       |
+| p09   | passed         | 1     | 1/1       |
 
-**Total:** 25/26 implementation tasks completed.
+**Total:** 26/26 implementation tasks completed.
 
 ## Phase 0
 
@@ -564,11 +564,20 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Phase 9
 
-**Status:** in_progress
+**Status:** passed
 
 ### Task p09-t01: (review) Align the project summary with p08 and publication state
 
-**Status:** pending
+**Status:** completed
+**Commit:** 59549f2f273ff2fa62daad6c47bcd0aa5bd6883f
+**Verification:** summary metadata, p08 corrections, 2,232-test total, live ready PR state, rewritten-head republication boundary, and delivery exclusions all agree with authoritative project state. Plan validation, repository validation, formatting, diff checks, full tests, and independent review passed.
+
+### Orchestration Run p09
+
+- Outcome: passed after one planned artifact-alignment commit, no recovery attempts and one fresh independent review.
+- Implementation: request `sf-p09-implement-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, accepted commit `59549f2f273ff2fa62daad6c47bcd0aa5bd6883f`; p09 recovery usage 0/10.
+- Review: artifact `reviews/p09-review-2026-09-19T215345Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `8e4389edced64da445efba90bee69d10d603b8f0..59549f2f273ff2fa62daad6c47bcd0aa5bd6883f`.
+- Outstanding p09 items: none. Next: final lifecycle re-review and configured exit gate.
 
 ### Orchestration Run p07
 
@@ -579,7 +588,7 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Reviews
 
-Plan review and phases p00 through p08 passed. The prior final lifecycle review and configured exit gate predate the substantive p08 changes, so fresh closeout review and gate evidence remain required.
+Plan review and phases p00 through p09 passed. The p08 closeout finding is fixed and independently verified; final lifecycle re-review and fresh configured-gate evidence remain required.
 
 ## Final Summary (for PR/docs)
 
@@ -587,7 +596,7 @@ Session Observer and Session Export Transcript now support an opt-in `--include-
 
 The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
 
-Local acceptance passed type checking, generated-build freshness, 2,231 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Nine phase reviews pass. The p08 review reports zero findings and independently verifies all four PR #94 corrections plus the bounded recovery.
+Local acceptance passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Ten phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, and p09 independently verifies the corrected generated summary.
 
 The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting and Cursor settlement without widening the product scope. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
 
@@ -698,7 +707,7 @@ All four CodeRabbit findings were verified against the current tree and converte
 
 - M1: the shipped p08 implementation and current project state are accepted as authoritative. The generated summary predates p08 and the ready PR publication state, so p09-t01 aligns that lifecycle artifact while preserving the distinction between already-published remote heads and rewritten local heads awaiting republication.
 
-**Next:** execute p09-t01 through `oat-project-implement`, mark this artifact-identified event `fixes_completed`, and run a final re-review before the configured exit gate.
+**Next:** run a final lifecycle re-review against the corrected summary, then process the configured exit gate.
 
 ## Planning Gate Review Received — 2026-09-19
 
