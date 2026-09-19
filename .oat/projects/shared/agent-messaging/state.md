@@ -35,6 +35,38 @@ oat_dispatch_policy:
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
+oat_implement_exit_gate:
+  status: allowed
+  disposition: passed
+  on_failure: block
+  max_attempts: 2
+  attempts_consumed: 2
+  gate_run_id: a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944
+  gate_target: claude-fable-skip-permissions
+  reviewed_head: c6d3424378ae33d0bcdee90dc9e1e3651a44d430
+  freshness_head: dd22025c005d89033a72b23f443985bb88cb78f6
+  artifact: reviews/archived/final-review-2026-09-19T214803Z.md
+  receive_completed: true
+  findings:
+    critical: 0
+    high: 0
+    medium: 1
+    low: 4
+  judgment_sweep_commit: dd22025c005d89033a72b23f443985bb88cb78f6
+oat_post_implement_sequence:
+  status: pre_approval
+  source: configured
+  final_phase: p05
+  pre_approval:
+    - summary
+    - document
+    - pr
+  pre_approval_completed: []
+  approval: pending
+  approval_source: null
+  post_approval: []
+  post_approval_completed: []
+  failure: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
 oat_project_state_updated: '2026-09-19T20:31:53Z'
