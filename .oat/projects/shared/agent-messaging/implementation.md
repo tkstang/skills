@@ -174,7 +174,16 @@ Frontier identity was verified from Claude transcript
 7c6df088-35f6-47be-b380-71abd861dd71: claude-fable-5-1, assistant lines 19
 and 247, final end_turn. No findings were deferred or rejected.
 
-**Next:** Re-review the corrected plan. No implementation is authorized here.
+**Subsequent verification:** Third gate reviewed e287517c and verified these four
+corrections. It returned a corroborated, receive-eligible blocked result with
+0 Critical, 1 Important, 1 Medium and 2 Minor findings:
+reviews/artifact-plan-review-2026-09-19T030934Z.md. The root confirmed that the
+observer hook allows stop when its exact session lease is missing, so the plan's
+registration-alone refusal is too broad. Third-party Stop-hook handling is a
+product-policy choice; no new disposition or correction has been applied yet.
+
+**Next:** User direction on the ownership policy and approval of the third-round
+corrections. No implementation is authorized here.
 
 ## Deviations from Plan / Design
 
