@@ -72,6 +72,10 @@ sf-p01-outcome-20260919-d4069b77 Phase p01 passed after bounded fixes and fresh 
 
 sf-p02-phase-outcome-20260919 p02 passed after five tasks, two review-fix rounds, and governance-final review; artifact reviews/p02-review-2026-09-19T145413Z-round3.md.
 
+### 2026-09-19 · structural · oat-project-review-provide · final-review-2026-09-19T180659Z.md
+
+final-review-20260919T180659Z validated final review orchestration; see reviews/final-review-2026-09-19T180659Z.md.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
