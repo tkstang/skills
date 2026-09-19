@@ -18,8 +18,18 @@ oat_phase_recovery_policy:
   phase_attempt_limits: {}
   phase_attempt_usage:
     p01:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: cont-agent-messaging-p01-recover-1
+        original_request_id: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+        original_task_id: p01-t05
+        original_commit: 2817142d8506477f2dda718f7e7f2eae68aa02df
+        defect_class: test
+        discovered_by: pnpm run test:vitest tests/release/versioning.test.ts
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-medium
+        reservation_head: 2817142d8506477f2dda718f7e7f2eae68aa02df
+        status: completed
 oat_phase: implement
 oat_phase_status: in_progress
 oat_workflow_mode: quick
