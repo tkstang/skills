@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p03-t01
+oat_current_task_id: p03-review
 oat_generated: false
 ---
 
@@ -16,7 +16,8 @@ This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
-Critical or Important findings. Phase 3 is next.
+Critical or Important findings. Phase 3 implementation is complete and awaits
+fresh independent review.
 
 ## Progress Overview
 
@@ -24,10 +25,10 @@ Critical or Important findings. Phase 3 is next.
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
-| Phase 3 | pending | 3     | 0/3       |
+| Phase 3 | review_pending | 3     | 3/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
-**Total:** 9/13 tasks completed
+**Total:** 12/13 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -88,23 +89,23 @@ Critical or Important findings. Phase 3 is next.
 
 ## Phase 3: Observer Stop composition and distribution docs (3 tasks)
 
-**Status:** pending
-**Started:** -
+**Status:** review_pending
+**Started:** 2026-09-19
 
 ### Task p03-t01: Put observer collaboration logs in the shared container
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** d02a894fd2d192f8ecd50962f7ad5edfbeb0a1e5
 
 ### Task p03-t02: Compose one continuation owner and preserve observer cursors
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f31f505782913fd2d52897e1873c1fb33c8aa393
 
 ### Task p03-t03: Prepare docs, release surfaces, and distribution verification
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 4aa71c82069ba66cf370ebc37ec450c9a2dd8458
 
 ## Phase 4: Claude composed Monitor and final acceptance (1 task)
 
@@ -697,6 +698,49 @@ diagnostics:
 The reviewer reported `Reconnaissance: attempted` with complete orchestration
 evidence. Its structural evidence is appended with the terminal Phase 2 outcome.
 
+#### Dispatch: p03 implementation
+
+```yaml
+request_id: dispatch-agent-messaging-p03-20260919
+caller: oat-project-implement
+scope: phase:p03
+objective: Execute all three Phase 3 tasks sequentially with one verified commit per task.
+action: implementation
+role_name: oat-phase-implementer-gpt-5-6-sol-high
+role_class: implementer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:phase-files-and-task-commits
+role_selector: oat-phase-implementer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: project-state
+selected_route: native
+payload:
+  phase_base: 254e190e081fc7af07931bc5b118b1d80643065d
+  final_head: 4aa71c82069ba66cf370ebc37ec450c9a2dd8458
+  commits:
+    - d02a894fd2d192f8ecd50962f7ad5edfbeb0a1e5
+    - f31f505782913fd2d52897e1873c1fb33c8aa393
+    - 4aa71c82069ba66cf370ebc37ec450c9a2dd8458
+launch_status: accepted
+child_outcome: done
+configured_invocation_evidence:
+  - resolver-report:p03
+  - "Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - tasks:3/3
+  - full-suite:2213-passed,1-skipped
+  - docs-build:54-pages
+  - recovery-attempts:0/10
+  - live-provider-actions:none
+```
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -712,6 +756,14 @@ evidence. Its structural evidence is appended with the terminal Phase 2 outcome.
 - Phase 2 implemented finite activation/claim recovery, fail-closed Codex and
   Claude adapters, a foreground-only request watcher, and bounded acceptance
   probes in four planned commits. Root reproduced the full repository gates.
+- Phase 3 implemented shared observer collaboration logs, single-owner bounded
+  Codex Stop composition, exact-ID inbox-first behavior, and the complete docs
+  and release surfaces in three planned commits. Verification passed 2,213
+  tests with 1 skipped, all repository gates, and a 54-page docs production
+  build. No recovery or live-provider action was required.
+- Phase 3 composition triggered and resolved both deferred Phase 2 Medium
+  findings: exact-expiry equality is inactive, and `host-output-attempted` is
+  not recorded before the final output veto.
 
 ## Review Received: p02 round 1
 
