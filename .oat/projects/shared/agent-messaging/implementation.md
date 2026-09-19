@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -14,49 +14,51 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. The next plan task is p01-t01. No product code, hooks or installed
-skills have been changed at this implementation baseline.
+2026-09-19. Phase 1 implementation and one bounded recovery are complete; the
+phase is awaiting root-owned review before Phase 2 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | pending | 5     | 0/5       |
+| Phase 1 | review_pending | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
-**Total:** 0/13 tasks completed
+**Total:** 5/13 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** pending
-**Started:** -
+**Status:** review_pending
+**Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 93e72857fafc96bc60a550723fc1982635ed4f9c
 
 ### Task p01-t02: Implement membership, takeover, departure, and closure
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 3153e88e52d7f87e97ac9d7577f17c8809fe462f
 
 ### Task p01-t03: Implement addressed messages and explicit receipts
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** dcd29c5ea776b1f0b938d4b6d4a67b0abbc27473
 
 ### Task p01-t04: Implement authoritative log entries and a regenerable view
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 7c8a7580e65f4169158aa2c3d7b12eb5b69ad9ff
 
 ### Task p01-t05: Ship the manual CLI and dedicated skill in both forms
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 2817142d8506477f2dda718f7e7f2eae68aa02df
+
+**Recovery commit:** 7739c65aed577b6e87de318bdf95cdba86eaa744
 
 ## Phase 2: Finite activation and host delivery (4 tasks)
 
@@ -135,14 +137,112 @@ skills have been changed at this implementation baseline.
 - Checkpoints: final phase only (`p04`), with automatic checkpoint review enabled
   from workflow configuration.
 - Schedule: `p01` → `p02` → `p03` → `p04`, sequential in this worktree.
-- Status: ready to dispatch Phase 1 from committed baseline.
+- Status: Phase 1 implementation returned `DONE_WITH_CONCERNS`; one mechanical
+  release-inventory defect was recovered and the remaining concerns are carried
+  into independent review.
+
+#### Dispatch: p01 implementation
+
+```yaml
+request_id: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+caller: oat-project-implement
+scope: phase:p01
+objective: Execute all five Phase 1 tasks in order with one verified commit per task.
+action: implementation
+role_name: oat-phase-implementer-gpt-5-6-sol-medium
+role_class: worker
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+catalog_snapshot:
+  id: codex-native-2026-09-19-p01
+  source: tool-schema
+  observed_at: 2026-09-19T13:33:00Z
+authority: write:phase-p01
+role_selector: oat-phase-implementer-gpt-5-6-sol-medium
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: medium
+reasoning_mode_selector: null
+service_tier_selector: priority
+guidance_reference: subagent-orchestration/references/provider-codex.md
+guidance_version: 2026-07-25
+guidance_verified_at: 2026-07-25
+guidance_status: review-required
+task_class: default-implementation
+model_class_floor: default-implementation
+classification_source: caller
+classification_reason: Bounded multi-file implementation with filesystem concurrency and safety tests across five dependent tasks.
+floor_satisfaction: satisfied
+selection_source: native-default
+candidates_considered:
+  - gpt-5.6-sol/medium
+  - gpt-5.6-sol/high
+selection_reason: native-catalog
+selected_route: native
+deadline_seconds: 7200
+retry_limit: 0
+payload:
+  phase_base: 91f5f2383883e6dd5f4506ebf6371d26099f59ad
+  plan_scope: plan.md#phase-1-independent-mailbox-and-shared-log-5-tasks
+launch_status: accepted
+child_outcome: done-with-concerns
+configured_invocation_evidence:
+  - resolver-report:p01
+  - "Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium"
+runtime_confirmation: not-reported
+diagnostics:
+  - phase-report:2817142d
+continuation_events:
+  - cont-agent-messaging-p01-recover-1:7739c65a:completed
+```
+
+Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
+`oat-phase-implementer-gpt-5-6-sol-medium`).
+
+#### Phase Implementation Report: p01
+
+- Request: `dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68`.
+- Base/head before recovery: `91f5f2383883e6dd5f4506ebf6371d26099f59ad`
+  → `2817142d8506477f2dda718f7e7f2eae68aa02df`.
+- Task commits: `93e72857`, `3153e88e`, `dcd29c5e`, `7c8a7580`,
+  `2817142d`, in planned order with exact planned subjects.
+- Phase verification: 48/48 focused tests, `build:check`, `validate`,
+  type-check, scoped oxlint/oxfmt, and documentation build passed.
+- Optional nested dispatch: none.
+- Worktree: clean on return.
+- Review inputs: the implementer reported incomplete direct coverage of some
+  plan-listed adversarial scenarios and a possible closed-collaboration exit-code
+  mismatch. These are review evidence, not silently accepted dispositions.
+
+### Recovery Event cont-agent-messaging-p01-recover-1
+
+- Phase/task: p01 / p01-t05
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Original commit: 2817142d8506477f2dda718f7e7f2eae68aa02df
+- Defect class: test
+- Discovered by: `pnpm run test:vitest tests/release/versioning.test.ts`
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Recovery commit: 7739c65aed577b6e87de318bdf95cdba86eaa744
+- Verification: focused 9/9 and p01 48/48 passed before and after the recovery
+  commit; `build:check` and `validate` also passed.
+- Reason: the new canonical skill required one mechanically derived pinned
+  shipped-skill expectation; no production behavior or inventory changed.
 
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
 
-No implementation has started. The scaffold's example completed-task entry was
-removed during planning bookkeeping; it never represented completed work.
+- Phase 1 implemented immutable collaboration storage, membership, addressed
+  messages, the append-only collaboration log, and the manual agent-messaging
+  CLI/distributions in five planned commits.
+- Root transition verification reproduced the 48 focused tests and discovered
+  the release-versioning inventory gap; the original phase handle recovered it
+  in append-only commit `7739c65a` with attempt 1/10.
 
 ## Review Received: plan
 
@@ -347,7 +447,7 @@ No product tests run: this review changes planning artifacts only.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | 48 focused + 9 release-versioning; build/check/validate/type/docs | all | 0 | Task and phase boundaries |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
