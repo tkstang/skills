@@ -71,9 +71,9 @@ oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: Semantic cross-family final implementation review before oat-project-implement exits.
@@ -84,8 +84,8 @@ oat_implement_exit_gate:
   reviewed_head: d14359fa7188655564275c52c4ddadfbd68055c9
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:1ca14f5e7a9589e0b419a5e665d752afe8fe15a6bdb9b380f759386ebccabb31
-  freshness_head: d14359fa7188655564275c52c4ddadfbd68055c9
-  freshness_fingerprint: sha256:effective-delta-v1:1ca14f5e7a9589e0b419a5e665d752afe8fe15a6bdb9b380f759386ebccabb31
+  freshness_head: d5a2c805ae4c848d862622708bb5ffb0322e9aea
+  freshness_fingerprint: sha256:effective-delta-v1:cfad2b401f5d8c81fd096f8639aa87bff222376505d0394a8922f3e3891bb47f
   launch_state: result_persisted
   launch_attempt_id: b6a66107-9461-4400-8fdc-fdcf8da6bc5f
   launch_started_at: '2026-09-19T18:54:32Z'
@@ -95,7 +95,7 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md
   handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (minor=6). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md to disposition them before marking the final review row passed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation:
     gate_run_id: 05d3cda3-7de8-475c-b831-9bdd011c51c7
     handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (minor=6). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md to disposition them before marking the final review row passed.'
@@ -110,29 +110,29 @@ oat_implement_exit_gate:
     type: code
     source_filename: final-review-2026-09-19T190056Z.md
   receive_pre_head: 72b29780eb835cecda230a06430e1ef44dcc0ca5
-  receive_commit: null
+  receive_commit: d5a2c805ae4c848d862622708bb5ffb0322e9aea
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-19T19:07:30Z'
+  updated_at: '2026-09-19T19:11:40Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T19:07:30+00:00"
+oat_project_state_updated: "2026-09-19T19:11:40+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Implementation exit gate passed its threshold; review receipt pending
+**Status:** Implementation exit gate allowed; closeout sequence pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p00 through p07 and the narrowed final lifecycle re-review are passed. The configured implementation exit gate returned a corroborated `ok` envelope with six Minor findings; the gate review must now be received and dispositioned.
+p00 through p07 and the narrowed final lifecycle re-review are passed. The configured implementation exit gate returned a corroborated `ok` envelope; all six Minor findings were explicitly dispositioned and the received gate review is passed.
 
 ## Artifacts
 
@@ -169,4 +169,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Receive and disposition the configured gate review, then continue the configured close-out sequence.
+Continue the configured close-out sequence while preserving gate freshness.
