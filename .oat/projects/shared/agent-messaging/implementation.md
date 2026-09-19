@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -17,7 +17,8 @@ this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 passed its final bounded independent
-review with no findings. Phase 4 is next.
+review with no findings. All 13 implementation tasks are complete; final
+Frontier review and approval-aware closeout remain pending.
 
 ## Progress Overview
 
@@ -26,9 +27,9 @@ review with no findings. Phase 4 is next.
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | completed | 3     | 3/3       |
-| Phase 4 | pending | 1     | 0/1       |
+| Phase 4 | review_pending | 1     | 1/1       |
 
-**Total:** 12/13 tasks completed
+**Total:** 13/13 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -89,7 +90,7 @@ review with no findings. Phase 4 is next.
 
 ## Phase 3: Observer Stop composition and distribution docs (3 tasks)
 
-**Status:** review_pending
+**Status:** completed
 **Started:** 2026-09-19
 
 ### Task p03-t01: Put observer collaboration logs in the shared container
@@ -109,13 +110,13 @@ review with no findings. Phase 4 is next.
 
 ## Phase 4: Claude composed Monitor and final acceptance (1 task)
 
-**Status:** pending
-**Started:** -
+**Status:** review_pending
+**Started:** 2026-09-19
 
 ### Task p04-t01: Add the single finite Claude composed Monitor
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** b9904d625e4eec8331cdb18b53a1709dc4abcce0
 
 ## Orchestration Runs
 
@@ -907,6 +908,49 @@ diagnostics:
   - fix-rounds:2/3
 ```
 
+#### Dispatch: p04 implementation
+
+```yaml
+request_id: dispatch-agent-messaging-p04-20260919
+caller: oat-project-implement
+scope: phase:p04
+objective: Implement the single finite Claude composed Monitor and final local acceptance task.
+action: implementation
+role_name: oat-phase-implementer-gpt-5-6-sol-high
+role_class: implementer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:phase-files-task-commit-and-conditional-pjm-closeout
+role_selector: oat-phase-implementer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: project-state
+selected_route: native
+payload:
+  phase_base: 73955e0eac1634ae11139b624c22b9e01e3ec78a
+  final_head: b9904d625e4eec8331cdb18b53a1709dc4abcce0
+  commits:
+    - b9904d625e4eec8331cdb18b53a1709dc4abcce0
+launch_status: accepted
+child_outcome: done
+configured_invocation_evidence:
+  - resolver-report:p04
+  - "Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - tasks:1/1
+  - stage-tests:104,28,191
+  - full-suite:2225-passed,1-skipped
+  - docs-build:54-pages
+  - worktree-validate:passed
+  - recovery-attempts:0/10
+  - live-provider-actions:none
+```
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -930,6 +974,16 @@ diagnostics:
 - Phase 3 composition triggered and resolved both deferred Phase 2 Medium
   findings: exact-expiry equality is inactive, and `host-output-attempted` is
   not recorded before the final output veto.
+- Phase 4 shipped the finite foreground Claude composed Monitor, shared
+  inbox/observation wake budget, exact epoch/owner/peer validation, truthful
+  observation diagnostics, private-only automatic cursor progress, and owned
+  standalone/Consensus payloads in commit `b9904d62`. The three ordered stages
+  passed 104, 28, and 191 focused tests; the full suite passed 2,225 with 1
+  skipped, the docs build produced 54 pages, and clean-worktree validation
+  passed. No live-provider action or recovery attempt occurred.
+- PJM doctor was green before and after the plan-authorized closeout;
+  `BL-260619-inter-agent-direct-messaging` is closed and archived. Live
+  host/install acceptance remains explicitly unverified and separate.
 
 ## Review Received: p03 round 1
 
@@ -1322,27 +1376,35 @@ This is historical planning-review context; product code now exists.
 
 ## Test Results
 
-Phase 1 product verification is current through the user-authorized fix round 3,
-its packaging recovery, and the passing independent review. Phase 2 root
-transition verification is current through fix commit `0703f1e3` and the
-passing fresh independent review.
+Phase verification is current through Phase 4 commit `b9904d62` and the clean
+worktree validation run. Final independent Frontier review is still pending.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
 | 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
-| 3     | -         | -      | -      | -        |
-| 4     | -         | -      | -      | -        |
+| 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint | all | 0 | Accepted after final bounded independent review |
+| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Tasks complete; final Frontier review pending |
 
 ## Final Summary (for PR/docs)
 
-Phase 1 is implemented and independently accepted. Phase 2 implementation is
-complete and root-verified: finite delivery ownership, bounded Codex/Claude
-adapters, foreground request watch, both generated distributions, and honest
-probe evidence are green, all eight blocking-review findings have fixes in
-`0703f1e3`, and fresh review passed. Two Medium findings are deferred to final
-review. Phases 3–4, publication, installation, merge, and live acceptance remain
-incomplete.
+All 13 implementation tasks are complete. The project now ships a
+dependency-free shared collaboration container with addressed messages,
+receipts, immutable logs/rendered views, finite activation and claims, bounded
+Codex/Claude host adapters, a request-only watch, content-bound observer
+composition, and a finite foreground Claude Monitor sharing one continuation
+budget with inbox requests. Canonical sources live under `src/shared/` and the
+two skill roots; owned standalone, Session, and Consensus payloads plus the docs
+site were regenerated from those sources.
+
+Verification includes every phase's focused suites, a clean final worktree run
+with 2,225 passing tests and 1 skipped, generated freshness, type-check,
+validation, smoke, version validation, scoped formatting/lint, and a 54-page
+documentation build. `BL-260619-inter-agent-direct-messaging` is closed and
+archived after green PJM preflight/postflight. Final independent Frontier review
+and approval-aware workflow closeout remain. Publication, push/PR/merge,
+user/global installation, provider configuration, and live host acceptance were
+not performed and remain separate authorization/evidence boundaries.
 
 ## References
 

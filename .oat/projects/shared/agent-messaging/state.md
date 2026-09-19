@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: d1b3fe166adc76e3be78bfb1a21c7ee8adfd7c8c
+oat_current_task: null
+oat_last_commit: b9904d625e4eec8331cdb18b53a1709dc4abcce0
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T19:53:29Z'
+oat_project_state_updated: '2026-09-19T20:31:53Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 3 passed final independent review; p04-t01 is next.
+**Status:** All 13 tasks are complete; final Frontier review is pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -51,13 +51,12 @@ repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
 Phase 1 is independently accepted. Phase 2 implementation is committed and
 root-verified. Fix round 1/3 resolved its 7 Important and 1 Medium review
-findings; fresh independent review passed with 0 Critical, 0 Important, 2
-Medium, and 0 Minor findings. Phase 3 implementation and repository verification
-are complete, but independent review returned 2 Important and 2 Medium findings.
-Bounded fix round 1/3 resolved all four and was root-verified; fresh independent
-re-review found one Important standalone-controller race. Fix round 2/3 resolved
-it, and final review passed with no findings. Phase 4 is next. Live hook
-installation remains separately authorized.
+findings; fresh independent review passed, and both remaining Mediums were fixed
+in Phase 3. Phase 3 passed its final bounded review with no findings. Phase 4
+implemented and locally verified the finite Claude composed Monitor, shared
+inbox/observation budget, docs/distributions, and conditional backlog closeout.
+All implementation tasks are complete; final Frontier review and approval-aware
+closeout remain. Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -65,7 +64,7 @@ installation remains separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 12/13 tasks complete; Phase 3 passed and p04-t01 is next.
+- **Implementation:** implementation.md — Run 1 has 13/13 tasks complete; final Frontier review is pending.
 
 ## Progress
 
@@ -225,6 +224,18 @@ installation remains separately authorized.
   Critical, 0 Important, 0 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p03-final-review-2026-09-19T194903Z.md`. All prior findings and
   both deferred Phase 2 corrections are resolved; Phase 3 is accepted.
+- **Phase 4 implementation:** Commit `b9904d62` adds the finite foreground
+  Claude composed Monitor, exact epoch/owner/peer validation, inbox-first shared
+  claims and budget, private-only automatic cursor progress, truthful
+  observation status, and regenerated standalone/Session/Consensus payloads.
+  Ordered stages passed 104, 28, and 191 focused tests; the full suite passed
+  2,225 with 1 skipped, the docs build produced 54 pages, and
+  `pnpm run worktree:validate` passed on the clean tree. Agent messaging 1.0.13
+  and observer-collab 1.0.37 are recorded; base observer is unchanged. No live
+  provider/config/install action occurred.
+- **Backlog closeout:** PJM doctor passed before and after closeout. The completed
+  acceptance criteria were recorded, and `BL-260619-inter-agent-direct-messaging`
+  is closed and archived. Live host/install acceptance remains unverified.
 
 ## Dispatch and Gate Review Policy
 
@@ -259,5 +270,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Start p04-t01 in this existing worktree under the approved sequential plan. Live
-hook installation remains a separate authorization boundary.
+Run the configured independent Frontier final review against `b9904d62` plus
+this committed closeout baseline. Live hook installation remains a separate
+authorization boundary.
