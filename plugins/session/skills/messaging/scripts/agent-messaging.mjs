@@ -2011,10 +2011,10 @@ async function deliveryClaimStatus(input) {
     )
   ]);
   const interruptedAttempts = events.filter(
-    (event) => !slots.some((slot) => slot.token === event.token) || event.proposedDeliveryKeys.length > 0 && !messages.some((message) => message.token === event.token)
+    (event) => event.observation === void 0 && (!slots.some((slot) => slot.token === event.token) || event.proposedDeliveryKeys.length > 0 && !messages.some((message) => message.token === event.token))
   ).map((event) => event.token);
   const outcomeUnknown = events.filter(
-    (event) => messages.some((message) => message.token === event.token)
+    (event) => event.observation === void 0 && messages.some((message) => message.token === event.token)
   ).map((event) => event.token);
   const observationAttempts = events.filter(
     (event) => event.observation !== void 0

@@ -133,6 +133,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.17 and `session-observer-collab` 1.0.41 keep
+  interrupted and outcome-unknown observation attempts out of message retry
+  status, leaving pinned-range recovery as their only advertised path.
+
 - `agent-messaging` 1.0.16 and `session-observer-collab` 1.0.40 resolve the
   standard bounded Claude settings inventory by default, persist its exact
   sources in each activation, and re-inspect the same sources at every delivery

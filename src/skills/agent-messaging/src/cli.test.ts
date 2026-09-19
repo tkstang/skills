@@ -4,6 +4,10 @@ import path from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 
+import {
+  claimObservation,
+  observationEventKey,
+} from '../../../shared/collaboration/claims.js';
 import { runAgentMessagingCli } from './agent-messaging.js';
 
 async function run(argv: string[], env: NodeJS.ProcessEnv = {}) {
@@ -120,6 +124,49 @@ describe('agent messaging CLI', () => {
       slots: { spentSlots: 0, remainingSlots: 3 },
       deliveryClaim: expect.stringContaining('never proof of delivery'),
     });
+    const activationId = JSON.parse(enabled.stdout).data.id as string;
+    const observation = {
+      owner: { runtime: 'codex' as const, sessionId: 'driver' },
+      peer: { runtime: 'claude-code' as const, sessionId: 'peer' },
+      indexBase: 'zero-based-jsonl-record-index' as const,
+      fromIndex: 1,
+      toIndex: 2,
+      nextIndex: 3,
+      selectedPrefixIdentity: 'a'.repeat(64),
+    };
+    await expect(
+      claimObservation({
+        root,
+        pin: observation.owner,
+        eventKey: observationEventKey({ activationId, observation }),
+        observation,
+        token: 'cli-observation-interruption',
+        hooks: {
+          afterEventClaim: () => {
+            throw new Error('simulated observation interruption');
+          },
+        },
+      }),
+    ).rejects.toThrow('simulated observation interruption');
+    const observedStatus = await run([
+      'status',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    const delivery = JSON.parse(observedStatus.stdout).data.delivery;
+    expect(delivery.interruptedAttempts).toEqual([]);
+    expect(JSON.stringify(delivery)).not.toContain('delivery retry');
+    expect(delivery.slots.observationAttempts).toEqual([
+      expect.objectContaining({
+        attemptId: 'cli-observation-interruption',
+        status: 'interrupted',
+      }),
+    ]);
     expect(
       (
         await run([

@@ -86,6 +86,8 @@ describe('delivery claims', () => {
           status: 'outcome-unknown',
         },
       ],
+      interruptedAttempts: [],
+      outcomeUnknown: [],
     });
     expect(
       await claimObservation({
@@ -95,6 +97,42 @@ describe('delivery claims', () => {
         observation,
       }),
     ).toMatchObject({ duplicateEvent: true, slot: null });
+
+    const interruptedObservation = {
+      ...observation,
+      fromIndex: 7,
+      toIndex: 8,
+      nextIndex: 9,
+    };
+    await expect(
+      claimObservation({
+        root: f.root,
+        pin: f.pin,
+        eventKey: observationEventKey({
+          activationId: f.activation.id,
+          observation: interruptedObservation,
+        }),
+        observation: interruptedObservation,
+        token: 'observation-interrupted',
+        hooks: {
+          afterEventClaim: () => {
+            throw new Error('simulated pre-slot interruption');
+          },
+        },
+      }),
+    ).rejects.toThrow('simulated pre-slot interruption');
+    expect(
+      await deliveryClaimStatus({ root: f.root, pin: f.pin }),
+    ).toMatchObject({
+      interruptedAttempts: [],
+      outcomeUnknown: [],
+      observationAttempts: expect.arrayContaining([
+        expect.objectContaining({
+          attemptId: 'observation-interrupted',
+          status: 'interrupted',
+        }),
+      ]),
+    });
   });
 
   test('orders event, slot, and message claims without acknowledging mail', async () => {

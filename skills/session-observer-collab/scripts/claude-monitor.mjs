@@ -5490,7 +5490,7 @@ async function pendingRequests(root, collaborationId, pin) {
     (message) => message.kind === "request" && !message.inert
   );
 }
-function defaultOwnershipVerification(input, env) {
+function defaultOwnershipVerification(input) {
   return async ({ activation, lease, now }) => {
     const inventory = await inspectClaudeStopInventory({
       settingsPaths: activation.claudeInventorySources?.settingsPaths ?? [],
@@ -5588,7 +5588,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
     cwd: validateAbsolutePath(input.cwd, "cwd"),
     peerTranscript: canonicalPeer.peerCanonicalTranscriptPath
   };
-  const verifyOwnership = dependencies.verifyOwnership ?? defaultOwnershipVerification(input, dependencies.env ?? process.env);
+  const verifyOwnership = dependencies.verifyOwnership ?? defaultOwnershipVerification(input);
   const maxRuntimeMs = Number(input.maxRuntimeMs);
   const pollMs = Number(input.pollMs ?? DEFAULT_POLL_MS);
   if (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs <= 0 || maxRuntimeMs > MAX_MONITOR_RUNTIME_MS)
