@@ -794,6 +794,51 @@ describe('exact provider lineage metadata', () => {
     });
   });
 
+  it('rejects malformed first Codex headers instead of accepting a later inherited header', () => {
+    const laterId = '77777777-7777-4777-8777-777777777777';
+    const transcriptPath = `/private/rollout-2026-09-18T10-04-00-${laterId}.jsonl`;
+
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: 'malformed' },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { id: null } },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+  });
+
+  it('preserves a documented legacy Codex header with no native id', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-session',
+          payload: { cwd: '/repo/legacy' },
+        },
+      ],
+      '/private/legacy-session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'legacy-session',
+      recordedCwd: '/repo/legacy',
+    });
+  });
+
   it('omits contradictory or malformed optional Claude lineage fields', () => {
     const claude = extractMetaFromRecords(
       'claude-code',

@@ -1107,9 +1107,7 @@ function codexRolloutFilenameSessionId(
 function firstCodexSessionHeader(
   records: JsonObject[],
 ): JsonObject | undefined {
-  return records.find(
-    (record) => record.type === 'session_meta' && isObject(record.payload),
-  );
+  return records.find((record) => record.type === 'session_meta');
 }
 
 function codexDirectParentValues(payload: JsonObject): unknown[] {
@@ -1134,7 +1132,8 @@ function codexDirectParentValues(payload: JsonObject): unknown[] {
 function codexLineageMetadata(
   firstHeader: JsonObject,
 ): Omit<TranscriptMeta, 'sessionId' | 'recordedCwd'> | null {
-  const payload = firstHeader.payload as JsonObject;
+  if (!isObject(firstHeader.payload)) return null;
+  const payload = firstHeader.payload;
   if (!Object.hasOwn(payload, 'id')) return {};
 
   const nativeSessionId = consistentNonEmptyString([payload.id]);

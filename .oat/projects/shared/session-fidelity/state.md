@@ -21,6 +21,18 @@ oat_phase_recovery_policy:
     p08:
       used_attempts: 1
       pending_attempt: null
+    p01:
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p01-t01-recovery-01
+        original_request_id: sf-p01-implement-01
+        original_task_id: p01-t01
+        original_commit: 151cf78cd560d8fab8eff3dba9ff10a3d29306c7
+        discovered_by: 'between-task transition review: malformed first session_meta payload can yield authority to a later inherited header'
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 151cf78cd560d8fab8eff3dba9ff10a3d29306c7
+        status: completed
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets

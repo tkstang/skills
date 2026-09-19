@@ -526,9 +526,7 @@ function codexRolloutFilenameSessionId(transcriptPath) {
   return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
 }
 function firstCodexSessionHeader(records) {
-  return records.find(
-    (record) => record.type === "session_meta" && isObject(record.payload)
-  );
+  return records.find((record) => record.type === "session_meta");
 }
 function codexDirectParentValues(payload) {
   const values = [];
@@ -544,6 +542,7 @@ function codexDirectParentValues(payload) {
   return values;
 }
 function codexLineageMetadata(firstHeader) {
+  if (!isObject(firstHeader.payload)) return null;
   const payload = firstHeader.payload;
   if (!Object.hasOwn(payload, "id")) return {};
   const nativeSessionId = consistentNonEmptyString([payload.id]);
