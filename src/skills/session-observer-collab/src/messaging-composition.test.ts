@@ -21,6 +21,7 @@ import {
 import { runAgentMessagingCli } from '../../agent-messaging/src/agent-messaging.js';
 import { runCodexHook as runStandaloneCodexHook } from '../../agent-messaging/src/hooks/codex.js';
 import { watchInbox } from '../../agent-messaging/src/watch.js';
+import { getSession, markRead } from '../../session-observer/src/lib/state.js';
 import { codexStopCommand } from './codex-lifecycle.mjs';
 import { arm, disarm } from './collab-control.mjs';
 import { runCodexStopHook } from './hooks/codex-stop.mjs';
@@ -76,10 +77,8 @@ async function fixture(maxContinuations = 3) {
   roots.push(root);
   const cwd = path.join(root, 'worktree');
   const peerTranscript = path.join(root, 'peer.jsonl');
-  const publicOffset = path.join(root, 'public-offset.json');
   await mkdir(cwd);
   await writeFile(peerTranscript, '{}\n');
-  await writeFile(publicOffset, '{"nextRecordIndex":11}\n');
   const collaborationId = crypto.randomUUID();
   const driver = { runtime: 'cursor' as const, sessionId: 'driver' };
   const recipient = { runtime: 'codex' as const, sessionId: 'recipient' };
@@ -136,7 +135,6 @@ async function fixture(maxContinuations = 3) {
     root,
     cwd,
     peerTranscript,
-    publicOffset,
     collaborationId,
     driver,
     recipient,
@@ -199,7 +197,7 @@ describe('observer and messaging continuation composition', () => {
       enableNow,
     );
     const launcher = path.join(root, 'observer-stop.mjs');
-    await installCodexStopBundle({
+    const installed = await installCodexStopBundle({
       scriptPath: launcher,
       sourceScriptPath: path.resolve(
         'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
@@ -226,7 +224,7 @@ describe('observer and messaging continuation composition', () => {
       });
       return { code, stdout: stdout.join(''), stderr: stderr.join('') };
     };
-    const enabled = await invoke([
+    const enableArgs = [
       'delivery',
       'enable',
       '--root',
@@ -242,7 +240,44 @@ describe('observer and messaging continuation composition', () => {
       '--controller',
       'observer-collab',
       '--json',
-    ]);
+    ];
+    const manifestPath = path.join(
+      installed.supportRoot,
+      installed.version,
+      '.session-observer-collab-bundle.json',
+    );
+    const currentManifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    await writeFile(
+      manifestPath,
+      `${JSON.stringify({
+        owner: currentManifest.owner,
+        version: currentManifest.version,
+        files: currentManifest.files,
+      })}\n`,
+    );
+    const legacyRefusal = await invoke(enableArgs);
+    expect(legacyRefusal.code).toBe(3);
+    expect(JSON.parse(legacyRefusal.stderr).message).toContain(
+      'no verified composed-capable adapter',
+    );
+    await writeFile(manifestPath, `${JSON.stringify(currentManifest)}\n`);
+    const installedHook = path.join(
+      installed.supportRoot,
+      installed.version,
+      'session-observer-collab/scripts/hooks/codex-stop.mjs',
+    );
+    const installedHookBytes = await readFile(installedHook);
+    await writeFile(
+      installedHook,
+      Buffer.concat([installedHookBytes, Buffer.from('\n// drift\n')]),
+    );
+    const digestRefusal = await invoke(enableArgs);
+    expect(digestRefusal.code).toBe(3);
+    expect(JSON.parse(digestRefusal.stderr).message).toContain(
+      'no verified composed-capable adapter',
+    );
+    await writeFile(installedHook, installedHookBytes);
+    const enabled = await invoke(enableArgs);
     expect(enabled.code, enabled.stderr).toBe(0);
     expect(JSON.parse(enabled.stdout).data).toMatchObject({
       controller: 'observer-collab',
@@ -271,6 +306,167 @@ describe('observer and messaging continuation composition', () => {
     });
   });
 
+  test('refuses registration when observer ownership changes after activation', async () => {
+    const setup = async (composed: boolean) => {
+      const root = await mkdtemp(
+        path.join(tmpdir(), 'messaging-register-race-'),
+      );
+      roots.push(root);
+      const cwd = path.join(root, 'worktree');
+      const transcript = path.join(root, 'peer.jsonl');
+      await mkdir(cwd);
+      await writeFile(transcript, '{}\n');
+      const collaborationId = crypto.randomUUID();
+      const pin = { runtime: 'codex' as const, sessionId: 'recipient' };
+      await openCollaboration({
+        root,
+        collaborationId,
+        pin,
+        alias: 'recipient',
+        label: 'register-race',
+        task: 'preserve the immutable controller',
+        worktree: cwd,
+      });
+      const launcher = path.join(root, 'observer-stop.mjs');
+      await installCodexStopBundle({
+        scriptPath: launcher,
+        sourceScriptPath: path.resolve(
+          'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+        ),
+      });
+      const hooksPath = path.join(root, 'hooks.json');
+      if (composed) {
+        await arm(
+          root,
+          {
+            runtime: 'codex',
+            peerRuntime: 'claude-code',
+            session: pin.sessionId,
+            peerSession: 'peer',
+            cwd,
+            peerTranscript: transcript,
+            leaseMs: 60 * 60 * 1000,
+          },
+          Date.now(),
+        );
+        await writeFile(
+          hooksPath,
+          JSON.stringify({
+            hooks: {
+              Stop: [{ hooks: [{ command: codexStopCommand(launcher) }] }],
+            },
+          }),
+        );
+      } else {
+        await writeFile(hooksPath, '{}\n');
+      }
+      const invoke = async (args: string[]) => {
+        const stdout: string[] = [];
+        const stderr: string[] = [];
+        const code = await runAgentMessagingCli(args, {
+          env: { HOME: root, SESSION_OBSERVER_STATE_DIR: root },
+          cwd,
+          readStdin: async () => '',
+          stdout: (value) => stdout.push(value),
+          stderr: (value) => stderr.push(value),
+        });
+        return { code, stdout: stdout.join(''), stderr: stderr.join('') };
+      };
+      const enabled = await invoke([
+        'delivery',
+        'enable',
+        '--root',
+        root,
+        '--collab',
+        collaborationId,
+        '--self',
+        'codex:recipient',
+        '--cwd',
+        cwd,
+        '--hooks-path',
+        hooksPath,
+        ...(composed ? ['--controller', 'observer-collab'] : []),
+        '--json',
+      ]);
+      expect(enabled.code, enabled.stderr).toBe(0);
+      return {
+        root,
+        cwd,
+        transcript,
+        collaborationId,
+        launcher,
+        hooksPath,
+        invoke,
+      };
+    };
+
+    const armed = await setup(false);
+    await arm(
+      armed.root,
+      {
+        runtime: 'codex',
+        peerRuntime: 'claude-code',
+        session: 'recipient',
+        peerSession: 'peer',
+        cwd: armed.cwd,
+        peerTranscript: armed.transcript,
+        leaseMs: 60 * 60 * 1000,
+      },
+      Date.now(),
+    );
+    await writeFile(
+      armed.hooksPath,
+      JSON.stringify({
+        hooks: {
+          Stop: [{ hooks: [{ command: codexStopCommand(armed.launcher) }] }],
+        },
+      }),
+    );
+    const armedRegistration = await armed.invoke([
+      'delivery',
+      'register',
+      '--root',
+      armed.root,
+      '--collab',
+      armed.collaborationId,
+      '--self',
+      'codex:recipient',
+      '--cwd',
+      armed.cwd,
+      '--hooks-path',
+      armed.hooksPath,
+      '--json',
+    ]);
+    expect(armedRegistration.code).toBe(3);
+    expect(JSON.parse(armedRegistration.stderr).message).toContain(
+      'observer continuation owner is active or triggered',
+    );
+
+    const disarmed = await setup(true);
+    await disarm(disarmed.root, 'recipient', Date.now());
+    const disarmedRegistration = await disarmed.invoke([
+      'delivery',
+      'register',
+      '--root',
+      disarmed.root,
+      '--collab',
+      disarmed.collaborationId,
+      '--self',
+      'codex:recipient',
+      '--cwd',
+      disarmed.cwd,
+      '--hooks-path',
+      disarmed.hooksPath,
+      '--script-path',
+      path.join(disarmed.root, 'messaging-stop.mjs'),
+      '--json',
+    ]);
+    expect(disarmedRegistration.code).toBe(3);
+    expect(JSON.parse(disarmedRegistration.stderr).message).toContain(
+      'observer-collab requires an active exact-session lease',
+    );
+  });
+
   test('presents addressed requests before observation without advancing either observer cursor', async () => {
     const f = await fixture();
     const messageId = crypto.randomUUID();
@@ -284,40 +480,62 @@ describe('observer and messaging continuation composition', () => {
       subject: 'Review this first',
       body: 'The inbox wins over observation.',
     });
-    const beforeLease = await readLease(f.root, f.recipient.sessionId);
-    const beforePublic = await readFile(f.publicOffset);
-    let observed = 0;
-    const output = await runCodexStopHook(
-      {
-        hook_event_name: 'Stop',
-        session_id: f.recipient.sessionId,
-        cwd: f.cwd,
-        event_id: 'message-first',
-      },
-      {
-        root: f.root,
-        now: () => START + 1,
-        observe: async () => {
-          observed += 1;
-          return digest();
+    const priorStateDir = process.env.STATE_DIR;
+    const publicStateDir = path.join(f.root, 'public-observer-state');
+    process.env.STATE_DIR = publicStateDir;
+    try {
+      await markRead('claude-code', 'peer', {
+        lastRecordIndex: 11,
+        lastTotalRecords: 11,
+        transcriptPath: f.peerTranscript,
+        recordedCwd: f.cwd,
+      });
+      const publicStatePath = path.join(publicStateDir, 'state.json');
+      const beforePublic = await getSession('claude-code', 'peer');
+      const beforePublicBytes = await readFile(publicStatePath);
+      const beforeLease = await readLease(f.root, f.recipient.sessionId);
+      let observed = 0;
+      const output = await runCodexStopHook(
+        {
+          hook_event_name: 'Stop',
+          session_id: f.recipient.sessionId,
+          cwd: f.cwd,
+          event_id: 'message-first',
         },
-      },
-    );
-    expect(output).toMatchObject({
-      decision: 'block',
-      reason: expect.stringContaining(messageId),
-    });
-    expect(output.reason).toContain('agent_messaging_context');
-    expect(observed).toBe(0);
-    expect(await readLease(f.root, f.recipient.sessionId)).toEqual(beforeLease);
-    await acknowledgeMessage({
-      root: f.root,
-      collaborationId: f.collaborationId,
-      pin: f.recipient,
-      messageId,
-    });
-    expect(await readLease(f.root, f.recipient.sessionId)).toEqual(beforeLease);
-    expect(await readFile(f.publicOffset)).toEqual(beforePublic);
+        {
+          root: f.root,
+          now: () => START + 1,
+          observe: async () => {
+            observed += 1;
+            return digest();
+          },
+        },
+      );
+      expect(output).toMatchObject({
+        decision: 'block',
+        reason: expect.stringContaining(messageId),
+      });
+      expect(output.reason).toContain('agent_messaging_context');
+      expect(observed).toBe(0);
+      expect(await readLease(f.root, f.recipient.sessionId)).toEqual(
+        beforeLease,
+      );
+      expect(await getSession('claude-code', 'peer')).toEqual(beforePublic);
+      await acknowledgeMessage({
+        root: f.root,
+        collaborationId: f.collaborationId,
+        pin: f.recipient,
+        messageId,
+      });
+      expect(await readLease(f.root, f.recipient.sessionId)).toEqual(
+        beforeLease,
+      );
+      expect(await getSession('claude-code', 'peer')).toEqual(beforePublic);
+      expect(await readFile(publicStatePath)).toEqual(beforePublicBytes);
+    } finally {
+      if (priorStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = priorStateDir;
+    }
   });
 
   test('keeps standalone Stop and watch entrypoints inert for the observer-owned epoch', async () => {

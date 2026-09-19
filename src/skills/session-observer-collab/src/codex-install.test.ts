@@ -90,6 +90,19 @@ describe('installed Codex Stop hook bundle', () => {
       (name) => !name.startsWith('.stage-'),
     );
     expect(versions).toHaveLength(1);
+    const manifestPath = join(
+      supportRoot,
+      versions[0],
+      '.session-observer-collab-bundle.json',
+    );
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    expect(manifest).toMatchObject({
+      owner: 'session-observer-collab-codex-stop',
+      version: versions[0],
+      capabilities: { 'agent-messaging-stop-composition': 1 },
+      contentDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect(manifest.contentDigest.slice(0, 24)).toBe(versions[0]);
     expect((await stat(join(supportRoot, versions[0]))).mode & 0o777).toBe(
       0o700,
     );

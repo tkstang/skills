@@ -682,6 +682,19 @@ async function execute(
         'Cursor automatic delivery is unverified; use the manual inbox',
       );
     const worktree = optional(parsed, 'cwd') ?? io.cwd;
+    const status = await activationStatus(root, pin);
+    const activation = status.activation;
+    if (
+      !status.active ||
+      !activation ||
+      activation.collaborationId !== collaborationId ||
+      activation.worktree !== path.resolve(worktree)
+    ) {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'delivery registration requires the exact active collaboration/session/worktree activation',
+      );
+    }
     const hooksPath = optional(parsed, 'hooks-path');
     const inventory =
       pin.runtime === 'codex'
@@ -707,11 +720,18 @@ async function execute(
       inventory,
       acknowledgedFingerprint:
         optional(parsed, 'acknowledge-stop-hooks') ?? null,
+      requestedController: activation.controller,
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(
         'DELIVERY_INACTIVE',
         `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ''}`,
+      );
+    }
+    if (ownership.controller !== activation.controller) {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'current ownership no longer matches the active activation controller; disable and re-enable explicitly',
       );
     }
     return {

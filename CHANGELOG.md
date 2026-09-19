@@ -5,10 +5,11 @@
 ### Added
 
 - `agent-messaging` 1.0.9 and `session-observer-collab` 1.0.35 compose one
-  verified Codex Stop owner with inbox-first selection, a shared finite
-  continuation budget, observer-CAS loss containment, exact-ID dedup guidance,
-  and fail-closed Claude/Cursor fallbacks. Exact expiry equality is now inactive,
-  and output-attempt diagnostics are recorded only after the final veto check.
+  fixture-tested, composition-capable Codex Stop owner with inbox-first
+  selection, a shared finite continuation budget, observer-CAS loss containment,
+  exact-ID dedup guidance, and fail-closed Claude/Cursor fallbacks. Exact expiry
+  equality is now inactive, and output-attempt diagnostics are recorded only
+  after the final veto check.
 
 - `session-observer-collab` 1.0.34 opens and joins the shared collaboration
   container without enabling messaging delivery, bundles the immutable shared
@@ -119,6 +120,12 @@
   `session-fork-to-destination` 0.2.6).
 
 ### Fixed
+
+- `agent-messaging` 1.0.11 and `session-observer-collab` 1.0.36 require the
+  versioned, content-bound Phase 3 observer composition capability, keep
+  registration bound to the active activation's immutable controller across
+  lease changes, and verify that inbox presentation and acknowledgment preserve
+  both the real public observer offset and the private collaboration cursor.
 
 - `agent-messaging` 1.0.8 closes Phase 2 fail-closed gaps: host output now
   revalidates activation and ownership after claims, Stop retries consume the

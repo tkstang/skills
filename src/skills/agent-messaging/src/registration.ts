@@ -15,6 +15,9 @@ export const OBSERVER_BUNDLE_MANIFEST = '.session-observer-collab-bundle.json';
 export const OBSERVER_BUNDLE_FILES = [
   'session-observer-collab/scripts/hooks/codex-stop.mjs',
 ] as const;
+export const OBSERVER_COMPOSITION_CAPABILITY =
+  'agent-messaging-stop-composition';
+export const OBSERVER_COMPOSITION_CAPABILITY_VERSION = 1;
 export const MESSAGING_HOOK_OWNER = 'agent-messaging-host-hook-v1';
 
 export interface StopRegistration {
@@ -146,17 +149,38 @@ async function recognizedObserverLauncher(command: string): Promise<boolean> {
     !manifest ||
     manifest.owner !== OBSERVER_LAUNCHER_OWNER ||
     manifest.version !== marker[1] ||
-    JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES)
+    JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES) ||
+    !manifest.capabilities ||
+    typeof manifest.capabilities !== 'object' ||
+    Array.isArray(manifest.capabilities) ||
+    (manifest.capabilities as Record<string, unknown>)[
+      OBSERVER_COMPOSITION_CAPABILITY
+    ] !== OBSERVER_COMPOSITION_CAPABILITY_VERSION ||
+    typeof manifest.contentDigest !== 'string' ||
+    !/^[a-f0-9]{64}$/u.test(manifest.contentDigest) ||
+    manifest.contentDigest.slice(0, 24) !== marker[1]
   ) {
     return false;
   }
-  return Promise.all(
-    OBSERVER_BUNDLE_FILES.map((file) => lstat(path.join(supportRoot, file))),
-  ).then(
-    (entries) =>
-      entries.every((entry) => entry.isFile() && !entry.isSymbolicLink()),
-    () => false,
-  );
+  const hash = createHash('sha256');
+  hash.update(OBSERVER_COMPOSITION_CAPABILITY);
+  hash.update('\0');
+  hash.update(String(OBSERVER_COMPOSITION_CAPABILITY_VERSION));
+  hash.update('\0');
+  try {
+    for (const file of OBSERVER_BUNDLE_FILES) {
+      const installed = path.join(supportRoot, file);
+      const info = await lstat(installed);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      hash.update(file);
+      hash.update('\0');
+      hash.update(await readFile(installed));
+      hash.update('\0');
+    }
+  } catch {
+    return false;
+  }
+  return hash.digest('hex') === manifest.contentDigest;
 }
 
 async function recognizedMessagingLauncher(command: string): Promise<boolean> {

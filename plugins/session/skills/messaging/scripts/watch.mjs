@@ -1528,6 +1528,8 @@ var OBSERVER_BUNDLE_MANIFEST = ".session-observer-collab-bundle.json";
 var OBSERVER_BUNDLE_FILES = [
   "session-observer-collab/scripts/hooks/codex-stop.mjs"
 ];
+var OBSERVER_COMPOSITION_CAPABILITY = "agent-messaging-stop-composition";
+var OBSERVER_COMPOSITION_CAPABILITY_VERSION = 1;
 var MESSAGING_HOOK_OWNER = "agent-messaging-host-hook-v1";
 function fingerprint(registrations) {
   return createHash4("sha256").update(
@@ -1594,15 +1596,28 @@ async function recognizedObserverLauncher(command) {
     path8.join(supportRoot, OBSERVER_BUNDLE_MANIFEST),
     "utf8"
   ).then((bytes) => JSON.parse(bytes)).catch(() => null);
-  if (!manifest || manifest.owner !== OBSERVER_LAUNCHER_OWNER || manifest.version !== marker[1] || JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES)) {
+  if (!manifest || manifest.owner !== OBSERVER_LAUNCHER_OWNER || manifest.version !== marker[1] || JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES) || !manifest.capabilities || typeof manifest.capabilities !== "object" || Array.isArray(manifest.capabilities) || manifest.capabilities[OBSERVER_COMPOSITION_CAPABILITY] !== OBSERVER_COMPOSITION_CAPABILITY_VERSION || typeof manifest.contentDigest !== "string" || !/^[a-f0-9]{64}$/u.test(manifest.contentDigest) || manifest.contentDigest.slice(0, 24) !== marker[1]) {
     return false;
   }
-  return Promise.all(
-    OBSERVER_BUNDLE_FILES.map((file) => lstat3(path8.join(supportRoot, file)))
-  ).then(
-    (entries) => entries.every((entry) => entry.isFile() && !entry.isSymbolicLink()),
-    () => false
-  );
+  const hash = createHash4("sha256");
+  hash.update(OBSERVER_COMPOSITION_CAPABILITY);
+  hash.update("\0");
+  hash.update(String(OBSERVER_COMPOSITION_CAPABILITY_VERSION));
+  hash.update("\0");
+  try {
+    for (const file of OBSERVER_BUNDLE_FILES) {
+      const installed = path8.join(supportRoot, file);
+      const info = await lstat3(installed);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      hash.update(file);
+      hash.update("\0");
+      hash.update(await readFile2(installed));
+      hash.update("\0");
+    }
+  } catch {
+    return false;
+  }
+  return hash.digest("hex") === manifest.contentDigest;
 }
 async function recognizedMessagingLauncher(command) {
   const script = commandScript(command);
