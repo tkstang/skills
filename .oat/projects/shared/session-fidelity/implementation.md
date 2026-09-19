@@ -586,6 +586,10 @@ The configured `oat-project-implement` gate resolved from user configuration wit
 
 Attempt `b6a66107-9461-4400-8fdc-fdcf8da6bc5f` was persisted before launch at `2026-09-19T18:54:32Z`. The exact configured command will write its structured stdout envelope to `reviews/exit-gate-b6a66107-9461-4400-8fdc-fdcf8da6bc5f-result.json`; launch acceptance, run marker and result fields remain unset until corroborated after invocation.
 
+### Implementation Exit Gate Result
+
+Gate run `05d3cda3-7de8-475c-b831-9bdd011c51c7` was accepted by target `claude-fable-skip-permissions` and returned a corroborated, receive-eligible `ok` envelope. Review artifact `reviews/final-review-2026-09-19T190056Z.md` reports 0 Critical, 0 Important, 0 Medium and 6 Minor findings. The configured Important threshold passed; the review remains pending receipt and explicit disposition before the gate can become allowed.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md

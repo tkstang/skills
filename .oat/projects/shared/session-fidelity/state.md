@@ -86,15 +86,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:1ca14f5e7a9589e0b419a5e665d752afe8fe15a6bdb9b380f759386ebccabb31
   freshness_head: d14359fa7188655564275c52c4ddadfbd68055c9
   freshness_fingerprint: sha256:effective-delta-v1:1ca14f5e7a9589e0b419a5e665d752afe8fe15a6bdb9b380f759386ebccabb31
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: b6a66107-9461-4400-8fdc-fdcf8da6bc5f
   launch_started_at: '2026-09-19T18:54:32Z'
   launch_result_receipt: .oat/projects/shared/session-fidelity/reviews/exit-gate-b6a66107-9461-4400-8fdc-fdcf8da6bc5f-result.json
   gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/05d3cda3-7de8-475c-b831-9bdd011c51c7.json
   gate_run_id: 05d3cda3-7de8-475c-b831-9bdd011c51c7
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: ok
+  artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md
+  handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (minor=6). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md to disposition them before marking the final review row passed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -102,28 +102,28 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-19T19:00:05Z'
+  updated_at: '2026-09-19T19:04:20Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T19:00:05+00:00"
+oat_project_state_updated: "2026-09-19T19:04:20+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Final review passed; implementation exit gate pending
+**Status:** Implementation exit gate passed its threshold; review receipt pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p00 through p07 and the narrowed final lifecycle re-review are passed. Both prior final findings are closed with no deferred findings. The configured implementation exit gate is next.
+p00 through p07 and the narrowed final lifecycle re-review are passed. The configured implementation exit gate returned a corroborated `ok` envelope with six Minor findings; the gate review must now be received and dispositioned.
 
 ## Artifacts
 
@@ -160,4 +160,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Resolve the configured implementation exit gate, then continue the configured close-out sequence.
+Receive and disposition the configured gate review, then continue the configured close-out sequence.
