@@ -214,6 +214,25 @@ async function fileSignature(
   };
 }
 
+function errnoCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object' || !('code' in error)) return;
+  const code = (error as NodeJS.ErrnoException).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  const code = errnoCode(error);
+  return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
+function statFailureDetail(error: unknown): string {
+  const code = errnoCode(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return code && !message.startsWith(`${code}:`)
+    ? `${code}: ${message}`
+    : message;
+}
+
 function isCursorDigest(
   digest: SessionDigest,
 ): digest is Extract<SessionDigest, { schemaVersion: 2 }> {
@@ -1404,7 +1423,7 @@ async function pollTargets(
     let signature;
     try {
       signature = await fileSignature(target.transcriptPath, statFn);
-    } catch {
+    } catch (error) {
       if (target.runtime === 'cursor') {
         const state = await cursorStateLib.getCursorSession(target.sessionId);
         if (state) {
@@ -1418,8 +1437,15 @@ async function pollTargets(
         }
         continue;
       }
+      if (!isMissingPathError(error)) {
+        throw new Error(
+          `WATCH_TRANSCRIPT_STAT_FAILED: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath} could not be inspected: ${statFailureDetail(error)}. Retry after repairing the filesystem condition.`,
+          { cause: error },
+        );
+      }
       throw new Error(
         `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`,
+        { cause: error },
       );
     }
 

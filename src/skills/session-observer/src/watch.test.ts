@@ -641,6 +641,87 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('live watcher preserves a non-missing stat failure without reset guidance or state changes', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-live-stat-failure';
+      const sessionId = 'watch-live-stat-failure';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'baseline message' },
+      ]);
+      const stdout: string[] = [];
+      let beforeFailure = '';
+      let failStat = false;
+      let nowMs = Date.UTC(2026, 8, 18, 12, 5, 0);
+
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'claude-code',
+            cwd,
+            session: `claude-code:${sessionId}`,
+            json: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.02,
+          },
+          {
+            writeStdout: (chunk: string) => stdout.push(chunk),
+            now: () => nowMs,
+            sleep: async (ms: number) => {
+              nowMs += ms;
+              if (failStat) return;
+              beforeFailure = await readFile(
+                join(stateDir, 'state.json'),
+                'utf8',
+              );
+              failStat = true;
+            },
+            stat: async (path: string) => {
+              if (!failStat) return fsStat(path);
+              const error = new Error(
+                'permission denied by injected stat',
+              ) as NodeJS.ErrnoException;
+              error.code = 'EACCES';
+              throw error;
+            },
+          },
+        ),
+      ).rejects.toThrow(/EACCES.*permission denied by injected stat/u);
+
+      const errorEvents = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'error',
+      );
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0].message).toContain('EACCES');
+      expect(errorEvents[0].message).toContain(
+        'permission denied by injected stat',
+      );
+      expect(errorEvents[0].message).toContain(
+        'Retry after repairing the filesystem condition.',
+      );
+      expect(errorEvents[0].message).not.toContain(
+        'WATCH_TRANSCRIPT_PATH_UNAVAILABLE',
+      );
+      expect(errorEvents[0].message).not.toContain('state reset');
+      expect(errorEvents[0].message).not.toContain('re-arm');
+      const beforeState = JSON.parse(beforeFailure);
+      const afterState = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(afterState.sessions[`claude-code:${sessionId}`]).toMatchObject({
+        lastRecordIndex:
+          beforeState.sessions[`claude-code:${sessionId}`].lastRecordIndex,
+        lastTotalRecords:
+          beforeState.sessions[`claude-code:${sessionId}`].lastTotalRecords,
+        transcriptPath:
+          beforeState.sessions[`claude-code:${sessionId}`].transcriptPath,
+        lastReadAt: beforeState.sessions[`claude-code:${sessionId}`].lastReadAt,
+        watchedByPid: null,
+      });
+      expect(errorEvents[0].message).toContain(transcriptPath);
+    });
+  });
+
   test('catch-up-first emits unread backlog before watching', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-catch-up-first';

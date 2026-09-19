@@ -9536,6 +9536,20 @@ async function fileSignature(transcriptPath, statFn) {
     size: fileStat.size
   };
 }
+function errnoCode(error) {
+  if (!error || typeof error !== "object" || !("code" in error)) return;
+  const code = error.code;
+  return typeof code === "string" ? code : void 0;
+}
+function isMissingPathError2(error) {
+  const code = errnoCode(error);
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function statFailureDetail(error) {
+  const code = errnoCode(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return code && !message.startsWith(`${code}:`) ? `${code}: ${message}` : message;
+}
 function isCursorDigest(digest) {
   return digest.schemaVersion === 2;
 }
@@ -10417,7 +10431,7 @@ async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
     let signature;
     try {
       signature = await fileSignature(target.transcriptPath, statFn);
-    } catch {
+    } catch (error) {
       if (target.runtime === "cursor") {
         const state = await getCursorSession(target.sessionId);
         if (state) {
@@ -10431,8 +10445,15 @@ async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
         }
         continue;
       }
+      if (!isMissingPathError2(error)) {
+        throw new Error(
+          `WATCH_TRANSCRIPT_STAT_FAILED: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath} could not be inspected: ${statFailureDetail(error)}. Retry after repairing the filesystem condition.`,
+          { cause: error }
+        );
+      }
       throw new Error(
-        `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`
+        `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`,
+        { cause: error }
       );
     }
     const deadlineReady = target.runtime === "cursor" && target.pendingCandidateDeadline !== null && target.pendingCandidateDeadline !== void 0 && nowMs >= target.pendingCandidateDeadline;
