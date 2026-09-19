@@ -98,6 +98,37 @@ function discriminator(rec) {
   return parts.join(' | ');
 }
 
+function collectMcpToolUseIds(rec, ids) {
+  const content = rec?.message?.content;
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (
+      block &&
+      typeof block === 'object' &&
+      block.type === 'tool_use' &&
+      typeof block.id === 'string' &&
+      isThirdPartyCall(block)
+    ) {
+      ids.add(block.id);
+    }
+  }
+}
+
+function hasMatchingMcpToolResult(rec, mcpToolUseIds) {
+  const content = rec?.message?.content;
+  return (
+    Array.isArray(content) &&
+    content.some(
+      (block) =>
+        block &&
+        typeof block === 'object' &&
+        block.type === 'tool_result' &&
+        typeof block.tool_use_id === 'string' &&
+        mcpToolUseIds.has(block.tool_use_id),
+    )
+  );
+}
+
 function note(group, path, type, value) {
   let entry = group.paths.get(path);
   if (!entry) group.paths.set(path, (entry = { types: {}, count: 0, fileCount: 0, lastFile: -1 }));
@@ -113,14 +144,16 @@ function note(group, path, type, value) {
   } else entry.valuesOverflow = true;
 }
 
-function walk(group, value, path, depth, jsonDepth) {
+function walk(group, value, path, depth, jsonDepth, opaqueDetachedResult = false) {
   const type = jsonType(value);
   if (type === 'string' && value.length > 1 && (value[0] === '{' || value[0] === '[')) {
     let inner;
     try { inner = JSON.parse(value); } catch { /* plain string */ }
     if (inner && typeof inner === 'object') {
       note(group, path, 'string(json)', '');
-      if (JSON_CARRIERS.has(path)) walk(group, inner, `${path}<json>`, depth + 1, 1);
+      if (JSON_CARRIERS.has(path)) {
+        walk(group, inner, `${path}<json>`, depth + 1, 1, opaqueDetachedResult);
+      }
       return;
     }
   }
@@ -135,6 +168,10 @@ function walk(group, value, path, depth, jsonDepth) {
     const thirdParty = isThirdPartyCall(value);
     let sawDynamic = false;
     for (const [k, v] of entries) {
+      if (opaqueDetachedResult && path === '$' && k === 'toolUseResult') {
+        note(group, `${path}.${k}`, `${jsonType(v)}(third-party, not described)`, '');
+        continue;
+      }
       if (thirdParty && OPAQUE_FOR_THIRD_PARTY.has(k)) {
         note(group, `${path}.${k}`, `${jsonType(v)}(third-party, not described)`, '');
         continue;
@@ -148,13 +185,20 @@ function walk(group, value, path, depth, jsonDepth) {
         sawDynamic = true; // dynamic subtrees are counted once per object, never described
         continue;
       }
-      walk(group, v, `${path}.${k}`, depth + 1, nextJson);
+      walk(group, v, `${path}.${k}`, depth + 1, nextJson, opaqueDetachedResult);
     }
   } else if (type === 'array') {
     for (const item of value) {
       const tagValue = !jsonDepth && item && typeof item === 'object' && !Array.isArray(item)
         ? safeValue(item.type) : undefined;
-      walk(group, item, `${path}${tagValue ? `[type=${tagValue}]` : '[]'}`, depth + 1, nextJson);
+      walk(
+        group,
+        item,
+        `${path}${tagValue ? `[type=${tagValue}]` : '[]'}`,
+        depth + 1,
+        nextJson,
+        opaqueDetachedResult,
+      );
     }
   }
 }
@@ -173,11 +217,30 @@ async function* lfLines(file) {
   if (rest.length) yield rest.toString('utf8');
 }
 
+async function mcpToolUseIdsForFile(file) {
+  const ids = new Set();
+  for await (const line of lfLines(file)) {
+    if (!line.trim() || Buffer.byteLength(line, 'utf8') > maxLineBytes) continue;
+    let rec;
+    try { rec = JSON.parse(line); } catch { continue; }
+    if (!rec || typeof rec !== 'object' || Array.isArray(rec)) continue;
+    collectMcpToolUseIds(rec, ids);
+  }
+  return ids;
+}
+
 async function scan(file) {
   diagnostics.files += 1;
   fileSeq += 1;
   let fileVersion;
   const seen = new Set();
+  let mcpToolUseIds;
+  try {
+    mcpToolUseIds = await mcpToolUseIdsForFile(file);
+  } catch {
+    diagnostics.unreadable += 1;
+    return;
+  }
   try {
     for await (const line of lfLines(file)) {
       diagnostics.lines += 1;
@@ -197,7 +260,7 @@ async function scan(file) {
         if (!group.firstDay || day < group.firstDay) group.firstDay = day;
         if (!group.lastDay || day > group.lastDay) group.lastDay = day;
       }
-      walk(group, rec, '$', 0, 0);
+      walk(group, rec, '$', 0, 0, hasMatchingMcpToolResult(rec, mcpToolUseIds));
     }
   } catch { diagnostics.unreadable += 1; }
   if (fileVersion) for (const g of seen) g.versions.add(fileVersion);
