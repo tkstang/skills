@@ -1,5 +1,5 @@
 ---
-oat_current_task: p02-review-02
+oat_current_task: p02-review-fix-02
 oat_last_commit: 4df1cdabd13b7752927eec6c4c7f690a9aad5910
 oat_blockers: []
 associated_issues:
@@ -102,13 +102,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Activity review fixes completed; re-review pending
+**Status:** Activity review fixes required; round 2/2
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 is passed and all five p02 tasks plus bounded review fix `4df1cdab` are complete; p02 recovery usage remains 3/10 with no pending marker. Codex arguments now preserve parsed and original evidence with content-free failures, and detailed reads retain internal source carriers plus exact snapshot metadata. Root verification and the independent closure audit passed. A fresh root-owned p02 re-review is next; p03 remains untouched.
+p01 is passed and all five p02 tasks plus first review fix `4df1cdab` are complete; p02 recovery usage remains 3/10 with no pending marker. Round-two review closed both prior findings and found two projection defects: metadata-only size overflow and invocation ceilings that omit inherited/unknown displayed calls. Both are accepted for bounded review-fix round 2/2 on the original phase handle; p03 remains untouched.
 
 ## Artifacts
 
@@ -116,7 +116,7 @@ p01 is passed and all five p02 tasks plus bounded review fix `4df1cdab` are comp
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (11/19 tasks completed; p01 passed, p02 re-review pending)
+- **Implementation:** `implementation.md` (11/19 tasks completed; p01 passed, p02 review fixes required)
 
 ## Progress
 
@@ -139,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the fresh root-owned p02 re-review against the activity layer and bounded fix.
+Complete bounded p02 review-fix round 2/2, verify independently, then run the third and final p02 review round.

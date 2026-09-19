@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-review-02
+oat_current_task_id: p02-review-fix-02
 oat_generated: false
 ---
 
@@ -23,7 +23,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | re-review pending | 5     | 5/5       |
+| p02   | review fixes required | 5     | 5/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
@@ -77,7 +77,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** review fixes completed; re-review pending
+**Status:** review fixes required; round 2/2
 **ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
 **Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
 
@@ -806,12 +806,12 @@ Implementer and root independently passed 185/185 focused p02 tests, type checki
     "artifact": "reviews/p02-review-2026-09-19T143548Z-round2.md",
     "handle": "/root/p02_review_round2"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "completed-fix-required",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": ["p02-review-fix-01"],
+  "continuation_events": ["p02-review-fix-01", "p02-review-fix-02"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -821,3 +821,14 @@ Implementer and root independently passed 185/185 focused p02 tests, type checki
 ```
 
 Dispatch: scope=p02-review-round-02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+#### Phase p02 review round 2 — fixes required
+
+Fresh artifact `reviews/p02-review-2026-09-19T143548Z-round2.md` reviewed `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535..4df1cdabd13b7752927eec6c4c7f690a9aad5910`: 0 Critical, 2 Important, 0 Medium, 0 Minor. Both round-one Important findings are explicitly closed. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Independent review verification passed 185/185 focused tests, type checking, build freshness, four-owner version validation, the 2/2 schema privacy canary, diff checks and fixture privacy scanning.
+
+Both new findings are accepted as bounded p02-t04 projection corrections:
+
+- I1 `code_fix_required`: deterministically bound diagnostics and coverage inside the final serialized-size guard so a valid zero-event metadata-heavy report stays within `maxBytes` rather than throwing. Preserve stable locators for retained entries and add explicit omitted diagnostic/coverage accounting or an equivalent bounded status. Regress with enough malformed records to overflow metadata alone and assert deterministic retention, explicit omissions and `renderedBytes <= maxBytes`.
+- I2 `code_fix_required`: keep ownership-aware `countedInvocations`, but apply each mode's display invocation ceiling to every delivered call group regardless of owned/inherited/unknown ownership. Preserve failure-first/recent deterministic priority and report removed groups through existing omissions. Regress inherited-only, unknown-only and mixed ownership without changing captured/delivered ownership counts.
+
+No project-log entry is appended before the fix child. Resume original request `sf-p02-implement-01` on exact target `oat-phase-implementer-gpt-5-6-sol-high` in `mode: fix` with continuation `p02-review-fix-02`. This is review-fix round 2/2; it does not consume or alter p02 phase-recovery usage, which remains 3/10 with no pending attempt. After the bounded fix and root verification, dispatch the third and final independent p02 review round.
