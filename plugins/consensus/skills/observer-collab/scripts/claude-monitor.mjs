@@ -5680,6 +5680,21 @@ async function runClaudeMonitor(input, dependencies = {}) {
           claim,
           requests
         );
+        await publishDeliveryDiagnostic({
+          root: input.root,
+          pin: input.self,
+          diagnostic: {
+            attemptId: claim.event.token,
+            activationId: input.activationId,
+            eventKey,
+            boundary: "monitor",
+            attemptKind: "message",
+            recordedAt: new Date(now()).toISOString(),
+            stage: "output-attempted",
+            outcomeCode: "watch-notification-attempted",
+            errorCode: null
+          }
+        }).catch(() => void 0);
         await emit(notification);
         return { reason: "message-notified", notification, iterations };
       }
@@ -5824,14 +5839,14 @@ function parseArgs(argv) {
   }
   return { values, flags };
 }
-async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.env) {
+async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.env, dependencies = {}) {
   const { values, flags } = parseArgs(argv);
   const root = values.root ?? stateRoot(env);
   const self = parsePin(values.self ?? "", "--self");
   const peer = parsePin(values.peer ?? "", "--peer");
   const input = {
     root,
-    collaborationId: validateId(values.collab, "collaboration-id"),
+    collaborationId: validateId(values["collaboration-id"], "collaboration-id"),
     activationId: validateId(values["activation-id"], "activation-id"),
     self,
     peer,
@@ -5847,11 +5862,29 @@ async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.
       "confirm-standalone-watcher-stopped"
     )
   };
-  return runClaudeMonitor(input);
+  const { stderr = (value) => process.stderr.write(value), ...monitor } = dependencies;
+  const result = await runClaudeMonitor(input, monitor);
+  stderr(`claude-monitor: ${result.reason}
+`);
+  return {
+    ...result,
+    exitCode: [
+      "message-notified",
+      "observation-notified",
+      "duration-complete"
+    ].includes(result.reason) ? 0 : 1
+  };
 }
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
-  runClaudeMonitorMain().catch((error) => {
-    process.stderr.write(`claude-monitor: ${error?.code ?? "error"}
+  runClaudeMonitorMain().then((result) => {
+    process.exitCode = result.exitCode;
+  }).catch((error) => {
+    const code = error?.code ?? error?.name ?? "error";
+    const detail = String(error?.message ?? "unknown error").replaceAll(
+      /[\r\n]+/gu,
+      " "
+    );
+    process.stderr.write(`claude-monitor: ${code}: ${detail}
 `);
     process.exitCode = 1;
   });

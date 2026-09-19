@@ -7,12 +7,13 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import { enableActivation } from '../../../shared/collaboration/activation.js';
 import { deliveryClaimStatus } from '../../../shared/collaboration/claims.js';
+import { latestDeliveryDiagnostic } from '../../../shared/collaboration/diagnostics.js';
 import {
   joinCollaboration,
   openCollaboration,
 } from '../../../shared/collaboration/membership.js';
 import { sendMessage } from '../../../shared/collaboration/messages.js';
-import { runClaudeMonitor } from './claude-monitor.mjs';
+import { runClaudeMonitor, runClaudeMonitorMain } from './claude-monitor.mjs';
 import { arm } from './collab-control.mjs';
 import { readLease } from './lib/lease-state.mjs';
 
@@ -237,6 +238,46 @@ describe('finite Claude composed Monitor', () => {
     expect((await readLease(item.root, item.self.sessionId))?.peerCursor).toBe(
       0,
     );
+    expect(
+      (await latestDeliveryDiagnostic({ root: item.root, pin: item.self }))
+        .latest,
+    ).toMatchObject({
+      boundary: 'monitor',
+      attemptKind: 'message',
+      stage: 'output-attempted',
+    });
+  });
+
+  test('main reports a redacted refusal reason and nonzero outcome', async () => {
+    const item = await fixture();
+    const stderr: string[] = [];
+    const result = await runClaudeMonitorMain(
+      [
+        '--root',
+        item.root,
+        '--collaboration-id',
+        item.collaborationId,
+        '--activation-id',
+        item.activationId,
+        '--self',
+        `${item.self.runtime}:${item.self.sessionId}`,
+        '--peer',
+        `${item.peer.runtime}:${item.peer.sessionId}`,
+        '--cwd',
+        item.cwd,
+        '--peer-transcript',
+        item.transcript,
+        '--max-runtime-ms',
+        '10',
+      ],
+      {},
+      { stderr: (value: string) => stderr.push(value) },
+    );
+    expect(result).toMatchObject({
+      reason: 'stop-confirmation-required',
+      exitCode: 1,
+    });
+    expect(stderr).toEqual(['claude-monitor: stop-confirmation-required\n']);
   });
 
   test('claims a shared observation slot before private CAS and emits only exact range identity', async () => {

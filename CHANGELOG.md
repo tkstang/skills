@@ -133,6 +133,11 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.43 gives the finite Claude Monitor an explicit
+  redacted terminal status, nonzero refusal exits, detailed input diagnostics,
+  message-attempt diagnostics, and complete consistent
+  arm/enable/launch/re-arm invocation guidance.
+
 - `session-observer-collab` 1.0.42 requires an armed or waiting lease when a
   composed Claude Monitor starts or iterates, and accepts the triggered state
   after cursor CAS only when no identity or continuity refusal is present.

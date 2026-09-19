@@ -20,6 +20,10 @@ export interface ClaudeMonitorResult {
   iterations: number;
 }
 
+export interface ClaudeMonitorMainResult extends ClaudeMonitorResult {
+  exitCode: number;
+}
+
 export const MAX_MONITOR_RUNTIME_MS: number;
 export function runClaudeMonitor(
   input: ClaudeMonitorInput,
@@ -28,4 +32,5 @@ export function runClaudeMonitor(
 export function runClaudeMonitorMain(
   argv?: string[],
   env?: NodeJS.ProcessEnv,
-): Promise<ClaudeMonitorResult>;
+  dependencies?: Record<string, unknown>,
+): Promise<ClaudeMonitorMainResult>;

@@ -65,6 +65,9 @@ describe('Claude Monitor packaging declaration', () => {
         );
         expect(result.status).toBe(1);
         expect(result.stderr).toContain('claude-monitor:');
+        expect(result.stderr).toContain(
+          '--self must use <runtime>:<session-id>',
+        );
       }
     },
   );

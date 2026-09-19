@@ -42,6 +42,48 @@ transcript and cwd, plus acting-session confirmation that the legacy Monitor and
 standalone messaging watcher are stopped. Then enable the same UUID with
 controller `observer-collab` and mechanism `monitor`.
 
+Use the same IDs and exact pins throughout the complete sequence:
+
+```sh
+node <observer-collab-skill>/scripts/collab-control.mjs arm \
+  --root <absolute-state-root> --runtime claude-code \
+  --peer-runtime <claude-code|codex|cursor> \
+  --session <self-session> --peer-session <peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --cursor 0 --lease-ms 1800000 --continuation-cap 20 --loop-cap 100 \
+  --collaboration-id <uuid> --activation-id <uuid> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+node <messaging-skill>/scripts/agent-messaging.mjs delivery enable \
+  --root <absolute-state-root> --collab <collaboration-uuid> \
+  --self claude-code:<self-session> --cwd <absolute-worktree> \
+  --activation-id <activation-uuid> --controller observer-collab \
+  --mechanism monitor --expires-in 30m --max-duration 30m \
+  --max-continuations 20 --settings-paths <absolute-settings-path-list> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+node <observer-collab-skill>/scripts/claude-monitor.mjs \
+  --root <absolute-state-root> --collaboration-id <collaboration-uuid> \
+  --activation-id <activation-uuid> \
+  --self claude-code:<self-session> --peer <runtime>:<peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --max-runtime-ms 1800000 --poll-ms 1000 \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+# Re-arm after acknowledging the selected request or reading the pinned range.
+node <observer-collab-skill>/scripts/collab-control.mjs arm \
+  --root <absolute-state-root> --runtime claude-code \
+  --peer-runtime <claude-code|codex|cursor> \
+  --session <self-session> --peer-session <peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --collaboration-id <collaboration-uuid> --activation-id <activation-uuid> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+```
+
+The command writes its one bounded notification to stdout. It writes one
+redacted terminal reason to stderr and exits nonzero for refusal; a normal quiet
+duration cap exits zero with `duration-complete` on stderr.
+
 Launch `node <observer-collab-skill>/scripts/claude-monitor.mjs` in a proven
 harness Monitor with the same IDs and pins, a finite `--max-runtime-ms` no
 greater than 1800000, and both fresh stop confirmations. The command polls

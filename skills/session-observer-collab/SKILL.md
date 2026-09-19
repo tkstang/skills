@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.42'
+  version: '1.0.43'
 ---
 
 # session-observer-collab
@@ -184,6 +184,13 @@ CAS for observation, emits at most one bounded notification, and exits within
 history; no daemon, self-rearm, observation retry, or public-offset mutation is
 created. Cursor remains buffered-manual because its continuation boundary is
 unverified.
+
+Use `--collaboration-id` consistently for observer arm and Monitor launch (the
+messaging CLI retains its own `--collab` flag). Follow the complete
+arm/enable/launch/re-arm commands in
+[Claude Code runtime](references/runtime-claude-code.md). Monitor stdout is
+reserved for the single notification; stderr reports the redacted terminal
+reason, and refusals exit nonzero.
 
 Inspect addressed requests before peer ranges and deduplicate only by exact
 message ID already present in working context. A transcript quote of the same
