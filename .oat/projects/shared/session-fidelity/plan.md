@@ -16,11 +16,11 @@ oat_template: true
 
 # Implementation Plan: session-fidelity
 
-> Execute with `oat-project-implement` after the plan reviews and dispatch/gate setup are complete. This is a draft, not an implementation-ready handoff.
+> Execute with `oat-project-implement` once the plan review disposition and frontmatter mark this plan ready.
 
 **Goal:** expose trustworthy opt-in activity in observer/exporter, and correct native Codex session selection and unsafe cursor reuse.
 
-**Architecture:** shared detailed reading, native extraction, exact correlation, range selection and bounded projection; consumers own delivery and rendering. Existing default conversation behavior remains intact, except the explicitly authorized identity correction.
+**Architecture:** shared detailed reading, native extraction, exact correlation, range selection and bounded projection; consumers own delivery and rendering. Existing default conversation behavior remains intact, except the explicitly authorized identity and Claude-provenance corrections.
 
 **Tech stack:** dependency-free Node >=22 TypeScript runtime; pnpm, Vitest, esbuild, oxlint/oxfmt as development tooling.
 
@@ -52,7 +52,7 @@ Before source/tests read `src/AGENTS.md`; before tooling read the generated-runt
 
 Each task below defines its authored files, behavior and verification. Test behavioral changes with a focused failing regression, implement, then rerun the named check. Keep fixtures small and lightly obscured, with provenance in their README. No whole sessions, credentials, private personal content or private raw locators enter tracked fixtures; ordinary commands and safe native content may remain. Existing captured schemas establish shape, not universal provider behavior.
 
-**Format every task:** run `pnpm exec oxfmt --write` with only that task's changed authored TypeScript/JavaScript/JSON/Markdown paths. Then run `pnpm exec oxlint` with only its changed authored TypeScript/JavaScript paths (omit when none). Never pass generated outputs, AGENTS files or the whole repository. For ignored OAT artifacts, use a temporary copy of `.oxfmtrc.json` removing only the `.oat/**` ignore, then run `pnpm exec oxfmt --write --config <temporary-config>` on the explicit project paths; delete the temporary config afterwards.
+**Format every task:** run `pnpm exec oxfmt --write` with only that task's changed authored TypeScript/JavaScript/JSON/Markdown paths. Then run `pnpm exec oxlint` with only its changed authored TypeScript/JavaScript paths (omit when none). Never pass generated outputs, AGENTS files or the whole repository. For authored project Markdown only, use the same documented formatter with a temporary config outside the repository (for example, an automatically cleaned OS temporary directory), removing only the `.oat/**` ignore. Run `pnpm exec oxfmt --write --config <temporary-config>` on exact authored project paths. Do not format generated OAT indexes, dashboards, synced tooling, provider views or agent-instruction files. This is a file-scoped invocation satisfying the planning artifact hygiene contract; it does not change repository-wide formatting policy.
 
 **Generated outputs and versions:** any changed canonical skill directory requires its `metadata.version` increase and matching Unreleased changelog entry. Build with `pnpm run build` before CLI tests because they execute generated entrypoints. Inspect the generated diff for transitive consumers of changed shared modules and bump every affected skill owner before the layer is complete. Include the corresponding generated outputs in the same task commit when they change; do not install the branch globally. Never replace a whole plugin root.
 
@@ -70,7 +70,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files/state:** local Git refs and `gh stack` metadata; project implementation evidence. No product source edits.
 
-**Implement:** Record the starting branch/HEAD, clean status and parked peer edits; create and verify a local recovery ref. Use `gh-stack` to register the current docs/planning history as the bottom layer. Add identity, then activity only when starting those phases; preserve existing history and keep later bookkeeping with its owning layer. Verify each diff: bottom docs/planning, identity/provenance, activity. No checkout into a branch lacking the plan, no extra implementation worktree, no force-push or hidden history rewrite. Root owns Git operations.
+**Implement:** Record the starting branch/HEAD, clean status and parked peer edits; create and verify a local recovery ref. Use `gh-stack` to register the current docs/planning history as the bottom layer. Create and register the identity branch from the verified bottom-layer head and record that exact commit as `IDENTITY_BASE` in implementation evidence. Preserve existing history and keep later bookkeeping with its owning layer. Activity branch creation belongs to the root-owned pre-step in p02-t01, not a later revisit of this task. Verify the bottom docs/planning diff and the identity branch parent. No checkout into a branch lacking the plan, no extra implementation worktree, no force-push or hidden history rewrite. Root owns Git operations.
 
 **Format:** format only changed project evidence via the task execution contract; Git metadata is not a formatter input.
 
@@ -122,7 +122,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; observer `src/lib/session-classifier.ts`, `src/session-classifier.test.ts`, `src/digest.test.ts`, `src/cli.test.ts`; `src/skills/session-export-transcript/src/sanitize.ts`, `src/sanitize.test.ts`; `src/skills/session-fork-to-destination/src/preview.ts`, `src/preview.test.ts`; `src/skills/session-observer-collab/src/lib/completion-selection.mjs`, its `.d.mts` if types change, `src/completion.test.ts`, `src/wake-envelope-contract.test.ts`; affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`; `documentation/docs/user-guide/skills/session-observer.md`; observer reference guidance and collab recovery guidance where changed.
 
-**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Determine shared-runtime version fan-out from actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
+**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Keep the helper and its tightly coupled consumers in one atomic behavior change; version/changelog/generated updates belong in that same commit under the repository contract. Whole-layer verification closes this task without introducing a second implementation unit. Determine shared-runtime version fan-out from actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -138,11 +138,11 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; small captured fixtures and authored edge cases under `src/shared/transcript/fixtures/session-fidelity/`, with README provenance.
 
-**Implement:** Return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Before building extractors, derive minimal slices from the approved local stores, with the user-requested light obscuring: remove credentials/tokens/encrypted reasoning and replace private paths/identifiers/third-party personal content while preserving useful safe native values and consistent IDs. Do not copy whole sessions or commit raw intermediate slices. Record client version/observation provenance, using unknown where no version is recorded. Inspect final fixture diffs and run practical private-term/credential checks as normal task verification, with no approval or independent review checkpoint. Use the existing snapshot inventory/canaries if needed; do not promote it to scripts/. Supplement captures with synthetic framing/error cases.
+**Implement:** First, root verifies the completed identity layer and its review, creates and registers the activity branch with `gh stack` from the verified p01-t04 completion commit, and records that exact parent as `ACTIVITY_BASE` in `implementation.md`. Verify the identity-layer diff before source edits. Then return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Before building extractors, derive minimal slices from the approved local stores, with the user-requested light obscuring: remove credentials/tokens/encrypted reasoning and replace private paths/identifiers/third-party personal content while preserving useful safe native values and consistent IDs. Do not copy whole sessions or commit raw intermediate slices. Record client version/observation provenance, using unknown where no version is recorded. Inspect final fixture diffs and run practical private-term/credential checks as normal task verification, with no approval or independent review checkpoint. Use the existing snapshot inventory/canaries if needed; do not promote it to scripts/. Supplement captures with synthetic framing/error cases.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
+**Verify:** Root checks `gh stack view --json` and the recorded `ACTIVITY_BASE` against the identity completion commit; then `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
 
 **Commit:** `feat(p02-t01): add detailed transcript provenance and schema fixtures`.
 
@@ -202,11 +202,11 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/skills/session-observer/src/session-observer.ts`, `lib/types.ts`, `lib/digest.ts`, `lib/observe.ts`; `cli.test.ts`, `digest.test.ts`, `observe.test.ts`.
 
-**Implement:** Parse --include-activity and reuse one captured decoded read for conversation/activity. Add the optional activity object without changing outer digest v1/v2. Correlate whole captured source, select delivered range, render mode-specific limits. Preserve default JSON/text and legacy flags where present, except authorized identity/provenance behavior. Stateless review does not move state; mark-read follows existing writes. Whole optional extraction failure preserves conversation with explicit unavailable coverage.
+**Implement:** Parse --include-activity and reuse one captured decoded read for conversation/activity. Add the optional activity object without changing outer digest v1/v2. Correlate whole captured source, select delivered range, render mode-specific limits. Preserve default JSON/text and legacy flags where present, except authorized identity/provenance behavior. Stateless review does not move state; mark-read follows existing writes. Whole optional extraction failure preserves conversation with explicit unavailable coverage. In activity mode suppress duplicate legacy tool-call/result markers while preserving ordinary messages and operator questions/answers; retain ask-user human/automatic caveats. Derive counts from extracted invocations, not rendered markers. Apply existing conversation tail limits and `--max-turns`/`--max-bytes` to conversation only, before attaching independently budgeted activity.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-observer/src/cli.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/observe.test.ts`; compare no-flag output against existing golden behavior.
+**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-observer/src/cli.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/observe.test.ts`; compare no-flag output against existing golden behavior; assert no duplicate legacy markers with `--include-tools --include-activity` and debug combinations, retained ask-user caveats, and independent conversation/activity limits.
 
 **Commit:** `feat(p03-t01): expose opt-in activity in observer digests`.
 
@@ -230,7 +230,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/skills/session-export-transcript/src/session-export-transcript.ts`, `src/cli.test.ts`; shared activity renderer; new exporter activity fixtures if needed.
 
-**Implement:** Parse --include-activity, reuse the captured read, and append source-attributed activity with the export preview policy. Keep the exporter Markdown-only and stateless. Label activity/debug content and coverage, retain exact names/raw carriers only through bounded previews, and report external results/children as unread. Preserve source order and logical-to-physical locators without claiming a public range-selection flag.
+**Implement:** Parse --include-activity, reuse the captured read, and append source-attributed activity with the export preview policy. Keep the exporter Markdown-only and stateless. Label activity/debug content and coverage, retain exact names/raw carriers only through bounded previews, and report external results/children as unread. Preserve source order and logical-to-physical locators without claiming a public range-selection flag. Include the core default-sanitization regression alongside this feature; p04-t02 extends it with remaining adversarial cases.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -242,13 +242,13 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** `src/skills/session-export-transcript/src/cli.test.ts`, `src/sanitize.test.ts`, `src/fixtures/`; shared projection tests where output escaping is shared.
 
-**Implement:** Prove no-flag exports retain current sanitizer behavior and activity flag does not implicitly enable instruction bodies, reasoning, or hidden payloads. Recorded prompt/tool content remains data; escape Markdown structure/control sequences without suppressing declared activity evidence. Exercise malicious-looking tool text, secret-like synthetic strings, oversized output and unavailable tails. Do not describe opt-in output as publish-safe or alter default redaction policy.
+**Implement:** Extend p04-t01’s core sanitization regression with the remaining adversarial coverage; this is not a second feature implementation pass. Prove no-flag exports retain current sanitizer behavior and activity flag does not implicitly enable instruction bodies, reasoning, or hidden payloads. Recorded prompt/tool content remains data; escape Markdown structure/control sequences without suppressing declared activity evidence. Exercise malicious-looking tool text, secret-like synthetic strings, oversized output and unavailable tails. Do not describe opt-in output as publish-safe or alter default redaction policy.
 
 **Format:** follow the file-scoped task execution contract above.
 
 **Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-export-transcript/src/cli.test.ts src/skills/session-export-transcript/src/sanitize.test.ts`; `pnpm run type-check`.
 
-**Commit:** `test(p04-t02): protect export sanitization and activity boundaries`. Implement the core sanitization regression in p04-t01 alongside the feature; this task adds only remaining adversarial coverage, not a second implementation pass.
+**Commit:** `test(p04-t02): protect export sanitization and activity boundaries`.
 
 ## Phase 5: Cursor terminal-settled activity
 
@@ -298,7 +298,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** Project `implementation.md` and review records; `.oat/repo/pjm/backlog/` lifecycle outputs and `.oat/repo/pjm/current-state.md` only after acceptance; related project summary when lifecycle completion occurs.
 
-**Implement:** Run the complete mocked/local acceptance suite, review both stack deltas, confirm no missing canonical/generated files and no raw session data. Complete required code/gate reviews through their lifecycle; record actual evidence. Offer follow-up backlog capture for the four deferred sidecar classes and the observed oat 0.2.79 config rewrite; do not silently expand this implementation or claim a separate follow-up is already scheduled. Close/archive BL-260916-session-fidelity-opt only when every criterion passes, following PJM guidance and doctor adoption check. Do not label live provider support, PR publication, merge or installation complete. Do not archive project artifacts prematurely while review/delivery remains outstanding.
+**Implement:** Run the complete mocked/local acceptance suite, review both stack deltas, confirm no missing canonical/generated files and no raw session data. Complete required code/gate reviews through their lifecycle; record actual evidence. Offer follow-up backlog capture for the deferred external-output and child-trajectory sidecar reads and the observed oat 0.2.79 config rewrite; do not silently expand this implementation or claim a separate follow-up is already scheduled. Close/archive BL-260916-session-fidelity-opt only when every criterion passes, following PJM guidance and doctor adoption check. Do not label live provider support, PR publication, merge or installation complete. Do not archive project artifacts prematurely while review/delivery remains outstanding.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -310,22 +310,22 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
 
-| Scope  | Type     | Status  | Date       | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---------- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -          | -        | -             | -          | -           |
-| p02    | code     | pending | -          | -        | -             | -          | -           |
-| final  | code     | pending | -          | -        | -             | -          | -           |
-| spec   | artifact | pending | -          | -        | -             | -          | -           |
-| design | artifact | pending | -          | -        | -             | -          | -           |
-| p03    | code     | pending | -          | -        | -             | -          | -           |
-| p04    | code     | pending | -          | -        | -             | -          | -           |
-| p05    | code     | pending | -          | -        | -             | -          | -           |
-| p06    | code     | pending | -          | -        | -             | -          | -           |
-| plan   | artifact | passed  | 2026-09-19 | -        | -             | -          | -           |
-| p00    | code     | pending | -          | -        | -             | -          | -           |
-| plan   | artifact | received | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T003400Z.md | - | - | - |
+| Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target |
+| ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------- |
+| p01    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| p02    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| final  | code     | pending         | -          | -                                                           | -             | -          | -           |
+| spec   | artifact | pending         | -          | -                                                           | -             | -          | -           |
+| design | artifact | pending         | -          | -                                                           | -             | -          | -           |
+| p03    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| p04    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| p05    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| p06    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
+| p00    | code     | pending         | -          | -                                                           | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
 
-Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The configured quick-start lifecycle gate remains pending; readiness stays disabled until its qualified handoff is received.
+Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings are dispositioned in implementation.md; readiness stays disabled while the artifact corrections are verified. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
 ## Implementation Complete
 

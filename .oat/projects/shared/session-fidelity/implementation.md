@@ -174,3 +174,20 @@ Plan review is pending. Code reviews are tracked in `plan.md`; none has passed.
 ## Final Summary
 
 Not implemented. No feature acceptance or completion claim.
+
+## Planning Gate Review Received — 2026-09-19
+
+**Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md
+**Gate:** `ddd86035-011c-447a-bfac-9ac6191a89fe`; configured target `cursor-fable-5-1-high`, runtime Cursor; actual model identity not reported. `status: ok`, `receiveEligible: true`, corroborated handoff; threshold Important; 0 Critical, 0 Important, 4 Medium, 3 Minor. Configured scope `legacy-plan-only`; reviewer also consulted discovery/design. These are planning findings, not implemented feature acceptance.
+
+Findings are identified below by their order within the artifact because it supplied no explicit IDs.
+
+- M1, observer presentation: `resolve_in_artifact`. p03-t01 now owns legacy-marker suppression, preserved operator Q/A and ask-user caveats, independent conversation limits, invocation counts and focused assertions. These were already accepted design requirements.
+- M2, branch transition ownership: `resolve_in_artifact`. p00 owns docs/identity registration and `IDENTITY_BASE`; the root pre-step in p02-t01 owns activity registration, `ACTIVITY_BASE` and identity-diff verification. No extra task or repeated p00 execution is needed.
+- M3, split p01-t04: `rejected_with_rationale`. The reviewer agrees the provenance helper/consumer audit is coherent. Repository instructions require the corresponding canonical versions, changelog and generated output with each behavior change. Separating those into a subsequent task/commit would weaken that atomicity. Retain 18 tasks and the full identity verification at the behavior boundary; clarify the rationale in p01-t04.
+- M4, formatting override: `rejected_with_rationale`. The repository documents oxfmt and prohibits formatting generated/OAT-synced/agent-instruction files, not authored project Markdown. The planning hygiene contract requires formatting every authored artifact and uses the fallback only when no documented formatter exists. The temporary config is outside the repository and automatically removed; clarify this and explicitly exclude generated OAT indexes/dashboards. No repository config change or new formatter is needed.
+- m1, undefined four sidecar classes: `resolve_in_artifact`. Replace the unsupported count with the established deferred external-output and child-trajectory scope.
+- m2, draft/default prose: `resolve_in_artifact`. Use state-neutral readiness wording and name both authorized default-output corrections.
+- m3, Commit-field guidance: `resolve_in_artifact`. Move sanitizer scope into the p04 Implement paragraphs; keep Commit fields message-only.
+
+No implementation tasks added or completed. Plan stays unready pending verification of these dispositions. The gate’s project-log auto-commit hit an index lock; preserve the appended record in the normal review-bookkeeping commit.
