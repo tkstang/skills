@@ -15,13 +15,14 @@ oat_generated: false
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 implementation, one bounded recovery, and review-fix round 1
-are complete. The phase is awaiting independent re-review before Phase 2 begins.
+are complete. Independent re-review is blocking; bounded review-fix round 2 is
+active before Phase 2 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | re_review_pending | 5     | 5/5       |
+| Phase 1 | fixes_in_progress | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -30,7 +31,7 @@ are complete. The phase is awaiting independent re-review before Phase 2 begins.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** re_review_pending
+**Status:** fixes_in_progress
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -312,6 +313,48 @@ consumed for this round.
   fix commit. The implementer also passed skill-version validation, docs build,
   scoped lint/format, and diff checks.
 
+#### Dispatch: p01 review round 2
+
+```yaml
+request_id: dispatch-agent-messaging-p01-review-2-629bea79-1b87-449a-bb02-7773fcb70831
+caller: oat-project-implement
+scope: phase:p01
+objective: Independently re-review the complete Phase 1 implementation and round-1 fixes.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: review-target
+selected_route: native
+payload:
+  prior_reviewed_head: 8866df01da3041e49d8b530e7e5d005059783330
+  fix_commit: 7bf347f309a0fc63d40e246513e3bd96f2622c45
+  reviewed_head: 67b811def41104d75a05d6175229e6e5539ccc9d
+  artifact: reviews/code-p01-rereview-2026-09-19T1445Z.md
+launch_status: accepted
+child_outcome: blocking
+configured_invocation_evidence:
+  - resolver-report:p01-review-2
+  - "Dispatch: scope=p01-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=6,medium=1,minor=0
+  - reconnaissance:not-attempted
+```
+
+No project-log review-orchestration entry was added because the reviewer
+reported reconnaissance as `not-attempted`; exactly one valid signal was
+consumed for this round.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -345,6 +388,22 @@ Fix round 1 completed at `7bf347f309a0fc63d40e246513e3bd96f2622c45`.
 The original Phase 1 handle implemented every review disposition and added the
 required protocol, safety, packaging, and adversarial verification. No finding
 was deferred.
+
+## Review Received: p01 round 2
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 1 re-review](reviews/code-p01-rereview-2026-09-19T1445Z.md)
+**Reviewed head:** `67b811def41104d75a05d6175229e6e5539ccc9d`
+**Findings:** 0 Critical, 6 Important, 1 Medium, 0 Minor.
+**Status:** fixes_added; bounded fix loop round 2/2 pending.
+
+The re-review confirmed six prior findings resolved but found binding-cap
+publication, stale initial-join retry, takeover inbox classification, ancestor
+symlink containment, canonical integrity for membership/receipt records, and
+real process-isolation proof still incomplete. The Medium tracking-staleness
+finding is resolved in this review-receive bookkeeping commit by updating the
+current test, summary, blocker, and next-milestone sections. The six product and
+proof findings remain within existing p01 scope; no task IDs were added.
 
 ## Review Received: plan
 
@@ -527,15 +586,17 @@ relabeled passed and future Frontier gates remain enabled. Archive:
 reviews/archived/artifact-plan-review-2026-09-19T131345Z.md. No product tests were
 run because only planning artifacts changed.
 
-**Next:** Begin p01-t01 through oat-project-implement in an authorized visible
-Codex worktree/task, after confirming execution checkpoints. No execution starts
-as part of this planning closeout.
+**Historical next step (completed 2026-09-19):** Begin p01-t01 through
+oat-project-implement after confirming execution checkpoints. This was planning
+closeout guidance; implementation subsequently started in the user-designated
+current worktree.
 
 ## Deviations from Plan / Design
 
 The third review identified an over-broad ownership policy, not shipped code
 drift. The user approved the narrowed policy and explicit acknowledgment/
-attestation boundaries; discovery/design/plan now agree. No product code exists.
+attestation boundaries; discovery/design/plan agreed at that planning boundary.
+This is historical planning-review context; product code now exists.
 
 | Task / Review        | Source Artifact    | Planned / Documented                                                         | Actual / Accepted                                                                     | Reason                                                                 | Source of Truth               | Follow-up             |
 | -------------------- | ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | --------------------- |
@@ -545,19 +606,21 @@ attestation boundaries; discovery/design/plan now agree. No product code exists.
 
 ## Test Results
 
-No product tests run: this review changes planning artifacts only.
+Phase 1 product verification is current through review-fix round 1. The second
+bounded fix round is active and must rerun the complete gate before re-review.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | 48 focused + 9 release-versioning; build/check/validate/type/docs | all | 0 | Task and phase boundaries |
+| 1     | 87 focused + full suite (2,108 tests); build/check/validate/type/smoke | all | 0 | Phase implementation and review-fix round 1 |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
-Not implemented or shipped. Fill from verified implementation evidence at
-completion; planning/review checks are not product acceptance.
+Phase 1 is implemented but not yet accepted: re-review round 2 found six
+Important issues and the final bounded Phase 1 fix round is active. Phases 2–4,
+publication, installation, merge, and live acceptance remain incomplete.
 
 ## References
 

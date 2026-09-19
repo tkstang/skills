@@ -33,13 +33,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T14:43:30Z'
+oat_project_state_updated: '2026-09-19T14:57:57Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 review fixes are complete; independent re-review is pending before p02-t01.
+**Status:** Phase 1 re-review is blocking; bounded review-fix round 2 is active before p02-t01.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -48,10 +48,10 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation is committed and verified. Review-fix round 1 resolved
-all 9 Important and 2 Medium issues at `7bf347f3`; independent re-review is the
-active boundary before p02-t01. Live hook installation remains separately
-authorized.
+Phase 1 implementation is committed and verified. Re-review confirmed six prior
+findings resolved but found 6 Important and 1 Medium residual issues. The final
+bounded review-fix round is the active boundary before p02-t01. Live hook
+installation remains separately authorized.
 
 ## Artifacts
 
@@ -59,7 +59,7 @@ authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 re-review is pending.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 review-fix round 2 is active.
 
 ## Progress
 
@@ -154,6 +154,11 @@ authorized.
   fix round 1/2 completed on the original accepted phase handle at `7bf347f3`.
   Root reproduced the focused and full test suites, generated-output freshness,
   validation, type-check, and smoke. Independent re-review remains pending.
+- **Phase 1 re-review:** Reviewed through `67b811de` and returned a blocking
+  verdict with 0 Critical, 6 Important, 1 Medium, and 0 Minor findings. Artifact:
+  `reviews/code-p01-rereview-2026-09-19T1445Z.md`. The Medium stale-tracking
+  finding is resolved in review-receive bookkeeping; the six product/proof
+  findings are assigned to bounded fix round 2/2.
 
 ## Dispatch and Gate Review Policy
 
@@ -184,22 +189,15 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-No drafting blocker. The driver's whoami fails because exact session discovery
-has multiple matching transcript candidates; collaboration remains stateless
-buffered-manual on the driver side. Fable has its own finite Monitor. No driver
-watcher or automatic lease was armed. Peer design review and user approval are
-complete. Fifth gate passed its blocking threshold but retains four smaller
-findings that are now approved and resolved. Its post-fix rerun was waived by the
-user; no planning blocker remains.
-All five Frontier identities are corroborated.
-No product implementation has started.
+Phase 1 cannot advance while its second re-review's six Important findings
+remain open. They concern binding-cap enforcement, stale join retry semantics,
+takeover inbox replay, ancestor-symlink containment, complete authoritative
+record integrity, and actual child-process crash/contention proof. These are
+bounded Phase 1 fixes, not design or authorization blockers.
 
 ## Next Milestone
 
-Start implementation from p01-t01 in an authorized visible Codex worktree/task.
-Dispatch ladder is complete and the project ceiling is High; Frontier is required
-at independent gates. The one-time plan rerun waiver does not disable future
-gates or change the reusable configuration. Confirm execution checkpoints at
-implementation start.
-The full-draft choice overrides workflow.designMode=selective for this run only;
-the reusable preference remains unchanged. Product implementation is not started.
+Complete bounded Phase 1 review-fix round 2/2 on the original accepted
+implementer handle, rerun the complete verification gate, and obtain a fresh
+independent Phase 1 review before starting p02-t01. Continue in this existing
+user-designated worktree; do not create another worktree.
