@@ -16,6 +16,20 @@ oat_parallel_execution: false
 oat_phase: plan
 oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
+oat_phase_recovery_policy:
+  phase_attempt_usage:
+    p08:
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p08-t04-recovery-01
+        original_request_id: sf-p08-implement-01
+        original_task_id: p08-t04
+        original_commit: 5a6716980f699c1e052a7be2b232bb4a3188dc09
+        discovered_by: phase-wide multiline framing-attribution scan
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 5a6716980f699c1e052a7be2b232bb4a3188dc09
+        status: completed
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets

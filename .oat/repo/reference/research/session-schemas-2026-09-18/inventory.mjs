@@ -23,9 +23,9 @@
 // 4. Array-item `[type=X]` tags and record discriminators use the same value guard.
 // 4a. Data-keyed maps (DICTIONARY_PATH) and third-party/MCP call arguments and results
 //    are counted but never described.
-// 5. Lines are split on the LF byte only. Node's `readline` must not be used here: it
-//    also breaks on U+2028/U+2029, which occur unescaped inside transcript strings and
-//    would be miscounted as malformed records.
+// 5. Lines are split on the LF byte only. The abandoned scanner treated U+2028/U+2029
+//    inside transcript strings as record boundaries and miscounted valid JSON as
+//    malformed records.
 // 6. No file paths, session ids, timestamps finer than a date, or text are emitted.
 import { createReadStream, readFileSync } from 'node:fs';
 
