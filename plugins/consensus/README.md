@@ -350,8 +350,11 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/observer/` - plugin-local `session-observer`, including its generated
   dependency-free transcript CLI.
 - `skills/observer-collab/` - plugin-local
-  `session-observer-collab`; requires the observer workflow and recognizes its
-  standalone or plugin-local installed identity.
+  `session-observer-collab`; requires the observer workflow, recognizes its
+  standalone or plugin-local installed identity, and can own one verified Codex
+  Stop route shared with Session `messaging`. Messaging-only participants do not
+  become additional stateful observers. Claude composed Monitor remains pending
+  and Cursor messaging delivery remains manual.
 - `references/live-e2e.md` - repeatable live provider E2E release-gate runbook for Refine and Evaluate.
 - `references/e2e/` - small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

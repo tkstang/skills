@@ -5,6 +5,7 @@
   - [Engineering](engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Architecture
     - [Architecture](engineering/architecture/index.md) — The single-owner and generated-installation-unit architecture behind dependency-free shipped skills.
+    - [Agent Messaging](engineering/architecture/agent-messaging.md) — How durable mail, finite delivery, observer composition, and external state fit together.
     - [Consensus Runtime](engineering/architecture/consensus-runtime.md) — How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.
     - [Cursor Collaboration Reliability](engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.
     - [Build & Distribution](engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
@@ -48,7 +49,7 @@
   - Plugins
     - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for continuity and retrospective review.
     - Session
-      - [Session](user-guide/plugins/session/index.md) — Choose a portable handoff, sanitized transcript, alpha native fork, or retrospective review.
+      - [Session](user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, prepare an alpha native fork, or review a session.
   - Skills
     - [Standalone Skills](user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Agent Messaging](user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.

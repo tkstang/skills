@@ -11,11 +11,13 @@ worktree.
 | -------------------------------- | ----------------- | -------------- | ---------- | ---------- | ---------- | -------------------------- | --------------------- | ---------------- |
 | Codex prompt start               | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Codex Stop                       | yes               | yes            | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
+| Codex composed observer Stop     | yes               | yes            | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 | Codex finite watch               | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Codex human-origin renewal       | yes               | fixture only   | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Claude Code prompt start         | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Claude Code Stop                 | yes               | yes            | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 | Claude Code finite watch         | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
+| Claude composed observer Monitor | pending p04-t01   | unsupported    | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 | Claude Code human-origin renewal | yes               | fixture only   | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Cursor start / Stop / idle       | bounded plan only | unsupported    | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 
@@ -42,11 +44,12 @@ node <skill-dir>/scripts/agent-messaging.mjs delivery probe-plan \
 The shipped command emits a fixture-only plan and does not invoke a provider.
 A live executor must separately record all five approvals: exact host/session,
 hook or trust changes, quota budget, timeout, and cleanup. Before a continuation
-probe, it must also re-run the standalone ownership truth table: readable
-inventory, exact third-party fingerprint acknowledgment, no active or uncertain
-observer owner, and the acting-session Claude Monitor attestation where
-applicable. Phase 2 evidence is standalone-only; composed Stop and Monitor
-acceptance belong to their later phases.
+probe, it must also re-run the ownership truth table: readable inventory, exact
+third-party fingerprint acknowledgment, and either no active or uncertain
+observer owner or one exact verified composed observer owner. The acting-session
+Claude Monitor attestation remains mandatory where applicable. Codex composed
+Stop is fixture-tested but remains live unverified. Claude composed Monitor
+belongs to p04-t01 and currently reports `composed-monitor-unavailable`.
 
 Receipts contain only the probe/host/version/boundary, bounded event identity and
 provenance, observation timestamp, explicit observed booleans, outcome, and a

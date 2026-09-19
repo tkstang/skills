@@ -125,6 +125,9 @@ and alternatives behind the architecture.
 - **Cursor collaboration reliability** — exact identity, physical-frame
   observation, isolated continuity state, and lease-scoped completion keep
   availability separate from automatic continuation.
+- **Agent Messaging** — durable external mail and immutable logs stay separate
+  from finite host attention, while one activation/controller owns any composed
+  continuation route.
 
 ## Contents
 
@@ -133,3 +136,4 @@ and alternatives behind the architecture.
 - [Consensus Runtime](consensus-runtime.md) — Execution boundaries, structured verdicts, durable state, and mode-dependent outcomes.
 - [Shared transcript-core](transcript-core.md) — One source of truth for per-provider transcript knowledge, with a committed generated copy per consuming skill.
 - [Cursor collaboration reliability](cursor-collaboration-reliability.md) — Exact identity, content-first observation, state continuity, and lease-scoped completion for Cursor collaboration.
+- [Agent Messaging](agent-messaging.md) — Durable mailbox state, finite delivery activation, observer composition, and evidence boundaries.

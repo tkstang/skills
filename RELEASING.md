@@ -52,6 +52,18 @@ does not establish live provider discovery or permission behavior.
   and separately record live Claude Code, Codex, and Cursor discovery/permission
   evidence when authorized. Static and isolated checks alone leave those live
   claims unverified.
+- For Session `messaging` or Consensus `observer-collab`, review
+  `skills/agent-messaging/references/live-acceptance.md`. Record documentation,
+  fixture coverage, installation, trust, invocation, recipient context,
+  continuation, and cleanup as separate facts for the exact host version,
+  session, and worktree. A passing build or fixture never promotes a live row.
+  Keep manual fallback when a row is unverified; Cursor delivery remains manual,
+  and Claude composed Monitor remains pending until its dedicated acceptance
+  phase completes.
+- Live messaging probes require separate explicit authority for the exact
+  host/session, hook or trust changes, quota budget, finite timeout, and owned
+  cleanup. Do not combine them with the paid Consensus live gate or infer one
+  result from the other.
 - Keep Session Fork to Destination labeled alpha while provider coverage and
   end-to-end verification are incomplete. Before claiming a verified provider
   path, ensure its capability evidence is current against official documentation and

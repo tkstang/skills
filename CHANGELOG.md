@@ -77,6 +77,12 @@
 
 ### Changed
 
+- `agent-messaging` 1.0.10 documents the shipped bounded delivery
+  and Codex observer-composition contract across the standalone and Session
+  forms; Collaborative Observer documentation records its 1.0.35 shared-log and
+  single-owner behavior. All live delivery rows remain unverified/manual, Cursor
+  remains manual-only, and Claude composed Monitor remains pending.
+
 - `consensus-review` 0.1.13 emits OAT's `Critical` / `High` / `Medium` / `Low` review tiers and matching `C` / `H` / `M` / `L` finding IDs; retired `important` and `minor` severities are rejected instead of producing artifacts that current OAT review receivers fail closed on.
 - Clean-break session names: `export-session-transcript` is now
   `session-export-transcript`, and `coding-session-handoff` is now
