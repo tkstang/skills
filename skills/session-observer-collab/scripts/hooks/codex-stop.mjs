@@ -146,8 +146,8 @@ function isNoOpText(text) {
 function isAutomaticControlAcknowledgement(text) {
   return AUTOMATIC_ACKNOWLEDGMENT.test(text) || AUTOMATIC_STATUS_ECHO.test(text);
 }
-function messageEntry(role, text, recordIndex, displayRole, origin) {
-  if (role === "user" && origin !== "runtime-notification") {
+function messageEntry(role, text, recordIndex, displayRole, origin, allowAutomaticControl = true) {
+  if (role === "user" && allowAutomaticControl) {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -554,7 +554,8 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
         content,
         recordIndex,
         provenance.displayRole,
-        provenance.origin
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
       )
     ];
   }
@@ -620,7 +621,8 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
         text,
         recordIndex,
         provenance.displayRole,
-        provenance.origin
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
       )
     ] : [];
   });

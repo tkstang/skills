@@ -404,8 +404,9 @@ function messageEntry(
   recordIndex: number,
   displayRole?: DigestEntryDisplayRole,
   origin?: DigestEntryOrigin,
+  allowAutomaticControl = true,
 ): DigestEntry {
-  if (role === 'user' && origin !== 'runtime-notification') {
+  if (role === 'user' && allowAutomaticControl) {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -1572,6 +1573,7 @@ function claudeEntriesFromContent(
         recordIndex,
         provenance.displayRole,
         provenance.origin,
+        opts.userProvenance === 'legacy-absent',
       ),
     ];
   }
@@ -1650,6 +1652,7 @@ function claudeEntriesFromContent(
             recordIndex,
             provenance.displayRole,
             provenance.origin,
+            opts.userProvenance === 'legacy-absent',
           ),
         ]
       : [];

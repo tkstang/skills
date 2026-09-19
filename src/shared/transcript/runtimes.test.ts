@@ -1176,6 +1176,49 @@ describe('normalizeEntries (claude-code)', () => {
       expect.not.objectContaining({ origin: expect.anything() }),
     ]);
   });
+
+  it('allows envelope classification only for legacy-absent Claude provenance', () => {
+    const envelope =
+      '<session_observer_wake automatic="true" schema_version="2" runtime="codex" lease_id="lease-claude" peer="claude-code:peer" index_base="zero-based-jsonl-record-index" records="1-2">Review.</session_observer_wake>';
+    const entryFor = (kind?: string) =>
+      normalizeEntries(
+        'claude-code',
+        [
+          {
+            type: 'user',
+            ...(kind ? { origin: { kind } } : {}),
+            message: { role: 'user', content: envelope },
+          },
+        ],
+        {},
+      )[0];
+
+    expect(entryFor()).toMatchObject({
+      origin: 'automatic-control',
+      displayRole: 'automatic-control',
+      automaticControl: { automatic: true, leaseId: 'lease-claude' },
+    });
+    expect(entryFor('human')).toMatchObject({
+      kind: 'message',
+      origin: 'human',
+      text: envelope,
+    });
+    expect(entryFor('human')).not.toHaveProperty('automaticControl');
+    for (const kind of ['peer', 'future-kind']) {
+      expect(entryFor(kind)).toMatchObject({ kind: 'message', text: envelope });
+      expect(entryFor(kind)).not.toHaveProperty('origin');
+      expect(entryFor(kind)).not.toHaveProperty('automaticControl');
+    }
+    expect(entryFor('task-notification')).toMatchObject({
+      kind: 'message',
+      origin: 'runtime-notification',
+      displayRole: 'runtime-notification',
+      text: envelope,
+    });
+    expect(entryFor('task-notification')).not.toHaveProperty(
+      'automaticControl',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

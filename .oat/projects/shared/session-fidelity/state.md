@@ -22,8 +22,17 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
     p01:
-      used_attempts: 3
-      pending_attempt: null
+      used_attempts: 4
+      pending_attempt:
+        attempt: 4
+        event_id: p01-t04-recovery-01
+        original_request_id: sf-p01-implement-01
+        original_task_id: p01-t04
+        original_commit: f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb
+        discovered_by: 'root task-transition review: explicit Claude provenance can be overwritten by envelope text'
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb
+        status: completed
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
