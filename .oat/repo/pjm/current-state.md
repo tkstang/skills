@@ -1,17 +1,17 @@
 # Skills Repo Current State
 
 **Last updated:** 2026-09-19
-**Verified baseline:** `origin/main` at `6eb5fd8c`, plus the completed Consensus Review implementation on `feat/consensus-review`. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
+**Verified baseline:** `origin/main` at `d74abe671561053154d3012e1b8edd11fc079dcf`, including Consensus Review merged by PR #91. Session Fidelity remains branch-only as labeled below; this is not a claim that it is published, merged, installed, released, or live-provider-accepted.
 
 ## What is available in the verified source tree
 
 Canonical authored skills live under `src/skills/`, shared transcript code under `src/shared/transcript/`, and Consensus shared runtime under `src/plugins/consensus/`. `src/distributions.ts` declares the generated, self-contained installation units under `skills/` and `plugins/*/skills/`. Runtime remains Node >=22, standard-library only; TypeScript, Vitest, bundling, and pnpm are developer tooling.
 
-| Distribution | Committed version / members | Boundary |
-| --- | --- | --- |
-| Consensus plugin | Manifest `0.2.0`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab | Deliberation, bounded review, consultation, and cross-session observation. Review is branch delivery pending merge/release. |
-| Session plugin | Manifest `0.2.0`; handoff, export-transcript, fork-to-destination, retro | Transfer, export, fork guidance, and retrospective workflows. Retro does not require Consensus. |
-| Standalone skills | complexity-review, consensus-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Ten declared standalone payloads; plugin and standalone forms share canonical owners. Consensus Review is branch delivery pending merge/release. |
+| Distribution      | Committed version / members                                                                                                                                                                 | Boundary                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Consensus plugin  | Manifest `0.2.0`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab                                                                          | Deliberation, bounded review, consultation, and cross-session observation. Review source is merged; release, installation, and live-provider acceptance remain separate.                      |
+| Session plugin    | Manifest `0.2.0`; handoff, export-transcript, fork-to-destination, retro                                                                                                                    | Transfer, export, fork guidance, and retrospective workflows. Retro does not require Consensus.                                                                                               |
+| Standalone skills | complexity-review, consensus-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Ten declared standalone payloads; plugin and standalone forms share canonical owners. Consensus Review source is merged; release, installation, and live-provider acceptance remain separate. |
 
 Plugin manifest versions are independent of each skill's sole authored `metadata.version`. Shared-source changes also require affected consumer version bumps; the transitive version guard is already implemented and archived, not new work.
 
@@ -42,7 +42,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 - PR #79 colocated canonical owners and generated distributions; PR #82 promoted Must We?, Next Steps, and Session Retro.
 - PR #83 reorganized the site into User Guide (Getting Started, Plugins, Standalone Skills) and Engineering (Architecture, Development, Contributing, Operations), expanded TypeScript/build guidance, added diagrams and the Markdown/Visuals catalog, and completed the configuration reference.
 - README is an entry point; the [documentation site source](../../../documentation/docs/index.md) is the detailed reference. Engineering owns the build/packaging/testing and CI/release explanations.
-- The Consensus Review branch adds the canonical Review guide, configuration and install forms, generated standalone/plugin payloads, and production-built navigation. Its first supporting versions are `consensus-review` 0.1.7 and Consensus plugin 0.2.0; neither version is claimed released or globally installed.
+- PR #91 merged the canonical Consensus Review guide, configuration and install forms, generated standalone/plugin payloads, and production-built navigation. The merged source contains `consensus-review` 0.1.13 and Consensus plugin 0.2.0; neither version is claimed released, globally installed, or live-provider-accepted.
 - The retained [session-fidelity research packet](../reference/research/session-fidelity-2026-09-10/README.md) remains historical design input for the branch implementation. Its original source paths/revisions predate colocation; native schemas are observational and examples synthetic.
 
 ## Release and verification posture
@@ -58,7 +58,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 There are **13 active item files** after closing and archiving Session Fidelity in addition to the completed observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review. Those records remain in completed history rather than active planning.
 
-The confirmed immediate lane is now **BL-260916-add-a-first-party-install — First-party standalone installer** (approved, owner/start not claimed). Consensus Review is implemented on its delivery branch and archived from the active backlog; merge, release, global installation, and live acceptance remain separate boundaries. The September 16 alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
+The confirmed immediate lane is now **BL-260916-add-a-first-party-install — First-party standalone installer** (approved, owner/start not claimed). Consensus Review is merged on `origin/main` and archived from the active backlog; release, global installation, and live acceptance remain separate boundaries. The September 16 alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
 Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session Fidelity is implemented on its stacked delivery branches and archived; the shared-session-log substrate may reuse its activity contract when that separate project is designed. Neither delivers safe N>2 consumer ownership automatically.
 

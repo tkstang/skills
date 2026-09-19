@@ -380,21 +380,21 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 
 | Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | ----------- |
-| p01    | code     | fixes_required  | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                   | 396307140acc10879e14a7df5307365a5dcb306c | auto       | codex-high  |
-| p01    | code     | fixes_completed | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                   | 8affc30a56e8f4c33c6bc50a6d632d93d37baa01 | auto       | codex-high  |
-| p01    | code     | passed          | 2026-09-19 | reviews/p01-review-2026-09-19T122907Z-round2.md            | d4069b773c3784b37da796ba40dbd5c3cbc6d228 | auto       | codex-high  |
-| p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                   | 0887c010eb37486f15fceafe5f6adf0d0e1202fa | manual     | -           |
-| p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                   | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
-| p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
-| p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
-| p02    | code     | passed          | 2026-09-19 | reviews/p02-review-2026-09-19T145413Z-round3.md            | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
+| p01    | code     | fixes_required  | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                    | 396307140acc10879e14a7df5307365a5dcb306c | auto       | codex-high  |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                    | 8affc30a56e8f4c33c6bc50a6d632d93d37baa01 | auto       | codex-high  |
+| p01    | code     | passed          | 2026-09-19 | reviews/p01-review-2026-09-19T122907Z-round2.md             | d4069b773c3784b37da796ba40dbd5c3cbc6d228 | auto       | codex-high  |
+| p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                    | 0887c010eb37486f15fceafe5f6adf0d0e1202fa | manual     | -           |
+| p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                    | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
+| p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md             | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
+| p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md             | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
+| p02    | code     | passed          | 2026-09-19 | reviews/p02-review-2026-09-19T145413Z-round3.md             | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
 | final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T180659Z.md         | bc066ea6a6f73bd417a28a7a65e99cad8a44f6d5 | auto       | -           |
 | spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
 | design | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
-| p03    | code     | passed          | 2026-09-19 | reviews/p03-review-2026-09-19T155150Z.md                   | 7ec1fba9aecc53d6e41ea091df0cfc4399057332 | auto       | codex-high  |
-| p04    | code     | passed          | 2026-09-19 | reviews/p04-review-2026-09-19T163743Z.md                   | 7214653b859166fd2cdc55faebe2559afa85fb70 | auto       | codex-high  |
-| p05    | code     | passed          | 2026-09-19 | reviews/p05-review-2026-09-19T172318Z.md                   | ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f | auto       | codex-high  |
-| p06    | code     | passed          | 2026-09-19 | reviews/p06-review-2026-09-19T175805Z.md                   | 0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900 | auto       | codex-high  |
+| p03    | code     | passed          | 2026-09-19 | reviews/p03-review-2026-09-19T155150Z.md                    | 7ec1fba9aecc53d6e41ea091df0cfc4399057332 | auto       | codex-high  |
+| p04    | code     | passed          | 2026-09-19 | reviews/p04-review-2026-09-19T163743Z.md                    | 7214653b859166fd2cdc55faebe2559afa85fb70 | auto       | codex-high  |
+| p05    | code     | passed          | 2026-09-19 | reviews/p05-review-2026-09-19T172318Z.md                    | ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f | auto       | codex-high  |
+| p06    | code     | passed          | 2026-09-19 | reviews/p06-review-2026-09-19T175805Z.md                    | 0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900 | auto       | codex-high  |
 | plan   | artifact | passed          | 2026-09-19 | -                                                           | -                                        | -          | -           |
 | p00    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
 | plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -                                        | -          | -           |
@@ -406,9 +406,9 @@ Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77
 
 Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..e3c25f3a` scope; 0 substantive findings, 1 Minor fixed directly by attaching the row to its table. All 19 tasks and retained boundary/budget contracts verified.
 
-## Implementation Complete
+## Implementation and Review-Fix Status
 
-**Planned total:** 8 phases, 21 tasks; 19 implemented.
+**Planned total:** 8 phases, 21 tasks. The 19 original implementation tasks are complete; p07 contains two bounded final-review fixes.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -419,7 +419,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p06: 2 tasks — docs/distribution and acceptance.
 - p07: 2 tasks — final-review artifact alignment and watcher diagnostic correction.
 
-The schema documentation preparatory commit and all original 19 implementation tasks are complete; phase reviews p00 through p06 passed. The final lifecycle review added two bounded p07 fixes, so final review approval remains pending. Stack publication, merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and all original 19 implementation tasks are complete; phase reviews p00 through p06 passed. Phase p07 supplies the two bounded fixes from the final lifecycle review; their execution status is recorded in `implementation.md`, and final review approval remains pending. Stack publication, merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 
@@ -428,4 +428,4 @@ The schema documentation preparatory commit and all original 19 implementation t
 - [Collaboration summary](references/collaboration-summary.md)
 - [Native schema reference](../../../../documentation/docs/engineering/architecture/session-schemas/index.md)
 - [Dated evidence snapshot](../../../repo/reference/research/session-schemas-2026-09-18/README.md)
-- [Backlog brief](../../../repo/pjm/backlog/items/BL-260916-session-fidelity-opt.md)
+- [Archived backlog brief](../../../repo/pjm/backlog/archived/BL-260916-session-fidelity-opt.md)
