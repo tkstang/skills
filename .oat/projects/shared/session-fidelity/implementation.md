@@ -1159,3 +1159,60 @@ Root transition audit of immutable p04-t02 commit `d054880562f23c14e3bfe7538a6cd
 - Recovery commit: `7214653b859166fd2cdc55faebe2559afa85fb70`
 - Verification: root passed 302 phase-focused tests, type checking, generated freshness and four-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and reproduced bounded hostile-punctuation output in Markdown and compact JSON with honest omissions.
 - Reason: final activity projection now budgets the actual selected render format rather than measuring compact JSON before later Markdown expansion.
+
+#### Dispatch sf-p04-review-01
+
+```json
+{
+  "request_id": "sf-p04-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p04-review-round-01",
+  "objective": "Review complete p04 exporter activity and sanitization work for privacy, final-format bounds and default compatibility",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p04",
+    "taskIds": ["p04-t01", "p04-t02"],
+    "base": "e76881ec18f7dc0251fe3185f98ffc106af567c7",
+    "reviewedHead": "7214653b859166fd2cdc55faebe2559afa85fb70",
+    "artifact": "reviews/p04-review-2026-09-19T163743Z.md",
+    "handle": "/root/p04_review"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Transcript export privacy, sanitizer boundaries and final-format byte accounting make subtle review misses expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p04-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
