@@ -603,6 +603,7 @@ or hand-format a generated index.
 | plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T014304Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T021241Z.md | -             | -          | -           |
+| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T030934Z.md          | -             | -          | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
