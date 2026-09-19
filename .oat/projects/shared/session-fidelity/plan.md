@@ -606,6 +606,8 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p11    | code     | passed          | 2026-09-19 | reviews/p11-review-2026-09-19T224947Z.md                    | c8c40b92d928a1da2de852419ff978119b834d1e | auto       | codex-high  |
 | github-pr #95 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-95-review-2026-09-19T225115Z.md | 9a43d153f020597d4316d955f726e8a92b45f1de | -          | -           |
 | github-pr #96 | code     | passed          | 2026-09-19 | reviews/archived/remote-pr-96-review-2026-09-19T225252Z.md | 3b580feb3401cfece7bf297ff16ccfda24b45a66 | -          | -           |
+| github-pr #95 | code     | fixes_completed | 2026-09-19 | reviews/archived/remote-pr-95-review-2026-09-19T225115Z.md | 91e992e16bb897e410703129122f6410a925a79c | auto       | -           |
+| p12    | code     | passed          | 2026-09-19 | reviews/p12-review-2026-09-19T230338Z.md                    | 91e992e16bb897e410703129122f6410a925a79c | auto       | codex-high  |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -613,7 +615,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 13 phases, 29 tasks. The first 28 tasks and every phase review through p11 passed; p12 contains one combined PR #95 identity-integrity task.
+**Planned total:** 13 phases, 29 tasks. All tasks and every phase review through p12 passed.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -629,7 +631,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p11: 1 task — align the generated summary/publication boundary and final lifecycle whitespace.
 - p12: 1 task — harden Codex persistent cache signatures, optional lineage validation and the shared export boundary.
 
-The schema documentation preparatory commit and the first 28 implementation tasks are complete; phase reviews p00 through p11 passed. Phase p12 must resolve three interacting PR #95 identity-integrity findings on the identity layer before the activity layer is cascade-rebased. Merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and all 29 implementation tasks are complete; phase reviews p00 through p12 passed. The p12 identity commit is independently reviewed and the activity layer has been cascade-rebased onto it. Remote replies, thread resolution, remaining-stack publication and final independent review remain. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 

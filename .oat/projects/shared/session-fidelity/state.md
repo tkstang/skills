@@ -1,6 +1,6 @@
 ---
-oat_current_task: p12-t01
-oat_last_commit: c8c40b92d928a1da2de852419ff978119b834d1e
+oat_current_task: null
+oat_last_commit: 91e992e16bb897e410703129122f6410a925a79c
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -18,6 +18,9 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
+    p12:
+      used_attempts: 0
+      pending_attempt: null
     p11:
       used_attempts: 0
       pending_attempt: null
@@ -154,13 +157,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** PR #95 identity-integrity fixes queued in p12
+**Status:** p12 passed; publication and remote resolution pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-The first 28 implementation tasks and phase reviews p00 through p11 passed. Three valid interacting PR #95 identity-integrity findings are queued as p12-t01; one comment is dismissed as contrary to the approved contract and one is already fixed.
+All 29 implementation tasks and phase reviews p00 through p12 passed. The identity layer contains the reviewed p12 fix and the activity layer is cascade-rebased onto it. Full verification, final independent review, publication and GitHub thread resolution remain.
 
 ## Artifacts
 
@@ -168,7 +171,7 @@ The first 28 implementation tasks and phase reviews p00 through p11 passed. Thre
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (28/29 tasks complete; p12 identity-layer fix pending)
+- **Implementation:** `implementation.md` (29/29 tasks and phase reviews complete; closeout pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; PR #96 remote head predates p10)
 
 ## Progress
@@ -210,7 +213,9 @@ The first 28 implementation tasks and phase reviews p00 through p11 passed. Thre
 - ✓ Fresh p11 review passed with zero findings
 - ✓ PR #95 feedback audited with explicit dispositions
 - ✓ PR #96 feedback re-received; sole finding already fixed by p10
-- ⧗ p12 identity-layer fix pending
+- ✓ p12 identity-layer fix completed and independently reviewed
+- ✓ Activity layer cascade-rebased onto reviewed identity head
+- ⧗ Full verification, final independent review, publication and thread resolution pending
 
 ## Blockers
 
@@ -218,4 +223,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement and review p12 on the identity layer, cascade-rebase activity, finish PR #96 disposition, then republish and resolve all threads.
+Run full verification and final independent review, publish the remaining stack, reply to and resolve all PR #95/#96 threads, then verify mergeability.

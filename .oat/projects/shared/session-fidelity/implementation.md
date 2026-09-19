@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p12-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-The first 28 implementation tasks and phase reviews p00 through p11 are complete. Five PR #95 comments were audited: three valid interacting identity-integrity findings are combined in p12-t01, one conflicts with the approved collaboration contract, and one was already fixed by p07.
+All 29 implementation tasks and phase reviews p00 through p12 are complete. Phase p12 fixed the three accepted PR #95 identity-integrity findings on the identity layer, passed independent review with zero findings, and the activity layer was cascade-rebased onto it.
 
 The user explicitly disabled further external gate reviews for this closeout and authorized independent subagent review, implementation of every accepted PR #95/#96 finding, GitHub replies, thread resolution and stack republication. The project-level `oat-project-implement` gate override records that direction; independent phase and final reviews remain required.
 
@@ -35,9 +35,9 @@ The user explicitly disabled further external gate reviews for this closeout and
 | p09   | passed         | 1     | 1/1       |
 | p10   | passed         | 1     | 1/1       |
 | p11   | passed         | 1     | 1/1       |
-| p12   | in_progress    | 1     | 0/1       |
+| p12   | passed         | 1     | 1/1       |
 
-**Total:** 28/29 implementation tasks completed.
+**Total:** 29/29 implementation tasks completed.
 
 ## Phase 0
 
@@ -626,11 +626,21 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Phase 12
 
-**Status:** in_progress
+**Status:** passed
 
 ### Task p12-t01: (review) Close Codex identity cache, lineage and export gaps
 
-**Status:** pending
+**Status:** completed
+**Commit:** 91e992e16bb897e410703129122f6410a925a79c
+**Verification:** 265 focused identity/export tests passed on the identity layer; the independent reviewer additionally ran 82 unchanged collaboration/watch controls. Build freshness, type-check, four-owner version validation, formatting and diff checks passed. After cascade rebase, the combined activity layer passed 366 focused tests, build freshness, type-check, repository validation and diff checks.
+
+### Orchestration Run p12
+
+- Implementation: request `session-fidelity-p12-impl-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, accepted identity-layer commit `91e992e16bb897e410703129122f6410a925a79c` over remote-rebased phase base `2ea1a410056f0df3cfe73d1b47cb988052309b65`; p12 recovery usage 0/10 with no pending attempt.
+- Review: request `session-fidelity-p12-review-01`, artifact `reviews/p12-review-2026-09-19T230338Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `2ea1a410056f0df3cfe73d1b47cb988052309b65..91e992e16bb897e410703129122f6410a925a79c`; reconnaissance not attempted.
+- Restack: activity commits were rebased from prior identity head `2ca3c33c91a8ae519248016c1e6188d7ffc84931` onto `91e992e16bb897e410703129122f6410a925a79c`. The sole conflict was the additive Unreleased changelog ordering; both entries were preserved. Current activity head after rebase and before this bookkeeping is `24e70bdb54e10e96f41f1d5ce5de6b39f664bb2d`.
+- Outcome: passed after one planned task commit, no recovery attempts and one fresh independent review.
+- Outstanding p12 items: none. Next: full verification, final independent review, publication and remote-thread resolution.
 
 ### Remote Review Received: github-pr #95
 
