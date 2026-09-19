@@ -644,7 +644,7 @@ async function compareAndSwapCursor(root, ownerSession, expected, cursorUpdate, 
       return { ok: false, reason: "stale", lease: current };
     }
     const effective = effectiveLease(current, now);
-    if (effective.state !== "waiting") {
+    if (!["armed", "waiting"].includes(effective.state)) {
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,

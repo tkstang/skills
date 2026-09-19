@@ -1,18 +1,34 @@
 import crypto from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { enableActivation } from '../../../shared/collaboration/activation.js';
+import {
+  disableActivation,
+  enableActivation,
+} from '../../../shared/collaboration/activation.js';
 import { deliveryClaimStatus } from '../../../shared/collaboration/claims.js';
 import { latestDeliveryDiagnostic } from '../../../shared/collaboration/diagnostics.js';
 import {
+  closeCollaboration,
   joinCollaboration,
   openCollaboration,
+  takeOverMembership,
 } from '../../../shared/collaboration/membership.js';
-import { sendMessage } from '../../../shared/collaboration/messages.js';
+import {
+  acknowledgeMessage,
+  sendMessage,
+} from '../../../shared/collaboration/messages.js';
 import {
   DEFAULT_MONITOR_POLL_MS,
   runClaudeMonitor,
@@ -24,19 +40,34 @@ import { readLease } from './lib/lease-state.mjs';
 const roots: string[] = [];
 const START = Date.parse('2026-09-19T20:00:00.000Z');
 
-async function fixture(maxContinuations = 2) {
+async function fixture(
+  maxContinuations = 2,
+  peerRuntime: 'claude-code' | 'codex' | 'cursor' = 'codex',
+) {
   const root = await mkdtemp(path.join(tmpdir(), 'claude-monitor-'));
   roots.push(root);
   const cwd = path.join(root, 'worktree');
-  const transcript = path.join(root, 'peer.jsonl');
+  const transcript =
+    peerRuntime === 'cursor'
+      ? path.join(
+          root,
+          '.cursor',
+          'projects',
+          'project',
+          'agent-transcripts',
+          'cursor-peer',
+          'cursor-peer.jsonl',
+        )
+      : path.join(root, 'peer.jsonl');
   const claudeSettings = path.join(root, 'claude-settings.json');
   await mkdir(cwd);
+  await mkdir(path.dirname(transcript), { recursive: true });
   await writeFile(transcript, '{}\n{}\n{}\n');
   await writeFile(claudeSettings, '{}\n');
   const collaborationId = crypto.randomUUID();
   const activationId = crypto.randomUUID();
   const self = { runtime: 'claude-code' as const, sessionId: 'claude-owner' };
-  const peer = { runtime: 'codex' as const, sessionId: 'codex-peer' };
+  const peer = { runtime: peerRuntime, sessionId: `${peerRuntime}-peer` };
   const sender = { runtime: 'cursor' as const, sessionId: 'sender' };
   await openCollaboration({
     root,
@@ -164,6 +195,85 @@ function substantive(fromIndex = 0) {
       },
       { role: 'assistant', text: 'Complete.', kind: 'message', recordIndex: 2 },
     ],
+  };
+}
+
+async function cursorSubstantive(item: Awaited<ReturnType<typeof fixture>>) {
+  const bytes = await readFile(item.transcript);
+  const metadata = await stat(item.transcript);
+  return {
+    schemaVersion: 2,
+    runtime: 'cursor',
+    sessionId: item.peer.sessionId,
+    transcriptPath: item.transcript,
+    range: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex: 0,
+      toIndex: 2,
+      nextIndex: 3,
+      totalFrames: 3,
+      renderedFromIndex: 2,
+      renderedToIndex: 2,
+      newFrames: 3,
+    },
+    accounting: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      raw: { fromIndex: 0, toIndex: 2, count: 3, nextIndex: 3, totalFrames: 3 },
+      rendered: { count: 1, fromIndex: 2, toIndex: 2 },
+      filtered: {
+        toolCalls: 0,
+        automaticControls: 0,
+        emptyOrNoOp: 0,
+        metadataFrames: 2,
+        unstableContent: 0,
+      },
+      buffered: { fromIndex: null, count: 0, reason: null },
+      recovery: { omittedUserMessages: [], omittedAssistantEntries: [] },
+    },
+    entries: [
+      {
+        role: 'assistant',
+        text: 'Cursor completion.',
+        recordIndex: 2,
+        sourceFrameIndex: 1,
+        kind: 'message',
+        entryKey: 'entry-assistant-1',
+        turnId: 'turn-1',
+        availability: 'completed',
+      },
+    ],
+    cursorEvidence: {
+      projection: 'confirmed-completion',
+      continuity: 'verified',
+      status: {
+        engagement: 'engaged',
+        activity: 'assistant-progress',
+        content: 'available',
+        lifecycle: 'success',
+        delivery: 'none',
+        health: 'healthy',
+      },
+      lifecycleEvents: [
+        {
+          turnId: 'turn-1',
+          terminalFrameIndex: 2,
+          lifecycle: 'success',
+          finalEntryKey: 'entry-assistant-1',
+          contentPreviouslyObservable: false,
+        },
+      ],
+      bufferedFromFrame: null,
+      blockingFrame: null,
+      selectedPrefix: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: 3,
+        prefixBytes: bytes.length,
+        prefixSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+        observedSize: bytes.length,
+        device: Number(metadata.dev),
+        inode: Number(metadata.ino),
+      },
+    },
   };
 }
 
@@ -485,6 +595,387 @@ describe('finite Claude composed Monitor', () => {
         .spentSlots,
     ).toBe(1);
   });
+
+  test('shares the finite cap across message and observation wake kinds', async () => {
+    const item = await fixture(1);
+    const sent = await sendMessage({
+      root: item.root,
+      collaborationId: item.collaborationId,
+      senderPin: item.sender,
+      recipientAlias: 'owner',
+      id: crypto.randomUUID(),
+      kind: 'request',
+      subject: 'message first',
+      body: 'bounded',
+    });
+    expect(
+      (
+        await runClaudeMonitor(input(item), {
+          now: () => START + 2,
+          emit: async () => undefined,
+        })
+      ).reason,
+    ).toBe('message-notified');
+    await acknowledgeMessage({
+      root: item.root,
+      collaborationId: item.collaborationId,
+      pin: item.self,
+      messageId: sent.message.id,
+    });
+    const observation = await runClaudeMonitor(input(item), {
+      now: () => START + 3,
+      observe: async () => substantive(),
+    });
+    expect(observation.reason).toBe('shared-budget-refused');
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(1);
+  });
+
+  test.each(['revoked', 'closed', 'expired'] as const)(
+    'refuses output when the activation becomes %s during a message claim',
+    async (boundary) => {
+      const item = await fixture();
+      await sendMessage({
+        root: item.root,
+        collaborationId: item.collaborationId,
+        senderPin: item.sender,
+        recipientAlias: 'owner',
+        id: crypto.randomUUID(),
+        kind: 'request',
+        subject: boundary,
+        body: 'bounded',
+      });
+      let current = START + 2;
+      const result = await runClaudeMonitor(input(item), {
+        now: () => current,
+        messageClaimHooks: {
+          afterMessageClaim: async () => {
+            if (boundary === 'revoked') {
+              await disableActivation({ root: item.root, pin: item.self });
+            } else if (boundary === 'closed') {
+              await closeCollaboration({
+                root: item.root,
+                collaborationId: item.collaborationId,
+                pin: item.self,
+              });
+            } else {
+              current = START + 60_001;
+            }
+          },
+        },
+        emit: async () => {
+          throw new Error('must not emit');
+        },
+      });
+      expect(result.notification).toBeNull();
+      expect(result.reason).toMatch(/activation|expired|duration-complete/iu);
+    },
+  );
+
+  test('rejects wrong peer identity before spending a shared slot', async () => {
+    const item = await fixture();
+    const result = await runClaudeMonitor(
+      {
+        ...input(item),
+        peer: { ...item.peer, sessionId: 'wrong-peer' },
+      },
+      { now: () => START + 2 },
+    );
+    expect(result.reason).toBe('lease-peer-session-mismatch');
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(0);
+  });
+
+  test('advances private no-op progress without a notification or shared slot', async () => {
+    const item = await fixture();
+    const noop: any = substantive();
+    noop.entries = [
+      {
+        ...noop.entries[0]!,
+        displayRole: 'automatic-control',
+        origin: 'automatic-control',
+        automaticControl: { automatic: true },
+      },
+      { ...noop.entries[1]!, text: 'Acknowledged.' },
+    ];
+    let clock = START + 2;
+    const result = await runClaudeMonitor(
+      { ...input(item), maxRuntimeMs: 10 },
+      {
+        now: () => clock,
+        observe: async () => noop,
+        sleep: async (amount: number) => {
+          clock += amount;
+        },
+        emit: async () => {
+          throw new Error('must not emit');
+        },
+      },
+    );
+    expect(result.reason).toBe('duration-complete');
+    expect((await readLease(item.root, item.self.sessionId))?.peerCursor).toBe(
+      3,
+    );
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(0);
+  });
+
+  test('refuses output when the owner binding is taken over during a run', async () => {
+    const item = await fixture();
+    await sendMessage({
+      root: item.root,
+      collaborationId: item.collaborationId,
+      senderPin: item.sender,
+      recipientAlias: 'owner',
+      id: crypto.randomUUID(),
+      kind: 'request',
+      subject: 'takeover',
+      body: 'bounded',
+    });
+    const result = await runClaudeMonitor(input(item), {
+      now: () => START + 2,
+      messageClaimHooks: {
+        afterMessageClaim: async () => {
+          await takeOverMembership({
+            root: item.root,
+            collaborationId: item.collaborationId,
+            pin: { runtime: 'claude-code', sessionId: 'replacement' },
+            alias: 'owner',
+            worktree: item.cwd,
+            expectedPreviousPin: item.self,
+            reason: 'fixture takeover',
+          });
+        },
+      },
+      emit: async () => {
+        throw new Error('must not emit');
+      },
+    });
+    expect(result.notification).toBeNull();
+    expect(result.reason).toMatch(/activation|lease/iu);
+  });
+
+  test('records interrupted output without inventing observation retry', async () => {
+    const item = await fixture();
+    await expect(
+      runClaudeMonitor(input(item), {
+        now: () => START + 2,
+        observe: async () => substantive(),
+        emit: async () => {
+          throw new Error('simulated interrupted output');
+        },
+      }),
+    ).rejects.toThrow('simulated interrupted output');
+    const status = await deliveryClaimStatus({
+      root: item.root,
+      pin: item.self,
+    });
+    expect(status.interruptedAttempts).toEqual([]);
+    expect(status.outcomeUnknown).toEqual([]);
+    expect(status.observationAttempts[0]).toMatchObject({
+      status: 'outcome-unknown',
+    });
+  });
+
+  test('duplicate concurrent runners emit at most one notification', async () => {
+    const item = await fixture();
+    await sendMessage({
+      root: item.root,
+      collaborationId: item.collaborationId,
+      senderPin: item.sender,
+      recipientAlias: 'owner',
+      id: crypto.randomUUID(),
+      kind: 'request',
+      subject: 'concurrent',
+      body: 'bounded',
+    });
+    let clock = START + 2;
+    const emitted: string[] = [];
+    const run = () =>
+      runClaudeMonitor(
+        { ...input(item), maxRuntimeMs: 100 },
+        {
+          now: () => (clock += 10),
+          sleep: async () => undefined,
+          emit: async (notification: { eventKey: string }) =>
+            emitted.push(notification.eventKey),
+        },
+      );
+    const results = await Promise.all([run(), run()]);
+    expect(
+      results.filter((result) => result.reason === 'message-notified'),
+    ).toHaveLength(1);
+    expect(emitted).toHaveLength(1);
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(1);
+  });
+
+  test('a kill after the observation event claim stays deduplicated after re-arm', async () => {
+    const item = await fixture();
+    await expect(
+      runClaudeMonitor(input(item), {
+        now: () => START + 2,
+        observe: async () => substantive(),
+        observationClaimHooks: {
+          afterEventClaim: () => {
+            throw new Error('simulated kill after event');
+          },
+        },
+      }),
+    ).rejects.toThrow('simulated kill after event');
+    await arm(
+      item.root,
+      {
+        runtime: 'claude-code',
+        peerRuntime: item.peer.runtime,
+        session: item.self.sessionId,
+        peerSession: item.peer.sessionId,
+        cwd: item.cwd,
+        peerTranscript: item.transcript,
+        collaborationId: item.collaborationId,
+        activationId: item.activationId,
+        confirmOldMonitorStopped: true,
+        confirmStandaloneWatcherStopped: true,
+      },
+      START + 3,
+    );
+    const repeated = await runClaudeMonitor(input(item), {
+      now: () => START + 4,
+      observe: async () => substantive(),
+    });
+    expect(repeated.reason).toBe('duplicate-observation');
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(0);
+  });
+
+  test('a kill after the shared slot remains bounded and quiet after re-arm', async () => {
+    const item = await fixture();
+    await expect(
+      runClaudeMonitor(input(item), {
+        now: () => START + 2,
+        observe: async () => substantive(),
+        observationClaimHooks: {
+          afterSlotClaim: () => {
+            throw new Error('simulated kill after slot');
+          },
+        },
+      }),
+    ).rejects.toThrow('simulated kill after slot');
+    await arm(
+      item.root,
+      {
+        runtime: 'claude-code',
+        peerRuntime: item.peer.runtime,
+        session: item.self.sessionId,
+        peerSession: item.peer.sessionId,
+        cwd: item.cwd,
+        peerTranscript: item.transcript,
+        collaborationId: item.collaborationId,
+        activationId: item.activationId,
+        confirmOldMonitorStopped: true,
+        confirmStandaloneWatcherStopped: true,
+      },
+      START + 3,
+    );
+    const repeated = await runClaudeMonitor(input(item), {
+      now: () => START + 4,
+      observe: async () => substantive(),
+    });
+    expect(repeated.reason).toBe('duplicate-observation');
+    expect(
+      (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+        .spentSlots,
+    ).toBe(1);
+  });
+
+  test('parses a synthetic Claude transcript through the real buildDigest path', async () => {
+    const item = await fixture(2, 'claude-code');
+    await writeFile(
+      item.transcript,
+      [
+        {
+          type: 'user',
+          sessionId: item.peer.sessionId,
+          message: { role: 'user', content: 'Please inspect this.' },
+        },
+        {
+          type: 'assistant',
+          sessionId: item.peer.sessionId,
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Inspection complete.' }],
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    );
+    const result = await runClaudeMonitor(input(item), {
+      now: () => START + 2,
+      emit: async () => undefined,
+    });
+    expect(result.reason).toBe('observation-notified');
+    expect(result.notification).toMatchObject({
+      peer: `claude-code:${item.peer.sessionId}`,
+    });
+    await expect(access(path.join(item.root, 'offsets'))).rejects.toThrow();
+  });
+
+  test.each(['truncated', 'prefix-changed'] as const)(
+    'covers the Cursor peer branch and refuses %s continuity after re-arm',
+    async (mutation) => {
+      const item = await fixture(2, 'cursor');
+      const digest = await cursorSubstantive(item);
+      const first = await runClaudeMonitor(input(item), {
+        now: () => START + 2,
+        observe: async () => digest,
+        emit: async () => undefined,
+      });
+      expect(first.reason).toBe('observation-notified');
+      await arm(
+        item.root,
+        {
+          runtime: 'claude-code',
+          peerRuntime: item.peer.runtime,
+          session: item.self.sessionId,
+          peerSession: item.peer.sessionId,
+          cwd: item.cwd,
+          peerTranscript: item.transcript,
+          collaborationId: item.collaborationId,
+          activationId: item.activationId,
+          confirmOldMonitorStopped: true,
+          confirmStandaloneWatcherStopped: true,
+        },
+        START + 3,
+      );
+      const original = await readFile(item.transcript);
+      await writeFile(
+        item.transcript,
+        mutation === 'truncated'
+          ? original.subarray(0, Math.max(0, original.length - 2))
+          : Buffer.concat([Buffer.from('X'), original.subarray(1)]),
+      );
+      const second = await runClaudeMonitor(input(item), {
+        now: () => START + 4,
+        observe: async () => digest,
+      });
+      expect(second.reason).toMatch(/continuity-(size|prefix)-mismatch/u);
+      expect(
+        (await deliveryClaimStatus({ root: item.root, pin: item.self }))
+          .spentSlots,
+      ).toBe(1);
+    },
+  );
 
   test('prints no notification for missing fresh stop confirmation', async () => {
     const item = await fixture();

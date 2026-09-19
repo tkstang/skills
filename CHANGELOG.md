@@ -4,6 +4,12 @@
 
 ### Added
 
+- `session-observer-collab` 1.0.45 completes the finite Claude Monitor's
+  critical-path fixture proof across shared-cap exhaustion, lifecycle changes,
+  identity and continuity failures, private no-op progress, concurrent runners,
+  interrupted event/slot/output stages, real Claude transcript digestion, and
+  Codex, Claude Code, and Cursor peers without public-offset mutation.
+
 - `agent-messaging` 1.0.13 and `session-observer-collab` 1.0.37 add the
   fixture-tested finite Claude composed Monitor: exact activation and peer pins,
   inbox-first selection, shared message/observation slots, slot-before-private-
