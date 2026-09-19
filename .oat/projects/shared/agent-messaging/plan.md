@@ -1225,11 +1225,11 @@ above the freshly resolved High gpt-5.6-sol/high threshold; ladder complete.
 The user requested skipping an additional gate after these small corrections.
 This is a one-time post-fix rerun waiver, not a disabled lifecycle policy and
 not a new independent review. Keep the fifth event fixes_completed; do not
-relabel it passed. The final implementation Frontier review subsequently passed.
+relabel it passed. Final implementation Frontier review remains required.
 
 ## Implementation Status
 
-**Implemented before remote review:**
+**Planned, not implemented:**
 
 - Phase 1: 5 tasks — independent storage, membership, messages, logs and CLI.
 - Phase 2: 4 tasks — finite activation, host adapters, watch and acceptance probes.

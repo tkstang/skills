@@ -115,7 +115,7 @@ Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
 
 ## Phase 4: Claude composed Monitor and final acceptance (1 task)
 
-**Status:** completed
+**Status:** review_pending
 **Started:** 2026-09-19
 
 ### Task p04-t01: Add the single finite Claude composed Monitor
@@ -125,7 +125,7 @@ Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
 
 ## Phase 5: Final review fixes and proof completion (12 tasks)
 
-**Status:** completed
+**Status:** review_pending
 **Started:** 2026-09-19
 
 | Task    | Finding                                     | Status    | Commit   |
