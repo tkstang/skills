@@ -290,4 +290,67 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
 
 #### Root-inline phase p00
 
+#### Dispatch sf-p01-implement-01
+
+```json
+{
+  "request_id": "sf-p01-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p01",
+  "objective": "Implement native identity and safe state binding across five planned tasks",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementation",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "phase-source-and-tests",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": [
+    "gpt-5.6-sol/medium",
+    "gpt-5.6-sol/high"
+  ],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 7200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p01",
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "initialBase": "018958a0",
+    "handle": "/root/p01_implement"
+  },
+  "launch_status": "accepted",
+  "child_outcome": null,
+  "configured_invocation_evidence": [
+    "resolver:review-target",
+    "native:materialized-role"
+  ],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Native identity, cursor reuse and collaboration provenance have subtle state and authorization consequences.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+Acceptance recorded before source ownership transfers. Per-task tracking handshakes keep root bookkeeping separate from task commits. No fallback or optional child requested.
+
 Plan-required root Git arrangement at gpt-6-astra/high; task 4e6c63fa and tracking 1d650f13 verified. Independent reviewer sf-p00-review-01 passed at 1d650f130d7b56cb790fbed15733afd625990c20 with zero findings; reconnaissance not attempted, no Review Orchestration section. Artifact: reviews/p00-review-2026-09-19T014930Z.md. Fix loops: 0. Next p01-t01.
