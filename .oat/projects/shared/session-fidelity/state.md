@@ -1,5 +1,5 @@
 ---
-oat_current_task: p01-t05
+oat_current_task: p01-review-fix-01
 oat_last_commit: d310dac8c6d76487a221aaa193481a643c0ea689
 oat_blockers: []
 associated_issues:
@@ -99,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Identity implementation complete; p01 review pending
+**Status:** Identity review fixes required
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 with no pending attempt. Full identity validation passed, including 2,119 tests with one skipped, repository gates, smoke, generated freshness and the documentation build. Independent p01 review and Fable freshness review remain before the activity branch is created.
+All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 with no pending attempt. Formal review of `455daba2..39630714` found one Important first-header gap. Fable's read-only freshness review found a second Important duplicate-source gap plus nonblocking follow-ups. Root validation added three acceptance fixes: fail closed on catch-up state-read errors, complete the p01-t02/t03 changelog, and prefer roots for unpinned exporter selection. Activity remains unstarted until the original phase handle fixes this bounded set and narrowed re-review passes.
 
 ## Artifacts
 
@@ -113,7 +113,7 @@ All five p01 tasks are implemented through `d310dac8`; recovery usage is 4/10 wi
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (6/19 tasks completed; p01 review pending)
+- **Implementation:** `implementation.md` (6/19 tasks completed; p01 review fixes required)
 
 ## Progress
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete the independent p01 review and Fable freshness review, resolve any blocking findings, then record the reviewed identity tip as `ACTIVITY_BASE`.
+Complete bounded p01 review fixes on the original phase handle, pass narrowed re-review, then record the reviewed identity tip as `ACTIVITY_BASE`.

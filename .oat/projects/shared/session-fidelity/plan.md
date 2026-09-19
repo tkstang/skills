@@ -330,7 +330,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 
 | Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | ----------- |
-| p01    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| p01    | code     | fixes_required  | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                   | 396307140acc10879e14a7df5307365a5dcb306c | auto       | codex-high  |
 | p02    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
 | final  | code     | pending         | -          | -                                                           | -                                        | -          | -           |
 | spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -           |

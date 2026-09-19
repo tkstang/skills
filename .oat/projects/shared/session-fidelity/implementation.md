@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t05
+oat_current_task_id: p01-review-fix-01
 oat_generated: false
 ---
 
@@ -22,7 +22,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | review pending | 5     | 5/5       |
+| p01   | fixes required | 5     | 5/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
@@ -175,7 +175,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Reviews (historical pre-implementation snapshot)
 
-At this snapshot, plan review was pending and no code review had passed. Later planning and code-review receipts are tracked in `plan.md` and the current implementation records.
+Plan review passed. p01 code review round 1 requires bounded fixes; later phase reviews remain pending in `plan.md`.
 
 ## Final Summary (historical pre-implementation snapshot)
 
@@ -410,3 +410,76 @@ The original phase handle stopped mid-task when its provider usage window was ex
 #### Phase p01 implementation handoff
 
 The original accepted phase handle completed all five planned tasks at `d310dac8c6d76487a221aaa193481a643c0ea689` from phase base `455daba2807b1539da566ce863b613720ab79d82`. Task commits remain append-only and in plan order, with four durably accounted recovery attempts and no pending marker. No optional nested dispatch occurred. The worktree was clean at handoff. Full phase verification passed; p01 remains review-pending and activity work is not authorized until root-owned review, accepted fixes and bookkeeping are committed.
+
+#### Dispatch sf-p01-review-01
+
+```json
+{
+  "request_id": "sf-p01-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p01",
+  "objective": "Review native identity, saved-state and Claude provenance implementation across the complete p01 range",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p01",
+    "base": "455daba2807b1539da566ce863b613720ab79d82",
+    "reviewedHead": "396307140acc10879e14a7df5307365a5dcb306c",
+    "artifact": "reviews/p01-review-2026-09-19T120500Z.md",
+    "handle": "/root/p01_review"
+  },
+  "launch_status": "accepted",
+  "child_outcome": "completed-fix-required",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Identity and authority failures can silently select or authorize the wrong native session.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+#### Phase p01 review round 1 — fixes required
+
+Formal artifact `reviews/p01-review-2026-09-19T120500Z.md` reviewed `455daba2807b1539da566ce863b613720ab79d82..396307140acc10879e14a7df5307365a5dcb306c`: 0 Critical, 1 Important, 0 Medium, 0 Minor. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Its Important finding is accepted: an ID-less first physical Codex `session_meta` can let a later inherited native header provide parent identity. The fix must preserve the documented legacy header whose first record itself carries a supported legacy session field.
+
+Fable performed the promised read-only freshness review in pinned session `claude-code:5be26fca-ebaa-4cb4-9ada-6601c2f5971d` against `170fc8a3..39630714`; it edited nothing. Its findings are dispositioned as follows:
+
+- Important duplicate exact lookup: `fix_in_review_loop`. Reject multiple distinct canonical sources for Claude Code and Cursor as well as Codex; keep canonical aliases deduplicated.
+- Medium catch-up state-read fallback: `fix_in_review_loop`. State-read failure must stop before digest delivery; retain separately tested output-ready behavior only for a write/finalization failure after a successful read.
+- Medium watch stat error classification/reset wording: `deferred_follow_up`. Missing/replaced paths already fail closed and leave offsets unchanged; separating transient stat failures and refining re-arm/reset guidance is useful but not required for the accepted identity boundary.
+- Medium missing p01-t02/t03 changelog coverage: `fix_in_review_loop`. Name ambiguity/root preference, saved-position fail-closed behavior, missing-path watch exit, mark-read state-read failure and deliberate shrink hard stop.
+- Medium shrink hard stop: `accepted_as_designed`. p01-t03 explicitly includes shrink regressions, state preservation and scoped reset; add the missing changelog text but retain behavior.
+- Medium exporter root preference: `fix_in_review_loop`. Marker matches and marker-miss fallback must prefer root candidates when a Codex child only inherits the same marker; retain exact `--session` behavior and inherited-context warnings.
+- Minor duplicate helpers/warnings, case normalization, repeated transcript reads and lease/replay doc details: `deferred_follow_up`. Record as maintainability/performance/documentation follow-up after the feature stack; none invalidates current safety behavior.
+- Notification-only acknowledgement idea: `rejected_with_rationale`. The approved p01-t04 contract deliberately preserves substantive assistant completion after a runtime notification; activity work may revisit presentation without changing authority.
+
+No project-log entry is appended before the fix child. Resume the original `sf-p01-implement-01` handle with only the accepted bounded fix set, then run a fresh narrowed reviewer round.
