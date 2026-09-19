@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.33'
+  version: '1.0.34'
 ---
 
 # {{distribution.name}}
@@ -225,7 +225,24 @@ Pause automatic continuation and yield to the user when any of these applies:
 State the observed facts, competing positions if any, and the user decision or
 tiebreaker needed. Do not treat a pause as an invitation to widen the task.
 
-## Shared Worktree and Append-Only Log
+## Shared Collaboration Container and Append-Only Log
+
+Create or join the collaboration through this skill's bundled control command.
+It uses the same deterministic storage root and UUID container as
+`agent-messaging`, but it does not enable mailbox delivery:
+
+```bash
+node <skill-dir>/scripts/collab-control.mjs collaboration-open --self <runtime:id> --alias <name> --label <label> --task <text> --cwd <absolute-worktree> --json
+node <skill-dir>/scripts/collab-control.mjs collaboration-join --collab <uuid> --self <runtime:id> --alias <name> --cwd <absolute-worktree> --json
+```
+
+Both commands print the resolved root, immutable entry directory, and rendered
+`collaboration.md` path. They bundle the shared storage runtime, so the
+standalone messaging skill does not need to be installed. The required
+`{{skill:session-observer}}` workflow and every observer public/private offset
+store remain separate. Existing Markdown logs and transcripts are not migrated:
+this is a clean break for new collaborations, with no alias or compatibility
+wrapper.
 
 If peers share one worktree, they may observe concurrently but mutate it
 serially. Before a mutation, the acting peer announces the file boundary and
@@ -235,7 +252,18 @@ rewrite another peer's changes, or overlap broad formatting/build output without
 an explicit handoff.
 
 Keep one shared append-only collaboration log outside ordinary source changes.
-Use this deterministic record format for every protocol-relevant entry:
+Publish immutable entries and regenerate the Markdown view through the control
+command; never hand-edit `collaboration.md`:
+
+```bash
+node <skill-dir>/scripts/collab-control.mjs log-append --collab <uuid> --self <runtime:id> --id <new-uuid> --category <mechanics|protocol|content|gotcha|idea> --title <text> --assessment <text> --what-stdin --implication <text> --json
+node <skill-dir>/scripts/collab-control.mjs log-show --collab <uuid> --json
+node <skill-dir>/scripts/collab-control.mjs log-render --collab <uuid> --json
+```
+
+Corrections are new entries with new IDs. `log-show` reports a stale rendered
+view when the authoritative entry set changed; `log-render` rebuilds it from a
+validated snapshot. The rendered form uses this record shape:
 
 ```markdown
 ### [HH:MM] <mechanics|protocol|content|gotcha|idea> — <title>
@@ -245,8 +273,8 @@ Use this deterministic record format for every protocol-relevant entry:
 - **Skill implication:** <decision, correction, pause, or no-op>
 ```
 
-The log header names the worktree, date, self runtime/session, pinned peer, and
-bounded task. Append; never edit history to imply earlier consensus. Include
+The collaboration metadata and immutable entries name the bounded task, author
+pin, and time. Append; never edit history to imply earlier consensus. Include
 automatic-control provenance and no-op suppression decisions when relevant, but
 never secrets, live leases, credentials, or copied raw sensitive content.
 

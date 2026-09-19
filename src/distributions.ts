@@ -220,6 +220,7 @@ export const distributions: readonly DistributionDeclaration[] = [
     source: 'src/skills/session-observer-collab',
     allowedSourceRoots: [
       'src/skills/session-observer',
+      'src/shared/collaboration',
       'src/shared/transcript',
     ],
     requiredSkills: [

@@ -4,6 +4,11 @@
 
 ### Added
 
+- `session-observer-collab` 1.0.34 opens and joins the shared collaboration
+  container without enabling messaging delivery, bundles the immutable shared
+  log runtime in both distributions, and replaces hand-edited Markdown logs
+  with append/show/render commands while preserving separate observer offsets.
+
 - `agent-messaging` 1.0.7 adds explicit bounded host-probe plans, sanitized
   receipt and owned-cleanup contracts, a fixture-tested 4,096-receipt validation
   benchmark, and an honest host acceptance matrix; live Codex, Claude Code, and

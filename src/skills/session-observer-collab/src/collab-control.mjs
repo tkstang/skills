@@ -5,6 +5,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  appendLogEntry,
+  getLogView,
+  renderLog,
+} from '../../../shared/collaboration/log.js';
+import {
+  joinCollaboration,
+  openCollaboration,
+} from '../../../shared/collaboration/membership.js';
+import { collaborationPaths } from '../../../shared/collaboration/paths.js';
+import { assertPin } from '../../../shared/collaboration/types.js';
+import {
   assessCodexHookReadiness,
   inspectCodexStopHook,
   installCodexStopHook,
@@ -59,7 +70,8 @@ export function parseArgs(argv) {
     if (
       rawKey === 'json' ||
       rawKey === 'confirmed' ||
-      rawKey === 'remove-script'
+      rawKey === 'remove-script' ||
+      rawKey === 'what-stdin'
     ) {
       options[key] = true;
       continue;
@@ -70,6 +82,47 @@ export function parseArgs(argv) {
     options[key] = value;
   }
   return { command, options };
+}
+
+function requiredOption(options, key, flag = key) {
+  const value = options[key];
+  if (typeof value !== 'string' || value.length === 0)
+    throw new Error(`--${flag} is required`);
+  return value;
+}
+
+function parsePin(value) {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1)
+    throw new Error('--self must use <runtime>:<session-id>');
+  const pin = {
+    runtime: value.slice(0, separator),
+    sessionId: value.slice(separator + 1),
+  };
+  assertPin(pin);
+  return pin;
+}
+
+function sharedResult(root, collaborationId, data) {
+  return {
+    collaborationId,
+    root,
+    paths: collaborationPaths(root, collaborationId),
+    delivery: 'disabled',
+    data,
+  };
+}
+
+async function readStdinBounded() {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of process.stdin) {
+    bytes += chunk.length;
+    if (bytes > 16 * 1024)
+      throw new Error('standard input exceeds 16384 bytes');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 async function readInstallation(root) {
@@ -385,11 +438,87 @@ export async function status(
   return { installation, lease: lease ? effectiveLease(lease, now) : null };
 }
 
-export async function run(argv, env = process.env, now = Date.now()) {
+export async function run(
+  argv,
+  env = process.env,
+  now = Date.now(),
+  readStdin = readStdinBounded,
+) {
   const { command, options } = parseArgs(argv);
   const root = stateRoot(env);
   await mkdir(root, { recursive: true, mode: 0o700 });
   await chmod(root, 0o700);
+  if (command === 'collaboration-open') {
+    const collaborationId =
+      typeof options.collab === 'string' ? options.collab : randomUUID();
+    const data = await openCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      alias: requiredOption(options, 'alias'),
+      label: requiredOption(options, 'label'),
+      task: requiredOption(options, 'task'),
+      worktree: typeof options.cwd === 'string' ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'collaboration-join') {
+    const collaborationId = requiredOption(options, 'collab');
+    const data = await joinCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      alias: requiredOption(options, 'alias'),
+      worktree: typeof options.cwd === 'string' ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'log-append') {
+    const collaborationId = requiredOption(options, 'collab');
+    const whatHappened =
+      options.whatStdin === true
+        ? await readStdin()
+        : requiredOption(options, 'what');
+    const data = await appendLogEntry({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      id: requiredOption(options, 'id'),
+      category: requiredOption(options, 'category'),
+      title: requiredOption(options, 'title'),
+      whatHappened,
+      assessment: requiredOption(options, 'assessment'),
+      skillImplication: requiredOption(options, 'implication'),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'log-show' || command === 'log-render') {
+    const collaborationId = requiredOption(options, 'collab');
+    const data =
+      command === 'log-render'
+        ? await renderLog({ root, collaborationId })
+        : await getLogView({ root, collaborationId });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
   if (command === 'install') {
     const result = await install(root, options);
     if (options.session)
@@ -415,7 +544,7 @@ export async function run(argv, env = process.env, now = Date.now()) {
   if (command === 'codex-uninstall')
     return { ok: true, command, ...(await codexUninstall(root, options, now)) };
   throw new Error(
-    'usage: collab-control install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]',
+    'usage: collab-control collaboration-open|collaboration-join|log-append|log-show|log-render|install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]',
   );
 }
 
