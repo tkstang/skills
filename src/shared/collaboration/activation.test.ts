@@ -123,7 +123,7 @@ describe('delivery activation', () => {
     const capped = await activationStatus(
       input.root,
       input.pin,
-      new Date(start.getTime() + 2501),
+      new Date(start.getTime() + 2500),
     );
     expect(capped).toMatchObject({
       active: false,

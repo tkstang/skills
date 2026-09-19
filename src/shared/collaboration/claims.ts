@@ -447,7 +447,8 @@ export async function deliveryClaimStatus(input: {
     .filter(
       (event) =>
         !slots.some((slot) => slot.token === event.token) ||
-        !messages.some((message) => message.token === event.token),
+        (event.proposedDeliveryKeys.length > 0 &&
+          !messages.some((message) => message.token === event.token)),
     )
     .map((event) => event.token);
   const outcomeUnknown = events

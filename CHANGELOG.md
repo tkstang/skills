@@ -4,6 +4,12 @@
 
 ### Added
 
+- `agent-messaging` 1.0.9 and `session-observer-collab` 1.0.35 compose one
+  verified Codex Stop owner with inbox-first selection, a shared finite
+  continuation budget, observer-CAS loss containment, exact-ID dedup guidance,
+  and fail-closed Claude/Cursor fallbacks. Exact expiry equality is now inactive,
+  and output-attempt diagnostics are recorded only after the final veto check.
+
 - `session-observer-collab` 1.0.34 opens and joins the shared collaboration
   container without enabling messaging delivery, bundles the immutable shared
   log runtime in both distributions, and replaces hand-edited Markdown logs

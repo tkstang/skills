@@ -1036,7 +1036,7 @@ async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
       notice: "The participant departed; automatic delivery is inactive."
     };
   const effectiveExpiresAt = await effectiveActivationExpiry(root, activation);
-  if (now.getTime() > Date.parse(effectiveExpiresAt))
+  if (now.getTime() >= Date.parse(effectiveExpiresAt))
     return {
       activation,
       active: false,

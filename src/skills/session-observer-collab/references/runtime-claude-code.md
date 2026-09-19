@@ -1,5 +1,15 @@
 # Claude Code runtime reference
 
+## Messaging composition status
+
+The legacy base-observer Monitor below is not an agent-messaging continuation
+controller and does not spend messaging activation slots. Automatic composed
+messaging therefore reports `composed-monitor-unavailable` in this release.
+Keep addressed inbox checks manual at turn start, or use standalone messaging
+only with the acting-session no-observer-Monitor attestation. Do not wrap this
+recipe and call it composed capability; a dedicated finite composed Monitor is
+required before that claim.
+
 Use this reference only after resolving the acting runtime as Claude Code. It is the
 runtime-specific companion to `session-observer-collab/SKILL.md`; the base
 observer remains responsible for transcript reads, exact pins, and offsets.

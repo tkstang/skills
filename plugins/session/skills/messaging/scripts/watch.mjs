@@ -1042,7 +1042,7 @@ async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
       notice: "The participant departed; automatic delivery is inactive."
     };
   const effectiveExpiresAt = await effectiveActivationExpiry(root, activation);
-  if (now.getTime() > Date.parse(effectiveExpiresAt))
+  if (now.getTime() >= Date.parse(effectiveExpiresAt))
     return {
       activation,
       active: false,
@@ -1302,7 +1302,7 @@ async function deliveryClaimStatus(input) {
     )
   ]);
   const interruptedAttempts = events.filter(
-    (event) => !slots.some((slot) => slot.token === event.token) || !messages.some((message) => message.token === event.token)
+    (event) => !slots.some((slot) => slot.token === event.token) || event.proposedDeliveryKeys.length > 0 && !messages.some((message) => message.token === event.token)
   ).map((event) => event.token);
   const outcomeUnknown = events.filter(
     (event) => messages.some((message) => message.token === event.token)
@@ -1796,11 +1796,12 @@ async function assessAutomaticOwnership(input) {
   assertPin(input.pin);
   const lease = await inspectObserverLease(input);
   const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
-  if (lease === "present" || lease === "uncertain") {
+  if (lease === "uncertain") {
     return {
       automaticAllowed: false,
       observerOwner: lease,
-      reason: lease === "present" ? "an exact-session observer continuation owner is active or triggered" : "observer ownership cannot be established safely",
+      controller: null,
+      reason: "observer ownership cannot be established safely",
       recoveryCommand,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
@@ -1811,12 +1812,85 @@ async function assessAutomaticOwnership(input) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
+      controller: null,
       reason: "required hook inventory is unreadable or unresolved",
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
       acknowledgedFingerprint: null
     };
+  }
+  const recognizedObserver = input.inventory.registrations.some(
+    (registration) => registration.recognizedObserver
+  );
+  const recognizedMessaging = input.inventory.registrations.some(
+    (registration) => registration.recognizedMessaging
+  );
+  let controller;
+  if (lease === "present") {
+    if (input.requestedController === "standalone-messaging") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "an exact-session observer continuation owner is active or triggered",
+        recoveryCommand,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (input.pin.runtime === "claude-code") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (!recognizedObserver) {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "the active observer lease has no verified composed-capable adapter",
+        recoveryCommand,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (recognizedMessaging) {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "standalone messaging and observer Stop registrations both exist; remove the standalone route before composition",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    controller = "observer-collab";
+  } else {
+    if (input.requestedController === "observer-collab") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: input.pin.runtime === "claude-code" ? "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    controller = "standalone-messaging";
   }
   const thirdParty = input.inventory.registrations.filter(
     (registration) => !registration.recognizedObserver && !registration.recognizedMessaging
@@ -1825,6 +1899,7 @@ async function assessAutomaticOwnership(input) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
+      controller: null,
       reason: "third-party Stop registrations require exact scoped acknowledgment",
       recoveryCommand: null,
       inventory: input.inventory,
@@ -1835,7 +1910,8 @@ async function assessAutomaticOwnership(input) {
   return {
     automaticAllowed: true,
     observerOwner: lease,
-    reason: "no active observer owner and the bounded hook inventory is accepted",
+    controller,
+    reason: controller === "observer-collab" ? "the exact-session observer lease and verified composed adapter own the single bounded route" : "no active observer owner and the bounded hook inventory is accepted",
     recoveryCommand: null,
     inventory: input.inventory,
     thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
@@ -1970,6 +2046,11 @@ async function watchInbox(input, dependencies) {
       if (finalOwnership && claim.activeAfterClaim && claim.owned.length > 0) {
         const owned = new Set(claim.owned.map((item) => item.messageId));
         const selected = requests.filter((message) => owned.has(message.id));
+        const preEmit = await acceptedOwnership(input, currentTime());
+        if (!preEmit.allowed || preEmit.status.activation?.id !== activation.id) {
+          reason = preEmit.status.active ? "ownership-refused" : "activation-inactive";
+          break;
+        }
         await publishDeliveryDiagnostic({
           root: input.root,
           pin: input.pin,
@@ -1984,11 +2065,6 @@ async function watchInbox(input, dependencies) {
             errorCode: null
           }
         }).catch(() => void 0);
-        const preEmit = await acceptedOwnership(input, currentTime());
-        if (!preEmit.allowed || preEmit.status.activation?.id !== activation.id) {
-          reason = preEmit.status.active ? "ownership-refused" : "activation-inactive";
-          break;
-        }
         await dependencies.emit({
           type: "agent-messaging-request-notification",
           collaborationId: input.collaborationId,

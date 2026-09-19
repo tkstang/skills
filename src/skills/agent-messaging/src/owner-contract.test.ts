@@ -199,6 +199,80 @@ describe('observer owner contract', () => {
         inventory,
         now: new Date('2026-09-19T10:30:00.000Z'),
       }),
-    ).toMatchObject({ automaticAllowed: false, observerOwner: 'uncertain' });
+    ).toMatchObject({
+      automaticAllowed: false,
+      observerOwner: 'uncertain',
+      controller: null,
+    });
+  });
+
+  test('selects composition only for an active lease and verified observer adapter', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'owner-contract-'));
+    const file = leasePath(root, 'owner');
+    await import('node:fs/promises').then(({ mkdir }) =>
+      mkdir(path.dirname(file), { recursive: true }),
+    );
+    await writeFile(file, `${JSON.stringify(lease('armed'))}\n`);
+    const scriptPath = path.join(root, 'observer-stop.mjs');
+    await installCodexStopBundle({
+      scriptPath,
+      sourceScriptPath: path.resolve(
+        'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+      ),
+    });
+    const hooksPath = path.join(root, 'hooks.json');
+    await writeFile(
+      hooksPath,
+      JSON.stringify({
+        hooks: {
+          Stop: [{ hooks: [{ command: codexStopCommand(scriptPath) }] }],
+        },
+      }),
+    );
+    const inventory = await inspectCodexStopInventory(hooksPath);
+    const base = {
+      root,
+      pin: { runtime: 'codex' as const, sessionId: 'owner' },
+      worktree: '/tmp/worktree',
+      inventory,
+      now: new Date('2026-09-19T10:30:00.000Z'),
+    };
+    expect(await assessAutomaticOwnership(base)).toMatchObject({
+      automaticAllowed: true,
+      observerOwner: 'present',
+      controller: 'observer-collab',
+    });
+    expect(
+      await assessAutomaticOwnership({
+        ...base,
+        requestedController: 'standalone-messaging',
+      }),
+    ).toMatchObject({ automaticAllowed: false, controller: null });
+    await writeFile(file, `${JSON.stringify(lease('disarmed'))}\n`);
+    expect(await assessAutomaticOwnership(base)).toMatchObject({
+      automaticAllowed: true,
+      observerOwner: 'inactive',
+      controller: 'standalone-messaging',
+    });
+  });
+
+  test('reports Claude composed Monitor as unavailable until its adapter exists', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'owner-contract-'));
+    const inventory = await inspectCodexStopInventory(
+      path.join(root, 'missing-hooks.json'),
+    );
+    expect(
+      await assessAutomaticOwnership({
+        root,
+        pin: { runtime: 'claude-code', sessionId: 'owner' },
+        worktree: '/tmp/worktree',
+        inventory: { ...inventory, runtime: 'claude-code' },
+        requestedController: 'observer-collab',
+      }),
+    ).toMatchObject({
+      automaticAllowed: false,
+      controller: null,
+      reason: expect.stringContaining('composed-monitor-unavailable'),
+    });
   });
 });

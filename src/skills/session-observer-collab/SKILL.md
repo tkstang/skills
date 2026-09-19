@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.34'
+  version: '1.0.35'
 ---
 
 # {{distribution.name}}
@@ -157,6 +157,31 @@ or a race produces a benign no-trigger result; it never retries by guessing.
 Automatic wake is subordinate to human steering. Direct user input, a local
 agent turn in progress, or an explicit disarm cancels/defer the automatic path.
 Timeout means `idle`, not active waiting and not successful delivery.
+
+### One continuation owner with messaging
+
+For a verified Codex composed activation, the observer Stop adapter is the
+single continuation owner. It checks addressed inbox requests before selecting
+an observation range. A request spends one activation slot and defers
+observation without advancing the observer's public or private cursor. When no
+request is present, the adapter reserves that same shared slot before observer
+compare-and-swap; a CAS loss can waste that slot but emits no continuation.
+The standalone messaging Stop hook and foreground watch remain inert for the
+composed epoch.
+
+Composition requires the active exact-session lease, the immutable
+`observer-collab` activation epoch, and a verified composition-capable adapter.
+A hook without a lease is not an owner. Active mismatched, legacy, uncomposed,
+or uncertain owners fail closed. Disable, close, takeover, expiry, or budget
+exhaustion stops composed automatic delivery without deleting observation
+history. Claude composed Monitor support is unavailable until its dedicated
+adapter is shipped; Cursor remains buffered-manual because its continuation
+boundary is unverified.
+
+Inspect addressed requests before peer ranges and deduplicate only by exact
+message ID already present in working context. A transcript quote of the same
+ID is context, not a second request. Never fuzzy-match prose. Presenting or
+acknowledging a message does not advance either observer cursor.
 
 ### Digest, envelope, and lease dispatch
 

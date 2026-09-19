@@ -1077,7 +1077,7 @@ async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
       notice: "The participant departed; automatic delivery is inactive."
     };
   const effectiveExpiresAt = await effectiveActivationExpiry(root, activation);
-  if (now.getTime() > Date.parse(effectiveExpiresAt))
+  if (now.getTime() >= Date.parse(effectiveExpiresAt))
     return {
       activation,
       active: false,
@@ -1830,11 +1830,12 @@ async function assessAutomaticOwnership(input) {
   assertPin(input.pin);
   const lease = await inspectObserverLease(input);
   const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
-  if (lease === "present" || lease === "uncertain") {
+  if (lease === "uncertain") {
     return {
       automaticAllowed: false,
       observerOwner: lease,
-      reason: lease === "present" ? "an exact-session observer continuation owner is active or triggered" : "observer ownership cannot be established safely",
+      controller: null,
+      reason: "observer ownership cannot be established safely",
       recoveryCommand,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
@@ -1845,12 +1846,85 @@ async function assessAutomaticOwnership(input) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
+      controller: null,
       reason: "required hook inventory is unreadable or unresolved",
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
       acknowledgedFingerprint: null
     };
+  }
+  const recognizedObserver = input.inventory.registrations.some(
+    (registration) => registration.recognizedObserver
+  );
+  const recognizedMessaging = input.inventory.registrations.some(
+    (registration) => registration.recognizedMessaging
+  );
+  let controller;
+  if (lease === "present") {
+    if (input.requestedController === "standalone-messaging") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "an exact-session observer continuation owner is active or triggered",
+        recoveryCommand,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (input.pin.runtime === "claude-code") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (!recognizedObserver) {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "the active observer lease has no verified composed-capable adapter",
+        recoveryCommand,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    if (recognizedMessaging) {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: "standalone messaging and observer Stop registrations both exist; remove the standalone route before composition",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    controller = "observer-collab";
+  } else {
+    if (input.requestedController === "observer-collab") {
+      return {
+        automaticAllowed: false,
+        observerOwner: lease,
+        controller: null,
+        reason: input.pin.runtime === "claude-code" ? "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
+        recoveryCommand: null,
+        inventory: input.inventory,
+        thirdPartyAcknowledgmentRequired: false,
+        acknowledgedFingerprint: null
+      };
+    }
+    controller = "standalone-messaging";
   }
   const thirdParty = input.inventory.registrations.filter(
     (registration) => !registration.recognizedObserver && !registration.recognizedMessaging
@@ -1859,6 +1933,7 @@ async function assessAutomaticOwnership(input) {
     return {
       automaticAllowed: false,
       observerOwner: lease,
+      controller: null,
       reason: "third-party Stop registrations require exact scoped acknowledgment",
       recoveryCommand: null,
       inventory: input.inventory,
@@ -1869,7 +1944,8 @@ async function assessAutomaticOwnership(input) {
   return {
     automaticAllowed: true,
     observerOwner: lease,
-    reason: "no active observer owner and the bounded hook inventory is accepted",
+    controller,
+    reason: controller === "observer-collab" ? "the exact-session observer lease and verified composed adapter own the single bounded route" : "no active observer owner and the bounded hook inventory is accepted",
     recoveryCommand: null,
     inventory: input.inventory,
     thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
@@ -2041,6 +2117,7 @@ async function handleBoundary(input, dependencies = {}) {
     activation.collaborationId,
     pin
   );
+  if (!await validateFinalBoundary()) return { output: null, envelope: null };
   await publishDeliveryDiagnostic({
     root,
     pin,
@@ -2055,7 +2132,6 @@ async function handleBoundary(input, dependencies = {}) {
       errorCode: null
     }
   }).catch(() => dependencies.diagnostic?.("diagnostic-write-failed"));
-  if (!await validateFinalBoundary()) return { output: null, envelope: null };
   const output = input.boundary === "stop" ? { decision: "block", reason: envelope } : {
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",

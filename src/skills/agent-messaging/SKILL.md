@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.8'
+  version: '1.0.9'
 ---
 
 # {{distribution.name}}
@@ -141,9 +141,20 @@ node <skill-dir>/scripts/agent-messaging.mjs delivery inspect \
 
 Unrelated Stop commands require `--acknowledge-stop-hooks <fingerprint>` on
 enable; this acknowledges possible interference without claiming those scripts
-are inert or trusted. Active, triggered, or uncertain observer ownership refuses
-standalone delivery and preserves manual inbox access. Claude additionally
-requires `--confirm-no-observer-monitor` from the acting session. Read
+are inert or trusted. An active exact-session Codex observer lease selects
+`observer-collab` only when the installed observer adapter is verified as
+composition-capable and no standalone messaging Stop route competes with it.
+That controller presents addressed requests before observation, spends one
+shared finite slot for either outcome, and leaves the standalone Stop/watch
+entrypoints inert for its activation epoch. A recognized observer hook without
+an active lease selects standalone messaging. Active mismatched, legacy,
+uncomposed, or uncertain ownership still refuses automatic delivery.
+
+Changing controllers requires explicit disable and re-enable; never create a
+second route for an active epoch. Claude observer composition reports
+`composed-monitor-unavailable` until the dedicated composed Monitor ships.
+Claude standalone delivery additionally requires
+`--confirm-no-observer-monitor` from the acting session. Read
 [Codex runtime](references/runtime-codex.md) or
 [Claude Code runtime](references/runtime-claude-code.md) before registration.
 
@@ -170,6 +181,12 @@ Updates remain visible in the manual inbox but do not wake the watch. Re-arm
 uses the same activation and remaining continuation slots. Claude requires a
 fresh `--confirm-no-observer-monitor` on every watch start; native Stop and a
 standalone Monitor are mutually exclusive activation mechanisms.
+
+In a composed observer session, inspect the addressed inbox before any peer
+range. Deduplicate only by exact message ID already present in working context:
+an observed transcript quote of that ID is context, not a second request. Do
+not fuzzy-match prose, and do not advance either observer cursor because a
+message was presented or acknowledged.
 
 Host acceptance is a separate opt-in boundary. `delivery probe-plan` records
 the exact host version, surface, argv, session, worktree, event provenance, and

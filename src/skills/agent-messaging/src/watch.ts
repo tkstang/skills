@@ -225,6 +225,16 @@ export async function watchInbox(
       if (finalOwnership && claim.activeAfterClaim && claim.owned.length > 0) {
         const owned = new Set(claim.owned.map((item) => item.messageId));
         const selected = requests.filter((message) => owned.has(message.id));
+        const preEmit = await acceptedOwnership(input, currentTime());
+        if (
+          !preEmit.allowed ||
+          preEmit.status.activation?.id !== activation.id
+        ) {
+          reason = preEmit.status.active
+            ? 'ownership-refused'
+            : 'activation-inactive';
+          break;
+        }
         await publishDeliveryDiagnostic({
           root: input.root,
           pin: input.pin,
@@ -239,16 +249,6 @@ export async function watchInbox(
             errorCode: null,
           },
         }).catch(() => undefined);
-        const preEmit = await acceptedOwnership(input, currentTime());
-        if (
-          !preEmit.allowed ||
-          preEmit.status.activation?.id !== activation.id
-        ) {
-          reason = preEmit.status.active
-            ? 'ownership-refused'
-            : 'activation-inactive';
-          break;
-        }
         await dependencies.emit({
           type: 'agent-messaging-request-notification',
           collaborationId: input.collaborationId,

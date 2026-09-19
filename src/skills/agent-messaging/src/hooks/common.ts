@@ -268,6 +268,7 @@ export async function handleBoundary(
     activation.collaborationId,
     pin,
   );
+  if (!(await validateFinalBoundary())) return { output: null, envelope: null };
   await publishDeliveryDiagnostic({
     root,
     pin,
@@ -282,7 +283,6 @@ export async function handleBoundary(
       errorCode: null,
     },
   }).catch(() => dependencies.diagnostic?.('diagnostic-write-failed'));
-  if (!(await validateFinalBoundary())) return { output: null, envelope: null };
   const output =
     input.boundary === 'stop'
       ? { decision: 'block', reason: envelope }

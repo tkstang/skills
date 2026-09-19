@@ -464,6 +464,20 @@ async function execute(
         'human-idle delivery is unavailable until this exact host/version has qualifying live human-origin evidence',
       );
     const worktree = optional(parsed, 'cwd') ?? io.cwd;
+    const mechanism = (optional(parsed, 'mechanism') ?? 'stop') as
+      | 'stop'
+      | 'monitor';
+    if (!['stop', 'monitor'].includes(mechanism))
+      throw new TypeError('--mechanism must be stop or monitor');
+    const requestedController = optional(parsed, 'controller');
+    if (
+      requestedController !== undefined &&
+      !['standalone-messaging', 'observer-collab'].includes(requestedController)
+    ) {
+      throw new TypeError(
+        '--controller must be standalone-messaging or observer-collab',
+      );
+    }
     const inventory =
       pin.runtime === 'codex'
         ? await inspectCodexStopInventory(
@@ -488,6 +502,10 @@ async function execute(
       inventory,
       acknowledgedFingerprint:
         optional(parsed, 'acknowledge-stop-hooks') ?? null,
+      requestedController: requestedController as
+        | 'standalone-messaging'
+        | 'observer-collab'
+        | undefined,
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(
@@ -495,7 +513,14 @@ async function execute(
         `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ''}`,
       );
     }
+    if (ownership.controller === 'observer-collab' && mechanism !== 'stop') {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'observer-collab requires the verified Stop adapter; Claude composed Monitor remains unavailable',
+      );
+    }
     if (
+      ownership.controller === 'standalone-messaging' &&
       pin.runtime === 'claude-code' &&
       !parsed.flags.has('confirm-no-observer-monitor')
     ) {
@@ -510,9 +535,8 @@ async function execute(
       pin,
       worktree,
       activationId: optional(parsed, 'activation-id'),
-      mechanism: (optional(parsed, 'mechanism') ?? 'stop') as
-        | 'stop'
-        | 'monitor',
+      mechanism,
+      controller: ownership.controller ?? undefined,
       expiryMode: expiryMode as 'fixed' | 'human-idle',
       idleTimeoutMs: duration(
         optional(parsed, 'idle-timeout'),
@@ -535,6 +559,7 @@ async function execute(
           }
         : null,
       noObserverMonitorConfirmed:
+        ownership.controller === 'standalone-messaging' &&
         pin.runtime === 'claude-code' &&
         parsed.flags.has('confirm-no-observer-monitor'),
     });
@@ -656,7 +681,6 @@ async function execute(
         'DELIVERY_INACTIVE',
         'Cursor automatic delivery is unverified; use the manual inbox',
       );
-    const scriptPath = required(parsed, 'script-path');
     const worktree = optional(parsed, 'cwd') ?? io.cwd;
     const hooksPath = optional(parsed, 'hooks-path');
     const inventory =
@@ -694,17 +718,27 @@ async function execute(
       operation: 'delivery.register',
       collaborationId,
       data:
-        pin.runtime === 'codex'
-          ? await installCodexMessagingHooks({
-              hooksPath: hooksPath ?? required(parsed, 'hooks-path'),
-              scriptPath,
-            })
-          : {
+        ownership.controller === 'observer-collab'
+          ? {
               changed: false,
-              declaration: claudeSessionHookDeclaration(scriptPath),
+              controller: 'observer-collab',
+              delegated: true,
               notice:
-                'Generate only: apply this session-scoped declaration explicitly; trust and invocation remain unverified.',
-            },
+                'The verified observer adapter owns the single Stop route; no standalone messaging hook was installed.',
+            }
+          : pin.runtime === 'codex'
+            ? await installCodexMessagingHooks({
+                hooksPath: hooksPath ?? required(parsed, 'hooks-path'),
+                scriptPath: required(parsed, 'script-path'),
+              })
+            : {
+                changed: false,
+                declaration: claudeSessionHookDeclaration(
+                  required(parsed, 'script-path'),
+                ),
+                notice:
+                  'Generate only: apply this session-scoped declaration explicitly; trust and invocation remain unverified.',
+              },
     };
   }
   if (command === 'delivery' && subcommand === 'unregister') {
