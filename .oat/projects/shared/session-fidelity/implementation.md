@@ -657,7 +657,7 @@ This was a passing-gate judgment sweep. No blocking fix tasks were added. Each s
 - **m1 — Codex item/call relation:** deferred. The implemented native-string equality is fail-closed and no false link was observed, but the code and maintained schema guidance disagree. A follow-up should choose one authoritative native relation and update correlation, schema prose and its regression together rather than changing evidence semantics during closeout.
 - **m2 — nested web-search query carrier:** deferred. The reviewed evidence corpus contains no such response-item shape, so accepting a speculative carrier now could encode an invented provider contract. Revisit when a captured native example establishes the field location; until then the missing preview does not invent activity or outcomes.
 - **m3 — Cursor final record without a newline:** deferred. The edge case affects only explicitly selected activity exports and leaves the default exporter intact. Fixing it requires reconciling the conversation reader with the frame scanner and deserves a focused fixture rather than a closeout-only patch.
-- **m4 — Claude metadata-only watch deltas:** deferred. This is bounded output noise, not data loss or privacy exposure, and metadata is dropped first under byte pressure. Revisit if operators report noisy activity-only deliveries, with a regression for thinking-only assistant records.
+- **m4 — Claude metadata-only watch deltas:** deferred. This is bounded output noise, not data loss or privacy exposure. Projection currently removes groups by failure priority and recency rather than dropping metadata first, so recent metadata can displace older invocation groups. Revisit if operators report noisy activity-only deliveries, with a regression for thinking-only assistant records and an explicit kind-priority decision.
 - **m5 — repeated observer reads and warnings:** deferred. This preserves the earlier p01 disposition: correctness is unchanged, and the existing `capturedRead` seam provides a contained optimization path when repeated parsing or duplicate warnings become operationally material.
 - **m6 — separate backlog discoverability:** deferred with the same follow-up trigger as m1–m5. The exact ledger is durable here and in the archived gate artifact. Creating a separately prioritized repository backlog item is intentionally left to explicit product-priority direction rather than being inferred from a nonblocking review sweep.
 
@@ -739,6 +739,25 @@ The corroborated result envelope for gate run `8e4a9161-9fd8-4732-9198-ee3932984
 ### Refreshed Exit Gate Receive Intent
 
 Receive correlation for gate run `8e4a9161-9fd8-4732-9198-ee39329845ed` is persisted with source artifact `reviews/final-review-2026-09-19T221544Z.md`, collision-free archive destination `reviews/archived/final-review-2026-09-19T221544Z.md`, event identity `final/code/final-review-2026-09-19T221544Z.md`, and pre-receive head `3f7bfd62c71472ea62c5570aa237e7d9017641bf`.
+
+### Refreshed Gate Review Received: final
+
+**Date:** 2026-09-19
+**Review artifact:** `reviews/archived/final-review-2026-09-19T221544Z.md`
+**Gate run:** `8e4a9161-9fd8-4732-9198-ee39329845ed`
+
+**Findings:** 0 Critical, 0 High, 1 Medium, 5 Low.
+
+The configured High-threshold gate passed. Its nonblocking findings received these explicit judgment-sweep dispositions:
+
+- **M1 — correlation-count contract gap:** deferred to the next activity-contract revision. The per-event evidence is correct and the computed aggregate is currently unused; choosing between a new public report block and removing dead accounting changes the contract and should be decided with the newly requested PR #96 review follow-up rather than inferred during publication closeout.
+- **L1 — pretty-printed one-shot JSON exceeds compact activity budgets:** deferred. Default output and watch JSON remain within their contracts; a follow-up should either compact one-shot activity JSON or document that `renderedBytes` measures compact serialization.
+- **L2 — call events retain native pending outcomes after matched results:** deferred. Results carry the observed outcome and no evidence is invented; document the event-local convention or add a clearly derived outcome in a focused contract change.
+- **L3 — Cursor activity end/checkpoint bounds differ:** deferred because the reviewer could not reproduce divergence and its throwaway exactly-once probes passed. Revisit with an equality assertion or shared bound if a failing fixture emerges.
+- **L4 — prior m4 rationale misstated removal priority:** addressed now by correcting the durable disposition above. The behavioral deferral remains unchanged.
+- **L5 — tracked raw gate logs include machine-local paths:** deferred. The existing files are required by persisted gate receipt provenance and contain no credentials or tokens; future gate tooling should store or render these artifacts without machine-local paths rather than deleting an active receipt.
+
+The six earlier Low follow-ups remain explicitly deferred under their recorded triggers. No blocking finding or unresolved deferred Medium from an earlier cycle remains. The gate event is marked passed after these dispositions; stack publication may proceed.
 
 ## Planning Gate Review Received — 2026-09-19
 
