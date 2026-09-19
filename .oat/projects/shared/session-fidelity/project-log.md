@@ -76,6 +76,10 @@ sf-p02-phase-outcome-20260919 p02 passed after five tasks, two review-fix rounds
 
 final-review-20260919T180659Z validated final review orchestration; see reviews/final-review-2026-09-19T180659Z.md.
 
+### 2026-09-19 · structural · oat gate review · final
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:6 exit=0 status=ok artifact=.oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md run=05d3cda3-7de8-475c-b831-9bdd011c51c7
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
