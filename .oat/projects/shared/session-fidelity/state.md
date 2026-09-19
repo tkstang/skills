@@ -85,50 +85,43 @@ oat_workflow_origin: native # native | imported
 oat_skill_gate_overrides:
   oat-project-implement: disabled
 oat_implement_exit_gate:
-  status: stale
+  status: allowed
   resolution: configured
-  disposition: passed
-  config_fingerprint: sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5
+  disposition: project_disabled
+  config_fingerprint: sha256:0053ad1c98180f1297ba341d497bb8a601d7d2bedc201251537727acf0cd61d1
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: Semantic cross-family final implementation review before oat-project-implement exits.
-  project_override: null
+  project_override:
+    value: disabled
+    source: state.md:oat_skill_gate_overrides
   on_failure: block
   max_attempts: 2
   attempts_completed: 0
-  reviewed_head: b51a106d14ee3d25884b5b24fa8f8949da301f90
+  reviewed_head: 733312a634f8e7ba8c60d73af6248fea37d27502
   implementation_base_ref: origin/main
-  implementation_fingerprint: sha256:effective-delta-v1:51192b0ce158e9a279e78354895ca10416141a556b991e4788e24ca1249caa6e
-  freshness_head: aa65e0b793230c772ea5082e33d7142953e48e9c
-  freshness_fingerprint: sha256:effective-delta-v1:e49ec7bf3a1e073285035750f996f50b3bc558a078d7d0fa1080b43f9eba271e
-  launch_state: result_persisted
-  launch_attempt_id: c40d1b63-f11b-4031-8e3e-8f7bb5458b2e
-  launch_started_at: '2026-09-19T22:06:23Z'
-  launch_result_receipt: .oat/projects/shared/session-fidelity/reviews/exit-gate-c40d1b63-f11b-4031-8e3e-8f7bb5458b2e-result.json
-  gate_run_marker: /var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/8e4a9161-9fd8-4732-9198-ee39329845ed.json
-  gate_run_id: 8e4a9161-9fd8-4732-9198-ee39329845ed
-  envelope_status: ok
-  artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
-  handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
-  receive_state: completed
-  receive_correlation:
-    gate_run_id: 8e4a9161-9fd8-4732-9198-ee39329845ed
-    handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
-    source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
-    scope: final
-    type: code
-    source_filename: final-review-2026-09-19T221544Z.md
-  receive_source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
-  receive_archived_artifact: .oat/projects/shared/session-fidelity/reviews/archived/final-review-2026-09-19T221544Z.md
-  receive_event_identity:
-    scope: final
-    type: code
-    source_filename: final-review-2026-09-19T221544Z.md
-  receive_pre_head: 3f7bfd62c71472ea62c5570aa237e7d9017641bf
-  receive_commit: aa65e0b793230c772ea5082e33d7142953e48e9c
-  receive_eligible: true
-  receive_completed: true
+  implementation_fingerprint: sha256:effective-delta-v1:551130b46ee7d1a27c8dafcb6a5aefbbe9f56892c29120388634be8564fa324d
+  freshness_head: 6e5cde791e8ef537db3df57a6cc7744b1d33ce1f
+  freshness_fingerprint: sha256:effective-delta-v1:21d9fce585b9666c62a544118c102c941fb514faefc2ecedb3cdce7d9f789b33
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
   failure: null
-  updated_at: '2026-09-19T22:22:00Z'
+  updated_at: '2026-09-19T23:18:00Z'
 oat_post_implement_sequence:
   status: in_progress
   source: configured
