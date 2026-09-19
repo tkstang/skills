@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t01
-oat_last_commit: bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78
+oat_current_task: p03-t01
+oat_last_commit: 9738a11c08dfab4dd37566ffa682d8e1854e39b9
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T16:23:50Z'
+oat_project_state_updated: '2026-09-19T17:17:01Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 passed independent review; p02-t01 is next.
+**Status:** Phase 2 implementation is complete and root-verified; independent review is pending before p03-t01.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,9 +49,9 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation and the user-authorized third fix round are committed,
-verified, and independently accepted with 0 Critical and 0 Important findings.
-Phase 2 finite activation is next. Live hook installation remains separately
+Phase 1 is independently accepted. Phase 2 finite activation and host-delivery
+implementation is committed and root-verified; its independent phase review is
+the active boundary before p03-t01. Live hook installation remains separately
 authorized.
 
 ## Artifacts
@@ -60,7 +60,7 @@ authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 passed and p02-t01 is next.
+- **Implementation:** implementation.md — Run 1 has 9/13 tasks complete; Phase 2 awaits independent review before p03-t01.
 
 ## Progress
 
@@ -178,6 +178,13 @@ authorized.
   0 Critical, 0 Important, 1 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p01-authorized-review-2026-09-19T161151Z.md`. The Medium stale
   summary finding is resolved in review-receive bookkeeping; Phase 1 is accepted.
+- **Phase 2 implementation:** Four planned commits from `8095bcbb` through
+  `9738a11c` implement finite activation/claims, fail-closed Codex and Claude
+  adapters, a foreground-only request watch, and bounded acceptance probes.
+  Root reproduced the full suite (2,180 passed, 1 skipped), generated freshness,
+  validation, type-check, smoke, and skill-version validation. No recovery was
+  used, no live provider or configuration was touched, and independent review
+  is pending.
 
 ## Dispatch and Gate Review Policy
 
@@ -212,5 +219,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Start p02-t01 in this existing worktree under the approved sequential plan. Live
-hook installation remains a separate authorization boundary.
+Run the independent Phase 2 code review against `9738a11c`; advance to p03-t01
+only after its disposition. Live hook installation remains a separate
+authorization boundary.

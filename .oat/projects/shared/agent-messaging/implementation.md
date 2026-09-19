@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -15,18 +15,19 @@ oat_generated: false
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
-Critical or Important findings. Phase 2 is next and has not begun.
+Critical or Important findings. Phase 2 implementation is complete and awaits
+independent review before Phase 3 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
-| Phase 2 | pending | 4     | 0/4       |
+| Phase 2 | review_pending | 4     | 4/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
-**Total:** 5/13 tasks completed
+**Total:** 9/13 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -62,28 +63,28 @@ Critical or Important findings. Phase 2 is next and has not begun.
 
 ## Phase 2: Finite activation and host delivery (4 tasks)
 
-**Status:** pending
-**Started:** -
+**Status:** review_pending
+**Started:** 2026-09-19
 
 ### Task p02-t01: Implement activation epochs, finite claims, and recovery
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 8095bcbb86f18d682517f74da17a16956c40c998
 
 ### Task p02-t02: Add fail-closed Codex and Claude boundary adapters
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 8a1b17162a05cc706b0eda8b89bf937fd55ddb73
 
 ### Task p02-t03: Add finite request-only watch notifications
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** e58b70835a41cda671d1cdb061a8bc4bf2496703
 
 ### Task p02-t04: Build bounded host probes and acceptance evidence
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 9738a11c08dfab4dd37566ffa682d8e1854e39b9
 
 ## Phase 3: Observer Stop composition and distribution docs (3 tasks)
 
@@ -520,6 +521,73 @@ No project-log review-orchestration entry was added because the reviewer
 reported reconnaissance as `not-attempted`; exactly one valid signal was
 consumed for this round.
 
+#### Dispatch: p02 implementation
+
+```yaml
+request_id: dispatch-agent-messaging-p02-a213af0d-6ad3-48c7-a379-942f42ef8976
+caller: oat-project-implement
+scope: phase:p02
+objective: Execute all four Phase 2 tasks in order with one verified commit per task.
+action: implementation
+role_name: oat-phase-implementer-gpt-5-6-sol-high
+role_class: worker
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:phase-p02
+role_selector: oat-phase-implementer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+task_class: hard-reasoning
+model_class_floor: hard-reasoning
+floor_satisfaction: satisfied
+selection_source: native-resolver
+selected_route: native
+deadline_seconds: 7200
+retry_limit: 0
+payload:
+  phase_base: 430513596486dfdf083943055b51a8799d46e973
+  plan_scope: plan.md#phase-2-finite-activation-and-host-delivery-4-tasks
+launch_status: accepted
+child_outcome: done
+configured_invocation_evidence:
+  - resolver-report:p02
+  - "Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - phase-report:9738a11c
+  - recovery-attempts:0
+nested_dispatches:
+  - dispatch-agent-messaging-p02-recon-t01-20260919:completed-read-only
+  - dispatch-agent-messaging-p02-recon-hosts-20260919:completed-read-only
+```
+
+Dispatch policy: high; selected=high; cap=high (codex, enforced — variant
+`oat-phase-implementer-gpt-5-6-sol-high`).
+
+#### Phase Implementation Report: p02
+
+- Request: `dispatch-agent-messaging-p02-a213af0d-6ad3-48c7-a379-942f42ef8976`.
+- Base/head: `430513596486dfdf083943055b51a8799d46e973` →
+  `9738a11c08dfab4dd37566ffa682d8e1854e39b9`.
+- Task commits: `8095bcbb`, `8a1b1716`, `e58b7083`, `9738a11c`, in
+  planned order with exact planned subjects.
+- Phase verification: 65/65 combined Phase 2 tests and the full repository suite
+  (2,180 passed, 1 skipped); `build:check`, `validate`, type-check, smoke,
+  skill-version validation, scoped oxlint/oxfmt, and diff checks passed.
+- Receipt benchmark: exactly 4,096 records; 326.84 ms cold and 318.21 ms warm
+  on Darwin arm64 Apple M4, Node v25.9.0.
+- Optional nested dispatches: two bounded read-only reconnaissance lanes; both
+  completed with no writes and returned source/contract evidence to the phase
+  implementer.
+- Recovery events: none. Worktree clean on return.
+- Live provider execution, hook installation, trust/config mutation, quota use,
+  and user/global installation were not performed. Codex, Claude Code, and
+  Cursor live rows remain explicitly unverified/manual; no Cursor adapter exists.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -532,6 +600,10 @@ consumed for this round.
   in append-only commit `7739c65a` with attempt 1/10.
 - Review-fix round 1 resolved all 11 findings in commit `7bf347f3`; root
   reproduced the full repository and Phase 1 verification before re-review.
+- Phase 2 implemented finite activation/claim recovery, fail-closed Codex and
+  Claude adapters, a foreground-only request watcher, and bounded acceptance
+  probes in four planned commits. Root reproduced the full repository gates;
+  independent review is pending.
 
 ## Review Received: p01 round 1
 
@@ -822,22 +894,24 @@ This is historical planning-review context; product code now exists.
 ## Test Results
 
 Phase 1 product verification is current through the user-authorized fix round 3,
-its packaging recovery, and the passing independent review.
+its packaging recovery, and the passing independent review. Phase 2 root
+transition verification is current through `9738a11c`; independent review is
+pending.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
-| 2     | -         | -      | -      | -        |
+| 2     | 65 focused + full suite (2,180 tests); build/check/validate/type/smoke/version | all | 0 | Implementation complete; independent review pending |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
-Phase 1 is implemented and independently accepted: immutable collaboration
-storage, membership, durable addressed mail and receipts, authoritative logs,
-manual CLI behavior, both generated distributions, and adversarial crash/path
-proof are green. Phases 2–4, publication, installation, merge, and live
-acceptance remain incomplete.
+Phase 1 is implemented and independently accepted. Phase 2 implementation is
+complete and root-verified: finite delivery ownership, bounded Codex/Claude
+adapters, foreground request watch, both generated distributions, and honest
+probe evidence are green. Phase 2 independent review, Phases 3–4, publication,
+installation, merge, and live acceptance remain incomplete.
 
 ## References
 
