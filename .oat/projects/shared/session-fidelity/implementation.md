@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t03
+oat_current_task_id: p02-t03-recovery-01
 oat_generated: false
 ---
 
@@ -615,7 +615,10 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": ["p02-t02-recovery-resume-01"],
+  "continuation_events": [
+    "p02-t02-recovery-resume-01",
+    "p02-t03-recovery-resume-01"
+  ],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -644,3 +647,7 @@ Root transition audit of immutable p02-t02 commit `709dda734ea3a88bba73693149fab
 - Recovery commit: 22806e16fffef601cc5da501b3acacad2b2c1d5f
 - Verification: root passed 138 focused reader/extractor tests, type-check, build freshness and four-owner version validation; closure audit passed 11/11 with no Critical/Important finding.
 - Reason: bounded evidence corrections passed declared checks, preserved immutable task history and left no p02-t03 work.
+
+#### Continuation p02-t03-recovery-resume-01
+
+Root transition audit of immutable p02-t03 commit `8bc62b0bf9bdbc3f8ba095c61b2fd9bc4c8e585c` found two Important gaps. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t03-recovery-01` may reserve cumulative p02 attempt 2/10 only after this continuation is committed. Scope is limited to keeping incomplete/conflicting child-lineage evidence unknown and adding observed current Codex task/ask native names to the exact classifier; p02-t04 remains unauthorized.
