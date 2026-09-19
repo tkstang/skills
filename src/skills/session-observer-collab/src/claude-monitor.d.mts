@@ -25,6 +25,7 @@ export interface ClaudeMonitorMainResult extends ClaudeMonitorResult {
 }
 
 export const MAX_MONITOR_RUNTIME_MS: number;
+export const DEFAULT_MONITOR_POLL_MS: number;
 export function runClaudeMonitor(
   input: ClaudeMonitorInput,
   dependencies?: Record<string, unknown>,

@@ -13,7 +13,11 @@ import {
   openCollaboration,
 } from '../../../shared/collaboration/membership.js';
 import { sendMessage } from '../../../shared/collaboration/messages.js';
-import { runClaudeMonitor, runClaudeMonitorMain } from './claude-monitor.mjs';
+import {
+  DEFAULT_MONITOR_POLL_MS,
+  runClaudeMonitor,
+  runClaudeMonitorMain,
+} from './claude-monitor.mjs';
 import { arm } from './collab-control.mjs';
 import { readLease } from './lib/lease-state.mjs';
 
@@ -170,8 +174,41 @@ afterEach(async () => {
 });
 
 describe('finite Claude composed Monitor', () => {
+  test('uses the 1000ms default poll and rejects a relative root', async () => {
+    expect(DEFAULT_MONITOR_POLL_MS).toBe(1000);
+    await expect(
+      runClaudeMonitorMain([
+        '--root',
+        'relative-state',
+        '--collaboration-id',
+        crypto.randomUUID(),
+        '--activation-id',
+        crypto.randomUUID(),
+        '--self',
+        'claude-code:self',
+        '--peer',
+        'codex:peer',
+        '--cwd',
+        '/tmp/worktree',
+        '--peer-transcript',
+        '/tmp/peer.jsonl',
+        '--max-runtime-ms',
+        '1000',
+      ]),
+    ).rejects.toThrow('root must be an absolute path');
+  });
+
   test('requires explicit cursor and stop confirmations and preserves cursor/budget on exact re-arm', async () => {
     const item = await fixture();
+    expect(
+      (
+        await runClaudeMonitor({
+          ...input(item),
+          pollMs: 17,
+          confirmOldMonitorStopped: false,
+        })
+      ).reason,
+    ).toBe('stop-confirmation-required');
     await expect(
       arm(item.root, {
         runtime: 'claude-code',

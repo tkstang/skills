@@ -133,6 +133,10 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.44 aligns composed Claude Monitor polling at
+  1000 ms, rejects relative state roots, and documents that selected requests
+  must be acknowledged before re-arm can yield to observation.
+
 - `session-observer-collab` 1.0.43 gives the finite Claude Monitor an explicit
   redacted terminal status, nonzero refusal exits, detailed input diagnostics,
   message-attempt diagnostics, and complete consistent

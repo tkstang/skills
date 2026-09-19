@@ -5425,7 +5425,7 @@ async function verifySelectedPrefix(transcript, snapshot) {
 
 // src/skills/session-observer-collab/src/claude-monitor.mjs
 var MAX_MONITOR_RUNTIME_MS = 30 * 60 * 1e3;
-var DEFAULT_POLL_MS = 250;
+var DEFAULT_MONITOR_POLL_MS = 1e3;
 function counters(lease) {
   return {
     leaseId: lease.leaseId,
@@ -5599,7 +5599,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
   };
   const verifyOwnership = dependencies.verifyOwnership ?? defaultOwnershipVerification(input);
   const maxRuntimeMs = Number(input.maxRuntimeMs);
-  const pollMs = Number(input.pollMs ?? DEFAULT_POLL_MS);
+  const pollMs = Number(input.pollMs ?? DEFAULT_MONITOR_POLL_MS);
   if (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs <= 0 || maxRuntimeMs > MAX_MONITOR_RUNTIME_MS)
     throw new TypeError("max runtime must be from 1 to 1800000 milliseconds");
   if (!Number.isSafeInteger(pollMs) || pollMs < 1 || pollMs > 6e4)
@@ -5841,7 +5841,7 @@ function parseArgs(argv) {
 }
 async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.env, dependencies = {}) {
   const { values, flags } = parseArgs(argv);
-  const root = values.root ?? stateRoot(env);
+  const root = validateAbsolutePath(values.root ?? stateRoot(env), "root");
   const self = parsePin(values.self ?? "", "--self");
   const peer = parsePin(values.peer ?? "", "--peer");
   const input = {
@@ -5890,6 +5890,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   });
 }
 export {
+  DEFAULT_MONITOR_POLL_MS,
   MAX_MONITOR_RUNTIME_MS,
   runClaudeMonitor,
   runClaudeMonitorMain

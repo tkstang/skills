@@ -104,6 +104,12 @@ evidence; later outcomes remain unknown. Recovery is a normal explicit pinned
 observer read, which advances public state under its existing contract but does
 not mutate private Monitor state, claims, or slots.
 
+The default poll interval is 1000 ms; `--poll-ms` may select another bounded
+positive interval. `--root` must be absolute. A selected request remains first
+in inbox priority while it is unacknowledged, so acknowledge it before re-arm
+or the deterministic duplicate request event will remain a quiet no-op and
+observation will not run.
+
 Synthetic fixture proof does not establish installed or live Monitor delivery.
 Keep the live tier unverified until an independently authorized exact-host
 receipt completes the sequence below.

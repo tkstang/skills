@@ -40,7 +40,7 @@ import {
 } from './lib/selected-prefix.mjs';
 
 export const MAX_MONITOR_RUNTIME_MS = 30 * 60 * 1000;
-const DEFAULT_POLL_MS = 250;
+export const DEFAULT_MONITOR_POLL_MS = 1000;
 
 function counters(lease) {
   return {
@@ -274,7 +274,7 @@ export async function runClaudeMonitor(input, dependencies = {}) {
   const verifyOwnership =
     dependencies.verifyOwnership ?? defaultOwnershipVerification(input);
   const maxRuntimeMs = Number(input.maxRuntimeMs);
-  const pollMs = Number(input.pollMs ?? DEFAULT_POLL_MS);
+  const pollMs = Number(input.pollMs ?? DEFAULT_MONITOR_POLL_MS);
   if (
     !Number.isSafeInteger(maxRuntimeMs) ||
     maxRuntimeMs <= 0 ||
@@ -535,7 +535,7 @@ export async function runClaudeMonitorMain(
   dependencies = {},
 ) {
   const { values, flags } = parseArgs(argv);
-  const root = values.root ?? stateRoot(env);
+  const root = validateAbsolutePath(values.root ?? stateRoot(env), 'root');
   const self = parsePin(values.self ?? '', '--self');
   const peer = parsePin(values.peer ?? '', '--peer');
   const input = {
