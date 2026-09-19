@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t02-recovery-01
-oat_last_commit: d8f991fd27a16dea7f439aa1a93f066c03db6ec0
+oat_current_task: p02-t03
+oat_last_commit: 22806e16fffef601cc5da501b3acacad2b2c1d5f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -26,16 +26,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p02:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p02-t02-recovery-01
-        original_request_id: sf-p02-implement-01
-        original_task_id: p02-t02
-        original_commit: 709dda734ea3a88bba73693149fabf84b8a58295
-        discovered_by: root transition audit p02_t02_audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: a129afa98ba4a6527ee531a491b93104c256538e
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -117,7 +108,7 @@ oat_generated: false
 
 ## Current Phase
 
-p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 is complete at `d8f991fd`: detailed reads, stable physical-line diagnostics and minimal obscured native fixtures pass focused reader, build, type, version and privacy checks. The shared Claude/Codex activity extractor is next.
+p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 and p02-t02 are complete through recovery `22806e16`; p02 recovery usage is 1/10 with no pending marker. Detailed reads, obscured fixtures and source-attributed Claude/Codex extraction pass focused reader/extractor, build, type, version and privacy checks. Explicit-evidence correlation and classification are next.
 
 ## Artifacts
 
@@ -125,7 +116,7 @@ p01 is passed and the local activity branch remains stacked from recorded `ACTIV
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (7/19 tasks completed; p01 passed, p02 in progress)
+- **Implementation:** `implementation.md` (8/19 tasks completed; p01 passed, p02 in progress)
 
 ## Progress
 
@@ -148,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p02-t02 native Claude and Codex activity extraction from the verified detailed-reader contract.
+Implement p02-t03 explicit-evidence correlation and native activity classification without guessing.

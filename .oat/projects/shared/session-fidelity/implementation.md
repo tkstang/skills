@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t02-recovery-01
+oat_current_task_id: p02-t03
 oat_generated: false
 ---
 
@@ -23,13 +23,13 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | in progress | 5     | 1/5       |
+| p02   | in progress | 5     | 2/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 7/19 implementation tasks completed.
+**Total:** 8/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -91,9 +91,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p02-t02: Extract native Claude and Codex activity
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 709dda734ea3a88bba73693149fabf84b8a58295; recovery 22806e16fffef601cc5da501b3acacad2b2c1d5f
+**Verification:** versioned source-attributed Claude/Codex extraction covers planned call/result/item, notification, lifecycle, compaction, child, persisted-output and cap evidence without reasoning/instruction bodies or sidecar/provider reads. Root transition audit found one Important and two coupled Medium evidence issues; bounded recovery attempt 1/10 now reports extractor failure as `not-read`, emits record-level Claude `toolUseResult` once at `/toolUseResult`, and maps explicit interruption to cancelled while absent evidence stays unknown. Root passed 138 focused reader/extractor tests, type checking, build freshness and four-owner version validation. The same read-only auditor rechecked the correction with 11/11 focused tests and found 0 Critical/Important.
 
 ### Task p02-t03: Correlate calls and classify activity without guessing
 
@@ -629,3 +629,18 @@ Dispatch: scope=p02 action=implementation role=implementer producer=unknown prov
 #### Continuation p02-t02-recovery-resume-01
 
 Root transition audit of immutable p02-t02 commit `709dda734ea3a88bba73693149fabf84b8a58295` found one Important and two coupled Medium extraction-evidence defects. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t02-recovery-01` may reserve attempt 1/10 only after this continuation is committed. Scope is limited to non-malformed unread coverage for extractor exceptions, honest top-level Claude `toolUseResult` provenance, and explicit interrupted outcome; p02-t03 remains unauthorized.
+
+### Recovery Event p02-t02-recovery-01
+
+- Phase/task: p02 / p02-t02
+- Original request: sf-p02-implement-01
+- Original commit: 709dda734ea3a88bba73693149fabf84b8a58295
+- Defect class: composition
+- Discovered by: root transition audit p02_t02_audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 22806e16fffef601cc5da501b3acacad2b2c1d5f
+- Verification: root passed 138 focused reader/extractor tests, type-check, build freshness and four-owner version validation; closure audit passed 11/11 with no Critical/Important finding.
+- Reason: bounded evidence corrections passed declared checks, preserved immutable task history and left no p02-t03 work.
