@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t05
+oat_current_task_id: p02-review
 oat_generated: false
 ---
 
@@ -23,13 +23,13 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | in progress | 5     | 4/5       |
+| p02   | review pending | 5     | 5/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 10/19 implementation tasks completed.
+**Total:** 11/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -77,7 +77,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** in progress
+**Status:** implementation complete; review pending
 **ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
 **Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
 
@@ -109,9 +109,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p02-t05: Verify the shared pipeline against captured fixtures
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; captured end-to-end shared pipeline coverage.
+**Status:** completed
+**Commit:** 0887c010eb37486f15fceafe5f6adf0d0e1202fa
+**Verification:** public `readActivityReport` composes the detailed reader, extraction, exact correlation and mode-bounded projection through one entrypoint. Captured-fixture integration coverage verifies inherited ownership, stable physical/logical locators and scoped counts; late results retain bounded earlier-call context; unlinked failed items remain standalone; malformed diagnostics expose only stable kind/line evidence; and omission accounting respects watch invocation and byte limits. Root independently passed 56 focused activity tests, type checking, build freshness and four-owner version validation. The read-only transition audit found 0 Critical/Important findings and independently passed the 5 integration tests and type checking.
 
 ## Phase 3
 
@@ -608,10 +608,10 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
     "dispatchBase": "73bc2c2bae34f7a0834e15ee89ed2be123b91e84",
     "phaseBase": "b3861f17462d531ef8668505bbcff9784aaee3a5",
     "handle": "/root/p02_implement",
-    "finalHead": null
+    "finalHead": "0887c010eb37486f15fceafe5f6adf0d0e1202fa"
   },
   "launch_status": "accepted",
-  "child_outcome": "running",
+  "child_outcome": "completed-awaiting-review",
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
