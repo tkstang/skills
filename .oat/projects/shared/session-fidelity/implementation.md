@@ -371,8 +371,8 @@ The complete local gate passed at the accepted p06 source head: type checking, g
     "artifact": "reviews/p06-review-2026-09-19T175805Z.md",
     "handle": "/root/p06_review"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "running",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
