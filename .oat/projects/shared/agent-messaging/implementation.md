@@ -271,7 +271,36 @@ verified buildDigest, private cursor/CAS helpers and permitted observer source
 roots before drafting; root retained all dispositions and artifact writes.
 No findings deferred. No product source or installed state changed.
 
-**Next:** Independent re-review of the amended artifact bundle.
+**Subsequent verification:** Fifth gate 94c9a069-05df-4541-84ef-5b56f699c674
+reviewed the committed amendments at 6c718f223921b891cbd9ecf49d720ca7b0534d12
+and verified all five fourth-round corrections. It passed the Important threshold
+with 0 Critical, 0 Important, 2 Medium and 2 Minor findings. Structured result:
+status=ok, receiveEligible=true, non-null handoff and matched run/project/invocation.
+Artifact reviews/artifact-plan-review-2026-09-19T131345Z.md and its received
+ledger row are committed at 1cab7972. Native Claude transcript
+c9973509-aef1-45f1-8fce-26dbf7671808 corroborates claude-fable-5-1 at
+assistant lines 19 and 216, final end_turn, with this exact run ID.
+
+Fifth-round findings remain pending user confirmation; proposed artifact-only
+remedies (no task IDs added or product work authorized):
+
+- M1 (Minor scope): agree interrupted observation needs a distinct status and
+  recovery contract. Recommend manual observer catch-up, not a new automatic
+  retry protocol. Qualify the review's suggestion: normal reads advance public
+  observer state, not the private collab lease cursor. Recovery must not promise
+  private advancement, refund a slot or clear the claimed range; same-range
+  automatic replay remains suppressed for that epoch. Test pre-CAS interruption,
+  quiet-peer re-arm, manual read availability and unknown post-attempt outcome.
+- M2 (Minor scope): agree; add three ordered green checkpoints inside p04-t01
+  for lease/control, Monitor/claims/packaging, then messaging capability/docs and
+  final acceptance. Preserve one task ID and its atomic commit.
+- m1 (Minor scope): agree; add owner-contract.test.ts to p04-t01's Modify and
+  Verify lists and cover Claude owner standalone refusal versus verified composition.
+- m2 (Negligible scope): agree; move the backlog formatting instruction into
+  p04-t01 and describe the host's file-edit tool generically. No early closure.
+
+**Next:** User approval of fifth-round artifact remedies. The gate's threshold
+pass is not a clean plan disposition; readiness remains pending.
 
 ## Deviations from Plan / Design
 

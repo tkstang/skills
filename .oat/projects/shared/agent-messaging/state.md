@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T13:09:29Z'
+oat_project_state_updated: '2026-09-19T13:16:33Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Fourth-gate scope choice and corrections approved and applied; independent re-review pending.
+**Status:** Fifth Frontier gate verified the approved changes and passed its blocking threshold; four smaller findings await user disposition.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 4 sequential phases, 13 tasks; fourth gate's findings resolved in artifacts, with a dedicated Claude composed-Monitor task; not implementation-ready until re-review.
+- **Plan:** plan.md — 4 sequential phases, 13 tasks; fifth gate verified fourth-round changes, with 2 Medium and 2 Minor findings awaiting disposition; not implementation-ready.
 - **Implementation:** implementation.md — initialized to 0/13 pending tasks; no implementation started.
 
 ## Progress
@@ -125,6 +125,17 @@ Fable reviews. No implementation or live hook installation is authorized here.
   explicit disarm, full activation shape starts in p02-t01, and the baseline
   pointer names the approved amendment. Independent re-review is pending.
 
+- **Fifth gate:** Reviewed 6c718f223921b891cbd9ecf49d720ca7b0534d12 and verified
+  all five fourth-round corrections. Run 94c9a069-05df-4541-84ef-5b56f699c674
+  passed the Important threshold, status=ok and receiveEligible=true with a
+  matched handoff. It found 0 Critical, 0 Important, 2 Medium and 2 Minor.
+  Artifact reviews/artifact-plan-review-2026-09-19T131345Z.md is committed at
+  1cab7972. Native transcript c9973509-aef1-45f1-8fce-26dbf7671808 confirms
+  claude-fable-5-1 (assistant lines 19/216, final end_turn, exact run match).
+  Root recommends manual interrupted-observation recovery with honest cursor
+  semantics, staged p04-t01 checkpoints, owner-contract fixtures and formatting
+  wording cleanup. These new changes need user approval and are not applied.
+
 ## Dispatch and Gate Review Policy
 
 The user selected **High** for managed project dispatch, with **Frontier review
@@ -158,14 +169,14 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete. Fourth-gate scope and corrections are approved and applied, awaiting
-independent re-review rather than implementation readiness.
-All four Frontier identities are corroborated.
+complete. Fifth gate passed its blocking threshold but retains four smaller
+findings requiring user disposition before plan readiness.
+All five Frontier identities are corroborated.
 No product implementation has started.
 
 ## Next Milestone
 
-Re-review the approved Claude composed-Monitor task and fourth-gate corrections.
+Obtain user approval for the fifth gate's four proposed artifact corrections.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
