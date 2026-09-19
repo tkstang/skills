@@ -542,6 +542,25 @@ git add -f .oat/projects/shared/session-fidelity/reviews/archived/remote-pr-96-r
 git commit -m "docs(p11-t01): align post-p10 lifecycle summary"
 ```
 
+## Phase 12: PR #95 identity-integrity review fixes
+
+**Layer:** identity (`session-fidelity-identity`). **Depends on:** CodeRabbit review `5257570017` on PR #95, reviewed at `9a43d153f020597d4316d955f726e8a92b45f1de`. The activity layer must be cascade-rebased after the identity commit lands.
+
+### Task p12-t01: (review) Close Codex identity cache, lineage and export gaps
+
+**Files:** `src/skills/session-observer/src/lib/locate.ts`; `src/skills/session-observer/src/locate.test.ts`; `src/shared/transcript/runtimes.ts`; `src/shared/transcript/runtimes.test.ts`; `src/skills/session-export-transcript/src/session-export-transcript.ts`; `src/skills/session-export-transcript/src/cli.test.ts`; affected canonical skill version owners; `CHANGELOG.md`; mechanically generated standalone/plugin payloads.
+
+**Analyze:** Revalidate PR #95 findings `4054634654`, `4054634658`, and `4054634665` as one identity-integrity boundary. Confirm how persistent cache acceptance can bypass reparsing, how present optional lineage fields distinguish omission from invalidity, and where all selector paths converge before export.
+
+**Implement:** Persist and require a strong Codex cache signature with subsecond mtime plus device/inode identity, invalidating legacy entries. Reject each present-but-invalid `session_id`, `forked_from_id`, and `subagent_history_start_ordinal` while preserving omitted and valid fields. Add one shared post-selection guard that refuses every selected invalid identity before export, including marker matches and marker-miss fallback. Add focused regressions for all paths. Run the build and apply every required canonical owner version/changelog/generated-output update; do not hand-edit generated payloads.
+
+**Verify:** Run the focused locate, runtime and export CLI tests; `pnpm run build`; `pnpm run build:check`; `pnpm run type-check`; `pnpm run validate:skill-versions -- --base-ref session-fidelity`; `pnpm run validate`; and `git diff --check`. Confirm the identity-layer commit contains only the declared authored and derived closure, then cascade-rebase the activity layer.
+
+```bash
+git add src/skills/session-observer src/shared/transcript src/skills/session-export-transcript CHANGELOG.md skills plugins
+git commit -m "fix(p12-t01): harden Codex identity boundaries"
+```
+
 ## Reviews
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
@@ -585,6 +604,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T224031Z.md         | 3c91633d03a819d5945fd461961648ec9c303cce | auto       | codex-high  |
 | final  | code     | fixes_completed | 2026-09-19 | reviews/archived/final-review-2026-09-19T224031Z.md         | c8c40b92d928a1da2de852419ff978119b834d1e | auto       | codex-high  |
 | p11    | code     | passed          | 2026-09-19 | reviews/p11-review-2026-09-19T224947Z.md                    | c8c40b92d928a1da2de852419ff978119b834d1e | auto       | codex-high  |
+| github-pr #95 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-95-review-2026-09-19T225115Z.md | 9a43d153f020597d4316d955f726e8a92b45f1de | -          | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -592,7 +612,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 12 phases, 28 tasks. All tasks and every phase review through p11 passed. Additional PR #95/#96 feedback is being audited before closeout.
+**Planned total:** 13 phases, 29 tasks. The first 28 tasks and every phase review through p11 passed; p12 contains one combined PR #95 identity-integrity task.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -606,8 +626,9 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p09: 1 task — align the generated project summary with p08 and the current publication boundary.
 - p10: 1 task — align reported legacy tool filters and filtered counts with activity-mode suppression.
 - p11: 1 task — align the generated summary/publication boundary and final lifecycle whitespace.
+- p12: 1 task — harden Codex persistent cache signatures, optional lineage validation and the shared export boundary.
 
-The schema documentation preparatory commit and all 28 implementation tasks are complete; phase reviews p00 through p11 passed. Further unresolved PR #95/#96 feedback is being audited under the authorized remote-review cycle before the remaining stack is republished. Merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and the first 28 implementation tasks are complete; phase reviews p00 through p11 passed. Phase p12 must resolve three interacting PR #95 identity-integrity findings on the identity layer before the activity layer is cascade-rebased. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 

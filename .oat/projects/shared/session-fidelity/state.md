@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p12-t01
 oat_last_commit: c8c40b92d928a1da2de852419ff978119b834d1e
 oat_blockers: []
 associated_issues:
@@ -154,13 +154,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** p11 passed; remote-feedback audit pending
+**Status:** PR #95 identity-integrity fixes queued in p12
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All 28 implementation tasks and phase reviews p00 through p11 passed. Phase p11 aligned the generated summary, publication boundary and trailing whitespace with zero review findings. PR #95 and #96 remote feedback is now being audited.
+The first 28 implementation tasks and phase reviews p00 through p11 passed. Three valid interacting PR #95 identity-integrity findings are queued as p12-t01; one comment is dismissed as contrary to the approved contract and one is already fixed.
 
 ## Artifacts
 
@@ -168,7 +168,7 @@ All 28 implementation tasks and phase reviews p00 through p11 passed. Phase p11 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (28/28 tasks and phase reviews complete; remote review audit pending)
+- **Implementation:** `implementation.md` (28/29 tasks complete; p12 identity-layer fix pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; PR #96 remote head predates p10)
 
 ## Progress
@@ -208,7 +208,8 @@ All 28 implementation tasks and phase reviews p00 through p11 passed. Phase p11 
 - ✓ Post-p10 final lifecycle review received with no blocking findings
 - ✓ p11 lifecycle-artifact alignment implemented and locally verified
 - ✓ Fresh p11 review passed with zero findings
-- ⧗ PR #95/#96 remote-feedback audit pending
+- ✓ PR #95 feedback audited with explicit dispositions
+- ⧗ p12 identity-layer fix pending
 
 ## Blockers
 
@@ -216,4 +217,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Disposition all PR #95/#96 feedback, implement any valid findings, run independent final review and republish the remaining stack.
+Implement and review p12 on the identity layer, cascade-rebase activity, finish PR #96 disposition, then republish and resolve all threads.

@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p12-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 28 implementation tasks and phase reviews p00 through p11 are complete. Phase p11 aligned the post-p10 summary/publication boundary and lifecycle whitespace and passed independent review with zero findings. Newly fetched PR #95/#96 feedback is being audited before closeout.
+The first 28 implementation tasks and phase reviews p00 through p11 are complete. Five PR #95 comments were audited: three valid interacting identity-integrity findings are combined in p12-t01, one conflicts with the approved collaboration contract, and one was already fixed by p07.
 
 The user explicitly disabled further external gate reviews for this closeout and authorized independent subagent review, implementation of every accepted PR #95/#96 finding, GitHub replies, thread resolution and stack republication. The project-level `oat-project-implement` gate override records that direction; independent phase and final reviews remain required.
 
@@ -35,8 +35,9 @@ The user explicitly disabled further external gate reviews for this closeout and
 | p09   | passed         | 1     | 1/1       |
 | p10   | passed         | 1     | 1/1       |
 | p11   | passed         | 1     | 1/1       |
+| p12   | in_progress    | 1     | 0/1       |
 
-**Total:** 28/28 implementation tasks completed.
+**Total:** 28/29 implementation tasks completed.
 
 ## Phase 0
 
@@ -622,6 +623,28 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Review: request `session-fidelity-p11-review-01`, artifact `reviews/p11-review-2026-09-19T224947Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `acdd1fec9fe781d0548cfbbe44fea08a2f529b0c..c8c40b92d928a1da2de852419ff978119b834d1e`; reconnaissance not attempted.
 - Outcome: passed after one planned artifact-alignment commit, no recovery attempts and one fresh independent review.
 - Outstanding p11 items: none. Next: remote PR #95/#96 feedback disposition.
+
+## Phase 12
+
+**Status:** in_progress
+
+### Task p12-t01: (review) Close Codex identity cache, lineage and export gaps
+
+**Status:** pending
+
+### Remote Review Received: github-pr #95
+
+**Date:** 2026-09-19
+**Review artifact:** `reviews/archived/remote-pr-95-review-2026-09-19T225115Z.md`
+**Reviewed head:** `9a43d153f020597d4316d955f726e8a92b45f1de`
+
+**Findings:** 0 Critical, 4 Important, 0 Medium, 1 Minor.
+
+**New tasks added:** p12-t01 for three valid interacting identity findings.
+
+Finding `4054634670` is dismissed because runtime notifications are not authenticated automatic-control wakes and the reviewed regression intentionally preserves assistant completions after them. Finding `4054634677` is dismissed as already fixed by `4575462b`, with the EACCES regression covering non-missing stat failures.
+
+**Next:** implement p12-t01 on the identity layer, independently review it, cascade-rebase activity, then reply to and resolve the PR #95 threads.
 
 ### Final Verification After p10
 
