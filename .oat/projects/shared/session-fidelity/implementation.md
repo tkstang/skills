@@ -724,6 +724,10 @@ The narrowed re-review inherited full implementation coverage from the prior fin
 
 The prior allowed generation is stale because p08 and p09 changed the effective implementation and closeout delta. The new configured generation retains the resolved command and declaration fingerprint, binds the passed final-review basis `b51a106d14ee3d25884b5b24fa8f8949da301f90` to `origin/main` with implementation fingerprint `sha256:effective-delta-v1:51192b0ce158e9a279e78354895ca10416141a556b991e4788e24ca1249caa6e`, and advances the rolling freshness checkpoint through the final-review receive commit `9cf1c9011141dec4b230cc894fcf707b1b5c0b2e` with fingerprint `sha256:effective-delta-v1:8c60fcbc30d1278cd73506ab05833a7296c6ff96e6e1aec5239ca21768a5398e`. No gate process has launched for this generation.
 
+### Refreshed Exit Gate Launch Intent
+
+Attempt `c40d1b63-f11b-4031-8e3e-8f7bb5458b2e` was persisted before launch at `2026-09-19T22:06:23Z`. The configured command will write its structured stdout envelope to `reviews/exit-gate-c40d1b63-f11b-4031-8e3e-8f7bb5458b2e-result.json`; acceptance and result fields remain unset until corroborated after invocation.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md

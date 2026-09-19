@@ -89,10 +89,10 @@ oat_implement_exit_gate:
   implementation_fingerprint: sha256:effective-delta-v1:51192b0ce158e9a279e78354895ca10416141a556b991e4788e24ca1249caa6e
   freshness_head: 9cf1c9011141dec4b230cc894fcf707b1b5c0b2e
   freshness_fingerprint: sha256:effective-delta-v1:8c60fcbc30d1278cd73506ab05833a7296c6ff96e6e1aec5239ca21768a5398e
-  launch_state: not_started
-  launch_attempt_id: null
-  launch_started_at: null
-  launch_result_receipt: null
+  launch_state: intent_persisted
+  launch_attempt_id: c40d1b63-f11b-4031-8e3e-8f7bb5458b2e
+  launch_started_at: '2026-09-19T22:06:23Z'
+  launch_result_receipt: .oat/projects/shared/session-fidelity/reviews/exit-gate-c40d1b63-f11b-4031-8e3e-8f7bb5458b2e-result.json
   gate_run_marker: null
   gate_run_id: null
   envelope_status: null
@@ -108,7 +108,7 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-09-19T22:05:28Z'
+  updated_at: '2026-09-19T22:06:23Z'
 oat_post_implement_sequence:
   status: complete
   source: configured
