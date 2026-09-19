@@ -15,7 +15,7 @@ The first 27 implementation tasks and phase reviews p00 through p10 are complete
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- The agreed docs → identity → activity stack is published as ready PRs #94, #95, and #96. Its local rewritten heads await republication. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
+- The agreed docs → identity → activity stack is published as ready PRs #94, #95, and #96. The accepted p08 stack was republished; only the p10 top-layer effective-filter correction awaits publication. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
 
 ## Progress Overview
 

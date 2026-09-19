@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_generated: true
-oat_summary_last_task: p09-t01
+oat_summary_last_task: p10-t01
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -20,11 +20,10 @@ saved-position binding, and Claude provenance so stateful operations refuse
 ambiguous or changed sources instead of silently reusing unsafe state.
 
 The work fulfilled and archived `BL-260916-session-fidelity-opt`. Local
-acceptance and independent reviews through p08 passed. PRs #94, #95, and #96
-are published and ready on their prior remote heads; the cascade-rebased local
-heads containing the accepted p08 corrections still await republication. No
-merge, release, installation, global sync, or live-provider acceptance has
-occurred.
+acceptance and eleven independent phase reviews through p10 passed. The
+accepted p08 stack was republished as ready PRs #94, #95, and #96; only the p10
+top-layer effective-filter correction awaits publication. No merge, release,
+installation, global sync, or live-provider acceptance has occurred.
 
 ## What Was Implemented
 
@@ -48,13 +47,16 @@ occurred.
   export. Watch can deliver activity-only deltas through the existing cursor
   while keeping event logs metadata-only; exporter output remains stateless,
   sanitized, and explicitly labelled as sensitive activity/debug data.
+- Made activity mode report its effective suppression of legacy tool markers
+  and count the suppressed call/result entries consistently, including under
+  observer debug output.
 - Integrated Cursor frame evidence using positional call identity and existing
   terminal settlement. Stateful delivery waits for settled turns and avoids
   replay; stateless review/export may show pending evidence without inventing
   call IDs, result payloads, versions, or usage.
 - Updated canonical skills, user and engineering documentation, generated
   standalone/plugin payloads, four affected skill versions, and the changelog.
-  The final local gate passed type checking, generated-build freshness, 2,232
+  Post-p10 verification passed type checking, generated-build freshness, 2,232
   tests with one expected skip, repository validation, smoke, version checks,
   changed-file formatting/linting, a 56-page docs build, and fixture privacy
   checks.
@@ -101,8 +103,9 @@ occurred.
   retain reset guidance, while non-missing errors now preserve state and report
   `WATCH_TRANSCRIPT_STAT_FAILED` without misleading recovery instructions.
 - Review-driven corrections tightened provenance ownership, coverage and
-  omission accounting, final-format byte budgeting, and Cursor settlement.
-  These changes stayed within the activity and identity contracts.
+  omission accounting, final-format byte budgeting, Cursor settlement, and
+  effective legacy-filter reporting. These changes stayed within the activity
+  and identity contracts.
 - The p08 review corrections changed closeout records, recovery guidance, MCP
   evidence traversal, and framing documentation without changing the approved
   activity contract or adding a compatibility path.
@@ -119,8 +122,9 @@ occurred.
   passed.
 - PR #94 review arrived after the three-layer stack was already published.
   Applying its four corrections to the bottom layer required cascade rebasing
-  the identity and activity layers, leaving accepted local heads ahead of the
-  still-ready remote PR heads until republication.
+  the identity and activity layers and republishing the accepted p08 stack.
+  The later p10 review correction now leaves only the activity top layer ahead
+  of its ready remote PR head.
 
 ## Tradeoffs Made
 
@@ -144,10 +148,11 @@ occurred.
 - Physical lines and decoded record indices are provenance coordinates, not
   observer checkpoints. Cursor frame and terminal delivery positions remain a
   separate coordinate system.
-- PRs #94 through #96 remain open, published, non-draft, and ready on their
-  prior remote heads. Their rewritten local heads include the accepted p08
-  planning-status, recovery-guidance, detached-MCP, and LF-framing corrections
-  and await republication before remote review or merge can cover those edits.
+- PRs #94 through #96 remain open, published, non-draft, and ready. Their
+  republished heads include the accepted p08 planning-status,
+  recovery-guidance, detached-MCP, and LF-framing corrections. Only the p10
+  effective-filter correction on the activity layer awaits publication before
+  remote review or merge can cover it.
 - Merge, release, installation, global sync, and live-provider acceptance
   remain separate lifecycle steps and have not occurred.
 
