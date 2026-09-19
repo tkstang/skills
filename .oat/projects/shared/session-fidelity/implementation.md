@@ -840,3 +840,62 @@ The original `sf-p02-implement-01` handle resumed on exact target `oat-phase-imp
 The final byte guard now retains deterministic recent-locator coverage/diagnostic entries after event-group removal, reports exact omitted coverage/diagnostic counts and returns a bounded zero-event report for 1,000 malformed lines without source-text leakage. Mode invocation ceilings now apply to every displayed delivered call group across owned, inherited and unknown ownership, while `countedInvocations` remains owned-only and failure-first/recent selection plus chronological rendering remain intact.
 
 Implementer and root independently passed 189/189 focused p02 tests, type checking, build freshness and four-owner version validation. Repository validation, the 2/2 privacy canary, fixture privacy scanning and scoped formatting/linting also passed in the implementer run. The read-only closure audit verified both round-two Important findings closed with no new Critical/Important regression, explicitly checked metadata-search monotonicity and irreducible base-envelope behavior, and passed focused projection/integration tests, type checking, build freshness, version validation and diff checks. The third and governance-final root-owned p02 review round is next.
+
+#### Dispatch sf-p02-review-03
+
+```json
+{
+  "request_id": "sf-p02-review-03",
+  "caller": "oat-project-implement",
+  "scope": "p02-review-round-03",
+  "objective": "Perform the governance-final p02 review after bounded envelope and all-ownership invocation-cap fixes",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p02",
+    "taskIds": ["p02-t01", "p02-t02", "p02-t03", "p02-t04", "p02-t05"],
+    "base": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "reviewedHead": "195d5742aa51a241f1127d85057e2674106fa60f",
+    "fixCommit": "30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec",
+    "priorArtifact": "reviews/p02-review-2026-09-19T143548Z-round2.md",
+    "artifact": "reviews/p02-review-2026-09-19T145413Z-round3.md",
+    "handle": "/root/p02_review_round3"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": ["p02-review-fix-01", "p02-review-fix-02"],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Transcript privacy, exact evidence, identity ownership and omission accounting make subtle review misses expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p02-review-round-03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
