@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
+oat_last_commit: bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -19,17 +19,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
       used_attempts: 3
-      pending_attempt:
-        attempt: 3
-        event_id: cont-agent-messaging-p01-fix-3-packaging-recovery
-        original_request_id: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
-        original_task_id: p01-t05
-        original_commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
-        defect_class: test
-        discovered_by: pnpm run test:vitest src/shared/collaboration/records.test.ts src/shared/collaboration/membership.test.ts src/shared/collaboration/messages.test.ts src/shared/collaboration/log.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/packaging.test.ts tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-medium
-        reservation_head: 50455dca051d0d073592c5858d47a74fa16bf3cf
-        status: completed
+      pending_attempt: null
 oat_orchestration_retry_limit: 3
 oat_phase: implement
 oat_phase_status: in_progress
@@ -44,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T15:46:57Z'
+oat_project_state_updated: '2026-09-19T16:11:14Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** User-authorized Phase 1 fix round 3 is active; p02-t01 has not begun.
+**Status:** User-authorized Phase 1 fix round 3 is complete; fresh independent review is pending before p02-t01.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -59,10 +49,9 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation and both bounded review-fix rounds are committed and
-verified, but final review found three Important shared-storage defects. The user
-explicitly authorized one additional bounded correction and fresh independent
-review. Live hook installation remains separately authorized.
+Phase 1 implementation and the user-authorized third fix round are committed and
+verified. A fresh independent review is the active boundary before p02-t01.
+Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -70,7 +59,7 @@ review. Live hook installation remains separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; exceptional Phase 1 fix round 3 is active.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; fresh Phase 1 review is pending.
 
 ## Progress
 
@@ -178,7 +167,12 @@ review. Live hook installation remains separately authorized.
   round-2 findings resolved, but returned Blocking with 0 Critical, 3 Important,
   0 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p01-final-review-2026-09-19T152245Z.md`. Retry governance is
-  extended once by explicit user authorization; fix round 3 is active.
+  extended once by explicit user authorization; fix round 3 completed at
+  `50455dca` with bounded packaging recovery `bd5f5d76`.
+- **Authorized fix verification:** Root reproduced 69 focused tests, 25 isolated
+  generated-output tests, the full suite (2,127 passed, 1 skipped), generated
+  freshness, validation, type-check, smoke, and version validation. Recovery
+  attempt 3/10 is settled; fresh independent review remains pending.
 
 ## Dispatch and Gate Review Policy
 
@@ -209,16 +203,12 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-Phase 1 final review reproduced three Important defects: authoritative reads
-follow intermediate symlinks and rejected writes mutate the escaped tree;
-record-kind detection uses unanchored ancestor names and breaks legal roots;
-and `open` cannot idempotently retry its own partial commit because `createdAt`
-changes. The 3/3 review-cycle and 2/2 fix-round limits are exhausted.
-The user authorized one additional bounded fix/review cycle for these findings
-only; the findings remain the active correction scope, not unresolved authority.
+No implementation blocker is currently known. The prior three Important
+findings have bounded fixes and root-reproduced verification; Phase 1 remains
+gated on the one fresh independent review explicitly authorized by the user.
 
 ## Next Milestone
 
-Complete the three final-review corrections on the original Phase 1 handle,
-rerun the complete sequential gate, and obtain one fresh independent review.
-Do not begin p02-t01 and do not create another worktree unless that review passes.
+Obtain the authorized fresh independent Phase 1 review on the settled
+fix/recovery head. Do not begin p02-t01 and do not create another worktree unless
+that review passes.

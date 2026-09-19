@@ -14,15 +14,15 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. Phase 1 final review found three Important findings after the
-original 2/2 retry budget. The user explicitly authorized one additional
-bounded Phase 1 correction and fresh review; Phase 2 has not begun.
+2026-09-19. The user-authorized Phase 1 correction and bounded packaging
+recovery are complete. A fresh independent review is pending; Phase 2 has not
+begun.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | fixes_in_progress | 5     | 5/5       |
+| Phase 1 | re_review_pending | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -31,7 +31,7 @@ bounded Phase 1 correction and fresh review; Phase 2 has not begun.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** fixes_in_progress
+**Status:** re_review_pending
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -200,6 +200,8 @@ continuation_events:
   - cont-agent-messaging-p01-review-fix-1:7bf347f3:completed
   - cont-agent-messaging-p01-review-fix-2:66de3e5b:completed
   - cont-agent-messaging-p01-fix-2-test-recovery:5d94e390:completed
+  - cont-agent-messaging-p01-review-fix-3:50455dca:completed
+  - cont-agent-messaging-p01-fix-3-packaging-recovery:bd5f5d76:completed
 ```
 
 Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
@@ -439,6 +441,41 @@ No project-log review-orchestration entry was added because the reviewer
 reported reconnaissance as `not-attempted`; exactly one valid signal was
 consumed for this round.
 
+### Review Fix Event cont-agent-messaging-p01-review-fix-3
+
+- Phase: p01
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Review artifact: reviews/code-p01-final-review-2026-09-19T152245Z.md
+- Reviewed head: 057cc67a527c18e81d1cd7aaba8b925df4d746c3
+- Fix base: 96d9e874d06463b5e50af59ce980611d2136a2a5
+- Disposition: fixes_completed; fresh independent re-review pending
+- Attempt: 3/3, explicitly user-authorized
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Dispatch stamp: `Dispatch: scope=p01-fix-3 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- Fix commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
+- Findings addressed: 0 Critical, 3 Important, 0 Medium, 0 Minor.
+- Verification: root-scoped no-follow containment, root-relative record
+  classification, and crash-idempotent `open` recovery have direct adversarial
+  and actual-process tests.
+
+### Recovery Event cont-agent-messaging-p01-fix-3-packaging-recovery
+
+- Phase/task: p01 / p01-t05
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Original commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
+- Defect class: test
+- Discovered by: post-commit focused Phase 1 suite
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 3/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Recovery commit: bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78
+- Verification: root reproduced packaging 3/3, focused 69/69, isolated
+  generated-output 25/25, full suite 2,127 passed with 1 skipped,
+  `build:check`, `validate`, type-check, smoke, and version validation.
+- Reason: commit-hook quote normalization left two packaging assertions stale;
+  the bounded recovery aligned the assertion without changing runtime behavior.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -500,7 +537,7 @@ All seven round-2 findings are resolved; final independent re-review is pending.
 **Review artifact:** [Phase 1 final review](reviews/code-p01-final-review-2026-09-19T152245Z.md)
 **Reviewed head:** `057cc67a527c18e81d1cd7aaba8b925df4d746c3`
 **Findings:** 0 Critical, 3 Important, 0 Medium, 0 Minor.
-**Status:** fixes_added; user-authorized exceptional fix round 3 pending.
+**Status:** fixes_completed; fresh independent re-review pending.
 
 The final reviewer confirmed every round-2 finding resolved and every requested
 gate green, then reproduced three shared-storage defects: authoritative reads
@@ -520,6 +557,11 @@ authorization for another bounded correction and a fresh independent review.
   project and permit one fresh independent Phase 1 review after the correction.
 - Non-effect: no Phase 2 work, worktree change, publication, installation,
   push, merge, or live acceptance is authorized.
+
+Fix round 3 completed in `50455dca051d0d073592c5858d47a74fa16bf3cf`.
+Its post-commit packaging assertion drift was recovered in append-only commit
+`bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78`. All three authorized findings are
+resolved with root-reproduced verification; the authorized fresh review remains.
 
 ## Review Received: plan
 
