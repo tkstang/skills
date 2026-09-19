@@ -1,5 +1,5 @@
 ---
-oat_current_task: p02-t02
+oat_current_task: p02-t02-recovery-01
 oat_last_commit: d8f991fd27a16dea7f439aa1a93f066c03db6ec0
 oat_blockers: []
 associated_issues:

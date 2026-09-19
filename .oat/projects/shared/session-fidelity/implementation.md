@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t02
+oat_current_task_id: p02-t02-recovery-01
 oat_generated: false
 ---
 
@@ -615,7 +615,7 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": [],
+  "continuation_events": ["p02-t02-recovery-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -625,3 +625,7 @@ Phase p01 passes. Activity implementation remains untouched. Root must now estab
 ```
 
 Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+#### Continuation p02-t02-recovery-resume-01
+
+Root transition audit of immutable p02-t02 commit `709dda734ea3a88bba73693149fabf84b8a58295` found one Important and two coupled Medium extraction-evidence defects. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t02-recovery-01` may reserve attempt 1/10 only after this continuation is committed. Scope is limited to non-malformed unread coverage for extractor exceptions, honest top-level Claude `toolUseResult` provenance, and explicit interrupted outcome; p02-t03 remains unauthorized.
