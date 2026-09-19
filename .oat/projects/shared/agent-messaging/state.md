@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-review-fix-1
-oat_last_commit: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
+oat_current_task: p03-review-2
+oat_last_commit: 8750de97738ca51cdab25dc306f6a5029237bdfe
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -34,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T19:04:30Z'
+oat_project_state_updated: '2026-09-19T19:19:34Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 3 review is blocking; bounded fix round 1/3 is active.
+**Status:** Phase 3 fix round 1/3 is complete; fresh independent re-review is pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -54,8 +54,8 @@ root-verified. Fix round 1/3 resolved its 7 Important and 1 Medium review
 findings; fresh independent review passed with 0 Critical, 0 Important, 2
 Medium, and 0 Minor findings. Phase 3 implementation and repository verification
 are complete, but independent review returned 2 Important and 2 Medium findings.
-Bounded fix round 1/3 is active. Live hook installation remains separately
-authorized.
+Bounded fix round 1/3 resolves all four and is root-verified; fresh independent
+re-review is pending. Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -63,7 +63,7 @@ authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 12/13 tasks complete; Phase 3 fix round 1/3 is active.
+- **Implementation:** implementation.md — Run 1 has 12/13 tasks complete; Phase 3 fixes await fresh re-review.
 
 ## Progress
 
@@ -209,7 +209,9 @@ authorized.
   verdict with 0 Critical, 2 Important, 2 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p03-review-2026-09-19T190153Z.md`. Fix round 1/3 covers observer
   bundle capability proof, immutable controller registration binding, real
-  public-cursor evidence, and fixture-versus-live changelog wording.
+  public-cursor evidence, and fixture-versus-live changelog wording. The fixes
+  completed in `8750de97`; root reproduced 112 focused tests, the full suite
+  (2,214 passed, 1 skipped), and all repository gates.
 
 ## Dispatch and Gate Review Policy
 
@@ -244,7 +246,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Complete Phase 3 fix round 1/3 on the original Phase 3 implementer, reproduce
-the affected and repository gates, then run a fresh independent re-review.
-Advance to p04-t01 only after a passing verdict. Live hook installation remains
-a separate authorization boundary.
+Run a fresh independent Phase 3 re-review through `8750de97`; advance to
+p04-t01 only after a passing verdict. Live hook installation remains a separate
+authorization boundary.

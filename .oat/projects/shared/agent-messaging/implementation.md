@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p03-review-fix-1
+oat_current_task_id: p03-review-2
 oat_generated: false
 ---
 
@@ -17,7 +17,8 @@ this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 review returned two Important and two
-Medium findings; bounded fix round 1/3 is active.
+Medium findings; bounded fix round 1/3 is complete and fresh independent
+re-review is pending.
 
 ## Progress Overview
 
@@ -25,7 +26,7 @@ Medium findings; bounded fix round 1/3 is active.
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
-| Phase 3 | fixes_active | 3     | 3/3       |
+| Phase 3 | review_pending | 3     | 3/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
 **Total:** 12/13 tasks completed
@@ -784,6 +785,25 @@ The reviewer reported `Reconnaissance: attempted` with complete orchestration
 evidence. Its structural project-log entry is deferred until the terminal Phase
 3 outcome so the fix continuation starts from a clean worktree.
 
+### Review Fix Event cont-agent-messaging-p03-review-fix-1
+
+- Phase: p03
+- Original request: dispatch-agent-messaging-p03-20260919
+- Review artifact: reviews/code-p03-review-2026-09-19T190153Z.md
+- Reviewed head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
+- Fix base: df7da1df
+- Disposition: fixes_completed; fresh independent re-review pending
+- Attempt: 1/3
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Dispatch stamp: `Dispatch: scope=p03-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Fix commit: 8750de97738ca51cdab25dc306f6a5029237bdfe
+- Findings addressed: 0 Critical, 2 Important, 2 Medium, 0 Minor.
+- Verification: root reproduced 112/112 focused tests, the full suite (2,214
+  passed, 1 skipped), `build:check`, type-check, validation, smoke, two-skill
+  version validation, and diff checks.
+- Recovery: none. No live provider, configuration, installation, quota, push,
+  PR, merge, or backlog action occurred.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -823,6 +843,12 @@ the disconnected public-cursor fixture with the real observer offset and
 qualify the changelog's Codex verification wording as fixture-tested rather than
 live acceptance. All four are accepted as in-scope fixes under p03-t02/p03-t03;
 no task IDs are added or renumbered.
+
+Fix round 1 completed in `8750de97738ca51cdab25dc306f6a5029237bdfe`.
+It adds a versioned, content-bound composition capability, immutable-controller
+registration checks with both ownership races, real public/private cursor
+evidence, and corrected release wording. Root reproduced the focused and full
+repository gates; fresh independent re-review is pending.
 
 ## Review Received: p02 round 1
 
