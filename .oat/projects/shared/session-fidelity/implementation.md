@@ -469,6 +469,56 @@ Dispatch: scope=p07 action=implementation role=implementer producer=unknown prov
 **Commit:** c681e491892351785a080bef2b5b9e0bdfebe91b
 **Verification:** non-Cursor watch polling reserves reset/re-arm guidance for `ENOENT`/`ENOTDIR`, preserves other filesystem error code/message and retry guidance, emits one error event, exits and leaves saved state unchanged. The injected `EACCES` regression passes; root independently passed 58/58 watcher tests, build freshness, three-owner task-local version validation, PJM doctor and phase diff checks. Versions are observer 1.0.68, observer-collab 1.0.57 and fork-to-destination 0.2.34.
 
+#### Dispatch sf-p07-review-01
+
+```json
+{
+  "request_id": "sf-p07-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p07-review-round-01",
+  "objective": "Review final-review artifact alignment and watcher stat-error recovery semantics",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p07",
+    "taskIds": ["p07-t01", "p07-t02"],
+    "base": "615f6a7e1eebb4b45b69a9eafae15714db48c085",
+    "reviewedHead": "c681e491892351785a080bef2b5b9e0bdfebe91b",
+    "artifact": "reviews/p07-review-2026-09-19T183857Z.md",
+    "handle": "/root/p07_review"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Filesystem recovery guidance can cause unsafe operator resets, while lifecycle records control downstream completion claims.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p07-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
 ## Reviews
 
 Plan review and phases p00 through p06 passed. The first final lifecycle review found one Important artifact-alignment issue and one Medium watcher diagnostic issue; both are queued as p07 fixes.
