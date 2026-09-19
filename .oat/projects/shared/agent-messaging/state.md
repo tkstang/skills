@@ -26,19 +26,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T00:43:25Z'
+oat_project_state_updated: '2026-09-19T02:02:46Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Design approved; three-phase, twelve-task plan drafted and awaiting reviews.
+**Status:** Seven approved plan-review corrections applied; re-review pending.
 **Started:** 2026-09-18
-**Last Updated:** 2026-09-18
+**Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Quick-mode design for independent three-or-more-agent messaging across local
+Quick-mode planning for independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The full draft incorporates the user's decisions relayed through Fable's exact
 session and verified against raw records. Driver owns tracked-file mutations;
@@ -49,8 +49,8 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 3 sequential phases, 12 tasks; artifact/gate review pending, not implementation-ready.
-- **Implementation:** implementation.md — scaffold only; no implementation started.
+- **Plan:** plan.md — 3 sequential phases, 12 tasks; seven approved review corrections applied, re-review pending, not implementation-ready.
+- **Implementation:** implementation.md — initialized to 0/12 pending tasks; no implementation started.
 
 ## Progress
 
@@ -70,6 +70,15 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - Fable's final check passed e95a0d91 (Claude transcript record 721, verified
   against the raw completed assistant turn). Both observer follow-ups were
   captured separately in 3f935df1; neither expands messaging scope.
+- Plan gate at 2e1c952c passed its Important threshold with 3 Medium and 4 Minor
+  findings. Review artifact committed at 4101388f; gate log at 0ba60004.
+  User approved all seven corrections; resolved directly in existing plan tasks
+  and recorded under implementation.md Review Received. Review archived at
+  reviews/archived/artifact-plan-review-2026-09-19T014304Z.md.
+  Gate run f1bc5e2e-4077-4485-925e-6fc98bc9df59 returned a corroborated,
+  receive-eligible handoff. Legacy-plan-only scope. The envelope omitted runtime
+  identity, but root verified claude-fable-5-1 in its correlated Claude transcript
+  c079e4e6-8818-465d-841a-4518c7e405ec (assistant lines 19 and 266, final end_turn).
 
 ## Dispatch and Gate Review Policy
 
@@ -87,8 +96,8 @@ Frontier requirement; do not silently accept a lower/default fallback as that
 review. If the configured route cannot meet it, report the mismatch before
 counting the gate as satisfied. Keep reusable gate commands provider-neutral.
 
-This choice does not configure additional per-phase gates or HiLL pauses; those
-remain separate planning/execution choices. Existing root and Fable collaboration
+Additional per-phase gates were explicitly declined; HiLL remains an execution
+choice. Existing root and Fable collaboration
 sessions are unchanged. No global/user-scope configuration was changed.
 
 ## Operational Notes
@@ -104,11 +113,12 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete; no drafting blocker remains.
+complete. Revised-plan re-review remains a readiness condition, not a product
+implementation failure. First-gate Frontier identity is now corroborated.
 
 ## Next Milestone
 
-Review the drafted three-phase plan against the approved design.
+Re-review the corrected three-phase plan against the approved design.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
