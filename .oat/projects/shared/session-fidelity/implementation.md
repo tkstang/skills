@@ -161,6 +161,63 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 **Commit:** ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f
 **Verification:** Observer catch-up/watch use prior and new existing terminal checkpoints to select settled activity independently of conversation range, producing one activity-only settlement delta and no replay across polls or later flag enablement. Stateless review/export recover pending and settled evidence; source/delivery coordinates and turn-level unsuccessful outcomes remain honest. Existing atomic reservation/commit ordering, metadata-only logs, early conversation delivery and collaboration confirmed-completion gating are preserved. Root passed the 358-test phase suite, type checking, build freshness and four-owner version validation. Fresh transition audit found 0 Critical/Important findings and additionally passed the full 2,231-test repository suite with one skip.
 
+#### Dispatch sf-p05-review-01
+
+```json
+{
+  "request_id": "sf-p05-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p05-review-round-01",
+  "objective": "Review Cursor positional activity extraction and terminal-checkpoint delivery for identity honesty, atomicity and no replay",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p05",
+    "taskIds": ["p05-t01", "p05-t02"],
+    "base": "19f9a79171106227236587fa9f05ab7bce1b7c0f",
+    "reviewedHead": "ef3c4c9b78b3f5218812e2a16f509253d4d3ef6f",
+    "artifact": "reviews/p05-review-2026-09-19T172318Z.md",
+    "handle": "/root/p05_review"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Cursor repair, terminal settlement, state atomicity and non-invention constraints make subtle review misses expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p05-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
 ## Phase 6
 
 **Status:** pending
