@@ -1,15 +1,15 @@
 ---
-oat_status: complete
-oat_ready_for: null
+oat_status: in_progress
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p08-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 21 implementation tasks, phase reviews p00 through p07, the narrowed final lifecycle re-review, the configured implementation exit gate, and the configured summary/document/PR closeout sequence are complete. Three draft PRs are open as GitHub stack #97.
+All 21 previously planned implementation tasks, phase reviews p00 through p07, the narrowed final lifecycle re-review, the configured implementation exit gate, and the configured summary/document/PR closeout sequence completed. PR #94 then received four actionable remote-review findings; phase p08 reopens implementation to apply those fixes to the bottom stack layer and republish the stack.
 
 ## Preparatory evidence
 
@@ -29,8 +29,9 @@ All 21 implementation tasks, phase reviews p00 through p07, the narrowed final l
 | p05   | passed         | 2     | 2/2       |
 | p06   | passed         | 2     | 2/2       |
 | p07   | passed         | 2     | 2/2       |
+| p08   | in_progress    | 4     | 0/4       |
 
-**Total:** 21/21 implementation tasks completed.
+**Total:** 21/25 implementation tasks completed.
 
 ## Phase 0
 
@@ -525,6 +526,26 @@ Formal artifact `reviews/p07-review-2026-09-19T183857Z.md` reviewed `615f6a7e1ee
 
 Phase p07 passes. Continue to the narrowed final lifecycle re-review against the corrected implementation head.
 
+## Phase 8
+
+**Status:** in_progress
+
+### Task p08-t01: (review) Align completed planning status
+
+**Status:** pending
+
+### Task p08-t02: (review) Remove withdrawn multi-line recovery guidance
+
+**Status:** pending
+
+### Task p08-t03: (review) Keep detached MCP results opaque
+
+**Status:** pending
+
+### Task p08-t04: (review) Correct LF framing rationale
+
+**Status:** pending
+
 ### Orchestration Run p07
 
 - Outcome: passed after two final-review fix commits, no recovery attempts and one fresh root-owned review round.
@@ -618,6 +639,27 @@ GitHub stack #97 preserves the reviewed delivery boundaries:
 3. [PR #96](https://github.com/tkstang/skills/pull/96) — `feat(session-fidelity): add opt-in session activity` (`session-fidelity-identity` ← `session-fidelity-activity`)
 
 All three PRs opened as drafts with Conventional Commit titles and layer-specific descriptions. GitHub reports the saved bases and remote heads matching the local stack; CI is running. No merge, release, installation, or live-provider action was performed.
+
+### Remote Review Received: github-pr #94
+
+**Date:** 2026-09-19
+
+**Review artifact:** `reviews/archived/remote-pr-94-review-2026-09-19T203657Z.md`
+
+**Reviewed head:** `737d23e6211554864f401288e1d36ac2383c9c7b`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 4
+
+**New tasks added:** p08-t01, p08-t02, p08-t03, p08-t04.
+
+All four CodeRabbit findings were verified against the current tree and converted. No finding was deferred or dismissed. Phase p08 must apply the fixes to the `session-fidelity` bottom layer, cascade-rebase the identity and activity layers, republish stack #97, and obtain a focused PR #94 re-review before the project returns to complete status.
+
+**Next:** execute p08 through `oat-project-implement` starting at p08-t01.
 
 ## Planning Gate Review Received — 2026-09-19
 

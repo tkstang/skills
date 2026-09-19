@@ -374,6 +374,102 @@ git add src/skills/session-observer CHANGELOG.md skills plugins
 git commit -m "fix(p07-t02): preserve non-missing watch stat errors"
 ```
 
+## Phase 8: PR #94 remote review fixes
+
+**Layer:** schema documentation (`session-fidelity`). **Depends on:** the CodeRabbit review of PR #94 at `737d23e6211554864f401288e1d36ac2383c9c7b`. Apply these fixes to the bottom stack layer, then cascade-rebase `session-fidelity-identity` and `session-fidelity-activity` before publishing the stack.
+
+### Task p08-t01: (review) Align completed planning status
+
+**Files:** `.oat/projects/shared/session-fidelity/discovery.md`; `.oat/projects/shared/session-fidelity/design.md`; `.oat/projects/shared/session-fidelity/implementation.md`.
+
+**Step 1: Understand the issue**
+
+PR #94 review finding `m1` identified early summary statements that still describe Fable read-back and planning gates as pending, while later project records show both completed.
+
+**Step 2: Implement fix**
+
+Update only current-status summaries or label historical snapshots explicitly. Preserve the chronology and do not rewrite implementation, review, merge, release, installation, or live-provider boundaries.
+
+**Step 3: Verify**
+
+Run `rg -n 'read-back|read back|Plan review|planning review|pending|passed' .oat/projects/shared/session-fidelity/{discovery.md,design.md,implementation.md,plan.md,state.md,project-log.md}`, `pnpm run validate`, and `git diff --check`. Confirm the three summaries agree with the completed collaboration and planning receipts.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/session-fidelity/discovery.md .oat/projects/shared/session-fidelity/design.md .oat/projects/shared/session-fidelity/implementation.md
+git commit -m "docs(p08-t01): align completed planning status"
+```
+
+### Task p08-t02: (review) Remove withdrawn multi-line recovery guidance
+
+**Files:** `.oat/repo/reference/research/session-schemas-2026-09-18/claude-code/findings.md`.
+
+**Step 1: Understand the issue**
+
+PR #94 review finding `m2` found that the corrected LF-delimited evidence is followed by an obsolete paragraph prescribing escaped-newline record joining, and fixture row 35 repeats that withdrawn parser hazard.
+
+**Step 2: Implement fix**
+
+Delete the obsolete recovery paragraph and fixture row while retaining the evidence-backed LF-byte framing rule, Unicode-separator fixture requirement, and historical correction context.
+
+**Step 3: Verify**
+
+Run `rg -n -i 'joining consecutive|escaped-newline|multi-line record.*parser hazard' .oat/repo/reference/research/session-schemas-2026-09-18/claude-code/findings.md`, `pnpm run validate`, and `git diff --check`. The search must return no active recovery guidance or obsolete fixture row.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/repo/reference/research/session-schemas-2026-09-18/claude-code/findings.md
+git commit -m "docs(p08-t02): remove withdrawn record recovery guidance"
+```
+
+### Task p08-t03: (review) Keep detached MCP results opaque
+
+**Files:** `.oat/repo/reference/research/session-schemas-2026-09-18/inventory.mjs`; `.oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs`.
+
+**Step 1: Understand the issue**
+
+PR #94 review finding `m3` showed that third-party opacity is determined only from the current object. A detached Claude `user.toolUseResult` can therefore expose allowlisted descendant paths and types even when its matching `tool_use` is an MCP call.
+
+**Step 2: Implement fix**
+
+Track MCP `tool_use.id` values within each file and recognize matching detached results through `tool_result.tool_use_id`. Count the carrier while suppressing the matched result subtree from path/type notes. Keep all correlation file-local and fail closed when no exact ID match exists.
+
+**Step 3: Verify**
+
+Add a canary with separate MCP call and result records proving the detached result subtree is absent from both allowlisted and discovery reports while the record remains counted. Run `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs`, `pnpm run validate`, and `git diff --check`.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/repo/reference/research/session-schemas-2026-09-18/inventory.mjs .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs
+git commit -m "fix(p08-t03): keep detached MCP results opaque"
+```
+
+### Task p08-t04: (review) Correct LF framing rationale
+
+**Files:** `documentation/docs/engineering/architecture/session-schemas/index.md`; `documentation/docs/engineering/architecture/session-schemas/codex.md`; `documentation/docs/engineering/architecture/session-schemas/claude-code.md`; `.oat/repo/reference/research/session-schemas-2026-09-18/claude-code/findings.md`.
+
+**Step 1: Understand the issue**
+
+PR #94 review finding `m4` correctly notes that Node documents `readline` as recognizing LF, CR, and CRLF, not U+2028/U+2029. The LF-byte framing requirement remains correct, but the current explanation attributes the abandoned scanner result to unsupported Node behavior.
+
+**Step 2: Implement fix**
+
+Replace the unsupported `readline` claim across the maintained schema pages and source evidence with the observed fact: the earlier scanner treated Unicode separators as record boundaries, while LF-byte splitting parsed the sampled records. Retain the LF-only regression fixture without assigning the faulty split to Node.
+
+**Step 3: Verify**
+
+Run `rg -n 'readline.*U\\+2028|readline.*U\\+2029|breaks lines on U\\+2028' documentation/docs/engineering/architecture/session-schemas .oat/repo/reference/research/session-schemas-2026-09-18`, the file-scoped Markdown format check documented by the repository, `pnpm --dir documentation build`, `pnpm run validate`, and `git diff --check`.
+
+**Step 4: Commit**
+
+```bash
+git add documentation/docs/engineering/architecture/session-schemas/index.md documentation/docs/engineering/architecture/session-schemas/codex.md documentation/docs/engineering/architecture/session-schemas/claude-code.md .oat/repo/reference/research/session-schemas-2026-09-18/claude-code/findings.md
+git commit -m "docs(p08-t04): correct LF framing rationale"
+```
+
 ## Reviews
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
@@ -404,6 +500,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p00    | code     | passed          | 2026-09-19 | reviews/p00-review-2026-09-19T014930Z.md                    | 1d650f130d7b56cb790fbed15733afd625990c20 | auto       | -           |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T184703Z.md         | d14359fa7188655564275c52c4ddadfbd68055c9 | auto       | -           |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T190056Z.md         | 9432104ee24f3e5d081049c489394b30ee65b6a5 | gate       | claude-fable-skip-permissions |
+| github-pr #94 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-94-review-2026-09-19T203657Z.md | 737d23e6211554864f401288e1d36ac2383c9c7b | -          | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -411,7 +508,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 8 phases, 21 tasks. The 19 original implementation tasks are complete; p07 contains two bounded final-review fixes.
+**Planned total:** 9 phases, 25 tasks. The 21 previously planned tasks are complete; p08 contains four PR #94 review fixes awaiting execution on the schema-documentation layer.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -421,8 +518,9 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p05: 2 tasks — Cursor settlement.
 - p06: 2 tasks — docs/distribution and acceptance.
 - p07: 2 tasks — final-review artifact alignment and watcher diagnostic correction.
+- p08: 4 tasks — planning-status alignment, withdrawn parser-guidance cleanup, detached MCP-result opacity, and LF-framing documentation correction.
 
-The schema documentation preparatory commit and all original 19 implementation tasks are complete; phase reviews p00 through p06 passed. Phase p07 supplies the two bounded fixes from the final lifecycle review; their execution status is recorded in `implementation.md`, and final review approval remains pending. Stack publication, merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and all 21 previously planned implementation tasks are complete; phase reviews p00 through p07 and the final lifecycle review passed. Phase p08 contains four newly received PR #94 findings and reopens implementation until those fixes are applied to the bottom layer and the stack is republished. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 
