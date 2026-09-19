@@ -57,6 +57,14 @@
       "postApproval": []
     },
     "autoReviewAtHillCheckpoints": true,
+    "gates": {
+      "execTargets": {
+        "cursor-gpt-5-6-sol-xhigh": null,
+        "cursor-fable-5-1-xhigh": null,
+        "cursor-fable-5-1-high": null,
+        "cursor-default": null
+      }
+    },
     "retro": {
       "filing": {
         "repo": "backlog",
