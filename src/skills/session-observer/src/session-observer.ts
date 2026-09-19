@@ -555,6 +555,7 @@ function printWatchUsage(command = 'watch'): never {
       '  --until-stopped                     Alias posture: run until explicitly stopped',
       '  --interactive                       Alias posture: foreground collaboration watch',
       '  --event-log <path>                  Metadata-only JSONL event log',
+      '  --include-activity                  Include bounded source-attributed activity',
       '  --json                              Emit JSON-line events instead of markdown',
       '  --session <runtime:id>              Pin to a specific session',
       '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
@@ -1574,9 +1575,16 @@ async function runState(args: CliArgs): Promise<void> {
 async function runWatch(args: CliArgs): Promise<void> {
   if (args.help) return printWatchUsage(args.subcommand);
 
-  if (args.includeActivity) {
+  const pinned = parsePinnedSession(args.session);
+  if (pinned && 'error' in pinned) return emitError(pinned.error, 1);
+  let activityRuntime = pinned?.runtime ?? args.runtime;
+  if (args.includeActivity && activityRuntime === 'auto') {
+    const resolved = await resolveAutoRuntime(args.cwd);
+    activityRuntime = resolved.runtime ?? activityRuntime;
+  }
+  if (args.includeActivity && activityRuntime === 'cursor') {
     return emitError(
-      '--include-activity is not available for watch or catch-up-then-watch yet.',
+      '--include-activity is not available for Cursor review or catch-up yet.',
       1,
     );
   }
@@ -1591,7 +1599,6 @@ async function runWatch(args: CliArgs): Promise<void> {
   try {
     await runWatchLoop({
       ...args,
-      includeActivity: false,
       catchUpFirst: args.subcommand === 'catch-up-then-watch',
     });
   } catch (err) {

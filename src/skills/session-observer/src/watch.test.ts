@@ -2595,6 +2595,232 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('quiet-empty retains activity-only deltas and keeps event logs metadata-only', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-activity-only';
+      const sessionId = 'watch-activity-only';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'activity-only baseline' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 19, 12, 0, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          quietEmpty: true,
+          json: true,
+          eventLog: 'activity-events.jsonl',
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  Array.from({ length: 100 }, (_, index) => ({
+                    type: 'tool_use',
+                    id: `tool-watch-private-id-${index}`,
+                    name: 'Read',
+                    input: { file_path: `sensitive-tool-input-${index}.md` },
+                  })),
+                );
+              }
+            }
+          },
+        },
+      );
+
+      const deltas = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(result.eventCount).toBe(1);
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        activityOnly: true,
+        digest: {
+          activityOnly: true,
+          entries: [],
+          activity: {
+            mode: 'catch-up',
+            counts: {
+              deliveredRange: { countedInvocations: 100 },
+            },
+            omitted: { invocationLimitGroups: 20 },
+          },
+        },
+      });
+      expect(
+        deltas[0].digest.activity.counts.displayed.countedInvocations,
+      ).toBeLessThan(80);
+      expect(deltas[0].digest.activity.omitted.byteLimitGroups).toBeGreaterThan(
+        0,
+      );
+      const eventLog = await readFile(
+        join(stateDir, 'activity-events.jsonl'),
+        'utf8',
+      );
+      expect(eventLog).toContain('"activityOnly":true');
+      expect(eventLog).not.toContain('sensitive-tool-input-0');
+      expect(eventLog).not.toContain('tool-watch-private-id');
+      expect(eventLog).not.toContain('"digest"');
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        2,
+      );
+    });
+  });
+
+  test('emits one activity-only diagnostic for one malformed source change', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-activity-diagnostic';
+      const sessionId = 'watch-activity-diagnostic';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'diagnostic baseline' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 19, 12, 30, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              appended = true;
+              await appendFile(transcriptPath, '{malformed activity line\n');
+            }
+          },
+        },
+      );
+
+      const deltas = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(result.eventCount).toBe(1);
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        activityOnly: true,
+        newRecords: 0,
+        digest: {
+          entries: [],
+          activity: {
+            diagnostics: [
+              expect.objectContaining({ code: 'SOURCE_MALFORMED_RECORD' }),
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  test('enabling watch activity does not replay activity consumed while disabled', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-activity-toggle';
+      const sessionId = 'watch-activity-toggle';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'toggle baseline' },
+      ]);
+      let firstNow = Date.UTC(2026, 8, 19, 13, 0, 0);
+      let appended = false;
+      await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: () => {},
+          now: () => firstNow,
+          sleep: async (ms: number) => {
+            firstNow += ms;
+            if (!appended) {
+              appended = true;
+              await appendClaudeMessage(transcriptPath, sessionId, [
+                {
+                  type: 'tool_use',
+                  id: 'consumed-before-activity',
+                  name: 'Read',
+                  input: { file_path: 'already-consumed.md' },
+                },
+              ]);
+            }
+          },
+        },
+      );
+      const before = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(before.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        2,
+      );
+
+      const stdout: string[] = [];
+      let secondNow = Date.UTC(2026, 8, 19, 13, 5, 0);
+      const second = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => secondNow,
+          sleep: async (ms: number) => {
+            secondNow += ms;
+          },
+        },
+      );
+
+      expect(second.eventCount).toBe(0);
+      expect(
+        parseJsonLines(stdout.join('')).some((event) => event.type === 'delta'),
+      ).toBe(false);
+    });
+  });
+
   test('runtime both preserves tracked transcript updates until debounce emission', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-runtime-both';

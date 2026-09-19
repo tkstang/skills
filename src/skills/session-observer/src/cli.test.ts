@@ -588,13 +588,13 @@ describe('CLI subcommand dispatch', () => {
     },
     {
       command: 'watch',
-      extra: ['--runtime', 'claude-code'],
-      message: 'not available for watch or catch-up-then-watch yet',
+      extra: ['--runtime', 'cursor'],
+      message: 'not available for Cursor review or catch-up yet',
     },
     {
       command: 'catch-up-then-watch',
-      extra: ['--runtime', 'codex'],
-      message: 'not available for watch or catch-up-then-watch yet',
+      extra: ['--session', 'cursor:future-cursor-session'],
+      message: 'not available for Cursor review or catch-up yet',
     },
   ])(
     'rejects unavailable $command activity before creating state',
@@ -662,6 +662,7 @@ describe('CLI subcommand dispatch', () => {
       result.stdout.includes('--event-log'),
       'watch help should include event log flag',
     ).toBeTruthy();
+    expect(result.stdout).toContain('--include-activity');
     expect(
       result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
       'watch help should include both as a watch runtime option',

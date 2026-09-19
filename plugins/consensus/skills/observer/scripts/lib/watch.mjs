@@ -9295,6 +9295,31 @@ function eventRanges(digest) {
 function digestNewRecords(digest) {
   return isCursorDigest(digest) ? digest.range.newFrames : digest.range.newRecords;
 }
+function activitySourceSignature(target) {
+  return `${target.signature.mtimeMs}:${target.signature.size}`;
+}
+function activityCoverageSignal(digest) {
+  return Boolean(
+    digest.activity?.diagnostics.length || digest.activity?.coverage.some(
+      (entry) => entry.locator !== void 0 || entry.status !== "available"
+    )
+  );
+}
+function prepareActivityDelta(digest, target) {
+  if (!digest.activity) return { renderable: false, activityOnly: false };
+  const hasEvents = digest.activity.events.length > 0 || digest.activity.callContexts.length > 0;
+  const signature = activitySourceSignature(target);
+  const hasNewCoverage = activityCoverageSignal(digest) && target.lastActivityDiagnosticSignature !== signature;
+  const renderable = hasEvents || hasNewCoverage;
+  const activityOnly = renderable && digest.accounting.rendered.count === 0;
+  if (activityOnly) digest.activityOnly = true;
+  else delete digest.activityOnly;
+  return {
+    renderable,
+    activityOnly,
+    ...hasNewCoverage ? { diagnosticSignature: signature } : {}
+  };
+}
 function eventMetadata(ts, digest, rendered) {
   return {
     type: "delta",
@@ -9303,7 +9328,8 @@ function eventMetadata(ts, digest, rendered) {
     sessionId: digest.sessionId,
     newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
-    ranges: eventRanges(digest)
+    ranges: eventRanges(digest),
+    ...digest.activityOnly ? { activityOnly: true } : {}
   };
 }
 function stdoutEvent(ts, digest, rendered) {
@@ -9315,6 +9341,7 @@ function stdoutEvent(ts, digest, rendered) {
     newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
     ranges: eventRanges(digest),
+    ...digest.activityOnly ? { activityOnly: true } : {},
     digest
   };
 }
@@ -10035,7 +10062,7 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
   await emitLockedTarget(args, deps, target);
   await setWatchedByPid(target.runtime, target.sessionId, eventState.pid).catch(() => false);
   if (args.catchUpFirst) {
-    await emitObservedDelta(result, args, deps, eventState);
+    await emitObservedDelta(result, target, args, deps, eventState);
     target.signature = await fileSignature(target.transcriptPath, deps.stat);
     await emitPending(
       {
@@ -10179,9 +10206,9 @@ async function emitPending(entry, targets, args, deps, eventState) {
   if (!result.ok) {
     if (result.kind === "noMatch") return false;
     if (entry.runtime === "cursor" && (result.kind === "continuityBlocked" || result.kind === "ownerConflict")) {
-      const target = targets.get(entry.key);
+      const target2 = targets.get(entry.key);
       const state = await getCursorSession(entry.sessionId);
-      if (target && state) {
+      if (target2 && state) {
         const blockedState = {
           ...state,
           lastStatus: {
@@ -10190,28 +10217,31 @@ async function emitPending(entry, targets, args, deps, eventState) {
             health: result.kind === "continuityBlocked" ? "blocked" : "error"
           }
         };
-        await persistCursorTarget(target, eventState.pid, blockedState);
+        await persistCursorTarget(target2, eventState.pid, blockedState);
       }
       return false;
     }
     throw new Error(result.message);
   }
   if (result.runtime === "cursor") {
-    const target = targets.get(entry.key);
-    if (!target) return false;
+    const target2 = targets.get(entry.key);
+    if (!target2) return false;
     await persistCursorTarget(
-      target,
+      target2,
       eventState.pid,
       result.cursorState,
       result
     );
-    target.signature = await fileSignature(target.transcriptPath, deps.stat);
+    target2.signature = await fileSignature(target2.transcriptPath, deps.stat);
     if (result.deliveryUncertain) return false;
-    return emitCursorDelta(result, target, args, deps, eventState);
+    return emitCursorDelta(result, target2, args, deps, eventState);
   }
+  const target = targets.get(entry.key);
+  if (!target) return false;
   const newRecords = result.digest.range.newRecords ?? 0;
-  if (newRecords <= 0) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+  const activity = prepareActivityDelta(result.digest, target);
+  if (newRecords <= 0 && !activity.renderable) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable) {
     return false;
   }
   const rendered = renderMarkdown(result.digest);
@@ -10226,6 +10256,9 @@ async function emitPending(entry, targets, args, deps, eventState) {
     await writeStdoutChunk(deps, rendered + "\n");
   }
   await appendEventLog(args.eventLog, metadata);
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
   await recordWatcherEvent({
@@ -10235,10 +10268,11 @@ async function emitPending(entry, targets, args, deps, eventState) {
   await setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
   return true;
 }
-async function emitObservedDelta(result, args, deps, eventState) {
+async function emitObservedDelta(result, target, args, deps, eventState) {
   const newRecords = result.digest.range.newRecords ?? 0;
-  if (newRecords <= 0) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+  const activity = prepareActivityDelta(result.digest, target);
+  if (newRecords <= 0 && !activity.renderable) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable) {
     return false;
   }
   const rendered = renderMarkdown(result.digest);
@@ -10253,6 +10287,9 @@ async function emitObservedDelta(result, args, deps, eventState) {
     await writeStdoutChunk(deps, rendered + "\n");
   }
   await appendEventLog(args.eventLog, metadata);
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
   await recordWatcherEvent({
@@ -10321,6 +10358,11 @@ function installSignalHandlers(eventState) {
 }
 async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? "auto";
+  if (args.includeActivity && (runtime === "cursor" || args.session?.startsWith("cursor:"))) {
+    throw new Error(
+      "--include-activity is not available for Cursor review or catch-up yet."
+    );
+  }
   const cwd = args.cwd ?? process.cwd();
   const eventLog = args.eventLog ? await resolveEventLogPath(args.eventLog) : void 0;
   const resolvedMaxPendingMs = maxPendingMs(args.maxPendingSec);

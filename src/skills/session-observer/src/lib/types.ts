@@ -488,6 +488,8 @@ export interface Digest {
   accounting: DigestAccounting;
   entries: DigestEntry[];
   activity?: ActivityReport;
+  /** Watch-only marker for a delta containing activity but no conversation. */
+  activityOnly?: true;
   filters: DigestFilters;
   warnings: string[];
   fallbacks: TranscriptCandidate[];

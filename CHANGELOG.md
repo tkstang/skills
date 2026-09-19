@@ -4,6 +4,7 @@
 
 ### Added
 
+- `session-observer` 1.0.61 delivers opt-in activity-only Claude Code and Codex watch updates without a separate activity cursor, retains activity and new coverage under `--quiet-empty`, marks activity-only deltas, and keeps event logs metadata-only; `session-observer-collab` 1.0.50 and `session-fork-to-destination` 0.2.26 receive the required shared observer runtime closure update without enabling collaboration activity.
 - `session-observer` 1.0.59 exposes opt-in source-attributed activity in review and catch-up digests while preserving the outer digest schema, conversation budgets, ask-user context, and existing state advancement; `session-observer-collab` 1.0.48 and `session-fork-to-destination` 0.2.24 receive the required shared observer runtime closure update without enabling activity in collaboration flows.
 - `session-observer` 1.0.56, `session-observer-collab` 1.0.45, `session-export-transcript` 2.0.13, and `session-fork-to-destination` 0.2.21 add the shared detailed-read-to-projection activity entrypoint, verified end to end against the obscured Claude Code and Codex captures.
 - `session-observer` 1.0.54, `session-observer-collab` 1.0.43, `session-export-transcript` 2.0.11, and `session-fork-to-destination` 0.2.19 add pure mode-bounded activity projection with deterministic UTF-8 size guards, source-scoped counts and locators, late-call context, failure-first selection, and honest global omission counts.
@@ -83,7 +84,7 @@
 
 ### Fixed
 
-- `session-observer` 1.0.60 rejects `--include-activity` before state mutation for Cursor review/catch-up and before loop startup for watch modes until those delivery paths are implemented; `session-observer-collab` 1.0.49 and `session-fork-to-destination` 0.2.25 receive the required shared observer runtime closure update.
+- `session-observer` 1.0.60 rejects `--include-activity` before state mutation for unsupported Cursor delivery paths; `session-observer-collab` 1.0.49 and `session-fork-to-destination` 0.2.25 receive the required shared observer runtime closure update.
 - `session-observer` 1.0.58, `session-observer-collab` 1.0.47, `session-export-transcript` 2.0.15, and `session-fork-to-destination` 0.2.23 keep activity reports within their serialized byte and displayed-invocation envelopes while preserving explicit metadata and evidence-group omission counts.
 - `session-observer` 1.0.57, `session-observer-collab` 1.0.46, `session-export-transcript` 2.0.14, and `session-fork-to-destination` 0.2.22 preserve exact source snapshot and native argument evidence while keeping parse diagnostics and projected output bounded and content-free.
 - `session-observer` 1.0.55, `session-observer-collab` 1.0.44, `session-export-transcript` 2.0.12, and `session-fork-to-destination` 0.2.20 retain a linked failed item's sole output preview when its exact-ID-linked result has no output carrier.
