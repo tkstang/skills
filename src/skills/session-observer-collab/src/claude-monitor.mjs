@@ -15,11 +15,11 @@ import {
 } from '../../../shared/collaboration/claims.js';
 import { publishDeliveryDiagnostic } from '../../../shared/collaboration/diagnostics.js';
 import { listInbox } from '../../../shared/collaboration/messages.js';
-import { assertPin, pinsEqual } from '../../../shared/collaboration/types.js';
 import {
   assessAutomaticOwnership,
   inspectClaudeStopInventory,
-} from '../../agent-messaging/src/registration.js';
+} from '../../../shared/collaboration/ownership.js';
+import { assertPin, pinsEqual } from '../../../shared/collaboration/types.js';
 import { buildDigest } from '../../session-observer/src/lib/digest.js';
 import { selectCompletedContinuation } from './lib/completion-selection.mjs';
 import {

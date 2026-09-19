@@ -1,7 +1,7 @@
 // GENERATED skill payload for agent-messaging.
 
 // src/skills/agent-messaging/src/watch.ts
-import path9 from "node:path";
+import path10 from "node:path";
 
 // src/shared/collaboration/activation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -1568,8 +1568,12 @@ async function listInbox(input) {
 }
 
 // src/skills/agent-messaging/src/registration.ts
+import { mkdir as mkdir2, rename, writeFile } from "node:fs/promises";
+import path9 from "node:path";
+
+// src/shared/collaboration/ownership.ts
 import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat3, mkdir as mkdir2, readFile as readFile2, rename, writeFile } from "node:fs/promises";
+import { lstat as lstat3, readFile as readFile2 } from "node:fs/promises";
 import path8 from "node:path";
 var OBSERVER_LEASE_SCHEMA_VERSION = 6;
 var OBSERVER_LAUNCHER_OWNER = "session-observer-collab-codex-stop";
@@ -2031,7 +2035,7 @@ async function inventoryFor(input) {
   const env = input.env ?? process.env;
   if (input.pin.runtime === "codex") {
     return inspectCodexStopInventory(
-      env.AGENT_MESSAGING_HOOKS_PATH ?? path9.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
+      env.AGENT_MESSAGING_HOOKS_PATH ?? path10.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
     );
   }
   if (input.pin.runtime !== "claude-code")
@@ -2039,13 +2043,13 @@ async function inventoryFor(input) {
       "DELIVERY_INACTIVE",
       "this host has no verified standalone watch boundary"
     );
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path9.delimiter).filter(Boolean);
+  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path10.delimiter).filter(Boolean);
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
 async function acceptedOwnership(input, now) {
   const status = await activationStatus(input.root, input.pin, now);
-  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path9.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
+  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path10.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
     return { status, allowed: false };
   }
   if (input.pin.runtime === "claude-code" && (!input.confirmNoObserverMonitor || !status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {
@@ -2068,7 +2072,7 @@ async function acceptedOwnership(input, now) {
 async function watchInbox(input, dependencies) {
   const pollMs = input.pollMs ?? DEFAULT_WATCH_POLL_MS;
   validateTiming(input.durationMs, pollMs);
-  if (!path9.isAbsolute(input.worktree))
+  if (!path10.isAbsolute(input.worktree))
     throw new TypeError("watch worktree must be absolute");
   const currentTime = dependencies.now ?? (() => /* @__PURE__ */ new Date());
   const sleep = dependencies.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));

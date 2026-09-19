@@ -85,6 +85,11 @@
 
 ### Changed
 
+- `agent-messaging` 1.0.15 and `session-observer-collab` 1.0.39 share Claude
+  hook inventory and automatic-owner assessment from the canonical
+  collaboration runtime instead of bundling those read-only primitives from a
+  sibling skill.
+
 - `agent-messaging` 1.0.10 documents the shipped bounded delivery
   and Codex observer-composition contract across the standalone and Session
   forms; Collaborative Observer documentation records its 1.0.35 shared-log and

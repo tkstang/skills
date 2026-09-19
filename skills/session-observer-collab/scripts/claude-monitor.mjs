@@ -1629,9 +1629,9 @@ async function listInbox(input) {
   };
 }
 
-// src/skills/agent-messaging/src/registration.ts
+// src/shared/collaboration/ownership.ts
 import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat3, mkdir as mkdir2, readFile as readFile2, rename, writeFile } from "node:fs/promises";
+import { lstat as lstat3, readFile as readFile2 } from "node:fs/promises";
 import path8 from "node:path";
 var OBSERVER_LEASE_SCHEMA_VERSION = 6;
 var MESSAGING_HOOK_OWNER = "agent-messaging-host-hook-v1";
@@ -4246,12 +4246,12 @@ import {
   access,
   chmod as chmod2,
   lstat as lstat4,
-  mkdir as mkdir3,
+  mkdir as mkdir2,
   open as open3,
   readFile as readFile4,
   readdir as readdir2,
   realpath as realpath3,
-  rename as rename2,
+  rename,
   rm
 } from "node:fs/promises";
 import { homedir as homedir3 } from "node:os";
@@ -4712,7 +4712,7 @@ function effectiveLease(lease, now = Date.now()) {
   return value;
 }
 async function atomicWriteJson(file, value) {
-  await mkdir3(dirname2(file), { recursive: true, mode: 448 });
+  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
   await chmod2(dirname2(file), 448);
   const temp = `${file}.${process.pid}.${randomUUID5()}.tmp`;
   const handle = await open3(temp, "wx", 384);
@@ -4723,7 +4723,7 @@ async function atomicWriteJson(file, value) {
   } finally {
     await handle.close();
   }
-  await rename2(temp, file);
+  await rename(temp, file);
   await chmod2(file, 384);
 }
 async function readLease(root, ownerSession, { persistMigration = true } = {}) {
@@ -4762,7 +4762,7 @@ async function readLease(root, ownerSession, { persistMigration = true } = {}) {
 async function withLeaseLock(file, fn) {
   const lock = `${file}.lock`;
   let handle;
-  await mkdir3(dirname2(file), { recursive: true, mode: 448 });
+  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
   await chmod2(dirname2(file), 448);
   for (let attempt = 0; ; attempt += 1) {
     try {

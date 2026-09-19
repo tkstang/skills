@@ -219,7 +219,6 @@ export const distributions: readonly DistributionDeclaration[] = [
     owner: 'session-observer-collab',
     source: 'src/skills/session-observer-collab',
     allowedSourceRoots: [
-      'src/skills/agent-messaging',
       'src/skills/session-observer',
       'src/shared/collaboration',
       'src/shared/transcript',

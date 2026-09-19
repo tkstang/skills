@@ -4,7 +4,7 @@
 // src/skills/agent-messaging/src/agent-messaging.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
 import { realpathSync } from "node:fs";
-import path12 from "node:path";
+import path13 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
@@ -2943,8 +2943,12 @@ function createHostProbePlan(input) {
 }
 
 // src/skills/agent-messaging/src/registration.ts
+import { mkdir as mkdir2, rename as rename2, writeFile } from "node:fs/promises";
+import path11 from "node:path";
+
+// src/shared/collaboration/ownership.ts
 import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat4, mkdir as mkdir2, readFile as readFile3, rename as rename2, writeFile } from "node:fs/promises";
+import { lstat as lstat4, readFile as readFile3 } from "node:fs/promises";
 import path10 from "node:path";
 var OBSERVER_LEASE_SCHEMA_VERSION = 6;
 var OBSERVER_LAUNCHER_OWNER = "session-observer-collab-codex-stop";
@@ -3395,16 +3399,18 @@ async function assessAutomaticOwnership(input) {
     } : null
   };
 }
+
+// src/skills/agent-messaging/src/registration.ts
 function shellQuote(value) {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 function codexMessagingCommand(scriptPath) {
-  if (!path10.isAbsolute(scriptPath))
+  if (!path11.isAbsolute(scriptPath))
     throw new TypeError("messaging hook script path must be absolute");
-  return `node -- ${shellQuote(path10.resolve(scriptPath))}`;
+  return `node -- ${shellQuote(path11.resolve(scriptPath))}`;
 }
 async function writeJsonAtomic(file, value) {
-  await mkdir2(path10.dirname(file), { recursive: true, mode: 448 });
+  await mkdir2(path11.dirname(file), { recursive: true, mode: 448 });
   const temporary = `${file}.tmp-${process.pid}-${Date.now()}`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}
 `, {
@@ -3413,7 +3419,7 @@ async function writeJsonAtomic(file, value) {
   await rename2(temporary, file);
 }
 async function installCodexMessagingHooks(input) {
-  if (!path10.isAbsolute(input.hooksPath))
+  if (!path11.isAbsolute(input.hooksPath))
     throw new TypeError("Codex hooks path must be absolute");
   const config = await readConfig(input.hooksPath) ?? {};
   const hooks = config.hooks && typeof config.hooks === "object" && !Array.isArray(config.hooks) ? structuredClone(config.hooks) : {};
@@ -3432,7 +3438,7 @@ async function installCodexMessagingHooks(input) {
   return { changed, exactCommand: command };
 }
 async function uninstallCodexMessagingHooks(input) {
-  if (!path10.isAbsolute(input.hooksPath))
+  if (!path11.isAbsolute(input.hooksPath))
     throw new TypeError("Codex hooks path must be absolute");
   const config = await readConfig(input.hooksPath);
   if (!config || typeof config !== "object" || Array.isArray(config))
@@ -3473,7 +3479,7 @@ function claudeSessionHookDeclaration(scriptPath) {
 }
 
 // src/skills/agent-messaging/src/watch.ts
-import path11 from "node:path";
+import path12 from "node:path";
 var MAX_WATCH_DURATION_MS = 30 * 60 * 1e3;
 var DEFAULT_WATCH_POLL_MS = 1e3;
 function validateTiming(durationMs, pollMs) {
@@ -3488,7 +3494,7 @@ async function inventoryFor(input) {
   const env = input.env ?? process.env;
   if (input.pin.runtime === "codex") {
     return inspectCodexStopInventory(
-      env.AGENT_MESSAGING_HOOKS_PATH ?? path11.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
+      env.AGENT_MESSAGING_HOOKS_PATH ?? path12.join(env.HOME ?? input.worktree, ".codex", "hooks.json")
     );
   }
   if (input.pin.runtime !== "claude-code")
@@ -3496,13 +3502,13 @@ async function inventoryFor(input) {
       "DELIVERY_INACTIVE",
       "this host has no verified standalone watch boundary"
     );
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path11.delimiter).filter(Boolean);
+  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path12.delimiter).filter(Boolean);
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
 async function acceptedOwnership(input, now) {
   const status = await activationStatus(input.root, input.pin, now);
-  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path11.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
+  if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path12.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
     return { status, allowed: false };
   }
   if (input.pin.runtime === "claude-code" && (!input.confirmNoObserverMonitor || !status.activation.noObserverMonitorAttestation || status.activation.noObserverMonitorAttestation.epoch !== status.activation.epoch)) {
@@ -3525,7 +3531,7 @@ async function acceptedOwnership(input, now) {
 async function watchInbox(input, dependencies) {
   const pollMs = input.pollMs ?? DEFAULT_WATCH_POLL_MS;
   validateTiming(input.durationMs, pollMs);
-  if (!path11.isAbsolute(input.worktree))
+  if (!path12.isAbsolute(input.worktree))
     throw new TypeError("watch worktree must be absolute");
   const currentTime = dependencies.now ?? (() => /* @__PURE__ */ new Date());
   const sleep = dependencies.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
@@ -3806,9 +3812,9 @@ function resolveSelf(parsed, env) {
 function rootFor(parsed, env) {
   const explicit = optional(parsed, "root");
   if (explicit) {
-    if (!path12.isAbsolute(explicit))
+    if (!path13.isAbsolute(explicit))
       throw new TypeError("--root must be absolute");
-    return path12.resolve(explicit);
+    return path13.resolve(explicit);
   }
   return resolveCollaborationRoot(env);
 }
@@ -3975,9 +3981,9 @@ async function execute(parsed, io) {
       );
     }
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      optional(parsed, "hooks-path") ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      optional(parsed, "hooks-path") ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
       installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
     });
     const ownership = await assessAutomaticOwnership({
@@ -4137,9 +4143,9 @@ async function execute(parsed, io) {
       };
     }
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      optional(parsed, "hooks-path") ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      optional(parsed, "hooks-path") ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
       installedPlugins: {}
     });
     return {
@@ -4164,7 +4170,7 @@ async function execute(parsed, io) {
     const worktree = optional(parsed, "cwd") ?? io.cwd;
     const status = await activationStatus(root, pin);
     const activation = status.activation;
-    if (!status.active || !activation || activation.collaborationId !== collaborationId || activation.worktree !== path12.resolve(worktree)) {
+    if (!status.active || !activation || activation.collaborationId !== collaborationId || activation.worktree !== path13.resolve(worktree)) {
       throw new DeliveryError(
         "DELIVERY_INACTIVE",
         "delivery registration requires the exact active collaboration/session/worktree activation"
@@ -4172,9 +4178,9 @@ async function execute(parsed, io) {
     }
     const hooksPath = optional(parsed, "hooks-path");
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
-      hooksPath ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+      hooksPath ?? path13.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
     ) : await inspectClaudeStopInventory({
-      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path12.delimiter).filter(Boolean),
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path13.delimiter).filter(Boolean),
       installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
     });
     const ownership = await assessAutomaticOwnership({
@@ -4402,7 +4408,7 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     return exitFor(error);
   }
 }
-if (process.argv[1] && realpathSync(path12.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path13.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runAgentMessagingCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });

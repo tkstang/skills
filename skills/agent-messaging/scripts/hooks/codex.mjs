@@ -3,12 +3,12 @@
 
 // src/skills/agent-messaging/src/hooks/codex.ts
 import { realpathSync } from "node:fs";
-import path10 from "node:path";
+import path11 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/skills/agent-messaging/src/hooks/common.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
-import path9 from "node:path";
+import path10 from "node:path";
 
 // src/shared/collaboration/activation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -1593,8 +1593,12 @@ async function listInbox(input) {
 }
 
 // src/skills/agent-messaging/src/registration.ts
+import { mkdir as mkdir2, rename, writeFile } from "node:fs/promises";
+import path9 from "node:path";
+
+// src/shared/collaboration/ownership.ts
 import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat3, mkdir as mkdir2, readFile as readFile2, rename, writeFile } from "node:fs/promises";
+import { lstat as lstat3, readFile as readFile2 } from "node:fs/promises";
 import path8 from "node:path";
 var OBSERVER_LEASE_SCHEMA_VERSION = 6;
 var OBSERVER_LAUNCHER_OWNER = "session-observer-collab-codex-stop";
@@ -2072,16 +2076,16 @@ ${JSON.stringify(payload).replaceAll("<", "\\u003c")}
 }
 async function inventoryFor(input, env) {
   if (input.runtime === "codex") {
-    const hooksPath = env.AGENT_MESSAGING_HOOKS_PATH ?? path9.join(env.HOME ?? input.cwd, ".codex", "hooks.json");
+    const hooksPath = env.AGENT_MESSAGING_HOOKS_PATH ?? path10.join(env.HOME ?? input.cwd, ".codex", "hooks.json");
     return inspectCodexStopInventory(hooksPath);
   }
-  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path9.delimiter).filter(Boolean);
+  const settingsPaths = (env.AGENT_MESSAGING_CLAUDE_SETTINGS ?? "").split(path10.delimiter).filter(Boolean);
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
 async function handleBoundary(input, dependencies = {}) {
   assertBoundedString(input.sessionId, "native session ID", 128);
-  if (!path9.isAbsolute(input.cwd))
+  if (!path10.isAbsolute(input.cwd))
     throw new TypeError("native cwd must be absolute");
   if (input.continuationActive || !input.eventId)
     return { output: null, envelope: null };
@@ -2098,7 +2102,7 @@ async function handleBoundary(input, dependencies = {}) {
   if (!status.activation || !status.active)
     return { output: null, envelope: null };
   const activation = status.activation;
-  if (activation.worktree !== path9.resolve(input.cwd) || activation.controller !== "standalone-messaging" || activation.mechanism !== "stop") {
+  if (activation.worktree !== path10.resolve(input.cwd) || activation.controller !== "standalone-messaging" || activation.mechanism !== "stop") {
     return { output: null, envelope: null };
   }
   if (input.runtime === "claude-code" && (!activation.noObserverMonitorAttestation || activation.noObserverMonitorAttestation.epoch !== activation.epoch)) {
@@ -2172,7 +2176,7 @@ async function handleBoundary(input, dependencies = {}) {
   const validateFinalBoundary = async () => {
     const checkedAt = currentTime();
     const checked = await activationStatus(root, pin, checkedAt);
-    if (!checked.active || checked.activation?.id !== activation.id || checked.activation.controller !== "standalone-messaging" || checked.activation.mechanism !== "stop" || checked.activation.worktree !== path9.resolve(input.cwd) || input.continuationActive)
+    if (!checked.active || checked.activation?.id !== activation.id || checked.activation.controller !== "standalone-messaging" || checked.activation.mechanism !== "stop" || checked.activation.worktree !== path10.resolve(input.cwd) || input.continuationActive)
       return false;
     const checkedOwnership = await assessAutomaticOwnership({
       root,
@@ -2237,7 +2241,7 @@ async function handleBoundary(input, dependencies = {}) {
 // src/skills/agent-messaging/src/hooks/codex.ts
 async function runCodexHook(event, dependencies = {}) {
   const boundary = event.hook_event_name === "UserPromptSubmit" ? "prompt-start" : event.hook_event_name === "Stop" ? "stop" : null;
-  if (!boundary || typeof event.session_id !== "string" || typeof event.cwd !== "string" || !path10.isAbsolute(event.cwd)) {
+  if (!boundary || typeof event.session_id !== "string" || typeof event.cwd !== "string" || !path11.isAbsolute(event.cwd)) {
     return null;
   }
   const eventId = typeof event.event_id === "string" ? event.event_id : typeof event.prompt_id === "string" ? event.prompt_id : null;
@@ -2283,7 +2287,7 @@ async function runCodexHookMain() {
     );
   }
 }
-if (process.argv[1] && realpathSync(path10.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path11.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runCodexHookMain().catch(() => void 0);
 }
 export {

@@ -5,7 +5,21 @@ import path from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 
+import { distributions } from '../../../distributions.js';
+
 describe('Claude Monitor packaging declaration', () => {
+  test('uses shared collaboration ownership without the messaging source root', () => {
+    const declaration = distributions.find(
+      (candidate) => candidate.owner === 'session-observer-collab',
+    );
+    expect(declaration?.allowedSourceRoots).toContain(
+      'src/shared/collaboration',
+    );
+    expect(declaration?.allowedSourceRoots).not.toContain(
+      'src/skills/agent-messaging',
+    );
+  });
+
   test('declares the finite Monitor as an observer-collab runtime entrypoint', async () => {
     const build = JSON.parse(
       await readFile(
