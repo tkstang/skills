@@ -503,8 +503,8 @@ Dispatch: scope=p07 action=implementation role=implementer producer=unknown prov
     "artifact": "reviews/p07-review-2026-09-19T183857Z.md",
     "handle": "/root/p07_review"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "running",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
