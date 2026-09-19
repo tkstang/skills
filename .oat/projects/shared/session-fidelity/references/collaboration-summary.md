@@ -76,3 +76,6 @@ Fable withdrew the template-flag concern after checking quick-start and confirme
 ### User-approved refinement — 2026-09-19
 
 After both peers converged, the user directly approved applying both recommendations. p01-t04 now retains the coupled provenance behavior, focused tests, generated output, versions and changelog; p01-t05 owns identity documentation and full validation/review. New reader byte ranges are deferred until a concrete consumer exists, with physical line/logical record identity retained. Existing Cursor continuity offsets, source-size metadata, UTF-8 budgets and framing regressions stay. This supersedes prior scope/task-count and rejection notes; the current plan has 19 pending tasks.
+
+
+Fable read-back through record 2919: no amendment findings; confirms 19 matching tasks, reviewed identity-tip base and retained Cursor/framing/budget contracts. Fable remains read-only for implementation and will review layer boundaries. The amendment check was the existing native structured reviewer, not a newly launched Claude gate. User explicitly authorized implementation after updates.

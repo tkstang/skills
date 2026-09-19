@@ -14,7 +14,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -91,20 +91,20 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Approved plan refinement under focused review
+**Status:** Ready for implementation
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral await focused review; earlier gate results cover the prior scope. No design HiLL gate is configured; implementation has not started.
+Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; implementation has not started.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
-- **Plan:** `plan.md` (approved refinement under focused review)
+- **Plan:** `plan.md` (complete; ready for implementation)
 - **Implementation:** `implementation.md` (19 pending tasks; implementation not started)
 
 ## Progress
@@ -128,4 +128,4 @@ None
 
 ## Next Milestone
 
-Finish the focused amendment check, then restore the implementation-ready handoff
+Begin authorized implementation at p00-t01 using oat-project-implement.

@@ -1,17 +1,19 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
+oat_plan_hill_phases: ["p06"]
+oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_generated: false
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: session-fidelity
@@ -44,7 +46,7 @@ The user also waived fixture approval and requested light obscuring (records 185
 
 ## Approved scope refinement — 2026-09-19
 
-The user approved the p01-t04/p01-t05 split and deferral of new detailed-reader byte ranges. Keep physical line/record-index locators, original carriers and parse diagnostics, existing Cursor byte offsets/continuity, source-size metadata, UTF-8 output budgets and framing regressions. Reintroduce per-record byte ranges only for a concrete consumer. The following amendment is pending a focused artifact check; earlier gate receipts remain historical evidence for the pre-amendment scope.
+The user approved the p01-t04/p01-t05 split and deferral of new detailed-reader byte ranges. Keep physical line/record-index locators, original carriers and parse diagnostics, existing Cursor byte offsets/continuity, source-size metadata, UTF-8 output budgets and framing regressions. Reintroduce per-record byte ranges only for a concrete consumer. The focused amendment review at `e3c25f3a` found no substantive issues. Its one Minor table-formatting finding was corrected. Earlier gate receipts remain historical evidence for the pre-amendment scope.
 
 ## Parallelism
 
@@ -341,10 +343,11 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p00    | code     | pending         | -          | -                                                           | -             | -          | -           |
 | plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T004303Z.md | -             | -          | -           |
-
-| plan | artifact | pending | 2026-09-19 | - | - | - | - |
+| plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
+
+Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..e3c25f3a` scope; 0 substantive findings, 1 Minor fixed directly by attaching the row to its table. All 19 tasks and retained boundary/budget contracts verified.
 
 ## Implementation Complete
 

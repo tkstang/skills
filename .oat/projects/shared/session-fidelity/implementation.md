@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-No source implementation has started. The approved pre-implementation refinement is awaiting its focused artifact check; prior gate findings remain dispositioned. `oat_current_task_id` names the first planned task, not an active implementation.
+No source implementation has started. The approved pre-implementation refinement passed focused artifact review at e3c25f3a, with its sole Minor table-formatting finding corrected; prior gate findings remain dispositioned. `oat_current_task_id` names the first planned task, not an active implementation.
 
 ## Preparatory evidence
 
