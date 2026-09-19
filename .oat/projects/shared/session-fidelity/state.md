@@ -1,5 +1,5 @@
 ---
-oat_current_task: p02-review-03
+oat_current_task: p03-t01
 oat_last_commit: 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec
 oat_blockers: []
 associated_issues:
@@ -102,13 +102,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Activity review fixes completed; final re-review pending
+**Status:** Observer integration ready
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 is passed and all five p02 tasks plus both bounded review fixes through `30fc6f35` are complete; p02 recovery usage remains 3/10 with no pending marker. Metadata-only reports now stay bounded with explicit omissions, and every displayed call group consumes the mode invocation ceiling while ownership-aware counts remain intact. Root verification and the independent closure audit passed. The third and governance-final p02 review round is next; p03 remains untouched.
+p01 and p02 are passed. The shared activity layer is complete through `30fc6f35`; p02 recovery usage is 3/10 with no pending marker. Three fresh root-owned review rounds closed four Important findings, and the governance-final artifact reports zero findings with all verification green. No external phase gate or p02 HiLL checkpoint applies. Observer review/catch-up integration begins at p03-t01.
 
 ## Artifacts
 
@@ -116,7 +116,7 @@ p01 is passed and all five p02 tasks plus both bounded review fixes through `30f
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (11/19 tasks completed; p01 passed, p02 final re-review pending)
+- **Implementation:** `implementation.md` (11/19 tasks completed; p01 and p02 passed, p03 in progress)
 
 ## Progress
 
@@ -139,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the third and governance-final root-owned p02 review round.
+Implement p03-t01 observer review and catch-up activity integration without changing flag-off output.
