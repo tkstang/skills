@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t03
+oat_current_task_id: p01-t04
 oat_generated: false
 ---
 
@@ -22,14 +22,14 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | active  | 5     | 2/5       |
+| p01   | active  | 5     | 3/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 3/19 implementation tasks completed.
+**Total:** 4/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -59,10 +59,9 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ### Task p01-t03: Reject unsafe saved positions and watcher path changes
 
-**Status:** recovery resumed after task commit
-**Commit:** afffe4a594fc0712807ce2050a10da200d3d40df
-**Verification:** original task suite 304/304 and CLI 51/51, type-check, build:check, format/lint and version checks passed. Root transition review found review --mark-read swallowing state-read failures; its correction remains outstanding after a failed recovery assertion.
-**Recovery:** renewed user direction authorizes attempt 3 on the original accepted phase handle and exact target. Preserve attempts 1–2 and correct the assertion to require EISDIR/nonzero/no digest without requiring a pathname.
+**Status:** completed
+**Commit:** afffe4a594fc0712807ce2050a10da200d3d40df; recovery d3251efa6f73303151ac9a41de08423fe512caf3
+**Verification:** root independently reran focused CLI 52/52 and the declared 13-file p01-t03 suite 304/304 on the recovery commit; type-check and build:check passed. Mark-read state read/lock failures now propagate before digest delivery. Recovery attempt 3/10 was validated on the original accepted exact target and its completed marker cleared; prior failed-attempt evidence remains preserved.
 
 ### Task p01-t04: Correct native Claude provenance atomically
 
@@ -383,3 +382,13 @@ Concrete resume scope: on renewed user direction, use the same accepted phase ha
 #### Continuation p01-recovery-3-resume-01
 
 The user supplied renewed direction with “continue” after the reconciled failed-attempt stop. Resume the original accepted request `sf-p01-implement-01` on handle `/root/p01_implement` and exact target `oat-phase-implementer-gpt-5-6-sol-high`. Recovery usage stays 2/10 until the phase implementer atomically reserves attempt 3. Scope remains the bounded p01-t03 correction described above; no replacement, fallback, route change or plan redesign is authorized.
+
+#### Recovery Event p01-t03-recovery-02
+
+- Phase/task: p01 / p01-t03; original request sf-p01-implement-01.
+- Original immutable commit: afffe4a594fc0712807ce2050a10da200d3d40df. Recovery commit: d3251efa6f73303151ac9a41de08423fe512caf3.
+- Defect class: composition; discovered in root task-transition review when review --mark-read treated state read or lock failure as an absent entry.
+- Disposition: recovered; operator-extension authorization from renewed user direction; attempt 3/10; exact target oat-phase-implementer-gpt-5-6-sol-high unchanged.
+- Bounded correction: propagate saved-state read/lock failures before delivery and prove EISDIR/nonzero/empty stdout without requiring a platform-dependent pathname. Runtime source/test plus generated observer closure only.
+- Verification: committed-HEAD focused CLI 52/52 and declared p01-t03 suite 304/304 passed both in the phase report and root rerun; type-check and build:check passed. Root verified immutable history, clean tree, matching completed marker/request/task/target/attempt before clearing pending_attempt. used_attempts remains 3.
+- Next: p01-t04 after the required root tracking handshake.

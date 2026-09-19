@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t03
-oat_last_commit: 09b69928bffd96687b5c3f5979bd59dc73fa73d8
+oat_current_task: p01-t04
+oat_last_commit: d3251efa6f73303151ac9a41de08423fe512caf3
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -23,16 +23,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p01:
       used_attempts: 3
-      pending_attempt:
-        attempt: 3
-        event_id: p01-t03-recovery-02
-        original_request_id: sf-p01-implement-01
-        original_task_id: p01-t03
-        original_commit: afffe4a594fc0712807ce2050a10da200d3d40df
-        discovered_by: 'root task-transition review: review --mark-read treats state read or lock failure as an absent entry'
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: bf2fb15272be1650773a6d29882e9f7ac6645c96
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -108,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Implementation resumed for bounded p01-t03 recovery
+**Status:** Identity implementation active at p01-t04
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Identity implementation resumed at p01-t03 after the user supplied renewed direction. The original task commit passes its declared checks, but review --mark-read still swallows state-read errors. Recovery usage remains 2/10 with no pending attempt; the original accepted phase handle and exact target will reserve attempt 3 for the bounded correction. p01-t04/t05 and activity remain unstarted. See implementation.md for exact commits and resume scope.
+The bounded p01-t03 recovery is accepted at `d3251efa`: mark-read now fails before digest delivery when saved state cannot be read. Recovery usage is 3/10 with no pending attempt. The original phase agent may continue with p01-t04 after the root tracking handshake; p01-t05 and activity remain unstarted.
 
 ## Artifacts
 
@@ -122,7 +113,7 @@ Identity implementation resumed at p01-t03 after the user supplied renewed direc
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (3/19 tasks completed; p01-t03 recovery resumed)
+- **Implementation:** `implementation.md` (4/19 tasks completed; p01-t04 next)
 
 ## Progress
 
@@ -141,8 +132,8 @@ Identity implementation resumed at p01-t03 after the user supplied renewed direc
 
 ## Blockers
 
-None. The prior failed-attempt stop was satisfied by renewed user direction; its evidence and consumed attempt remain preserved.
+None. Both prior failed-attempt evidence and all three consumed recovery attempts remain preserved.
 
 ## Next Milestone
 
-Complete the bounded p01-t03 correction on the original phase handle, then continue p01-t04/t05 and the remaining configured lifecycle.
+Complete p01-t04 native Claude provenance atomically, then p01-t05 documentation and full identity-layer validation.
