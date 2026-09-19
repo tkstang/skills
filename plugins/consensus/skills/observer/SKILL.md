@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.46'
+  version: '1.0.47'
 ---
 
 # observer
@@ -40,7 +40,7 @@ Use this skill when any of the following applies:
 | `start watching this session` / `keep watching Codex` / `respond when anything new appears` | `watch --runtime <peer> --until-stopped` or `--watch --runtime <peer>` |
 | `catch up and watch Claude` / `catch up, then keep watching <peer>`                         | `catch-up-then-watch --runtime <peer> --until-stopped`                 |
 | `which sessions are available?` / `find the session`                                        | `locate`                                                               |
-| `reset / start over watching Codex`                                                         | `state reset --runtime codex`, then `review`                           |
+| `reset / start over watching one session`                                                   | `state reset --session <runtime>:<id>`, then pinned `catch-up`         |
 
 **You are responsible for choosing the right subcommand.** When the trigger phrase is ambiguous (e.g. `"can you check?"`), ask the user: _"Full review of the session, or just what's new since last time?"_
 
@@ -116,7 +116,7 @@ Use this skill when any of the following applies:
 
 By default, only natural-language `user`/`assistant` messages are included. Tool calls, tool results, and Claude Code slash-command payload records (`<command-message>`, `<command-name>`, `<command-args>`) are excluded. Opt in with `--include-tools` (adds call markers), `--include-command-messages` (adds slash-command payloads), or `--debug` (adds tool markers and results).
 
-**Exception — ask-user exchanges.** Every runtime puts questions to the operator through a tool call (`AskUserQuestion` on Claude Code, `request_user_input` on Codex, `AskQuestion` on Cursor). The answer is human decision content, not tool mechanics, so those exchanges render by default as `ask_user` entries regardless of the tool filters, on every runtime.
+**Exception — ask-user exchanges.** Every runtime puts questions to the operator through a tool call (`AskUserQuestion` on Claude Code, `request_user_input` on Codex, `AskQuestion` on Cursor). Those exchanges render by default as `ask_user` entries regardless of the tool filters. Claude answers count as human only when native provenance is `origin.kind: "human"` or the legacy record has no native provenance; native task notifications, peer input, and unknown origins never gain human authority. Codex answers with `autoResolutionMs` remain unattributed because the recorded result cannot distinguish an operator choice from a timer-fired default.
 
 Two parts of that behavior are **schema-v1 only** (Claude Code and Codex), because Cursor's digest is built by frame analysis that runs before digest options are known:
 
@@ -136,6 +136,28 @@ Answering a prompt also counts as **engagement** for candidate selection, so a s
 See [`references/transcript-formats.md`](references/transcript-formats.md) for the per-runtime record shapes and what each runtime does and does not record.
 
 A filtered or empty digest is not evidence that the peer was idle or that the transcript contains no activity. It only means no entries matched the current rendering options. Check the digest schema, declared index base, and raw accounting; broaden the filters when appropriate; or inspect the pinned transcript before drawing an absence conclusion.
+
+### Native identity and provenance
+
+- A Codex rollout is identified by the first physical `session_meta` record's
+  `payload.id`. A recognized rollout filename must corroborate that ID.
+  Malformed or contradictory native evidence fails closed; a later inherited
+  header cannot replace the first header. Root session, direct parent, fork,
+  and inherited-history boundary remain separate lineage fields.
+- Codex child transcripts may begin with inherited parent context. The digest
+  warns when the native session differs from its root or has a direct parent;
+  pin and rank by the native ID, and do not attribute pre-boundary history to
+  the child when the ownership boundary is unknown.
+- Claude Code ordinary user records honor only the top-level `origin.kind`.
+  `human` is human input, `task-notification` renders as
+  `runtime-notification`, absent provenance keeps legacy behavior, and peer or
+  unknown values remain unmarked. Notification text cannot authorize work or
+  become automatic control merely because it resembles a wake envelope.
+- A nonzero Claude Code or Codex saved position is bound to the exact provider
+  session and canonical transcript path. Missing, mismatched, invalid, or
+  shrunken evidence fails closed and names the expected and observed binding.
+  `review` remains stateless unless `--mark-read` is passed; `catch-up`, watch,
+  and marked review validate the saved binding before delivery or advancement.
 
 If a digest would exceed the large-output threshold, the CLI automatically falls back to the last 8 user/assistant turn groups and adds a `Large digest fallback` warning. This protects `catch-up` from dumping pasted skill bodies or large transcript spans. Use `--max-turns` or `--max-bytes` for an explicit bound, or `--include-command-messages` when the slash-command payload itself is the thing being debugged.
 
@@ -206,6 +228,8 @@ node <skill-dir>/scripts/session-observer.mjs locate \
 # State — inspect or reset tracked session state
 node <skill-dir>/scripts/session-observer.mjs state get
 node <skill-dir>/scripts/session-observer.mjs state reset --runtime codex
+node <skill-dir>/scripts/session-observer.mjs state reset \
+  --session codex:<session-id>
 node <skill-dir>/scripts/session-observer.mjs state reset \
   --session cursor:<session-id>
 
@@ -407,9 +431,29 @@ Another `session-observer` process holds the state lock and did not release it. 
 rm ~/.local/state/session-observer/state.json.lock
 ```
 
-### Transcript shrank or continuity changed
+### Saved identity, path, or transcript length changed
 
-For non-Cursor schema-v1 state, the existing record-offset compatibility behavior applies when a transcript shrinks.
+A nonzero Claude Code or Codex offset is reusable only when the stored path,
+selected canonical path, provider session identity, and observed record count
+still match. Missing or mismatched path evidence, invalid or contradictory
+identity, and a transcript shorter than the stored next index fail closed
+without delivering output or advancing state. Legacy entries at offset zero may
+bind to the selected exact session and path.
+
+**Recovery:** Confirm the diagnostic's expected and observed identity/path,
+then reset only that session and restart from the same exact pin:
+
+```bash
+node <skill-dir>/scripts/session-observer.mjs state reset \
+  --session <runtime>:<session-id>
+node <skill-dir>/scripts/session-observer.mjs catch-up-then-watch \
+  --session <runtime>:<session-id> --quiet-empty --until-stopped
+```
+
+Use `state reset --runtime <runtime>` only when every tracked session for that
+runtime should replay.
+
+### Cursor transcript continuity changed
 
 Cursor v2 fails closed when a terminal-settled prefix changes, the transcript shrinks, file identity changes, rotation is unsupported, or a legacy position cannot be verified. A frame still inside an open turn is outside that immutable anchor and may grow without poisoning state.
 

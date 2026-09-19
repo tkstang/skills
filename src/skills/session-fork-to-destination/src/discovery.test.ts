@@ -136,7 +136,7 @@ describe('exact handoff candidate discovery', () => {
     }
   });
 
-  test.sequential('fails closed when Codex payload.id metadata is contradictory', async () => {
+  test.sequential('keeps the first physical Codex payload.id authoritative over later inherited metadata', async () => {
     const createdHome = await mkdtemp(
       join(tmpdir(), 'handoff-codex-native-conflict-'),
     );
@@ -173,10 +173,12 @@ describe('exact handoff candidate discovery', () => {
 
       await expect(
         discoverHandoffCandidates(canonicalSource, { providers: ['codex'] }),
-      ).rejects.toMatchObject({
-        code: 'discovery-incomplete',
-        provider: 'codex',
-      });
+      ).resolves.toEqual([
+        expect.objectContaining({
+          key: 'codex:native-one',
+          nativeId: 'native-one',
+        }),
+      ]);
     } finally {
       if (previousHome === undefined) delete process.env.HOME;
       else process.env.HOME = previousHome;

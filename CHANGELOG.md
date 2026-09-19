@@ -77,6 +77,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.47 and `session-observer-collab` 1.0.36 document the native Codex identity and lineage boundary, Claude human versus runtime-notification provenance, fail-closed saved-position binding, and exact scoped reset/re-arm procedure; `session-fork-to-destination` 0.2.12 aligns its discovery regression with the first physical Codex header contract.
 - `session-observer` 1.0.46, `session-observer-collab` 1.0.35,
   `session-export-transcript` 2.0.4, and `session-fork-to-destination` 0.2.11
   distinguish native Claude human input from runtime task notifications across
