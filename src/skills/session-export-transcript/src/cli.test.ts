@@ -193,6 +193,50 @@ function codexTranscript(
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+function nativeCodexTranscript(
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+  options: { malformedPrefix?: boolean; boundary?: number } = {},
+): string {
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd: CWD,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+        ...(options.boundary === undefined
+          ? {}
+          : { subagent_history_start_ordinal: options.boundary }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: 'Native child question',
+      },
+    },
+    {
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: 'Native child answer',
+      },
+    },
+  ];
+  return (
+    (options.malformedPrefix ? '{malformed first line\n' : '') +
+    records.map((record) => JSON.stringify(record)).join('\n') +
+    '\n'
+  );
+}
+
 // A Codex transcript whose session_started record omits cwd → recordedCwd null.
 function codexTranscriptNoCwd(
   marker: string,
@@ -379,6 +423,77 @@ describe('export CLI — session selection', () => {
     assert.equal(r.status, 0, r.stderr);
     const md = await readFile(out, 'utf8');
     assert.ok(md.includes('Please refactor the auth module.'));
+  });
+
+  test('--session rejects duplicate Codex native identity sources', async () => {
+    const duplicateHome = await setupHome();
+    const nativeId = '11111111-bbbb-4111-8111-111111111111';
+    await writeCodex(
+      duplicateHome,
+      nativeCodexTranscript(nativeId),
+      'duplicate-one',
+    );
+    await writeCodex(
+      duplicateHome,
+      nativeCodexTranscript(nativeId),
+      'duplicate-two',
+    );
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', nativeId],
+      { HOME: duplicateHome },
+    );
+
+    assert.equal(r.status, 3, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /SESSION_IDENTITY_AMBIGUOUS/);
+    await rm(duplicateHome, { recursive: true, force: true });
+  });
+
+  test('--session exports Codex child identity with inherited-context warning', async () => {
+    const childHome = await setupHome();
+    const childId = '22222222-bbbb-4222-8222-222222222222';
+    const rootId = '33333333-bbbb-4333-8333-333333333333';
+    await writeCodex(
+      childHome,
+      nativeCodexTranscript(childId, rootId, { boundary: 5 }),
+      'native-child',
+    );
+    const out = join(childHome, 'child.md');
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', childId, '--out', out],
+      { HOME: childHome },
+    );
+
+    assert.equal(r.status, 0, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /inherited parent context before ordinal 5/);
+    const md = await readFile(out, 'utf8');
+    assert.match(md, new RegExp(`Native session: ${childId}`));
+    assert.match(md, new RegExp(`Root session: ${rootId}`));
+    assert.match(md, /inherited parent context before ordinal 5/);
+    await rm(childHome, { recursive: true, force: true });
+  });
+
+  test('--session rejects malformed-first-line Codex rollout identity', async () => {
+    const malformedHome = await setupHome();
+    const childId = '44444444-bbbb-4444-8444-444444444444';
+    const parentId = '55555555-bbbb-4555-8555-555555555555';
+    const dir = join(malformedHome, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      join(dir, `rollout-2026-09-18T10-00-00-${childId}.jsonl`),
+      nativeCodexTranscript(parentId, parentId, { malformedPrefix: true }),
+      'utf8',
+    );
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', childId],
+      { HOME: malformedHome },
+    );
+
+    assert.equal(r.status, 1, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /SESSION_IDENTITY_INVALID/);
+    await rm(malformedHome, { recursive: true, force: true });
   });
 
   test('--all writes one output per cwd session, exit 0', async () => {

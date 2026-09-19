@@ -196,6 +196,42 @@ async function copyCodexTranscript(
   return transcriptPath;
 }
 
+async function writeNativeCodexTranscript(
+  home: string,
+  cwd: string,
+  fileName: string,
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+  prefix = '',
+): Promise<string> {
+  const transcriptDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, fileName);
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'assistant', content: 'Done' },
+    },
+  ];
+  await writeFile(
+    transcriptPath,
+    prefix + records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
+  return transcriptPath;
+}
+
 // ---------------------------------------------------------------------------
 // Basic dispatch tests
 // ---------------------------------------------------------------------------
@@ -248,6 +284,63 @@ describe('CLI subcommand dispatch', () => {
           .map((candidate: any) => candidate.sessionId)
           .toSorted(),
       ).toEqual(['cursor-one', 'cursor-two']);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami exposes native Codex child lineage and rejects malformed first-header rollover', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-native-codex-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const childId = 'cccccccc-dddd-4ccc-8ccc-cccccccccccc';
+      const parentId = 'dddddddd-eeee-4ddd-8ddd-dddddddddddd';
+      const transcript = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'child.jsonl',
+        childId,
+        parentId,
+      );
+      const canonicalTranscript = await realpath(transcript);
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: childId,
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'codex',
+        session: childId,
+        nativeSessionId: childId,
+        rootSessionId: parentId,
+        parentSessionId: parentId,
+        transcript: canonicalTranscript,
+        source: 'harness-environment',
+      });
+
+      await rm(transcript);
+      const malformedChildId = 'eeeeeeee-ffff-4eee-8eee-eeeeeeeeeeee';
+      await writeNativeCodexTranscript(
+        home,
+        cwd,
+        `rollout-2026-09-18T10-00-00-${malformedChildId}.jsonl`,
+        parentId,
+        parentId,
+        '{malformed first line\n',
+      );
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: malformedChildId,
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
+        ambiguousIdentity: true,
+        code: 'SESSION_IDENTITY_INVALID',
+      });
+      expect(payload.candidates[0].sessionId).not.toBe(parentId);
     } finally {
       await rm(home, { recursive: true, force: true });
     }

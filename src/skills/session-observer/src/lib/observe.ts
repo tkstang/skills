@@ -21,6 +21,7 @@ import * as cursorStateLib from './cursor-state.js';
 import { buildDigest } from './digest.js';
 import {
   discover,
+  ExactSessionIdentityError,
   findSessionCandidate,
   gitWorktrees,
   resolveCursorIdentity,
@@ -153,12 +154,19 @@ async function candidatesForIdentitySignals(
   const candidateGroups = await Promise.all(
     signals.map(async (signal) => {
       if (signal.sessionId) {
-        const candidate = await findSessionCandidate(
-          signal.runtime,
-          targetCwd,
-          signal.sessionId,
-        );
-        return candidate ? [candidate] : [];
+        try {
+          const candidate = await findSessionCandidate(
+            signal.runtime,
+            targetCwd,
+            signal.sessionId,
+          );
+          return candidate ? [candidate] : [];
+        } catch (error) {
+          if (error instanceof ExactSessionIdentityError) {
+            return error.candidates;
+          }
+          throw error;
+        }
       }
       return (await discover(signal.runtime, targetCwd)).filter(
         (candidate) => candidate.recordedCwd === targetCwd,
@@ -203,16 +211,48 @@ export async function resolveSelfIdentity(
   if (!signal) return { noMatch: true };
 
   if (signal.sessionId) {
-    const candidate = await findSessionCandidate(
-      signal.runtime,
-      targetCwd,
-      signal.sessionId,
-    );
+    let candidate;
+    try {
+      candidate = await findSessionCandidate(
+        signal.runtime,
+        targetCwd,
+        signal.sessionId,
+      );
+    } catch (error) {
+      if (error instanceof ExactSessionIdentityError) {
+        return {
+          ambiguous: true,
+          runtime: signal.runtime,
+          signals: [signal],
+          candidates: error.candidates,
+          code: error.code,
+        };
+      }
+      throw error;
+    }
     if (!candidate) return { noMatch: true, runtime: signal.runtime };
     return {
       identity: {
         runtime: signal.runtime,
         session: candidate.sessionId,
+        ...(candidate.nativeSessionId
+          ? { nativeSessionId: candidate.nativeSessionId }
+          : {}),
+        ...(candidate.rootSessionId
+          ? { rootSessionId: candidate.rootSessionId }
+          : {}),
+        ...(candidate.parentSessionId
+          ? { parentSessionId: candidate.parentSessionId }
+          : {}),
+        ...(candidate.forkedFromSessionId
+          ? { forkedFromSessionId: candidate.forkedFromSessionId }
+          : {}),
+        ...(candidate.subagentHistoryStartOrdinal === undefined
+          ? {}
+          : {
+              subagentHistoryStartOrdinal:
+                candidate.subagentHistoryStartOrdinal,
+            }),
         transcript: candidate.transcriptPath,
         source: explicit?.sessionId ? 'explicit-self' : 'harness-environment',
       },
@@ -227,6 +267,24 @@ export async function resolveSelfIdentity(
       identity: {
         runtime: signal.runtime,
         session: candidates[0].sessionId,
+        ...(candidates[0].nativeSessionId
+          ? { nativeSessionId: candidates[0].nativeSessionId }
+          : {}),
+        ...(candidates[0].rootSessionId
+          ? { rootSessionId: candidates[0].rootSessionId }
+          : {}),
+        ...(candidates[0].parentSessionId
+          ? { parentSessionId: candidates[0].parentSessionId }
+          : {}),
+        ...(candidates[0].forkedFromSessionId
+          ? { forkedFromSessionId: candidates[0].forkedFromSessionId }
+          : {}),
+        ...(candidates[0].subagentHistoryStartOrdinal === undefined
+          ? {}
+          : {
+              subagentHistoryStartOrdinal:
+                candidates[0].subagentHistoryStartOrdinal,
+            }),
         transcript: candidates[0].transcriptPath,
         source: 'same-cwd-transcript',
       },
@@ -1436,26 +1494,34 @@ async function observePinnedSession(
   args: ObserveArgs,
   deps: ObserveDeps,
 ): Promise<ObserveOutcome> {
-  let candidates;
+  let pinned;
   try {
-    candidates = await discover(runtime, cwd);
+    pinned = await findSessionCandidate(runtime, cwd, pinnedSession.sessionId);
   } catch (err) {
+    if (err instanceof ExactSessionIdentityError) {
+      const ambiguous = err.code === 'SESSION_IDENTITY_AMBIGUOUS';
+      return {
+        ok: false,
+        kind: ambiguous ? 'ambiguousIdentity' : 'identityBlocked',
+        exitCode: ambiguous ? 3 : 1,
+        payload: {
+          ...(ambiguous
+            ? { ambiguousIdentity: true }
+            : { identityBlocked: true }),
+          runtime,
+          cwd,
+          code: err.code,
+          candidates: err.candidates,
+        },
+        message: ambiguous
+          ? `Pinned session identity is ambiguous: ${pinnedSession.sessionId}. Multiple canonical transcripts claim it.`
+          : `Pinned session identity is invalid: ${pinnedSession.sessionId}. The recognized rollout filename contradicts its native header.`,
+      };
+    }
     const message = err instanceof Error ? err.message : String(err);
     return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
 
-  if (candidates.length === 0) {
-    return noMatchOutcome(
-      { noMatch: true, runtime, cwd },
-      `No ${runtime} transcripts found for cwd: ${cwd}`,
-    );
-  }
-
-  const pinned = candidates.find(
-    (c) =>
-      c.runtime === pinnedSession.runtime &&
-      c.sessionId === pinnedSession.sessionId,
-  );
   if (!pinned) {
     return errorOutcome(
       `Pinned session not found: ${args.session}. Run locate to see available sessions.`,

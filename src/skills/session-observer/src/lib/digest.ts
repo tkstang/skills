@@ -32,7 +32,7 @@ import {
   type Runtime,
   readRecords,
   normalizeEntries,
-  extractMeta,
+  extractMetaFromRecords,
 } from '../../../../shared/transcript/runtimes.js';
 import { classifyTranscriptRecords } from './session-classifier.js';
 import type {
@@ -231,6 +231,20 @@ function formatHeader(digest: Digest): string {
   lines.push('');
   lines.push(`**runtime:** ${runtime}`);
   lines.push(`**mode:** ${mode}`);
+  lines.push(`**session:** ${digest.sessionId}`);
+  if (digest.nativeSessionId)
+    lines.push(`**native session:** ${digest.nativeSessionId}`);
+  if (digest.rootSessionId)
+    lines.push(`**root session:** ${digest.rootSessionId}`);
+  if (digest.parentSessionId)
+    lines.push(`**parent session:** ${digest.parentSessionId}`);
+  if (digest.forkedFromSessionId)
+    lines.push(`**forked from:** ${digest.forkedFromSessionId}`);
+  if (digest.subagentHistoryStartOrdinal !== undefined) {
+    lines.push(
+      `**inherited history ends before ordinal:** ${digest.subagentHistoryStartOrdinal}`,
+    );
+  }
   if (recordedCwd) lines.push(`**cwd:** ${recordedCwd}`);
   lines.push(`**transcript:** ${transcriptPath}`);
   if (active) lines.push(`**status:** ACTIVE (modified < 60s ago)`);
@@ -1098,20 +1112,29 @@ export async function buildDigest(
   const engagement = classifyTranscriptRecords(runtime, records);
   const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
 
-  // Extract metadata
-  let sessionId = opts.sessionId;
-  let recordedCwd: string | null = opts.recordedCwd ?? null;
-  if (!sessionId || recordedCwd === undefined) {
-    try {
-      const meta = await extractMeta(runtime, transcriptPath);
-      if (!sessionId) sessionId = meta?.sessionId ?? 'unknown';
-      if (recordedCwd === null && meta?.recordedCwd)
-        recordedCwd = meta.recordedCwd;
-    } catch {
-      if (!sessionId) sessionId = 'unknown';
-    }
-  }
+  // Extract metadata from the records already read so session identity and
+  // rendered content always describe the same physical transcript snapshot.
+  const identity =
+    opts.identity ?? extractMetaFromRecords(runtime, records, transcriptPath);
+  let sessionId = opts.sessionId ?? identity?.sessionId;
+  const recordedCwd: string | null =
+    opts.recordedCwd ?? identity?.recordedCwd ?? null;
   sessionId ??= 'unknown';
+
+  if (
+    runtime === 'codex' &&
+    identity?.nativeSessionId &&
+    (identity.parentSessionId ||
+      (identity.rootSessionId &&
+        identity.nativeSessionId !== identity.rootSessionId))
+  ) {
+    const boundary = identity.subagentHistoryStartOrdinal;
+    const warning =
+      boundary === undefined
+        ? `Codex child session ${identity.nativeSessionId} may include inherited parent context; ownership boundary is unknown.`
+        : `Codex child session ${identity.nativeSessionId} includes inherited parent context before ordinal ${boundary}.`;
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
 
   // Check for transcript shrinkage
   const effectiveFromIndex = fromIndex > totalRecords ? 0 : fromIndex;
@@ -1280,6 +1303,23 @@ export async function buildDigest(
     schemaVersion: SCHEMA_VERSION,
     runtime,
     sessionId,
+    ...(identity?.nativeSessionId
+      ? { nativeSessionId: identity.nativeSessionId }
+      : {}),
+    ...(identity?.rootSessionId
+      ? { rootSessionId: identity.rootSessionId }
+      : {}),
+    ...(identity?.parentSessionId
+      ? { parentSessionId: identity.parentSessionId }
+      : {}),
+    ...(identity?.forkedFromSessionId
+      ? { forkedFromSessionId: identity.forkedFromSessionId }
+      : {}),
+    ...(identity?.subagentHistoryStartOrdinal === undefined
+      ? {}
+      : {
+          subagentHistoryStartOrdinal: identity.subagentHistoryStartOrdinal,
+        }),
     transcriptPath,
     recordedCwd,
     matchedTier: opts.matchedTier ?? null,

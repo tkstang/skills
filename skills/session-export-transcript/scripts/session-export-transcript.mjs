@@ -3,7 +3,14 @@
 
 // src/skills/session-export-transcript/src/session-export-transcript.ts
 import { execFile } from "node:child_process";
-import { readdir, stat, mkdir, writeFile, readFile as readFile2 } from "node:fs/promises";
+import {
+  readdir,
+  stat,
+  mkdir,
+  writeFile,
+  readFile as readFile2,
+  realpath
+} from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname2, join as join2, basename as basename2 } from "node:path";
 import { parseArgs } from "node:util";
@@ -1005,6 +1012,29 @@ var execFileAsync = promisify(execFile);
 var VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 var LOOKBACK_DAYS = 30;
 var MARKER_LINE_RE = /EXPORT_SESSION_MARKER\s*=\s*\S+/;
+var CODEX_ROLLOUT_FILENAME_PATTERN2 = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN2.exec(basename2(transcriptPath))?.[1];
+}
+function codexIdentityFields(meta) {
+  return {
+    ...meta?.nativeSessionId ? { nativeSessionId: meta.nativeSessionId } : {},
+    ...meta?.rootSessionId ? { rootSessionId: meta.rootSessionId } : {},
+    ...meta?.parentSessionId ? { parentSessionId: meta.parentSessionId } : {},
+    ...meta?.forkedFromSessionId ? { forkedFromSessionId: meta.forkedFromSessionId } : {},
+    ...meta?.subagentHistoryStartOrdinal === void 0 ? {} : {
+      subagentHistoryStartOrdinal: meta.subagentHistoryStartOrdinal
+    }
+  };
+}
+function isCodexChild(candidate) {
+  return candidate.runtime === "codex" && typeof candidate.nativeSessionId === "string" && (typeof candidate.parentSessionId === "string" || typeof candidate.rootSessionId === "string" && candidate.rootSessionId !== candidate.nativeSessionId);
+}
+function inheritedContextWarning(candidate) {
+  if (!isCodexChild(candidate)) return null;
+  const boundary = candidate.subagentHistoryStartOrdinal;
+  return boundary === void 0 ? `Codex child session ${candidate.nativeSessionId} may include inherited parent context; ownership boundary is unknown.` : `Codex child session ${candidate.nativeSessionId} includes inherited parent context before ordinal ${boundary}.`;
+}
 function isRuntime(value) {
   return typeof value === "string" && VALID_RUNTIMES.includes(value);
 }
@@ -1149,10 +1179,14 @@ async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
     }
     if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
     if (requireCwd && !meta?.recordedCwd) continue;
+    const filenameSessionId = codexFilenameSessionId(p);
     candidates.push({
       runtime: "codex",
       transcriptPath: p,
-      sessionId: meta?.sessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
+      sessionId: meta?.sessionId ?? filenameSessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
+      identityStatus: meta ? meta.nativeSessionId ? "native" : "legacy" : "invalid",
+      ...filenameSessionId ? { filenameSessionId } : {},
+      ...codexIdentityFields(meta),
       ...st
     });
   }
@@ -1225,21 +1259,61 @@ function newest(candidates) {
 async function selectSessions(opts, candidates) {
   const warnings = [];
   if (opts.all) {
+    for (const candidate of candidates) {
+      const warning = inheritedContextWarning(candidate);
+      if (warning) warnings.push(warning);
+    }
     return { selected: candidates, warnings };
   }
   if (opts.session) {
-    const hit = candidates.find((c) => c.sessionId === opts.session);
+    const invalid = candidates.filter(
+      (candidate) => candidate.identityStatus === "invalid" && candidate.filenameSessionId === opts.session
+    );
+    if (invalid.length > 0) {
+      return {
+        exit: 1,
+        message: `SESSION_IDENTITY_INVALID: recognized rollout source for "${opts.session}" contradicts or lacks a valid native header.`
+      };
+    }
+    const matches = candidates.filter((c) => c.sessionId === opts.session);
+    const canonical = /* @__PURE__ */ new Map();
+    for (const candidate of matches) {
+      let canonicalPath = candidate.transcriptPath;
+      try {
+        canonicalPath = await realpath(candidate.transcriptPath);
+      } catch {
+      }
+      if (!canonical.has(canonicalPath)) {
+        canonical.set(canonicalPath, {
+          ...candidate,
+          transcriptPath: canonicalPath
+        });
+      }
+    }
+    const distinct = [...canonical.values()];
+    if (distinct.length > 1) {
+      return {
+        exit: 3,
+        message: `SESSION_IDENTITY_AMBIGUOUS: multiple canonical transcripts claim "${opts.session}".
+` + distinct.map((c) => `  - ${c.transcriptPath}`).join("\n")
+      };
+    }
+    const hit = distinct[0];
     if (!hit) {
       return {
         exit: 2,
         message: `No transcript found for session id "${opts.session}" in this cwd.`
       };
     }
+    const warning = inheritedContextWarning(hit);
+    if (warning) warnings.push(warning);
     return { selected: [hit], warnings };
   }
   if (opts.match) {
     for (const c of candidates) {
       if (await candidateContainsMarker(c.transcriptPath, opts.match)) {
+        const warning2 = inheritedContextWarning(c);
+        if (warning2) warnings.push(warning2);
         return { selected: [c], warnings };
       }
     }
@@ -1253,9 +1327,13 @@ async function selectSessions(opts, candidates) {
     warnings.push(
       `marker "${opts.match}" not found in any candidate; falling back to newest-for-cwd transcript (${fallback.sessionId}). Re-run with --session <id> if this is the wrong session.`
     );
+    const warning = inheritedContextWarning(fallback);
+    if (warning) warnings.push(warning);
     return { selected: [fallback], warnings };
   }
   if (candidates.length === 1) {
+    const warning = inheritedContextWarning(candidates[0]);
+    if (warning) warnings.push(warning);
     return { selected: [candidates[0]], warnings };
   }
   return {
@@ -1321,7 +1399,8 @@ function renderMarkdown({
   source,
   runtime,
   entries,
-  branchFromGit
+  branchFromGit,
+  session
 }) {
   const lines = [];
   const title = branchFromGit ? branch : `${branch} (no git branch)`;
@@ -1330,6 +1409,17 @@ function renderMarkdown({
   lines.push(`Exported: ${(/* @__PURE__ */ new Date()).toISOString()}`);
   lines.push(`Source: ${source}`);
   lines.push(`Runtime: ${runtime}`);
+  lines.push(`Session: ${session.sessionId}`);
+  if (session.nativeSessionId)
+    lines.push(`Native session: ${session.nativeSessionId}`);
+  if (session.rootSessionId)
+    lines.push(`Root session: ${session.rootSessionId}`);
+  if (session.parentSessionId)
+    lines.push(`Parent session: ${session.parentSessionId}`);
+  if (session.forkedFromSessionId)
+    lines.push(`Forked from: ${session.forkedFromSessionId}`);
+  const warning = inheritedContextWarning(session);
+  if (warning) lines.push(`Warning: ${warning}`);
   lines.push(SANITIZE_NOTE);
   lines.push("");
   if (entries.length === 0) {
@@ -1361,6 +1451,7 @@ async function exportSession(opts, runtime, branch, branchFromGit, session, mult
     branchFromGit,
     source: session.transcriptPath,
     runtime,
+    session,
     entries
   });
   const outPath = await resolveOutputPath(opts, branch, session, multi);

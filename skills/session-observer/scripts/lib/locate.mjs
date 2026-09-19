@@ -1270,6 +1270,16 @@ var SessionDiscoveryError = class extends Error {
     this.code = code;
   }
 };
+var ExactSessionIdentityError = class extends Error {
+  code;
+  candidates;
+  constructor(code, candidates) {
+    super(code);
+    this.name = "ExactSessionIdentityError";
+    this.code = code;
+    this.candidates = candidates;
+  }
+};
 var ExactAllDiscoveryBudget = class {
   constructor(limits, runtime, diagnostic) {
     this.limits = limits;
@@ -1583,6 +1593,10 @@ async function saveCwdCache(cache) {
 function cwdCacheKey(transcriptPath, mtimeSec) {
   return `${transcriptPath}:${mtimeSec}`;
 }
+var CODEX_ROLLOUT_FILENAME_PATTERN2 = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN2.exec(basename2(transcriptPath))?.[1];
+}
 async function discoverClaudeCode(targetCwd, cache, options) {
   const [projectsRoot] = discoverPaths("claude-code");
   const budget = exactAllBudget("claude-code", options);
@@ -1807,6 +1821,9 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
     const key = cwdCacheKey(transcriptPath, mtime);
     let recordedCwd;
     let sessionId;
+    let meta;
+    let identityStatus;
+    const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived = null;
     if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
@@ -1821,11 +1838,14 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       );
       if (boundedDerived === null) continue;
     }
-    if (persistentCacheAllowed && cwdCache[key] && cwdCache[key].sessionId !== void 0) {
-      recordedCwd = cwdCache[key].recordedCwd;
-      sessionId = cwdCache[key].sessionId;
+    const cached = persistentCacheAllowed ? cwdCache[key] : void 0;
+    if (cached?.identityVersion === 1 && cached.fileSize === fileStat.size && cached.sessionId !== void 0 && cached.meta !== void 0 && cached.identityStatus !== void 0) {
+      recordedCwd = cached.recordedCwd;
+      sessionId = cached.sessionId;
+      meta = cached.meta;
+      identityStatus = cached.identityStatus;
     } else {
-      let meta = boundedDerived?.meta;
+      meta = boundedDerived?.meta ?? null;
       if (!budget) {
         try {
           meta = await extractMeta("codex", transcriptPath);
@@ -1834,9 +1854,18 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
         }
       }
       recordedCwd = meta?.recordedCwd ?? null;
-      sessionId = meta?.sessionId ?? basename2(transcriptPath).replace(/\.jsonl$/, "");
+      sessionId = meta?.sessionId ?? filenameSessionId ?? basename2(transcriptPath).replace(/\.jsonl$/, "");
+      identityStatus = meta ? meta.nativeSessionId ? "native" : "legacy" : "invalid";
       if (persistentCacheAllowed) {
-        cwdCache[key] = { recordedCwd, sessionId };
+        cwdCache[key] = {
+          recordedCwd,
+          sessionId,
+          identityVersion: 1,
+          fileSize: fileStat.size,
+          meta,
+          identityStatus,
+          ...filenameSessionId ? { filenameSessionId } : {}
+        };
         cacheModified = true;
       }
     }
@@ -1845,6 +1874,15 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       transcriptPath,
       sessionId,
       recordedCwd,
+      identityStatus,
+      ...filenameSessionId ? { filenameSessionId } : {},
+      ...meta?.nativeSessionId ? { nativeSessionId: meta.nativeSessionId } : {},
+      ...meta?.rootSessionId ? { rootSessionId: meta.rootSessionId } : {},
+      ...meta?.parentSessionId ? { parentSessionId: meta.parentSessionId } : {},
+      ...meta?.forkedFromSessionId ? { forkedFromSessionId: meta.forkedFromSessionId } : {},
+      ...meta?.subagentHistoryStartOrdinal === void 0 ? {} : {
+        subagentHistoryStartOrdinal: meta.subagentHistoryStartOrdinal
+      },
       mtime,
       size: fileStat.size,
       ageSec,
@@ -2429,10 +2467,40 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
 async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   const cache = new ClassificationCache();
   const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
+  const invalidMatches = candidates.filter(
+    (candidate) => candidate.identityStatus === "invalid" && candidate.filenameSessionId === sessionId
+  );
+  if (invalidMatches.length > 0) {
+    throw new ExactSessionIdentityError(
+      "SESSION_IDENTITY_INVALID",
+      invalidMatches
+    );
+  }
   const matches = candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
   );
-  return matches.length === 1 ? matches[0] : null;
+  const canonicalMatches = /* @__PURE__ */ new Map();
+  for (const candidate of matches) {
+    let canonical = candidate.transcriptPath;
+    try {
+      canonical = await realpath(candidate.transcriptPath);
+    } catch {
+    }
+    if (!canonicalMatches.has(canonical)) {
+      canonicalMatches.set(
+        canonical,
+        runtime === "codex" ? { ...candidate, transcriptPath: canonical } : candidate
+      );
+    }
+  }
+  const distinctMatches = [...canonicalMatches.values()];
+  if (runtime === "codex" && distinctMatches.length > 1) {
+    throw new ExactSessionIdentityError(
+      "SESSION_IDENTITY_AMBIGUOUS",
+      distinctMatches
+    );
+  }
+  return distinctMatches[0] ?? null;
 }
 async function findNewerSameCwdCandidates(runtime, targetCwd, watched, cache = new ClassificationCache()) {
   const candidates = await discover(runtime, targetCwd, cache);
@@ -2465,6 +2533,7 @@ async function gitWorktrees(cwd) {
 export {
   ClassificationCache,
   CursorDiscoveryError,
+  ExactSessionIdentityError,
   SessionDiscoveryError,
   claudeCodeLookupDiagnostics,
   configureCursorDiscoveryForTest,

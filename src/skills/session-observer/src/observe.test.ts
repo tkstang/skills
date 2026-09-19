@@ -21,7 +21,7 @@ import { expect, describe, test } from 'vitest';
 
 import { getCursorSession, mutateCursorState } from './lib/cursor-state.js';
 import { renderMarkdown } from './lib/digest.js';
-import { observeCatchUp } from './lib/observe.js';
+import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
 
 const growInPlaceBeforeFixture = new URL(
   './fixtures/cursor/framed-grow-in-place-before.jsonl',
@@ -129,6 +129,45 @@ async function writeCodexTranscript(
   return transcriptPath;
 }
 
+async function writeNativeCodexTranscript(
+  home: string,
+  cwd: string,
+  fileName: string,
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+): Promise<string> {
+  const dir = join(home, '.codex', 'sessions', '2026', '09', '18');
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, fileName);
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'user', content: 'Question' },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'assistant', content: 'Answer' },
+    },
+  ];
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
+  return transcriptPath;
+}
+
 type CursorFixtureFrame = Record<string, unknown> | string;
 
 async function writeCursorTranscript(
@@ -168,6 +207,63 @@ async function injectLegacyStateWriteFailure(
 }
 
 describe('observeCatchUp', () => {
+  test('exact Codex pins fail closed when duplicate canonical sources claim the native id', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-duplicate-native';
+      const nativeId = '99999999-aaaa-4999-8999-999999999999';
+      await writeNativeCodexTranscript(home, cwd, 'first.jsonl', nativeId);
+      await writeNativeCodexTranscript(home, cwd, 'second.jsonl', nativeId);
+
+      const outcome = await observeCatchUp({
+        runtime: 'codex',
+        cwd,
+        session: `codex:${nativeId}`,
+      } as any);
+
+      expect(outcome).toMatchObject({
+        ok: false,
+        kind: 'ambiguousIdentity',
+        exitCode: 3,
+        payload: {
+          code: 'SESSION_IDENTITY_AMBIGUOUS',
+          candidates: expect.arrayContaining([
+            expect.objectContaining({ sessionId: nativeId }),
+            expect.objectContaining({ sessionId: nativeId }),
+          ]),
+        },
+      });
+    });
+  });
+
+  test('whoami returns native Codex lineage instead of inherited root identity', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/whoami-native-child';
+      const childId = 'aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa';
+      const rootId = 'bbbbbbbb-cccc-4bbb-8bbb-bbbbbbbbbbbb';
+      const transcript = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'child.jsonl',
+        childId,
+        rootId,
+      );
+
+      await expect(
+        resolveSelfIdentity(cwd, { CODEX_THREAD_ID: childId }),
+      ).resolves.toEqual({
+        identity: expect.objectContaining({
+          runtime: 'codex',
+          session: childId,
+          nativeSessionId: childId,
+          rootSessionId: rootId,
+          parentSessionId: rootId,
+          transcript,
+          source: 'harness-environment',
+        }),
+      });
+    });
+  });
+
   test('builds a catch-up digest from the prior offset and only rewrites changed state', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/observe-prior-offset';

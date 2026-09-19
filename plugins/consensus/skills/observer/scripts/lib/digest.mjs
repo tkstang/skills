@@ -365,10 +365,6 @@ function claudeRecordLineage(records) {
   }
   return result.length === 0 ? void 0 : result;
 }
-async function extractMeta(runtime, transcriptPath) {
-  const records = await readRecords(transcriptPath);
-  return extractMetaFromRecords(runtime, records, transcriptPath);
-}
 function extractClaudeRecordedCwdFromRecords(records) {
   let recordedCwd = null;
   for (const record of records) {
@@ -1105,6 +1101,20 @@ function formatHeader(digest) {
   lines.push("");
   lines.push(`**runtime:** ${runtime}`);
   lines.push(`**mode:** ${mode}`);
+  lines.push(`**session:** ${digest.sessionId}`);
+  if (digest.nativeSessionId)
+    lines.push(`**native session:** ${digest.nativeSessionId}`);
+  if (digest.rootSessionId)
+    lines.push(`**root session:** ${digest.rootSessionId}`);
+  if (digest.parentSessionId)
+    lines.push(`**parent session:** ${digest.parentSessionId}`);
+  if (digest.forkedFromSessionId)
+    lines.push(`**forked from:** ${digest.forkedFromSessionId}`);
+  if (digest.subagentHistoryStartOrdinal !== void 0) {
+    lines.push(
+      `**inherited history ends before ordinal:** ${digest.subagentHistoryStartOrdinal}`
+    );
+  }
   if (recordedCwd) lines.push(`**cwd:** ${recordedCwd}`);
   lines.push(`**transcript:** ${transcriptPath}`);
   if (active) lines.push(`**status:** ACTIVE (modified < 60s ago)`);
@@ -1711,19 +1721,15 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
   const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
-  let sessionId = opts.sessionId;
-  let recordedCwd = opts.recordedCwd ?? null;
-  if (!sessionId || recordedCwd === void 0) {
-    try {
-      const meta = await extractMeta(runtime, transcriptPath);
-      if (!sessionId) sessionId = meta?.sessionId ?? "unknown";
-      if (recordedCwd === null && meta?.recordedCwd)
-        recordedCwd = meta.recordedCwd;
-    } catch {
-      if (!sessionId) sessionId = "unknown";
-    }
-  }
+  const identity = opts.identity ?? extractMetaFromRecords(runtime, records, transcriptPath);
+  let sessionId = opts.sessionId ?? identity?.sessionId;
+  const recordedCwd = opts.recordedCwd ?? identity?.recordedCwd ?? null;
   sessionId ??= "unknown";
+  if (runtime === "codex" && identity?.nativeSessionId && (identity.parentSessionId || identity.rootSessionId && identity.nativeSessionId !== identity.rootSessionId)) {
+    const boundary = identity.subagentHistoryStartOrdinal;
+    const warning = boundary === void 0 ? `Codex child session ${identity.nativeSessionId} may include inherited parent context; ownership boundary is unknown.` : `Codex child session ${identity.nativeSessionId} includes inherited parent context before ordinal ${boundary}.`;
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
   const effectiveFromIndex = fromIndex > totalRecords ? 0 : fromIndex;
   if (fromIndex > totalRecords && totalRecords > 0) {
     warnings.push(
@@ -1855,6 +1861,13 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     schemaVersion: SCHEMA_VERSION,
     runtime,
     sessionId,
+    ...identity?.nativeSessionId ? { nativeSessionId: identity.nativeSessionId } : {},
+    ...identity?.rootSessionId ? { rootSessionId: identity.rootSessionId } : {},
+    ...identity?.parentSessionId ? { parentSessionId: identity.parentSessionId } : {},
+    ...identity?.forkedFromSessionId ? { forkedFromSessionId: identity.forkedFromSessionId } : {},
+    ...identity?.subagentHistoryStartOrdinal === void 0 ? {} : {
+      subagentHistoryStartOrdinal: identity.subagentHistoryStartOrdinal
+    },
     transcriptPath,
     recordedCwd,
     matchedTier: opts.matchedTier ?? null,

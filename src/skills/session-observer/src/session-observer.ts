@@ -31,6 +31,8 @@ import {
 import { buildDigest, renderMarkdown } from './lib/digest.js';
 import {
   discover,
+  ExactSessionIdentityError,
+  findSessionCandidate,
   gitWorktrees,
   claudeCodeLookupDiagnostics,
   resolveCursorIdentity,
@@ -379,10 +381,18 @@ function unengagedOnlyMessage(runtime: string, cwd: string): string {
 
 function renderCandidateList(candidates: TranscriptCandidate[]): string {
   return candidates
-    .map(
-      (c) =>
-        `  ${c.runtime}:${c.sessionId}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`,
-    )
+    .map((c) => {
+      const identityLabel =
+        c.runtime !== 'codex'
+          ? ''
+          : c.parentSessionId ||
+              (c.nativeSessionId &&
+                c.rootSessionId &&
+                c.nativeSessionId !== c.rootSessionId)
+            ? ` child-of=${c.parentSessionId ?? c.rootSessionId}`
+            : ' root';
+      return `  ${c.runtime}:${c.sessionId}${identityLabel}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`;
+    })
     .join('\n');
 }
 
@@ -493,6 +503,7 @@ async function runWhoami(args: CliArgs): Promise<never> {
       ambiguousIdentity: true,
       runtime: resolved.runtime,
       cwd: args.cwd,
+      code: resolved.code,
       signals: resolved.signals,
       candidates: resolved.candidates,
     };
@@ -916,9 +927,27 @@ async function runReview(args: CliArgs): Promise<void> {
   if (pinnedSession) {
     const pinnedRuntime = pinnedSession.runtime;
     const pinnedId = pinnedSession.sessionId;
-    const pinned = candidates.find(
-      (c) => c.runtime === pinnedRuntime && c.sessionId === pinnedId,
-    );
+    let pinned;
+    try {
+      pinned = await findSessionCandidate(pinnedRuntime, cwd, pinnedId);
+    } catch (error) {
+      if (error instanceof ExactSessionIdentityError) {
+        const payload = {
+          identityBlocked: true,
+          code: error.code,
+          runtime: pinnedRuntime,
+          cwd,
+          candidates: error.candidates,
+        };
+        const exitCode = error.code === 'SESSION_IDENTITY_AMBIGUOUS' ? 3 : 1;
+        if (json) return emitJson(payload, exitCode);
+        return emit(
+          `${error.code}: exact session ${pinnedId} could not be selected.\n${renderCandidateList(error.candidates)}`,
+          exitCode,
+        );
+      }
+      throw error;
+    }
     if (!pinned) {
       return emitError(
         `Pinned session not found: ${session}. Run locate to see available sessions.`,
@@ -1214,7 +1243,10 @@ async function runLocate(args: CliArgs): Promise<void> {
       `Winner: ${rankResult.winner.runtime}:${rankResult.winner.sessionId}\n` +
         `  Tier: ${rankResult.tier}\n` +
         `  Transcript: ${rankResult.winner.transcriptPath}\n` +
-        `  Fallbacks: ${rankResult.fallbacks.length}`,
+        `  Fallbacks: ${rankResult.fallbacks.length}` +
+        (rankResult.fallbacks.length > 0
+          ? `\n${renderCandidateList(rankResult.fallbacks)}`
+          : ''),
       0,
     );
   }
@@ -1332,7 +1364,10 @@ async function runLocate(args: CliArgs): Promise<void> {
     `Winner: ${rankResult.winner.runtime}:${rankResult.winner.sessionId}\n` +
       `  Tier: ${rankResult.tier}\n` +
       `  Transcript: ${rankResult.winner.transcriptPath}\n` +
-      `  Fallbacks: ${rankResult.fallbacks.length}`,
+      `  Fallbacks: ${rankResult.fallbacks.length}` +
+      (rankResult.fallbacks.length > 0
+        ? `\n${renderCandidateList(rankResult.fallbacks)}`
+        : ''),
     0,
   );
 }

@@ -859,6 +859,56 @@ describe('Cursor digest v2 behavior', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildDigest', () => {
+  test('carries Codex child identity and warns about inherited parent context', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'codex-child-digest-'));
+    try {
+      const childId = '77777777-aaaa-4777-8777-777777777777';
+      const rootId = '88888888-aaaa-4888-8888-888888888888';
+      const transcriptPath = join(tmpDir, 'child.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: childId,
+              session_id: rootId,
+              parent_thread_id: rootId,
+              cwd: '/workspace/child',
+              subagent_history_start_ordinal: 9,
+            },
+          },
+          {
+            type: 'response_item',
+            ordinal: 9,
+            payload: {
+              type: 'message',
+              role: 'assistant',
+              content: 'Child reply',
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      const digest = await buildDigest('codex', transcriptPath);
+      expect(digest).toMatchObject({
+        sessionId: childId,
+        nativeSessionId: childId,
+        rootSessionId: rootId,
+        parentSessionId: rootId,
+        subagentHistoryStartOrdinal: 9,
+      });
+      expect(digest.warnings.join('\n')).toContain(
+        'inherited parent context before ordinal 9',
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test.each(automaticWakeFixtures)(
     'classifies %s wake envelopes as automatic control input',
     async (runtime, fixture) => {
