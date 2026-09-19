@@ -1,5 +1,5 @@
 ---
-oat_current_task: p03-review
+oat_current_task: p04-t01
 oat_last_commit: 7ec1fba9aecc53d6e41ea091df0cfc4399057332
 oat_blockers: []
 associated_issues:
@@ -99,19 +99,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T15:25:33+00:00"
+oat_project_state_updated: "2026-09-19T15:58:14+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Observer integration review pending
+**Status:** Exporter activity integration ready
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 and p02 are passed. p03 implementation is complete through recovery `7ec1fba9`: review/direct catch-up and watch expose bounded activity for Claude/Codex, Cursor remains explicitly unavailable until p05, and collaboration wake authority remains conversation-only. p03 recovery usage is 2/10 with no pending marker. Formal phase review is next.
+p01 through p03 are passed. The fresh p03 phase review found zero findings across 387 tests and all structural gates. Review/direct catch-up and watch now expose bounded activity for Claude/Codex, Cursor remains explicitly unavailable until p05, and collaboration wake authority remains conversation-only. No external phase gate or p03 HiLL checkpoint applies. Export integration begins at p04-t01.
 
 ## Artifacts
 
@@ -119,7 +119,7 @@ p01 and p02 are passed. p03 implementation is complete through recovery `7ec1fba
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (13/19 tasks completed; p01 and p02 passed, p03 review pending)
+- **Implementation:** `implementation.md` (13/19 tasks completed; p01 through p03 passed, p04 ready)
 
 ## Progress
 
@@ -142,4 +142,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the fresh root-owned p03 phase review over the immutable activity-stack range.
+Implement p04-t01 bounded source-attributed activity in Markdown export.
