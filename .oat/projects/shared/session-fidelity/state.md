@@ -74,9 +74,9 @@ oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5
   resolved_command: 'oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on important "Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings."'
   resolved_description: Semantic cross-family final implementation review before oat-project-implement exits.
@@ -87,8 +87,8 @@ oat_implement_exit_gate:
   reviewed_head: b51a106d14ee3d25884b5b24fa8f8949da301f90
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:51192b0ce158e9a279e78354895ca10416141a556b991e4788e24ca1249caa6e
-  freshness_head: 9cf1c9011141dec4b230cc894fcf707b1b5c0b2e
-  freshness_fingerprint: sha256:effective-delta-v1:8c60fcbc30d1278cd73506ab05833a7296c6ff96e6e1aec5239ca21768a5398e
+  freshness_head: aa65e0b793230c772ea5082e33d7142953e48e9c
+  freshness_fingerprint: sha256:effective-delta-v1:e49ec7bf3a1e073285035750f996f50b3bc558a078d7d0fa1080b43f9eba271e
   launch_state: result_persisted
   launch_attempt_id: c40d1b63-f11b-4031-8e3e-8f7bb5458b2e
   launch_started_at: '2026-09-19T22:06:23Z'
@@ -98,7 +98,7 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md
   handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation:
     gate_run_id: 8e4a9161-9fd8-4732-9198-ee39329845ed
     handoff: 'Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=5). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md to disposition them before marking the final review row passed.'
@@ -113,11 +113,11 @@ oat_implement_exit_gate:
     type: code
     source_filename: final-review-2026-09-19T221544Z.md
   receive_pre_head: 3f7bfd62c71472ea62c5570aa237e7d9017641bf
-  receive_commit: null
+  receive_commit: aa65e0b793230c772ea5082e33d7142953e48e9c
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-09-19T22:19:40Z'
+  updated_at: '2026-09-19T22:22:00Z'
 oat_post_implement_sequence:
   status: complete
   source: configured
