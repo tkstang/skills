@@ -33,13 +33,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T14:01:14Z'
+oat_project_state_updated: '2026-09-19T14:18:12Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 tasks and bounded recovery complete; awaiting root-owned phase review before p02-t01.
+**Status:** Phase 1 review is blocking; bounded review fixes are in progress before p02-t01.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -48,9 +48,9 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation is committed and verified. Its root-owned review remains
-the active boundary before p02-t01; live hook installation remains separately
-authorized.
+Phase 1 implementation is committed and verified. Its independent review found
+9 Important and 2 Medium issues; bounded fixes are the active boundary before
+p02-t01. Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -58,7 +58,7 @@ authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 awaits review.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 review fixes are active.
 
 ## Progress
 
@@ -146,6 +146,11 @@ authorized.
   The user then requested skipping an additional gate after these corrections;
   no sixth gate was launched. The fifth event remains fixes_completed, not a
   fabricated independent pass. Planning is complete on this explicit disposition.
+
+- **Phase 1 code review:** Reviewed `91f5f238..8866df01` and returned a
+  blocking verdict with 0 Critical, 9 Important, 2 Medium, and 0 Minor findings.
+  The artifact is `reviews/code-p01-review-2026-09-19T140258Z.md`; bounded review
+  fix round 1/2 is active on the original accepted phase handle.
 
 ## Dispatch and Gate Review Policy
 

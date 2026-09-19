@@ -14,14 +14,15 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. Phase 1 implementation and one bounded recovery are complete; the
-phase is awaiting root-owned review before Phase 2 begins.
+2026-09-19. Phase 1 implementation and one bounded recovery are complete. Its
+independent review is blocking, and the bounded review-fix loop is active before
+Phase 2 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | review_pending | 5     | 5/5       |
+| Phase 1 | fixes_in_progress | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -30,7 +31,7 @@ phase is awaiting root-owned review before Phase 2 begins.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** review_pending
+**Status:** fixes_in_progress
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -233,6 +234,66 @@ Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
 - Reason: the new canonical skill required one mechanically derived pinned
   shipped-skill expectation; no production behavior or inventory changed.
 
+#### Dispatch: p01 review round 1
+
+```yaml
+request_id: dispatch-agent-messaging-p01-review-35bd08eb-ea49-4c1c-954a-d7ef73de0984
+caller: oat-project-implement
+scope: phase:p01
+objective: Independently review Phase 1 implementation against the approved plan and repository contracts.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+catalog_snapshot:
+  id: codex-native-2026-09-19-p01-review
+  source: tool-schema
+  observed_at: 2026-09-19T14:02:00Z
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+reasoning_mode_selector: null
+service_tier_selector: priority
+guidance_reference: subagent-orchestration/references/provider-codex.md
+guidance_version: 2026-07-25
+guidance_verified_at: 2026-07-25
+guidance_status: review-required
+task_class: hard-reasoning
+model_class_floor: hard-reasoning
+classification_source: caller
+classification_reason: Independent load-bearing review of filesystem concurrency, safety, packaging, and protocol semantics.
+floor_satisfaction: satisfied
+selection_source: gate-target
+candidates_considered:
+  - gpt-5.6-sol/high
+selection_reason: gate-target
+selected_route: native
+deadline_seconds: 7200
+retry_limit: 0
+payload:
+  phase_base: 91f5f2383883e6dd5f4506ebf6371d26099f59ad
+  reviewed_head: 8866df01da3041e49d8b530e7e5d005059783330
+  artifact: reviews/code-p01-review-2026-09-19T140258Z.md
+launch_status: accepted
+child_outcome: blocking
+configured_invocation_evidence:
+  - resolver-report:p01-review
+  - "Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=9,medium=2,minor=0
+  - reconnaissance:not-attempted
+```
+
+No project-log review-orchestration entry was added because the reviewer
+reported reconnaissance as `not-attempted`; exactly one valid signal was
+consumed for this round.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -243,6 +304,22 @@ Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
 - Root transition verification reproduced the 48 focused tests and discovered
   the release-versioning inventory gap; the original phase handle recovered it
   in append-only commit `7739c65a` with attempt 1/10.
+
+## Review Received: p01 round 1
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 1 code review](reviews/code-p01-review-2026-09-19T140258Z.md)
+**Reviewed head:** `8866df01da3041e49d8b530e7e5d005059783330`
+**Findings:** 0 Critical, 9 Important, 2 Medium, 0 Minor.
+**Status:** fixes_added; bounded fix loop round 1/2 pending.
+
+The blocking review found two missing repository inventory expectations,
+insufficient record validation and join crash recovery, unbounded writer and
+acknowledged-history paths, missing `--reply-to`, incorrect inactive exit codes,
+unreported close/takeover races, unsafe rendered-view reads, incomplete
+adversarial proof, missing creation/staleness context, and fail-open closed-marker
+inspection. All findings remain within the existing p01 task scope; no task IDs
+were added or renumbered.
 
 ## Review Received: plan
 
