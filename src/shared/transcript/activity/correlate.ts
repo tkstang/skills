@@ -18,8 +18,60 @@ interface OwnershipContext {
   boundary?: number;
 }
 
+interface HeaderOwnershipEvidence {
+  kind: 'root' | 'bounded-child' | 'unknown';
+  boundary?: number;
+  parentThreadId?: string;
+}
+
 function metadataObject(event: ExtractedActivityEvent): JsonObject | undefined {
   return event.metadata;
+}
+
+function headerOwnershipEvidence(
+  event: ExtractedActivityEvent,
+): HeaderOwnershipEvidence {
+  const metadata = metadataObject(event);
+  const directParentThreadId = metadata?.directParentThreadId;
+  const nestedParentThreadId = metadata?.nestedParentThreadId;
+  const directParent =
+    typeof directParentThreadId === 'string' ? directParentThreadId : undefined;
+  const nestedParent =
+    typeof nestedParentThreadId === 'string' ? nestedParentThreadId : undefined;
+  if (
+    (metadata?.directParentMarkerPresent === true &&
+      directParent === undefined) ||
+    (metadata?.nestedParentMarkerPresent === true && nestedParent === undefined)
+  ) {
+    return { kind: 'unknown' };
+  }
+  if (
+    directParent !== undefined &&
+    nestedParent !== undefined &&
+    directParent !== nestedParent
+  ) {
+    return { kind: 'unknown' };
+  }
+
+  const parentThreadId = directParent ?? nestedParent;
+  const lineageMarkerPresent =
+    metadata?.directParentMarkerPresent === true ||
+    metadata?.nestedParentMarkerPresent === true ||
+    metadata?.subagentMarkerPresent === true ||
+    metadata?.subagentHistoryStartOrdinalPresent === true;
+  if (parentThreadId === undefined) {
+    return lineageMarkerPresent ? { kind: 'unknown' } : { kind: 'root' };
+  }
+
+  const boundary = metadata?.subagentHistoryStartOrdinal;
+  if (
+    typeof boundary !== 'number' ||
+    !Number.isSafeInteger(boundary) ||
+    boundary < 0
+  ) {
+    return { kind: 'unknown' };
+  }
+  return { kind: 'bounded-child', boundary, parentThreadId };
 }
 
 function ownershipContext(activity: ExtractedActivity): OwnershipContext {
@@ -34,34 +86,22 @@ function ownershipContext(activity: ExtractedActivity): OwnershipContext {
   });
   if (headers.length === 0) return { kind: 'unknown' };
 
-  const childFlags = new Set(
-    headers.map(
-      (event) => typeof metadataObject(event)?.parentThreadId === 'string',
-    ),
-  );
-  if (childFlags.size !== 1) return { kind: 'unknown' };
-  if (!childFlags.has(true)) return { kind: 'root' };
-  const parentThreadIds = new Set(
-    headers.map((event) => metadataObject(event)?.parentThreadId),
-  );
-  if (parentThreadIds.size !== 1) return { kind: 'unknown' };
-
-  const boundaries = headers.map(
-    (event) => metadataObject(event)?.subagentHistoryStartOrdinal,
-  );
-  if (
-    boundaries.some(
-      (boundary) =>
-        typeof boundary !== 'number' ||
-        !Number.isSafeInteger(boundary) ||
-        boundary < 0,
-    )
-  ) {
+  const evidence = headers.map(headerOwnershipEvidence);
+  if (evidence.every((entry) => entry.kind === 'root')) return { kind: 'root' };
+  if (evidence.some((entry) => entry.kind !== 'bounded-child')) {
     return { kind: 'unknown' };
   }
-  const uniqueBoundaries = new Set(boundaries as number[]);
-  if (uniqueBoundaries.size !== 1) return { kind: 'unknown' };
-  return { kind: 'bounded-child', boundary: boundaries[0] as number };
+  const parentThreadIds = new Set(
+    evidence.map((entry) => entry.parentThreadId),
+  );
+  const boundaries = new Set(evidence.map((entry) => entry.boundary));
+  if (parentThreadIds.size !== 1 || boundaries.size !== 1) {
+    return { kind: 'unknown' };
+  }
+  return {
+    kind: 'bounded-child',
+    boundary: evidence[0].boundary,
+  };
 }
 
 function ownershipFor(

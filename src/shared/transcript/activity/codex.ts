@@ -63,6 +63,7 @@ function selectedSessionMetadata(payload: JsonObject): JsonObject {
   const cliVersion = stringValue(payload.cli_version);
   const modelProvider = stringValue(payload.model_provider);
   const nativeSessionId = stringValue(payload.id);
+  const directParentMarkerPresent = Object.hasOwn(payload, 'parent_thread_id');
   const directParentThreadId = stringValue(payload.parent_thread_id);
   const source = isJsonObject(payload.source) ? payload.source : undefined;
   const subagent =
@@ -74,7 +75,13 @@ function selectedSessionMetadata(payload: JsonObject): JsonObject {
   const nestedParentThreadId = threadSpawn
     ? stringValue(threadSpawn.parent_thread_id)
     : undefined;
-  const parentThreadId = directParentThreadId ?? nestedParentThreadId;
+  const nestedParentMarkerPresent =
+    threadSpawn !== undefined && Object.hasOwn(threadSpawn, 'parent_thread_id');
+  const subagentMarkerPresent = subagent !== undefined;
+  const subagentHistoryStartOrdinalPresent = Object.hasOwn(
+    payload,
+    'subagent_history_start_ordinal',
+  );
   const subagentHistoryStartOrdinal = numberValue(
     payload.subagent_history_start_ordinal,
   );
@@ -82,7 +89,14 @@ function selectedSessionMetadata(payload: JsonObject): JsonObject {
     ...(cliVersion === undefined ? {} : { cliVersion }),
     ...(modelProvider === undefined ? {} : { modelProvider }),
     ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
-    ...(parentThreadId === undefined ? {} : { parentThreadId }),
+    ...(directParentThreadId === undefined ? {} : { directParentThreadId }),
+    ...(nestedParentThreadId === undefined ? {} : { nestedParentThreadId }),
+    ...(directParentMarkerPresent ? { directParentMarkerPresent: true } : {}),
+    ...(nestedParentMarkerPresent ? { nestedParentMarkerPresent: true } : {}),
+    ...(subagentMarkerPresent ? { subagentMarkerPresent: true } : {}),
+    ...(subagentHistoryStartOrdinalPresent
+      ? { subagentHistoryStartOrdinalPresent: true }
+      : {}),
     ...(subagentHistoryStartOrdinal === undefined
       ? {}
       : { subagentHistoryStartOrdinal }),

@@ -74,7 +74,14 @@ describe('native activity classification', () => {
     ['web_search', 'search'],
     ['WebFetch', 'fetch'],
     ['spawn_agent', 'task'],
+    ['send_message', 'task'],
+    ['wait_agent', 'task'],
+    ['interrupt_agent', 'task'],
+    ['followup_task', 'task'],
+    ['list_agents', 'task'],
+    ['multi_agent_v1__spawn_agent', 'task'],
     ['request_user_input', 'ask'],
+    ['request_user_input_async', 'ask'],
     ['mcp__unlisted_server__brand_new_tool', 'mcp'],
     ['unknown_tool', 'other'],
     ['mcp_unrecognized_shape', 'other'],
@@ -380,7 +387,9 @@ describe('explicit native correlation', () => {
         nativeType: 'session_meta',
         metadata: {
           nativeSessionId: CODEX_SOURCE.nativeSessionId,
-          parentThreadId: 'fixture-parent',
+          directParentThreadId: 'fixture-parent',
+          directParentMarkerPresent: true,
+          subagentHistoryStartOrdinalPresent: boundary !== undefined,
           ...(boundary === undefined
             ? {}
             : { subagentHistoryStartOrdinal: boundary }),
@@ -412,5 +421,112 @@ describe('explicit native correlation', () => {
     expect(absent.correlationCounts.responseStreamCalls.counted).toBe(0);
     expect(conflicting.events[2].ownership).toBe('unknown');
     expect(conflicting.correlationCounts.responseStreamCalls.counted).toBe(0);
+  });
+
+  it('requires complete and agreeing child lineage before counting ownership', () => {
+    const call = event('child-call', 'call', 1, {
+      nativeCallId: 'child-call-id',
+      nativeName: 'exec_command',
+      locator: {
+        recordIndex: 1,
+        physicalLine: 2,
+        jsonPointer: '/payload',
+        ordinal: 8,
+      },
+    });
+    const metadataEvent = (
+      eventKey: string,
+      metadata: Record<string, unknown>,
+    ): ExtractedActivityEvent =>
+      event(eventKey, 'metadata', 0, {
+        nativeType: 'session_meta',
+        metadata: {
+          nativeSessionId: CODEX_SOURCE.nativeSessionId,
+          ...metadata,
+        },
+      });
+
+    const boundaryWithoutParent = correlateActivity(
+      activity(CODEX_SOURCE, [
+        metadataEvent('missing-parent', {
+          subagentHistoryStartOrdinalPresent: true,
+          subagentHistoryStartOrdinal: 5,
+        }),
+        call,
+      ]),
+    );
+    const conflictingParents = correlateActivity(
+      extractActivity({
+        source: CODEX_SOURCE,
+        read: {
+          records: [
+            {
+              record: {
+                type: 'session_meta',
+                payload: {
+                  id: CODEX_SOURCE.nativeSessionId,
+                  parent_thread_id: 'parent-a',
+                  subagent_history_start_ordinal: 5,
+                  source: {
+                    subagent: {
+                      thread_spawn: { parent_thread_id: 'parent-b' },
+                    },
+                  },
+                },
+              },
+              recordIndex: 0,
+              physicalLine: 1,
+            },
+            {
+              record: {
+                type: 'response_item',
+                ordinal: 8,
+                payload: {
+                  type: 'function_call',
+                  call_id: 'child-call-id',
+                  name: 'exec_command',
+                  arguments: '{}',
+                },
+              },
+              recordIndex: 1,
+              physicalLine: 2,
+            },
+          ],
+          diagnostics: [],
+        },
+      }),
+    );
+    const incompleteNestedParent = correlateActivity(
+      activity(CODEX_SOURCE, [
+        metadataEvent('invalid-nested-parent', {
+          subagentMarkerPresent: true,
+          nestedParentMarkerPresent: true,
+        }),
+        call,
+      ]),
+    );
+    const invalidSecondParent = correlateActivity(
+      activity(CODEX_SOURCE, [
+        metadataEvent('invalid-second-parent', {
+          directParentMarkerPresent: true,
+          directParentThreadId: 'parent-a',
+          nestedParentMarkerPresent: true,
+          subagentMarkerPresent: true,
+          subagentHistoryStartOrdinalPresent: true,
+          subagentHistoryStartOrdinal: 5,
+        }),
+        call,
+      ]),
+    );
+
+    for (const correlated of [
+      boundaryWithoutParent,
+      conflictingParents,
+      incompleteNestedParent,
+      invalidSecondParent,
+    ]) {
+      expect(correlated.events[1].ownership).toBe('unknown');
+      expect(correlated.correlationCounts.responseStreamCalls.counted).toBe(0);
+    }
   });
 });

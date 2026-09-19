@@ -28,12 +28,19 @@ const CATEGORY_BY_NATIVE_NAME: ReadonlyMap<string, ActivityCategory> = new Map([
   ['Subagent', 'task'],
   ['Task', 'task'],
   ['close_agent', 'task'],
+  ['followup_task', 'task'],
+  ['interrupt_agent', 'task'],
+  ['list_agents', 'task'],
+  ['multi_agent_v1__spawn_agent', 'task'],
+  ['send_message', 'task'],
   ['send_input', 'task'],
   ['spawn_agent', 'task'],
   ['wait', 'task'],
+  ['wait_agent', 'task'],
   ['AskQuestion', 'ask'],
   ['AskUserQuestion', 'ask'],
   ['request_user_input', 'ask'],
+  ['request_user_input_async', 'ask'],
 ]);
 
 const CATEGORY_BY_ITEM_TYPE: ReadonlyMap<string, ActivityCategory> = new Map([
