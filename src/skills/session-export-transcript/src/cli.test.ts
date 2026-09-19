@@ -132,6 +132,102 @@ function claudeTranscript(marker: string, sessionId = 'cc-001'): string {
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+function claudeActivityTranscript(
+  marker: string,
+  sessionId = 'cc-activity',
+): string {
+  const records = [
+    { type: 'summary', sessionId, summary: 'start' },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: 'Export the visible conversation.' },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I will inspect the source.' },
+          {
+            type: 'tool_use',
+            id: 'tool-read',
+            name: 'Read',
+            input: { file_path: '/fixture/project/example.txt' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-read',
+            content: '<persisted-output>',
+            is_error: true,
+          },
+        ],
+      },
+      toolUseResult: {
+        stderr: 'Synthetic bounded failure output.',
+        persistedOutputPath: '/fixture/project/tool-results/result.txt',
+        persistedOutputSize: 4096,
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool-task',
+            name: 'Task',
+            input: { prompt: 'Inspect the synthetic module.' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      origin: { kind: 'task-notification' },
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-task',
+            content: 'Synthetic child launched.',
+          },
+        ],
+      },
+      toolUseResult: {
+        status: 'async_launched',
+        agentId: 'fixture-child',
+        description: 'synthetic helper',
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: { role: 'assistant', content: 'Export complete.' },
+    },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
 function codexTranscript(
   marker: string,
   sessionId = 'codex-001',
@@ -820,6 +916,8 @@ describe('export CLI — end-to-end sanitization', () => {
       md.includes('Please refactor the auth module.'),
       'genuine user msg missing',
     );
+    assert.ok(!md.includes('Activity export:'), 'activity header leaked');
+    assert.ok(!md.includes('## Activity'), 'activity section leaked');
     await rm(home, { recursive: true, force: true });
   });
 
@@ -867,6 +965,177 @@ describe('export CLI — end-to-end sanitization', () => {
     );
     assert.ok(!markdown.includes(marker), 'marker leaked');
     assert.match(markdown, /Runtime:\s*cursor/);
+    await rm(home, { recursive: true, force: true });
+  });
+});
+
+describe('export CLI — bounded activity', () => {
+  test('appends source-ordered activity with limits, locators, and unread coverage', async () => {
+    const home = await setupHome();
+    const marker = 'activitymark77';
+    await writeClaude(
+      home,
+      claudeActivityTranscript(marker, 'cc-activity'),
+      'cc-activity',
+    );
+    const out = join(home, 'activity.md');
+    const stateHome = join(home, 'state');
+    await mkdir(stateHome, { recursive: true });
+    await writeFile(join(stateHome, 'sentinel'), 'unchanged', 'utf8');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home, XDG_STATE_HOME: stateHome },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.match(markdown, /## Activity/);
+    assert.match(markdown, /Mode: export/);
+    assert.match(
+      markdown,
+      /Activity bytes: \d+\/67108864; preview cap: 2048; late context cap: 256/,
+    );
+    assert.match(markdown, /Omitted evidence: calls 0; results 0; failures 0/);
+    assert.match(
+      markdown,
+      /call "Read"; pending; owned; line 4, record 3, pointer \/message\/content\/1/,
+    );
+    assert.match(
+      markdown,
+      /result "tool_result"; error; owned; line 5, record 4, pointer \/message\/content\/0/,
+    );
+    assert.ok(
+      markdown.indexOf('call "Read";') <
+        markdown.indexOf('result "tool_result";'),
+      'activity evidence lost source order',
+    );
+    assert.match(markdown, /persisted-output: not-read; captured 1/);
+    assert.match(markdown, /child-trajectory: not-read; captured 1/);
+    assert.match(markdown, /trajectoryAvailability":"not-read/);
+    assert.ok(markdown.includes('Export the visible conversation.'));
+    assert.ok(markdown.includes('Export complete.'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    assert.equal(
+      await readFile(join(stateHome, 'sentinel'), 'utf8'),
+      'unchanged',
+    );
+    assert.deepEqual(await readdir(stateHome), ['sentinel']);
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('exports Codex activity while retaining sanitized conversation', async () => {
+    const home = await setupHome();
+    const marker = 'codexactivity88';
+    await writeCodex(
+      home,
+      codexTranscript(marker, 'codex-activity'),
+      'codex-activity',
+    );
+    const out = join(home, 'codex-activity.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--session',
+        'codex-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Runtime: codex/);
+    assert.match(markdown, /## Activity/);
+    assert.match(markdown, /call "shell"; pending; unknown/);
+    assert.match(markdown, /pointer \/payload/);
+    assert.ok(markdown.includes('How do I read a file in Node?'));
+    assert.ok(markdown.includes('Use fs.readFile.'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('--all labels every activity artifact without changing filenames', async () => {
+    const home = await setupHome();
+    await writeClaude(
+      home,
+      claudeActivityTranscript('activity-a', 'cc-activity-a'),
+      'cc-activity-a',
+    );
+    await writeClaude(
+      home,
+      claudeActivityTranscript('activity-b', 'cc-activity-b'),
+      'cc-activity-b',
+    );
+    const outDir = join(home, 'activity-all');
+    await mkdir(outDir, { recursive: true });
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--all',
+        '--include-activity',
+        '--out',
+        outDir,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const files = (await readdir(outDir)).filter((file) =>
+      file.endsWith('.md'),
+    );
+    assert.equal(files.length, 2);
+    assert.ok(files.some((file) => file.includes('cc-activity-a')));
+    assert.ok(files.some((file) => file.includes('cc-activity-b')));
+    for (const file of files) {
+      const markdown = await readFile(join(outDir, file), 'utf8');
+      assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+      assert.match(
+        markdown,
+        /Activity bytes: \d+\/67108864; preview cap: 2048; late context cap: 256/,
+      );
+      assert.match(markdown, /Omitted evidence:/);
+      assert.match(markdown, /Omitted groups:/);
+    }
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('rejects Cursor activity explicitly until frame extraction is available', async () => {
+    const home = await setupHome();
+    const out = join(home, 'cursor-activity.md');
+    const result = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--include-activity', '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /unavailable for Cursor/);
+    let outputExists = true;
+    try {
+      await readFile(out, 'utf8');
+    } catch {
+      outputExists = false;
+    }
+    assert.equal(outputExists, false);
     await rm(home, { recursive: true, force: true });
   });
 });
