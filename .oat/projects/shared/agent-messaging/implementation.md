@@ -1,5 +1,5 @@
 ---
-oat_status: blocked
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
@@ -14,15 +14,15 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. Phase 1 implementation and both bounded review-fix rounds are
-complete, but final independent review is blocking with three Important
-findings. The 2/2 retry budget is exhausted; Phase 2 has not begun.
+2026-09-19. Phase 1 final review found three Important findings after the
+original 2/2 retry budget. The user explicitly authorized one additional
+bounded Phase 1 correction and fresh review; Phase 2 has not begun.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | blocked | 5     | 5/5       |
+| Phase 1 | fixes_in_progress | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -31,7 +31,7 @@ findings. The 2/2 retry budget is exhausted; Phase 2 has not begun.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** blocked
+**Status:** fixes_in_progress
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -500,7 +500,7 @@ All seven round-2 findings are resolved; final independent re-review is pending.
 **Review artifact:** [Phase 1 final review](reviews/code-p01-final-review-2026-09-19T152245Z.md)
 **Reviewed head:** `057cc67a527c18e81d1cd7aaba8b925df4d746c3`
 **Findings:** 0 Critical, 3 Important, 0 Medium, 0 Minor.
-**Status:** blocked; review cycles 3/3 and bounded fix rounds 2/2 exhausted.
+**Status:** fixes_added; user-authorized exceptional fix round 3 pending.
 
 The final reviewer confirmed every round-2 finding resolved and every requested
 gate green, then reproduced three shared-storage defects: authoritative reads
@@ -509,6 +509,17 @@ record-kind inference is polluted by reserved words in otherwise legal root
 ancestors; and `open` retries conflict with their own partial commit because a
 new `createdAt` is generated. Phase 1 cannot advance to p02 without explicit
 authorization for another bounded correction and a fresh independent review.
+
+### Authorization Override: p01 fix round 3
+
+- Date: 2026-09-19
+- Source: explicit user authorization in the active implementation session.
+- Scope: exactly the three Important findings in
+  `reviews/code-p01-final-review-2026-09-19T152245Z.md`.
+- Effect: raise `oat_orchestration_retry_limit` from the default 2 to 3 for this
+  project and permit one fresh independent Phase 1 review after the correction.
+- Non-effect: no Phase 2 work, worktree change, publication, installation,
+  push, merge, or live acceptance is authorized.
 
 ## Review Received: plan
 

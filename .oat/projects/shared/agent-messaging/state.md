@@ -1,10 +1,7 @@
 ---
 oat_current_task: p02-t01
 oat_last_commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
-oat_blockers:
-  - task_id: p01
-    reason: 'Final review found three Important shared-storage defects after review cycles 3/3 and fix rounds 2/2 were exhausted; explicit user direction is required before another correction.'
-    since: 2026-09-19
+oat_blockers: []
 associated_issues:
   - type: backlog
     ref: BL-260619-inter-agent-direct-messaging
@@ -23,8 +20,9 @@ oat_phase_recovery_policy:
     p01:
       used_attempts: 2
       pending_attempt: null
+oat_orchestration_retry_limit: 3
 oat_phase: implement
-oat_phase_status: blocked
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -36,13 +34,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T15:35:33Z'
+oat_project_state_updated: '2026-09-19T15:46:57Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 is blocked after final review; p02-t01 has not begun.
+**Status:** User-authorized Phase 1 fix round 3 is active; p02-t01 has not begun.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -52,10 +50,9 @@ Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
 Phase 1 implementation and both bounded review-fix rounds are committed and
-verified, but final review found three Important shared-storage defects. The
-configured 3/3 review cycles and 2/2 fix rounds are exhausted, so explicit user
-direction is required before any further correction. Live hook installation
-remains separately authorized.
+verified, but final review found three Important shared-storage defects. The user
+explicitly authorized one additional bounded correction and fresh independent
+review. Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -63,7 +60,7 @@ remains separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; final Phase 1 re-review is pending.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; exceptional Phase 1 fix round 3 is active.
 
 ## Progress
 
@@ -171,7 +168,7 @@ remains separately authorized.
   round-2 findings resolved, but returned Blocking with 0 Critical, 3 Important,
   0 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p01-final-review-2026-09-19T152245Z.md`. Retry governance is
-  exhausted; no additional fix was dispatched.
+  extended once by explicit user authorization; fix round 3 is active.
 
 ## Dispatch and Gate Review Policy
 
@@ -207,9 +204,11 @@ follow intermediate symlinks and rejected writes mutate the escaped tree;
 record-kind detection uses unanchored ancestor names and breaks legal roots;
 and `open` cannot idempotently retry its own partial commit because `createdAt`
 changes. The 3/3 review-cycle and 2/2 fix-round limits are exhausted.
+The user authorized one additional bounded fix/review cycle for these findings
+only; the findings remain the active correction scope, not unresolved authority.
 
 ## Next Milestone
 
-Await explicit user direction on whether to authorize one additional bounded
-Phase 1 correction for the three final-review findings. Do not begin p02-t01 and
-do not create another worktree.
+Complete the three final-review corrections on the original Phase 1 handle,
+rerun the complete sequential gate, and obtain one fresh independent review.
+Do not begin p02-t01 and do not create another worktree unless that review passes.
