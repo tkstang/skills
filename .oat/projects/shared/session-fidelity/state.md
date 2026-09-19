@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-t02
-oat_last_commit: 2eb89eff78d0858edb68d27041cc26c1a2a668e6
+oat_current_task: p06-review
+oat_last_commit: 0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -103,24 +103,24 @@ oat_workflow_origin: native # native | imported
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
-oat_docs_updated: null # null | skipped | complete — documentation sync status
+oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T15:58:14+00:00"
+oat_project_state_updated: "2026-09-19T17:56:57+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Final acceptance in progress
+**Status:** Final phase review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p05 are passed. p06-t01 plus recovery `2eb89eff` document the tested feature and close all four canonical/generated owners; recovery usage is 1/10 with no pending marker. Final local acceptance and backlog lifecycle closure begin at p06-t02.
+p01 through p05 are passed. Both p06 tasks are complete: documentation and generated owner closure landed with bounded recovery, the full local suite passed, and the tracked backlog item is archived. A fresh p06 phase review is next.
 
 ## Artifacts
 
@@ -128,7 +128,7 @@ p01 through p05 are passed. p06-t01 plus recovery `2eb89eff` document the tested
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (18/19 tasks completed; p01 through p05 passed, p06 acceptance in progress)
+- **Implementation:** `implementation.md` (19/19 tasks completed; p01 through p05 passed, p06 review pending)
 
 ## Progress
 
@@ -144,6 +144,7 @@ p01 through p05 are passed. p06-t01 plus recovery `2eb89eff` document the tested
 - ✓ Fable read-back incorporated into design and the 19-task plan
 - ✓ Formal review and retained lifecycle gate received; findings dispositioned
 - ✓ Shared Cursor gate exclusions committed by Fable
+- ✓ Full local acceptance passed and BL-260916-session-fidelity-opt was closed and archived
 
 ## Blockers
 
@@ -151,4 +152,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run complete local acceptance, review stack deltas, and close the tracked backlog item only if every criterion passes.
+Complete the fresh p06 review, then resolve the configured implementation exit gate and close the implementation lifecycle.
