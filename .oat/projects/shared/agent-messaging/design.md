@@ -1,8 +1,8 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-18
+oat_last_updated: 2026-09-19
 oat_generated: false
 oat_template: false
 ---
@@ -24,12 +24,13 @@ collaboration log; observation cursors remain separate and its two-stateful-peer
 limit does not constrain messaging. No daemon, MCP server, database, network
 transport, or required third-party package.
 
-This is a full **design draft awaiting review**, not an implementation-ready
-plan. User decisions in [discovery.md](discovery.md) include the newer direction
+This is the **approved design**, not an implementation-ready plan. The user
+approved the peer-reviewed design after selecting High dispatch with Frontier
+gate review. User decisions in [discovery.md](discovery.md) include the direction
 observed in Fable's Claude session: file-per-message storage, one project in
 phases, flat collaboration IDs, cross-repo participation, explicit logged
 session takeover, dedicated skill, and first-enable disclosure. Exact protocol
-details below are proposals. The user also approved human-only idle renewal,
+details below form the approved planning baseline. The user also approved human-only idle renewal,
 a 24-hour hard cap, visible expiry, and a separately reset continuation budget.
 
 ### How engineers and agents use it
@@ -648,7 +649,11 @@ one required termination correction and five refinements. This revision defines
 termination across all five terminal conditions (F1), reserves budget before
 message claims with explicit crash recovery (F2), defines request-only watch
 event keys (F3), clarifies human takeover authority (F5), and rechecks close after
-join/takeover/enable publication (F6). Exact-commit re-review is pending.
+join/takeover/enable publication (F6). Fable passed exact commit
+`e95a0d919237bca283d33b54322b096b3f832478` with no remaining findings (completed
+Claude assistant record 721, checked against the raw transcript). The user
+subsequently approved this design in the driver session. Approval permits plan
+generation, not implementation, live hook installation, or provider acceptance.
 
 For F4, retain one receipt per proven human event and exact two-hour idle expiry.
 Thirty-minute receipt coalescing would expire up to thirty minutes before the
@@ -678,8 +683,8 @@ repair is separate unless composed integration proves it necessary.
 
 Author's four-check pass completed: no template placeholders; architecture,
 commands, and tests reconciled; scoped to one local phased project; ambiguous
-receipt/takeover and expiry rules made explicit. The design remains unapproved
-and the plan remains a scaffold pending review of this revision. Regression
+receipt/takeover and expiry rules made explicit. Peer review and user approval
+are complete; the plan is the next artifact and must pass its own reviews. Regression
 coverage must include all terminal predecessor conditions, corrupt predecessor
 fail-closed behavior, every claim-stage crash, unchanged/overlapping/retried watch
 batches, and close racing admission or activation.

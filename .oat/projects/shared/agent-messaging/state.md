@@ -14,7 +14,7 @@ oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: design
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -32,7 +32,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** Discovery validated; design passed Fable's exact-commit review; High dispatch selected.
+**Status:** Design approved by the user after Fable's exact-commit review; ready for plan authoring.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
@@ -48,7 +48,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
-- **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approval pending.
+- **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — scaffold only, not implementation-ready.
 - **Implementation:** implementation.md — scaffold only; no implementation started.
 
@@ -103,12 +103,12 @@ do not delete locks or discard artifacts.
 No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
-watcher or automatic lease was armed. Peer design review passed; user design
-approval remains pending.
+watcher or automatic lease was armed. Peer design review and user approval are
+complete; no drafting blocker remains.
 
 ## Next Milestone
 
-After user design approval, prepare the three-phase plan and its reviews.
+Prepare the three-phase plan and its reviews from the approved design.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
