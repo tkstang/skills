@@ -36,6 +36,10 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 #         - { harness: cursor, model: gpt-5.5-xhigh }
 #   source: project-state
 # oat_dispatch_ceiling: # legacy compatibility alias for capped managed provider targets
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 oat_workflow_mode: quick # spec-driven | quick | import | lite
 oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
@@ -81,27 +85,27 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-19T00:06:13.098771+00:00'
+oat_project_state_updated: '2026-09-19T00:15:40.985830+00:00'
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Implementation plan drafted; review/setup pending
+**Status:** Implementation plan drafted; review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
 ## Current Phase
 
-Design and 16-task plan drafted; Fable read-back incorporated. The Claude task-notification scope choice, dispatch policy and review-gate choices remain pending before formal plan review. No design HiLL gate is configured.
+Design and 18-task plan drafted; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Claude native provenance is in scope and fixture approval is waived; formal plan review remains pending. No design HiLL gate is configured.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; revised peer read-back requested)
-- **Plan:** `plan.md` (drafted; dispatch/gate setup and artifact review pending)
-- **Implementation:** `implementation.md` (16 pending tasks; implementation not started)
+- **Plan:** `plan.md` (drafted; artifact review pending)
+- **Implementation:** `implementation.md` (18 pending tasks; implementation not started)
 
 ## Progress
 
@@ -114,8 +118,8 @@ Design and 16-task plan drafted; Fable read-back incorporated. The Claude task-n
 - ✓ Completed Fable review received; design revised using observed schema evidence
 - ✓ Schema documentation committed by Fable as `c970c876`; editing turn released
 - ✓ User selected docs → identity → activity stack using `gh stack`
-- ✓ Fable read-back incorporated into design and the 16-task plan
-- ⧗ Claude provenance scope, dispatch policy, phase-gate preference, lifecycle-gate choices and formal plan review pending
+- ✓ Fable read-back incorporated into design and the 18-task plan
+- ⧗ Formal plan review pending; all scope/setup choices recorded
 
 ## Blockers
 
@@ -123,4 +127,4 @@ None
 
 ## Next Milestone
 
-Resolve dispatch/gate posture and review the 16-task plan; incorporate Fable’s read-back before readiness
+Review the updated 18-task plan and run the kept quick-start lifecycle gate

@@ -8,6 +8,9 @@ oat_phase_status: in_progress
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_generated: false
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_template: true
 ---
 
@@ -29,13 +32,15 @@ The user selected `gh stack` in this order:
 2. **Identity/cursor correction:** phase p01; independently buildable and reviewable.
 3. **Activity support:** phases p02–p06; depends on the identity layer.
 
-Before source implementation, the root must arrange these local layers using `gh-stack` and verify `gh stack view --json`. The docs commit currently follows OAT planning commits on `session-fidelity`; preserve that history through recoverable refs when arranging layers and keep each PR's diff scoped to its concern. Place project planning artifacts in the top activity layer; preserve layer-local validation evidence with its code. Use distinct branch names without a `session-fidelity/` prefix while the `session-fidelity` branch exists. Do not create hidden worktrees. Publication, merge, installation and live provider execution are outside this planning invocation.
+Task p00-t01 arranges these local layers using `gh-stack` and verifies `gh stack view --json`. The docs commit currently follows OAT planning commits on `session-fidelity`; preserve that history through recoverable refs when arranging layers and keep each PR's diff scoped to its concern. Place project planning artifacts in the top activity layer; preserve layer-local validation evidence with its code. Use distinct branch names without a `session-fidelity/` prefix while the `session-fidelity` branch exists. Do not create hidden worktrees. Publication, merge, installation and live provider execution are outside this planning invocation.
 
 Record each code layer's exact base as `IDENTITY_BASE` or `ACTIVITY_BASE` in implementation evidence before changing it; use that actual ref for version validation. These names below are shell variables bound to those verified refs, never guessed placeholders. No source changes have been implemented.
 
-## Open scope choice
+## Resolved provenance and fixture scope
 
-The user is discussing default Claude task-notification provenance with Fable. Including it would add native `origin.kind == "task-notification"` handling to existing automatic-control provenance and classifier/ranking regression coverage in the identity layer, while preserving today’s absent-field behavior. Deferring it requires a separate tracked follow-up rather than describing it as already fixed. Neither option is selected; do not finalize readiness until the user’s choice is recorded.
+The user explicitly chose to fix Claude `origin.kind` now (Fable human record 1850). The identity layer includes native provenance for ordinary human messages and task notifications, preserving absent/unknown-field behavior and collaboration wake-envelope semantics. This is an intentional second change to default output, alongside Codex identity correction.
+
+The user also waived fixture approval and requested light obscuring (records 1850/1874). Use small recorded slices with practical redaction of credentials, private paths/identifiers and third-party personal content, plus removal of encrypted reasoning. Preserve useful ordinary commands and native semantics where safe. No mandatory human checkpoint, separate reviewer, cross-model gate, all-values-synthetic sanitizer or staging workflow is added. Inventory privacy canaries and the structure-only documentation snapshot remain unchanged.
 
 ## Parallelism
 
@@ -45,7 +50,7 @@ The user is discussing default Claude task-notification provenance with Fable. I
 
 Before source/tests read `src/AGENTS.md`; before tooling read the generated-runtime architecture contract; before docs read `documentation/AGENTS.md`. Never hand-edit `skills/`, generated plugin skill payloads or provider mirrors.
 
-Each task below defines its authored files, behavior and verification. Test behavioral changes with a focused failing regression, implement, then rerun the named check. Keep fixtures synthetic or reviewed/redacted, with provenance in their README. No real sessions, command bodies, private names or raw locators enter tracked fixtures. Existing captured schemas establish shape, not universal provider behavior.
+Each task below defines its authored files, behavior and verification. Test behavioral changes with a focused failing regression, implement, then rerun the named check. Keep fixtures small and lightly obscured, with provenance in their README. No whole sessions, credentials, private personal content or private raw locators enter tracked fixtures; ordinary commands and safe native content may remain. Existing captured schemas establish shape, not universal provider behavior.
 
 **Format every task:** run `pnpm exec oxfmt --write` with only that task's changed authored TypeScript/JavaScript/JSON/Markdown paths. Then run `pnpm exec oxlint` with only its changed authored TypeScript/JavaScript paths (omit when none). Never pass generated outputs, AGENTS files or the whole repository. For ignored OAT artifacts, use a temporary copy of `.oxfmtrc.json` removing only the `.oat/**` ignore, then run `pnpm exec oxfmt --write --config <temporary-config>` on the explicit project paths; delete the temporary config afterwards.
 
@@ -53,13 +58,33 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Commit every task:** stage only the named authored changes, necessary version/changelog updates and their owned generated outputs; use the exact Conventional Commit message listed. Record task results and commit in `implementation.md`. The listed commands are planned checks, not current pass claims.
 
+## Planning setup
+
+User selected managed **High** dispatch, **Disabled** additional phase gates, and **Keep** for both configured lifecycle gates (`oat-project-quick-start` plan review and `oat-project-implement` final review). The full candidate ladder resolves from configuration; only the named High ceiling is stored in project state. Phase-gate frontmatter remains absent by contract. Both lifecycle overrides remain absent, preserving the configured gates.
+
+## Phase 0: Arrange the local stack
+
+**Owner:** root only. **Depends on:** finished planning and parked peer edits.
+
+### Task p00-t01: Arrange and verify the three review layers
+
+**Files/state:** local Git refs and `gh stack` metadata; project implementation evidence. No product source edits.
+
+**Implement:** Record the starting branch/HEAD, clean status and all peer commits; create and verify a local recovery ref. Use the `gh-stack` skill to form docs → identity → activity, keeping `c970c876` as the independent bottom docs delta and replaying project planning artifacts in the top activity layer. Preserve the original branch/recovery ref rather than destructively rewriting shared history. Verify each branch base/diff and exact commit inclusion. Do not publish, force-push, merge, or create a hidden worktree. Keep the root planning checkout on the top layer. Create the lower identity implementation worktree through a visible Codex app task on this same machine; pass the top checkout’s committed plan/design as absolute read-only inputs. Root records progress/reviews only on the top layer and replays it after lower-layer commits. The identity worker owns code in its visible worktree and cannot stage project artifacts. Execute activity tasks in the top checkout after replay. Verify gh-stack ownership and worktree constraints before every branch/rebase operation; no peer remains an active writer during arrangement.
+
+**Format:** format only changed project evidence via the task execution contract; Git metadata is not a formatter input.
+
+**Verify:** `gh stack view --json`; inspect branch diffs against their recorded parents, confirm recovery-ref reachability and absence of source feature changes in the docs layer; run `pnpm --dir documentation build` on the docs layer and check for unrelated config changes. Restore the intended implementation layer with a clean tree.
+
+**Commit:** `chore(p00-t01): record verified session fidelity stack layout` for root-owned project evidence on the top layer; do not invent a source commit merely to populate a branch.
+
 ## Phase 1: Native identity and safe state binding
 
-**Layer:** identity. **Depends on:** committed schema documentation and locally arranged stack.
+**Layer:** identity. **Depends on:** p00 and committed schema documentation.
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
-**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; new reviewed fixtures under `src/shared/transcript/fixtures/session-fidelity/codex/` with a provenance README.
+**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; new synthetic header fixtures under `src/shared/transcript/fixtures/session-fidelity/codex/` with a provenance README. These identity regressions are authored from the documented native shapes; this task does not read real session stores.
 
 **Implement:** Use the first physical session_meta payload.id, corroborated by a recognized rollout filename UUID. Keep root and parent lineage distinct; accept inherited parent headers later in the file. Preserve documented older shapes. Cover root/child, fork, duplicate sources, filename conflict, repeated parent header and independent call/message IDs. Do not infer child identity from nickname or recency.
 
@@ -71,13 +96,13 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 ### Task p01-t02: Propagate exact identity through discovery and consumers
 
-**Files:** `src/skills/session-observer/src/lib/locate.ts`, `rank.ts`, `types.ts`, `observe.ts`, `digest.ts`, `session-observer.ts`; observer `locate.test.ts`, `rank.test.ts`, `cli-session-override.test.ts`; exporter `src/session-export-transcript.ts`, `src/cli.test.ts` if identity metadata needs adaptation.
+**Files:** `src/skills/session-observer/src/lib/locate.ts`, `rank.ts`, `types.ts`, `observe.ts`, `digest.ts`, `session-observer.ts`; observer `locate.test.ts`, `rank.test.ts`, `cli-session-override.test.ts`, `cli.test.ts`; exporter `src/session-export-transcript.ts`, `src/cli.test.ts` if identity metadata needs adaptation.
 
-**Implement:** Invalidate/revalidate stale root-to-child cache mappings using native evidence. Explicit native pins select exactly one canonical file or report ambiguity; unpinned cwd lookup prefers roots while listing labelled children. Carry identity through whoami, digest and export metadata. Child digests/exports warn about inherited parent context even without activity, giving the ordinal boundary or unknown ownership; keep conversation entries intact. Fixture parent/child mtimes must prove an exact pin cannot change source when a child is newer.
+**Implement:** Invalidate/revalidate stale root-to-child cache mappings using native evidence. Explicit native pins select exactly one canonical file or report ambiguity; unpinned cwd lookup prefers roots while listing labelled children. Carry identity through whoami, digest and export metadata. Child digests/exports warn about inherited parent context even without activity, giving the ordinal boundary or unknown ownership; keep conversation entries intact. Fixture parent/child mtimes must prove an exact pin cannot change source when a child is newer. Add a whoami regression reproducing this session’s root/child collision under explicit harness identity; test the exact generated CLI as well as the helper.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-observer/src/locate.test.ts src/skills/session-observer/src/rank.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/cli-session-override.test.ts src/skills/session-export-transcript/src/cli.test.ts`.
+**Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-observer/src/locate.test.ts src/skills/session-observer/src/rank.test.ts src/skills/session-observer/src/observe.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/cli-session-override.test.ts src/skills/session-observer/src/cli.test.ts src/skills/session-export-transcript/src/cli.test.ts`.
 
 **Commit:** `fix(p01-t02): bind discovery and exact pins to native sessions`.
 
@@ -93,31 +118,31 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Commit:** `fix(p01-t03): guard saved cursors against source identity changes`.
 
-### Task p01-t04: Finalize and validate the identity layer
+### Task p01-t04: Correct Claude provenance and finalize the identity layer
 
-**Files:** Affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`; `documentation/docs/user-guide/skills/session-observer.md`; observer reference guidance and collab recovery guidance where changed.
+**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; observer `src/lib/session-classifier.ts`, `src/session-classifier.test.ts`, `src/digest.test.ts`, `src/cli.test.ts`; `src/skills/session-export-transcript/src/sanitize.ts`, `src/sanitize.test.ts`; `src/skills/session-fork-to-destination/src/preview.ts`, `src/preview.test.ts`; `src/skills/session-observer-collab/src/lib/completion-selection.mjs`, its `.d.mts` if types change, `src/completion.test.ts`, `src/wake-envelope-contract.test.ts`; affected canonical skill `SKILL.md` versions and generated distributions; `CHANGELOG.md`; `documentation/docs/user-guide/skills/session-observer.md`; observer reference guidance and collab recovery guidance where changed.
 
-**Implement:** Document intentional selection changes and exact scoped reset/re-arm behavior. Determine shared-runtime version fan-out from actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
+**Implement:** Add a shared native Claude provenance helper for ordinary user records: explicit human evidence labels a message human, task-notification evidence labels a runtime notification; absent native values retain current behavior, while ordinary peer/unknown messages remain unmarked and explicit non-human/unknown records cannot be upgraded by the ask-user fallback. Audit every origin consumer so notifications never authorize collaboration or count as genuine human engagement, ordinary human messages never become ask-user answers, and automatic-control remains reserved for validated wake envelopes. Use a distinct runtime-notification origin rather than weakening the structured automaticControl contract. Exclude runtime notifications from human recovery pointers and injected-content export/fork previews; visibly label them in observer output. In collaboration, do not treat a notification-only tail as an incomplete human turn or classify it as an automatic wake; preserve substantive assistant completion behavior. Allow the existing Claude ask-user human branch only for native human or legacy absent provenance, with kind=message for ordinary humans. Reuse this helper in activity extraction. Add human/notification/absent/unknown fixtures and unchanged-existing-ranking regressions; record supported observed client versions without hard-coded version gating. Document intentional provenance and selection changes and exact scoped reset/re-arm behavior. Determine shared-runtime version fan-out from actual bundle diffs. Keep docs accurate to tested behavior. Root reviews the identity layer before activity work; do not merge or publish automatically.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run type-check`, `pnpm run build`, `pnpm run build:check`, `pnpm run test`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run validate:skill-versions -- --base-ref "$IDENTITY_BASE"`; build docs with `pnpm --dir documentation build` if changed, checking `.oat/config.json` for the known generator side effect.
+**Verify:** `pnpm run build`, `pnpm run test:vitest src/shared/transcript/runtimes.test.ts src/skills/session-observer/src/session-classifier.test.ts src/skills/session-observer/src/digest.test.ts src/skills/session-observer/src/cli.test.ts src/skills/session-export-transcript/src/sanitize.test.ts src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer-collab/src`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run validate:skill-versions -- --base-ref "$IDENTITY_BASE"`; build docs with `pnpm --dir documentation build` if changed, checking `.oat/config.json` for the known generator side effect.
 
-**Commit:** `docs(p01-t04): finalize native identity recovery and distributions`.
+**Commit:** `fix(p01-t04): preserve native Claude provenance and finalize identity layer`.
 
 ## Phase 2: Detailed reads and shared activity contract
 
 **Layer:** activity. **Depends on:** p01. Establish a fresh `ACTIVITY_BASE` before this layer.
 
-### Task p02-t01: Add LF-only detailed source reading and captured fixtures
+### Task p02-t01: Add LF-only detailed source reading
 
-**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; new `src/shared/transcript/fixtures/session-fidelity/{claude-code,codex,cursor}/` plus README; `scripts/session-schema-inventory.mjs` and colocated canary test if promoting the snapshot tooling.
+**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; authored edge fixtures under `src/shared/transcript/fixtures/session-fidelity/` and README. Captured fixture derivation is owned by p02-t05.
 
-**Implement:** Return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Record the sampled shape/version and sanitization review for fixtures; do not copy whole sessions. Promote the inventory workflow as development tooling without modifying the historical snapshot or introducing runtime dependencies; preserve explicit allowlist mode, opaque data maps and omission diagnostics.
+**Implement:** Return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Use synthetic edge cases here. The captured fixtures in p02-t05 must then verify the detailed reader against observed native shapes before consumer integration.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test scripts/session-schema-inventory.canary.test.mjs` if promoted; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
+**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
 
 **Commit:** `feat(p02-t01): add detailed transcript provenance and schema fixtures`.
 
@@ -125,7 +150,7 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Files:** New `src/shared/transcript/activity/types.ts`, `extract.ts`, `claude-code.ts`, `codex.ts`, `extract.test.ts`; fixture README and focused fixtures.
 
-**Implement:** Implement versioned source-attributed events, metadata, coverage and diagnostics. Cover Claude multiblock calls/results, top-level toolUseResult string/array/object, unread persisted output, origin.kind task notifications, exact message-ID usage deduplication, empty errors and absent-error unknowns. Cover Codex function/custom/web-search carriers and item_completed evidence; native child IDs, statuses, compaction and output cap warnings. Exclude reasoning/instruction bodies. Preserve raw native arguments internally before presentation budgets. Per-record extraction failures degrade narrowly with ACTIVITY_EXTRACTION_ERROR; core reads and identity failures still fail closed.
+**Implement:** Implement versioned source-attributed events, metadata, coverage and diagnostics. Cover Claude multiblock calls/results, top-level toolUseResult string/array/object, unread persisted output, origin.kind task notifications through the shared provenance helper from p01-t04, exact message-ID usage deduplication, empty errors and absent-error unknowns. Cover Codex function/custom/web-search carriers and item_completed evidence; native child IDs, statuses, compaction and output cap warnings. Exclude reasoning/instruction bodies. Preserve raw native arguments internally before presentation budgets. Per-record extraction failures degrade narrowly with ACTIVITY_EXTRACTION_ERROR; core reads and identity failures still fail closed.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -149,13 +174,25 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Files:** New `src/shared/transcript/activity/project.ts`, `render.ts`, `index.ts`, `project.test.ts`; shared activity types.
 
-**Implement:** Project existing delivery ranges with 32KiB/80-invocation watch/catch-up and 128KiB/1024-invocation review caps. Export has no total invocation cap but a 64MiB activity-section safety cap and 2KiB input/output previews per invocation, with size/omission notices in the header. Budget all serialized activity overhead; prioritize failures by invocation group then render chronologically. Standalone failed item events and their explicitly inferred candidate groups get failure priority without setting a call’s canonical outcome. Test a late item-only Codex failure under a tight cap, including unmatched and ambiguous cases. Late results receive at most 256 UTF-8 bytes of out-of-range call context, excluded from counts. Preserve actual available tails, explicit omissions, source locators, separate count scopes and escaped/control-safe output. Tiny budgets remain bounded and diagnostic, never malformed JSON.
+**Implement:** Project existing delivery ranges with 32KiB/80-invocation watch/catch-up and 128KiB/1024-invocation review caps. Export has no total invocation cap but a 64MiB activity-section safety cap and 2KiB input/output previews per invocation, with size/omission notices in the header. Budget all serialized activity overhead; prioritize failures by invocation group then render chronologically. Standalone failed item events and their explicitly inferred candidate groups get failure priority without setting a call’s canonical outcome. Test a late item-only Codex failure under a tight cap, including unmatched and ambiguous cases. Late results receive at most 256 UTF-8 bytes of out-of-range call context, excluded from counts. Preserve actual available tails, explicit omissions, source locators, separate count scopes and escaped/control-safe output. Avoid duplicate output previews when a response group and its explicitly inferred item candidate are both displayed: retain the item’s status/exit/duration/locator and inferred label, use one preview carrier, and give unlinked item events their own preview. Tiny budgets remain bounded and diagnostic, never malformed JSON.
 
 **Format:** follow the file-scoped task execution contract above.
 
 **Verify:** `pnpm run test:vitest src/shared/transcript/activity/project.test.ts`; assert UTF-8 byte size, deterministic serialization, failure retention, late-result context and independent conversation budget.
 
 **Commit:** `feat(p02-t04): project bounded activity with honest omission counts`.
+
+### Task p02-t05: Add lightly obscured captured fixtures
+
+**Files:** new dev-only `scripts/session-schema-inventory.mjs` and `scripts/session-schema-inventory.canary.test.mjs` when promoting the existing inventory workflow; small captures and README under `src/shared/transcript/fixtures/session-fidelity/`; shared reader/extractor/correlation/project tests.
+
+**Implement:** Derive minimal slices from the approved local stores. Obscure private home paths, identifiers and third-party personal content; remove credentials/tokens and encrypted reasoning; preserve consistent call/result ID relationships and useful ordinary source content. Do not copy whole sessions or commit temporary raw slices. Cover documented Claude/Codex/Cursor activity and identity shapes, late/item-only failures, large outputs, ask-user provenance and child references. Record observation/version provenance; use unknown when a client version is not recorded. Inspect the final fixture diff and run practical private-term/credential checks before commit. This is ordinary task verification, with no extra user approval or mandatory independent fixture gate, per the user's latest direction. Promote the reviewed inventory script without changing the dated snapshot; retain its allowlist and canary checks.
+
+**Format:** follow the file-scoped task execution contract; preserve JSONL framing.
+
+**Verify:** `node --test scripts/session-schema-inventory.canary.test.mjs`; `pnpm run test:vitest src/shared/transcript/runtimes.test.ts src/shared/transcript/activity`; inspect only final captured fixtures for private literals/credentials and confirm relational IDs and expected parse/correlation outcomes remain intact. No live provider call is required.
+
+**Commit:** `test(p02-t05): add obscured native session fixtures`.
 
 ## Phase 3: Observer activity delivery
 
@@ -165,7 +202,7 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Files:** `src/skills/session-observer/src/session-observer.ts`, `lib/types.ts`, `lib/digest.ts`, `lib/observe.ts`; `cli.test.ts`, `digest.test.ts`, `observe.test.ts`.
 
-**Implement:** Parse --include-activity and reuse one captured decoded read for conversation/activity. Add the optional activity object without changing outer digest v1/v2. Correlate whole captured source, select delivered range, render mode-specific limits. Preserve default JSON/text and legacy flags where present, except authorized identity behavior. Stateless review does not move state; mark-read follows existing writes. Whole optional extraction failure preserves conversation with explicit unavailable coverage.
+**Implement:** Parse --include-activity and reuse one captured decoded read for conversation/activity. Add the optional activity object without changing outer digest v1/v2. Correlate whole captured source, select delivered range, render mode-specific limits. Preserve default JSON/text and legacy flags where present, except authorized identity/provenance behavior. Stateless review does not move state; mark-read follows existing writes. Whole optional extraction failure preserves conversation with explicit unavailable coverage.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -261,7 +298,7 @@ Each task below defines its authored files, behavior and verification. Test beha
 
 **Files:** Project `implementation.md` and review records; `.oat/repo/pjm/backlog/` lifecycle outputs and `.oat/repo/pjm/current-state.md` only after acceptance; related project summary when lifecycle completion occurs.
 
-**Implement:** Run the complete mocked/local acceptance suite, review both stack deltas, confirm no missing canonical/generated files and no raw session data. Complete required code/gate reviews through their lifecycle; record actual evidence. Close/archive BL-260916-session-fidelity-opt only when every criterion passes, following PJM guidance and doctor adoption check. Do not label live provider support, PR publication, merge or installation complete. Do not archive project artifacts prematurely while review/delivery remains outstanding.
+**Implement:** Run the complete mocked/local acceptance suite, review both stack deltas, confirm no missing canonical/generated files and no raw session data. Complete required code/gate reviews through their lifecycle; record actual evidence. Offer follow-up backlog capture for the four deferred sidecar classes and the observed oat 0.2.79 config rewrite; do not silently expand this implementation or claim a separate follow-up is already scheduled. Close/archive BL-260916-session-fidelity-opt only when every criterion passes, following PJM guidance and doctor adoption check. Do not label live provider support, PR publication, merge or installation complete. Do not archive project artifacts prematurely while review/delivery remains outstanding.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -285,15 +322,17 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p05    | code     | pending | -    | -        | -             | -          | -           |
 | p06    | code     | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | pending | -    | -        | -             | -          | -           |
+| p00    | code     | pending | -    | -        | -             | -          | -           |
 
-Before readiness: resolve the open default Claude task-notification provenance scope choice; resolve project dispatch policy; finish phase/lifecycle gate choices; incorporate Fable's read-back; run the configured structured plan review and quick-start gate with the complete discovery/design/plan bundle. Pending gates are not passed by the documentation build or peer silence.
+Before readiness: incorporate Fable's read-back; run the configured structured plan review and quick-start gate with the complete discovery/design/plan bundle. Pending gates are not passed by the documentation build or peer silence.
 
 ## Implementation Complete
 
-**Planned total:** 6 phases, 16 tasks; 0 implemented.
+**Planned total:** 7 phases, 18 tasks; 0 implemented.
 
+- p00: 1 task — root-owned local stack arrangement.
 - p01: 4 tasks — native identity and safe state binding.
-- p02: 4 tasks — detailed reads and shared activity contract.
+- p02: 5 tasks — detailed reads and shared activity contract.
 - p03: 2 tasks — observer integration.
 - p04: 2 tasks — exporter integration and sanitization.
 - p05: 2 tasks — Cursor settlement.

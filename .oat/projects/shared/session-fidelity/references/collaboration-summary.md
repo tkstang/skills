@@ -46,3 +46,13 @@ Fable reviewed `3e16dd9c` at record 1677. Incorporated: an identity-layer inheri
 ## Scope-choice correction
 
 Fable's records 1718/1737 and human question at 1695 establish that default Claude task-notification provenance is still being discussed. The earlier driver note treating it as a deferred follow-up was premature. The design/plan now leave the choice open. Fable now leans toward narrow in-scope handling for consistent digest provenance and avoiding duplicated release work; no user selection is yet observed.
+
+## Plan review and setup choices
+
+Fable reviewed `795816fe` at record 1785. Added explicit root-owned stack task p00-t01, whoami CLI regression, independent captured-fixture derivation/review task p02-t05, preview deduplication without stronger outcome joins, and close-out follow-up offers. The original Option X at record 302 permitted review “by you or a careful reviewer”; the user selected it at 457. The later peer assertion that a human-only checkpoint was already required was too narrow. The plan now requires a separate reviewer before fixture promotion/commit, without adding a new human stop.
+
+The user explicitly chose High dispatch, disabled additional phase gates, and kept both configured lifecycle gates in the driver session. These settings are recorded; the Claude provenance scope choice remains open.
+
+## Final user scope decisions
+
+Human-origin Fable records 1850/1874 resolve the remaining choices: fix `origin.kind` now; no fixture approval is needed; light obscuring is sufficient. These supersede the earlier open-choice and independent-fixture-gate notes. The plan includes shared native Claude provenance in the identity layer, with an origin-consumer audit to preserve wake-envelope semantics, and a small captured-fixture task with practical private-field/credential checks. No mandatory human or independent fixture review is retained. The structure-only research snapshot and its inventory canaries are unchanged.

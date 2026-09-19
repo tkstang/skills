@@ -12,7 +12,7 @@ oat_generated: false
 
 Run `oat-project-quick-start session-fidelity` using **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter** as the brief. Produce discovery and an execution-ready plan; this invocation does not implement the feature.
 
-The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output and export sanitization remain intact. The user subsequently added a correction to Codex native-session identity and safe cursor binding; that authorized fix is an explicit exception to preserving existing identity behavior.
+The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output and export sanitization remain intact. The user subsequently added Codex native-session identity/safe cursor binding and native Claude conversation provenance corrections; these are explicit exceptions to preserving default behavior.
 
 ## Clarifying Questions
 
@@ -86,7 +86,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 - **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge:** consume the established activity contract in a later project.
 - Fuller activity artifacts and additional provider adapters remain future options, not requirements of this item.
 
-- Default Claude conversation-origin labeling is an open user scope decision. Fable initially recommended a follow-up, then explained the consistency and release-overhead costs and now leans toward a narrow identity-layer correction. The user has asked about tradeoffs but has not selected either option. Activity provenance remains included regardless.
+- Default Claude provenance is now in scope: human record 1850 requests the fix now. Lightweight captured-fixture obscuring without a user approval stop is the latest direction at records 1850/1874.
 
 ## Current Repository Evidence
 
@@ -104,7 +104,8 @@ These requirements combine the backlog, existing repository decisions, and the o
 - **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
 - **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable committed the evidence snapshot and maintained schema pages in `c970c876`; the project references now point to those durable locations.
 
-- **Open user scope choice:** map native Claude `origin.kind == "task-notification"` to existing automatic-control provenance in default conversation/classifier output now, or keep that change as a separately tracked follow-up. Preserve absent-field behavior and verify ranking if included; do not finalize the plan until the choice is recorded.
+- **Native provenance resolved:** fix it in the identity layer, audit origin consumers, preserve absent-field behavior and existing wake-envelope semantics, and verify classification/ranking.
+- **Fixture review resolved:** no user approval stop or mandatory independent fixture gate; use small captures with practical obscuring and ordinary verification.
 
 ## Assumptions
 
@@ -121,7 +122,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Next Steps
 
-Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
+Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. The 18-task plan and matching pending implementation ledger are drafted; formal reviews must pass before readiness.
 
 ## References
 

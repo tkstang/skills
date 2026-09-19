@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-18
-oat_current_task_id: p01-t01
+oat_current_task_id: p00-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-No source implementation has started. The plan is awaiting dispatch/gate setup and artifact review. `oat_current_task_id` names the first planned task, not an active implementation.
+No source implementation has started. Setup choices are recorded; the plan is awaiting artifact review. `oat_current_task_id` names the first planned task, not an active implementation.
 
 ## Preparatory evidence
 
@@ -21,14 +21,25 @@ No source implementation has started. The plan is awaiting dispatch/gate setup a
 
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
+| p00   | pending | 1     | 0/1       |
 | p01   | pending | 4     | 0/4       |
-| p02   | pending | 4     | 0/4       |
+| p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 0/16 implementation tasks completed.
+**Total:** 0/18 implementation tasks completed.
+
+## Phase 0
+
+**Status:** pending
+
+### Task p00-t01: Arrange and verify the three review layers
+
+**Status:** pending
+**Commit:** -
+**Verification:** not run; root-owned stack arrangement.
 
 ## Phase 1
 
@@ -52,7 +63,7 @@ No source implementation has started. The plan is awaiting dispatch/gate setup a
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
-### Task p01-t04: Finalize and validate the identity layer
+### Task p01-t04: Correct Claude provenance and finalize the identity layer
 
 **Status:** pending
 **Commit:** -
@@ -62,7 +73,7 @@ No source implementation has started. The plan is awaiting dispatch/gate setup a
 
 **Status:** pending
 
-### Task p02-t01: Add LF-only detailed source reading and captured fixtures
+### Task p02-t01: Add LF-only detailed source reading
 
 **Status:** pending
 **Commit:** -
@@ -85,6 +96,12 @@ No source implementation has started. The plan is awaiting dispatch/gate setup a
 **Status:** pending
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
+
+### Task p02-t05: Add lightly obscured captured fixtures
+
+**Status:** pending
+**Commit:** -
+**Verification:** not run; practical obscuring checks without a user approval stop.
 
 ## Phase 3
 
