@@ -55,15 +55,6 @@ version-gated record shape was found** (exceptions noted per row in section 1).
 > readers: split on `\n` bytes only, never with `readline`, and keep a fixture whose
 > string values contain U+2028, U+2029, and `\r`.
 
-
-`JSON.parse` per line **silently drops real records**. 289 physical lines in the sample
-fail to parse. Joining consecutive failed lines with an *escaped* `\n` (i.e. the writer
-emitted a raw newline inside a JSON string) recovers **81 complete records spanning 2–9
-physical lines** (52 `assistant`, 27 `user`, 2 `attachment`) with **zero residue**.
-Naive concatenation without escaping recovers nothing. Affects 285 lines in subagent
-files and 4 in parent files. Any activity view must implement this recovery or it will
-drop assistant turns.
-
 ---
 
 ## 1. Record taxonomy
@@ -517,7 +508,6 @@ must be sanitized before being committed; rows 32 and 33 hold private keys by de
 | 32 | File-history snapshot (dynamic path keys — sanitize) | snapshot | `.type=="file-history-snapshot"` |
 | 33 | AskUserQuestion answers (question-text keys — sanitize) | AskUser | `.toolUseResult.answers? != null` |
 | 34 | Workflow subagent + journal | workflow | `.toolUseResult.workflowName? != null` ; journal: `.type=="started" or .type=="result"` |
-| 35 | Multi-line record (parser hazard) | n/a | not selectable with `jq`; find with a scanner that reports lines failing `JSON.parse` and succeeding when joined with an escaped `\n` |
 | 36 | Task-notification delivery of subagent result | user | `.type=="user" and .origin.kind=="task-notification"` |
 | 37 | Mid-session model change | model | two distinct `.message.model` values within one `sessionId` |
 
