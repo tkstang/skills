@@ -73,6 +73,18 @@ async function copyCursorTranscript(
   return transcriptPath;
 }
 
+async function copyClaudeTranscript(
+  transcriptPath: string,
+  sessionId: string,
+): Promise<void> {
+  const transcript = await readFile(typicalClaude, 'utf8');
+  await writeFile(
+    transcriptPath,
+    transcript.replaceAll('cc-session-001', sessionId),
+    'utf8',
+  );
+}
+
 describe('--session override', () => {
   test('review: --runtime auto uses pinned cursor runtime before ambiguity checks', async () => {
     const tmpDir = await realpath(
@@ -258,9 +270,16 @@ describe('--session override', () => {
       const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
       await mkdir(projectDir, { recursive: true });
 
-      // Copy the typical fixture as two different session files
-      await copyFile(typicalClaude, join(projectDir, 'session-tie-a.jsonl'));
-      await copyFile(typicalClaude, join(projectDir, 'session-tie-b.jsonl'));
+      // Copy the typical fixture as two distinct sessions so exact pinning
+      // selects one canonical source while unpinned ranking remains tied.
+      await copyClaudeTranscript(
+        join(projectDir, 'session-tie-a.jsonl'),
+        'cc-session-tie-a',
+      );
+      await copyClaudeTranscript(
+        join(projectDir, 'session-tie-b.jsonl'),
+        'cc-session-tie-b',
+      );
 
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
@@ -329,8 +348,14 @@ describe('--session override', () => {
       const encodedCwd = '-test-catchup-session-project';
       const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
       await mkdir(projectDir, { recursive: true });
-      await copyFile(typicalClaude, join(projectDir, 'session-cu-a.jsonl'));
-      await copyFile(typicalClaude, join(projectDir, 'session-cu-b.jsonl'));
+      await copyClaudeTranscript(
+        join(projectDir, 'session-cu-a.jsonl'),
+        'cc-session-cu-a',
+      );
+      await copyClaudeTranscript(
+        join(projectDir, 'session-cu-b.jsonl'),
+        'cc-session-cu-b',
+      );
 
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });

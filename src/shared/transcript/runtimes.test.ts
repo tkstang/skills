@@ -819,6 +819,23 @@ describe('exact provider lineage metadata', () => {
         transcriptPath,
       ),
     ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { cwd: '/repo/child' } },
+          {
+            type: 'session_meta',
+            payload: {
+              id: laterId,
+              session_id: laterId,
+              cwd: '/repo/child',
+            },
+          },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
   });
 
   it('preserves a documented legacy Codex header with no native id', () => {

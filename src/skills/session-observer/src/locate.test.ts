@@ -859,6 +859,44 @@ test('codex exact pins report a corrupt matching rollout instead of falling thro
   });
 });
 
+test('codex exact pins reject an id-less first header before a later inherited native header', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'idless-first-header');
+    const requestedId = '77777777-aaaa-4777-8777-777777777777';
+    const parentId = '88888888-aaaa-4888-8888-888888888888';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(
+      sessionDir,
+      `rollout-2026-09-18T10-00-00-${requestedId}.jsonl`,
+    );
+    await writeFile(
+      transcriptPath,
+      [
+        { type: 'session_meta', payload: { cwd: targetCwd } },
+        {
+          type: 'session_meta',
+          payload: {
+            id: parentId,
+            session_id: parentId,
+            cwd: targetCwd,
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+      'utf8',
+    );
+
+    await expect(
+      findSessionCandidate('codex', targetCwd, requestedId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_INVALID',
+      candidates: [expect.objectContaining({ transcriptPath })],
+    });
+  });
+});
+
 test('codex exact pins canonicalize a symlink alias to one source', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'canonical-native-id');
@@ -877,6 +915,42 @@ test('codex exact pins canonicalize a symlink alias to one source', async () => 
     await expect(
       findSessionCandidate('codex', targetCwd, nativeId),
     ).resolves.toMatchObject({ transcriptPath });
+  });
+});
+
+test('claude exact pins reject distinct canonical sources and deduplicate symlink aliases', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'claude-duplicate-source');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const first = join(projectDir, 'first.jsonl');
+    const second = join(projectDir, 'second.jsonl');
+    const alias = join(projectDir, 'first-alias.jsonl');
+    await writeFile(
+      first,
+      makeClaudeTypical(targetCwd, 'claude-duplicate'),
+      'utf8',
+    );
+    await symlink(first, alias);
+
+    await expect(
+      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+    ).resolves.toMatchObject({ sessionId: 'claude-duplicate' });
+
+    await writeFile(
+      second,
+      makeClaudeTypical(targetCwd, 'claude-duplicate'),
+      'utf8',
+    );
+    await expect(
+      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_AMBIGUOUS',
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ transcriptPath: first }),
+        expect.objectContaining({ transcriptPath: second }),
+      ]),
+    });
   });
 });
 
@@ -1849,6 +1923,32 @@ test('cursor: explicit session lookup does not read large sibling transcript bod
     });
     expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
     expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
+  });
+});
+
+test('cursor exact pins reject distinct canonical sources and deduplicate symlink aliases', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cursor-duplicate-source');
+    const sessionId = 'cursor-duplicate';
+    const first = await writeCursorTranscriptForCwd(home, targetCwd, sessionId);
+    const alias = join(dirname(first), 'alias.jsonl');
+    await symlink(first, alias);
+
+    await expect(
+      findSessionCandidate('cursor', targetCwd, sessionId),
+    ).resolves.toMatchObject({ sessionId });
+
+    const second = join(dirname(first), 'conversation.jsonl');
+    await writeFile(second, CURSOR_TYPICAL, 'utf8');
+    await expect(
+      findSessionCandidate('cursor', targetCwd, sessionId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_AMBIGUOUS',
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ transcriptPath: first }),
+        expect.objectContaining({ transcriptPath: second }),
+      ]),
+    });
   });
 });
 

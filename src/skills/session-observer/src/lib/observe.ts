@@ -464,18 +464,20 @@ async function sessionStateFor(
   runtime: Runtime,
   sessionId: string,
 ): Promise<SessionStateEntry | null> {
-  try {
-    return await stateLib.getSession(runtime, sessionId);
-  } catch {
-    return null;
-  }
+  return stateLib.getSession(runtime, sessionId);
 }
 
 async function validatedSessionStateFor(
   runtime: Exclude<Runtime, 'cursor'>,
   candidate: TranscriptCandidate,
 ): Promise<{ state: SessionStateEntry | null } | ObserveFailure> {
-  const state = await sessionStateFor(runtime, candidate.sessionId);
+  let state: SessionStateEntry | null;
+  try {
+    state = await sessionStateFor(runtime, candidate.sessionId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`Failed to read session state: ${message}`);
+  }
   const validation = await stateLib.validateSavedPosition(
     runtime,
     candidate.sessionId,

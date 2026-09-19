@@ -430,8 +430,11 @@ async function candidateContainsMarker(
   }
 }
 
-function newest(candidates: Candidate[]): Candidate | undefined {
-  return [...candidates].toSorted((a, b) => b.mtime - a.mtime)[0];
+function preferredNewest(candidates: Candidate[]): Candidate | undefined {
+  return [...candidates].toSorted(
+    (a, b) =>
+      Number(isCodexChild(a)) - Number(isCodexChild(b)) || b.mtime - a.mtime,
+  )[0];
 }
 
 /**
@@ -502,15 +505,20 @@ async function selectSessions(
   }
 
   if (opts.match) {
-    for (const c of candidates) {
-      if (await candidateContainsMarker(c.transcriptPath, opts.match)) {
-        const warning = inheritedContextWarning(c);
-        if (warning) warnings.push(warning);
-        return { selected: [c], warnings };
+    const markerMatches: Candidate[] = [];
+    for (const candidate of candidates) {
+      if (await candidateContainsMarker(candidate.transcriptPath, opts.match)) {
+        markerMatches.push(candidate);
       }
     }
+    const markerMatch = preferredNewest(markerMatches);
+    if (markerMatch) {
+      const warning = inheritedContextWarning(markerMatch);
+      if (warning) warnings.push(warning);
+      return { selected: [markerMatch], warnings };
+    }
     // marker miss → newest-for-cwd fallback + warning (not fatal)
-    const fallback = newest(candidates);
+    const fallback = preferredNewest(candidates);
     if (!fallback) {
       return {
         exit: 2,

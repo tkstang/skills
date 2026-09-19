@@ -17,11 +17,12 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { expect, describe, test } from 'vitest';
+import { expect, describe, test, vi } from 'vitest';
 
 import { getCursorSession, mutateCursorState } from './lib/cursor-state.js';
 import { renderMarkdown } from './lib/digest.js';
 import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
+import * as stateLib from './lib/state.js';
 
 const growInPlaceBeforeFixture = new URL(
   './fixtures/cursor/framed-grow-in-place-before.jsonl',
@@ -196,14 +197,6 @@ async function writeCursorTranscript(
     'utf8',
   );
   return transcriptPath;
-}
-
-async function injectLegacyStateWriteFailure(
-  stateDir: string,
-): Promise<string> {
-  const statePath = join(stateDir, 'state.json');
-  await mkdir(statePath);
-  return statePath;
 }
 
 describe('observeCatchUp', () => {
@@ -493,36 +486,72 @@ describe('observeCatchUp', () => {
     });
   });
 
-  test('returns an output-ready legacy digest when state mutation fails', async () => {
+  test('fails before returning a legacy digest when persisted state cannot be read', async () => {
     await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/observe-state-failure';
+      const cwd = '/test/observe-state-read-failure';
       await writeClaudeTranscript(
         home,
         cwd,
-        'observe-state-failure.jsonl',
-        'observe-state-failure',
+        'observe-state-read-failure.jsonl',
+        'observe-state-read-failure',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Must not be delivered.' },
+        ],
+      );
+      await mkdir(join(stateDir, 'state.json'));
+
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-state-read-failure',
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        kind: 'error',
+        exitCode: 1,
+        message: expect.stringContaining('EISDIR'),
+      });
+      expect(result).not.toHaveProperty('digest');
+    });
+  });
+
+  test('returns an output-ready legacy digest when state finalization fails after a successful read', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-state-write-failure';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-state-write-failure.jsonl',
+        'observe-state-write-failure',
         [
           { role: 'user', content: 'Synthetic direction.' },
           { role: 'assistant', content: 'Synthetic response survives.' },
         ],
       );
-      const failedStatePath = await injectLegacyStateWriteFailure(stateDir);
+      const markRead = vi
+        .spyOn(stateLib, 'markRead')
+        .mockRejectedValueOnce(
+          new Error('injected state finalization failure'),
+        );
+      try {
+        const result = await observeCatchUp({
+          runtime: 'claude-code',
+          cwd,
+          session: 'claude-code:observe-state-write-failure',
+        });
 
-      const result = await observeCatchUp({
-        runtime: 'claude-code',
-        cwd,
-        session: 'claude-code:observe-state-failure',
-      });
-
-      expect(result.ok).toBe(true);
-      if (!result.ok) throw new Error(result.message);
-      expect(result.markedRead).toBe(false);
-      expect(renderMarkdown(result.digest)).toContain(
-        'Synthetic response survives.',
-      );
-      await expect(readFile(failedStatePath)).rejects.toMatchObject({
-        code: 'EISDIR',
-      });
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error(result.message);
+        expect(result.markedRead).toBe(false);
+        expect(markRead).toHaveBeenCalledOnce();
+        expect(renderMarkdown(result.digest)).toContain(
+          'Synthetic response survives.',
+        );
+      } finally {
+        markRead.mockRestore();
+      }
     });
   });
 

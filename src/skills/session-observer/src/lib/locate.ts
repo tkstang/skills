@@ -1968,7 +1968,7 @@ export async function findSessionCandidate(
     }
   }
   const distinctMatches = [...canonicalMatches.values()];
-  if (runtime === 'codex' && distinctMatches.length > 1) {
+  if (distinctMatches.length > 1) {
     throw new ExactSessionIdentityError(
       'SESSION_IDENTITY_AMBIGUOUS',
       distinctMatches,

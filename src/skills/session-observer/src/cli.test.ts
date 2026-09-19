@@ -1766,6 +1766,37 @@ describe('Cursor CLI state and delivery composition', () => {
     }
   });
 
+  test('catch-up fails before digest delivery when saved state cannot be read', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-catch-up-state-read-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '16161616-aaaa-4161-8161-161616161616';
+      await writeNativeCodexTranscript(home, cwd, 'selected.jsonl', sessionId);
+      const stateDir = join(home, '.state');
+      await mkdir(join(stateDir, 'state.json'), { recursive: true });
+
+      const result = spawnCli(
+        [
+          'catch-up',
+          '--runtime',
+          'codex',
+          '--session',
+          `codex:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain('Failed to read session state: EISDIR:');
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('pinned review renders digest v2 and advances only through --mark-read delivery finalization', async () => {
     const home = await realpath(
       await mkdtemp(join(tmpdir(), 'cli-cursor-review-v2-')),

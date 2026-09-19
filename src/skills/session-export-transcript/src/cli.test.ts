@@ -18,6 +18,7 @@ import {
   writeFile,
   readFile,
   readdir,
+  utimes,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -196,7 +197,12 @@ function codexTranscript(
 function nativeCodexTranscript(
   nativeSessionId: string,
   rootSessionId = nativeSessionId,
-  options: { malformedPrefix?: boolean; boundary?: number } = {},
+  options: {
+    malformedPrefix?: boolean;
+    boundary?: number;
+    marker?: string;
+    message?: string;
+  } = {},
 ): string {
   const records = [
     {
@@ -218,7 +224,12 @@ function nativeCodexTranscript(
       payload: {
         type: 'message',
         role: 'user',
-        content: 'Native child question',
+        content: [
+          ...(options.marker
+            ? [`EXPORT_SESSION_MARKER=${options.marker}`]
+            : []),
+          options.message ?? 'Native child question',
+        ].join('\n'),
       },
     },
     {
@@ -402,6 +413,93 @@ describe('export CLI — session selection', () => {
     );
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stderr, /marker.*not found|fall(ing)? back|warning/i);
+  });
+
+  test('--match prefers an older Codex root over a newer inherited child when both contain the marker', async () => {
+    const selectionHome = await setupHome();
+    const marker = 'root-first-marker';
+    const rootId = '66666666-bbbb-4666-8666-666666666666';
+    const childId = '77777777-bbbb-4777-8777-777777777777';
+    const rootPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(rootId, rootId, {
+        marker,
+        message: 'ROOT MARKER MATCH',
+      }),
+      'root-marker-match',
+    );
+    const childPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(childId, rootId, {
+        marker,
+        message: 'CHILD MARKER MATCH',
+      }),
+      'child-marker-match',
+    );
+    const now = new Date();
+    const older = new Date(now.getTime() - 10_000);
+    await utimes(rootPath, older, older);
+    await utimes(childPath, now, now);
+    const out = join(selectionHome, 'root-marker-match.md');
+
+    const result = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: selectionHome },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /ROOT MARKER MATCH/);
+    assert.ok(!/CHILD MARKER MATCH/.test(markdown));
+    assert.ok(!/inherited parent context/.test(result.stderr));
+    await rm(selectionHome, { recursive: true, force: true });
+  });
+
+  test('--match miss fallback prefers an older Codex root over a newer inherited child', async () => {
+    const selectionHome = await setupHome();
+    const rootId = '88888888-bbbb-4888-8888-888888888888';
+    const childId = '99999999-bbbb-4999-8999-999999999999';
+    const rootPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(rootId, rootId, {
+        message: 'ROOT MARKER MISS FALLBACK',
+      }),
+      'root-marker-miss',
+    );
+    const childPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(childId, rootId, {
+        message: 'CHILD MARKER MISS FALLBACK',
+      }),
+      'child-marker-miss',
+    );
+    const now = new Date();
+    const older = new Date(now.getTime() - 10_000);
+    await utimes(rootPath, older, older);
+    await utimes(childPath, now, now);
+    const out = join(selectionHome, 'root-marker-miss.md');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--match',
+        'no-such-marker',
+        '--out',
+        out,
+      ],
+      { HOME: selectionHome },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /falling back.*88888888-bbbb/);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /ROOT MARKER MISS FALLBACK/);
+    assert.ok(!/CHILD MARKER MISS FALLBACK/.test(markdown));
+    assert.ok(!/inherited parent context/.test(result.stderr));
+    await rm(selectionHome, { recursive: true, force: true });
   });
 
   test('--session selects a specific session id, exit 0', async () => {

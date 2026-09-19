@@ -692,10 +692,18 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (lineage === null) return null;
     const nativeSessionId = lineage.nativeSessionId;
     const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader ? codexSessionIdFromRecord(firstHeader) : void 0;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records.slice(firstHeaderIndex + 1).some(
+      (record) => record.type === "session_meta" && isObject(record.payload) && Object.hasOwn(record.payload, "id")
+    );
+    if (firstHeader && nativeSessionId === void 0 && firstLegacySessionId === void 0 && (filenameSessionId !== void 0 || laterNativeHeaderPresent)) {
+      return null;
+    }
     if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
       return null;
     }
-    let sessionId = nativeSessionId;
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {

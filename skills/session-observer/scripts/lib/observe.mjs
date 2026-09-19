@@ -671,10 +671,18 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (lineage === null) return null;
     const nativeSessionId = lineage.nativeSessionId;
     const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader ? codexSessionIdFromRecord(firstHeader) : void 0;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records.slice(firstHeaderIndex + 1).some(
+      (record) => record.type === "session_meta" && isObject(record.payload) && Object.hasOwn(record.payload, "id")
+    );
+    if (firstHeader && nativeSessionId === void 0 && firstLegacySessionId === void 0 && (filenameSessionId !== void 0 || laterNativeHeaderPresent)) {
+      return null;
+    }
     if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
       return null;
     }
-    let sessionId = nativeSessionId;
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {
@@ -4451,7 +4459,7 @@ async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
     }
   }
   const distinctMatches = [...canonicalMatches.values()];
-  if (runtime === "codex" && distinctMatches.length > 1) {
+  if (distinctMatches.length > 1) {
     throw new ExactSessionIdentityError(
       "SESSION_IDENTITY_AMBIGUOUS",
       distinctMatches
@@ -5728,14 +5736,16 @@ function unengagedOnlyMessage(runtime, cwd) {
   return `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. It looks like a freshly spawned/bootstrap session you have not engaged with. Did you mean a different session (another runtime, a sister worktree, or a specific session id)?`;
 }
 async function sessionStateFor(runtime, sessionId) {
-  try {
-    return await getSession(runtime, sessionId);
-  } catch {
-    return null;
-  }
+  return getSession(runtime, sessionId);
 }
 async function validatedSessionStateFor(runtime, candidate) {
-  const state = await sessionStateFor(runtime, candidate.sessionId);
+  let state;
+  try {
+    state = await sessionStateFor(runtime, candidate.sessionId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`Failed to read session state: ${message}`);
+  }
   const validation = await validateSavedPosition(
     runtime,
     candidate.sessionId,

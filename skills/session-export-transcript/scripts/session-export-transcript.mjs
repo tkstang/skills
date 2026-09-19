@@ -470,10 +470,18 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (lineage === null) return null;
     const nativeSessionId = lineage.nativeSessionId;
     const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader ? codexSessionIdFromRecord(firstHeader) : void 0;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records.slice(firstHeaderIndex + 1).some(
+      (record) => record.type === "session_meta" && isObject(record.payload) && Object.hasOwn(record.payload, "id")
+    );
+    if (firstHeader && nativeSessionId === void 0 && firstLegacySessionId === void 0 && (filenameSessionId !== void 0 || laterNativeHeaderPresent)) {
+      return null;
+    }
     if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
       return null;
     }
-    let sessionId = nativeSessionId;
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {
@@ -1296,8 +1304,10 @@ async function candidateContainsMarker(transcriptPath, marker) {
     return false;
   }
 }
-function newest(candidates) {
-  return [...candidates].toSorted((a, b) => b.mtime - a.mtime)[0];
+function preferredNewest(candidates) {
+  return [...candidates].toSorted(
+    (a, b) => Number(isCodexChild(a)) - Number(isCodexChild(b)) || b.mtime - a.mtime
+  )[0];
 }
 async function selectSessions(opts, candidates) {
   const warnings = [];
@@ -1353,14 +1363,19 @@ async function selectSessions(opts, candidates) {
     return { selected: [hit], warnings };
   }
   if (opts.match) {
-    for (const c of candidates) {
-      if (await candidateContainsMarker(c.transcriptPath, opts.match)) {
-        const warning2 = inheritedContextWarning(c);
-        if (warning2) warnings.push(warning2);
-        return { selected: [c], warnings };
+    const markerMatches = [];
+    for (const candidate of candidates) {
+      if (await candidateContainsMarker(candidate.transcriptPath, opts.match)) {
+        markerMatches.push(candidate);
       }
     }
-    const fallback = newest(candidates);
+    const markerMatch = preferredNewest(markerMatches);
+    if (markerMatch) {
+      const warning2 = inheritedContextWarning(markerMatch);
+      if (warning2) warnings.push(warning2);
+      return { selected: [markerMatch], warnings };
+    }
+    const fallback = preferredNewest(candidates);
     if (!fallback) {
       return {
         exit: 2,
