@@ -33,7 +33,7 @@ oat_dispatch_policy:
   policy: high
   source: project-state
 oat_docs_updated: complete
-oat_pr_status: null
+oat_pr_status: ready
 oat_pr_url: null
 oat_implement_exit_gate:
   status: allowed
@@ -69,9 +69,9 @@ oat_post_implement_sequence:
   post_approval: []
   post_approval_completed: []
   failure: null
-oat_project_created: '2026-09-18T23:40:44.126Z'
+oat_project_created: "2026-09-18T23:40:44.126Z"
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T22:33:58Z'
+oat_project_state_updated: "2026-09-19T22:45:15Z"
 oat_generated: false
 ---
 
@@ -195,13 +195,13 @@ acceptance remain separately authorized.
 
 - **Phase 1 code review:** Reviewed `91f5f238..8866df01` and returned a
   blocking verdict with 0 Critical, 9 Important, 2 Medium, and 0 Minor findings.
-  The artifact is `reviews/code-p01-review-2026-09-19T140258Z.md`; bounded review
+  The artifact is `reviews/archived/code-p01-review-2026-09-19T140258Z.md`; bounded review
   fix round 1/2 completed on the original accepted phase handle at `7bf347f3`.
   Root reproduced the focused and full test suites, generated-output freshness,
   validation, type-check, and smoke. Independent re-review remains pending.
 - **Phase 1 re-review:** Reviewed through `67b811de` and returned a blocking
   verdict with 0 Critical, 6 Important, 1 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p01-rereview-2026-09-19T1445Z.md`. The Medium stale-tracking
+  `reviews/archived/code-p01-rereview-2026-09-19T1445Z.md`. The Medium stale-tracking
   finding is resolved in review-receive bookkeeping; the six product/proof
   findings were resolved by fix round 2/2 at `66de3e5b`.
 - **Final p01 fix verification:** A process-test listener race found by root was
@@ -211,7 +211,7 @@ acceptance remain separately authorized.
 - **Phase 1 final review:** Reviewed through `057cc67a` and confirmed all
   round-2 findings resolved, but returned Blocking with 0 Critical, 3 Important,
   0 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p01-final-review-2026-09-19T152245Z.md`. Retry governance is
+  `reviews/archived/code-p01-final-review-2026-09-19T152245Z.md`. Retry governance is
   extended once by explicit user authorization; fix round 3 completed at
   `50455dca` with bounded packaging recovery `bd5f5d76`.
 - **Authorized fix verification:** Root reproduced 69 focused tests, 25 isolated
@@ -220,7 +220,7 @@ acceptance remain separately authorized.
   attempt 3/10 is settled.
 - **Phase 1 authorized review:** Reviewed through `d3cd0e9c` and passed with
   0 Critical, 0 Important, 1 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p01-authorized-review-2026-09-19T161151Z.md`. The Medium stale
+  `reviews/archived/code-p01-authorized-review-2026-09-19T161151Z.md`. The Medium stale
   summary finding is resolved in review-receive bookkeeping; Phase 1 is accepted.
 - **Phase 2 implementation:** Four planned commits from `8095bcbb` through
   `9738a11c` implement finite activation/claims, fail-closed Codex and Claude
@@ -231,13 +231,13 @@ acceptance remain separately authorized.
   is pending.
 - **Phase 2 code review:** Reviewed `43051359..a54d9baf` and returned a
   blocking verdict with 0 Critical, 7 Important, 1 Medium, and 0 Minor findings.
-  The artifact is `reviews/code-p02-review-2026-09-19T172855Z.md`. Fix round 1/3
+  The artifact is `reviews/archived/code-p02-review-2026-09-19T172855Z.md`. Fix round 1/3
   completed in `0703f1e3`; root reproduced 2,201 passing tests with 1 skipped
   plus all repository gates. This initial verdict was superseded by the fresh
   independent re-review below.
 - **Phase 2 re-review:** Reviewed through `14f26df4` and passed with 0 Critical,
   0 Important, 2 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p02-rereview-2026-09-19T181232Z.md`. Both Medium findings were
+  `reviews/archived/code-p02-rereview-2026-09-19T181232Z.md`. Both Medium findings were
   carried into Phase 3 and are now fixed and retested; Phase 2 remains accepted.
 - **Phase 3 implementation:** Three planned commits from `d02a894f` through
   `4aa71c82` unify observer and messaging log storage, compose one bounded Codex
@@ -248,7 +248,7 @@ acceptance remain separately authorized.
   recovery or live-provider action occurred; independent review is pending.
 - **Phase 3 review:** Reviewed `254e190e..d6bd6d6a` and returned a blocking
   verdict with 0 Critical, 2 Important, 2 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p03-review-2026-09-19T190153Z.md`. Fix round 1/3 covers observer
+  `reviews/archived/code-p03-review-2026-09-19T190153Z.md`. Fix round 1/3 covers observer
   bundle capability proof, immutable controller registration binding, real
   public-cursor evidence, and fixture-versus-live changelog wording. The fixes
   completed in `8750de97`; root reproduced 112 focused tests, the full suite
@@ -256,13 +256,13 @@ acceptance remain separately authorized.
 - **Phase 3 re-review:** Reviewed through `8e461d89` and verified all four prior
   findings resolved, but returned blocking with 0 Critical, 1 Important, 0
   Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p03-rereview-2026-09-19T192712Z.md`. Fix round 2/3 binds every
+  `reviews/archived/code-p03-rereview-2026-09-19T192712Z.md`. Fix round 2/3 binds every
   standalone Stop/watch runtime recheck to the activation's immutable controller.
   It completed in `e2342f64`; root reproduced 55 direct tests, the full suite
   (2,216 passed, 1 skipped), and all repository gates.
 - **Phase 3 final review:** Reviewed through `d1b3fe16` and passed with 0
   Critical, 0 Important, 0 Medium, and 0 Minor findings. Artifact:
-  `reviews/code-p03-final-review-2026-09-19T194903Z.md`. All prior findings and
+  `reviews/archived/code-p03-final-review-2026-09-19T194903Z.md`. All prior findings and
   both deferred Phase 2 corrections are resolved; Phase 3 is accepted.
 - **Phase 4 implementation:** Commit `b9904d62` adds the finite foreground
   Claude composed Monitor, exact epoch/owner/peer validation, inbox-first shared

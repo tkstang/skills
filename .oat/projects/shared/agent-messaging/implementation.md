@@ -24,8 +24,8 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 
 ## Progress Overview
 
-| Phase   | Status  | Tasks | Completed |
-| ------- | ------- | ----- | --------- |
+| Phase   | Status    | Tasks | Completed |
+| ------- | --------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | completed | 3     | 3/3       |
@@ -126,20 +126,20 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 **Status:** review_pending
 **Started:** 2026-09-19
 
-| Task | Finding | Status | Commit |
-| ---- | ------- | ------ | ------ |
-| p05-t01 | final-I1 symlink-safe entrypoints | completed | ca6d5d15 |
-| p05-t02 | final-m2 shared ownership inventory | completed | c127f2f5 |
-| p05-t03 | final-I2 bounded Claude inventory | completed | 7f545c7c |
-| p05-t04 | final-M1 observation retry status | completed | f2227518 |
-| p05-t05 | final-M2 triggered lease boundaries | completed | 6e776c53 |
+| Task    | Finding                                     | Status    | Commit   |
+| ------- | ------------------------------------------- | --------- | -------- |
+| p05-t01 | final-I1 symlink-safe entrypoints           | completed | ca6d5d15 |
+| p05-t02 | final-m2 shared ownership inventory         | completed | c127f2f5 |
+| p05-t03 | final-I2 bounded Claude inventory           | completed | 7f545c7c |
+| p05-t04 | final-M1 observation retry status           | completed | f2227518 |
+| p05-t05 | final-M2 triggered lease boundaries         | completed | 6e776c53 |
 | p05-t06 | final-M3 Monitor diagnostics and invocation | completed | 45bf9e4f |
-| p05-t07 | final-m3 polling and input hygiene | completed | c4c0e7d5 |
-| p05-t08 | final-I3 Phase 4 proof completion | completed | 7c10bb4f |
-| p05-t09 | final-M4 plugin and release docs | completed | 461c301f |
-| p05-t10 | final-M5 live-acceptance follow-up | completed | e237f93a |
-| p05-t11 | final-m1 design data model alignment | completed | 6ea0c55e |
-| p05-t12 | final-m4 completed-history restoration | completed | a8a2e811 |
+| p05-t07 | final-m3 polling and input hygiene          | completed | c4c0e7d5 |
+| p05-t08 | final-I3 Phase 4 proof completion           | completed | 7c10bb4f |
+| p05-t09 | final-M4 plugin and release docs            | completed | 461c301f |
+| p05-t10 | final-M5 live-acceptance follow-up          | completed | e237f93a |
+| p05-t11 | final-m1 design data model alignment        | completed | 6ea0c55e |
+| p05-t12 | final-m4 completed-history restoration      | completed | a8a2e811 |
 
 **Recovery commit:** cd76aa885369468bf68ee5604359b2a791934bce
 
@@ -218,7 +218,7 @@ launch_status: accepted
 child_outcome: done-with-concerns
 configured_invocation_evidence:
   - resolver-report:p01
-  - "Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium"
+  - 'Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium'
 runtime_confirmation: not-reported
 diagnostics:
   - phase-report:2817142d
@@ -310,12 +310,12 @@ retry_limit: 0
 payload:
   phase_base: 91f5f2383883e6dd5f4506ebf6371d26099f59ad
   reviewed_head: 8866df01da3041e49d8b530e7e5d005059783330
-  artifact: reviews/code-p01-review-2026-09-19T140258Z.md
+  artifact: reviews/archived/code-p01-review-2026-09-19T140258Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p01-review
-  - "Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=9,medium=2,minor=0
@@ -330,7 +330,7 @@ consumed for this round.
 
 - Phase: p01
 - Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
-- Review artifact: reviews/code-p01-review-2026-09-19T140258Z.md
+- Review artifact: reviews/archived/code-p01-review-2026-09-19T140258Z.md
 - Reviewed head: 8866df01da3041e49d8b530e7e5d005059783330
 - Fix base: e46e0f717a998f7afa82c16480a3de3fff6e6b38
 - Disposition: fixes_completed; independent re-review pending
@@ -370,12 +370,12 @@ payload:
   prior_reviewed_head: 8866df01da3041e49d8b530e7e5d005059783330
   fix_commit: 7bf347f309a0fc63d40e246513e3bd96f2622c45
   reviewed_head: 67b811def41104d75a05d6175229e6e5539ccc9d
-  artifact: reviews/code-p01-rereview-2026-09-19T1445Z.md
+  artifact: reviews/archived/code-p01-rereview-2026-09-19T1445Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p01-review-2
-  - "Dispatch: scope=p01-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p01-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=6,medium=1,minor=0
@@ -390,7 +390,7 @@ consumed for this round.
 
 - Phase: p01
 - Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
-- Review artifact: reviews/code-p01-rereview-2026-09-19T1445Z.md
+- Review artifact: reviews/archived/code-p01-rereview-2026-09-19T1445Z.md
 - Reviewed head: 67b811def41104d75a05d6175229e6e5539ccc9d
 - Fix base: 2cdc63630ed5e589d3161e4992dc7409beb2e775
 - Disposition: fixes_completed; final independent re-review pending
@@ -450,12 +450,12 @@ payload:
   fix_commit: 66de3e5b1b52ad0c5147dd00305db0d33dd17fdd
   recovery_commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
   reviewed_head: 057cc67a527c18e81d1cd7aaba8b925df4d746c3
-  artifact: reviews/code-p01-final-review-2026-09-19T152245Z.md
+  artifact: reviews/archived/code-p01-final-review-2026-09-19T152245Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p01-review-3
-  - "Dispatch: scope=p01-review-3 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p01-review-3 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=3,medium=0,minor=0
@@ -472,7 +472,7 @@ consumed for this round.
 
 - Phase: p01
 - Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
-- Review artifact: reviews/code-p01-final-review-2026-09-19T152245Z.md
+- Review artifact: reviews/archived/code-p01-final-review-2026-09-19T152245Z.md
 - Reviewed head: 057cc67a527c18e81d1cd7aaba8b925df4d746c3
 - Fix base: 96d9e874d06463b5e50af59ce980611d2136a2a5
 - Disposition: fixes_completed; fresh independent re-review pending
@@ -530,12 +530,12 @@ payload:
   fix_commit: 50455dca051d0d073592c5858d47a74fa16bf3cf
   recovery_commit: bd5f5d76b8448ddfccf2f5c8d3696cf083d14d78
   reviewed_head: d3cd0e9c8a12b3057b2c403ce9587bc81402ef66
-  artifact: reviews/code-p01-authorized-review-2026-09-19T161151Z.md
+  artifact: reviews/archived/code-p01-authorized-review-2026-09-19T161151Z.md
 launch_status: accepted
 child_outcome: pass
 configured_invocation_evidence:
   - resolver-report:p01-review-4
-  - "Dispatch: scope=p01-review-4 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p01-review-4 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=0,medium=1,minor=0
@@ -582,7 +582,7 @@ launch_status: accepted
 child_outcome: done
 configured_invocation_evidence:
   - resolver-report:p02
-  - "Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - phase-report:9738a11c
@@ -645,12 +645,12 @@ selected_route: native
 payload:
   phase_base: 430513596486dfdf083943055b51a8799d46e973
   reviewed_head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
-  artifact: reviews/code-p02-review-2026-09-19T172855Z.md
+  artifact: reviews/archived/code-p02-review-2026-09-19T172855Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p02-review
-  - "Dispatch: scope=p02-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p02-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=7,medium=1,minor=0
@@ -666,7 +666,7 @@ Phase 2 outcome so the fix continuation starts from a clean worktree.
 
 - Phase: p02
 - Original request: dispatch-agent-messaging-p02-a213af0d-6ad3-48c7-a379-942f42ef8976
-- Review artifact: reviews/code-p02-review-2026-09-19T172855Z.md
+- Review artifact: reviews/archived/code-p02-review-2026-09-19T172855Z.md
 - Reviewed head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
 - Fix base: d970ecc6b6c5797a8bb5110045f02111d9065978
 - Disposition: fixes_completed; fresh independent re-review pending
@@ -707,12 +707,12 @@ payload:
   prior_reviewed_head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
   fix_commit: 0703f1e32391a1a498eb0274ac2da5d914d2352d
   reviewed_head: 14f26df47fea4161f36f88c618596b827133cdf5
-  artifact: reviews/code-p02-rereview-2026-09-19T181232Z.md
+  artifact: reviews/archived/code-p02-rereview-2026-09-19T181232Z.md
 launch_status: accepted
 child_outcome: pass
 configured_invocation_evidence:
   - resolver-report:p02-review-2
-  - "Dispatch: scope=p02-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p02-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=0,medium=2,minor=0
@@ -757,7 +757,7 @@ launch_status: accepted
 child_outcome: done
 configured_invocation_evidence:
   - resolver-report:p03
-  - "Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - tasks:3/3
@@ -792,12 +792,12 @@ selected_route: native
 payload:
   phase_base: 254e190e081fc7af07931bc5b118b1d80643065d
   reviewed_head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
-  artifact: reviews/code-p03-review-2026-09-19T190153Z.md
+  artifact: reviews/archived/code-p03-review-2026-09-19T190153Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p03-review
-  - "Dispatch: scope=p03-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p03-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=2,medium=2,minor=0
@@ -814,7 +814,7 @@ evidence. Its structural project-log entry is deferred until the terminal Phase
 
 - Phase: p03
 - Original request: dispatch-agent-messaging-p03-20260919
-- Review artifact: reviews/code-p03-review-2026-09-19T190153Z.md
+- Review artifact: reviews/archived/code-p03-review-2026-09-19T190153Z.md
 - Reviewed head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
 - Fix base: df7da1df
 - Disposition: fixes_completed; fresh independent re-review pending
@@ -855,12 +855,12 @@ payload:
   prior_reviewed_head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
   fix_commit: 8750de97738ca51cdab25dc306f6a5029237bdfe
   reviewed_head: 8e461d899975956e57d56481c96b9b4c60a2533e
-  artifact: reviews/code-p03-rereview-2026-09-19T192712Z.md
+  artifact: reviews/archived/code-p03-rereview-2026-09-19T192712Z.md
 launch_status: accepted
 child_outcome: blocking
 configured_invocation_evidence:
   - resolver-report:p03-review-2
-  - "Dispatch: scope=p03-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p03-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=1,medium=0,minor=0
@@ -878,7 +878,7 @@ until the terminal Phase 3 outcome.
 
 - Phase: p03
 - Original request: dispatch-agent-messaging-p03-20260919
-- Review artifact: reviews/code-p03-rereview-2026-09-19T192712Z.md
+- Review artifact: reviews/archived/code-p03-rereview-2026-09-19T192712Z.md
 - Reviewed head: 8e461d899975956e57d56481c96b9b4c60a2533e
 - Fix base: 9bfc485a4068204cfdb9396085dc89f22255f161
 - Disposition: fixes_completed; final bounded independent re-review pending
@@ -919,12 +919,12 @@ payload:
   prior_reviewed_head: 8e461d899975956e57d56481c96b9b4c60a2533e
   fix_commit: e2342f644e625608204d381a62aaea8c4d84c8a2
   reviewed_head: d1b3fe166adc76e3be78bfb1a21c7ee8adfd7c8c
-  artifact: reviews/code-p03-final-review-2026-09-19T194903Z.md
+  artifact: reviews/archived/code-p03-final-review-2026-09-19T194903Z.md
 launch_status: accepted
 child_outcome: pass
 configured_invocation_evidence:
   - resolver-report:p03-review-3
-  - "Dispatch: scope=p03-review-3 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p03-review-3 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - findings:critical=0,important=0,medium=0,minor=0
@@ -964,7 +964,7 @@ launch_status: accepted
 child_outcome: done
 configured_invocation_evidence:
   - resolver-report:p04
-  - "Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - tasks:1/1
@@ -1019,7 +1019,7 @@ launch_status: accepted
 child_outcome: done
 configured_invocation_evidence:
   - resolver-report:p05
-  - "Dispatch: scope=p05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high"
+  - 'Dispatch: scope=p05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high'
 runtime_confirmation: not-reported
 diagnostics:
   - tasks:12/12
@@ -1152,7 +1152,7 @@ judgment-sweep fixes are not re-gated.
 ## Review Received: p03 round 1
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 3 code review](reviews/code-p03-review-2026-09-19T190153Z.md)
+**Review artifact:** [Phase 3 code review](reviews/archived/code-p03-review-2026-09-19T190153Z.md)
 **Reviewed head:** `d6bd6d6a2894fb7de3368c8c92af51a5842b717b`
 **Findings:** 0 Critical, 2 Important, 2 Medium, 0 Minor.
 **Status:** fixes_completed; fresh independent re-review pending.
@@ -1174,7 +1174,7 @@ repository gates; fresh independent re-review is pending.
 ## Review Received: p03 round 2
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 3 re-review](reviews/code-p03-rereview-2026-09-19T192712Z.md)
+**Review artifact:** [Phase 3 re-review](reviews/archived/code-p03-rereview-2026-09-19T192712Z.md)
 **Reviewed head:** `8e461d899975956e57d56481c96b9b4c60a2533e`
 **Findings:** 0 Critical, 1 Important, 0 Medium, 0 Minor.
 **Status:** fixes_completed; final bounded independent re-review pending.
@@ -1196,7 +1196,7 @@ the final bounded Phase 3 re-review is pending.
 ## Review Received: p03 round 3
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 3 final review](reviews/code-p03-final-review-2026-09-19T194903Z.md)
+**Review artifact:** [Phase 3 final review](reviews/archived/code-p03-final-review-2026-09-19T194903Z.md)
 **Reviewed head:** `d1b3fe166adc76e3be78bfb1a21c7ee8adfd7c8c`
 **Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor.
 **Status:** passed; Phase 3 accepted.
@@ -1210,7 +1210,7 @@ Phase 4 may proceed; live provider and installation acceptance remain separate.
 ## Review Received: p02 round 1
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 2 code review](reviews/code-p02-review-2026-09-19T172855Z.md)
+**Review artifact:** [Phase 2 code review](reviews/archived/code-p02-review-2026-09-19T172855Z.md)
 **Reviewed head:** `a54d9baf2e618ae3885cf8053e3719f558b3ef45`
 **Findings:** 0 Critical, 7 Important, 1 Medium, 0 Minor.
 **Status:** fixes_completed; fresh independent re-review pending.
@@ -1231,7 +1231,7 @@ and skill-version validation. No recovery event was required.
 ## Review Received: p02 round 2
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 2 re-review](reviews/code-p02-rereview-2026-09-19T181232Z.md)
+**Review artifact:** [Phase 2 re-review](reviews/archived/code-p02-rereview-2026-09-19T181232Z.md)
 **Reviewed head:** `14f26df47fea4161f36f88c618596b827133cdf5`
 **Findings:** 0 Critical, 0 Important, 2 Medium, 0 Minor.
 **Status:** passed; Phase 2 accepted.
@@ -1255,7 +1255,7 @@ and are carried to final review rather than opening another phase fix round.
 ## Review Received: p01 round 1
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 1 code review](reviews/code-p01-review-2026-09-19T140258Z.md)
+**Review artifact:** [Phase 1 code review](reviews/archived/code-p01-review-2026-09-19T140258Z.md)
 **Reviewed head:** `8866df01da3041e49d8b530e7e5d005059783330`
 **Findings:** 0 Critical, 9 Important, 2 Medium, 0 Minor.
 **Status:** fixes_completed; independent re-review pending.
@@ -1276,7 +1276,7 @@ was deferred.
 ## Review Received: p01 round 2
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 1 re-review](reviews/code-p01-rereview-2026-09-19T1445Z.md)
+**Review artifact:** [Phase 1 re-review](reviews/archived/code-p01-rereview-2026-09-19T1445Z.md)
 **Reviewed head:** `67b811def41104d75a05d6175229e6e5539ccc9d`
 **Findings:** 0 Critical, 6 Important, 1 Medium, 0 Minor.
 **Status:** fixes_completed; final independent re-review pending.
@@ -1297,7 +1297,7 @@ All seven round-2 findings are resolved; final independent re-review is pending.
 ## Review Received: p01 round 3
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 1 final review](reviews/code-p01-final-review-2026-09-19T152245Z.md)
+**Review artifact:** [Phase 1 final review](reviews/archived/code-p01-final-review-2026-09-19T152245Z.md)
 **Reviewed head:** `057cc67a527c18e81d1cd7aaba8b925df4d746c3`
 **Findings:** 0 Critical, 3 Important, 0 Medium, 0 Minor.
 **Status:** fixes_completed; fresh independent re-review pending.
@@ -1315,7 +1315,7 @@ authorization for another bounded correction and a fresh independent review.
 - Date: 2026-09-19
 - Source: explicit user authorization in the active implementation session.
 - Scope: exactly the three Important findings in
-  `reviews/code-p01-final-review-2026-09-19T152245Z.md`.
+  `reviews/archived/code-p01-final-review-2026-09-19T152245Z.md`.
 - Effect: raise `oat_orchestration_retry_limit` from the default 2 to 3 for this
   project and permit one fresh independent Phase 1 review after the correction.
 - Non-effect: no Phase 2 work, worktree change, publication, installation,
@@ -1329,7 +1329,7 @@ resolved with root-reproduced verification; the authorized fresh review remains.
 ## Review Received: p01 authorized round 4
 
 **Date:** 2026-09-19
-**Review artifact:** [Phase 1 authorized review](reviews/code-p01-authorized-review-2026-09-19T161151Z.md)
+**Review artifact:** [Phase 1 authorized review](reviews/archived/code-p01-authorized-review-2026-09-19T161151Z.md)
 **Reviewed head:** `d3cd0e9c8a12b3057b2c403ce9587bc81402ef66`
 **Findings:** 0 Critical, 0 Important, 1 Medium, 0 Minor.
 **Status:** passed; Phase 1 accepted.
@@ -1536,7 +1536,7 @@ This is historical planning-review context; product code now exists.
 | -------------------- | ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | --------------------- |
 | Third gate I1/m2     | design.md, plan.md | Observer registration refusal; unspecified Claude inventory                  | Dormant hooks allowed, scoped third-party acknowledgment, explicit Claude attestation | User-approved usable and honest ownership boundary                     | Updated discovery/design/plan | Independent re-review |
 | Fourth gate I1/M1/m1 | design.md, plan.md | Claude composition implicit; broad inventory; triggered recovery unspecified | Dedicated p04-t01 Monitor, bounded inventory and explicit disarm recovery             | User-approved complete implementation path with conservative ownership | Updated discovery/design/plan | Independent re-review |
-| Run 1 worktree       | plan.md            | Create a separate visible Codex worktree before implementation                 | Implement in the existing `backlog-triage` worktree                                   | Explicit user direction on 2026-09-19                                  | Updated plan/implementation  | None                  |
+| Run 1 worktree       | plan.md            | Create a separate visible Codex worktree before implementation               | Implement in the existing `backlog-triage` worktree                                   | Explicit user direction on 2026-09-19                                  | Updated plan/implementation   | None                  |
 
 ## Test Results
 
@@ -1544,13 +1544,13 @@ Phase verification is current through passing-gate sweep commit `dd22025c` and
 a clean worktree validation run. The second configured Frontier gate passed and
 all sub-threshold findings have durable dispositions.
 
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
-| 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
-| 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint | all | 0 | Accepted after final bounded independent review |
-| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Completed; final review accepted |
-| 5     | 153 focused proof + 18 recovery-focused + 120 sweep-focused; full suite (2,256 tests); build/check/validate/type/smoke/version/internal-flags/docs/worktree validation | all | 0 | Completed; final review passed |
+| Phase | Tests Run                                                                                                                                                              | Passed | Failed | Coverage                                        |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | ----------------------------------------------- |
+| 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke                                                                  | all    | 0      | Accepted after independent review               |
+| 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version                                                                                         | all    | 0      | Accepted after fresh independent review         |
+| 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint                                                                            | all    | 0      | Accepted after final bounded independent review |
+| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation                                              | all    | 0      | Completed; final review accepted                |
+| 5     | 153 focused proof + 18 recovery-focused + 120 sweep-focused; full suite (2,256 tests); build/check/validate/type/smoke/version/internal-flags/docs/worktree validation | all    | 0      | Completed; final review passed                  |
 
 ## Final Summary (for PR/docs)
 
