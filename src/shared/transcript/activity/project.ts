@@ -309,9 +309,13 @@ function buildReport(
   const displayedRaw = retainedGroups
     .flatMap((group) => group.events)
     .toSorted(compareChronology);
-  const groupWithResult = new Set(
+  const groupWithOutputResult = new Set(
     retainedGroups
-      .filter((group) => group.events.some((event) => event.kind === 'result'))
+      .filter((group) =>
+        group.events.some(
+          (event) => event.kind === 'result' && Object.hasOwn(event, 'result'),
+        ),
+      )
       .map((group) => group.key),
   );
   const eventGroup = new Map(
@@ -325,7 +329,7 @@ function buildReport(
       limits,
       event.kind === 'item' &&
         event.relatedCallKey !== undefined &&
-        groupWithResult.has(eventGroup.get(event.eventKey) ?? ''),
+        groupWithOutputResult.has(eventGroup.get(event.eventKey) ?? ''),
     ),
   );
   const callContexts: ActivityCallContext[] = retainedGroups

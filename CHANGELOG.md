@@ -81,6 +81,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.55, `session-observer-collab` 1.0.44, `session-export-transcript` 2.0.12, and `session-fork-to-destination` 0.2.20 retain a linked failed item's sole output preview when its exact-ID-linked result has no output carrier.
 - `session-observer` 1.0.53, `session-observer-collab` 1.0.42, `session-export-transcript` 2.0.10, and `session-fork-to-destination` 0.2.18 keep Codex activity ownership unknown when child lineage or history boundaries are incomplete or conflicting, and classify the observed current task and asynchronous ask native names without broadening unknown-name matching.
 - `session-observer` 1.0.51, `session-observer-collab` 1.0.40, `session-export-transcript` 2.0.8, and `session-fork-to-destination` 0.2.16 keep extractor exceptions distinct from malformed source input, locate Claude's record-level `toolUseResult` carrier once at its top-level source path, and preserve explicit interruption as cancelled evidence.
 - `session-observer` 1.0.49, `session-observer-collab` 1.0.38, `session-export-transcript` 2.0.6, and `session-fork-to-destination` 0.2.14 harden Codex identity boundaries by binding persistent observer cache hits to subsecond filesystem identity, rejecting malformed present lineage fields in the first native header, and preventing transcript export from selecting an invalid native identity through marker or fallback paths.

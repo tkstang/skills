@@ -305,6 +305,42 @@ describe('activity projection budgets', () => {
     expect(standalone).toHaveProperty('outputPreview');
   });
 
+  it('retains a linked failed item preview when its result has no output', () => {
+    const events = [
+      event('call', 'call', 0, {
+        nativeCallId: 'call-id',
+      }),
+      event('result-without-output', 'result', 1, {
+        nativeCallId: 'call-id',
+        relatedCallKey: 'call',
+        outcome: 'unknown',
+      }),
+      event('failed-linked-item', 'item', 2, {
+        nativeId: 'call-id',
+        relatedCallKey: 'call',
+        outcome: 'error',
+        nativeValue: { output: 'only persisted failure evidence' },
+      }),
+    ];
+    const report = projectActivity(activity(events), {
+      mode: 'review',
+      deliveryRange: wholeRange(events),
+    });
+    const result = report.events.find(
+      (candidate) => candidate.eventKey === 'result-without-output',
+    );
+    const item = report.events.find(
+      (candidate) => candidate.eventKey === 'failed-linked-item',
+    );
+
+    expect(result).not.toHaveProperty('outputPreview');
+    expect(item).toHaveProperty('outputPreview');
+    expect(item).not.toHaveProperty('outputPreviewOmitted');
+    expect(item?.outputPreview?.text).toContain(
+      'only persisted failure evidence',
+    );
+  });
+
   it('retains a standalone failed item ahead of a lower-priority call group', () => {
     const failedItem = event('failed-item', 'item', 1, {
       outcome: 'error',
