@@ -77,6 +77,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.49, `session-observer-collab` 1.0.38, `session-export-transcript` 2.0.6, and `session-fork-to-destination` 0.2.14 harden Codex identity boundaries by binding persistent observer cache hits to subsecond filesystem identity, rejecting malformed present lineage fields in the first native header, and preventing transcript export from selecting an invalid native identity through marker or fallback paths.
 - `session-observer` 1.0.48, `session-observer-collab` 1.0.37, `session-export-transcript` 2.0.5, and `session-fork-to-destination` 0.2.13 reject ID-less first Codex headers that precede native inherited headers, reject exact-pin ambiguity across distinct canonical Claude/Codex/Cursor sources while deduplicating path aliases, prefer Codex roots for unpinned export marker matches and marker-miss fallback, and fail stateful catch-up before delivery when saved state cannot be read. The observer release notes also cover the existing fail-closed missing-path watcher exit, marked-review state-read error, and transcript-shrink hard stop.
 - `session-observer` 1.0.47 and `session-observer-collab` 1.0.36 document the native Codex identity and lineage boundary, Claude human versus runtime-notification provenance, fail-closed saved-position binding, and exact scoped reset/re-arm procedure; `session-fork-to-destination` 0.2.12 aligns its discovery regression with the first physical Codex header contract.
 - `session-observer` 1.0.46, `session-observer-collab` 1.0.35,

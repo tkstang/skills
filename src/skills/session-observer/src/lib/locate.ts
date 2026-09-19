@@ -595,8 +595,11 @@ async function candidateEngagementFields(
 interface CwdCacheEntry {
   recordedCwd: string | null;
   sessionId?: string;
-  identityVersion?: 1;
+  identityVersion?: 2;
   fileSize?: number;
+  fileMtimeMs?: number;
+  fileDev?: number;
+  fileIno?: number;
   meta?: TranscriptMeta | null;
   identityStatus?: 'native' | 'legacy' | 'invalid';
   filenameSessionId?: string;
@@ -974,7 +977,9 @@ async function collectJsonlFiles(
 
 /**
  * Discover Codex transcript candidates for a target cwd.
- * Uses a cwd-cache keyed by (transcriptPath:mtime) to avoid re-parsing.
+ * Uses a cwd-cache keyed by (transcriptPath:coarse mtime) and validates each
+ * hit with the full file signature (subsecond mtime, size, device, inode) to
+ * avoid re-parsing without trusting a same-key rewrite.
  *
  * @param {string} targetCwd
  * @param {ClassificationCache} classificationCache
@@ -1044,14 +1049,18 @@ async function discoverCodex(
     }
     const cached = persistentCacheAllowed ? cwdCache[key] : undefined;
     if (
-      cached?.identityVersion === 1 &&
+      cached?.identityVersion === 2 &&
       cached.fileSize === fileStat.size &&
+      cached.fileMtimeMs === fileStat.mtimeMs &&
+      cached.fileDev === fileStat.dev &&
+      cached.fileIno === fileStat.ino &&
       cached.sessionId !== undefined &&
       cached.meta !== undefined &&
       cached.identityStatus !== undefined
     ) {
-      // Only cache entries written after native-identity validation are
-      // reusable. Older root-valued entries are deliberately reparsed.
+      // Only cache entries written after strong file-signature and native-
+      // identity validation are reusable. Older entries are deliberately
+      // reparsed.
       recordedCwd = cached.recordedCwd;
       sessionId = cached.sessionId;
       meta = cached.meta;
@@ -1082,8 +1091,11 @@ async function discoverCodex(
         cwdCache[key] = {
           recordedCwd,
           sessionId,
-          identityVersion: 1,
+          identityVersion: 2,
           fileSize: fileStat.size,
+          fileMtimeMs: fileStat.mtimeMs,
+          fileDev: fileStat.dev,
+          fileIno: fileStat.ino,
           meta,
           identityStatus,
           ...(filenameSessionId ? { filenameSessionId } : {}),

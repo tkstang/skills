@@ -114,12 +114,21 @@ function codexLineageMetadata(firstHeader) {
   const nativeSessionId = consistentNonEmptyString([payload.id]);
   if (nativeSessionId === void 0) return null;
   const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  if (Object.hasOwn(payload, "session_id") && rootSessionId === void 0) {
+    return null;
+  }
   const parentValues = codexDirectParentValues(payload);
   const parentSessionId = consistentNonEmptyString(parentValues);
   if (parentValues.length > 0 && parentSessionId === void 0) return null;
   const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  if (Object.hasOwn(payload, "forked_from_id") && forkedFromSessionId === void 0) {
+    return null;
+  }
   const historyBoundary = payload.subagent_history_start_ordinal;
   const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
+  if (Object.hasOwn(payload, "subagent_history_start_ordinal") && subagentHistoryStartOrdinal === void 0) {
+    return null;
+  }
   return {
     nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },

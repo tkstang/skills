@@ -574,12 +574,21 @@ function codexLineageMetadata(firstHeader) {
   const nativeSessionId = consistentNonEmptyString([payload.id]);
   if (nativeSessionId === void 0) return null;
   const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  if (Object.hasOwn(payload, "session_id") && rootSessionId === void 0) {
+    return null;
+  }
   const parentValues = codexDirectParentValues(payload);
   const parentSessionId = consistentNonEmptyString(parentValues);
   if (parentValues.length > 0 && parentSessionId === void 0) return null;
   const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  if (Object.hasOwn(payload, "forked_from_id") && forkedFromSessionId === void 0) {
+    return null;
+  }
   const historyBoundary = payload.subagent_history_start_ordinal;
   const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
+  if (Object.hasOwn(payload, "subagent_history_start_ordinal") && subagentHistoryStartOrdinal === void 0) {
+    return null;
+  }
   return {
     nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },
@@ -3218,7 +3227,7 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       if (boundedDerived === null) continue;
     }
     const cached = persistentCacheAllowed ? cwdCache[key] : void 0;
-    if (cached?.identityVersion === 1 && cached.fileSize === fileStat.size && cached.sessionId !== void 0 && cached.meta !== void 0 && cached.identityStatus !== void 0) {
+    if (cached?.identityVersion === 2 && cached.fileSize === fileStat.size && cached.fileMtimeMs === fileStat.mtimeMs && cached.fileDev === fileStat.dev && cached.fileIno === fileStat.ino && cached.sessionId !== void 0 && cached.meta !== void 0 && cached.identityStatus !== void 0) {
       recordedCwd = cached.recordedCwd;
       sessionId = cached.sessionId;
       meta = cached.meta;
@@ -3239,8 +3248,11 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
         cwdCache[key] = {
           recordedCwd,
           sessionId,
-          identityVersion: 1,
+          identityVersion: 2,
           fileSize: fileStat.size,
+          fileMtimeMs: fileStat.mtimeMs,
+          fileDev: fileStat.dev,
+          fileIno: fileStat.ino,
           meta,
           identityStatus,
           ...filenameSessionId ? { filenameSessionId } : {}

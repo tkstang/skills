@@ -389,12 +389,21 @@ function codexLineageMetadata(firstHeader) {
   const nativeSessionId = consistentNonEmptyString([payload.id]);
   if (nativeSessionId === void 0) return null;
   const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  if (Object.hasOwn(payload, "session_id") && rootSessionId === void 0) {
+    return null;
+  }
   const parentValues = codexDirectParentValues(payload);
   const parentSessionId = consistentNonEmptyString(parentValues);
   if (parentValues.length > 0 && parentSessionId === void 0) return null;
   const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  if (Object.hasOwn(payload, "forked_from_id") && forkedFromSessionId === void 0) {
+    return null;
+  }
   const historyBoundary = payload.subagent_history_start_ordinal;
   const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
+  if (Object.hasOwn(payload, "subagent_history_start_ordinal") && subagentHistoryStartOrdinal === void 0) {
+    return null;
+  }
   return {
     nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },
@@ -1557,6 +1566,15 @@ Try --cwd <path> or confirm ${runtime} has run in this project.`
   if ("exit" in selection) {
     console.error(`[session-export-transcript] ${selection.message}`);
     return selection.exit;
+  }
+  const invalidSelected = selection.selected.filter(
+    (candidate) => candidate.identityStatus === "invalid"
+  );
+  if (invalidSelected.length > 0) {
+    console.error(
+      "[session-export-transcript] SESSION_IDENTITY_INVALID: selected Codex transcript source contradicts or lacks a valid native header.\n" + invalidSelected.map((candidate) => `  - ${candidate.transcriptPath}`).join("\n")
+    );
+    return 1;
   }
   for (const warning of selection.warnings) {
     console.error(`[session-export-transcript] warning: ${warning}`);

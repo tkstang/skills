@@ -1702,6 +1702,70 @@ test('codex cwd cache: size changes invalidate cached transcript metadata', asyn
   });
 });
 
+test('codex cwd cache: subsecond rewrites invalidate same-path same-size identity metadata', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/subsecond-cache-project';
+    const firstId = '11111111-cccc-4111-8111-111111111111';
+    const secondId = '22222222-cccc-4222-8222-222222222222';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '19');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'same-path.jsonl');
+    const firstContent = makeCodexNative(targetCwd, firstId);
+    const secondContent = makeCodexNative(targetCwd, secondId);
+    expect(Buffer.byteLength(firstContent)).toBe(
+      Buffer.byteLength(secondContent),
+    );
+
+    const coarseSecond = Math.floor(Date.now() / 1000) * 1000;
+    const firstMtime = new Date(coarseSecond + 100);
+    const secondMtime = new Date(coarseSecond + 700);
+    await writeFile(transcriptPath, firstContent, 'utf8');
+    await utimes(transcriptPath, firstMtime, firstMtime);
+    const firstStat = await stat(transcriptPath);
+
+    await expect(discover('codex', targetCwd)).resolves.toContainEqual(
+      expect.objectContaining({
+        transcriptPath,
+        sessionId: firstId,
+        nativeSessionId: firstId,
+      }),
+    );
+
+    await writeFile(transcriptPath, secondContent, 'utf8');
+    await utimes(transcriptPath, secondMtime, secondMtime);
+    const secondStat = await stat(transcriptPath);
+    expect(secondStat.size).toBe(firstStat.size);
+    expect(Math.floor(secondStat.mtimeMs / 1000)).toBe(
+      Math.floor(firstStat.mtimeMs / 1000),
+    );
+    expect(secondStat.mtimeMs).not.toBe(firstStat.mtimeMs);
+
+    await expect(discover('codex', targetCwd)).resolves.toContainEqual(
+      expect.objectContaining({
+        transcriptPath,
+        sessionId: secondId,
+        nativeSessionId: secondId,
+      }),
+    );
+
+    const cache = JSON.parse(
+      await readFile(
+        join(process.env.STATE_DIR!, 'codex-cwd-cache.json'),
+        'utf8',
+      ),
+    );
+    const cacheKey = `${transcriptPath}:${Math.floor(secondStat.mtimeMs / 1000)}`;
+    expect(cache[cacheKey]).toMatchObject({
+      identityVersion: 2,
+      fileSize: secondStat.size,
+      fileMtimeMs: secondStat.mtimeMs,
+      fileDev: secondStat.dev,
+      fileIno: secondStat.ino,
+      sessionId: secondId,
+    });
+  });
+});
+
 test('codex cwd cache: saveCwdCache writes atomically — no tmp residue, parseable JSON', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/atomic-cache-project';

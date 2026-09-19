@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.5'
+  version: '2.0.6'
 ---
 
 # {{distribution.name}}

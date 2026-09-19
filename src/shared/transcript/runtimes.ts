@@ -1192,17 +1192,32 @@ function codexLineageMetadata(
   const rootSessionId = Object.hasOwn(payload, 'session_id')
     ? consistentNonEmptyString([payload.session_id])
     : undefined;
+  if (Object.hasOwn(payload, 'session_id') && rootSessionId === undefined) {
+    return null;
+  }
   const parentValues = codexDirectParentValues(payload);
   const parentSessionId = consistentNonEmptyString(parentValues);
   if (parentValues.length > 0 && parentSessionId === undefined) return null;
   const forkedFromSessionId = Object.hasOwn(payload, 'forked_from_id')
     ? consistentNonEmptyString([payload.forked_from_id])
     : undefined;
+  if (
+    Object.hasOwn(payload, 'forked_from_id') &&
+    forkedFromSessionId === undefined
+  ) {
+    return null;
+  }
   const historyBoundary = payload.subagent_history_start_ordinal;
   const subagentHistoryStartOrdinal =
     Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0
       ? Number(historyBoundary)
       : undefined;
+  if (
+    Object.hasOwn(payload, 'subagent_history_start_ordinal') &&
+    subagentHistoryStartOrdinal === undefined
+  ) {
+    return null;
+  }
 
   return {
     nativeSessionId,

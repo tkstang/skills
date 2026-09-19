@@ -788,6 +788,19 @@ async function main(): Promise<number> {
     return selection.exit;
   }
 
+  const invalidSelected = selection.selected.filter(
+    (candidate) => candidate.identityStatus === 'invalid',
+  );
+  if (invalidSelected.length > 0) {
+    console.error(
+      '[session-export-transcript] SESSION_IDENTITY_INVALID: selected Codex transcript source contradicts or lacks a valid native header.\n' +
+        invalidSelected
+          .map((candidate) => `  - ${candidate.transcriptPath}`)
+          .join('\n'),
+    );
+    return 1;
+  }
+
   for (const warning of selection.warnings) {
     console.error(`[session-export-transcript] warning: ${warning}`);
   }

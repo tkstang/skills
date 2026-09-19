@@ -594,6 +594,46 @@ describe('export CLI — session selection', () => {
     await rm(malformedHome, { recursive: true, force: true });
   });
 
+  test.each([
+    { label: 'marker match', markerInTranscript: 'invalid-marker-match' },
+    { label: 'marker-miss fallback', markerInTranscript: undefined },
+  ])(
+    '--match rejects an invalid Codex identity selected by $label',
+    async ({ markerInTranscript }) => {
+      const invalidHome = await setupHome();
+      const filenameId = '66666666-bbbb-4666-8666-666666666666';
+      const contradictoryId = '77777777-bbbb-4777-8777-777777777777';
+      const requestedMarker = markerInTranscript ?? 'missing-marker';
+      const dir = join(invalidHome, '.codex', 'sessions', '2026', '09', '18');
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, `rollout-2026-09-18T10-00-00-${filenameId}.jsonl`),
+        nativeCodexTranscript(contradictoryId, contradictoryId, {
+          marker: markerInTranscript,
+        }),
+        'utf8',
+      );
+
+      const result = spawnCli(
+        [
+          '--runtime',
+          'codex',
+          '--cwd',
+          CWD,
+          '--match',
+          requestedMarker,
+          '--out',
+          join(invalidHome, 'invalid.md'),
+        ],
+        { HOME: invalidHome },
+      );
+
+      assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+      assert.match(result.stderr, /SESSION_IDENTITY_INVALID/);
+      await rm(invalidHome, { recursive: true, force: true });
+    },
+  );
+
   test('--all writes one output per cwd session, exit 0', async () => {
     const allHome = await setupHome();
     await writeClaude(allHome, claudeTranscript('m1', 'cc-a'), 'cc-a');

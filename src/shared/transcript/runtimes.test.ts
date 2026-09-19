@@ -736,6 +736,82 @@ describe('exact provider lineage metadata', () => {
     expect(new Set([meta?.nativeSessionId, meta?.rootSessionId]).size).toBe(2);
   });
 
+  it.each([
+    ['session_id', null],
+    ['session_id', ''],
+    ['session_id', 42],
+    ['forked_from_id', null],
+    ['forked_from_id', ''],
+    ['forked_from_id', 42],
+    ['subagent_history_start_ordinal', null],
+    ['subagent_history_start_ordinal', -1],
+    ['subagent_history_start_ordinal', 1.5],
+    ['subagent_history_start_ordinal', '1'],
+  ])('rejects a present invalid Codex %s value', (field, value) => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          payload: {
+            id: 'native-child-id',
+            cwd: '/repo/target',
+            [field]: value,
+          },
+        },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toBeNull();
+  });
+
+  it.each([
+    {
+      label: 'omitted',
+      optional: {},
+      expected: {},
+    },
+    {
+      label: 'valid',
+      optional: {
+        session_id: 'root-id',
+        forked_from_id: 'fork-parent-id',
+        subagent_history_start_ordinal: 0,
+      },
+      expected: {
+        rootSessionId: 'root-id',
+        forkedFromSessionId: 'fork-parent-id',
+        subagentHistoryStartOrdinal: 0,
+      },
+    },
+  ])(
+    'preserves $label optional Codex lineage fields',
+    ({ optional, expected }) => {
+      const meta = extractMetaFromRecords(
+        'codex',
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: 'native-child-id',
+              cwd: '/repo/target',
+              ...optional,
+            },
+          },
+        ],
+        '/private/transcript-name.jsonl',
+      );
+
+      expect(meta).toEqual({
+        sessionId: 'native-child-id',
+        recordedCwd: '/repo/target',
+        nativeSessionId: 'native-child-id',
+        ...expected,
+      });
+    },
+  );
+
   it('does not mistake Codex message payload IDs for native session IDs', () => {
     const meta = extractMetaFromRecords(
       'codex',
