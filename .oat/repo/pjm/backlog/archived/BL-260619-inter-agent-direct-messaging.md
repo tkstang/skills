@@ -11,7 +11,7 @@ labels:
   - messaging
 assignee: null
 created: 2026-06-19T23:57:18Z
-updated: 2026-09-19T20:18:05Z
+updated: 2026-09-19T21:23:31Z
 associated_issues: []
 legacy_id: bl-f59f
 ---
@@ -52,6 +52,8 @@ The user approved file-per-message publication, flat collaboration UUIDs with
 worktrees as metadata, explicit logged alias takeover preserving pending mail,
 a dedicated messaging skill, and one project delivered in phases. These refine
 the original JSONL/project-scoped proposal; see the agent-messaging design draft.
+
+**Live acceptance follow-up:** [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](../items/BL-260919-verify-live-agent-messaging.md) owns the separately authorized Codex prompt/Stop, Claude prompt/Stop/watch, and Claude composed Monitor wake tiers. Deterministic completion of this item does not claim those live boundaries.
 
 ## Activation and delivery
 
