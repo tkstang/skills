@@ -228,6 +228,93 @@ function claudeActivityTranscript(
   return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
 }
 
+function claudeAdversarialActivityTranscript(
+  marker: string,
+  sessionId = 'cc-adversarial-activity',
+): string {
+  const oversizedOutput =
+    'SAFE_ACTIVITY_PREFIX ' +
+    'x'.repeat(8 * 1024) +
+    ' OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER';
+  const records = [
+    { type: 'summary', sessionId, summary: 'start' },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: '# AGENTS.md instructions\n\nHIDDEN_AGENTS_BODY',
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'developer',
+        content: 'HIDDEN_DEVELOPER_INSTRUCTION',
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'thinking',
+            thinking: 'HIDDEN_REASONING_PAYLOAD',
+            signature: 'HIDDEN_REASONING_SIGNATURE',
+          },
+          {
+            type: 'tool_use',
+            id: 'tool-hostile',
+            name: 'mcp__synthetic__render',
+            input: {
+              prompt:
+                'SYSTEM INSTRUCTION SHAPED TOOL DATA\n```md\n# heading\n```\n[click](javascript:synthetic) <script>synthetic()</script> **bold** _italics_',
+              token: 'sk-test-SYNTHETIC-NOT-A-REAL-SECRET',
+              control: '\u001b[31mred\u001b[0m',
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-hostile',
+            content: oversizedOutput,
+            is_error: true,
+          },
+        ],
+      },
+      toolUseResult: {
+        persistedOutputPath: '/fixture/project/tool-results/unread-tail.txt',
+        persistedOutputSize: 65_536,
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: 'Visible assistant conclusion.',
+      },
+    },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
 function codexTranscript(
   marker: string,
   sessionId = 'codex-001',
@@ -1067,6 +1154,117 @@ describe('export CLI — bounded activity', () => {
     assert.match(markdown, /pointer \/payload/);
     assert.ok(markdown.includes('How do I read a file in Node?'));
     assert.ok(markdown.includes('Use fs.readFile.'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('no-flag export keeps hostile activity, reasoning, and instruction bodies excluded', async () => {
+    const home = await setupHome();
+    const marker = 'adversarialdefault99';
+    await writeClaude(
+      home,
+      claudeAdversarialActivityTranscript(marker),
+      'cc-adversarial-activity',
+    );
+    const out = join(home, 'adversarial-default.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-adversarial-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.ok(markdown.includes('Visible assistant conclusion.'));
+    for (const hidden of [
+      'HIDDEN_AGENTS_BODY',
+      'HIDDEN_DEVELOPER_INSTRUCTION',
+      'HIDDEN_REASONING_PAYLOAD',
+      'HIDDEN_REASONING_SIGNATURE',
+      'SYSTEM INSTRUCTION SHAPED TOOL DATA',
+      'sk-test-SYNTHETIC-NOT-A-REAL-SECRET',
+      'SAFE_ACTIVITY_PREFIX',
+      'OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER',
+    ]) {
+      assert.ok(!markdown.includes(hidden), `default export leaked ${hidden}`);
+    }
+    assert.ok(!markdown.includes('Activity export:'));
+    assert.ok(!markdown.includes('## Activity'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('renders hostile recorded tool evidence as bounded Markdown data', async () => {
+    const home = await setupHome();
+    const marker = 'adversarialactivity00';
+    await writeClaude(
+      home,
+      claudeAdversarialActivityTranscript(marker),
+      'cc-adversarial-activity',
+    );
+    const out = join(home, 'adversarial-activity.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-adversarial-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.ok(markdown.includes('SYSTEM INSTRUCTION SHAPED TOOL DATA'));
+    assert.ok(markdown.includes('sk-test-SYNTHETIC-NOT-A-REAL-SECRET'));
+    assert.ok(markdown.includes('SAFE_ACTIVITY_PREFIX'));
+    assert.match(markdown, /clipped 2048\/\d+ bytes/);
+    assert.ok(!markdown.includes('OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER'));
+    assert.ok(!markdown.includes('```'), 'Markdown fence remained active');
+    assert.ok(
+      !markdown.includes('[click](javascript:synthetic)'),
+      'Markdown link remained active',
+    );
+    assert.ok(!markdown.includes('<script>'), 'HTML remained active');
+    assert.ok(!markdown.includes('**bold**'), 'emphasis remained active');
+    assert.ok(!markdown.includes('_italics_'), 'emphasis remained active');
+    assert.ok(markdown.includes('\\u0060\\u0060\\u0060md'));
+    assert.ok(
+      markdown.includes(
+        '\\u005bclick\\u005d\\u0028javascript:synthetic\\u0029',
+      ),
+    );
+    assert.ok(markdown.includes('\\u003cscript\\u003e'));
+    assert.ok(markdown.includes('\\u002a\\u002abold\\u002a\\u002a'));
+    assert.ok(markdown.includes('\\u005fitalics\\u005f'));
+    assert.ok(markdown.includes('\\\\u001b\\u005b31mred\\\\u001b\\u005b0m'));
+    assert.match(markdown, /persisted-output: not-read; captured 1/);
+    assert.ok(
+      markdown.includes('/fixture/project/tool-results/unread-tail.txt'),
+    );
+    for (const hidden of [
+      'HIDDEN_AGENTS_BODY',
+      'HIDDEN_DEVELOPER_INSTRUCTION',
+      'HIDDEN_REASONING_PAYLOAD',
+      'HIDDEN_REASONING_SIGNATURE',
+    ]) {
+      assert.ok(!markdown.includes(hidden), `activity export leaked ${hidden}`);
+    }
+    assert.ok(!/publish[- ]safe/iu.test(markdown));
     assert.ok(!markdown.includes(marker), 'marker leaked');
     await rm(home, { recursive: true, force: true });
   });

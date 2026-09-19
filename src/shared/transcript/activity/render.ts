@@ -36,7 +36,14 @@ function markdownData(value: unknown): string {
     .replaceAll('&', '\\u0026')
     .replaceAll('<', '\\u003c')
     .replaceAll('>', '\\u003e')
-    .replaceAll('`', '\\u0060');
+    .replaceAll('`', '\\u0060')
+    .replaceAll('[', '\\u005b')
+    .replaceAll(']', '\\u005d')
+    .replaceAll('(', '\\u0028')
+    .replaceAll(')', '\\u0029')
+    .replaceAll('*', '\\u002a')
+    .replace(/(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, '\\u005f')
+    .replaceAll('~', '\\u007e');
 }
 
 function locatorText(locator: ActivityLocator | undefined): string {

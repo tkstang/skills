@@ -601,6 +601,38 @@ describe('activity projection budgets', () => {
     expect(after).not.toContain(unrelatedConversation.slice(0, 100));
   });
 
+  it('renders hostile Markdown punctuation as inert data', () => {
+    const events = [
+      event('hostile-call', 'call', 0, {
+        nativeName: '[tool](javascript:synthetic)',
+        arguments: {
+          prompt:
+            '```md\n<script>synthetic()</script>\n[click](javascript:synthetic) **bold** _italics_ ~~strike~~',
+        },
+      }),
+    ];
+    const report = projectActivity(activity(events), {
+      mode: 'export',
+      deliveryRange: wholeRange(events),
+    });
+    const markdown = renderActivityMarkdown(report);
+
+    expect(markdown).not.toContain('```');
+    expect(markdown).not.toContain('<script>');
+    expect(markdown).not.toContain('[click](javascript:synthetic)');
+    expect(markdown).not.toContain('**bold**');
+    expect(markdown).not.toContain('_italics_');
+    expect(markdown).not.toContain('~~strike~~');
+    expect(markdown).toContain(
+      '\\u005bclick\\u005d\\u0028javascript:synthetic\\u0029',
+    );
+    expect(markdown).toContain('\\u003cscript\\u003e');
+    expect(markdown).toContain('\\u002a\\u002abold\\u002a\\u002a');
+    expect(markdown).toContain('\\u005fitalics\\u005f');
+    expect(markdown).toContain('\\u007e\\u007estrike\\u007e\\u007e');
+    expect(report.renderedBytes).toBe(Buffer.byteLength(markdown, 'utf8'));
+  });
+
   it('exports every invocation without a count cap under the 64 MiB guard', () => {
     const events = Array.from({ length: 1_100 }, (_, index) =>
       event(`call-${index}`, 'call', index, {

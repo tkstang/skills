@@ -85,6 +85,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.63 and `session-export-transcript` 2.0.17 render recorded activity Markdown punctuation as inert data, including links, emphasis, strikethrough, fences and HTML, with adversarial export coverage for hidden instructions, reasoning, synthetic secret-like strings, oversized previews and unread external tails; `session-observer-collab` 1.0.52 and `session-fork-to-destination` 0.2.29 receive the required shared-runtime closure update without enabling activity in collaboration or fork previews.
 - `session-observer` 1.0.62 retains activity-only watch deltas when byte limits omit every displayed event but delivered-range counts or omission accounting still prove activity; `session-observer-collab` 1.0.51 and `session-fork-to-destination` 0.2.27 receive the required shared observer runtime closure update without enabling collaboration activity.
 - `session-observer` 1.0.60 rejects `--include-activity` before state mutation for unsupported Cursor delivery paths; `session-observer-collab` 1.0.49 and `session-fork-to-destination` 0.2.25 receive the required shared observer runtime closure update.
 - `session-observer` 1.0.58, `session-observer-collab` 1.0.47, `session-export-transcript` 2.0.15, and `session-fork-to-destination` 0.2.23 keep activity reports within their serialized byte and displayed-invocation envelopes while preserving explicit metadata and evidence-group omission counts.
