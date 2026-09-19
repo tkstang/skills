@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p07-t01
+oat_current_task_id: p07-review
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-The original 19 implementation tasks and phase reviews p00 through p06 are complete. The final lifecycle review added two bounded p07 fixes; p07-t01 is next.
+All 21 implementation tasks are complete. The two final-review fixes pass root transition checks; the independent p07 phase review is next.
 
 ## Preparatory evidence
 
@@ -28,9 +28,9 @@ The original 19 implementation tasks and phase reviews p00 through p06 are compl
 | p04   | passed         | 2     | 2/2       |
 | p05   | passed         | 2     | 2/2       |
 | p06   | passed         | 2     | 2/2       |
-| p07   | pending        | 2     | 0/2       |
+| p07   | review pending | 2     | 2/2       |
 
-**Total:** 19/21 implementation tasks completed.
+**Total:** 21/21 implementation tasks completed.
 
 ## Phase 0
 
@@ -404,7 +404,7 @@ Phase p06 passes. All 19 implementation tasks and all seven phase reviews are co
 
 ## Phase 7
 
-**Status:** pending
+**Status:** review pending
 
 #### Dispatch sf-p07-implement-01
 
@@ -437,12 +437,12 @@ Phase p06 passes. All 19 implementation tasks and all seven phase reviews are co
     "taskIds": ["p07-t01", "p07-t02"],
     "plan": ".oat/projects/shared/session-fidelity/plan.md",
     "activityBase": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
-    "phaseBase": "4f5f6ba210c54407b4188fbdcfccb1c9d0807d45",
+    "phaseBase": "615f6a7e1eebb4b45b69a9eafae15714db48c085",
     "handle": "/root/p07_implement",
-    "finalHead": null
+    "finalHead": "c681e491892351785a080bef2b5b9e0bdfebe91b"
   },
   "launch_status": "accepted",
-  "child_outcome": "running",
+  "child_outcome": "completed-awaiting-review",
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
@@ -459,15 +459,15 @@ Dispatch: scope=p07 action=implementation role=implementer producer=unknown prov
 
 ### Task p07-t01: (review) Reconcile final closeout records
 
-**Status:** pending
-**Commit:** -
-**Verification:** pending; follow the received final-review task in `plan.md`.
+**Status:** completed
+**Commit:** cd54af26782415e605bf64dd8eb8fd208aecaafe
+**Verification:** live `origin/main` was confirmed at `d74abe671561053154d3012e1b8edd11fc079dcf`; plan, current-state and curated backlog records now agree on Consensus Review's merged source posture while retaining Session Fidelity's external-delivery boundaries. PJM doctor, formatting and diff checks pass.
 
 ### Task p07-t02: (review) Preserve non-missing watch stat errors
 
-**Status:** pending
-**Commit:** -
-**Verification:** pending; follow the received final-review task in `plan.md`.
+**Status:** completed
+**Commit:** c681e491892351785a080bef2b5b9e0bdfebe91b
+**Verification:** non-Cursor watch polling reserves reset/re-arm guidance for `ENOENT`/`ENOTDIR`, preserves other filesystem error code/message and retry guidance, emits one error event, exits and leaves saved state unchanged. The injected `EACCES` regression passes; root independently passed 58/58 watcher tests, build freshness, three-owner task-local version validation, PJM doctor and phase diff checks. Versions are observer 1.0.68, observer-collab 1.0.57 and fork-to-destination 0.2.34.
 
 ## Reviews
 
