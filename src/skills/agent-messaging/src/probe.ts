@@ -466,11 +466,22 @@ export async function runHostProbe(
   return { status, receipts, cleanupVerified };
 }
 
-export async function benchmarkActivityReceiptValidation(input: {
-  root: string;
-  pin: Pin;
-  now?: Date;
-}): Promise<{
+export async function benchmarkActivityReceiptValidation(
+  input: {
+    root: string;
+    pin: Pin;
+    now?: Date;
+  },
+  dependencies: {
+    readActivationStatus?: (
+      sample: 'cold' | 'warm',
+      root: string,
+      pin: Pin,
+      now?: Date,
+    ) => ReturnType<typeof activationStatus>;
+    now?: () => number;
+  } = {},
+): Promise<{
   receiptCount: 4096;
   coldMs: number;
   warmMs: number;
@@ -481,7 +492,19 @@ export async function benchmarkActivityReceiptValidation(input: {
     node: string;
   };
 }> {
-  const initial = await activationStatus(input.root, input.pin, input.now);
+  const readActivationStatus =
+    dependencies.readActivationStatus ??
+    ((_sample: 'cold' | 'warm', root: string, pin: Pin, now?: Date) =>
+      activationStatus(root, pin, now));
+  const now = dependencies.now ?? (() => performance.now());
+  const coldStarted = now();
+  const initial = await readActivationStatus(
+    'cold',
+    input.root,
+    input.pin,
+    input.now,
+  );
+  const coldMs = now() - coldStarted;
   if (!initial.activation)
     throw new TypeError('receipt benchmark requires an activation');
   const files = await enumerateJsonRecords(
@@ -494,12 +517,9 @@ export async function benchmarkActivityReceiptValidation(input: {
   );
   if (files.length !== MAX_ACTIVITY_RECEIPTS)
     throw new TypeError('receipt benchmark requires exactly 4096 receipts');
-  const coldStarted = performance.now();
-  await activationStatus(input.root, input.pin, input.now);
-  const coldMs = performance.now() - coldStarted;
-  const warmStarted = performance.now();
-  await activationStatus(input.root, input.pin, input.now);
-  const warmMs = performance.now() - warmStarted;
+  const warmStarted = now();
+  await readActivationStatus('warm', input.root, input.pin, input.now);
+  const warmMs = now() - warmStarted;
   return {
     receiptCount: 4096,
     coldMs,

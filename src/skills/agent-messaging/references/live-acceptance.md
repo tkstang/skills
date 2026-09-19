@@ -61,15 +61,18 @@ Cleanup receives only resources returned as owned by that probe.
 
 The benchmark validates the exact 4,096 immutable human-activity receipts twice
 through `activationStatus`; it does not coalesce or approximate idle semantics.
+The historical values below were published after an untimed priming read, so
+both measured calls were warm. They are retained as historical evidence rather
+than relabeled as a true cold/warm rerun.
 
 - Recorded: 2026-09-19T17:05:57Z
 - Machine: Darwin arm64, Apple M4
 - Node: v25.9.0
 - Receipt count: 4,096
-- Cold validation: 326.84 ms
-- Warm validation: 318.21 ms
+- First measured warm validation (historically labeled cold): 326.84 ms
+- Second measured warm validation (historically labeled warm): 318.21 ms
 - Host-timeout comparison: both readings are below the 60,000 ms adapter ceiling;
-  measured headroom was 59,673.16 ms cold and 59,681.79 ms warm.
+  measured headroom was 59,673.16 ms and 59,681.79 ms, respectively.
 
 These local filesystem timings are bounded engineering evidence, not a promise
 for every machine or proof that a provider hook will grant that much runtime.

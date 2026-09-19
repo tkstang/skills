@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import {
+  activationStatus,
   enableActivation,
   MAX_ACTIVITY_RECEIPTS,
 } from '../../../shared/collaboration/activation.js';
@@ -385,14 +386,26 @@ describe('bounded host probes', () => {
         ),
       );
     }
-    const result = await benchmarkActivityReceiptValidation({
-      root,
-      pin,
-      now: new Date(started.getTime() + MAX_ACTIVITY_RECEIPTS),
-    });
+    const activationReads: Array<'cold' | 'warm'> = [];
+    const timings = [100, 125, 200, 210];
+    const result = await benchmarkActivityReceiptValidation(
+      {
+        root,
+        pin,
+        now: new Date(started.getTime() + MAX_ACTIVITY_RECEIPTS),
+      },
+      {
+        readActivationStatus: (sample, ...args) => {
+          activationReads.push(sample);
+          return activationStatus(...args);
+        },
+        now: () => timings.shift()!,
+      },
+    );
     expect(result.receiptCount).toBe(4096);
-    expect(result.coldMs).toBeGreaterThan(0);
-    expect(result.warmMs).toBeGreaterThan(0);
+    expect(activationReads).toEqual(['cold', 'warm']);
+    expect(result.coldMs).toBe(25);
+    expect(result.warmMs).toBe(10);
     expect(result.machine.node).toBe(process.version);
   }, 30_000);
 });

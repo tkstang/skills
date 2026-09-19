@@ -139,6 +139,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.20 times the first activity-receipt activation read as
+  cold and the second as warm, tests their true invocation order, and honestly
+  relabels the earlier primed-call measurements as historical warm evidence.
+
 - `agent-messaging` 1.0.19 classifies malformed JSON in `--command` and
   `--installed-plugins` as invalid CLI input while retaining strict array and
   string-map shape validation.

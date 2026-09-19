@@ -56,7 +56,7 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.18'");
+      ).toContain("version: '1.0.20'");
 
       await access(path.join(destination, 'scripts', 'watch.mjs'));
       await access(path.join(destination, 'scripts', 'probe.mjs'));

@@ -1363,8 +1363,17 @@ async function runHostProbe(plan, adapter, options = {}) {
   }
   return { status, receipts, cleanupVerified };
 }
-async function benchmarkActivityReceiptValidation(input) {
-  const initial = await activationStatus(input.root, input.pin, input.now);
+async function benchmarkActivityReceiptValidation(input, dependencies = {}) {
+  const readActivationStatus = dependencies.readActivationStatus ?? ((_sample, root, pin, now2) => activationStatus(root, pin, now2));
+  const now = dependencies.now ?? (() => performance.now());
+  const coldStarted = now();
+  const initial = await readActivationStatus(
+    "cold",
+    input.root,
+    input.pin,
+    input.now
+  );
+  const coldMs = now() - coldStarted;
   if (!initial.activation)
     throw new TypeError("receipt benchmark requires an activation");
   const files = await enumerateJsonRecords(
@@ -1377,12 +1386,9 @@ async function benchmarkActivityReceiptValidation(input) {
   );
   if (files.length !== MAX_ACTIVITY_RECEIPTS)
     throw new TypeError("receipt benchmark requires exactly 4096 receipts");
-  const coldStarted = performance.now();
-  await activationStatus(input.root, input.pin, input.now);
-  const coldMs = performance.now() - coldStarted;
-  const warmStarted = performance.now();
-  await activationStatus(input.root, input.pin, input.now);
-  const warmMs = performance.now() - warmStarted;
+  const warmStarted = now();
+  await readActivationStatus("warm", input.root, input.pin, input.now);
+  const warmMs = now() - warmStarted;
   return {
     receiptCount: 4096,
     coldMs,
