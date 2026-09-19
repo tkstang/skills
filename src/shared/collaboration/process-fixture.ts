@@ -1,5 +1,6 @@
 import { once } from 'node:events';
 
+import { claimDelivery, type ClaimDeliveryInput } from './claims.js';
 import { openCollaboration, type JoinInput } from './membership.js';
 import { sendMessage, type SendMessageInput } from './messages.js';
 import { publishImmutableRecord, type PublicationHooks } from './records.js';
@@ -43,6 +44,19 @@ async function main(): Promise<void> {
         label: string;
         task: string;
       }),
+      hooks: { [stage]: barrier },
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+  if (mode === 'claim') {
+    const stage = String(input.stage) as
+      | 'afterEventClaim'
+      | 'afterSlotClaim'
+      | 'afterMessageClaim'
+      | 'beforeFinalValidation';
+    const result = await claimDelivery({
+      ...(input as unknown as ClaimDeliveryInput),
       hooks: { [stage]: barrier },
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);

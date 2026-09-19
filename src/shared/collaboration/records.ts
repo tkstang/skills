@@ -27,6 +27,7 @@ import {
   type LogEntryRecord,
   type MemberRecord,
   type MessageRecord,
+  type RetryRecord,
 } from './types.js';
 
 export type CollaborationErrorCode =
@@ -378,6 +379,32 @@ function validateAuthoritativeRecord(
         String(candidate.bindingGeneration) !== parent
       )
         malformed('ack path identity does not match record');
+    } else if (
+      recordSegments.length === 3 &&
+      recordSegments[0] === 'retries' &&
+      recordSegments[2]?.endsWith('.json')
+    ) {
+      const candidate = value as unknown as RetryRecord;
+      assertUuidValue(candidate.activationId, 'retry activationId');
+      assertBoundedString(
+        candidate.priorAttemptId,
+        'retry priorAttemptId',
+        128,
+      );
+      assertUuidValue(candidate.participantId, 'retry participantId');
+      assertUuidValue(candidate.messageId, 'retry messageId');
+      assertGeneration(candidate.retryGeneration, 'retry generation');
+      if (candidate.retryGeneration < 1)
+        malformed('retry generation must be positive');
+      assertTimestamp(candidate.createdAt, 'retry createdAt');
+      assertRecordHash(
+        candidate as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+        'retry',
+      );
+      if (candidate.participantId !== parent)
+        malformed('retry participant path identity does not match record');
     } else if (
       recordSegments.length === 3 &&
       recordSegments[0] === 'log' &&

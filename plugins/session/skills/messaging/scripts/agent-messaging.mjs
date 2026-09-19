@@ -2,21 +2,13 @@
 // GENERATED skill payload for agent-messaging.
 
 // src/skills/agent-messaging/src/agent-messaging.ts
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID6 } from "node:crypto";
 import { realpathSync } from "node:fs";
-import path6 from "node:path";
+import path9 from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/shared/collaboration/log.ts
+// src/shared/collaboration/activation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import {
-  lstat as lstat3,
-  open as open2,
-  readFile as readFile2,
-  realpath as realpath3,
-  rename,
-  unlink as unlink2
-} from "node:fs/promises";
 import path4 from "node:path";
 
 // src/shared/collaboration/membership.ts
@@ -73,6 +65,10 @@ function assertPin(value) {
     throw new TypeError("pin runtime is unsupported");
   }
   assertBoundedString(pin.sessionId, "pin sessionId");
+}
+function pinKey(pin) {
+  assertPin(pin);
+  return createHash("sha256").update(`${pin.runtime}\0${pin.sessionId}`, "utf8").digest("hex");
 }
 function pinsEqual(left, right) {
   return left.runtime === right.runtime && left.sessionId === right.sessionId;
@@ -319,6 +315,26 @@ function validateAuthoritativeRecord(file, value, root) {
       assertUuidValue(grandparent, "ack participant path");
       if (candidate.messageId !== basename || String(candidate.bindingGeneration) !== parent)
         malformed("ack path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "retries" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.activationId, "retry activationId");
+      assertBoundedString(
+        candidate.priorAttemptId,
+        "retry priorAttemptId",
+        128
+      );
+      assertUuidValue(candidate.participantId, "retry participantId");
+      assertUuidValue(candidate.messageId, "retry messageId");
+      assertGeneration(candidate.retryGeneration, "retry generation");
+      if (candidate.retryGeneration < 1)
+        malformed("retry generation must be positive");
+      assertTimestamp(candidate.createdAt, "retry createdAt");
+      assertRecordHash(
+        candidate,
+        "retry"
+      );
+      if (candidate.participantId !== parent)
+        malformed("retry participant path identity does not match record");
     } else if (recordSegments.length === 3 && recordSegments[0] === "log" && recordSegments[1] === "entries" && recordSegments[2]?.endsWith(".json")) {
       const candidate = value;
       assertUuidValue(candidate.id, "log entry id");
@@ -638,6 +654,9 @@ function collaborationPaths(root, collaborationId) {
     renderedLog: path2.join(directory, "collaboration.md"),
     closed: path2.join(directory, "closed.json")
   };
+}
+function activationDirectory(root, pin) {
+  return path2.join(root, "activations", pinKey(pin));
 }
 function memberBindingDirectory(paths, participantId) {
   assertUuid(participantId, "participant ID");
@@ -1124,8 +1143,675 @@ async function closeCollaboration(input) {
   });
 }
 
+// src/shared/collaboration/activation.ts
+var DEFAULT_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1e3;
+var MAX_ACTIVATION_DURATION_MS = 24 * 60 * 60 * 1e3;
+var DEFAULT_MAX_CONTINUATIONS = 20;
+var MAX_CONTINUATIONS = 100;
+var MAX_WAIT_MS = 6e4;
+var MAX_ACTIVITY_RECEIPTS = 4096;
+var MAX_ACTIVATION_EPOCHS = 64;
+var DeliveryError = class extends Error {
+  code;
+  constructor(code, message) {
+    super(message);
+    this.name = "DeliveryError";
+    this.code = code;
+  }
+};
+function timestamp2(value, label) {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      `${label} must be an ISO-8601 timestamp`
+    );
+  }
+  return parsed;
+}
+function assertIntegerRange(value, label, minimum, maximum) {
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new TypeError(
+      `${label} must be an integer from ${minimum} to ${maximum}`
+    );
+  }
+}
+function validateActivation(record) {
+  try {
+    assertUuid(record.id, "activation ID");
+    assertUuid(record.collaborationId, "activation collaboration ID");
+    assertUuid(record.participantId, "activation participant ID");
+    assertPin(record.pin);
+    if (!path4.isAbsolute(record.worktree))
+      throw new TypeError("activation worktree must be absolute");
+    assertIntegerRange(
+      record.epoch,
+      "activation epoch",
+      0,
+      MAX_ACTIVATION_EPOCHS - 1
+    );
+    if (record.previousEpoch !== null && record.previousEpoch !== record.epoch - 1) {
+      throw new TypeError(
+        "activation previousEpoch must identify the contiguous predecessor"
+      );
+    }
+    assertIntegerRange(
+      record.bindingGeneration,
+      "binding generation",
+      0,
+      Number.MAX_SAFE_INTEGER
+    );
+    if (!["stop", "monitor"].includes(record.mechanism))
+      throw new TypeError("activation mechanism is unsupported");
+    if (!["standalone-messaging", "observer-collab"].includes(record.controller)) {
+      throw new TypeError("activation controller is unsupported");
+    }
+    if (!["human-idle", "fixed"].includes(record.expiryMode))
+      throw new TypeError("activation expiry mode is unsupported");
+    timestamp2(record.startedAt, "activation startedAt");
+    timestamp2(record.hardExpiresAt, "activation hardExpiresAt");
+    if (record.expiryMode === "human-idle") {
+      assertIntegerRange(
+        record.idleTimeoutMs ?? 0,
+        "idle timeout",
+        1,
+        MAX_ACTIVATION_DURATION_MS
+      );
+      if (record.fixedExpiresAt !== null)
+        throw new TypeError("human-idle activation cannot have fixedExpiresAt");
+    } else {
+      if (record.idleTimeoutMs !== null)
+        throw new TypeError("fixed activation cannot have idleTimeoutMs");
+      if (record.fixedExpiresAt === null)
+        throw new TypeError("fixed activation requires fixedExpiresAt");
+      timestamp2(record.fixedExpiresAt, "activation fixedExpiresAt");
+    }
+    assertIntegerRange(
+      record.maxContinuations,
+      "max continuations",
+      1,
+      MAX_CONTINUATIONS
+    );
+    assertIntegerRange(record.waitMs, "wait milliseconds", 0, MAX_WAIT_MS);
+    if (record.contentHash !== canonicalRecordHash(
+      record
+    ))
+      throw new TypeError("activation contentHash does not match content");
+    return record;
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError("MALFORMED_RECORD", error.message);
+  }
+}
+async function activationRecords(root, pin) {
+  const directory = path4.join(activationDirectory(root, pin), "epochs");
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: MAX_ACTIVATION_EPOCHS
+  });
+  for (const file of files) {
+    if (!/^(0|[1-9][0-9]*)\.json$/u.test(path4.basename(file))) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation epoch filename is invalid"
+      );
+    }
+  }
+  const records = await Promise.all(
+    files.map(
+      async (file) => validateActivation(
+        await readJsonRecord(file, { root })
+      )
+    )
+  );
+  records.sort((left, right) => left.epoch - right.epoch);
+  for (const [index, record] of records.entries()) {
+    if (record.epoch !== index || record.previousEpoch !== (index === 0 ? null : index - 1)) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation epochs are not contiguous"
+      );
+    }
+    if (!pinsEqual(record.pin, pin))
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation pin does not match its namespace"
+      );
+  }
+  return records;
+}
+async function isRevoked(root, pin, activationId) {
+  return readJsonRecord(
+    path4.join(
+      activationDirectory(root, pin),
+      "revoked",
+      `${activationId}.json`
+    ),
+    { root }
+  ).then(
+    (record) => {
+      if (record.activationId !== activationId || record.contentHash !== canonicalRecordHash(
+        record
+      )) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "activation revocation is invalid"
+        );
+      }
+      return true;
+    },
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+}
+async function activityReceipts(root, activation) {
+  const directory = path4.join(
+    activationDirectory(root, activation.pin),
+    "activity",
+    activation.id
+  );
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: MAX_ACTIVITY_RECEIPTS
+  });
+  const receipts = await Promise.all(
+    files.map(async (file) => {
+      const record = await readJsonRecord(file, {
+        root,
+        maxBytes: 8192
+      });
+      if (record.activationId !== activation.id || record.contentHash !== canonicalRecordHash(
+        record
+      )) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "activity receipt is invalid"
+        );
+      }
+      assertBoundedString(record.eventKey, "activity event key", 256);
+      timestamp2(record.observedAt, "activity observedAt");
+      return record;
+    })
+  );
+  return receipts.toSorted(
+    (left, right) => left.observedAt.localeCompare(right.observedAt) || left.eventKey.localeCompare(right.eventKey)
+  );
+}
+async function effectiveActivationExpiry(root, activation) {
+  validateActivation(activation);
+  const started = timestamp2(activation.startedAt, "activation startedAt");
+  const hard = timestamp2(activation.hardExpiresAt, "activation hardExpiresAt");
+  if (activation.expiryMode === "fixed") {
+    return new Date(
+      Math.min(
+        hard,
+        timestamp2(activation.fixedExpiresAt, "activation fixedExpiresAt")
+      )
+    ).toISOString();
+  }
+  let liveThrough = Math.min(hard, started + activation.idleTimeoutMs);
+  for (const receipt of await activityReceipts(root, activation)) {
+    const observed = timestamp2(receipt.observedAt, "activity observedAt");
+    if (observed < started || observed > liveThrough) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activity receipt crosses an expired activation gap"
+      );
+    }
+    liveThrough = Math.min(hard, observed + activation.idleTimeoutMs);
+  }
+  return new Date(liveThrough).toISOString();
+}
+async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
+  assertPin(pin);
+  const records = await activationRecords(root, pin);
+  const activation = records.at(-1) ?? null;
+  if (!activation)
+    return {
+      activation: null,
+      active: false,
+      terminationReason: null,
+      effectiveExpiresAt: null,
+      notice: null
+    };
+  if (await isRevoked(root, pin, activation.id))
+    return {
+      activation,
+      active: false,
+      terminationReason: "revoked",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "Delivery is disabled. Re-enable explicitly to resume automatic checks."
+    };
+  if (await isCollaborationClosed(root, activation.collaborationId))
+    return {
+      activation,
+      active: false,
+      terminationReason: "closed",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "The collaboration is closed; delivery remains manual/history-only."
+    };
+  const member = await resolveMemberByPin(
+    root,
+    activation.collaborationId,
+    pin
+  ).catch((error) => {
+    if (error.code === "NOT_CURRENT_MEMBER") return null;
+    throw error;
+  });
+  if (!member || member.binding.generation !== activation.bindingGeneration || member.member.participantId !== activation.participantId) {
+    return {
+      activation,
+      active: false,
+      terminationReason: "superseded",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "Delivery ownership was superseded; the current session must enable a new epoch."
+    };
+  }
+  if (member.departed)
+    return {
+      activation,
+      active: false,
+      terminationReason: "departed",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "The participant departed; automatic delivery is inactive."
+    };
+  const effectiveExpiresAt = await effectiveActivationExpiry(root, activation);
+  if (now.getTime() > Date.parse(effectiveExpiresAt))
+    return {
+      activation,
+      active: false,
+      terminationReason: "expired",
+      effectiveExpiresAt,
+      notice: "Delivery expired with mail still queued. Re-enable explicitly after inspecting the inbox."
+    };
+  return {
+    activation,
+    active: true,
+    terminationReason: null,
+    effectiveExpiresAt,
+    notice: null
+  };
+}
+async function enableActivation(input) {
+  assertPin(input.pin);
+  if (!path4.isAbsolute(input.worktree))
+    throw new TypeError("activation worktree must be absolute");
+  const member = await resolveMemberByPin(
+    input.root,
+    input.collaborationId,
+    input.pin
+  );
+  if (member.departed)
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "departed member cannot activate delivery"
+    );
+  if (await isCollaborationClosed(input.root, input.collaborationId))
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "closed collaboration cannot activate delivery"
+    );
+  const existing = await activationRecords(input.root, input.pin);
+  if (existing.length >= MAX_ACTIVATION_EPOCHS)
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      "activation epoch capacity is exhausted"
+    );
+  if (existing.length > 0) {
+    const status = await activationStatus(
+      input.root,
+      input.pin,
+      input.now ?? /* @__PURE__ */ new Date()
+    );
+    if (status.active)
+      throw new DeliveryError(
+        "DELIVERY_CONFLICT",
+        "an automatic delivery activation is already active for this exact session"
+      );
+  }
+  const now = input.now ?? /* @__PURE__ */ new Date();
+  const startedAt = now.toISOString();
+  const maxDurationMs = input.maxDurationMs ?? MAX_ACTIVATION_DURATION_MS;
+  if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs <= 0 || maxDurationMs > MAX_ACTIVATION_DURATION_MS)
+    throw new TypeError("max duration must be within 24 hours");
+  const expiryMode = input.expiryMode ?? "fixed";
+  const idleTimeoutMs = expiryMode === "human-idle" ? input.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS : null;
+  if (idleTimeoutMs !== null && (!Number.isSafeInteger(idleTimeoutMs) || idleTimeoutMs <= 0 || idleTimeoutMs > MAX_ACTIVATION_DURATION_MS))
+    throw new TypeError("idle timeout must be within 24 hours");
+  const fixedDurationMs = expiryMode === "fixed" ? input.fixedDurationMs ?? DEFAULT_IDLE_TIMEOUT_MS : null;
+  if (fixedDurationMs !== null && (!Number.isSafeInteger(fixedDurationMs) || fixedDurationMs <= 0 || fixedDurationMs > maxDurationMs))
+    throw new TypeError("fixed expiry must fit the activation duration");
+  const epoch = existing.length;
+  const base = {
+    schemaVersion: SCHEMA_VERSION,
+    id: input.activationId ?? randomUUID3(),
+    epoch,
+    previousEpoch: epoch === 0 ? null : epoch - 1,
+    collaborationId: input.collaborationId,
+    participantId: member.member.participantId,
+    bindingGeneration: member.binding.generation,
+    pin: input.pin,
+    worktree: path4.resolve(input.worktree),
+    mechanism: input.mechanism ?? "stop",
+    controller: input.controller ?? "standalone-messaging",
+    thirdPartyHookAcknowledgment: input.thirdPartyHookAcknowledgment ?? null,
+    noObserverMonitorAttestation: input.noObserverMonitorAttestation ?? null,
+    startedAt,
+    hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),
+    expiryMode,
+    idleTimeoutMs,
+    fixedExpiresAt: fixedDurationMs === null ? null : new Date(now.getTime() + fixedDurationMs).toISOString(),
+    maxContinuations: input.maxContinuations ?? DEFAULT_MAX_CONTINUATIONS,
+    waitMs: input.waitMs ?? 0
+  };
+  const activation = {
+    ...base,
+    contentHash: canonicalRecordHash(
+      base
+    )
+  };
+  validateActivation(activation);
+  await publishImmutableRecord(
+    path4.join(
+      activationDirectory(input.root, input.pin),
+      "epochs",
+      `${epoch}.json`
+    ),
+    activation,
+    { root: input.root }
+  );
+  if (await isCollaborationClosed(input.root, input.collaborationId))
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "activation published during closure and is inert"
+    );
+  return activation;
+}
+async function recordHumanActivity(input) {
+  const status = await activationStatus(
+    input.root,
+    input.pin,
+    input.now ?? /* @__PURE__ */ new Date()
+  );
+  if (!status.activation || !status.active)
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      status.notice ?? "delivery activation is inactive"
+    );
+  if (status.activation.expiryMode !== "human-idle")
+    throw new DeliveryError(
+      "DELIVERY_CONFLICT",
+      "fixed-expiry activation cannot be renewed"
+    );
+  assertBoundedString(input.eventKey, "human event key", 256);
+  const base = {
+    schemaVersion: SCHEMA_VERSION,
+    activationId: status.activation.id,
+    eventKey: input.eventKey,
+    observedAt: (input.now ?? /* @__PURE__ */ new Date()).toISOString()
+  };
+  const record = {
+    ...base,
+    contentHash: canonicalRecordHash(
+      base
+    )
+  };
+  const safeKey2 = await import("node:crypto").then(
+    ({ createHash: createHash4 }) => createHash4("sha256").update(`human\0${input.eventKey}`).digest("hex")
+  );
+  await publishImmutableRecord(
+    path4.join(
+      activationDirectory(input.root, input.pin),
+      "activity",
+      status.activation.id,
+      `${safeKey2}.json`
+    ),
+    record,
+    { root: input.root }
+  );
+  return record;
+}
+async function disableActivation(input) {
+  const status = await activationStatus(
+    input.root,
+    input.pin,
+    input.now ?? /* @__PURE__ */ new Date()
+  );
+  if (!status.activation)
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      "no activation exists for this session"
+    );
+  const base = {
+    schemaVersion: SCHEMA_VERSION,
+    activationId: status.activation.id,
+    revokedAt: (input.now ?? /* @__PURE__ */ new Date()).toISOString(),
+    revokedBy: input.pin
+  };
+  const record = {
+    ...base,
+    contentHash: canonicalRecordHash(
+      base
+    )
+  };
+  await publishImmutableRecord(
+    path4.join(
+      activationDirectory(input.root, input.pin),
+      "revoked",
+      `${record.activationId}.json`
+    ),
+    record,
+    { root: input.root }
+  );
+  return record;
+}
+
+// src/shared/collaboration/claims.ts
+import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+import path5 from "node:path";
+function safeKey(domain, value) {
+  return createHash3("sha256").update(`${domain}\0${value}`, "utf8").digest("hex");
+}
+async function createDeliveryRetry(input) {
+  assertBoundedString(input.priorAttemptId, "prior attempt ID", 128);
+  assertUuid(input.messageId, "message ID");
+  const status = await activationStatus(
+    input.root,
+    input.pin,
+    input.now ?? /* @__PURE__ */ new Date()
+  );
+  if (!status.activation || !status.active)
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      status.notice ?? "delivery activation is inactive"
+    );
+  const eventFiles = await enumerateJsonRecords(
+    path5.join(
+      activationDirectory(input.root, input.pin),
+      "claims",
+      status.activation.id,
+      "events"
+    ),
+    { root: input.root, maxEntries: 4096 }
+  );
+  const events = await Promise.all(
+    eventFiles.map(
+      (file) => readJsonRecord(file, { root: input.root })
+    )
+  );
+  const prior = events.find(
+    (event) => event.token === input.priorAttemptId || event.eventKey === input.priorAttemptId
+  );
+  if (!prior || !prior.proposedDeliveryKeys.some(
+    (key) => key.startsWith(`${input.messageId}:`)
+  ))
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "prior attempt did not propose this message"
+    );
+  const priorGeneration = Math.max(
+    ...prior.proposedDeliveryKeys.filter((key) => key.startsWith(`${input.messageId}:`)).map((key) => Number(key.split(":").at(-1))),
+    0
+  );
+  const target = path5.join(
+    collaborationPaths(input.root, status.activation.collaborationId).directory,
+    "retries",
+    status.activation.participantId,
+    `${safeKey("retry", `${input.priorAttemptId}\0${input.messageId}`)}.json`
+  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (existing) {
+    if (existing.activationId !== status.activation.id || existing.priorAttemptId !== input.priorAttemptId || existing.messageId !== input.messageId) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "retry record identity is invalid"
+      );
+    }
+    return existing;
+  }
+  const base = {
+    schemaVersion: SCHEMA_VERSION,
+    activationId: status.activation.id,
+    priorAttemptId: input.priorAttemptId,
+    participantId: status.activation.participantId,
+    messageId: input.messageId,
+    retryGeneration: priorGeneration + 1,
+    createdAt: (input.now ?? /* @__PURE__ */ new Date()).toISOString()
+  };
+  const record = {
+    ...base,
+    contentHash: canonicalRecordHash(
+      base
+    )
+  };
+  return (await publishImmutableRecord(target, record, { root: input.root })).record;
+}
+async function deliveryClaimStatus(input) {
+  const status = await activationStatus(input.root, input.pin);
+  if (!status.activation)
+    return {
+      spentSlots: 0,
+      remainingSlots: 0,
+      interruptedAttempts: [],
+      outcomeUnknown: []
+    };
+  const base = path5.join(
+    activationDirectory(input.root, input.pin),
+    "claims",
+    status.activation.id
+  );
+  const [eventFiles, slotFiles, messageFiles] = await Promise.all([
+    enumerateJsonRecords(path5.join(base, "events"), {
+      root: input.root,
+      maxEntries: 4096
+    }),
+    enumerateJsonRecords(path5.join(base, "slots"), {
+      root: input.root,
+      maxEntries: status.activation.maxContinuations
+    }),
+    enumerateJsonRecords(path5.join(base, "messages"), {
+      root: input.root,
+      maxEntries: 4096
+    })
+  ]);
+  const [events, slots, messages] = await Promise.all([
+    Promise.all(
+      eventFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    ),
+    Promise.all(
+      slotFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    ),
+    Promise.all(
+      messageFiles.map(
+        (file) => readJsonRecord(file, { root: input.root })
+      )
+    )
+  ]);
+  const interruptedAttempts = events.filter(
+    (event) => !slots.some((slot) => slot.token === event.token) || !messages.some((message) => message.token === event.token)
+  ).map((event) => event.token);
+  const outcomeUnknown = events.filter(
+    (event) => messages.some((message) => message.token === event.token)
+  ).map((event) => event.token);
+  return {
+    spentSlots: slots.length,
+    remainingSlots: Math.max(
+      0,
+      status.activation.maxContinuations - slots.length
+    ),
+    interruptedAttempts,
+    outcomeUnknown
+  };
+}
+
+// src/shared/collaboration/diagnostics.ts
+import path6 from "node:path";
+var MAX_DIAGNOSTICS = 4096;
+var MAX_DIAGNOSTIC_BYTES = 8192;
+async function latestDeliveryDiagnostic(input) {
+  const directory = path6.join(
+    activationDirectory(input.root, input.pin),
+    "diagnostics"
+  );
+  let files;
+  try {
+    files = await enumerateJsonRecords(directory, {
+      root: input.root,
+      maxEntries: MAX_DIAGNOSTICS
+    });
+  } catch (error) {
+    if (error instanceof CollaborationError && error.code === "CAPACITY_EXCEEDED")
+      return { latest: null, capacityError: error.message };
+    throw error;
+  }
+  const records = await Promise.all(
+    files.map(
+      (file) => readJsonRecord(file, {
+        root: input.root,
+        maxBytes: MAX_DIAGNOSTIC_BYTES
+      })
+    )
+  );
+  for (const record of records) {
+    if (record.contentHash !== canonicalRecordHash(
+      record
+    ))
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "diagnostic contentHash does not match content"
+      );
+  }
+  return {
+    latest: records.toSorted(
+      (left, right) => right.recordedAt.localeCompare(left.recordedAt) || right.attemptId.localeCompare(left.attemptId)
+    )[0] ?? null,
+    capacityError: null
+  };
+}
+
 // src/shared/collaboration/log.ts
-function timestamp2(value) {
+import { randomUUID as randomUUID5 } from "node:crypto";
+import {
+  lstat as lstat3,
+  open as open2,
+  readFile as readFile2,
+  realpath as realpath3,
+  rename,
+  unlink as unlink2
+} from "node:fs/promises";
+import path7 from "node:path";
+function timestamp3(value) {
   const result = value ?? (/* @__PURE__ */ new Date()).toISOString();
   if (Number.isNaN(Date.parse(result)))
     throw new TypeError("timestamp must be ISO-8601");
@@ -1170,7 +1856,7 @@ async function appendLogEntry(input) {
     );
   }
   const contentHash = canonicalHash(entryContent(input));
-  const target = path4.join(
+  const target = path7.join(
     collaborationPaths(input.root, input.collaborationId).logEntries,
     `${input.id}.json`
   );
@@ -1189,7 +1875,7 @@ async function appendLogEntry(input) {
     }
     return { entry: existing, duplicate: true };
   }
-  const entries = await enumerateJsonRecords(path4.dirname(target), {
+  const entries = await enumerateJsonRecords(path7.dirname(target), {
     root: input.root,
     maxEntries: 4096
   });
@@ -1206,7 +1892,7 @@ async function appendLogEntry(input) {
     category: input.category,
     title: input.title,
     author: input.pin,
-    authoredAt: timestamp2(input.now),
+    authoredAt: timestamp3(input.now),
     whatHappened: input.whatHappened,
     assessment: input.assessment,
     skillImplication: input.skillImplication,
@@ -1295,10 +1981,10 @@ function renderMarkdown(collaboration, entries, digest) {
   ].join("\n");
 }
 async function inspectPrivateDirectoryChain(root, directory) {
-  const absoluteRoot = path4.resolve(root);
-  const absoluteDirectory = path4.resolve(directory);
-  const relative = path4.relative(absoluteRoot, absoluteDirectory);
-  if (relative.startsWith("..") || path4.isAbsolute(relative)) {
+  const absoluteRoot = path7.resolve(root);
+  const absoluteDirectory = path7.resolve(directory);
+  const relative = path7.relative(absoluteRoot, absoluteDirectory);
+  if (relative.startsWith("..") || path7.isAbsolute(relative)) {
     throw new CollaborationError(
       "UNSAFE_PATH",
       "rendered log directory escapes the collaboration root"
@@ -1307,8 +1993,8 @@ async function inspectPrivateDirectoryChain(root, directory) {
   const expectedUid = process.getuid?.();
   const paths = [
     absoluteRoot,
-    ...relative.split(path4.sep).filter(Boolean).reduce((entries, segment) => {
-      entries.push(path4.join(entries.at(-1) ?? absoluteRoot, segment));
+    ...relative.split(path7.sep).filter(Boolean).reduce((entries, segment) => {
+      entries.push(path7.join(entries.at(-1) ?? absoluteRoot, segment));
       return entries;
     }, [])
   ];
@@ -1323,8 +2009,8 @@ async function inspectPrivateDirectoryChain(root, directory) {
   }
   const canonicalRoot = await realpath3(absoluteRoot);
   const canonicalDirectory = await realpath3(absoluteDirectory);
-  const canonicalRelative = path4.relative(canonicalRoot, canonicalDirectory);
-  if (canonicalRelative.startsWith("..") || path4.isAbsolute(canonicalRelative)) {
+  const canonicalRelative = path7.relative(canonicalRoot, canonicalDirectory);
+  if (canonicalRelative.startsWith("..") || path7.isAbsolute(canonicalRelative)) {
     throw new CollaborationError(
       "UNSAFE_PATH",
       "rendered log directory escapes the canonical root"
@@ -1332,16 +2018,16 @@ async function inspectPrivateDirectoryChain(root, directory) {
   }
 }
 async function writeView(file, markdown, root) {
-  const directory = path4.dirname(file);
+  const directory = path7.dirname(file);
   await inspectPrivateDirectoryChain(root, directory);
   await inspectRenderedView(file, root).catch(
     (error) => {
       if (error.code !== "ENOENT") throw error;
     }
   );
-  const temporary = path4.join(
+  const temporary = path7.join(
     directory,
-    `.collaboration.md.tmp-${process.pid}-${randomUUID3()}`
+    `.collaboration.md.tmp-${process.pid}-${randomUUID5()}`
   );
   const handle = await open2(temporary, "wx", 384);
   try {
@@ -1408,7 +2094,7 @@ async function getLogView(input) {
   return { path: file, markdown, digest, stale: renderedDigest !== digest };
 }
 async function inspectRenderedView(file, root, options = {}) {
-  await inspectPrivateDirectoryChain(root, path4.dirname(file));
+  await inspectPrivateDirectoryChain(root, path7.dirname(file));
   const info = await lstat3(file);
   if (!info.isFile() || info.isSymbolicLink()) {
     throw new CollaborationError(
@@ -1432,8 +2118,8 @@ async function inspectRenderedView(file, root, options = {}) {
   }
   const canonicalRoot = await realpath3(root);
   const canonicalFile = await realpath3(file);
-  const relative = path4.relative(canonicalRoot, canonicalFile);
-  if (relative.startsWith("..") || path4.isAbsolute(relative)) {
+  const relative = path7.relative(canonicalRoot, canonicalFile);
+  if (relative.startsWith("..") || path7.isAbsolute(relative)) {
     throw new CollaborationError(
       "UNSAFE_PATH",
       "rendered log escapes the collaboration root"
@@ -1443,8 +2129,8 @@ async function inspectRenderedView(file, root, options = {}) {
 }
 
 // src/shared/collaboration/messages.ts
-import path5 from "node:path";
-function timestamp3(value) {
+import path8 from "node:path";
+function timestamp4(value) {
   const result = value ?? (/* @__PURE__ */ new Date()).toISOString();
   if (Number.isNaN(Date.parse(result)))
     throw new TypeError("timestamp must be ISO-8601");
@@ -1462,7 +2148,7 @@ function contentFields(message) {
   return message;
 }
 function messagePath(root, collaborationId, participantId, id) {
-  return path5.join(
+  return path8.join(
     collaborationPaths(root, collaborationId).inbox,
     participantId,
     `${id}.json`
@@ -1566,7 +2252,7 @@ async function sendMessage(input) {
       raceStatus: "current"
     };
   }
-  const inboxFiles = await enumerateJsonRecords(path5.dirname(target), {
+  const inboxFiles = await enumerateJsonRecords(path8.dirname(target), {
     root: input.root,
     maxEntries: 4096
   });
@@ -1578,7 +2264,7 @@ async function sendMessage(input) {
   }
   const message = {
     ...withoutHash,
-    createdAt: timestamp3(input.now),
+    createdAt: timestamp4(input.now),
     contentHash
   };
   try {
@@ -1648,7 +2334,7 @@ async function acknowledged(input, recipient, message) {
     }
     return true;
   }
-  const ackPath = path5.join(
+  const ackPath = path8.join(
     collaborationPaths(input.root, input.collaborationId).acknowledgments,
     recipient.member.participantId,
     String(recipient.binding.generation),
@@ -1686,7 +2372,7 @@ async function presentMessage(input, recipient, message) {
 }
 async function listInbox(input) {
   const recipient = await currentRecipient(input);
-  const directory = path5.join(
+  const directory = path8.join(
     collaborationPaths(input.root, input.collaborationId).inbox,
     recipient.member.participantId
   );
@@ -1757,7 +2443,7 @@ async function acknowledgeMessage(input) {
   const recipient = await currentRecipient(input);
   const message = await readMessage(input);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  const target = path5.join(
+  const target = path8.join(
     paths.acknowledgments,
     recipient.member.participantId,
     String(recipient.binding.generation),
@@ -1783,7 +2469,7 @@ async function acknowledgeMessage(input) {
     messageHash: message.contentHash,
     recipient: recipient.binding.pin,
     bindingGeneration: recipient.binding.generation,
-    receivedAt: timestamp3(input.now)
+    receivedAt: timestamp4(input.now)
   };
   const ack = {
     ...ackWithoutHash,
@@ -1819,6 +2505,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
+  node agent-messaging.mjs delivery enable|disable|activity|retry ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -1881,6 +2568,25 @@ function optional(parsed, name) {
   const value = parsed.flags.get(name);
   return typeof value === "string" ? value : void 0;
 }
+function integer(parsed, name, fallback) {
+  const value = optional(parsed, name);
+  if (value === void 0) return fallback;
+  const parsedValue = Number(value);
+  if (!Number.isSafeInteger(parsedValue))
+    throw new TypeError(`--${name} must be an integer`);
+  return parsedValue;
+}
+function duration(value, fallback) {
+  if (value === void 0) return fallback;
+  const match = /^(\d+)(ms|s|m|h)$/u.exec(value);
+  if (!match) throw new TypeError("duration must use ms, s, m, or h");
+  const amount = Number(match[1]);
+  const multiplier = { ms: 1, s: 1e3, m: 6e4, h: 36e5 }[match[2]];
+  const milliseconds = amount * multiplier;
+  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0)
+    throw new TypeError("duration is out of range");
+  return milliseconds;
+}
 function parsePin(value) {
   const separator = value.indexOf(":");
   if (separator <= 0) throw new TypeError("self pin must be runtime:sessionId");
@@ -1934,9 +2640,9 @@ function resolveSelf(parsed, env) {
 function rootFor(parsed, env) {
   const explicit = optional(parsed, "root");
   if (explicit) {
-    if (!path6.isAbsolute(explicit))
+    if (!path9.isAbsolute(explicit))
       throw new TypeError("--root must be absolute");
-    return path6.resolve(explicit);
+    return path9.resolve(explicit);
   }
   return resolveCollaborationRoot(env);
 }
@@ -1946,13 +2652,16 @@ function success(operation, collaborationId, data) {
 function exitFor(error) {
   if (error instanceof MembershipError && ["COLLABORATION_CLOSED", "MEMBER_DEPARTED"].includes(error.code))
     return 3;
-  if (error instanceof TypeError || error instanceof MembershipError) return 2;
+  if (error instanceof DeliveryError && error.code === "DELIVERY_INACTIVE")
+    return 3;
+  if (error instanceof TypeError || error instanceof MembershipError || error instanceof DeliveryError)
+    return 2;
   if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT" && error.message.includes("closed"))
     return 3;
   return 1;
 }
 function errorCode(error) {
-  if (error instanceof CollaborationError || error instanceof MembershipError)
+  if (error instanceof CollaborationError || error instanceof MembershipError || error instanceof DeliveryError)
     return error.code;
   if (error instanceof Error && error.name === "IDENTITY_CONFLICT")
     return "IDENTITY_CONFLICT";
@@ -1988,7 +2697,7 @@ async function execute(parsed, io) {
   if (!command) throw new TypeError("a command is required");
   const root = rootFor(parsed, io.env);
   if (command === "open") {
-    const collaborationId2 = optional(parsed, "collab") ?? randomUUID4();
+    const collaborationId2 = optional(parsed, "collab") ?? randomUUID6();
     const self = resolveSelf(parsed, io.env);
     const result = await openCollaboration({
       root,
@@ -2073,6 +2782,69 @@ async function execute(parsed, io) {
     });
     return { operation: "ack", collaborationId, data };
   }
+  if (command === "delivery" && subcommand === "enable") {
+    const pin = resolveSelf(parsed, io.env);
+    const expiryMode = optional(parsed, "expiry-mode") ?? "fixed";
+    if (!["fixed", "human-idle"].includes(expiryMode))
+      throw new TypeError("--expiry-mode must be fixed or human-idle");
+    const data = await enableActivation({
+      root,
+      collaborationId,
+      pin,
+      worktree: optional(parsed, "cwd") ?? io.cwd,
+      activationId: optional(parsed, "activation-id"),
+      mechanism: optional(parsed, "mechanism") ?? "stop",
+      expiryMode,
+      idleTimeoutMs: duration(
+        optional(parsed, "idle-timeout"),
+        2 * 60 * 60 * 1e3
+      ),
+      fixedDurationMs: duration(
+        optional(parsed, "expires-in"),
+        2 * 60 * 60 * 1e3
+      ),
+      maxDurationMs: duration(
+        optional(parsed, "max-duration"),
+        MAX_ACTIVATION_DURATION_MS
+      ),
+      maxContinuations: integer(parsed, "max-continuations", 20),
+      waitMs: integer(parsed, "wait-ms", 0)
+    });
+    return { operation: "delivery.enable", collaborationId, data };
+  }
+  if (command === "delivery" && subcommand === "disable") {
+    return {
+      operation: "delivery.disable",
+      collaborationId,
+      data: await disableActivation({
+        root,
+        pin: resolveSelf(parsed, io.env)
+      })
+    };
+  }
+  if (command === "delivery" && subcommand === "activity") {
+    return {
+      operation: "delivery.activity",
+      collaborationId,
+      data: await recordHumanActivity({
+        root,
+        pin: resolveSelf(parsed, io.env),
+        eventKey: required(parsed, "event")
+      })
+    };
+  }
+  if (command === "delivery" && subcommand === "retry") {
+    return {
+      operation: "delivery.retry",
+      collaborationId,
+      data: await createDeliveryRetry({
+        root,
+        pin: resolveSelf(parsed, io.env),
+        priorAttemptId: required(parsed, "attempt"),
+        messageId: required(parsed, "message")
+      })
+    };
+  }
   if (command === "log" && subcommand === "append") {
     const whatHappened = parsed.flags.has("what-stdin") ? await io.readStdin() : required(parsed, "what");
     const data = await appendLogEntry({
@@ -2130,6 +2902,9 @@ async function execute(parsed, io) {
       }
     }));
     const logView = await getLogView({ root, collaborationId });
+    const delivery = await activationStatus(root, pin);
+    const claims = await deliveryClaimStatus({ root, pin });
+    const diagnostics = await latestDeliveryDiagnostic({ root, pin });
     return {
       operation: "status",
       collaborationId,
@@ -2139,6 +2914,22 @@ async function execute(parsed, io) {
         closed,
         member,
         inbox,
+        delivery: {
+          ...delivery,
+          slots: claims,
+          latestDiagnostic: diagnostics.latest,
+          diagnosticCapacityError: diagnostics.capacityError,
+          interruptedAttempts: claims.interruptedAttempts.map((attemptId) => ({
+            attemptId,
+            state: "interrupted attempt \u2014 retry available",
+            retryCommand: `node <skill-dir>/scripts/agent-messaging.mjs delivery retry --collab ${collaborationId} --self ${pin.runtime}:${pin.sessionId} --attempt ${attemptId} --message <uuid>`
+          })),
+          outcomeUnknown: claims.outcomeUnknown.map((attemptId) => ({
+            attemptId,
+            state: "output attempt recorded; host receipt outcome unknown"
+          })),
+          deliveryClaim: "attempt evidence only; never proof of delivery or acknowledgment"
+        },
         logView: {
           path: logView.path,
           digest: logView.digest,
@@ -2222,7 +3013,7 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     return exitFor(error);
   }
 }
-if (process.argv[1] && realpathSync(path6.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path9.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runAgentMessagingCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });

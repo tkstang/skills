@@ -98,6 +98,100 @@ export interface AckRecord extends HasSchemaVersion {
   contentHash: string;
 }
 
+export type DeliveryMechanism = 'stop' | 'monitor';
+export type DeliveryController = 'standalone-messaging' | 'observer-collab';
+export type ExpiryMode = 'human-idle' | 'fixed';
+
+export interface ActivationRecord extends HasSchemaVersion {
+  id: string;
+  epoch: number;
+  previousEpoch: number | null;
+  collaborationId: string;
+  participantId: string;
+  bindingGeneration: number;
+  pin: Pin;
+  worktree: string;
+  mechanism: DeliveryMechanism;
+  controller: DeliveryController;
+  thirdPartyHookAcknowledgment: {
+    configurationFingerprint: string;
+    acknowledgedAt: string;
+  } | null;
+  noObserverMonitorAttestation: {
+    pin: Pin;
+    epoch: number;
+    confirmedAt: string;
+  } | null;
+  startedAt: string;
+  hardExpiresAt: string;
+  expiryMode: ExpiryMode;
+  idleTimeoutMs: number | null;
+  fixedExpiresAt: string | null;
+  maxContinuations: number;
+  waitMs: number;
+  contentHash: string;
+}
+
+export interface ActivityReceiptRecord extends HasSchemaVersion {
+  activationId: string;
+  eventKey: string;
+  observedAt: string;
+  contentHash: string;
+}
+
+export interface ActivationRevocationRecord extends HasSchemaVersion {
+  activationId: string;
+  revokedAt: string;
+  revokedBy: Pin;
+  contentHash: string;
+}
+
+export interface EventClaimRecord extends HasSchemaVersion {
+  activationId: string;
+  token: string;
+  eventKey: string;
+  proposedDeliveryKeys: string[];
+  attemptedAt: string;
+  contentHash: string;
+}
+
+export interface SlotClaimRecord extends EventClaimRecord {
+  slot: number;
+}
+
+export interface MessageClaimRecord extends EventClaimRecord {
+  deliveryKey: string;
+  messageId: string;
+  retryGeneration: number;
+}
+
+export interface RetryRecord extends HasSchemaVersion {
+  activationId: string;
+  priorAttemptId: string;
+  participantId: string;
+  messageId: string;
+  retryGeneration: number;
+  createdAt: string;
+  contentHash: string;
+}
+
+export interface DeliveryDiagnosticRecord extends HasSchemaVersion {
+  attemptId: string;
+  activationId: string;
+  eventKey: string;
+  boundary: 'prompt-start' | 'stop' | 'watch' | 'manual';
+  recordedAt: string;
+  stage:
+    | 'event-claimed'
+    | 'slot-claimed'
+    | 'messages-claimed'
+    | 'final-validation'
+    | 'output-attempted';
+  outcomeCode: string;
+  errorCode: string | null;
+  contentHash: string;
+}
+
 export interface LogEntryRecord extends HasSchemaVersion {
   id: string;
   collaborationId: string;

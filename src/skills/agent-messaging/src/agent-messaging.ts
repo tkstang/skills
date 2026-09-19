@@ -6,6 +6,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  activationStatus,
+  DeliveryError,
+  disableActivation,
+  enableActivation,
+  MAX_ACTIVATION_DURATION_MS,
+  recordHumanActivity,
+} from '../../../shared/collaboration/activation.js';
+import {
+  createDeliveryRetry,
+  deliveryClaimStatus,
+} from '../../../shared/collaboration/claims.js';
+import { latestDeliveryDiagnostic } from '../../../shared/collaboration/diagnostics.js';
+import {
   appendLogEntry,
   getLogView,
   renderLog,
@@ -81,6 +94,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
+  node agent-messaging.mjs delivery enable|disable|activity|retry ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -146,6 +160,29 @@ function required(parsed: Parsed, name: string): string {
 function optional(parsed: Parsed, name: string): string | undefined {
   const value = parsed.flags.get(name);
   return typeof value === 'string' ? value : undefined;
+}
+
+function integer(parsed: Parsed, name: string, fallback: number): number {
+  const value = optional(parsed, name);
+  if (value === undefined) return fallback;
+  const parsedValue = Number(value);
+  if (!Number.isSafeInteger(parsedValue))
+    throw new TypeError(`--${name} must be an integer`);
+  return parsedValue;
+}
+
+function duration(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const match = /^(\d+)(ms|s|m|h)$/u.exec(value);
+  if (!match) throw new TypeError('duration must use ms, s, m, or h');
+  const amount = Number(match[1]);
+  const multiplier = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 }[
+    match[2] as 'ms' | 's' | 'm' | 'h'
+  ];
+  const milliseconds = amount * multiplier;
+  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0)
+    throw new TypeError('duration is out of range');
+  return milliseconds;
 }
 
 function parsePin(value: string): Pin {
@@ -226,7 +263,14 @@ function exitFor(error: unknown): number {
     ['COLLABORATION_CLOSED', 'MEMBER_DEPARTED'].includes(error.code)
   )
     return 3;
-  if (error instanceof TypeError || error instanceof MembershipError) return 2;
+  if (error instanceof DeliveryError && error.code === 'DELIVERY_INACTIVE')
+    return 3;
+  if (
+    error instanceof TypeError ||
+    error instanceof MembershipError ||
+    error instanceof DeliveryError
+  )
+    return 2;
   if (
     error instanceof CollaborationError &&
     error.code === 'RECORD_CONFLICT' &&
@@ -237,7 +281,11 @@ function exitFor(error: unknown): number {
 }
 
 function errorCode(error: unknown): string {
-  if (error instanceof CollaborationError || error instanceof MembershipError)
+  if (
+    error instanceof CollaborationError ||
+    error instanceof MembershipError ||
+    error instanceof DeliveryError
+  )
     return error.code;
   if (error instanceof Error && error.name === 'IDENTITY_CONFLICT')
     return 'IDENTITY_CONFLICT';
@@ -377,6 +425,71 @@ async function execute(
     });
     return { operation: 'ack', collaborationId, data };
   }
+  if (command === 'delivery' && subcommand === 'enable') {
+    const pin = resolveSelf(parsed, io.env);
+    const expiryMode = optional(parsed, 'expiry-mode') ?? 'fixed';
+    if (!['fixed', 'human-idle'].includes(expiryMode))
+      throw new TypeError('--expiry-mode must be fixed or human-idle');
+    const data = await enableActivation({
+      root,
+      collaborationId,
+      pin,
+      worktree: optional(parsed, 'cwd') ?? io.cwd,
+      activationId: optional(parsed, 'activation-id'),
+      mechanism: (optional(parsed, 'mechanism') ?? 'stop') as
+        | 'stop'
+        | 'monitor',
+      expiryMode: expiryMode as 'fixed' | 'human-idle',
+      idleTimeoutMs: duration(
+        optional(parsed, 'idle-timeout'),
+        2 * 60 * 60 * 1000,
+      ),
+      fixedDurationMs: duration(
+        optional(parsed, 'expires-in'),
+        2 * 60 * 60 * 1000,
+      ),
+      maxDurationMs: duration(
+        optional(parsed, 'max-duration'),
+        MAX_ACTIVATION_DURATION_MS,
+      ),
+      maxContinuations: integer(parsed, 'max-continuations', 20),
+      waitMs: integer(parsed, 'wait-ms', 0),
+    });
+    return { operation: 'delivery.enable', collaborationId, data };
+  }
+  if (command === 'delivery' && subcommand === 'disable') {
+    return {
+      operation: 'delivery.disable',
+      collaborationId,
+      data: await disableActivation({
+        root,
+        pin: resolveSelf(parsed, io.env),
+      }),
+    };
+  }
+  if (command === 'delivery' && subcommand === 'activity') {
+    return {
+      operation: 'delivery.activity',
+      collaborationId,
+      data: await recordHumanActivity({
+        root,
+        pin: resolveSelf(parsed, io.env),
+        eventKey: required(parsed, 'event'),
+      }),
+    };
+  }
+  if (command === 'delivery' && subcommand === 'retry') {
+    return {
+      operation: 'delivery.retry',
+      collaborationId,
+      data: await createDeliveryRetry({
+        root,
+        pin: resolveSelf(parsed, io.env),
+        priorAttemptId: required(parsed, 'attempt'),
+        messageId: required(parsed, 'message'),
+      }),
+    };
+  }
   if (command === 'log' && subcommand === 'append') {
     const whatHappened = parsed.flags.has('what-stdin')
       ? await io.readStdin()
@@ -436,6 +549,9 @@ async function execute(
       },
     }));
     const logView = await getLogView({ root, collaborationId });
+    const delivery = await activationStatus(root, pin);
+    const claims = await deliveryClaimStatus({ root, pin });
+    const diagnostics = await latestDeliveryDiagnostic({ root, pin });
     return {
       operation: 'status',
       collaborationId,
@@ -445,6 +561,23 @@ async function execute(
         closed,
         member,
         inbox,
+        delivery: {
+          ...delivery,
+          slots: claims,
+          latestDiagnostic: diagnostics.latest,
+          diagnosticCapacityError: diagnostics.capacityError,
+          interruptedAttempts: claims.interruptedAttempts.map((attemptId) => ({
+            attemptId,
+            state: 'interrupted attempt — retry available',
+            retryCommand: `node <skill-dir>/scripts/agent-messaging.mjs delivery retry --collab ${collaborationId} --self ${pin.runtime}:${pin.sessionId} --attempt ${attemptId} --message <uuid>`,
+          })),
+          outcomeUnknown: claims.outcomeUnknown.map((attemptId) => ({
+            attemptId,
+            state: 'output attempt recorded; host receipt outcome unknown',
+          })),
+          deliveryClaim:
+            'attempt evidence only; never proof of delivery or acknowledgment',
+        },
         logView: {
           path: logView.path,
           digest: logView.digest,

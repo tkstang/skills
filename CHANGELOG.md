@@ -4,6 +4,11 @@
 
 ### Added
 
+- `agent-messaging` 1.0.4 adds immutable activation epochs, fixed or
+  provenance-bound human-idle expiry, finite non-reusable continuation slots,
+  retryable event/message claims, redacted bounded diagnostics, and honest
+  attempt-versus-delivery status without enabling any live host integration.
+
 - `agent-messaging` 1.0.0 adds a dependency-free manual mailbox and immutable
   collaboration log for three or more local coding-agent sessions, shipped as
   a standalone skill and Session plugin-local `messaging` with exact identity,

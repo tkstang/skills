@@ -20,6 +20,96 @@ async function run(argv: string[], env: NodeJS.ProcessEnv = {}) {
 }
 
 describe('agent messaging CLI', () => {
+  test('enables, reports, disables, and re-enables finite delivery epochs', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'delivery',
+      '--task',
+      'bounded',
+    ]);
+    const enabled = await run([
+      'delivery',
+      'enable',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--expires-in',
+      '2h',
+      '--max-duration',
+      '24h',
+      '--max-continuations',
+      '3',
+      '--json',
+    ]);
+    expect(enabled.code).toBe(0);
+    expect(JSON.parse(enabled.stdout).data).toMatchObject({
+      epoch: 0,
+      controller: 'standalone-messaging',
+      expiryMode: 'fixed',
+      maxContinuations: 3,
+      thirdPartyHookAcknowledgment: null,
+      noObserverMonitorAttestation: null,
+    });
+    const status = await run([
+      'status',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    expect(JSON.parse(status.stdout).data.delivery).toMatchObject({
+      active: true,
+      slots: { spentSlots: 0, remainingSlots: 3 },
+      deliveryClaim: expect.stringContaining('never proof of delivery'),
+    });
+    expect(
+      (
+        await run([
+          'delivery',
+          'disable',
+          '--root',
+          root,
+          '--collab',
+          collaborationId,
+          '--self',
+          'codex:driver',
+          '--json',
+        ])
+      ).code,
+    ).toBe(0);
+    const renewed = await run([
+      'delivery',
+      'enable',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--json',
+    ]);
+    expect(JSON.parse(renewed.stdout).data).toMatchObject({
+      epoch: 1,
+      previousEpoch: 0,
+    });
+  });
   test('opens, joins, sends, reads, and acknowledges with JSON envelopes', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
     const collaborationId = crypto.randomUUID();
