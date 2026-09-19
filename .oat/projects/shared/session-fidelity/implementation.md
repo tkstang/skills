@@ -406,6 +406,57 @@ Phase p06 passes. All 19 implementation tasks and all seven phase reviews are co
 
 **Status:** pending
 
+#### Dispatch sf-p07-implement-01
+
+```json
+{
+  "request_id": "sf-p07-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p07",
+  "objective": "Resolve the final-review closeout alignment and watcher stat-diagnostic findings without widening session-fidelity scope",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementer",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "authority": "phase-task-files-and-commits",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "implementation-target",
+  "selected_route": "native",
+  "deadline_seconds": 3600,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p07",
+    "taskIds": ["p07-t01", "p07-t02"],
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "activityBase": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "phaseBase": "4f5f6ba210c54407b4188fbdcfccb1c9d0807d45",
+    "handle": "/root/p07_implement",
+    "finalHead": null
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "hard-reasoning",
+  "model_class_floor": "default-implementation",
+  "classification_source": "phase scope analysis",
+  "classification_reason": "The phase combines lifecycle artifact reconciliation with watcher error semantics, state-safety tests and generated owner closure.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p07 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
 ### Task p07-t01: (review) Reconcile final closeout records
 
 **Status:** pending
