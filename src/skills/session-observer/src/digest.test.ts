@@ -2316,6 +2316,14 @@ describe('optional activity projection', () => {
       includeActivity: false,
     });
 
+    expect(explicitOff.filters).toMatchObject({
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    expect(explicitOff.accounting.filtered).toMatchObject({
+      toolCalls: 0,
+      toolResults: 0,
+    });
     expect(renderJson(explicitOff)).toBe(renderJson(baseline));
     expect(renderMarkdown(explicitOff)).toBe(renderMarkdown(baseline));
   });
@@ -2346,6 +2354,14 @@ describe('optional activity projection', () => {
     });
     expect(digest.entries).toHaveLength(2);
     expect(digest.entries.at(-1)?.text).toContain("You're welcome");
+    expect(digest.filters).toMatchObject({
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    expect(digest.accounting.filtered).toMatchObject({
+      toolCalls: 3,
+      toolResults: 3,
+    });
     expect(digest.activity!.events.length).toBeGreaterThan(0);
     expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
       digest.activity!.limits.maxBytes,

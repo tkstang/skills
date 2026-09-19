@@ -3634,6 +3634,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     fallbacks = []
   } = opts;
   const warnings = [...opts.warnings ?? []];
+  const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
+  const effectiveIncludeToolResults = includeActivity ? false : includeToolResults;
   const capturedRead = includeActivity ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
   const records = capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(transcriptPath);
   const totalRecords = records.length;
@@ -3669,8 +3671,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const allEntriesBeforeBootstrap = normalizeEntries(runtime, records, {
     // The activity projection owns tool calls/results in activity mode. Ask
     // user exchanges survive these filters in the legacy normalizer.
-    includeToolCalls: includeActivity ? false : includeToolCalls,
-    includeToolResults: includeActivity ? false : includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
@@ -3720,8 +3722,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     newRecords: rawCount
   };
   const filters = {
-    includeToolCalls,
-    includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages
   };
   const fullEntriesInRawRange = allEntriesWithTools.filter(
@@ -3751,8 +3753,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       askUserEntries: filteredEntries.filter((e) => e.kind === "ask_user").length
     },
     filtered: {
-      toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,
-      toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_result").length,
+      toolCalls: effectiveIncludeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,
+      toolResults: effectiveIncludeToolResults ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_result").length,
       commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "command_message").length,
       bootstrapRecords: [...bootstrapRecordIndexes].filter(
         (index) => index >= rawFromIndex

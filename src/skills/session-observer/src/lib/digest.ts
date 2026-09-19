@@ -1216,6 +1216,10 @@ export async function buildDigest(
   } = opts;
 
   const warnings: string[] = [...(opts.warnings ?? [])];
+  const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
+  const effectiveIncludeToolResults = includeActivity
+    ? false
+    : includeToolResults;
 
   // Activity and conversation must describe one completed source read. The
   // legacy path stays untouched when activity is off, including its warnings.
@@ -1280,8 +1284,8 @@ export async function buildDigest(
   const allEntriesBeforeBootstrap = normalizeEntries(runtime, records, {
     // The activity projection owns tool calls/results in activity mode. Ask
     // user exchanges survive these filters in the legacy normalizer.
-    includeToolCalls: includeActivity ? false : includeToolCalls,
-    includeToolResults: includeActivity ? false : includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages,
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
@@ -1350,8 +1354,8 @@ export async function buildDigest(
   };
 
   const filters: DigestFilters = {
-    includeToolCalls,
-    includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages,
   };
   const fullEntriesInRawRange = allEntriesWithTools.filter(
@@ -1384,10 +1388,10 @@ export async function buildDigest(
         .length,
     },
     filtered: {
-      toolCalls: includeToolCalls
+      toolCalls: effectiveIncludeToolCalls
         ? 0
         : fullEntriesInRawRange.filter((e) => e.kind === 'tool_call').length,
-      toolResults: includeToolResults
+      toolResults: effectiveIncludeToolResults
         ? 0
         : fullEntriesInRawRange.filter((e) => e.kind === 'tool_result').length,
       commandMessages: includeCommandMessages
