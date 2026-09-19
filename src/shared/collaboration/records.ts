@@ -208,16 +208,26 @@ function logHash(record: LogEntryRecord): string {
 function validateAuthoritativeRecord(
   file: string,
   value: Record<string, unknown>,
+  root?: string,
 ): void {
-  const segments = path.resolve(file).split(path.sep);
-  const collaborationIndex = segments.lastIndexOf('collaborations');
-  const collaborationPathId =
-    collaborationIndex >= 0 ? segments[collaborationIndex + 1] : undefined;
+  const relativeSegments = root
+    ? path.relative(path.resolve(root), path.resolve(file)).split(path.sep)
+    : [];
+  const authoritative = relativeSegments[0] === 'collaborations';
+  if (authoritative && relativeSegments.length < 3)
+    malformed('authoritative record path is incomplete');
+  const collaborationPathId = authoritative ? relativeSegments[1] : undefined;
+  if (collaborationPathId)
+    assertUuidValue(collaborationPathId, 'path collaboration id');
+  const recordSegments = authoritative ? relativeSegments.slice(2) : [];
   const basename = path.basename(file, '.json');
   const parent = path.basename(path.dirname(file));
   const grandparent = path.basename(path.dirname(path.dirname(file)));
   try {
-    if (path.basename(file) === 'collaboration.json') {
+    if (
+      recordSegments.length === 1 &&
+      recordSegments[0] === 'collaboration.json'
+    ) {
       const candidate = value as unknown as CollaborationRecord;
       assertUuidValue(candidate.id, 'collaboration id');
       if (candidate.id !== parent)
@@ -231,7 +241,11 @@ function validateAuthoritativeRecord(
         },
         'collaboration',
       );
-    } else if (segments.includes('members')) {
+    } else if (
+      recordSegments.length === 2 &&
+      recordSegments[0] === 'members' &&
+      recordSegments[1]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as MemberRecord;
       assertAlias(candidate.alias);
       if (candidate.alias !== basename)
@@ -258,7 +272,11 @@ function validateAuthoritativeRecord(
         },
         'member',
       );
-    } else if (segments.includes('bindings')) {
+    } else if (
+      recordSegments.length === 3 &&
+      recordSegments[0] === 'bindings' &&
+      recordSegments[2]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as BindingRecord;
       validateBinding(candidate);
       if (
@@ -266,7 +284,11 @@ function validateAuthoritativeRecord(
         String(candidate.generation) !== basename
       )
         malformed('binding path identity does not match record');
-    } else if (segments.includes('departures')) {
+    } else if (
+      recordSegments.length === 3 &&
+      recordSegments[0] === 'departures' &&
+      recordSegments[2]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as DepartureRecord;
       assertUuidValue(candidate.participantId, 'departure participantId');
       assertGeneration(candidate.generation, 'departure generation');
@@ -283,7 +305,11 @@ function validateAuthoritativeRecord(
         String(candidate.generation) !== basename
       )
         malformed('departure path identity does not match record');
-    } else if (segments.includes('inbox')) {
+    } else if (
+      recordSegments.length === 3 &&
+      recordSegments[0] === 'inbox' &&
+      recordSegments[2]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as MessageRecord;
       assertUuidValue(candidate.id, 'message id');
       assertUuidValue(candidate.collaborationId, 'message collaborationId');
@@ -329,7 +355,11 @@ function validateAuthoritativeRecord(
         malformed('message contentHash does not match content');
       if (candidate.to.participantId !== parent || candidate.id !== basename)
         malformed('message path identity does not match record');
-    } else if (segments.includes('acks')) {
+    } else if (
+      recordSegments.length === 4 &&
+      recordSegments[0] === 'acks' &&
+      recordSegments[3]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as AckRecord;
       assertUuidValue(candidate.messageId, 'ack messageId');
       assertHash(candidate.messageHash, 'ack messageHash');
@@ -348,7 +378,12 @@ function validateAuthoritativeRecord(
         String(candidate.bindingGeneration) !== parent
       )
         malformed('ack path identity does not match record');
-    } else if (segments.includes('entries') && segments.includes('log')) {
+    } else if (
+      recordSegments.length === 3 &&
+      recordSegments[0] === 'log' &&
+      recordSegments[1] === 'entries' &&
+      recordSegments[2]?.endsWith('.json')
+    ) {
       const candidate = value as unknown as LogEntryRecord;
       assertUuidValue(candidate.id, 'log entry id');
       assertUuidValue(candidate.collaborationId, 'log collaborationId');
@@ -374,7 +409,10 @@ function validateAuthoritativeRecord(
         malformed('log contentHash does not match content');
       if (candidate.id !== basename)
         malformed('log path identity does not match id');
-    } else if (path.basename(file) === 'closed.json') {
+    } else if (
+      recordSegments.length === 1 &&
+      recordSegments[0] === 'closed.json'
+    ) {
       const candidate = value as unknown as ClosedRecord;
       assertUuidValue(candidate.collaborationId, 'closed collaborationId');
       assertPin(candidate.closedBy);
@@ -387,6 +425,8 @@ function validateAuthoritativeRecord(
       );
       if (candidate.collaborationId !== parent)
         malformed('closed path identity does not match collaboration');
+    } else if (authoritative) {
+      malformed('authoritative record path layout is invalid');
     }
   } catch (error) {
     if (error instanceof CollaborationError) throw error;
@@ -394,10 +434,84 @@ function validateAuthoritativeRecord(
   }
 }
 
+type RootScopedLeaf = 'file' | 'directory';
+
+async function validateRootScopedPath(
+  root: string,
+  target: string,
+  options: { leaf: RootScopedLeaf; allowMissingTail?: boolean },
+): Promise<void> {
+  if (!path.isAbsolute(root) || !path.isAbsolute(target)) {
+    throw new CollaborationError(
+      'INVALID_ROOT',
+      'storage paths must be absolute',
+    );
+  }
+  const absoluteRoot = path.resolve(root);
+  const absoluteTarget = path.resolve(target);
+  const relative = path.relative(absoluteRoot, absoluteTarget);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new CollaborationError(
+      'UNSAFE_PATH',
+      'storage path escapes the collaboration root',
+    );
+  }
+  const expectedUid = process.getuid?.();
+  const rootInfo = await lstat(absoluteRoot).catch((error) => {
+    if (isMissing(error) && options.allowMissingTail) return null;
+    throw error;
+  });
+  if (!rootInfo) return;
+  if (
+    !rootInfo.isDirectory() ||
+    rootInfo.isSymbolicLink() ||
+    (expectedUid !== undefined && rootInfo.uid !== expectedUid)
+  ) {
+    throw new CollaborationError('UNSAFE_PATH', 'storage root is unsafe');
+  }
+  const canonicalRoot = await realpath(absoluteRoot);
+  const segments = relative.split(path.sep).filter(Boolean);
+  let current = absoluteRoot;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    const info = await lstat(current).catch((error) => {
+      if (isMissing(error) && options.allowMissingTail) return null;
+      throw error;
+    });
+    if (!info) return;
+    const leaf = index === segments.length - 1;
+    const expectedType = leaf ? options.leaf : 'directory';
+    if (
+      info.isSymbolicLink() ||
+      (expectedType === 'directory' ? !info.isDirectory() : !info.isFile()) ||
+      (expectedUid !== undefined && info.uid !== expectedUid)
+    ) {
+      throw new CollaborationError(
+        'UNSAFE_PATH',
+        `storage path component ${segment} is unsafe`,
+      );
+    }
+    const canonicalCurrent = await realpath(current);
+    const canonicalRelative = path.relative(canonicalRoot, canonicalCurrent);
+    if (
+      canonicalRelative.startsWith('..') ||
+      path.isAbsolute(canonicalRelative)
+    ) {
+      throw new CollaborationError(
+        'UNSAFE_PATH',
+        'storage path escapes the canonical collaboration root',
+      );
+    }
+  }
+}
+
 export async function readJsonRecord<T>(
   file: string,
-  options: { maxBytes?: number; expectedUid?: number } = {},
+  options: { root?: string; maxBytes?: number; expectedUid?: number } = {},
 ): Promise<T> {
+  if (options.root) {
+    await validateRootScopedPath(options.root, file, { leaf: 'file' });
+  }
   const info = await lstat(file).catch((error) => {
     if (isMissing(error)) throw error;
     throw new CollaborationError(
@@ -435,7 +549,7 @@ export async function readJsonRecord<T>(
     );
   }
   assertSchema(parsed);
-  validateAuthoritativeRecord(file, parsed);
+  validateAuthoritativeRecord(file, parsed, options.root);
   return parsed as T;
 }
 
@@ -443,35 +557,21 @@ async function ensurePrivateDirectory(
   directory: string,
   root: string,
 ): Promise<void> {
-  if (!path.isAbsolute(root) || !path.isAbsolute(directory)) {
-    throw new CollaborationError(
-      'INVALID_ROOT',
-      'storage paths must be absolute',
-    );
-  }
-  const relative = path.relative(path.resolve(root), path.resolve(directory));
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new CollaborationError(
-      'UNSAFE_PATH',
-      'record path escapes the collaboration root',
-    );
-  }
+  await validateRootScopedPath(root, directory, {
+    leaf: 'directory',
+    allowMissingTail: true,
+  });
   await mkdir(root, { recursive: true, mode: 0o700 });
+  await validateRootScopedPath(root, root, { leaf: 'directory' });
   await chmod(root, 0o700);
-  const canonicalRoot = await realpath(root);
+  await validateRootScopedPath(root, directory, {
+    leaf: 'directory',
+    allowMissingTail: true,
+  });
   await mkdir(directory, { recursive: true, mode: 0o700 });
+  await validateRootScopedPath(root, directory, { leaf: 'directory' });
   await chmod(directory, 0o700);
-  const info = await lstat(directory);
-  const canonicalDirectory = await realpath(directory);
-  const canonicalRelative = path.relative(canonicalRoot, canonicalDirectory);
-  if (
-    !info.isDirectory() ||
-    canonicalRelative.startsWith('..') ||
-    path.isAbsolute(canonicalRelative) ||
-    (typeof process.getuid === 'function' && info.uid !== process.getuid())
-  ) {
-    throw new CollaborationError('UNSAFE_PATH', 'storage directory is unsafe');
-  }
+  await validateRootScopedPath(root, directory, { leaf: 'directory' });
 }
 
 export interface PublicationResult<T> {
@@ -510,6 +610,9 @@ export async function publishImmutableRecord<T extends { schemaVersion: 1 }>(
     await options.hooks?.afterFileSync?.();
     await handle.close();
     handle = undefined;
+    await validateRootScopedPath(options.root, directory, {
+      leaf: 'directory',
+    });
     await import('node:fs/promises').then(({ link }) =>
       link(temporary, target),
     );
@@ -532,7 +635,7 @@ export async function publishImmutableRecord<T extends { schemaVersion: 1 }>(
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'EEXIST') {
-      const existing = await readJsonRecord<T>(target);
+      const existing = await readJsonRecord<T>(target, { root: options.root });
       if (canonicalHash(existing) !== hash) {
         throw new CollaborationError(
           'RECORD_CONFLICT',
@@ -571,8 +674,14 @@ export async function publishImmutableRecord<T extends { schemaVersion: 1 }>(
 
 export async function enumerateJsonRecords(
   directory: string,
-  options: { maxEntries: number },
+  options: { root?: string; maxEntries: number },
 ): Promise<string[]> {
+  if (options.root) {
+    await validateRootScopedPath(options.root, directory, {
+      leaf: 'directory',
+      allowMissingTail: true,
+    });
+  }
   const entries = await readdir(directory, { withFileTypes: true }).catch(
     (error) => {
       if (isMissing(error)) return [];

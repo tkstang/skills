@@ -97,12 +97,12 @@ export async function appendLogEntry(
     collaborationPaths(input.root, input.collaborationId).logEntries,
     `${input.id}.json`,
   );
-  const existing = await readJsonRecord<LogEntryRecord>(target).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existing = await readJsonRecord<LogEntryRecord>(target, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (existing) {
     if (existing.contentHash !== contentHash) {
       throw new CollaborationError(
@@ -113,6 +113,7 @@ export async function appendLogEntry(
     return { entry: existing, duplicate: true };
   }
   const entries = await enumerateJsonRecords(path.dirname(target), {
+    root: input.root,
     maxEntries: 4096,
   });
   if (entries.length >= 4096) {
@@ -141,7 +142,9 @@ export async function appendLogEntry(
       error instanceof CollaborationError &&
       error.code === 'RECORD_CONFLICT'
     ) {
-      const winner = await readJsonRecord<LogEntryRecord>(target);
+      const winner = await readJsonRecord<LogEntryRecord>(target, {
+        root: input.root,
+      });
       if (winner.contentHash === contentHash)
         return { entry: winner, duplicate: true };
     }
@@ -155,9 +158,12 @@ async function authoritativeEntries(
   collaborationId: string,
 ): Promise<LogEntryRecord[]> {
   const directory = collaborationPaths(root, collaborationId).logEntries;
-  const files = await enumerateJsonRecords(directory, { maxEntries: 4096 });
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: 4096,
+  });
   const entries = await Promise.all(
-    files.map((file) => readJsonRecord<LogEntryRecord>(file)),
+    files.map((file) => readJsonRecord<LogEntryRecord>(file, { root })),
   );
   for (const entry of entries) {
     const actual = canonicalHash({
@@ -337,6 +343,7 @@ export async function renderLog(input: {
   const entries = await authoritativeEntries(input.root, input.collaborationId);
   const collaboration = await readJsonRecord<CollaborationRecord>(
     collaborationPaths(input.root, input.collaborationId).collaboration,
+    { root: input.root },
   );
   const digest = sourceDigest(entries);
   const markdown = renderMarkdown(collaboration, entries, digest);

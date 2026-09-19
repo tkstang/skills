@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -127,6 +127,41 @@ describe('agent messaging CLI', () => {
     );
     expect(result.code).toBe(2);
     expect(JSON.parse(result.stderr).code).toBe('IDENTITY_CONFLICT');
+  });
+
+  test('reports generated collaboration recovery context after possible publication', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const invalidWorktree = path.join(root, 'not-a-worktree');
+    await writeFile(invalidWorktree, 'regular file');
+    const result = await run([
+      'open',
+      '--root',
+      root,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'recovery context',
+      '--task',
+      'recover a partial open',
+      '--cwd',
+      invalidWorktree,
+      '--json',
+    ]);
+    expect(result.code).toBe(2);
+    const failure = JSON.parse(result.stderr);
+    expect(failure.collaborationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
+    expect(failure.paths.collaboration).toBe(
+      path.join(
+        root,
+        'collaborations',
+        failure.collaborationId,
+        'collaboration.json',
+      ),
+    );
   });
 
   test('treats shell-looking bodies as inert data', async () => {

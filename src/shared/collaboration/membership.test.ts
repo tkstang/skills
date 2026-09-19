@@ -1,6 +1,9 @@
-import { mkdtemp } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
@@ -12,6 +15,7 @@ import {
   resolveMember,
   takeOverMembership,
 } from './membership.js';
+import { collaborationPaths } from './paths.js';
 
 async function fixture() {
   const root = await mkdtemp(
@@ -52,6 +56,33 @@ describe('membership lifecycle', () => {
       runtime: 'cursor',
       sessionId: 'review',
     });
+  });
+
+  test.each([
+    'members',
+    'bindings',
+    'departures',
+    'inbox',
+    'acks',
+    'log',
+    'entries',
+  ])('supports a legal configured root named %s', async (reserved) => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'agent-messaging-root-'));
+    const root = path.join(parent, reserved);
+    const collaborationId = crypto.randomUUID();
+    const pin = { runtime: 'codex' as const, sessionId: `driver-${reserved}` };
+    await openCollaboration({
+      root,
+      collaborationId,
+      label: 'reserved root',
+      task: 'prove root-relative classification',
+      alias: 'driver',
+      pin,
+      worktree: process.cwd(),
+    });
+    expect(
+      (await resolveMember(root, collaborationId, 'driver')).binding.pin,
+    ).toEqual(pin);
   });
 
   test('races duplicate joins and never redirects an alias', async () => {
@@ -170,6 +201,85 @@ describe('membership lifecycle', () => {
       (await resolveMember(f.root, f.collaborationId, 'reviewer')).binding.pin,
     ).toEqual(input.pin);
   });
+
+  test('reuses the committed collaboration timestamp on a partial open retry', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-open-'));
+    const input = {
+      root,
+      collaborationId: crypto.randomUUID(),
+      label: 'partial open',
+      task: 'recover the initial join',
+      alias: 'driver',
+      pin: { runtime: 'codex' as const, sessionId: 'partial-open' },
+      worktree: process.cwd(),
+    };
+    await expect(
+      openCollaboration({
+        ...input,
+        now: '2026-01-01T00:00:00.000Z',
+        hooks: { afterAliasPublish: () => Promise.reject(new Error('crash')) },
+      }),
+    ).rejects.toThrow('crash');
+    const recovered = await openCollaboration({
+      ...input,
+      now: '2026-01-01T00:00:01.000Z',
+    });
+    expect(recovered.collaboration.createdAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(recovered.member.binding.createdAt).toBe('2026-01-01T00:00:00.000Z');
+    await expect(
+      openCollaboration({ ...input, label: 'changed label' }),
+    ).rejects.toMatchObject({ code: 'RECORD_CONFLICT' });
+  });
+
+  test('recovers after actual process termination at every open publication boundary', async () => {
+    const helper = fileURLToPath(
+      new URL('./process-fixture.ts', import.meta.url),
+    );
+    for (const stage of [
+      'afterCollaborationPublish',
+      'afterAliasPublish',
+      'afterBindingPublish',
+    ] as const) {
+      const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-open-'));
+      const input = {
+        root,
+        collaborationId: crypto.randomUUID(),
+        label: `open ${stage}`,
+        task: 'survive process termination',
+        alias: 'driver',
+        pin: { runtime: 'codex' as const, sessionId: stage },
+        worktree: process.cwd(),
+      };
+      const child = spawn(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          helper,
+          'open',
+          JSON.stringify({ ...input, stage }),
+        ],
+        { stdio: ['pipe', 'pipe', 'pipe'] },
+      );
+      await once(child.stdout!, 'data');
+      child.kill('SIGKILL');
+      const [, signal] = await once(child, 'exit');
+      expect(signal).toBe('SIGKILL');
+      const collaborationFile = collaborationPaths(
+        root,
+        input.collaborationId,
+      ).collaboration;
+      const committed = JSON.parse(await readFile(collaborationFile, 'utf8'));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const recovered = await openCollaboration(input);
+      expect(recovered.collaboration.createdAt).toBe(committed.createdAt);
+      expect(recovered.member.binding.generation).toBe(0);
+      expect(
+        (await resolveMember(root, input.collaborationId, 'driver')).binding
+          .pin,
+      ).toEqual(input.pin);
+    }
+  }, 30_000);
 
   test('rejects stale initial-join retries after takeover or departure', async () => {
     const takeover = await fixture();

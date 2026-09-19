@@ -82,6 +82,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.3 and `session` plugin 0.3.2 reject ancestor-symlink
+  storage paths before reads or mutation, classify records relative to the
+  configured root, and recover idempotently from interrupted collaboration
+  creation while reporting generated recovery paths.
 - `agent-messaging` 1.0.2 and `session` plugin 0.3.1 keep binding-cap winners
   readable, reject stale initial joins, replay takeover mail as actionable,
   contain rendered-log writes across ancestor symlinks, hash every

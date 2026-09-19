@@ -56,6 +56,24 @@ interface Parsed {
   flags: Map<string, string | boolean>;
 }
 
+interface ContextualError extends Error {
+  collaborationId?: string;
+  paths?: ReturnType<typeof collaborationPaths>;
+}
+
+function attachOpenContext(
+  error: unknown,
+  collaborationId: string,
+  root: string,
+): ContextualError {
+  const contextual = (
+    error instanceof Error ? error : new Error(String(error))
+  ) as ContextualError;
+  contextual.collaborationId = collaborationId;
+  contextual.paths = collaborationPaths(root, collaborationId);
+  return contextual;
+}
+
 const HELP = `agent-messaging — durable addressed messaging between local coding-agent sessions
 
 Usage:
@@ -278,6 +296,8 @@ async function execute(
       label: required(parsed, 'label'),
       task: required(parsed, 'task'),
       worktree: optional(parsed, 'cwd') ?? io.cwd,
+    }).catch((error) => {
+      throw attachOpenContext(error, collaborationId, root);
     });
     return {
       operation: 'open',
@@ -395,7 +415,9 @@ async function execute(
       throw new MembershipError('MEMBER_DEPARTED', 'member is inactive');
     }
     const paths = collaborationPaths(root, collaborationId);
-    const closed = await readJsonRecord<ClosedRecord>(paths.closed).then(
+    const closed = await readJsonRecord<ClosedRecord>(paths.closed, {
+      root,
+    }).then(
       () => true,
       (error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOENT') return false;
@@ -491,14 +513,17 @@ export async function runAgentMessagingCli(
     );
     return 0;
   } catch (error) {
+    const contextual =
+      error instanceof Error ? (error as ContextualError) : null;
     const operation = parsed.positionals.slice(0, 2).join('.');
     const envelope = {
       ok: false,
       operation,
+      collaborationId: contextual?.collaborationId ?? null,
       code: errorCode(error),
       message: error instanceof Error ? error.message : String(error),
       retryable: error instanceof CollaborationError ? error.retryable : false,
-      paths: null,
+      paths: contextual?.paths ?? null,
     };
     io.stderr(`${JSON.stringify(envelope)}\n`);
     return exitFor(error);

@@ -98,6 +98,7 @@ async function validateReply(
       input.replyTo.participantId,
       input.replyTo.messageId,
     ),
+    { root: input.root },
   );
   if (
     original.from.participantId !== sender.member.participantId &&
@@ -177,12 +178,12 @@ export async function sendMessage(input: SendMessageInput): Promise<{
     recipient.member.participantId,
     input.id,
   );
-  const existing = await readJsonRecord<MessageRecord>(target).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existing = await readJsonRecord<MessageRecord>(target, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (existing) {
     if (existing.contentHash !== contentHash) {
       throw new CollaborationError(
@@ -198,6 +199,7 @@ export async function sendMessage(input: SendMessageInput): Promise<{
     };
   }
   const inboxFiles = await enumerateJsonRecords(path.dirname(target), {
+    root: input.root,
     maxEntries: 4096,
   });
   if (inboxFiles.length >= 4096) {
@@ -218,7 +220,9 @@ export async function sendMessage(input: SendMessageInput): Promise<{
       error instanceof CollaborationError &&
       error.code === 'RECORD_CONFLICT'
     ) {
-      const winner = await readJsonRecord<MessageRecord>(target);
+      const winner = await readJsonRecord<MessageRecord>(target, {
+        root: input.root,
+      });
       if (winner.contentHash === contentHash) {
         return {
           message: winner,
@@ -306,12 +310,12 @@ async function acknowledged(
     String(recipient.binding.generation),
     `${message.id}.json`,
   );
-  const ack = await readJsonRecord<AckRecord>(ackPath).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const ack = await readJsonRecord<AckRecord>(ackPath, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (!ack) return false;
   if (!pinsEqual(ack.recipient, recipient.binding.pin)) {
     throw new CollaborationError(
@@ -358,10 +362,16 @@ export async function listInbox(input: InboxInput): Promise<{
     collaborationPaths(input.root, input.collaborationId).inbox,
     recipient.member.participantId,
   );
-  const files = await enumerateJsonRecords(directory, { maxEntries: 4096 });
+  const files = await enumerateJsonRecords(directory, {
+    root: input.root,
+    maxEntries: 4096,
+  });
   const records = await Promise.all(
     files.map((file) =>
-      readJsonRecord<MessageRecord>(file, { maxBytes: MAX_BODY_BYTES + 4096 }),
+      readJsonRecord<MessageRecord>(file, {
+        root: input.root,
+        maxBytes: MAX_BODY_BYTES + 4096,
+      }),
     ),
   );
   const sorted = records.toSorted((left, right) => {
@@ -429,7 +439,7 @@ export async function readMessage(
       recipient.member.participantId,
       input.messageId,
     ),
-    { maxBytes: MAX_BODY_BYTES + 4096 },
+    { root: input.root, maxBytes: MAX_BODY_BYTES + 4096 },
   );
   return presentMessage(input, recipient, message);
 }
@@ -446,12 +456,12 @@ export async function acknowledgeMessage(
     String(recipient.binding.generation),
     `${message.id}.json`,
   );
-  const existing = await readJsonRecord<AckRecord>(target).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existing = await readJsonRecord<AckRecord>(target, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (existing) {
     if (
       existing.messageHash !== message.contentHash ||

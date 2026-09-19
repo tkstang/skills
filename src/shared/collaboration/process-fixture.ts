@@ -1,5 +1,6 @@
 import { once } from 'node:events';
 
+import { openCollaboration, type JoinInput } from './membership.js';
 import { sendMessage, type SendMessageInput } from './messages.js';
 import { publishImmutableRecord, type PublicationHooks } from './records.js';
 
@@ -29,6 +30,21 @@ async function main(): Promise<void> {
   if (mode === 'send') {
     await barrier();
     const result = await sendMessage(input as unknown as SendMessageInput);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+  if (mode === 'open') {
+    const stage = String(input.stage) as
+      | 'afterCollaborationPublish'
+      | 'afterAliasPublish'
+      | 'afterBindingPublish';
+    const result = await openCollaboration({
+      ...(input as unknown as JoinInput & {
+        label: string;
+        task: string;
+      }),
+      hooks: { [stage]: barrier },
+    });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return;
   }

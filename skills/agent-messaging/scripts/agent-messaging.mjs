@@ -203,15 +203,20 @@ function logHash(record) {
     skillImplication: record.skillImplication
   });
 }
-function validateAuthoritativeRecord(file, value) {
-  const segments = path.resolve(file).split(path.sep);
-  const collaborationIndex = segments.lastIndexOf("collaborations");
-  const collaborationPathId = collaborationIndex >= 0 ? segments[collaborationIndex + 1] : void 0;
+function validateAuthoritativeRecord(file, value, root) {
+  const relativeSegments = root ? path.relative(path.resolve(root), path.resolve(file)).split(path.sep) : [];
+  const authoritative = relativeSegments[0] === "collaborations";
+  if (authoritative && relativeSegments.length < 3)
+    malformed("authoritative record path is incomplete");
+  const collaborationPathId = authoritative ? relativeSegments[1] : void 0;
+  if (collaborationPathId)
+    assertUuidValue(collaborationPathId, "path collaboration id");
+  const recordSegments = authoritative ? relativeSegments.slice(2) : [];
   const basename = path.basename(file, ".json");
   const parent = path.basename(path.dirname(file));
   const grandparent = path.basename(path.dirname(path.dirname(file)));
   try {
-    if (path.basename(file) === "collaboration.json") {
+    if (recordSegments.length === 1 && recordSegments[0] === "collaboration.json") {
       const candidate = value;
       assertUuidValue(candidate.id, "collaboration id");
       if (candidate.id !== parent)
@@ -223,7 +228,7 @@ function validateAuthoritativeRecord(file, value) {
         candidate,
         "collaboration"
       );
-    } else if (segments.includes("members")) {
+    } else if (recordSegments.length === 2 && recordSegments[0] === "members" && recordSegments[1]?.endsWith(".json")) {
       const candidate = value;
       assertAlias(candidate.alias);
       if (candidate.alias !== basename)
@@ -242,12 +247,12 @@ function validateAuthoritativeRecord(file, value) {
         candidate,
         "member"
       );
-    } else if (segments.includes("bindings")) {
+    } else if (recordSegments.length === 3 && recordSegments[0] === "bindings" && recordSegments[2]?.endsWith(".json")) {
       const candidate = value;
       validateBinding(candidate);
       if (candidate.participantId !== parent || String(candidate.generation) !== basename)
         malformed("binding path identity does not match record");
-    } else if (segments.includes("departures")) {
+    } else if (recordSegments.length === 3 && recordSegments[0] === "departures" && recordSegments[2]?.endsWith(".json")) {
       const candidate = value;
       assertUuidValue(candidate.participantId, "departure participantId");
       assertGeneration(candidate.generation, "departure generation");
@@ -259,7 +264,7 @@ function validateAuthoritativeRecord(file, value) {
       );
       if (candidate.participantId !== parent || String(candidate.generation) !== basename)
         malformed("departure path identity does not match record");
-    } else if (segments.includes("inbox")) {
+    } else if (recordSegments.length === 3 && recordSegments[0] === "inbox" && recordSegments[2]?.endsWith(".json")) {
       const candidate = value;
       assertUuidValue(candidate.id, "message id");
       assertUuidValue(candidate.collaborationId, "message collaborationId");
@@ -300,7 +305,7 @@ function validateAuthoritativeRecord(file, value) {
         malformed("message contentHash does not match content");
       if (candidate.to.participantId !== parent || candidate.id !== basename)
         malformed("message path identity does not match record");
-    } else if (segments.includes("acks")) {
+    } else if (recordSegments.length === 4 && recordSegments[0] === "acks" && recordSegments[3]?.endsWith(".json")) {
       const candidate = value;
       assertUuidValue(candidate.messageId, "ack messageId");
       assertHash(candidate.messageHash, "ack messageHash");
@@ -314,7 +319,7 @@ function validateAuthoritativeRecord(file, value) {
       assertUuidValue(grandparent, "ack participant path");
       if (candidate.messageId !== basename || String(candidate.bindingGeneration) !== parent)
         malformed("ack path identity does not match record");
-    } else if (segments.includes("entries") && segments.includes("log")) {
+    } else if (recordSegments.length === 3 && recordSegments[0] === "log" && recordSegments[1] === "entries" && recordSegments[2]?.endsWith(".json")) {
       const candidate = value;
       assertUuidValue(candidate.id, "log entry id");
       assertUuidValue(candidate.collaborationId, "log collaborationId");
@@ -340,7 +345,7 @@ function validateAuthoritativeRecord(file, value) {
         malformed("log contentHash does not match content");
       if (candidate.id !== basename)
         malformed("log path identity does not match id");
-    } else if (path.basename(file) === "closed.json") {
+    } else if (recordSegments.length === 1 && recordSegments[0] === "closed.json") {
       const candidate = value;
       assertUuidValue(candidate.collaborationId, "closed collaborationId");
       assertPin(candidate.closedBy);
@@ -351,13 +356,71 @@ function validateAuthoritativeRecord(file, value) {
       );
       if (candidate.collaborationId !== parent)
         malformed("closed path identity does not match collaboration");
+    } else if (authoritative) {
+      malformed("authoritative record path layout is invalid");
     }
   } catch (error) {
     if (error instanceof CollaborationError) throw error;
     throw new CollaborationError("MALFORMED_RECORD", error.message);
   }
 }
+async function validateRootScopedPath(root, target, options) {
+  if (!path.isAbsolute(root) || !path.isAbsolute(target)) {
+    throw new CollaborationError(
+      "INVALID_ROOT",
+      "storage paths must be absolute"
+    );
+  }
+  const absoluteRoot = path.resolve(root);
+  const absoluteTarget = path.resolve(target);
+  const relative = path.relative(absoluteRoot, absoluteTarget);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "storage path escapes the collaboration root"
+    );
+  }
+  const expectedUid = process.getuid?.();
+  const rootInfo = await lstat(absoluteRoot).catch((error) => {
+    if (isMissing(error) && options.allowMissingTail) return null;
+    throw error;
+  });
+  if (!rootInfo) return;
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink() || expectedUid !== void 0 && rootInfo.uid !== expectedUid) {
+    throw new CollaborationError("UNSAFE_PATH", "storage root is unsafe");
+  }
+  const canonicalRoot = await realpath(absoluteRoot);
+  const segments = relative.split(path.sep).filter(Boolean);
+  let current = absoluteRoot;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    const info = await lstat(current).catch((error) => {
+      if (isMissing(error) && options.allowMissingTail) return null;
+      throw error;
+    });
+    if (!info) return;
+    const leaf = index === segments.length - 1;
+    const expectedType = leaf ? options.leaf : "directory";
+    if (info.isSymbolicLink() || (expectedType === "directory" ? !info.isDirectory() : !info.isFile()) || expectedUid !== void 0 && info.uid !== expectedUid) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        `storage path component ${segment} is unsafe`
+      );
+    }
+    const canonicalCurrent = await realpath(current);
+    const canonicalRelative = path.relative(canonicalRoot, canonicalCurrent);
+    if (canonicalRelative.startsWith("..") || path.isAbsolute(canonicalRelative)) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        "storage path escapes the canonical collaboration root"
+      );
+    }
+  }
+}
 async function readJsonRecord(file, options = {}) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, file, { leaf: "file" });
+  }
   const info = await lstat(file).catch((error) => {
     if (isMissing(error)) throw error;
     throw new CollaborationError(
@@ -395,34 +458,25 @@ async function readJsonRecord(file, options = {}) {
     );
   }
   assertSchema(parsed);
-  validateAuthoritativeRecord(file, parsed);
+  validateAuthoritativeRecord(file, parsed, options.root);
   return parsed;
 }
 async function ensurePrivateDirectory(directory, root) {
-  if (!path.isAbsolute(root) || !path.isAbsolute(directory)) {
-    throw new CollaborationError(
-      "INVALID_ROOT",
-      "storage paths must be absolute"
-    );
-  }
-  const relative = path.relative(path.resolve(root), path.resolve(directory));
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new CollaborationError(
-      "UNSAFE_PATH",
-      "record path escapes the collaboration root"
-    );
-  }
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
   await mkdir(root, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, root, { leaf: "directory" });
   await chmod(root, 448);
-  const canonicalRoot = await realpath(root);
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
   await mkdir(directory, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
   await chmod(directory, 448);
-  const info = await lstat(directory);
-  const canonicalDirectory = await realpath(directory);
-  const canonicalRelative = path.relative(canonicalRoot, canonicalDirectory);
-  if (!info.isDirectory() || canonicalRelative.startsWith("..") || path.isAbsolute(canonicalRelative) || typeof process.getuid === "function" && info.uid !== process.getuid()) {
-    throw new CollaborationError("UNSAFE_PATH", "storage directory is unsafe");
-  }
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
 }
 async function publishImmutableRecord(target, record, options) {
   assertSchema(record);
@@ -443,6 +497,9 @@ async function publishImmutableRecord(target, record, options) {
     await options.hooks?.afterFileSync?.();
     await handle.close();
     handle = void 0;
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory"
+    });
     await import("node:fs/promises").then(
       ({ link }) => link(temporary, target)
     );
@@ -465,7 +522,7 @@ async function publishImmutableRecord(target, record, options) {
   } catch (error) {
     const code = error.code;
     if (code === "EEXIST") {
-      const existing = await readJsonRecord(target);
+      const existing = await readJsonRecord(target, { root: options.root });
       if (canonicalHash(existing) !== hash) {
         throw new CollaborationError(
           "RECORD_CONFLICT",
@@ -497,6 +554,12 @@ async function publishImmutableRecord(target, record, options) {
   }
 }
 async function enumerateJsonRecords(directory, options) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory",
+      allowMissingTail: true
+    });
+  }
   const entries = await readdir(directory, { withFileTypes: true }).catch(
     (error) => {
       if (isMissing(error)) return [];
@@ -609,7 +672,7 @@ async function canonicalWorktree(value) {
 }
 async function isCollaborationClosed(root, collaborationId) {
   const file = collaborationPaths(root, collaborationId).closed;
-  return readJsonRecord(file).then(
+  return readJsonRecord(file, { root }).then(
     () => true,
     (error) => {
       if (error.code === "ENOENT") return false;
@@ -631,17 +694,46 @@ async function openCollaboration(input) {
   assertBoundedString(input.task, "task", 2048);
   const createdAt = timestamp(input.now);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  const collaboration = withContentHash({
+  const proposed = withContentHash({
     schemaVersion: 1,
     id: input.collaborationId,
     label: input.label,
     task: input.task,
     createdAt
   });
-  await publishImmutableRecord(paths.collaboration, collaboration, {
-    root: input.root
+  let collaboration = await readJsonRecord(
+    paths.collaboration,
+    { root: input.root }
+  ).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
   });
-  const joined = await joinCollaboration({ ...input, now: createdAt });
+  if (!collaboration) {
+    try {
+      await publishImmutableRecord(paths.collaboration, proposed, {
+        root: input.root
+      });
+      collaboration = proposed;
+      await input.hooks?.afterCollaborationPublish?.();
+    } catch (error) {
+      if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
+        throw error;
+      collaboration = await readJsonRecord(
+        paths.collaboration,
+        { root: input.root }
+      );
+    }
+  }
+  if (collaboration.id !== input.collaborationId || collaboration.label !== input.label || collaboration.task !== input.task) {
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "collaboration ID already has different stable fields"
+    );
+  }
+  const joined = await joinCollaboration({
+    ...input,
+    now: collaboration.createdAt
+  });
   return { collaboration, member: joined.member };
 }
 async function joinCollaboration(input) {
@@ -649,7 +741,9 @@ async function joinCollaboration(input) {
   assertPin(input.pin);
   await assertOpen(input.root, input.collaborationId);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  await readJsonRecord(paths.collaboration);
+  await readJsonRecord(paths.collaboration, {
+    root: input.root
+  });
   const createdAt = timestamp(input.now);
   const participantId = randomUUID2();
   const worktree = await canonicalWorktree(input.worktree);
@@ -673,14 +767,15 @@ async function joinCollaboration(input) {
     initialBinding: binding
   });
   const memberTarget = path3.join(paths.members, `${input.alias}.json`);
-  const existingMember = await readJsonRecord(memberTarget).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existingMember = await readJsonRecord(memberTarget, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (!existingMember) {
     const members = await enumerateJsonRecords(paths.members, {
+      root: input.root,
       maxEntries: 128
     });
     if (members.length >= 128) {
@@ -696,7 +791,9 @@ async function joinCollaboration(input) {
   } catch (error) {
     if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
       throw error;
-    const existing = await readJsonRecord(memberTarget);
+    const existing = await readJsonRecord(memberTarget, {
+      root: input.root
+    });
     if (pinsEqual(existing.initialBinding.pin, input.pin)) {
       const recovered = await resolveMember(
         input.root,
@@ -749,7 +846,8 @@ async function resolveMember(root, collaborationId, alias) {
   let member;
   try {
     member = await readJsonRecord(
-      path3.join(paths.members, `${alias}.json`)
+      path3.join(paths.members, `${alias}.json`),
+      { root }
     );
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -762,7 +860,7 @@ async function resolveMember(root, collaborationId, alias) {
   }
   const bindingFiles = await enumerateJsonRecords(
     memberBindingDirectory(paths, member.participantId),
-    { maxEntries: 64 }
+    { root, maxEntries: 64 }
   );
   if (bindingFiles.length === 0) {
     await publishImmutableRecord(
@@ -775,7 +873,7 @@ async function resolveMember(root, collaborationId, alias) {
     );
   }
   const bindings = await Promise.all(
-    bindingFiles.map((file) => readJsonRecord(file))
+    bindingFiles.map((file) => readJsonRecord(file, { root }))
   );
   const binding = bindings.toSorted(
     (left, right) => right.generation - left.generation
@@ -787,7 +885,9 @@ async function resolveMember(root, collaborationId, alias) {
     member.participantId,
     `${binding.generation}.json`
   );
-  const departed = await readJsonRecord(departureFile).then(
+  const departed = await readJsonRecord(departureFile, {
+    root
+  }).then(
     (departure) => {
       if (!pinsEqual(departure.pin, binding.pin)) {
         throw new CollaborationError(
@@ -807,9 +907,12 @@ async function resolveMember(root, collaborationId, alias) {
 async function resolveMemberByPin(root, collaborationId, pin) {
   assertPin(pin);
   const paths = collaborationPaths(root, collaborationId);
-  const files = await enumerateJsonRecords(paths.members, { maxEntries: 128 });
+  const files = await enumerateJsonRecords(paths.members, {
+    root,
+    maxEntries: 128
+  });
   for (const file of files) {
-    const member = await readJsonRecord(file);
+    const member = await readJsonRecord(file, { root });
     const resolved = await resolveMember(root, collaborationId, member.alias);
     if (pinsEqual(resolved.binding.pin, pin)) return resolved;
   }
@@ -852,10 +955,13 @@ async function takeOverMembership(input) {
     String(current.binding.generation)
   );
   const ackFiles = await enumerateJsonRecords(ackDirectory, {
+    root: input.root,
     maxEntries: 4096
   });
   const ackRecords = await Promise.all(
-    ackFiles.map((file) => readJsonRecord(file))
+    ackFiles.map(
+      (file) => readJsonRecord(file, { root: input.root })
+    )
   );
   const acknowledgedMessages = await Promise.all(
     ackRecords.map(
@@ -864,7 +970,8 @@ async function takeOverMembership(input) {
           paths.inbox,
           current.member.participantId,
           `${ack.messageId}.json`
-        )
+        ),
+        { root: input.root }
       )
     )
   );
@@ -958,12 +1065,12 @@ async function leaveCollaboration(input) {
     current.member.participantId,
     `${current.binding.generation}.json`
   );
-  const existing = await readJsonRecord(target).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (existing) {
     if (!pinsEqual(existing.pin, input.pin)) {
       throw new MembershipError(
@@ -992,12 +1099,12 @@ async function closeCollaboration(input) {
       "departed member cannot close collaboration"
     );
   const target = collaborationPaths(input.root, input.collaborationId).closed;
-  const existing = await readJsonRecord(target).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (existing) {
     return {
       created: false,
@@ -1067,12 +1174,12 @@ async function appendLogEntry(input) {
     collaborationPaths(input.root, input.collaborationId).logEntries,
     `${input.id}.json`
   );
-  const existing = await readJsonRecord(target).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (existing) {
     if (existing.contentHash !== contentHash) {
       throw new CollaborationError(
@@ -1083,6 +1190,7 @@ async function appendLogEntry(input) {
     return { entry: existing, duplicate: true };
   }
   const entries = await enumerateJsonRecords(path4.dirname(target), {
+    root: input.root,
     maxEntries: 4096
   });
   if (entries.length >= 4096) {
@@ -1108,7 +1216,9 @@ async function appendLogEntry(input) {
     await publishImmutableRecord(target, entry, { root: input.root });
   } catch (error) {
     if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
-      const winner = await readJsonRecord(target);
+      const winner = await readJsonRecord(target, {
+        root: input.root
+      });
       if (winner.contentHash === contentHash)
         return { entry: winner, duplicate: true };
     }
@@ -1118,9 +1228,12 @@ async function appendLogEntry(input) {
 }
 async function authoritativeEntries(root, collaborationId) {
   const directory = collaborationPaths(root, collaborationId).logEntries;
-  const files = await enumerateJsonRecords(directory, { maxEntries: 4096 });
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: 4096
+  });
   const entries = await Promise.all(
-    files.map((file) => readJsonRecord(file))
+    files.map((file) => readJsonRecord(file, { root }))
   );
   for (const entry of entries) {
     const actual = canonicalHash({
@@ -1260,7 +1373,8 @@ async function writeView(file, markdown, root) {
 async function renderLog(input) {
   const entries = await authoritativeEntries(input.root, input.collaborationId);
   const collaboration = await readJsonRecord(
-    collaborationPaths(input.root, input.collaborationId).collaboration
+    collaborationPaths(input.root, input.collaborationId).collaboration,
+    { root: input.root }
   );
   const digest = sourceDigest(entries);
   const markdown = renderMarkdown(collaboration, entries, digest);
@@ -1364,7 +1478,8 @@ async function validateReply(input, sender) {
       input.collaborationId,
       input.replyTo.participantId,
       input.replyTo.messageId
-    )
+    ),
+    { root: input.root }
   );
   if (original.from.participantId !== sender.member.participantId && original.to.participantId !== sender.member.participantId) {
     throw new CollaborationError(
@@ -1431,12 +1546,12 @@ async function sendMessage(input) {
     recipient.member.participantId,
     input.id
   );
-  const existing = await readJsonRecord(target).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (existing) {
     if (existing.contentHash !== contentHash) {
       throw new CollaborationError(
@@ -1452,6 +1567,7 @@ async function sendMessage(input) {
     };
   }
   const inboxFiles = await enumerateJsonRecords(path5.dirname(target), {
+    root: input.root,
     maxEntries: 4096
   });
   if (inboxFiles.length >= 4096) {
@@ -1469,7 +1585,9 @@ async function sendMessage(input) {
     await publishImmutableRecord(target, message, { root: input.root });
   } catch (error) {
     if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
-      const winner = await readJsonRecord(target);
+      const winner = await readJsonRecord(target, {
+        root: input.root
+      });
       if (winner.contentHash === contentHash) {
         return {
           message: winner,
@@ -1536,12 +1654,12 @@ async function acknowledged(input, recipient, message) {
     String(recipient.binding.generation),
     `${message.id}.json`
   );
-  const ack = await readJsonRecord(ackPath).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const ack = await readJsonRecord(ackPath, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (!ack) return false;
   if (!pinsEqual(ack.recipient, recipient.binding.pin)) {
     throw new CollaborationError(
@@ -1572,10 +1690,16 @@ async function listInbox(input) {
     collaborationPaths(input.root, input.collaborationId).inbox,
     recipient.member.participantId
   );
-  const files = await enumerateJsonRecords(directory, { maxEntries: 4096 });
+  const files = await enumerateJsonRecords(directory, {
+    root: input.root,
+    maxEntries: 4096
+  });
   const records = await Promise.all(
     files.map(
-      (file) => readJsonRecord(file, { maxBytes: MAX_BODY_BYTES + 4096 })
+      (file) => readJsonRecord(file, {
+        root: input.root,
+        maxBytes: MAX_BODY_BYTES + 4096
+      })
     )
   );
   const sorted = records.toSorted((left, right) => {
@@ -1625,7 +1749,7 @@ async function readMessage(input) {
       recipient.member.participantId,
       input.messageId
     ),
-    { maxBytes: MAX_BODY_BYTES + 4096 }
+    { root: input.root, maxBytes: MAX_BODY_BYTES + 4096 }
   );
   return presentMessage(input, recipient, message);
 }
@@ -1639,12 +1763,12 @@ async function acknowledgeMessage(input) {
     String(recipient.binding.generation),
     `${message.id}.json`
   );
-  const existing = await readJsonRecord(target).catch(
-    (error) => {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
   if (existing) {
     if (existing.messageHash !== message.contentHash || existing.bindingGeneration !== recipient.binding.generation || !pinsEqual(existing.recipient, recipient.binding.pin))
       throw new CollaborationError(
@@ -1682,6 +1806,12 @@ async function acknowledgeMessage(input) {
 }
 
 // src/skills/agent-messaging/src/agent-messaging.ts
+function attachOpenContext(error, collaborationId, root) {
+  const contextual = error instanceof Error ? error : new Error(String(error));
+  contextual.collaborationId = collaborationId;
+  contextual.paths = collaborationPaths(root, collaborationId);
+  return contextual;
+}
 var HELP = `agent-messaging \u2014 durable addressed messaging between local coding-agent sessions
 
 Usage:
@@ -1868,6 +1998,8 @@ async function execute(parsed, io) {
       label: required(parsed, "label"),
       task: required(parsed, "task"),
       worktree: optional(parsed, "cwd") ?? io.cwd
+    }).catch((error) => {
+      throw attachOpenContext(error, collaborationId2, root);
     });
     return {
       operation: "open",
@@ -1977,7 +2109,9 @@ async function execute(parsed, io) {
       throw new MembershipError("MEMBER_DEPARTED", "member is inactive");
     }
     const paths = collaborationPaths(root, collaborationId);
-    const closed = await readJsonRecord(paths.closed).then(
+    const closed = await readJsonRecord(paths.closed, {
+      root
+    }).then(
       () => true,
       (error) => {
         if (error.code === "ENOENT") return false;
@@ -2072,14 +2206,16 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     );
     return 0;
   } catch (error) {
+    const contextual = error instanceof Error ? error : null;
     const operation = parsed.positionals.slice(0, 2).join(".");
     const envelope = {
       ok: false,
       operation,
+      collaborationId: contextual?.collaborationId ?? null,
       code: errorCode(error),
       message: error instanceof Error ? error.message : String(error),
       retryable: error instanceof CollaborationError ? error.retryable : false,
-      paths: null
+      paths: contextual?.paths ?? null
     };
     io.stderr(`${JSON.stringify(envelope)}
 `);

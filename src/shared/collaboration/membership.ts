@@ -56,6 +56,7 @@ export interface JoinInput extends CommonMembershipInput {
   pin: Pin;
   worktree: string;
   hooks?: {
+    afterCollaborationPublish?: () => void | Promise<void>;
     afterAliasPublish?: () => void | Promise<void>;
     afterBindingPublish?: () => void | Promise<void>;
   };
@@ -88,7 +89,7 @@ export async function isCollaborationClosed(
   collaborationId: string,
 ): Promise<boolean> {
   const file = collaborationPaths(root, collaborationId).closed;
-  return readJsonRecord<ClosedRecord>(file).then(
+  return readJsonRecord<ClosedRecord>(file, { root }).then(
     () => true,
     (error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return false;
@@ -117,17 +118,53 @@ export async function openCollaboration(
   assertBoundedString(input.task, 'task', 2048);
   const createdAt = timestamp(input.now);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  const collaboration: CollaborationRecord = withContentHash({
+  const proposed: CollaborationRecord = withContentHash({
     schemaVersion: 1 as const,
     id: input.collaborationId,
     label: input.label,
     task: input.task,
     createdAt,
   });
-  await publishImmutableRecord(paths.collaboration, collaboration, {
-    root: input.root,
+  let collaboration = await readJsonRecord<CollaborationRecord>(
+    paths.collaboration,
+    { root: input.root },
+  ).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
   });
-  const joined = await joinCollaboration({ ...input, now: createdAt });
+  if (!collaboration) {
+    try {
+      await publishImmutableRecord(paths.collaboration, proposed, {
+        root: input.root,
+      });
+      collaboration = proposed;
+      await input.hooks?.afterCollaborationPublish?.();
+    } catch (error) {
+      if (
+        !(error instanceof CollaborationError) ||
+        error.code !== 'RECORD_CONFLICT'
+      )
+        throw error;
+      collaboration = await readJsonRecord<CollaborationRecord>(
+        paths.collaboration,
+        { root: input.root },
+      );
+    }
+  }
+  if (
+    collaboration.id !== input.collaborationId ||
+    collaboration.label !== input.label ||
+    collaboration.task !== input.task
+  ) {
+    throw new CollaborationError(
+      'RECORD_CONFLICT',
+      'collaboration ID already has different stable fields',
+    );
+  }
+  const joined = await joinCollaboration({
+    ...input,
+    now: collaboration.createdAt,
+  });
   return { collaboration, member: joined.member };
 }
 
@@ -138,7 +175,9 @@ export async function joinCollaboration(
   assertPin(input.pin);
   await assertOpen(input.root, input.collaborationId);
   const paths = collaborationPaths(input.root, input.collaborationId);
-  await readJsonRecord<CollaborationRecord>(paths.collaboration);
+  await readJsonRecord<CollaborationRecord>(paths.collaboration, {
+    root: input.root,
+  });
   const createdAt = timestamp(input.now);
   const participantId = randomUUID();
   const worktree = await canonicalWorktree(input.worktree);
@@ -162,14 +201,15 @@ export async function joinCollaboration(
     initialBinding: binding,
   });
   const memberTarget = path.join(paths.members, `${input.alias}.json`);
-  const existingMember = await readJsonRecord<MemberRecord>(memberTarget).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existingMember = await readJsonRecord<MemberRecord>(memberTarget, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (!existingMember) {
     const members = await enumerateJsonRecords(paths.members, {
+      root: input.root,
       maxEntries: 128,
     });
     if (members.length >= 128) {
@@ -188,7 +228,9 @@ export async function joinCollaboration(
       error.code !== 'RECORD_CONFLICT'
     )
       throw error;
-    const existing = await readJsonRecord<MemberRecord>(memberTarget);
+    const existing = await readJsonRecord<MemberRecord>(memberTarget, {
+      root: input.root,
+    });
     if (pinsEqual(existing.initialBinding.pin, input.pin)) {
       const recovered = await resolveMember(
         input.root,
@@ -257,6 +299,7 @@ export async function resolveMember(
   try {
     member = await readJsonRecord<MemberRecord>(
       path.join(paths.members, `${alias}.json`),
+      { root },
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -269,7 +312,7 @@ export async function resolveMember(
   }
   const bindingFiles = await enumerateJsonRecords(
     memberBindingDirectory(paths, member.participantId),
-    { maxEntries: 64 },
+    { root, maxEntries: 64 },
   );
   if (bindingFiles.length === 0) {
     await publishImmutableRecord(
@@ -282,7 +325,7 @@ export async function resolveMember(
     );
   }
   const bindings = await Promise.all(
-    bindingFiles.map((file) => readJsonRecord<BindingRecord>(file)),
+    bindingFiles.map((file) => readJsonRecord<BindingRecord>(file, { root })),
   );
   const binding = bindings.toSorted(
     (left, right) => right.generation - left.generation,
@@ -294,7 +337,9 @@ export async function resolveMember(
     member.participantId,
     `${binding.generation}.json`,
   );
-  const departed = await readJsonRecord<DepartureRecord>(departureFile).then(
+  const departed = await readJsonRecord<DepartureRecord>(departureFile, {
+    root,
+  }).then(
     (departure) => {
       if (!pinsEqual(departure.pin, binding.pin)) {
         throw new CollaborationError(
@@ -319,9 +364,12 @@ export async function resolveMemberByPin(
 ): Promise<ResolvedMember> {
   assertPin(pin);
   const paths = collaborationPaths(root, collaborationId);
-  const files = await enumerateJsonRecords(paths.members, { maxEntries: 128 });
+  const files = await enumerateJsonRecords(paths.members, {
+    root,
+    maxEntries: 128,
+  });
   for (const file of files) {
-    const member = await readJsonRecord<MemberRecord>(file);
+    const member = await readJsonRecord<MemberRecord>(file, { root });
     const resolved = await resolveMember(root, collaborationId, member.alias);
     if (pinsEqual(resolved.binding.pin, pin)) return resolved;
   }
@@ -367,10 +415,13 @@ export async function takeOverMembership(
     String(current.binding.generation),
   );
   const ackFiles = await enumerateJsonRecords(ackDirectory, {
+    root: input.root,
     maxEntries: 4096,
   });
   const ackRecords = await Promise.all(
-    ackFiles.map((file) => readJsonRecord<AckRecord>(file)),
+    ackFiles.map((file) =>
+      readJsonRecord<AckRecord>(file, { root: input.root }),
+    ),
   );
   const acknowledgedMessages = await Promise.all(
     ackRecords.map((ack) =>
@@ -380,6 +431,7 @@ export async function takeOverMembership(
           current.member.participantId,
           `${ack.messageId}.json`,
         ),
+        { root: input.root },
       ),
     ),
   );
@@ -488,12 +540,12 @@ export async function leaveCollaboration(
     current.member.participantId,
     `${current.binding.generation}.json`,
   );
-  const existing = await readJsonRecord<DepartureRecord>(target).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existing = await readJsonRecord<DepartureRecord>(target, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (existing) {
     if (!pinsEqual(existing.pin, input.pin)) {
       throw new MembershipError(
@@ -525,12 +577,12 @@ export async function closeCollaboration(
       'departed member cannot close collaboration',
     );
   const target = collaborationPaths(input.root, input.collaborationId).closed;
-  const existing = await readJsonRecord<ClosedRecord>(target).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    },
-  );
+  const existing = await readJsonRecord<ClosedRecord>(target, {
+    root: input.root,
+  }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
   if (existing) {
     return {
       created: false,

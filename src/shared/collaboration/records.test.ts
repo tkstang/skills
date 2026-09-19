@@ -4,6 +4,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  rename,
   stat,
   symlink,
   writeFile,
@@ -14,10 +15,13 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import { appendLogEntry } from './log.js';
 import {
   closeCollaboration,
   joinCollaboration,
+  leaveCollaboration,
   openCollaboration,
+  resolveMember,
 } from './membership.js';
 import { acknowledgeMessage, listInbox, sendMessage } from './messages.js';
 import { collaborationPaths, resolveCollaborationRoot } from './paths.js';
@@ -128,7 +132,7 @@ describe('collaboration storage primitives', () => {
     for (const file of files) {
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(file, '{"schemaVersion":1}\n');
-      await expect(readJsonRecord(file), file).rejects.toMatchObject({
+      await expect(readJsonRecord(file, { root }), file).rejects.toMatchObject({
         code: 'MALFORMED_RECORD',
       });
     }
@@ -155,7 +159,9 @@ describe('collaboration storage primitives', () => {
     const forgedBinding = JSON.parse(await readFile(bindingFile, 'utf8'));
     forgedBinding.reason = 'forged';
     await writeFile(bindingFile, `${JSON.stringify(forgedBinding)}\n`);
-    await expect(readJsonRecord(bindingFile)).rejects.toMatchObject({
+    await expect(
+      readJsonRecord(bindingFile, { root: bindingFixture.root }),
+    ).rejects.toMatchObject({
       code: 'MALFORMED_RECORD',
     });
 
@@ -182,7 +188,9 @@ describe('collaboration storage primitives', () => {
     const forgedClosed = JSON.parse(await readFile(closedFile, 'utf8'));
     forgedClosed.closedAt = '2020-01-01T00:00:00.000Z';
     await writeFile(closedFile, `${JSON.stringify(forgedClosed)}\n`);
-    await expect(readJsonRecord(closedFile)).rejects.toMatchObject({
+    await expect(
+      readJsonRecord(closedFile, { root: closedFixture.root }),
+    ).rejects.toMatchObject({
       code: 'MALFORMED_RECORD',
     });
 
@@ -239,6 +247,139 @@ describe('collaboration storage primitives', () => {
         includeAcknowledged: true,
       }),
     ).rejects.toMatchObject({ code: 'MALFORMED_RECORD' });
+  });
+
+  test('rejects every authoritative operation through an ancestor symlink without side effects', async () => {
+    const { root } = await fixture();
+    const collaborationId = crypto.randomUUID();
+    const driver = { runtime: 'codex' as const, sessionId: 'driver' };
+    const reviewer = { runtime: 'cursor' as const, sessionId: 'reviewer' };
+    const waiting = { runtime: 'claude-code' as const, sessionId: 'waiting' };
+    const opened = await openCollaboration({
+      root,
+      collaborationId,
+      alias: 'driver',
+      pin: driver,
+      worktree: process.cwd(),
+      label: 'containment',
+      task: 'reject ancestor symlinks',
+    });
+    const joined = await joinCollaboration({
+      root,
+      collaborationId,
+      alias: 'reviewer',
+      pin: reviewer,
+      worktree: process.cwd(),
+    });
+    const waitingMember = await joinCollaboration({
+      root,
+      collaborationId,
+      alias: 'waiting',
+      pin: waiting,
+      worktree: process.cwd(),
+    });
+    const messageId = crypto.randomUUID();
+    await sendMessage({
+      root,
+      collaborationId,
+      senderPin: driver,
+      recipientAlias: 'reviewer',
+      id: messageId,
+      subject: 'containment',
+      body: 'must stay inside the configured root',
+    });
+    await acknowledgeMessage({
+      root,
+      collaborationId,
+      pin: reviewer,
+      messageId,
+    });
+    const entryId = crypto.randomUUID();
+    await appendLogEntry({
+      root,
+      collaborationId,
+      pin: driver,
+      id: entryId,
+      category: 'test',
+      title: 'containment',
+      whatHappened: 'created authoritative fixtures',
+      assessment: 'ready',
+      skillImplication: 'reject external ancestors',
+    });
+    await leaveCollaboration({
+      root,
+      collaborationId,
+      pin: reviewer,
+      alias: 'reviewer',
+    });
+    await closeCollaboration({ root, collaborationId, pin: driver });
+
+    const paths = collaborationPaths(root, collaborationId);
+    const authoritativeFiles = [
+      paths.collaboration,
+      path.join(paths.members, 'driver.json'),
+      path.join(paths.bindings, opened.member.member.participantId, '0.json'),
+      path.join(
+        paths.inbox,
+        joined.member.member.participantId,
+        `${messageId}.json`,
+      ),
+      path.join(
+        paths.acknowledgments,
+        joined.member.member.participantId,
+        '0',
+        `${messageId}.json`,
+      ),
+      path.join(paths.logEntries, `${entryId}.json`),
+      path.join(paths.departures, joined.member.member.participantId, '0.json'),
+      paths.closed,
+    ];
+    const externalHome = await mkdtemp(
+      path.join(tmpdir(), 'agent-messaging-external-'),
+    );
+    const externalCollaborations = path.join(externalHome, 'collaborations');
+    await rename(path.join(root, 'collaborations'), externalCollaborations);
+    await symlink(externalCollaborations, path.join(root, 'collaborations'));
+
+    for (const file of authoritativeFiles) {
+      await expect(readJsonRecord(file, { root }), file).rejects.toMatchObject({
+        code: 'UNSAFE_PATH',
+      });
+    }
+    await expect(
+      resolveMember(root, collaborationId, 'driver'),
+    ).rejects.toMatchObject({ code: 'UNSAFE_PATH' });
+    await expect(
+      listInbox({ root, collaborationId, pin: reviewer }),
+    ).rejects.toMatchObject({ code: 'UNSAFE_PATH' });
+
+    const externalWaitingInbox = path.join(
+      externalCollaborations,
+      collaborationId,
+      'inbox',
+      waitingMember.member.member.participantId,
+    );
+    await expect(stat(externalWaitingInbox)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    const externalMode = (await stat(externalCollaborations)).mode & 0o777;
+    await expect(
+      sendMessage({
+        root,
+        collaborationId,
+        senderPin: driver,
+        recipientAlias: 'waiting',
+        id: crypto.randomUUID(),
+        subject: 'must reject',
+        body: 'do not create an external inbox',
+      }),
+    ).rejects.toMatchObject({ code: 'UNSAFE_PATH' });
+    await expect(stat(externalWaitingInbox)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    expect((await stat(externalCollaborations)).mode & 0o777).toBe(
+      externalMode,
+    );
   });
 
   test('reports publication-stage failures and preserves retry semantics', async () => {
@@ -326,12 +467,12 @@ describe('collaboration storage primitives', () => {
     await mkdir(directory, { recursive: true });
     await writeFile(path.join(directory, 'a.json'), '{"schemaVersion":1}');
     await writeFile(path.join(directory, '.record.tmp-dead'), 'partial');
-    expect(await enumerateJsonRecords(directory, { maxEntries: 1 })).toEqual([
-      path.join(directory, 'a.json'),
-    ]);
+    expect(
+      await enumerateJsonRecords(directory, { root, maxEntries: 1 }),
+    ).toEqual([path.join(directory, 'a.json')]);
     await writeFile(path.join(directory, 'b.json'), '{"schemaVersion":1}');
     await expect(
-      enumerateJsonRecords(directory, { maxEntries: 1 }),
+      enumerateJsonRecords(directory, { root, maxEntries: 1 }),
     ).rejects.toMatchObject({ code: 'CAPACITY_EXCEEDED' });
   });
 
