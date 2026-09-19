@@ -38,3 +38,7 @@ The handoff corrected Claude task results to `user` records with top-level `orig
 Inventory allowlist mode now uses reviewed keys and values; discovery mode is explicitly unreviewed and local-only. Synthetic privacy canaries pass, and depth truncation is diagnosed. Fable reports its independent doc review fixes and successful docs build; the driver independently reran the canaries. Fable also observed `oat docs generate-index` with CLI 0.2.79 rewriting `.oat/config.json` and restored that unrelated change. Treat index generation as a command requiring a config diff check until that tooling behavior is resolved.
 
 The design incorporates this handoff and awaits Fable's read-back. There is no design HiLL checkpoint in this quick-mode project; the user's full-draft request does not require another section-by-section or holistic approval prompt before plan drafting.
+
+## Revised-design read-back
+
+Fable reviewed `3e16dd9c` at record 1677. Incorporated: an identity-layer inherited-context warning for no-flag child digests/exports; failure-priority for standalone failed Codex item events independently of canonical call outcomes; planning artifacts in the top stack layer; stateless pending Cursor calls; a 128 KiB review budget; a 64 MiB activity-export safety cap with size/omission notices; and runtime-specific path/identity validators. These revisions require peer read-back and projection tests. Default Claude conversation-origin labeling remains a separate follow-up; the activity path still uses native origin evidence now.

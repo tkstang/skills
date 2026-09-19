@@ -1,8 +1,8 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-quick-start
 oat_blockers: []
-oat_last_updated: 2026-09-18
+oat_last_updated: 2026-09-19
 oat_generated: false
 ---
 
@@ -67,7 +67,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 2. Shared typed extraction, classification, correlation, and pure bounded projection preserve source pointers and complete native content before presentation budgets apply.
 3. Claude and Codex calls/results retain exact native names and call IDs, parsed and original arguments, multiple updates, file/shell/MCP/subagent evidence, and honest outcomes. Codex function/custom and web-search coverage gaps are closed in the activity path.
 4. Both consumers accept the flag. Observer review, catch-up, and watch deliver activity with unchanged identity/checkpoint behavior; default digest/export output and sanitization remain unchanged.
-5. Cursor identity comes from frame analysis; observer v2 and exporter are verified independently. V1 activity is delivered only for settled turns, with positional call identity and no result payload claims. Revisions before settlement do not become duplicate invocations; ordinary conversation delivery is unchanged.
+5. Cursor identity comes from frame analysis; observer v2 and exporter are verified independently. V1 stateful activity is delivered only for settled turns; stateless review/export can show pending calls explicitly. Use positional call identity and no result payload claims. Revisions before settlement do not become duplicate invocations; ordinary conversation delivery is unchanged.
 6. Fixtures cover late and unmatched results, repeated calls, malformed/interrupted JSONL, large/multiblock outputs, Unicode offsets, later failures, ask-user attribution, and Cursor lifecycle/revision cases. Counts identify delivered, displayed, or captured scope.
 7. Activity exports clearly identify sensitive content and coverage limitations. Unsupported surfaces remain explicit; no claimed publish safety or hidden reasoning access.
 8. Canonical skill instructions, user guides, generated distributions, version fan-out, and changelog agree with tested behavior. Relevant focused checks and repository build/type/test/validate/smoke gates pass before implementation completion.
@@ -85,6 +85,8 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 - **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge:** consume the established activity contract in a later project.
 - Fuller activity artifacts and additional provider adapters remain future options, not requirements of this item.
+
+- Default Claude conversation-origin labeling is a separate follow-up, as Fable recommended; activity provenance is in this project, but changing every default conversation message is not.
 
 ## Current Repository Evidence
 

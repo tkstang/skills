@@ -9,202 +9,151 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-**Started:** 2026-09-18
-**Last Updated:** 2026-09-18
+No source implementation has started. The plan is awaiting dispatch/gate setup and artifact review. `oat_current_task_id` names the first planned task, not an active implementation.
 
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, fill the Final Summary (for PR/docs) section below with what was actually implemented.
+## Preparatory evidence
+
+- `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
+- `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
+- Stack layers are agreed, but local stack arrangement, PR publication, merge and installation have not occurred.
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase | Status  | Tasks | Completed |
+| ----- | ------- | ----- | --------- |
+| p01   | pending | 4     | 0/4       |
+| p02   | pending | 4     | 0/4       |
+| p03   | pending | 2     | 0/2       |
+| p04   | pending | 2     | 0/2       |
+| p05   | pending | 2     | 0/2       |
+| p06   | pending | 2     | 0/2       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/16 implementation tasks completed.
 
----
+## Phase 1
 
-## Phase 1: {Phase Name}
+**Status:** pending
 
-**Status:** in_progress
-**Started:** 2026-09-18
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t01: Resolve native Codex identity and lineage
 
 **Status:** pending
 **Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
+### Task p01-t02: Propagate exact identity through discovery and consumers
 
 **Status:** pending
 **Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
----
+### Task p01-t03: Reject unsafe saved positions and watcher path changes
 
-## Orchestration Runs
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
+### Task p01-t04: Finalize and validate the identity layer
 
-<!-- orchestration-runs-start -->
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+## Phase 2
 
-<!-- orchestration-runs-end -->
+**Status:** pending
 
----
+### Task p02-t01: Add LF-only detailed source reading and captured fixtures
 
-## Implementation Log
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-Chronological log of implementation progress.
+### Task p02-t02: Extract native Claude and Codex activity
 
-### 2026-09-18
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**Session Start:** {time}
+### Task p02-t03: Correlate calls and classify ownership without guessing
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**What changed (high level):**
+### Task p02-t04: Project bounded activity reports
 
-- {short bullets suitable for PR/docs}
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**Decisions:**
+## Phase 3
 
-- {Decision made and rationale}
+**Status:** pending
 
-**Follow-ups / TODO:**
+### Task p03-t01: Expose activity in observer review and catch-up
 
-- {anything discovered during implementation that should be captured for later}
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**Blockers:**
+### Task p03-t02: Deliver activity-only watch deltas safely
 
-- {Blocker description} - {status: resolved/pending}
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-**Session End:** {time}
+## Phase 4
 
----
+**Status:** pending
 
-### 2026-09-18
+### Task p04-t01: Add opt-in activity to Markdown export
 
-**Session Start:** {time}
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-{Continue log...}
+### Task p04-t02: Protect default sanitization and content boundaries
 
----
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-## Deviations from Plan / Design
+## Phase 5
 
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
+**Status:** pending
 
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+### Task p05-t01: Extract stable Cursor call evidence
 
-## Test Results
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-Track test execution during implementation.
+### Task p05-t02: Integrate Cursor settlement with observer and export
 
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-## Final Summary (for PR/docs)
+## Phase 6
 
-**What shipped:**
+**Status:** pending
 
-- {capability 1}
-- {capability 2}
+### Task p06-t01: Document and build the tested feature
 
-**Behavioral changes (user-facing):**
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-- {bullet}
+### Task p06-t02: Verify acceptance and close tracked work
 
-**Key files / modules:**
+**Status:** pending
+**Commit:** -
+**Verification:** not run; follow plan commands after implementation.
 
-- `{path}` - {purpose}
+## Reviews
 
-**Verification performed:**
+Plan review is pending. Code reviews are tracked in `plan.md`; none has passed.
 
-- {tests/lint/typecheck/build/manual steps}
+## Final Summary
 
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
-
-## References
-
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+Not implemented. No feature acceptance or completion claim.
