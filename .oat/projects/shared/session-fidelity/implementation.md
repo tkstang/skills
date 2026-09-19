@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t02
 oat_generated: false
 ---
 
@@ -22,14 +22,14 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | pending | 5     | 0/5       |
+| p01   | active  | 5     | 1/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 1/19 implementation tasks completed.
+**Total:** 2/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -43,13 +43,13 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ## Phase 1
 
-**Status:** pending
+**Status:** in_progress
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 151cf78cd560d8fab8eff3dba9ff10a3d29306c7; recovery 9099ec441113caebab0a1cf7b8ce92f9f980aec2
+**Verification:** build, build:check, 118 runtime tests, type-check, four-owner skill-version validation passed. Synthetic identity fixtures; required owner version/changelog/generated fan-out included.
 
 ### Task p01-t02: Propagate exact identity through discovery and consumers
 
@@ -318,10 +318,7 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
   "reasoning_mode_selector": null,
   "service_tier_selector": null,
   "selection_source": "native-default",
-  "candidates_considered": [
-    "gpt-5.6-sol/medium",
-    "gpt-5.6-sol/high"
-  ],
+  "candidates_considered": ["gpt-5.6-sol/medium", "gpt-5.6-sol/high"],
   "selection_reason": "native-catalog",
   "selected_route": "native",
   "deadline_seconds": 7200,
@@ -354,3 +351,13 @@ Dispatch: scope=p01 action=implementation role=implementer producer=unknown prov
 Acceptance recorded before source ownership transfers. Per-task tracking handshakes keep root bookkeeping separate from task commits. No fallback or optional child requested.
 
 Plan-required root Git arrangement at gpt-6-astra/high; task 4e6c63fa and tracking 1d650f13 verified. Independent reviewer sf-p00-review-01 passed at 1d650f130d7b56cb790fbed15733afd625990c20 with zero findings; reconnaissance not attempted, no Review Orchestration section. Artifact: reviews/p00-review-2026-09-19T014930Z.md. Fix loops: 0. Next p01-t01.
+
+#### Recovery Event p01-t01-recovery-01
+
+- Phase/task: p01 / p01-t01; original request sf-p01-implement-01.
+- Original immutable commit: 151cf78cd560d8fab8eff3dba9ff10a3d29306c7. Recovery commit: 9099ec441113caebab0a1cf7b8ce92f9f980aec2.
+- Defect: first-header selection could skip malformed session_meta; discovered in between-task transition review.
+- Disposition: recovered; phase-standing authorization; attempt 1/10; exact target oat-phase-implementer-gpt-5-6-sol-high unchanged.
+- Bounded correction: reject malformed first payload/invalid present id before later headers; retain documented legacy no-native-id shape. Runtime source/tests plus generated closure only.
+- Verification: committed-HEAD runtime suite 118/118, build/build:check/type-check passed. Root verified immutable range, clean tree, committed matching completed marker and native role continuity before clearing pending_attempt. used_attempts remains 1.
+- Phase execution base: 455daba2807b1539da566ce863b613720ab79d82 (acceptance handshake). No t02 work before bookkeeping.
