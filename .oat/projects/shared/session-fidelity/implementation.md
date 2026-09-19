@@ -119,9 +119,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p03-t01: Expose activity in observer review and catch-up
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 820465752eb5de4b7527fa8c96901f7ef090ecb2; recovery 4d5b1bbb0d25c95708091caf6f7083f5456301e3
+**Verification:** Claude/Codex review and direct catch-up expose independently bounded activity from one detailed transcript read while preserving flag-off output, raw delivery ranges and state behavior. Bounded recovery attempt 1/10 closes two transition-audit findings by rejecting Cursor review/catch-up and both watch modes before mutation or loop startup until their planned tasks add support. Root passed 157 focused observer tests, type checking, build freshness, repository validation and three-owner skill-version validation. Fresh closure audit found 0 Critical/Important findings and confirmed no p03-t02 or p05 scope spill.
 
 ### Task p03-t02: Deliver activity-only watch deltas safely
 
@@ -464,7 +464,7 @@ The original accepted phase handle completed all five planned tasks at `d310dac8
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": [],
+  "continuation_events": ["p03-t01-recovery-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -976,3 +976,18 @@ Dispatch: scope=p03 action=implementation role=implementer producer=unknown prov
 #### Continuation p03-t01-recovery-resume-01
 
 Root transition audit of immutable p03-t01 commit `820465752eb5de4b7527fa8c96901f7ef090ecb2` found two Important interim flag-honesty gaps. The original `sf-p03-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p03-t01-recovery-01` may reserve cumulative p03 attempt 1/10 only after this continuation is committed. Scope is limited to explicitly rejecting `--include-activity` for Cursor review/catch-up until p05 and for watch/catch-up-then-watch until p03-t02, with clear CLI regressions. p03-t02 implementation remains unauthorized until the recovery is settled.
+
+#### Recovery Event p03-t01-recovery-01
+
+- Phase/task: p03 / p03-t01
+- Original request: `sf-p03-implement-01`
+- Original commit: `820465752eb5de4b7527fa8c96901f7ef090ecb2`
+- Defect class: composition
+- Discovered by: root transition audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Recovery commit: `4d5b1bbb0d25c95708091caf6f7083f5456301e3`
+- Verification: root passed 157 focused observer tests, type checking, generated freshness, repository validation and three-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and confirmed both rejections occur before state mutation or loop startup.
+- Reason: unsupported Cursor and watch activity modes now fail clearly while preserving Claude/Codex review and direct catch-up behavior; p03-t02 and p05 retain ownership of the deferred capabilities.

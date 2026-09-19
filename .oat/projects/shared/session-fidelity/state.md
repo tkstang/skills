@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t01-recovery-01
-oat_last_commit: 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec
+oat_current_task: p03-t02
+oat_last_commit: 4d5b1bbb0d25c95708091caf6f7083f5456301e3
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -29,16 +29,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p03:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: p03-t01-recovery-01
-        original_request_id: sf-p03-implement-01
-        original_task_id: p03-t01
-        original_commit: 820465752eb5de4b7527fa8c96901f7ef090ecb2
-        discovered_by: root transition audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 1da65e0c74d5a4f5711c0a0b03c0abd3f33ac563
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -108,19 +99,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T15:22:00+00:00"
+oat_project_state_updated: "2026-09-19T15:25:33+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Observer integration recovery in progress
+**Status:** Observer watch integration in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 and p02 are passed. p03-t01 produced `82046575`, but root transition audit found two Important flag-honesty gaps: Cursor review/catch-up and both watch modes can silently omit requested activity. A bounded p03 recovery is authorized to reject those unavailable combinations explicitly before p03-t02 adds watch support and p05 adds Cursor support.
+p01 and p02 are passed. p03-t01 plus bounded recovery `4d5b1bbb` now expose opt-in activity for Claude/Codex review and direct catch-up while explicitly rejecting unavailable Cursor and watch combinations before mutation. Recovery usage is 1/10 with no pending marker. The same phase handle continues with p03-t02 watch delivery.
 
 ## Artifacts
 
@@ -128,7 +119,7 @@ p01 and p02 are passed. p03-t01 produced `82046575`, but root transition audit f
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (11/19 tasks completed; p01 and p02 passed, p03 in progress)
+- **Implementation:** `implementation.md` (12/19 tasks completed; p01 and p02 passed, p03 in progress)
 
 ## Progress
 
@@ -151,4 +142,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p03-t01 recovery attempt 1/10, then continue the same phase handle with p03-t02.
+Implement p03-t02 activity-only watch delivery without cursor drift or collaboration wake authority.
