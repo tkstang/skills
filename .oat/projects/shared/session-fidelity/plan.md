@@ -310,21 +310,21 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
 
-| Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -    | -        | -             | -          | -           |
-| p02    | code     | pending | -    | -        | -             | -          | -           |
-| final  | code     | pending | -    | -        | -             | -          | -           |
-| spec   | artifact | pending | -    | -        | -             | -          | -           |
-| design | artifact | pending | -    | -        | -             | -          | -           |
-| p03    | code     | pending | -    | -        | -             | -          | -           |
-| p04    | code     | pending | -    | -        | -             | -          | -           |
-| p05    | code     | pending | -    | -        | -             | -          | -           |
-| p06    | code     | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
-| p00    | code     | pending | -    | -        | -             | -          | -           |
+| Scope  | Type     | Status  | Date       | Artifact | Reviewed Head | Invocation | Gate Target |
+| ------ | -------- | ------- | ---------- | -------- | ------------- | ---------- | ----------- |
+| p01    | code     | pending | -          | -        | -             | -          | -           |
+| p02    | code     | pending | -          | -        | -             | -          | -           |
+| final  | code     | pending | -          | -        | -             | -          | -           |
+| spec   | artifact | pending | -          | -        | -             | -          | -           |
+| design | artifact | pending | -          | -        | -             | -          | -           |
+| p03    | code     | pending | -          | -        | -             | -          | -           |
+| p04    | code     | pending | -          | -        | -             | -          | -           |
+| p05    | code     | pending | -          | -        | -             | -          | -           |
+| p06    | code     | pending | -          | -        | -             | -          | -           |
+| plan   | artifact | passed  | 2026-09-19 | -        | -             | -          | -           |
+| p00    | code     | pending | -          | -        | -             | -          | -           |
 
-Before readiness: incorporate Fable's read-back; run the configured structured plan review and quick-start gate with the complete discovery/design/plan bundle. Pending gates are not passed by the documentation build or peer silence.
+Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The configured quick-start lifecycle gate remains pending; readiness stays disabled until its qualified handoff is received.
 
 ## Implementation Complete
 
