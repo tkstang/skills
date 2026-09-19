@@ -566,3 +566,62 @@ Fresh artifact `reviews/p01-review-2026-09-19T122907Z-round2.md` reviewed `455da
 The nonblocking Medium finding is the already deferred watcher diagnostic: schema-v1 polling maps every `stat` failure to missing-path/reset guidance instead of reserving that guidance for `ENOENT`/`ENOTDIR`. The watcher still exits safely and preserves saved state, so this does not block the identity layer. Carry the diagnostic classification and injected non-missing-error regression as follow-up scope; do not expand p02 with it.
 
 Phase p01 passes. Activity implementation remains untouched. Root must now establish and record the reviewed identity tip as `ACTIVITY_BASE` before p02 source edits.
+
+#### Dispatch sf-p02-implement-01
+
+```json
+{
+  "request_id": "sf-p02-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p02",
+  "objective": "Implement detailed transcript reads and the shared source-attributed activity pipeline across p02-t01 through p02-t05",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementer",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "phase-source-and-tests",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/medium", "gpt-5.6-sol/high"],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 7200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p02",
+    "taskIds": ["p02-t01", "p02-t02", "p02-t03", "p02-t04", "p02-t05"],
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "activityBase": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "dispatchBase": "73bc2c2bae34f7a0834e15ee89ed2be123b91e84",
+    "phaseBase": null,
+    "handle": "/root/p02_implement",
+    "finalHead": null
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending",
+  "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Captured transcript privacy, exact native evidence and omission accounting make silent errors expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
