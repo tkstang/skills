@@ -330,7 +330,64 @@ Root transition audit of immutable p06-t01 commit `41887b160994707c33ffaddc17c7f
 
 The complete local gate passed at the accepted p06 source head: type checking, generated-build freshness, 2,231 passing tests with one expected skip, repository validation, mocked end-to-end smoke, four-owner skill-version validation against the activity base, changed-file formatting and linting, and diff checks. The documentation production build generated 56 pages; its known `.oat/config.json` rewrite was restored byte-for-byte. PJM adoption is declared and healthy, all three registered stack layers report no rebase requirement, and captured activity fixtures passed the bounded privacy inventory. No live provider call, external installation, publication, merge, or release was performed.
 
-## Reviews (historical pre-implementation snapshot)
+#### Dispatch sf-p06-review-01
+
+```json
+{
+  "request_id": "sf-p06-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p06-review-round-01",
+  "objective": "Review final documentation, generated packaging and acceptance/backlog closure for accurate boundaries and complete session-fidelity delivery",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p06",
+    "taskIds": ["p06-t01", "p06-t02"],
+    "base": "0bbaee8281ed4eeda8539b1670209529b09caf4e",
+    "reviewedHead": "0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900",
+    "artifact": "reviews/p06-review-2026-09-19T175805Z.md",
+    "handle": "/root/p06_review"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Final documentation, generated packaging, backlog closure and acceptance boundaries make subtle review omissions expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p06-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+## Reviews
 
 Plan review and phases p00 through p05 passed. p06 implementation is complete and awaits its fresh root-owned phase review.
 
