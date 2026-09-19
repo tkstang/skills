@@ -40,11 +40,13 @@ These requirements combine the backlog, existing repository decisions, and the o
 4. Correlate before selecting the delivered range so a late result can refer to an earlier call. Repeated commands and multiple result updates remain distinct; an absent result never implies success.
 5. Keep a separate optional activity envelope and explicit coverage states: `available`, `not-recorded`, `not-found`, `not-read`, `unsupported`, `malformed`, and `truncated`. Distinguish content availability from lifecycle completion.
 6. Preserve exporter-owned sanitization for default conversation exports. Label opt-in activity exports as activity/debug output; source content is data, and instruction bodies are not implicitly enabled.
-7. Preserve exact-pin, review/mark-read, catch-up, watch, Cursor delivery/revision, and collaboration ownership boundaries. Watch event logs remain metadata-only.
+7. Preserve exact-pin, review/mark-read, catch-up, watch, Cursor delivery/settlement, and collaboration ownership boundaries. Watch event logs remain metadata-only.
 8. Follow declared distributions and canonical source ownership. Historical module paths and exporter naming in the research must be translated to the current repository.
 
 9. The user explicitly added the Codex locator fix to this project (human-origin Claude record 309), then chose identity-rich source-local coverage and sanitized real-session fixtures and requested observed-schema documentation (record 457). Source reads and schema evidence gathering may proceed now; Fable coordinates the evidence lane.
-10. Native parent/child identity must propagate through discovery/cache/pins/state. Ambiguous or changed source bindings fail closed; unsafe legacy offsets require explicit scoped recovery instead of silent migration.
+10. Native parent/child identity must propagate through discovery/cache/pins/state. Ambiguous or changed source bindings fail closed; unsafe legacy offsets require explicit scoped recovery instead of silent migration. Valid legacy stored paths/native IDs retain their offsets without a new marker.
+
+11. The user selected a three-layer `gh stack`: schema documentation (`c970c876`), identity/cursor fixes, then activity support. The documentation layer is already committed locally; branches/PRs have not been arranged or published.
 
 ## Constraints
 
@@ -65,7 +67,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 2. Shared typed extraction, classification, correlation, and pure bounded projection preserve source pointers and complete native content before presentation budgets apply.
 3. Claude and Codex calls/results retain exact native names and call IDs, parsed and original arguments, multiple updates, file/shell/MCP/subagent evidence, and honest outcomes. Codex function/custom and web-search coverage gaps are closed in the activity path.
 4. Both consumers accept the flag. Observer review, catch-up, and watch deliver activity with unchanged identity/checkpoint behavior; default digest/export output and sanitization remain unchanged.
-5. Cursor identity comes from frame analysis; observer v2 and exporter are verified independently. Missing result payloads are explicitly `not-recorded`, and frame revisions do not become duplicate invocations.
+5. Cursor identity comes from frame analysis; observer v2 and exporter are verified independently. V1 activity is delivered only for settled turns, with positional call identity and no result payload claims. Revisions before settlement do not become duplicate invocations; ordinary conversation delivery is unchanged.
 6. Fixtures cover late and unmatched results, repeated calls, malformed/interrupted JSONL, large/multiblock outputs, Unicode offsets, later failures, ask-user attribution, and Cursor lifecycle/revision cases. Counts identify delivered, displayed, or captured scope.
 7. Activity exports clearly identify sensitive content and coverage limitations. Unsupported surfaces remain explicit; no claimed publish safety or hidden reasoning access.
 8. Canonical skill instructions, user guides, generated distributions, version fan-out, and changelog agree with tested behavior. Relevant focused checks and repository build/type/test/validate/smoke gates pass before implementation completion.
@@ -95,10 +97,10 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Open Questions
 
-- **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; holistic validation is pending.
+- **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; the completed draft proceeds to planning without a design HiLL gate; revised peer read-back is pending.
 - **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
 - **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
-- **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable is gathering evidence in project references.
+- **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable committed the evidence snapshot and maintained schema pages in `c970c876`; the project references now point to those durable locations.
 
 ## Assumptions
 
@@ -115,7 +117,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Next Steps
 
-Discovery is captured and lightweight design is selected. Review the whole design draft, then generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
+Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. `plan.md` and `implementation.md` remain unready scaffold templates until that work is complete.
 
 ## References
 

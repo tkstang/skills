@@ -14,7 +14,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: design
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -81,25 +81,25 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-18T23:16:39.974950+00:00'
+oat_project_state_updated: '2026-09-18T23:59:25.119981+00:00'
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Lightweight design in progress
+**Status:** Lightweight design complete; planning next
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
 ## Current Phase
 
-Full lightweight design drafted at the user’s request; Fable feedback incorporated and holistic validation pending.
+Full lightweight design and self-review complete; documentation handoff incorporated. Revised peer read-back requested. No design HiLL gate is configured.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (in_progress)
 - **Spec:** N/A (quick mode)
-- **Design:** `design.md` (in_progress; full draft awaiting holistic validation)
+- **Design:** `design.md` (complete; revised peer read-back requested)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -111,7 +111,10 @@ Full lightweight design drafted at the user’s request; Fable feedback incorpor
 - ✓ User selected lightweight design
 - ✓ Full draft requested by user; Fable overview feedback incorporated
 - ✓ Observed user scope choices incorporated: locator fix, captured fixtures, schema docs
-- ⧗ Awaiting Fable full-draft review and holistic user validation
+- ✓ Completed Fable review received; design revised using observed schema evidence
+- ✓ Schema documentation committed by Fable as `c970c876`; editing turn released
+- ✓ User selected docs → identity → activity stack using `gh stack`
+- ⧗ Revised-design peer read-back requested; no additional design approval gate
 
 ## Blockers
 
@@ -119,4 +122,4 @@ None
 
 ## Next Milestone
 
-Validate lightweight design, complete discovery, and generate a quick implementation plan
+Complete discovery and generate the quick implementation plan from the revised design
