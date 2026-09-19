@@ -2153,6 +2153,7 @@ function renderActivityMarkdown(report) {
     "",
     `- Schema: ${report.activitySchemaVersion}`,
     `- Mode: ${report.mode}`,
+    `- Budgeted format: ${report.renderedFormat}`,
     `- Runtime: ${report.source.runtime}`,
     `- Native session: ${markdownData(report.source.nativeSessionId)}`,
     `- Source: ${markdownData(report.source.transcriptPath)}`,
@@ -2424,7 +2425,7 @@ function countEvents(scope, events) {
 function finalizeRenderedBytes(report) {
   let finalized = report;
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    const rendered = finalized.mode === "export" ? renderActivityMarkdown(finalized) : renderActivityReport(finalized);
+    const rendered = finalized.renderedFormat === "markdown" ? renderActivityMarkdown(finalized) : renderActivityReport(finalized);
     const renderedBytes = Buffer.byteLength(rendered, "utf8");
     if (renderedBytes === finalized.renderedBytes) return finalized;
     finalized = { ...finalized, renderedBytes };
@@ -2487,6 +2488,7 @@ function buildReport(activity, options, limits, groups, retainedKeys, metadata, 
   const report = {
     activitySchemaVersion: activity.activitySchemaVersion,
     mode: options.mode,
+    renderedFormat: options.renderFormat,
     source: activity.source,
     sourceSnapshot: activity.sourceSnapshot,
     deliveryRange: options.deliveryRange,
@@ -3174,6 +3176,7 @@ function unavailableActivityReport(source, sourceBytes, capturedAt, totalRecords
     },
     {
       mode: "export",
+      renderFormat: "markdown",
       deliveryRange: {
         indexBase: "zero-based-decoded-record-index",
         start: 0,
@@ -3206,6 +3209,7 @@ async function exportSession(opts, runtime, branch, branchFromGit, session, mult
         correlateActivity(extractActivity({ source, read: capturedRead })),
         {
           mode: "export",
+          renderFormat: "markdown",
           deliveryRange: {
             indexBase: "zero-based-decoded-record-index",
             start: 0,

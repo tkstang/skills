@@ -108,6 +108,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     '',
     `- Schema: ${report.activitySchemaVersion}`,
     `- Mode: ${report.mode}`,
+    `- Budgeted format: ${report.renderedFormat}`,
     `- Runtime: ${report.source.runtime}`,
     `- Native session: ${markdownData(report.source.nativeSessionId)}`,
     `- Source: ${markdownData(report.source.transcriptPath)}`,

@@ -2222,6 +2222,7 @@ describe('optional activity projection', () => {
       includeToolCalls: true,
       includeToolResults: true,
       includeActivity: true,
+      activityRenderFormat: 'markdown',
       maxTurns: 1,
       maxBytes: 80,
     });
@@ -2231,6 +2232,7 @@ describe('optional activity projection', () => {
     expect(digest.activity).toMatchObject({
       activitySchemaVersion: 1,
       mode: 'review',
+      renderedFormat: 'markdown',
       deliveryRange: { start: 0, end: 11 },
       counts: {
         capturedSource: { countedInvocations: 3 },
@@ -2246,6 +2248,70 @@ describe('optional activity projection', () => {
     expect(markdown).toContain('## Activity');
     expect(markdown).not.toContain('[Bash]');
     expect(markdown).not.toContain('[Read → result]');
+  });
+
+  test('budgets final review activity Markdown after hostile punctuation is escaped', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'observer-review-activity-budget-'),
+    );
+    const transcriptPath = join(directory, 'hostile.jsonl');
+    try {
+      const sessionId = 'hostile-review-activity';
+      const hostilePayload =
+        '[link](javascript:synthetic) **bold** ~~strike~~ __underline__'.repeat(
+          36,
+        );
+      const records = [
+        {
+          sessionId,
+          message: { role: 'user', content: 'Review the recorded activity.' },
+        },
+        ...Array.from({ length: 60 }, (_, index) => ({
+          sessionId,
+          message: {
+            role: 'assistant',
+            content: [
+              {
+                type: 'tool_use',
+                id: `hostile-review-${index}`,
+                name: `hostile-review-${index}`,
+                input: { payload: hostilePayload },
+              },
+            ],
+          },
+        })),
+      ];
+      await writeFile(
+        transcriptPath,
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+      );
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        mode: 'review',
+        includeActivity: true,
+        activityRenderFormat: 'markdown',
+      });
+      const rendered = renderMarkdown(digest);
+      const activityStart = rendered.indexOf('## Activity');
+      const activityText = rendered.slice(activityStart);
+
+      expect(activityStart).toBeGreaterThanOrEqual(0);
+      expect(digest.activity?.renderedFormat).toBe('markdown');
+      expect(Buffer.byteLength(activityText, 'utf8')).toBe(
+        digest.activity?.renderedBytes,
+      );
+      expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
+        digest.activity!.limits.maxBytes,
+      );
+      expect(digest.activity!.omitted.byteLimitGroups).toBeGreaterThan(0);
+      expect(digest.activity!.omitted.calls).toBe(
+        digest.activity!.counts.deliveredRange.calls -
+          digest.activity!.counts.displayed.calls,
+      );
+      expect(activityText).not.toContain('[link](javascript:synthetic)');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test('uses the raw delivered range for catch-up activity', async () => {

@@ -1113,6 +1113,7 @@ export async function buildDigest(
     includeToolResults = false,
     includeCommandMessages = false,
     includeActivity = false,
+    activityRenderFormat = 'compact-json',
     maxTurns,
     maxBytes,
     fallbacks = [],
@@ -1336,6 +1337,7 @@ export async function buildDigest(
         correlateActivity(extractActivity({ source, read: capturedRead })),
         {
           mode: activityMode,
+          renderFormat: activityRenderFormat,
           deliveryRange: {
             indexBase: 'zero-based-decoded-record-index',
             start: rawFromIndex,
@@ -1380,6 +1382,7 @@ export async function buildDigest(
         },
         {
           mode: activityMode,
+          renderFormat: activityRenderFormat,
           deliveryRange: {
             indexBase: 'zero-based-decoded-record-index',
             start: rawFromIndex,

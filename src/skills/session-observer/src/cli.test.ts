@@ -564,6 +564,7 @@ describe('CLI subcommand dispatch', () => {
         activity: {
           activitySchemaVersion: 1,
           mode: 'review',
+          renderedFormat: 'compact-json',
           deliveryRange: { start: 0 },
         },
       });

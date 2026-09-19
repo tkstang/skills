@@ -62,7 +62,7 @@ async function reportFromClaude(
       nativeSessionId: 'fixture-claude-session',
       transcriptPath,
     },
-    { mode, deliveryRange: range },
+    { mode, renderFormat: 'compact-json', deliveryRange: range },
   );
 }
 
@@ -71,6 +71,7 @@ describe('captured activity pipeline', () => {
     const sourceContent = await readFile(CODEX_FIXTURE, 'utf8');
     const report = await readActivityReport(CODEX_SOURCE, {
       mode: 'review',
+      renderFormat: 'compact-json',
       deliveryRange: deliveryRange(0, 14),
     });
     const calls = report.events.filter(
@@ -155,6 +156,7 @@ describe('captured activity pipeline', () => {
   it('projects a late captured result with bounded earlier call context', async () => {
     const report = await readActivityReport(CODEX_SOURCE, {
       mode: 'watch',
+      renderFormat: 'compact-json',
       deliveryRange: deliveryRange(3, 4),
     });
 
@@ -192,6 +194,7 @@ describe('captured activity pipeline', () => {
   it('keeps captured failed item evidence standalone under the watch budget', async () => {
     const report = await readActivityReport(CODEX_SOURCE, {
       mode: 'watch',
+      renderFormat: 'compact-json',
       deliveryRange: deliveryRange(9, 11),
     });
     const items = report.events.filter(

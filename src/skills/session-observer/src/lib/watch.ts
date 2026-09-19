@@ -1133,7 +1133,11 @@ async function establishCursorBaseline(
 ): Promise<WatchTarget> {
   const target = await cursorBaselineTarget(args, targets, deps, eventState);
   const result = await observeCatchUp(
-    { ...args, runtime: 'cursor' },
+    {
+      ...args,
+      runtime: 'cursor',
+      activityRenderFormat: args.json ? 'compact-json' : 'markdown',
+    },
     cursorObserveDeps(deps, eventState.pid),
   );
   if (!result.ok) {
@@ -1208,7 +1212,11 @@ async function establishBaseline(
   if (runtime === 'cursor') {
     return establishCursorBaseline(args, targets, deps, eventState);
   }
-  const result = await observeCatchUp({ ...args, runtime });
+  const result = await observeCatchUp({
+    ...args,
+    runtime,
+    activityRenderFormat: args.json ? 'compact-json' : 'markdown',
+  });
   if (!result.ok) {
     if (result.kind === 'noMatch') return null;
     throw new Error(result.message);
@@ -1484,6 +1492,7 @@ async function emitPending(
             ...args,
             runtime: 'cursor',
             session: `cursor:${entry.sessionId}`,
+            activityRenderFormat: args.json ? 'compact-json' : 'markdown',
             suppressWatchedWarningPid: eventState.pid,
           },
           cursorObserveDeps(deps, eventState.pid),
@@ -1492,6 +1501,7 @@ async function emitPending(
           ...args,
           runtime: entry.runtime,
           session: `${entry.runtime}:${entry.sessionId}`,
+          activityRenderFormat: args.json ? 'compact-json' : 'markdown',
           suppressWatchedWarningPid: eventState.pid,
         });
   if (!result.ok) {

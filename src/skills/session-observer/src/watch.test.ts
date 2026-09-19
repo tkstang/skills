@@ -2661,6 +2661,7 @@ describe('runWatchLoop', () => {
           entries: [],
           activity: {
             mode: 'catch-up',
+            renderedFormat: 'compact-json',
             counts: {
               deliveredRange: { countedInvocations: 100 },
             },
@@ -2688,6 +2689,102 @@ describe('runWatchLoop', () => {
       expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
         2,
       );
+    });
+  });
+
+  test('budgets final watch activity Markdown after hostile punctuation is escaped', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-activity-markdown-budget';
+      const sessionId = 'watch-activity-markdown-budget';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'hostile activity baseline' },
+      ]);
+      const stdout: string[] = [];
+      const hostilePayload =
+        '[link](javascript:synthetic) **bold** ~~strike~~ __underline__'.repeat(
+          36,
+        );
+      let nowMs = Date.UTC(2026, 8, 19, 12, 10, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          includeActivity: true,
+          quietEmpty: true,
+          json: false,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(
+                join(home, '.local', 'state', 'session-observer', 'watch.json'),
+              );
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  Array.from({ length: 100 }, (_, index) => ({
+                    type: 'tool_use',
+                    id: `hostile-watch-${index}`,
+                    name: `hostile-watch-${index}`,
+                    input: { payload: hostilePayload },
+                  })),
+                );
+              }
+            }
+          },
+        },
+      );
+
+      const output = stdout.join('');
+      const activityStart = output.indexOf('## Activity');
+      const stoppedStart = output.indexOf(
+        '[session-observer] watch stopped',
+        activityStart,
+      );
+      expect(result.eventCount).toBe(1);
+      expect(activityStart).toBeGreaterThanOrEqual(0);
+      expect(stoppedStart).toBeGreaterThan(activityStart);
+      const emittedActivity = output.slice(activityStart, stoppedStart);
+      expect(emittedActivity.endsWith('\n\n')).toBe(true);
+      const activityText = emittedActivity.slice(0, -1);
+      const byteAccounting = /- Activity bytes: (\d+)\/(\d+);/.exec(
+        activityText,
+      );
+      const deliveredCalls = /- delivered-range: calls (\d+);/.exec(
+        activityText,
+      );
+      const displayedCalls = /- displayed: calls (\d+);/.exec(activityText);
+      const omittedCalls = /- Omitted evidence: calls (\d+);/.exec(
+        activityText,
+      );
+
+      expect(activityText).toContain('- Budgeted format: markdown');
+      expect(byteAccounting).not.toBeNull();
+      expect(Buffer.byteLength(activityText, 'utf8')).toBe(
+        Number(byteAccounting![1]),
+      );
+      expect(Number(byteAccounting![1])).toBeLessThanOrEqual(
+        Number(byteAccounting![2]),
+      );
+      expect(activityText).toMatch(/- Omitted groups: .*byte limit [1-9]\d*/);
+      expect(Number(omittedCalls![1])).toBe(
+        Number(deliveredCalls![1]) - Number(displayedCalls![1]),
+      );
+      expect(activityText).not.toContain('[link](javascript:synthetic)');
     });
   });
 

@@ -187,6 +187,7 @@ export interface CorrelatedActivity extends Omit<ExtractedActivity, 'events'> {
 }
 
 export type ActivityProjectionMode = 'watch' | 'catch-up' | 'review' | 'export';
+export type ActivityRenderFormat = 'compact-json' | 'markdown';
 
 export interface ActivityDeliveryRange {
   indexBase: 'zero-based-decoded-record-index';
@@ -203,6 +204,7 @@ export interface ActivityProjectionLimits {
 
 export interface ProjectActivityOptions {
   mode: ActivityProjectionMode;
+  renderFormat: ActivityRenderFormat;
   deliveryRange: ActivityDeliveryRange;
 }
 
@@ -270,6 +272,7 @@ export interface ActivityOmissionCounts {
 export interface ActivityReport {
   activitySchemaVersion: typeof ACTIVITY_SCHEMA_VERSION;
   mode: ActivityProjectionMode;
+  renderedFormat: ActivityRenderFormat;
   source: ActivitySource;
   sourceSnapshot: TranscriptSourceSnapshot;
   deliveryRange: ActivityDeliveryRange;

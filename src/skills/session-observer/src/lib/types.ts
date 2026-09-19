@@ -1,4 +1,7 @@
-import type { ActivityReport } from '../../../../shared/transcript/activity/types.js';
+import type {
+  ActivityRenderFormat,
+  ActivityReport,
+} from '../../../../shared/transcript/activity/types.js';
 import type {
   CursorLifecycleState,
   CursorTranscriptAnalysis,
@@ -455,6 +458,7 @@ export interface BuildDigestOptions {
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
   includeActivity?: boolean;
+  activityRenderFormat?: ActivityRenderFormat;
   capturedRead?: DetailedTranscriptRead;
   maxTurns?: number;
   maxBytes?: number;
@@ -738,6 +742,7 @@ export interface WatchLoopArgs {
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
   includeActivity?: boolean;
+  activityRenderFormat?: ActivityRenderFormat;
   maxTurns?: number;
   maxBytes?: number;
   debounceSec?: number;

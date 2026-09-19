@@ -2128,6 +2128,7 @@ function renderActivityMarkdown(report) {
     "",
     `- Schema: ${report.activitySchemaVersion}`,
     `- Mode: ${report.mode}`,
+    `- Budgeted format: ${report.renderedFormat}`,
     `- Runtime: ${report.source.runtime}`,
     `- Native session: ${markdownData(report.source.nativeSessionId)}`,
     `- Source: ${markdownData(report.source.transcriptPath)}`,
@@ -2399,7 +2400,7 @@ function countEvents(scope, events) {
 function finalizeRenderedBytes(report) {
   let finalized = report;
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    const rendered = finalized.mode === "export" ? renderActivityMarkdown(finalized) : renderActivityReport(finalized);
+    const rendered = finalized.renderedFormat === "markdown" ? renderActivityMarkdown(finalized) : renderActivityReport(finalized);
     const renderedBytes = Buffer.byteLength(rendered, "utf8");
     if (renderedBytes === finalized.renderedBytes) return finalized;
     finalized = { ...finalized, renderedBytes };
@@ -2462,6 +2463,7 @@ function buildReport(activity, options, limits, groups, retainedKeys, metadata, 
   const report = {
     activitySchemaVersion: activity.activitySchemaVersion,
     mode: options.mode,
+    renderedFormat: options.renderFormat,
     source: activity.source,
     sourceSnapshot: activity.sourceSnapshot,
     deliveryRange: options.deliveryRange,
@@ -3470,6 +3472,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeToolResults = false,
     includeCommandMessages = false,
     includeActivity = false,
+    activityRenderFormat = "compact-json",
     maxTurns,
     maxBytes,
     fallbacks = []
@@ -3632,6 +3635,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
         correlateActivity(extractActivity({ source, read: capturedRead })),
         {
           mode: activityMode,
+          renderFormat: activityRenderFormat,
           deliveryRange: {
             indexBase: "zero-based-decoded-record-index",
             start: rawFromIndex,
@@ -3676,6 +3680,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
         },
         {
           mode: activityMode,
+          renderFormat: activityRenderFormat,
           deliveryRange: {
             indexBase: "zero-based-decoded-record-index",
             start: rawFromIndex,

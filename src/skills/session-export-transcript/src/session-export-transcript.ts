@@ -764,6 +764,7 @@ function unavailableActivityReport(
     },
     {
       mode: 'export',
+      renderFormat: 'markdown',
       deliveryRange: {
         indexBase: 'zero-based-decoded-record-index',
         start: 0,
@@ -815,6 +816,7 @@ async function exportSession(
         correlateActivity(extractActivity({ source, read: capturedRead })),
         {
           mode: 'export',
+          renderFormat: 'markdown',
           deliveryRange: {
             indexBase: 'zero-based-decoded-record-index',
             start: 0,

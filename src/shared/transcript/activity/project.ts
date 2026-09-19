@@ -380,7 +380,7 @@ function finalizeRenderedBytes(report: ActivityReport): ActivityReport {
   let finalized = report;
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const rendered =
-      finalized.mode === 'export'
+      finalized.renderedFormat === 'markdown'
         ? renderActivityMarkdown(finalized)
         : renderActivityReport(finalized);
     const renderedBytes = Buffer.byteLength(rendered, 'utf8');
@@ -474,6 +474,7 @@ function buildReport(
   const report: ActivityReport = {
     activitySchemaVersion: activity.activitySchemaVersion,
     mode: options.mode,
+    renderedFormat: options.renderFormat,
     source: activity.source,
     sourceSnapshot: activity.sourceSnapshot,
     deliveryRange: options.deliveryRange,

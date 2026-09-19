@@ -1015,6 +1015,7 @@ async function runReview(args: CliArgs): Promise<void> {
               includeToolResults,
               includeCommandMessages,
               includeActivity,
+              activityRenderFormat: json ? 'compact-json' : 'markdown',
               maxTurns,
               maxBytes,
               sessionId: pinned.sessionId,
@@ -1147,6 +1148,7 @@ async function runReview(args: CliArgs): Promise<void> {
             includeToolResults,
             includeCommandMessages,
             includeActivity,
+            activityRenderFormat: json ? 'compact-json' : 'markdown',
             maxTurns,
             maxBytes,
             sessionId: winner.sessionId,
@@ -1190,7 +1192,10 @@ async function runCatchUp(args: CliArgs): Promise<void> {
     if (args.json) return emitJson(recovery, 4);
     return emit(recovery.message, 4);
   }
-  const result = (await observeCatchUp(args)) as ObserveOutcome;
+  const result = (await observeCatchUp({
+    ...args,
+    activityRenderFormat: args.json ? 'compact-json' : 'markdown',
+  })) as ObserveOutcome;
   if (!result.ok) return emitObserveFailure(args, result);
 
   if (result.runtime === 'cursor') return emitCursorResult(args, result, true);

@@ -158,6 +158,7 @@ describe('activity projection budgets', () => {
     ];
     const options = {
       mode: 'review' as const,
+      renderFormat: 'compact-json' as const,
       deliveryRange: wholeRange(events),
     };
 
@@ -208,7 +209,11 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivityWithLimits(
       activity(events),
-      { mode: 'review', deliveryRange: wholeRange(events) },
+      {
+        mode: 'review',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
       { ...GENEROUS_LIMITS, maxInvocations: 2 },
     );
 
@@ -244,6 +249,7 @@ describe('activity projection budgets', () => {
     );
     const report = projectActivity(activity(events), {
       mode: 'watch',
+      renderFormat: 'compact-json',
       deliveryRange: wholeRange(events),
     });
 
@@ -269,7 +275,11 @@ describe('activity projection budgets', () => {
     );
     const report = projectActivityWithLimits(
       activity(events),
-      { mode: 'review', deliveryRange: wholeRange(events) },
+      {
+        mode: 'review',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
       { ...ACTIVITY_PROJECTION_LIMITS.review, maxBytes: 2 * 1024 * 1024 },
     );
 
@@ -305,6 +315,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(activity(events), {
       mode: 'watch',
+      renderFormat: 'compact-json',
       deliveryRange: wholeRange(events),
     });
 
@@ -351,6 +362,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(activity(events), {
       mode: 'watch',
+      renderFormat: 'compact-json',
       deliveryRange: {
         indexBase: 'zero-based-decoded-record-index',
         start: 5,
@@ -403,6 +415,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(activity(events), {
       mode: 'review',
+      renderFormat: 'compact-json',
       deliveryRange: wholeRange(events),
     });
     const linked = report.events.find(
@@ -441,6 +454,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(activity(events), {
       mode: 'review',
+      renderFormat: 'compact-json',
       deliveryRange: wholeRange(events),
     });
     const result = report.events.find(
@@ -465,7 +479,11 @@ describe('activity projection budgets', () => {
     });
     const failedOnly = projectActivityWithLimits(
       activity([failedItem]),
-      { mode: 'review', deliveryRange: wholeRange([failedItem]) },
+      {
+        mode: 'review',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange([failedItem]),
+      },
       GENEROUS_LIMITS,
     );
     const events = [
@@ -476,7 +494,11 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivityWithLimits(
       activity(events),
-      { mode: 'review', deliveryRange: wholeRange(events) },
+      {
+        mode: 'review',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
       {
         ...GENEROUS_LIMITS,
         maxBytes: failedOnly.renderedBytes + 256,
@@ -501,6 +523,7 @@ describe('activity projection budgets', () => {
       activity([]),
       {
         mode: 'review',
+        renderFormat: 'compact-json',
         deliveryRange: {
           indexBase: 'zero-based-decoded-record-index',
           start: 0,
@@ -521,7 +544,11 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivityWithLimits(
       activity(events),
-      { mode: 'review', deliveryRange: wholeRange(events) },
+      {
+        mode: 'review',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
       { ...GENEROUS_LIMITS, maxBytes: empty.renderedBytes + 256 },
     );
 
@@ -553,6 +580,7 @@ describe('activity projection budgets', () => {
       const correlated = correlateActivity(extracted);
       const options = {
         mode: 'watch' as const,
+        renderFormat: 'compact-json' as const,
         deliveryRange: {
           indexBase: 'zero-based-decoded-record-index' as const,
           start: 0,
@@ -587,6 +615,7 @@ describe('activity projection budgets', () => {
     ];
     const options = {
       mode: 'watch' as const,
+      renderFormat: 'compact-json' as const,
       deliveryRange: wholeRange(events),
     };
     const before = renderActivityReport(
@@ -613,6 +642,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(activity(events), {
       mode: 'export',
+      renderFormat: 'markdown',
       deliveryRange: wholeRange(events),
     });
     const markdown = renderActivityMarkdown(report);
@@ -632,6 +662,58 @@ describe('activity projection budgets', () => {
     expect(markdown).toContain('\\u007e\\u007estrike\\u007e\\u007e');
     expect(report.renderedBytes).toBe(Buffer.byteLength(markdown, 'utf8'));
   });
+
+  it.each([
+    ['watch', 12],
+    ['review', 60],
+  ] as const)(
+    'budgets final %s Markdown after hostile punctuation expansion',
+    (mode, eventCount) => {
+      const events = Array.from({ length: eventCount }, (_, index) =>
+        event(`hostile-${index}`, 'call', index, {
+          nativeName: `tool-${index}`,
+          arguments: {
+            payload: '[link](javascript:synthetic) **bold** ~~strike~~'.repeat(
+              36,
+            ),
+          },
+        }),
+      );
+      const deliveryRange = wholeRange(events);
+      const compactJson = projectActivity(activity(events), {
+        mode,
+        renderFormat: 'compact-json',
+        deliveryRange,
+      });
+      const markdown = projectActivity(activity(events), {
+        mode,
+        renderFormat: 'markdown',
+        deliveryRange,
+      });
+      const finalText = renderActivityMarkdown(markdown);
+
+      expect(markdown.renderedFormat).toBe('markdown');
+      expect(markdown.renderedBytes).toBe(Buffer.byteLength(finalText, 'utf8'));
+      expect(markdown.renderedBytes).toBeLessThanOrEqual(
+        markdown.limits.maxBytes,
+      );
+      expect(markdown.omitted.byteLimitGroups).toBeGreaterThan(0);
+      expect(markdown.omitted.calls).toBe(
+        markdown.counts.deliveredRange.calls - markdown.counts.displayed.calls,
+      );
+      expect(finalText).toContain('Budgeted format: markdown');
+      expect(finalText).not.toContain('[link](javascript:synthetic)');
+
+      expect(compactJson.renderedFormat).toBe('compact-json');
+      expect(compactJson.renderedBytes).toBe(
+        Buffer.byteLength(renderActivityReport(compactJson), 'utf8'),
+      );
+      expect(compactJson.renderedBytes).toBeLessThanOrEqual(
+        compactJson.limits.maxBytes,
+      );
+      expect(compactJson.events.length).toBeGreaterThan(markdown.events.length);
+    },
+  );
 
   it('exports every invocation without a count cap under the 64 MiB guard', () => {
     const events = Array.from({ length: 1_100 }, (_, index) =>
@@ -662,6 +744,7 @@ describe('activity projection budgets', () => {
     ];
     const report = projectActivity(extracted, {
       mode: 'export',
+      renderFormat: 'markdown',
       deliveryRange: wholeRange(events),
     });
     const markdown = renderActivityMarkdown(report);
@@ -670,6 +753,7 @@ describe('activity projection budgets', () => {
       maxBytes: 64 * 1024 * 1024,
       maxInvocations: null,
     });
+    expect(report.renderedFormat).toBe('markdown');
     expect(report.counts.displayed).toMatchObject({
       scope: 'displayed',
       calls: 1_100,
@@ -678,6 +762,7 @@ describe('activity projection budgets', () => {
     expect(report.omitted.calls).toBe(0);
     expect(report.renderedBytes).toBe(Buffer.byteLength(markdown, 'utf8'));
     expect(markdown).toContain('Activity bytes:');
+    expect(markdown).toContain('Budgeted format: markdown');
     expect(markdown).toContain('/67108864');
     expect(markdown).toContain(
       'delivered-range: calls 1100; counted invocations 1100',

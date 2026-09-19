@@ -85,6 +85,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.64 budgets the final escaped activity Markdown emitted by review and watch text paths while retaining an explicitly labelled compact-JSON budget for JSON output; `session-export-transcript` 2.0.18 retains its Markdown-specific 64 MiB activity guard, and `session-observer-collab` 1.0.53 plus `session-fork-to-destination` 0.2.30 receive the required shared-runtime closure update.
 - `session-observer` 1.0.63 and `session-export-transcript` 2.0.17 render recorded activity Markdown punctuation as inert data, including links, emphasis, strikethrough, fences and HTML, with adversarial export coverage for hidden instructions, reasoning, synthetic secret-like strings, oversized previews and unread external tails; `session-observer-collab` 1.0.52 and `session-fork-to-destination` 0.2.29 receive the required shared-runtime closure update without enabling activity in collaboration or fork previews.
 - `session-observer` 1.0.62 retains activity-only watch deltas when byte limits omit every displayed event but delivered-range counts or omission accounting still prove activity; `session-observer-collab` 1.0.51 and `session-fork-to-destination` 0.2.27 receive the required shared observer runtime closure update without enabling collaboration activity.
 - `session-observer` 1.0.60 rejects `--include-activity` before state mutation for unsupported Cursor delivery paths; `session-observer-collab` 1.0.49 and `session-fork-to-destination` 0.2.25 receive the required shared observer runtime closure update.
