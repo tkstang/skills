@@ -96,6 +96,10 @@ p03 review round 2 used one completed runtime lane plus inline deterministic cov
 
 p03 accepted: verdict=pass findings=0-critical/0-important/0-medium/0-minor review-cycles=3 fix-rounds=2 recovery-attempts=0 artifacts=reviews/code-p03-review-2026-09-19T190153Z.md,reviews/code-p03-rereview-2026-09-19T192712Z.md,reviews/code-p03-final-review-2026-09-19T194903Z.md id=p03-pass-d1b3fe16
 
+### 2026-09-19 · structural · oat gate review · final
+
+target=claude-fable-skip-permissions threshold=important findings=critical:0,important:3,medium:5,minor:4 exit=1 status=blocked artifact=.oat/projects/shared/agent-messaging/reviews/final-review-2026-09-19T204112Z.md run=aafd4a07-bf15-4b25-b1c9-c8ef9dd405ac
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
