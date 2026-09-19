@@ -9,7 +9,7 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-All 27 implementation tasks are complete. Phase p10 corrected the effective legacy tool filters and accounting reported by activity mode; its independent phase review remains before refreshed lifecycle closeout and stack republication.
+All 27 implementation tasks and phase reviews p00 through p10 are complete. Phase p10 corrected the effective legacy tool filters and accounting reported by activity mode and passed independent review with zero findings. Refreshed lifecycle closeout remains before stack republication.
 
 ## Preparatory evidence
 
@@ -31,7 +31,7 @@ All 27 implementation tasks are complete. Phase p10 corrected the effective lega
 | p07   | passed         | 2     | 2/2       |
 | p08   | passed         | 4     | 4/4       |
 | p09   | passed         | 1     | 1/1       |
-| p10   | review_pending | 1     | 1/1       |
+| p10   | passed         | 1     | 1/1       |
 
 **Total:** 27/27 implementation tasks completed.
 
@@ -582,7 +582,7 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Phase 10
 
-**Status:** review_pending
+**Status:** passed
 
 ### Task p10-t01: (review) Report effective legacy tool filters in activity mode
 
@@ -590,13 +590,15 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 **Commit:** 2c4ea64f725830ba7affce59eabce65bf651cc6f
 **Verification:** focused observer digest tests passed 61/61; build, build freshness, type-check, affected-owner version validation against `session-fidelity-identity`, repository validation and diff checks passed. Activity mode now reports both legacy tool filters as disabled and counts suppressed call/result entries, while explicit activity-off behavior remains unchanged. Required owner bumps and generated observer/collaboration/fork payloads are synchronized.
 
-### Orchestration Run p10 (implementation)
+### Orchestration Run p10
 
 - Implementation: request `session-fidelity-p10-impl-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, accepted commit `2c4ea64f725830ba7affce59eabce65bf651cc6f` over phase base `63ec6211f6e1f166fd0f70306323bb5e84cf2227`; p10 recovery usage 0/10 with no pending attempt.
 - Dispatch: `scope=p10 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`.
 - Optional nested dispatches: none.
 - Phase verification: passed; worktree clean and task commit boundary independently validated by root.
-- Outstanding p10 item: fresh root-owned phase review.
+- Review: request `session-fidelity-p10-review-01`, artifact `reviews/p10-review-2026-09-19T223234Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `63ec6211f6e1f166fd0f70306323bb5e84cf2227..2c4ea64f725830ba7affce59eabce65bf651cc6f`; reconnaissance not attempted.
+- Outcome: passed after one planned task commit, no recovery attempts and one fresh independent review.
+- Outstanding p10 items: none. Next: refreshed final lifecycle review and configured exit gate.
 
 ### Orchestration Run p07
 
@@ -607,17 +609,17 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Reviews
 
-Plan review and phases p00 through p09 passed. The p08 closeout finding is fixed and independently verified; final lifecycle re-review and fresh configured-gate evidence remain required.
+Plan review and phases p00 through p10 passed. The PR #96 effective-filter finding is fixed and independently verified; refreshed final lifecycle review and configured-gate evidence remain required.
 
 ## Final Summary (for PR/docs)
 
 Session Observer and Session Export Transcript now support an opt-in `--include-activity` view while preserving their existing default digest and sanitized export behavior. The shared transcript layer provides detailed physical-line provenance, native Claude/Codex/Cursor evidence extraction, explicit coverage states, call/result correlation, bounded final-format projection, late-result context and Cursor terminal-settlement delivery without inventing missing evidence.
 
-The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
+The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. Activity mode now reports the effective suppression of legacy tool markers and counts those filtered entries consistently. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
 
-Local acceptance passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Ten phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, and p09 independently verifies the corrected generated summary.
+Local acceptance passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Eleven phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, p09 verifies the corrected generated summary, and p10 verifies the PR #96 effective-filter fix and distribution closure.
 
-The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting and Cursor settlement without widening the product scope. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
+The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting, Cursor settlement and effective filter reporting without widening the product scope. The PR stack is published and ready; the p10 top-layer update awaits republication. Merge, release, installation and live provider acceptance have not occurred.
 
 ### Review Received: final
 
