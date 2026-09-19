@@ -221,3 +221,17 @@ Fable committed the user-requested shared Cursor gate exclusions as `80982eed`; 
 Direct approval: “if you have converged on path forward I agree.” Both peers recommended the same split and reader-scope reduction. p01-t04 retains atomic provenance behavior, consumer fixes, focused tests, generated outputs, versions and changelog. New p01-t05 owns identity documentation/full validation and the existing identity review. This supersedes the earlier rejection of separating finalization; the behavior/version boundary remains intact.
 
 New detailed-reader byte ranges are deferred until a concrete consumer needs them; backlog Stage 1 and current design/discovery are amended. Existing Cursor continuity offsets, UTF-8 output budgets, source-size metadata and framing tests remain. History and dated research snapshots are preserved as history, not rewritten to suggest the original review covered this change. Current execution totals are 19 tasks, all pending; task IDs outside the added p01-t05 remain stable.
+
+
+## Orchestration Runs
+
+### Run 1 — implementation
+
+- Tier: 1 native phase agents, sequential p00 → p01 → p02 → p03 → p04 → p05 → p06. Managed High; no additional phase gates. Configured HiLL default is final (`p06`), automatic review enabled. User explicitly authorized proceeding after the amendment.
+- Root-inline deviation for p00 only: plan assigns local Git arrangement to root; parent launcher evidence gpt-6-astra/high. No child target is claimed for this step. All code phases use freshly resolved materialized phase roles.
+- Starting branch: `session-fidelity`; clean starting HEAD: `170fc8a34da50fa14c31e0764c3769afc39bb603`. Fable edits parked, read-only peer review retained.
+- Recovery ref: `session-fidelity-recovery-20260919` points to starting HEAD; reachability verified.
+- Stack: `main` ← `session-fidelity` ← `session-fidelity-identity`; activity is added after reviewed p01. Both registered layers report needsRebase=false.
+- `IDENTITY_BASE=170fc8a34da50fa14c31e0764c3769afc39bb603`; identity created directly from bottom docs/planning tip.
+- Bottom content comparison base: `origin/main` at `d74abe671561053154d3012e1b8edd11fc079dcf`, an ancestor of starting HEAD; 28 files, docs/research/planning/config only, no runtime source feature diff. Local `main` is an older checked-out branch at `cf2024b6c009f7d44e381c1c3be15d3624d517fa`; gh-stack registers that trunk snapshot. Publication must reconcile that stale local trunk with the remote base without importing unrelated historical diff into PR review. No main checkout/reset/update was performed.
+- p00 verification: gh stack view JSON, exact identity parent, recovery-ref equality and diff against origin/main; existing documentation content unchanged.

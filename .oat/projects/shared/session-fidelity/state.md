@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p00-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues:
@@ -13,8 +13,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
@@ -96,13 +96,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Ready for implementation
+**Status:** Implementation in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; implementation has not started.
+Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; local stack arrangement is in progress.
 
 ## Artifacts
 
