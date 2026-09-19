@@ -336,6 +336,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                   | 0887c010eb37486f15fceafe5f6adf0d0e1202fa | manual     | -           |
 | p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T141151Z.md                   | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
 | p02    | code     | fixes_required  | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 4df1cdabd13b7752927eec6c4c7f690a9aad5910 | manual     | -           |
+| p02    | code     | fixes_completed | 2026-09-19 | reviews/p02-review-2026-09-19T143548Z-round2.md            | 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec | manual     | -           |
 | final  | code     | pending         | -          | -                                                           | -                                        | -          | -           |
 | spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
 | design | artifact | pending         | -          | -                                                           | -                                        | -          | -           |

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-review-fix-02
+oat_current_task_id: p02-review-03
 oat_generated: false
 ---
 
@@ -23,7 +23,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | review fixes required | 5     | 5/5       |
+| p02   | final re-review pending | 5     | 5/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
@@ -77,7 +77,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** review fixes required; round 2/2
+**Status:** review fixes completed; final re-review pending
 **ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
 **Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
 
@@ -832,3 +832,11 @@ Both new findings are accepted as bounded p02-t04 projection corrections:
 - I2 `code_fix_required`: keep ownership-aware `countedInvocations`, but apply each mode's display invocation ceiling to every delivered call group regardless of owned/inherited/unknown ownership. Preserve failure-first/recent deterministic priority and report removed groups through existing omissions. Regress inherited-only, unknown-only and mixed ownership without changing captured/delivered ownership counts.
 
 No project-log entry is appended before the fix child. Resume original request `sf-p02-implement-01` on exact target `oat-phase-implementer-gpt-5-6-sol-high` in `mode: fix` with continuation `p02-review-fix-02`. This is review-fix round 2/2; it does not consume or alter p02 phase-recovery usage, which remains 3/10 with no pending attempt. After the bounded fix and root verification, dispatch the third and final independent p02 review round.
+
+#### Review fix p02-review-fix-02
+
+The original `sf-p02-implement-01` handle resumed on exact target `oat-phase-implementer-gpt-5-6-sol-high` and completed review-fix round 2/2 at `30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec`, with parent `334f1e5c64ab4a01f416209fba57c817dc7ca327`. Continuation linkage remained `p02-review-fix-02`; the review-fix round did not consume phase-recovery usage, which remains 3/10 with no pending attempt.
+
+The final byte guard now retains deterministic recent-locator coverage/diagnostic entries after event-group removal, reports exact omitted coverage/diagnostic counts and returns a bounded zero-event report for 1,000 malformed lines without source-text leakage. Mode invocation ceilings now apply to every displayed delivered call group across owned, inherited and unknown ownership, while `countedInvocations` remains owned-only and failure-first/recent selection plus chronological rendering remain intact.
+
+Implementer and root independently passed 189/189 focused p02 tests, type checking, build freshness and four-owner version validation. Repository validation, the 2/2 privacy canary, fixture privacy scanning and scoped formatting/linting also passed in the implementer run. The read-only closure audit verified both round-two Important findings closed with no new Critical/Important regression, explicitly checked metadata-search monotonicity and irreducible base-envelope behavior, and passed focused projection/integration tests, type checking, build freshness, version validation and diff checks. The third and governance-final root-owned p02 review round is next.

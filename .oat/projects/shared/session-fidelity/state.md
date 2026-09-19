@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-review-fix-02
-oat_last_commit: 4df1cdabd13b7752927eec6c4c7f690a9aad5910
+oat_current_task: p02-review-03
+oat_last_commit: 30fc6f3504a7ca6317033167c5e9e4a5b16ec8ec
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -102,13 +102,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Activity review fixes required; round 2/2
+**Status:** Activity review fixes completed; final re-review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 is passed and all five p02 tasks plus first review fix `4df1cdab` are complete; p02 recovery usage remains 3/10 with no pending marker. Round-two review closed both prior findings and found two projection defects: metadata-only size overflow and invocation ceilings that omit inherited/unknown displayed calls. Both are accepted for bounded review-fix round 2/2 on the original phase handle; p03 remains untouched.
+p01 is passed and all five p02 tasks plus both bounded review fixes through `30fc6f35` are complete; p02 recovery usage remains 3/10 with no pending marker. Metadata-only reports now stay bounded with explicit omissions, and every displayed call group consumes the mode invocation ceiling while ownership-aware counts remain intact. Root verification and the independent closure audit passed. The third and governance-final p02 review round is next; p03 remains untouched.
 
 ## Artifacts
 
@@ -116,7 +116,7 @@ p01 is passed and all five p02 tasks plus first review fix `4df1cdab` are comple
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (11/19 tasks completed; p01 passed, p02 review fixes required)
+- **Implementation:** `implementation.md` (11/19 tasks completed; p01 passed, p02 final re-review pending)
 
 ## Progress
 
@@ -139,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p02 review-fix round 2/2, verify independently, then run the third and final p02 review round.
+Run the third and governance-final root-owned p02 review round.
