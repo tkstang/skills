@@ -125,9 +125,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p03-t02: Deliver activity-only watch deltas safely
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** a34941554634e2ec5551dd6063f4d10117599d7b; recovery 7ec1fba9aecc53d6e41ea091df0cfc4399057332
+**Verification:** Claude/Codex watch and catch-up-then-watch emit activity-only deltas through the existing observation cursor and write path, retain activity/new coverage under quiet-empty, deduplicate source diagnostics in memory, keep event logs metadata-only, and leave collaboration wake authority conversation-only. Bounded recovery attempt 2/10 makes fully byte-budget-omitted delivered activity renderable from honest counts/omissions. Root passed the 246-test phase suite, type checking, build freshness and three-owner version validation. Fresh closure audit found 0 Critical/Important findings and confirmed state advancement without replay.
 
 ## Phase 4
 
@@ -962,7 +962,7 @@ Phase p02 passes. No optional external phase review gate is configured, and p02 
   "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
-  "continuation_events": ["p03-t01-recovery-resume-01"],
+  "continuation_events": ["p03-t01-recovery-resume-01", "p03-t02-recovery-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "phase scope analysis",
@@ -995,3 +995,18 @@ Root transition audit of immutable p03-t01 commit `820465752eb5de4b7527fa8c96901
 #### Continuation p03-t02-recovery-resume-01
 
 Root transition audit of immutable p03-t02 commit `a34941554634e2ec5551dd6063f4d10117599d7b` found one Important projection-boundary gap: when the activity byte budget removes every displayed event, nonzero delivered-range and omission accounting can be suppressed by `--quiet-empty` after the conversation cursor has advanced. The original `sf-p03-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p03-t02-recovery-01` may reserve cumulative p03 attempt 2/10 only after this continuation is committed. Scope is limited to treating fully budget-omitted delivered activity as renderable and adding a zero-displayed activity-only regression; phase review remains unauthorized until the recovery is settled.
+
+#### Recovery Event p03-t02-recovery-01
+
+- Phase/task: p03 / p03-t02
+- Original request: `sf-p03-implement-01`
+- Original commit: `a34941554634e2ec5551dd6063f4d10117599d7b`
+- Defect class: composition
+- Discovered by: root transition audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Recovery commit: `7ec1fba9aecc53d6e41ea091df0cfc4399057332`
+- Verification: root passed 246 phase-focused tests, type checking, generated freshness and three-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and proved activity-only delivery, metadata-only logging, state advancement and no replay when all displayed activity is removed by the byte budget.
+- Reason: watch renderability now retains fully omitted delivered activity when nonzero delivered-range or omission accounting proves evidence.

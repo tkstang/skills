@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t02-recovery-01
-oat_last_commit: 4d5b1bbb0d25c95708091caf6f7083f5456301e3
+oat_current_task: p03-review
+oat_last_commit: 7ec1fba9aecc53d6e41ea091df0cfc4399057332
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -29,16 +29,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p03:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: p03-t02-recovery-01
-        original_request_id: sf-p03-implement-01
-        original_task_id: p03-t02
-        original_commit: a34941554634e2ec5551dd6063f4d10117599d7b
-        discovered_by: root transition audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 613e9a099d2a3e457f444ddc848c0a9d29c28ce4
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -114,13 +105,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Observer watch recovery in progress
+**Status:** Observer integration review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 and p02 are passed. p03-t02 produced `a3494155`, but root transition audit found one Important fully-budget-omitted activity gap under `--quiet-empty`. Bounded p03 recovery attempt 2/10 is authorized to treat honest delivered-range and omission accounting as renderable activity and add the zero-displayed regression.
+p01 and p02 are passed. p03 implementation is complete through recovery `7ec1fba9`: review/direct catch-up and watch expose bounded activity for Claude/Codex, Cursor remains explicitly unavailable until p05, and collaboration wake authority remains conversation-only. p03 recovery usage is 2/10 with no pending marker. Formal phase review is next.
 
 ## Artifacts
 
@@ -128,7 +119,7 @@ p01 and p02 are passed. p03-t02 produced `a3494155`, but root transition audit f
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (12/19 tasks completed; p01 and p02 passed, p03 in progress)
+- **Implementation:** `implementation.md` (13/19 tasks completed; p01 and p02 passed, p03 review pending)
 
 ## Progress
 
@@ -151,4 +142,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete bounded p03-t02 recovery attempt 2/10, then perform the p03 phase review.
+Run the fresh root-owned p03 phase review over the immutable activity-stack range.
