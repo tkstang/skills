@@ -103,6 +103,14 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.8 closes Phase 2 fail-closed gaps: host output now
+  revalidates activation and ownership after claims, Stop retries consume the
+  newest explicit generation, human-idle renewal requires exact host evidence,
+  observer leases and hook fingerprints validate their complete effective
+  configuration, diagnostics remain confined to allowlisted records, live
+  probes require quiescent abort and verified cleanup, and activation timestamps
+  enforce the 24-hour cap on every read.
+
 - `agent-messaging` 1.0.3 and `session` plugin 0.3.2 reject ancestor-symlink
   storage paths before reads or mutation, classify records relative to the
   configured root, and recover idempotently from interrupted collaboration

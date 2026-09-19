@@ -82,7 +82,6 @@ describe('bounded host probes', () => {
     const adapter: ProbeAdapter = {
       setup: async () => {
         calls += 1;
-        return { registrations: [], processes: [] };
       },
       invoke: async () => {
         calls += 1;
@@ -91,6 +90,7 @@ describe('bounded host probes', () => {
       cleanup: async () => {
         calls += 1;
       },
+      verifyCleanup: async () => true,
     };
     const unauthorized = plan({ liveAuthorization: null });
     expect(unauthorized).toMatchObject({
@@ -119,10 +119,10 @@ describe('bounded host probes', () => {
     const unrelated = ['registration-existing', 'process-existing'];
     const cleaned: unknown[] = [];
     const adapter: ProbeAdapter = {
-      setup: async () => ({
-        registrations: ['registration-probe'],
-        processes: ['process-probe'],
-      }),
+      setup: async (_plan, context) => {
+        context.ownRegistration('registration-probe');
+        context.ownProcess('process-probe');
+      },
       invoke: async () =>
         ({
           eventId: 'native-event-1',
@@ -137,6 +137,7 @@ describe('bounded host probes', () => {
       cleanup: async (resources) => {
         cleaned.push(resources);
       },
+      verifyCleanup: async () => true,
     };
     const result = await runHostProbe(plan(), adapter, { ownershipCheck });
     expect(result).toMatchObject({
@@ -157,7 +158,7 @@ describe('bounded host probes', () => {
   test('bounds timeout, interruption, and one correction retry with honest results', async () => {
     let invocations = 0;
     const retryAdapter: ProbeAdapter = {
-      setup: async () => ({ registrations: [], processes: [] }),
+      setup: async () => undefined,
       invoke: async () => {
         invocations += 1;
         return {
@@ -171,6 +172,7 @@ describe('bounded host probes', () => {
         };
       },
       cleanup: async () => undefined,
+      verifyCleanup: async () => true,
     };
     const retried = await runHostProbe(plan({ maxAttempts: 2 }), retryAdapter, {
       ownershipCheck,
@@ -182,9 +184,10 @@ describe('bounded host probes', () => {
     expect(invocations).toBe(2);
 
     const timeoutAdapter: ProbeAdapter = {
-      setup: async () => ({ registrations: [], processes: [] }),
+      setup: async () => undefined,
       invoke: () => new Promise(() => undefined),
       cleanup: async () => undefined,
+      verifyCleanup: async () => true,
     };
     const timedOut = await runHostProbe(
       plan({ timeoutMs: 2 }),
@@ -193,7 +196,7 @@ describe('bounded host probes', () => {
     );
     expect(timedOut).toMatchObject({
       status: 'unknown',
-      cleanupVerified: true,
+      cleanupVerified: false,
       receipts: [{ outcome: 'unknown', errorCode: 'timeout' }],
     });
 
@@ -208,6 +211,109 @@ describe('bounded host probes', () => {
       cleanupVerified: true,
       receipts: [{ errorCode: 'interrupted' }],
     });
+  });
+
+  test('aborts timed-out setup before cleanup and rejects late resource ownership', async () => {
+    const cleaned: unknown[] = [];
+    let lateOwnershipRejected = false;
+    const adapter: ProbeAdapter = {
+      setup: async (_plan, context) => {
+        context.ownRegistration('registration-before-block');
+        await new Promise<void>((resolve) => {
+          context.signal.addEventListener(
+            'abort',
+            () => {
+              try {
+                context.ownProcess('late-process');
+              } catch {
+                lateOwnershipRejected = true;
+              }
+              resolve();
+            },
+            { once: true },
+          );
+        });
+      },
+      invoke: async () => {
+        throw new Error('must not invoke');
+      },
+      cleanup: async (resources) => {
+        cleaned.push(resources);
+      },
+      verifyCleanup: async () => true,
+    };
+    const result = await runHostProbe(plan({ timeoutMs: 5 }), adapter, {
+      ownershipCheck,
+    });
+    expect(result).toMatchObject({
+      status: 'unknown',
+      cleanupVerified: true,
+      receipts: [{ eventId: 'setup', errorCode: 'timeout' }],
+    });
+    expect(lateOwnershipRejected).toBe(true);
+    expect(cleaned).toEqual([
+      {
+        registrations: ['registration-before-block'],
+        processes: [],
+      },
+    ]);
+  });
+
+  test('quiesces and cleans an interrupted in-flight invocation without late side effects', async () => {
+    const controller = new AbortController();
+    const cleaned: unknown[] = [];
+    let lateOwnershipRejected = false;
+    const adapter: ProbeAdapter = {
+      setup: async (_plan, context) => {
+        context.ownRegistration('registration-owned');
+      },
+      invoke: async ({ context }) => {
+        context.ownProcess('process-owned');
+        await new Promise<void>((resolve) => {
+          context.signal.addEventListener(
+            'abort',
+            () => {
+              try {
+                context.ownRegistration('late-registration');
+              } catch {
+                lateOwnershipRejected = true;
+              }
+              resolve();
+            },
+            { once: true },
+          );
+        });
+        return {
+          eventId: 'should-not-emit',
+          observedAt: '2026-09-19T12:00:00.000Z',
+          invoked: true,
+          recipientContextObserved: true,
+          continuationObserved: true,
+          humanOriginObserved: false,
+        };
+      },
+      cleanup: async (resources) => {
+        cleaned.push(resources);
+      },
+      verifyCleanup: async () => true,
+    };
+    setTimeout(() => controller.abort(), 5);
+    const result = await runHostProbe(plan({ timeoutMs: 100 }), adapter, {
+      signal: controller.signal,
+      ownershipCheck,
+    });
+    expect(result).toMatchObject({
+      status: 'interrupted',
+      cleanupVerified: true,
+      receipts: [{ errorCode: 'interrupted' }],
+    });
+    expect(lateOwnershipRejected).toBe(true);
+    expect(cleaned).toEqual([
+      {
+        registrations: ['registration-owned'],
+        processes: ['process-owned'],
+      },
+    ]);
   });
 
   test('validates exactly 4096 activity receipts and records cold/warm timing', async () => {
@@ -242,6 +348,11 @@ describe('bounded host probes', () => {
       expiryMode: 'human-idle',
       idleTimeoutMs: 2 * 60 * 60 * 1000,
       maxDurationMs: 24 * 60 * 60 * 1000,
+      humanProvenanceEvidence: {
+        hostVersion: 'fixture-1.0',
+        surface: 'fixture-native-prompt',
+        qualifiedAt: started.toISOString(),
+      },
       now: started,
     });
     const directory = path.join(

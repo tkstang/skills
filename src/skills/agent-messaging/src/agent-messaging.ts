@@ -11,7 +11,6 @@ import {
   disableActivation,
   enableActivation,
   MAX_ACTIVATION_DURATION_MS,
-  recordHumanActivity,
 } from '../../../shared/collaboration/activation.js';
 import {
   createDeliveryRetry,
@@ -108,7 +107,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
-  node agent-messaging.mjs delivery enable|disable|activity|retry|watch|probe-plan ...
+  node agent-messaging.mjs delivery enable|disable|retry|watch|probe-plan ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -459,6 +458,11 @@ async function execute(
     const expiryMode = optional(parsed, 'expiry-mode') ?? 'fixed';
     if (!['fixed', 'human-idle'].includes(expiryMode))
       throw new TypeError('--expiry-mode must be fixed or human-idle');
+    if (expiryMode === 'human-idle')
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'human-idle delivery is unavailable until this exact host/version has qualifying live human-origin evidence',
+      );
     const worktree = optional(parsed, 'cwd') ?? io.cwd;
     const inventory =
       pin.runtime === 'codex'
@@ -543,17 +547,6 @@ async function execute(
       data: await disableActivation({
         root,
         pin: resolveSelf(parsed, io.env),
-      }),
-    };
-  }
-  if (command === 'delivery' && subcommand === 'activity') {
-    return {
-      operation: 'delivery.activity',
-      collaborationId,
-      data: await recordHumanActivity({
-        root,
-        pin: resolveSelf(parsed, io.env),
-        eventKey: required(parsed, 'event'),
       }),
     };
   }

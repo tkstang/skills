@@ -134,6 +134,76 @@ describe('messaging hook registration', () => {
     expect(changed.fingerprint).not.toBe(inventory.fingerprint);
   });
 
+  test('fingerprints same-command matcher, timeout, type, group, order, and source changes', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'registration-'));
+    const hooksPath = path.join(root, 'hooks.json');
+    const write = async (group: Record<string, unknown>) => {
+      await writeFile(hooksPath, JSON.stringify({ hooks: { Stop: [group] } }));
+      return (await inspectCodexStopInventory(hooksPath)).fingerprint;
+    };
+    const base = await write({
+      matcher: 'all',
+      scope: 'session',
+      hooks: [{ type: 'command', command: 'node same.mjs', timeout: 5 }],
+    });
+    for (const mutation of [
+      {
+        matcher: 'final',
+        scope: 'session',
+        hooks: [{ type: 'command', command: 'node same.mjs', timeout: 5 }],
+      },
+      {
+        matcher: 'all',
+        scope: 'project',
+        hooks: [{ type: 'command', command: 'node same.mjs', timeout: 5 }],
+      },
+      {
+        matcher: 'all',
+        scope: 'session',
+        hooks: [{ type: 'command', command: 'node same.mjs', timeout: 10 }],
+      },
+      {
+        matcher: 'all',
+        scope: 'session',
+        hooks: [{ type: 'prompt', command: 'node same.mjs', timeout: 5 }],
+      },
+      {
+        matcher: 'all',
+        scope: 'session',
+        hooks: [
+          { command: 'node preceding.mjs' },
+          { type: 'command', command: 'node same.mjs', timeout: 5 },
+        ],
+      },
+    ]) {
+      expect(await write(mutation)).not.toBe(base);
+    }
+    const pluginA = path.join(root, 'plugins', 'a');
+    const pluginB = path.join(root, 'plugins', 'b');
+    for (const plugin of [pluginA, pluginB]) {
+      await mkdir(path.join(plugin, 'hooks'), { recursive: true });
+      await writeFile(
+        path.join(plugin, 'hooks', 'hooks.json'),
+        JSON.stringify({
+          hooks: { Stop: [{ hooks: [{ command: 'node same.mjs' }] }] },
+        }),
+      );
+    }
+    await writeFile(
+      hooksPath,
+      JSON.stringify({ enabledPlugins: { reviewer: true } }),
+    );
+    const fromA = await inspectClaudeStopInventory({
+      settingsPaths: [hooksPath],
+      installedPlugins: { reviewer: pluginA },
+    });
+    const fromB = await inspectClaudeStopInventory({
+      settingsPaths: [hooksPath],
+      installedPlugins: { reviewer: pluginB },
+    });
+    expect(fromB.fingerprint).not.toBe(fromA.fingerprint);
+  });
+
   test('bounds Claude inventory to loaded settings and enabled installed plugins', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'registration-'));
     const settings = path.join(root, 'settings.json');

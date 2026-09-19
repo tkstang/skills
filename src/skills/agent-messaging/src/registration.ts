@@ -16,6 +16,12 @@ export const MESSAGING_HOOK_OWNER = 'agent-messaging-host-hook-v1';
 export interface StopRegistration {
   source: string;
   command: string;
+  configuration: {
+    groupIndex: number;
+    hookIndex: number;
+    group: Record<string, unknown>;
+    hook: Record<string, unknown>;
+  };
   recognizedObserver: boolean;
   recognizedMessaging: boolean;
 }
@@ -44,40 +50,64 @@ function fingerprint(registrations: StopRegistration[]): string {
     .update(
       canonicalJson(
         registrations
-          .map(({ source, command }) => ({ source, command }))
+          .map(({ source, configuration }) => ({ source, configuration }))
           .toSorted(
             (left, right) =>
               left.source.localeCompare(right.source) ||
-              left.command.localeCompare(right.command),
+              canonicalJson(left.configuration).localeCompare(
+                canonicalJson(right.configuration),
+              ),
           ),
       ),
     )
     .digest('hex');
 }
 
-function stopCommands(value: unknown): string[] {
+function stopRegistrations(
+  value: unknown,
+  source: string,
+): Array<Pick<StopRegistration, 'source' | 'command' | 'configuration'>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
   const hooks = (value as { hooks?: unknown }).hooks;
   if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) return [];
   const groups = (hooks as { Stop?: unknown }).Stop;
   if (!Array.isArray(groups)) return [];
-  const commands: string[] = [];
-  for (const group of groups) {
+  const registrations: Array<
+    Pick<StopRegistration, 'source' | 'command' | 'configuration'>
+  > = [];
+  for (const [groupIndex, group] of groups.entries()) {
     if (!group || typeof group !== 'object' || Array.isArray(group)) continue;
     const entries = (group as { hooks?: unknown }).hooks;
     if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
+    for (const [hookIndex, entry] of entries.entries()) {
       if (
         entry &&
         typeof entry === 'object' &&
         !Array.isArray(entry) &&
         typeof (entry as { command?: unknown }).command === 'string'
       ) {
-        commands.push((entry as { command: string }).command);
+        const groupRecord = group as Record<string, unknown>;
+        const { hooks: _hooks, ...groupConfiguration } = groupRecord;
+        registrations.push({
+          source: path.resolve(source),
+          command: (entry as { command: string }).command,
+          configuration: {
+            groupIndex,
+            hookIndex,
+            group: groupConfiguration,
+            hook: structuredClone(entry as Record<string, unknown>),
+          },
+        });
       }
     }
   }
-  return commands;
+  return registrations;
+}
+
+function stopCommands(value: unknown): string[] {
+  return stopRegistrations(value, '/inventory').map(
+    (registration) => registration.command,
+  );
 }
 
 function commandScript(command: string): string | null {
@@ -170,10 +200,10 @@ export async function inspectCodexStopInventory(
     unreadableSources.push(hooksPath);
   }
   const registrations: StopRegistration[] = [];
-  for (const command of stopCommands(config)) {
+  for (const registration of stopRegistrations(config, hooksPath)) {
+    const { command } = registration;
     registrations.push({
-      source: hooksPath,
-      command,
+      ...registration,
       recognizedObserver: await recognizedObserverLauncher(command),
       recognizedMessaging: await recognizedMessagingLauncher(command),
     });
@@ -210,10 +240,10 @@ export async function inspectClaudeStopInventory(
       unreadableSources.push(source);
       continue;
     }
-    for (const command of stopCommands(config)) {
+    for (const registration of stopRegistrations(config, source)) {
+      const { command } = registration;
       registrations.push({
-        source,
-        command,
+        ...registration,
         recognizedObserver: false,
         recognizedMessaging: await recognizedMessagingLauncher(command),
       });
@@ -241,10 +271,10 @@ export async function inspectClaudeStopInventory(
       unreadableSources.push(source);
       continue;
     }
-    for (const command of stopCommands(config)) {
+    for (const registration of stopRegistrations(config, source)) {
+      const { command } = registration;
       registrations.push({
-        source,
-        command,
+        ...registration,
         recognizedObserver: false,
         recognizedMessaging: await recognizedMessagingLauncher(command),
       });
@@ -264,9 +294,17 @@ export async function inspectClaudeStopInventory(
 
 interface ObserverLease {
   schemaVersion: number;
+  leaseId: string;
   runtime: string;
+  peerRuntime: string;
   ownerSession: string;
   ownerCwd: string;
+  peerSession: string;
+  peerTranscript: string;
+  peerCanonicalTranscriptPath: string;
+  peerIndexBase: string;
+  peerCursor: number;
+  peerContinuity: unknown;
   state: string;
   continuationCount: number;
   continuationCap: number;
@@ -274,7 +312,131 @@ interface ObserverLease {
   loopCap: number;
   armedAt: string;
   expiresAt: string;
+  updatedAt: string;
   leaseMs: number;
+  waitMs: number;
+  waitStartedAt: string | null;
+  waitDeadlineAt: string | null;
+  waitToken: string | null;
+  waitPid: number | null;
+  diagnostic: string | null;
+}
+
+const SAFE_LEASE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/u;
+function validLeaseId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    SAFE_LEASE_ID.test(value) &&
+    value !== '.' &&
+    value !== '..'
+  );
+}
+function validInteger(value: unknown, minimum: number, maximum: number) {
+  return (
+    Number.isSafeInteger(value) &&
+    (value as number) >= minimum &&
+    (value as number) <= maximum
+  );
+}
+function validTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value));
+}
+function validateObserverLease(raw: unknown): ObserverLease {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    throw new TypeError('observer lease must be an object');
+  const lease = raw as ObserverLease;
+  if (
+    lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION ||
+    !validLeaseId(lease.leaseId) ||
+    !['codex', 'cursor'].includes(lease.runtime) ||
+    !['claude-code', 'codex', 'cursor'].includes(lease.peerRuntime) ||
+    !validLeaseId(lease.ownerSession) ||
+    !validLeaseId(lease.peerSession) ||
+    typeof lease.ownerCwd !== 'string' ||
+    !path.isAbsolute(lease.ownerCwd) ||
+    lease.ownerCwd.includes('\0') ||
+    typeof lease.peerTranscript !== 'string' ||
+    !path.isAbsolute(lease.peerTranscript) ||
+    lease.peerTranscript.includes('\0') ||
+    typeof lease.peerCanonicalTranscriptPath !== 'string' ||
+    !path.isAbsolute(lease.peerCanonicalTranscriptPath) ||
+    lease.peerCanonicalTranscriptPath.includes('\0') ||
+    path.resolve(lease.peerTranscript) !==
+      path.resolve(lease.peerCanonicalTranscriptPath) ||
+    lease.peerIndexBase !==
+      (lease.peerRuntime === 'cursor'
+        ? 'zero-based-jsonl-frame-index'
+        : 'zero-based-jsonl-record-index') ||
+    !['armed', 'waiting', 'idle', 'triggered', 'disarmed'].includes(
+      lease.state,
+    ) ||
+    !validTimestamp(lease.armedAt) ||
+    !validTimestamp(lease.expiresAt) ||
+    !validTimestamp(lease.updatedAt) ||
+    !validInteger(lease.waitMs, 0, 60_000) ||
+    !validInteger(lease.leaseMs, 1, 24 * 60 * 60 * 1000) ||
+    !validInteger(lease.peerCursor, 0, Number.MAX_SAFE_INTEGER) ||
+    !validInteger(lease.continuationCount, 0, 100) ||
+    !validInteger(lease.continuationCap, 1, 100) ||
+    !validInteger(lease.loopCount, 0, 1000) ||
+    !validInteger(lease.loopCap, 1, 1000) ||
+    lease.continuationCount > lease.continuationCap ||
+    lease.loopCount > lease.loopCap ||
+    (lease.diagnostic !== null && typeof lease.diagnostic !== 'string')
+  )
+    throw new TypeError('observer lease schema is invalid');
+  const timingBothNull =
+    lease.waitStartedAt === null && lease.waitDeadlineAt === null;
+  const timingBothValid =
+    validTimestamp(lease.waitStartedAt) && validTimestamp(lease.waitDeadlineAt);
+  const waiterBothNull = lease.waitToken === null && lease.waitPid === null;
+  const waiterBothValid =
+    validLeaseId(lease.waitToken) &&
+    validInteger(lease.waitPid, 1, Number.MAX_SAFE_INTEGER);
+  if (
+    (!timingBothNull && !timingBothValid) ||
+    (!waiterBothNull && !waiterBothValid) ||
+    (lease.state !== 'waiting' && (!timingBothNull || !waiterBothNull))
+  )
+    throw new TypeError('observer wait state is invalid');
+  if (timingBothValid) {
+    const started = Date.parse(lease.waitStartedAt!);
+    const deadline = Date.parse(lease.waitDeadlineAt!);
+    if (
+      deadline < started ||
+      deadline - started > lease.waitMs ||
+      deadline > Date.parse(lease.expiresAt)
+    )
+      throw new TypeError('observer wait deadline is invalid');
+  }
+  if (
+    Date.parse(lease.expiresAt) < Date.parse(lease.armedAt) ||
+    Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs
+  )
+    throw new TypeError('observer lease duration is invalid');
+  if (lease.peerRuntime === 'cursor') {
+    const checkpoint = lease.peerContinuity as Record<string, unknown> | null;
+    if (
+      !checkpoint ||
+      checkpoint.indexBase !== 'zero-based-jsonl-frame-index' ||
+      !validInteger(checkpoint.nextFrameIndex, 0, Number.MAX_SAFE_INTEGER) ||
+      !validInteger(checkpoint.prefixBytes, 0, Number.MAX_SAFE_INTEGER) ||
+      !validInteger(checkpoint.observedSize, 0, Number.MAX_SAFE_INTEGER) ||
+      checkpoint.nextFrameIndex !== lease.peerCursor ||
+      (checkpoint.prefixBytes as number) >
+        (checkpoint.observedSize as number) ||
+      typeof checkpoint.prefixSha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/u.test(checkpoint.prefixSha256) ||
+      ![checkpoint.device, checkpoint.inode].every(
+        (value) =>
+          value === null || validInteger(value, 0, Number.MAX_SAFE_INTEGER),
+      )
+    )
+      throw new TypeError('observer cursor continuity is invalid');
+  } else if (lease.peerContinuity !== null) {
+    throw new TypeError('observer record continuity is invalid');
+  }
+  return lease;
 }
 
 async function inspectObserverLease(input: {
@@ -301,27 +463,14 @@ async function inspectObserverLease(input: {
   }
   let lease: ObserverLease;
   try {
-    lease = JSON.parse(await readFile(file, 'utf8')) as ObserverLease;
+    lease = validateObserverLease(JSON.parse(await readFile(file, 'utf8')));
   } catch {
     return 'uncertain';
   }
   if (
-    lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION ||
     lease.runtime !== input.pin.runtime ||
     lease.ownerSession !== input.pin.sessionId ||
-    lease.ownerCwd !== path.resolve(input.worktree) ||
-    !['armed', 'waiting', 'idle', 'triggered', 'disarmed'].includes(
-      lease.state,
-    ) ||
-    !Number.isSafeInteger(lease.continuationCount) ||
-    !Number.isSafeInteger(lease.continuationCap) ||
-    !Number.isSafeInteger(lease.loopCount) ||
-    !Number.isSafeInteger(lease.loopCap) ||
-    lease.continuationCount > lease.continuationCap ||
-    lease.loopCount > lease.loopCap ||
-    Number.isNaN(Date.parse(lease.armedAt)) ||
-    Number.isNaN(Date.parse(lease.expiresAt)) ||
-    Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs
+    path.resolve(lease.ownerCwd) !== path.resolve(input.worktree)
   ) {
     return 'uncertain';
   }
@@ -331,7 +480,10 @@ async function inspectObserverLease(input: {
   if (
     now >= Date.parse(lease.expiresAt) ||
     lease.continuationCount >= lease.continuationCap ||
-    lease.loopCount >= lease.loopCap
+    lease.loopCount >= lease.loopCap ||
+    (lease.state === 'waiting' &&
+      (lease.waitDeadlineAt === null ||
+        now >= Date.parse(lease.waitDeadlineAt)))
   ) {
     return 'inactive';
   }

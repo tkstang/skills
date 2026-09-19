@@ -5,12 +5,14 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import { enableActivation } from '../../../shared/collaboration/activation.js';
+import { deliveryClaimStatus } from '../../../shared/collaboration/claims.js';
 import {
   joinCollaboration,
   openCollaboration,
 } from '../../../shared/collaboration/membership.js';
 import { sendMessage } from '../../../shared/collaboration/messages.js';
 import { activationDirectory } from '../../../shared/collaboration/paths.js';
+import { runAgentMessagingCli } from './agent-messaging.js';
 import { runClaudeCodeHook } from './hooks/claude-code.js';
 import { runCodexHook } from './hooks/codex.js';
 
@@ -18,6 +20,7 @@ async function fixture(
   runtime: 'codex' | 'claude-code' = 'codex',
   body = 'Please review',
   confirmNoObserverMonitor = true,
+  activationOptions: { now?: Date; fixedDurationMs?: number } = {},
 ) {
   const root = await mkdtemp(path.join(tmpdir(), 'hook-test-'));
   const collaborationId = crypto.randomUUID();
@@ -47,6 +50,7 @@ async function fixture(
     expiryMode: 'fixed',
     noObserverMonitorConfirmed:
       runtime === 'claude-code' && confirmNoObserverMonitor,
+    ...activationOptions,
   });
   const messageId = crypto.randomUUID();
   await sendMessage({
@@ -317,6 +321,133 @@ describe('host delivery hooks', () => {
       ),
     ).toBeNull();
   });
+
+  test('revalidates fresh expiry after the message claim before host output', async () => {
+    const started = new Date('2026-09-19T10:00:00.000Z');
+    const f = await fixture('codex', 'Please review', true, {
+      now: started,
+      fixedDurationMs: 1000,
+    });
+    let current = started;
+    const output = await runCodexHook(
+      {
+        hook_event_name: 'Stop',
+        session_id: 'recipient',
+        cwd: '/tmp/recipient',
+        event_id: 'expires-after-claim',
+      },
+      {
+        env: f.env,
+        now: () => current,
+        afterMessageClaim: () => {
+          current = new Date(started.getTime() + 1001);
+        },
+      },
+    );
+    expect(output).toBeNull();
+  });
+
+  test('revalidates changed Stop ownership after the message claim before host output', async () => {
+    const f = await fixture();
+    const hooksPath = path.join(f.root, 'hooks.json');
+    const output = await runCodexHook(
+      {
+        hook_event_name: 'Stop',
+        session_id: 'recipient',
+        cwd: '/tmp/recipient',
+        event_id: 'inventory-after-claim',
+      },
+      {
+        env: { ...f.env, AGENT_MESSAGING_HOOKS_PATH: hooksPath },
+        afterMessageClaim: async () => {
+          await writeFile(
+            hooksPath,
+            JSON.stringify({
+              hooks: {
+                Stop: [{ hooks: [{ command: 'node newly-owned.mjs' }] }],
+              },
+            }),
+          );
+        },
+      },
+    );
+    expect(output).toBeNull();
+  });
+
+  test.each([
+    'afterEventClaim',
+    'afterSlotClaim',
+    'afterMessageClaim',
+  ] as const)(
+    'consumes a requested retry after a Stop crash at %s without bypassing native-chain dedup',
+    async (stage) => {
+      const f = await fixture();
+      await expect(
+        runCodexHook(
+          {
+            hook_event_name: 'Stop',
+            session_id: 'recipient',
+            cwd: '/tmp/recipient',
+            event_id: `crash-${stage}`,
+          },
+          {
+            env: f.env,
+            claimHooks: {
+              [stage]: () => {
+                throw new Error(`fault-${stage}`);
+              },
+            },
+          },
+        ),
+      ).rejects.toThrow(`fault-${stage}`);
+      const status = await deliveryClaimStatus({
+        root: f.root,
+        pin: f.recipient,
+      });
+      const priorAttemptId = [
+        ...status.interruptedAttempts,
+        ...status.outcomeUnknown,
+      ][0]!;
+      const stderr: string[] = [];
+      expect(
+        await runAgentMessagingCli(
+          [
+            'delivery',
+            'retry',
+            '--root',
+            f.root,
+            '--collab',
+            f.collaborationId,
+            '--self',
+            'codex:recipient',
+            '--attempt',
+            priorAttemptId,
+            '--message',
+            f.messageId,
+            '--json',
+          ],
+          {
+            env: f.env,
+            cwd: '/tmp/recipient',
+            readStdin: async () => '',
+            stdout: () => undefined,
+            stderr: (value) => stderr.push(value),
+          },
+        ),
+      ).toBe(0);
+      expect(stderr).toEqual([]);
+      const retryEvent = {
+        hook_event_name: 'Stop',
+        session_id: 'recipient',
+        cwd: '/tmp/recipient',
+        event_id: `retry-${stage}`,
+      };
+      expect(await runCodexHook(retryEvent, { env: f.env })).toMatchObject({
+        decision: 'block',
+      });
+      expect(await runCodexHook(retryEvent, { env: f.env })).toBeNull();
+    },
+  );
 
   test('Claude requires its epoch-bound attestation and emits the same bounded contract', async () => {
     const f = await fixture('claude-code');

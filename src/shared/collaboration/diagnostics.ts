@@ -24,9 +24,25 @@ export type DeliveryDiagnosticInput = Omit<
   DeliveryDiagnosticRecord,
   'schemaVersion' | 'contentHash'
 >;
+const DIAGNOSTIC_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/u;
+const OUTCOME_CODES = new Set<DeliveryDiagnosticRecord['outcomeCode']>([
+  'claimed',
+  'stdout-written',
+  'host-output-attempted',
+  'watch-notification-attempted',
+]);
+const ERROR_CODES = new Set<NonNullable<DeliveryDiagnosticRecord['errorCode']>>(
+  ['diagnostic-write-failed', 'host-timeout', 'host-protocol-error'],
+);
 
 function validate(input: DeliveryDiagnosticInput): void {
   assertBoundedString(input.attemptId, 'diagnostic attempt ID', 128);
+  if (
+    !DIAGNOSTIC_ID.test(input.attemptId) ||
+    input.attemptId === '.' ||
+    input.attemptId === '..'
+  )
+    throw new TypeError('diagnostic attempt ID is not path-safe');
   assertUuid(input.activationId, 'diagnostic activation ID');
   assertBoundedString(input.eventKey, 'diagnostic event key', 256);
   if (!['prompt-start', 'stop', 'watch', 'manual'].includes(input.boundary))
@@ -41,9 +57,10 @@ function validate(input: DeliveryDiagnosticInput): void {
     ].includes(input.stage)
   )
     throw new TypeError('diagnostic stage is unsupported');
-  assertBoundedString(input.outcomeCode, 'diagnostic outcome code', 64);
-  if (input.errorCode !== null)
-    assertBoundedString(input.errorCode, 'diagnostic error code', 64);
+  if (!OUTCOME_CODES.has(input.outcomeCode))
+    throw new TypeError('diagnostic outcome code is unsupported');
+  if (input.errorCode !== null && !ERROR_CODES.has(input.errorCode))
+    throw new TypeError('diagnostic error code is unsupported');
   if (Number.isNaN(Date.parse(input.recordedAt)))
     throw new TypeError('diagnostic recordedAt must be a timestamp');
   for (const value of Object.values(input)) {
@@ -54,6 +71,37 @@ function validate(input: DeliveryDiagnosticInput): void {
       throw new TypeError('diagnostic contains disallowed sensitive text');
     }
   }
+}
+
+function validateRecord(record: DeliveryDiagnosticRecord): void {
+  if (record.schemaVersion !== SCHEMA_VERSION)
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      'diagnostic schema version is unsupported',
+    );
+  try {
+    const {
+      schemaVersion: _schemaVersion,
+      contentHash: _contentHash,
+      ...input
+    } = record;
+    validate(input);
+  } catch (error) {
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      `diagnostic record is invalid: ${(error as Error).message}`,
+    );
+  }
+  if (
+    record.contentHash !==
+    canonicalRecordHash(
+      record as unknown as Record<string, unknown> & { contentHash: string },
+    )
+  )
+    throw new CollaborationError(
+      'MALFORMED_RECORD',
+      'diagnostic contentHash does not match content',
+    );
 }
 
 export async function publishDeliveryDiagnostic(input: {
@@ -81,6 +129,9 @@ export async function publishDeliveryDiagnostic(input: {
     activationDirectory(input.root, input.pin),
     'diagnostics',
   );
+  const target = path.resolve(directory, `${input.diagnostic.attemptId}.json`);
+  if (path.dirname(target) !== path.resolve(directory))
+    throw new TypeError('diagnostic target escapes its exact namespace');
   const existing = await enumerateJsonRecords(directory, {
     root: input.root,
     maxEntries: MAX_DIAGNOSTICS,
@@ -95,13 +146,8 @@ export async function publishDeliveryDiagnostic(input: {
       'CAPACITY_EXCEEDED',
       'diagnostic capacity is exhausted',
     );
-  return (
-    await publishImmutableRecord(
-      path.join(directory, `${input.diagnostic.attemptId}.json`),
-      record,
-      { root: input.root },
-    )
-  ).record;
+  return (await publishImmutableRecord(target, record, { root: input.root }))
+    .record;
 }
 
 export async function latestDeliveryDiagnostic(input: {
@@ -138,16 +184,7 @@ export async function latestDeliveryDiagnostic(input: {
     ),
   );
   for (const record of records) {
-    if (
-      record.contentHash !==
-      canonicalRecordHash(
-        record as unknown as Record<string, unknown> & { contentHash: string },
-      )
-    )
-      throw new CollaborationError(
-        'MALFORMED_RECORD',
-        'diagnostic contentHash does not match content',
-      );
+    validateRecord(record);
   }
   return {
     latest:

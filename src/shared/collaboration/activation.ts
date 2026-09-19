@@ -22,6 +22,7 @@ import {
   type DeliveryController,
   type DeliveryMechanism,
   type ExpiryMode,
+  type HumanProvenanceEvidenceRecord,
   type Pin,
 } from './types.js';
 
@@ -64,6 +65,11 @@ export interface EnableActivationInput {
   noObserverMonitorConfirmed?: boolean;
   now?: Date;
   activationId?: string;
+  humanProvenanceEvidence?: {
+    hostVersion: string;
+    surface: string;
+    qualifiedAt: string;
+  } | null;
 }
 
 export type TerminationReason =
@@ -107,6 +113,8 @@ function assertIntegerRange(
 
 function validateActivation(record: ActivationRecord): ActivationRecord {
   try {
+    if (record.schemaVersion !== SCHEMA_VERSION)
+      throw new TypeError('activation schema version is unsupported');
     assertUuid(record.id, 'activation ID');
     assertUuid(record.collaborationId, 'activation collaboration ID');
     assertUuid(record.participantId, 'activation participant ID');
@@ -142,8 +150,16 @@ function validateActivation(record: ActivationRecord): ActivationRecord {
     }
     if (!['human-idle', 'fixed'].includes(record.expiryMode))
       throw new TypeError('activation expiry mode is unsupported');
-    timestamp(record.startedAt, 'activation startedAt');
-    timestamp(record.hardExpiresAt, 'activation hardExpiresAt');
+    const startedAt = timestamp(record.startedAt, 'activation startedAt');
+    const hardExpiresAt = timestamp(
+      record.hardExpiresAt,
+      'activation hardExpiresAt',
+    );
+    if (
+      hardExpiresAt <= startedAt ||
+      hardExpiresAt - startedAt > MAX_ACTIVATION_DURATION_MS
+    )
+      throw new TypeError('activation hard expiry must be within 24 hours');
     if (record.expiryMode === 'human-idle') {
       assertIntegerRange(
         record.idleTimeoutMs ?? 0,
@@ -158,7 +174,42 @@ function validateActivation(record: ActivationRecord): ActivationRecord {
         throw new TypeError('fixed activation cannot have idleTimeoutMs');
       if (record.fixedExpiresAt === null)
         throw new TypeError('fixed activation requires fixedExpiresAt');
-      timestamp(record.fixedExpiresAt, 'activation fixedExpiresAt');
+      const fixedExpiresAt = timestamp(
+        record.fixedExpiresAt,
+        'activation fixedExpiresAt',
+      );
+      if (fixedExpiresAt <= startedAt || fixedExpiresAt > hardExpiresAt)
+        throw new TypeError(
+          'fixed activation expiry must follow start and not exceed hard expiry',
+        );
+    }
+    if (record.thirdPartyHookAcknowledgment) {
+      if (
+        !/^[a-f0-9]{64}$/u.test(
+          record.thirdPartyHookAcknowledgment.configurationFingerprint,
+        )
+      )
+        throw new TypeError('hook acknowledgment fingerprint is invalid');
+      const acknowledgedAt = timestamp(
+        record.thirdPartyHookAcknowledgment.acknowledgedAt,
+        'hook acknowledgment time',
+      );
+      if (acknowledgedAt < startedAt || acknowledgedAt > hardExpiresAt)
+        throw new TypeError('hook acknowledgment time is outside activation');
+    }
+    if (record.noObserverMonitorAttestation) {
+      assertPin(record.noObserverMonitorAttestation.pin);
+      if (
+        !pinsEqual(record.noObserverMonitorAttestation.pin, record.pin) ||
+        record.noObserverMonitorAttestation.epoch !== record.epoch
+      )
+        throw new TypeError('Monitor attestation identity is invalid');
+      const confirmedAt = timestamp(
+        record.noObserverMonitorAttestation.confirmedAt,
+        'Monitor attestation time',
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError('Monitor attestation time is outside activation');
     }
     assertIntegerRange(
       record.maxContinuations,
@@ -468,6 +519,11 @@ export async function enableActivation(
   )
     throw new TypeError('max duration must be within 24 hours');
   const expiryMode = input.expiryMode ?? 'fixed';
+  if (expiryMode === 'human-idle' && !input.humanProvenanceEvidence)
+    throw new DeliveryError(
+      'DELIVERY_INACTIVE',
+      'human-idle activation requires qualifying exact host provenance evidence',
+    );
   const idleTimeoutMs =
     expiryMode === 'human-idle'
       ? (input.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS)
@@ -527,6 +583,44 @@ export async function enableActivation(
     ),
   };
   validateActivation(activation);
+  if (input.humanProvenanceEvidence) {
+    assertBoundedString(
+      input.humanProvenanceEvidence.hostVersion,
+      'human provenance host version',
+      128,
+    );
+    assertBoundedString(
+      input.humanProvenanceEvidence.surface,
+      'human provenance surface',
+      256,
+    );
+    const qualifiedAt = timestamp(
+      input.humanProvenanceEvidence.qualifiedAt,
+      'human provenance qualification time',
+    );
+    if (qualifiedAt > now.getTime())
+      throw new TypeError('human provenance cannot be qualified in the future');
+    const evidenceBase = {
+      schemaVersion: SCHEMA_VERSION,
+      activationId: activation.id,
+      pin: input.pin,
+      hostVersion: input.humanProvenanceEvidence.hostVersion,
+      surface: input.humanProvenanceEvidence.surface,
+      qualifiedAt: input.humanProvenanceEvidence.qualifiedAt,
+    } satisfies Omit<HumanProvenanceEvidenceRecord, 'contentHash'>;
+    await publishImmutableRecord(
+      path.join(
+        activationDirectory(input.root, input.pin),
+        'provenance',
+        `${activation.id}.json`,
+      ),
+      {
+        ...evidenceBase,
+        contentHash: canonicalRecordHash(evidenceBase),
+      },
+      { root: input.root },
+    );
+  }
   await publishImmutableRecord(
     path.join(
       activationDirectory(input.root, input.pin),
@@ -549,6 +643,12 @@ export async function recordHumanActivity(input: {
   pin: Pin;
   eventKey: string;
   now?: Date;
+  provenance: {
+    hostVersion: string;
+    surface: string;
+    nativeEventId: string;
+    trustedHumanOrigin: true;
+  };
 }): Promise<ActivityReceiptRecord> {
   const status = await activationStatus(
     input.root,
@@ -564,6 +664,51 @@ export async function recordHumanActivity(input: {
     throw new DeliveryError(
       'DELIVERY_CONFLICT',
       'fixed-expiry activation cannot be renewed',
+    );
+  const evidence = await readJsonRecord<HumanProvenanceEvidenceRecord>(
+    path.join(
+      activationDirectory(input.root, input.pin),
+      'provenance',
+      `${status.activation.id}.json`,
+    ),
+    { root: input.root, maxBytes: 8192 },
+  ).catch(() => null);
+  if (
+    !evidence ||
+    evidence.schemaVersion !== SCHEMA_VERSION ||
+    evidence.activationId !== status.activation.id ||
+    !pinsEqual(evidence.pin, input.pin) ||
+    typeof evidence.hostVersion !== 'string' ||
+    evidence.hostVersion.length === 0 ||
+    evidence.hostVersion.length > 128 ||
+    typeof evidence.surface !== 'string' ||
+    evidence.surface.length === 0 ||
+    evidence.surface.length > 256 ||
+    !Number.isFinite(Date.parse(evidence.qualifiedAt)) ||
+    Date.parse(evidence.qualifiedAt) >
+      Date.parse(status.activation.startedAt) ||
+    evidence.hostVersion !== input.provenance.hostVersion ||
+    evidence.surface !== input.provenance.surface ||
+    input.provenance.trustedHumanOrigin !== true ||
+    evidence.contentHash !==
+      canonicalRecordHash(
+        evidence as unknown as Record<string, unknown> & {
+          contentHash: string;
+        },
+      )
+  )
+    throw new DeliveryError(
+      'DELIVERY_INACTIVE',
+      'human activity lacks matching qualifying host provenance',
+    );
+  assertBoundedString(
+    input.provenance.nativeEventId,
+    'native human event ID',
+    128,
+  );
+  if (input.provenance.nativeEventId !== input.eventKey)
+    throw new TypeError(
+      'human activity event identity must be native and exact',
     );
   assertBoundedString(input.eventKey, 'human event key', 256);
   const base = {

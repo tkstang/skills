@@ -89,7 +89,7 @@ describe('observer owner contract', () => {
 
   test.each([
     ['armed', 'present'],
-    ['waiting', 'present'],
+    ['waiting', 'inactive'],
     ['triggered', 'present'],
     ['idle', 'inactive'],
     ['disarmed', 'inactive'],
@@ -142,5 +142,63 @@ describe('observer owner contract', () => {
     );
     await writeFile(file, `${JSON.stringify(lease('disarmed'))}\n`);
     expect((await assessAutomaticOwnership(base)).automaticAllowed).toBe(true);
+  });
+
+  test.each([
+    ['partial idle', (value: Record<string, unknown>) => delete value.leaseId],
+    [
+      'partial disarmed',
+      (value: Record<string, unknown>) => delete value.peerTranscript,
+    ],
+    [
+      'future schema',
+      (value: Record<string, unknown>) => {
+        value.schemaVersion = 7;
+      },
+    ],
+    [
+      'invalid counter',
+      (value: Record<string, unknown>) => {
+        value.continuationCount = -1;
+      },
+    ],
+    [
+      'partial wait fields',
+      (value: Record<string, unknown>) => {
+        value.state = 'waiting';
+        value.waitStartedAt = '2026-09-19T10:00:00.000Z';
+        value.waitDeadlineAt = null;
+      },
+    ],
+    [
+      'invalid canonical peer path',
+      (value: Record<string, unknown>) => {
+        value.peerCanonicalTranscriptPath = '/tmp/other.jsonl';
+      },
+    ],
+  ])('treats %s lease records as uncertain', async (_label, mutate) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'owner-contract-'));
+    const file = leasePath(root, 'owner');
+    await import('node:fs/promises').then(({ mkdir }) =>
+      mkdir(path.dirname(file), { recursive: true }),
+    );
+    const value = JSON.parse(JSON.stringify(lease('idle'))) as Record<
+      string,
+      unknown
+    >;
+    mutate(value);
+    await writeFile(file, `${JSON.stringify(value)}\n`);
+    const inventory = await inspectCodexStopInventory(
+      path.join(root, 'missing-hooks.json'),
+    );
+    expect(
+      await assessAutomaticOwnership({
+        root,
+        pin: { runtime: 'codex', sessionId: 'owner' },
+        worktree: '/tmp/worktree',
+        inventory,
+        now: new Date('2026-09-19T10:30:00.000Z'),
+      }),
+    ).toMatchObject({ automaticAllowed: false, observerOwner: 'uncertain' });
   });
 });

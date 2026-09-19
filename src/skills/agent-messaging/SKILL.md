@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.7'
+  version: '1.0.8'
 ---
 
 # {{distribution.name}}
@@ -106,6 +106,10 @@ uses a fixed two-hour expiry, a 24-hour hard cap, 20 non-reusable continuation
 slots, and zero reply wait. Human-idle renewal is permitted only when a later
 host adapter supplies a trustworthy native human event identity; peer messages,
 replays, notifications, and continuations never renew it.
+
+The ordinary CLI cannot select human-idle expiry or publish renewal events.
+Until the exact host version and surface has qualifying human-origin evidence,
+use fixed expiry and re-enable explicitly after expiration.
 
 ```bash
 node <skill-dir>/scripts/agent-messaging.mjs delivery enable \

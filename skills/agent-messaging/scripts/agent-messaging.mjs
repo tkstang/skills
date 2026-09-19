@@ -1178,6 +1178,8 @@ function assertIntegerRange(value, label, minimum, maximum) {
 }
 function validateActivation(record) {
   try {
+    if (record.schemaVersion !== SCHEMA_VERSION)
+      throw new TypeError("activation schema version is unsupported");
     assertUuid(record.id, "activation ID");
     assertUuid(record.collaborationId, "activation collaboration ID");
     assertUuid(record.participantId, "activation participant ID");
@@ -1208,8 +1210,13 @@ function validateActivation(record) {
     }
     if (!["human-idle", "fixed"].includes(record.expiryMode))
       throw new TypeError("activation expiry mode is unsupported");
-    timestamp2(record.startedAt, "activation startedAt");
-    timestamp2(record.hardExpiresAt, "activation hardExpiresAt");
+    const startedAt = timestamp2(record.startedAt, "activation startedAt");
+    const hardExpiresAt = timestamp2(
+      record.hardExpiresAt,
+      "activation hardExpiresAt"
+    );
+    if (hardExpiresAt <= startedAt || hardExpiresAt - startedAt > MAX_ACTIVATION_DURATION_MS)
+      throw new TypeError("activation hard expiry must be within 24 hours");
     if (record.expiryMode === "human-idle") {
       assertIntegerRange(
         record.idleTimeoutMs ?? 0,
@@ -1224,7 +1231,37 @@ function validateActivation(record) {
         throw new TypeError("fixed activation cannot have idleTimeoutMs");
       if (record.fixedExpiresAt === null)
         throw new TypeError("fixed activation requires fixedExpiresAt");
-      timestamp2(record.fixedExpiresAt, "activation fixedExpiresAt");
+      const fixedExpiresAt = timestamp2(
+        record.fixedExpiresAt,
+        "activation fixedExpiresAt"
+      );
+      if (fixedExpiresAt <= startedAt || fixedExpiresAt > hardExpiresAt)
+        throw new TypeError(
+          "fixed activation expiry must follow start and not exceed hard expiry"
+        );
+    }
+    if (record.thirdPartyHookAcknowledgment) {
+      if (!/^[a-f0-9]{64}$/u.test(
+        record.thirdPartyHookAcknowledgment.configurationFingerprint
+      ))
+        throw new TypeError("hook acknowledgment fingerprint is invalid");
+      const acknowledgedAt = timestamp2(
+        record.thirdPartyHookAcknowledgment.acknowledgedAt,
+        "hook acknowledgment time"
+      );
+      if (acknowledgedAt < startedAt || acknowledgedAt > hardExpiresAt)
+        throw new TypeError("hook acknowledgment time is outside activation");
+    }
+    if (record.noObserverMonitorAttestation) {
+      assertPin(record.noObserverMonitorAttestation.pin);
+      if (!pinsEqual(record.noObserverMonitorAttestation.pin, record.pin) || record.noObserverMonitorAttestation.epoch !== record.epoch)
+        throw new TypeError("Monitor attestation identity is invalid");
+      const confirmedAt = timestamp2(
+        record.noObserverMonitorAttestation.confirmedAt,
+        "Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError("Monitor attestation time is outside activation");
     }
     assertIntegerRange(
       record.maxContinuations,
@@ -1477,6 +1514,11 @@ async function enableActivation(input) {
   if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs <= 0 || maxDurationMs > MAX_ACTIVATION_DURATION_MS)
     throw new TypeError("max duration must be within 24 hours");
   const expiryMode = input.expiryMode ?? "fixed";
+  if (expiryMode === "human-idle" && !input.humanProvenanceEvidence)
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      "human-idle activation requires qualifying exact host provenance evidence"
+    );
   const idleTimeoutMs = expiryMode === "human-idle" ? input.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS : null;
   if (idleTimeoutMs !== null && (!Number.isSafeInteger(idleTimeoutMs) || idleTimeoutMs <= 0 || idleTimeoutMs > MAX_ACTIVATION_DURATION_MS))
     throw new TypeError("idle timeout must be within 24 hours");
@@ -1513,6 +1555,44 @@ async function enableActivation(input) {
     )
   };
   validateActivation(activation);
+  if (input.humanProvenanceEvidence) {
+    assertBoundedString(
+      input.humanProvenanceEvidence.hostVersion,
+      "human provenance host version",
+      128
+    );
+    assertBoundedString(
+      input.humanProvenanceEvidence.surface,
+      "human provenance surface",
+      256
+    );
+    const qualifiedAt = timestamp2(
+      input.humanProvenanceEvidence.qualifiedAt,
+      "human provenance qualification time"
+    );
+    if (qualifiedAt > now.getTime())
+      throw new TypeError("human provenance cannot be qualified in the future");
+    const evidenceBase = {
+      schemaVersion: SCHEMA_VERSION,
+      activationId: activation.id,
+      pin: input.pin,
+      hostVersion: input.humanProvenanceEvidence.hostVersion,
+      surface: input.humanProvenanceEvidence.surface,
+      qualifiedAt: input.humanProvenanceEvidence.qualifiedAt
+    };
+    await publishImmutableRecord(
+      path4.join(
+        activationDirectory(input.root, input.pin),
+        "provenance",
+        `${activation.id}.json`
+      ),
+      {
+        ...evidenceBase,
+        contentHash: canonicalRecordHash(evidenceBase)
+      },
+      { root: input.root }
+    );
+  }
   await publishImmutableRecord(
     path4.join(
       activationDirectory(input.root, input.pin),
@@ -1528,50 +1608,6 @@ async function enableActivation(input) {
       "activation published during closure and is inert"
     );
   return activation;
-}
-async function recordHumanActivity(input) {
-  const status = await activationStatus(
-    input.root,
-    input.pin,
-    input.now ?? /* @__PURE__ */ new Date()
-  );
-  if (!status.activation || !status.active)
-    throw new DeliveryError(
-      "DELIVERY_INACTIVE",
-      status.notice ?? "delivery activation is inactive"
-    );
-  if (status.activation.expiryMode !== "human-idle")
-    throw new DeliveryError(
-      "DELIVERY_CONFLICT",
-      "fixed-expiry activation cannot be renewed"
-    );
-  assertBoundedString(input.eventKey, "human event key", 256);
-  const base = {
-    schemaVersion: SCHEMA_VERSION,
-    activationId: status.activation.id,
-    eventKey: input.eventKey,
-    observedAt: (input.now ?? /* @__PURE__ */ new Date()).toISOString()
-  };
-  const record = {
-    ...base,
-    contentHash: canonicalRecordHash(
-      base
-    )
-  };
-  const safeKey2 = await import("node:crypto").then(
-    ({ createHash: createHash5 }) => createHash5("sha256").update(`human\0${input.eventKey}`).digest("hex")
-  );
-  await publishImmutableRecord(
-    path4.join(
-      activationDirectory(input.root, input.pin),
-      "activity",
-      status.activation.id,
-      `${safeKey2}.json`
-    ),
-    record,
-    { root: input.root }
-  );
-  return record;
 }
 async function disableActivation(input) {
   const status = await activationStatus(
@@ -1611,6 +1647,33 @@ async function disableActivation(input) {
 // src/shared/collaboration/claims.ts
 import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
 import path5 from "node:path";
+async function resolveDeliveryKeys(input) {
+  const files = await enumerateJsonRecords(
+    path5.join(
+      collaborationPaths(input.root, input.activation.collaborationId).directory,
+      "retries",
+      input.activation.participantId
+    ),
+    { root: input.root, maxEntries: 4096 }
+  );
+  const generations = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const retry = await readJsonRecord(file, { root: input.root });
+    if (retry.activationId !== input.activation.id || retry.participantId !== input.activation.participantId || !Number.isSafeInteger(retry.retryGeneration) || retry.retryGeneration < 1)
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "retry record identity or generation is invalid"
+      );
+    generations.set(
+      retry.messageId,
+      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration)
+    );
+  }
+  return input.messages.map((message) => ({
+    messageId: message.id,
+    retryGeneration: generations.get(message.id) ?? 0
+  }));
+}
 function safeKey(domain, value) {
   return createHash3("sha256").update(`${domain}\0${value}`, "utf8").digest("hex");
 }
@@ -1768,7 +1831,7 @@ async function claimDelivery(input) {
   const after = await activationStatus(
     input.root,
     input.pin,
-    input.now ?? /* @__PURE__ */ new Date()
+    input.clock?.() ?? /* @__PURE__ */ new Date()
   );
   return {
     event: eventResult.record,
@@ -1923,8 +1986,20 @@ async function deliveryClaimStatus(input) {
 import path6 from "node:path";
 var MAX_DIAGNOSTICS = 4096;
 var MAX_DIAGNOSTIC_BYTES = 8192;
+var DIAGNOSTIC_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/u;
+var OUTCOME_CODES = /* @__PURE__ */ new Set([
+  "claimed",
+  "stdout-written",
+  "host-output-attempted",
+  "watch-notification-attempted"
+]);
+var ERROR_CODES = /* @__PURE__ */ new Set(
+  ["diagnostic-write-failed", "host-timeout", "host-protocol-error"]
+);
 function validate(input) {
   assertBoundedString(input.attemptId, "diagnostic attempt ID", 128);
+  if (!DIAGNOSTIC_ID.test(input.attemptId) || input.attemptId === "." || input.attemptId === "..")
+    throw new TypeError("diagnostic attempt ID is not path-safe");
   assertUuid(input.activationId, "diagnostic activation ID");
   assertBoundedString(input.eventKey, "diagnostic event key", 256);
   if (!["prompt-start", "stop", "watch", "manual"].includes(input.boundary))
@@ -1937,9 +2012,10 @@ function validate(input) {
     "output-attempted"
   ].includes(input.stage))
     throw new TypeError("diagnostic stage is unsupported");
-  assertBoundedString(input.outcomeCode, "diagnostic outcome code", 64);
-  if (input.errorCode !== null)
-    assertBoundedString(input.errorCode, "diagnostic error code", 64);
+  if (!OUTCOME_CODES.has(input.outcomeCode))
+    throw new TypeError("diagnostic outcome code is unsupported");
+  if (input.errorCode !== null && !ERROR_CODES.has(input.errorCode))
+    throw new TypeError("diagnostic error code is unsupported");
   if (Number.isNaN(Date.parse(input.recordedAt)))
     throw new TypeError("diagnostic recordedAt must be a timestamp");
   for (const value of Object.values(input)) {
@@ -1947,6 +2023,33 @@ function validate(input) {
       throw new TypeError("diagnostic contains disallowed sensitive text");
     }
   }
+}
+function validateRecord(record) {
+  if (record.schemaVersion !== SCHEMA_VERSION)
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "diagnostic schema version is unsupported"
+    );
+  try {
+    const {
+      schemaVersion: _schemaVersion,
+      contentHash: _contentHash,
+      ...input
+    } = record;
+    validate(input);
+  } catch (error) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      `diagnostic record is invalid: ${error.message}`
+    );
+  }
+  if (record.contentHash !== canonicalRecordHash(
+    record
+  ))
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "diagnostic contentHash does not match content"
+    );
 }
 async function publishDeliveryDiagnostic(input) {
   validate(input.diagnostic);
@@ -1969,6 +2072,9 @@ async function publishDeliveryDiagnostic(input) {
     activationDirectory(input.root, input.pin),
     "diagnostics"
   );
+  const target = path6.resolve(directory, `${input.diagnostic.attemptId}.json`);
+  if (path6.dirname(target) !== path6.resolve(directory))
+    throw new TypeError("diagnostic target escapes its exact namespace");
   const existing = await enumerateJsonRecords(directory, {
     root: input.root,
     maxEntries: MAX_DIAGNOSTICS
@@ -1980,11 +2086,7 @@ async function publishDeliveryDiagnostic(input) {
       "CAPACITY_EXCEEDED",
       "diagnostic capacity is exhausted"
     );
-  return (await publishImmutableRecord(
-    path6.join(directory, `${input.diagnostic.attemptId}.json`),
-    record,
-    { root: input.root }
-  )).record;
+  return (await publishImmutableRecord(target, record, { root: input.root })).record;
 }
 async function latestDeliveryDiagnostic(input) {
   const directory = path6.join(
@@ -2011,13 +2113,7 @@ async function latestDeliveryDiagnostic(input) {
     )
   );
   for (const record of records) {
-    if (record.contentHash !== canonicalRecordHash(
-      record
-    ))
-      throw new CollaborationError(
-        "MALFORMED_RECORD",
-        "diagnostic contentHash does not match content"
-      );
+    validateRecord(record);
   }
   return {
     latest: records.toSorted(
@@ -2800,30 +2896,48 @@ var MESSAGING_HOOK_OWNER = "agent-messaging-host-hook-v1";
 function fingerprint(registrations) {
   return createHash4("sha256").update(
     canonicalJson(
-      registrations.map(({ source, command }) => ({ source, command })).toSorted(
-        (left, right) => left.source.localeCompare(right.source) || left.command.localeCompare(right.command)
+      registrations.map(({ source, configuration }) => ({ source, configuration })).toSorted(
+        (left, right) => left.source.localeCompare(right.source) || canonicalJson(left.configuration).localeCompare(
+          canonicalJson(right.configuration)
+        )
       )
     )
   ).digest("hex");
 }
-function stopCommands(value) {
+function stopRegistrations(value, source) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
   const hooks = value.hooks;
   if (!hooks || typeof hooks !== "object" || Array.isArray(hooks)) return [];
   const groups = hooks.Stop;
   if (!Array.isArray(groups)) return [];
-  const commands = [];
-  for (const group of groups) {
+  const registrations = [];
+  for (const [groupIndex, group] of groups.entries()) {
     if (!group || typeof group !== "object" || Array.isArray(group)) continue;
     const entries = group.hooks;
     if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
+    for (const [hookIndex, entry] of entries.entries()) {
       if (entry && typeof entry === "object" && !Array.isArray(entry) && typeof entry.command === "string") {
-        commands.push(entry.command);
+        const groupRecord = group;
+        const { hooks: _hooks, ...groupConfiguration } = groupRecord;
+        registrations.push({
+          source: path10.resolve(source),
+          command: entry.command,
+          configuration: {
+            groupIndex,
+            hookIndex,
+            group: groupConfiguration,
+            hook: structuredClone(entry)
+          }
+        });
       }
     }
   }
-  return commands;
+  return registrations;
+}
+function stopCommands(value) {
+  return stopRegistrations(value, "/inventory").map(
+    (registration) => registration.command
+  );
 }
 function commandScript(command) {
   const match = /^node\s+--\s+(?:'((?:[^']|'"'"')*)'|"([^"]+)"|(\S+))$/u.exec(
@@ -2892,10 +3006,10 @@ async function inspectCodexStopInventory(hooksPath) {
     unreadableSources.push(hooksPath);
   }
   const registrations = [];
-  for (const command of stopCommands(config)) {
+  for (const registration of stopRegistrations(config, hooksPath)) {
+    const { command } = registration;
     registrations.push({
-      source: hooksPath,
-      command,
+      ...registration,
       recognizedObserver: await recognizedObserverLauncher(command),
       recognizedMessaging: await recognizedMessagingLauncher(command)
     });
@@ -2924,10 +3038,10 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
-    for (const command of stopCommands(config)) {
+    for (const registration of stopRegistrations(config, source)) {
+      const { command } = registration;
       registrations.push({
-        source,
-        command,
+        ...registration,
         recognizedObserver: false,
         recognizedMessaging: await recognizedMessagingLauncher(command)
       });
@@ -2955,10 +3069,10 @@ async function inspectClaudeStopInventory(input) {
       unreadableSources.push(source);
       continue;
     }
-    for (const command of stopCommands(config)) {
+    for (const registration of stopRegistrations(config, source)) {
+      const { command } = registration;
       registrations.push({
-        source,
-        command,
+        ...registration,
         recognizedObserver: false,
         recognizedMessaging: await recognizedMessagingLauncher(command)
       });
@@ -2975,6 +3089,49 @@ async function inspectClaudeStopInventory(input) {
     ]
   };
 }
+var SAFE_LEASE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/u;
+function validLeaseId(value) {
+  return typeof value === "string" && SAFE_LEASE_ID.test(value) && value !== "." && value !== "..";
+}
+function validInteger(value, minimum, maximum) {
+  return Number.isSafeInteger(value) && value >= minimum && value <= maximum;
+}
+function validTimestamp(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+function validateObserverLease(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new TypeError("observer lease must be an object");
+  const lease = raw;
+  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || !validLeaseId(lease.leaseId) || !["codex", "cursor"].includes(lease.runtime) || !["claude-code", "codex", "cursor"].includes(lease.peerRuntime) || !validLeaseId(lease.ownerSession) || !validLeaseId(lease.peerSession) || typeof lease.ownerCwd !== "string" || !path10.isAbsolute(lease.ownerCwd) || lease.ownerCwd.includes("\0") || typeof lease.peerTranscript !== "string" || !path10.isAbsolute(lease.peerTranscript) || lease.peerTranscript.includes("\0") || typeof lease.peerCanonicalTranscriptPath !== "string" || !path10.isAbsolute(lease.peerCanonicalTranscriptPath) || lease.peerCanonicalTranscriptPath.includes("\0") || path10.resolve(lease.peerTranscript) !== path10.resolve(lease.peerCanonicalTranscriptPath) || lease.peerIndexBase !== (lease.peerRuntime === "cursor" ? "zero-based-jsonl-frame-index" : "zero-based-jsonl-record-index") || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
+    lease.state
+  ) || !validTimestamp(lease.armedAt) || !validTimestamp(lease.expiresAt) || !validTimestamp(lease.updatedAt) || !validInteger(lease.waitMs, 0, 6e4) || !validInteger(lease.leaseMs, 1, 24 * 60 * 60 * 1e3) || !validInteger(lease.peerCursor, 0, Number.MAX_SAFE_INTEGER) || !validInteger(lease.continuationCount, 0, 100) || !validInteger(lease.continuationCap, 1, 100) || !validInteger(lease.loopCount, 0, 1e3) || !validInteger(lease.loopCap, 1, 1e3) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || lease.diagnostic !== null && typeof lease.diagnostic !== "string")
+    throw new TypeError("observer lease schema is invalid");
+  const timingBothNull = lease.waitStartedAt === null && lease.waitDeadlineAt === null;
+  const timingBothValid = validTimestamp(lease.waitStartedAt) && validTimestamp(lease.waitDeadlineAt);
+  const waiterBothNull = lease.waitToken === null && lease.waitPid === null;
+  const waiterBothValid = validLeaseId(lease.waitToken) && validInteger(lease.waitPid, 1, Number.MAX_SAFE_INTEGER);
+  if (!timingBothNull && !timingBothValid || !waiterBothNull && !waiterBothValid || lease.state !== "waiting" && (!timingBothNull || !waiterBothNull))
+    throw new TypeError("observer wait state is invalid");
+  if (timingBothValid) {
+    const started = Date.parse(lease.waitStartedAt);
+    const deadline = Date.parse(lease.waitDeadlineAt);
+    if (deadline < started || deadline - started > lease.waitMs || deadline > Date.parse(lease.expiresAt))
+      throw new TypeError("observer wait deadline is invalid");
+  }
+  if (Date.parse(lease.expiresAt) < Date.parse(lease.armedAt) || Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs)
+    throw new TypeError("observer lease duration is invalid");
+  if (lease.peerRuntime === "cursor") {
+    const checkpoint = lease.peerContinuity;
+    if (!checkpoint || checkpoint.indexBase !== "zero-based-jsonl-frame-index" || !validInteger(checkpoint.nextFrameIndex, 0, Number.MAX_SAFE_INTEGER) || !validInteger(checkpoint.prefixBytes, 0, Number.MAX_SAFE_INTEGER) || !validInteger(checkpoint.observedSize, 0, Number.MAX_SAFE_INTEGER) || checkpoint.nextFrameIndex !== lease.peerCursor || checkpoint.prefixBytes > checkpoint.observedSize || typeof checkpoint.prefixSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(checkpoint.prefixSha256) || ![checkpoint.device, checkpoint.inode].every(
+      (value) => value === null || validInteger(value, 0, Number.MAX_SAFE_INTEGER)
+    ))
+      throw new TypeError("observer cursor continuity is invalid");
+  } else if (lease.peerContinuity !== null) {
+    throw new TypeError("observer record continuity is invalid");
+  }
+  return lease;
+}
 async function inspectObserverLease(input) {
   const file = path10.join(input.root, "leases", `${input.pin.sessionId}.json`);
   let info;
@@ -2989,19 +3146,17 @@ async function inspectObserverLease(input) {
   }
   let lease;
   try {
-    lease = JSON.parse(await readFile3(file, "utf8"));
+    lease = validateObserverLease(JSON.parse(await readFile3(file, "utf8")));
   } catch {
     return "uncertain";
   }
-  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || lease.ownerCwd !== path10.resolve(input.worktree) || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
-    lease.state
-  ) || !Number.isSafeInteger(lease.continuationCount) || !Number.isSafeInteger(lease.continuationCap) || !Number.isSafeInteger(lease.loopCount) || !Number.isSafeInteger(lease.loopCap) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || Number.isNaN(Date.parse(lease.armedAt)) || Number.isNaN(Date.parse(lease.expiresAt)) || Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs) {
+  if (lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || path10.resolve(lease.ownerCwd) !== path10.resolve(input.worktree)) {
     return "uncertain";
   }
   if (lease.state === "triggered") return "present";
   if (["idle", "disarmed"].includes(lease.state)) return "inactive";
   const now = (input.now ?? /* @__PURE__ */ new Date()).getTime();
-  if (now >= Date.parse(lease.expiresAt) || lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap) {
+  if (now >= Date.parse(lease.expiresAt) || lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap || lease.state === "waiting" && (lease.waitDeadlineAt === null || now >= Date.parse(lease.waitDeadlineAt))) {
     return "inactive";
   }
   return "present";
@@ -3161,31 +3316,6 @@ async function inventoryFor(input) {
   const installedPlugins = env.AGENT_MESSAGING_CLAUDE_PLUGINS ? JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
 }
-async function deliveryKeys(input, activationId, participantId, messages) {
-  const files = await enumerateJsonRecords(
-    path11.join(
-      collaborationPaths(input.root, input.collaborationId).directory,
-      "retries",
-      participantId
-    ),
-    { root: input.root, maxEntries: 4096 }
-  );
-  const generations = /* @__PURE__ */ new Map();
-  for (const file of files) {
-    const retry = await readJsonRecord(file, { root: input.root });
-    if (retry.activationId !== activationId || retry.participantId !== participantId) {
-      continue;
-    }
-    generations.set(
-      retry.messageId,
-      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration)
-    );
-  }
-  return messages.map((message) => ({
-    messageId: message.id,
-    retryGeneration: generations.get(message.id) ?? 0
-  }));
-}
 async function acceptedOwnership(input, now) {
   const status = await activationStatus(input.root, input.pin, now);
   if (!status.active || !status.activation || status.activation.collaborationId !== input.collaborationId || status.activation.worktree !== path11.resolve(input.worktree) || status.activation.controller !== "standalone-messaging" || status.activation.mechanism !== "monitor") {
@@ -3257,12 +3387,11 @@ async function watchInbox(input, dependencies) {
       (message) => message.kind === "request" && !message.inert
     );
     if (requests.length > 0) {
-      const keys = await deliveryKeys(
-        input,
-        activation.id,
-        activation.participantId,
-        requests
-      );
+      const keys = await resolveDeliveryKeys({
+        root: input.root,
+        activation,
+        messages: requests
+      });
       const eventKey = watchBatchEventKey({
         activationId: activation.id,
         bindingGeneration: activation.bindingGeneration,
@@ -3275,6 +3404,7 @@ async function watchInbox(input, dependencies) {
         eventKey,
         deliveryKeys: keys,
         now,
+        clock: currentTime,
         hooks: {
           afterEventClaim: dependencies.afterEventClaim,
           beforeFinalValidation: async () => {
@@ -3300,6 +3430,11 @@ async function watchInbox(input, dependencies) {
             errorCode: null
           }
         }).catch(() => void 0);
+        const preEmit = await acceptedOwnership(input, currentTime());
+        if (!preEmit.allowed || preEmit.status.activation?.id !== activation.id) {
+          reason = preEmit.status.active ? "ownership-refused" : "activation-inactive";
+          break;
+        }
         await dependencies.emit({
           type: "agent-messaging-request-notification",
           collaborationId: input.collaborationId,
@@ -3338,7 +3473,7 @@ Usage:
   node agent-messaging.mjs join --collab <uuid> --self <runtime:id> --alias <name>
   node agent-messaging.mjs send --collab <uuid> --self <runtime:id> --to <alias> --id <uuid> --subject <text> --body-stdin [--reply-to <participantId>/<messageId>]
   node agent-messaging.mjs inbox|ack|status|leave|close ...
-  node agent-messaging.mjs delivery enable|disable|activity|retry|watch|probe-plan ...
+  node agent-messaging.mjs delivery enable|disable|retry|watch|probe-plan ...
   node agent-messaging.mjs log append|show|render ...
 
 Common flags: --root <absolute-path> --json --help`;
@@ -3633,6 +3768,11 @@ async function execute(parsed, io) {
     const expiryMode = optional(parsed, "expiry-mode") ?? "fixed";
     if (!["fixed", "human-idle"].includes(expiryMode))
       throw new TypeError("--expiry-mode must be fixed or human-idle");
+    if (expiryMode === "human-idle")
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        "human-idle delivery is unavailable until this exact host/version has qualifying live human-origin evidence"
+      );
     const worktree = optional(parsed, "cwd") ?? io.cwd;
     const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
       optional(parsed, "hooks-path") ?? path12.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
@@ -3696,17 +3836,6 @@ async function execute(parsed, io) {
       data: await disableActivation({
         root,
         pin: resolveSelf(parsed, io.env)
-      })
-    };
-  }
-  if (command === "delivery" && subcommand === "activity") {
-    return {
-      operation: "delivery.activity",
-      collaborationId,
-      data: await recordHumanActivity({
-        root,
-        pin: resolveSelf(parsed, io.env),
-        eventKey: required(parsed, "event")
       })
     };
   }

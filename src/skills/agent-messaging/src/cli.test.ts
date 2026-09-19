@@ -151,6 +151,60 @@ describe('agent messaging CLI', () => {
       previousEpoch: 0,
     });
   });
+
+  test('refuses CLI human-idle activation and exposes no renewal command', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
+    const collaborationId = crypto.randomUUID();
+    await run([
+      'open',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--alias',
+      'driver',
+      '--label',
+      'delivery',
+      '--task',
+      'bounded',
+    ]);
+    const enable = await run([
+      'delivery',
+      'enable',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--expiry-mode',
+      'human-idle',
+      '--json',
+    ]);
+    expect(enable.code).toBe(3);
+    expect(JSON.parse(enable.stderr).message).toContain(
+      'qualifying live human-origin evidence',
+    );
+    const renewal = await run([
+      'delivery',
+      'activity',
+      '--root',
+      root,
+      '--collab',
+      collaborationId,
+      '--self',
+      'codex:driver',
+      '--event',
+      'manual',
+      '--json',
+    ]);
+    expect(renewal.code).toBe(2);
+    expect(JSON.parse(renewal.stderr).message).toContain(
+      'unknown command: delivery activity',
+    );
+  });
   test('opens, joins, sends, reads, and acknowledges with JSON envelopes', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
     const collaborationId = crypto.randomUUID();

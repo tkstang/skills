@@ -19,6 +19,8 @@ import {
   type MessageClaimRecord,
   type Pin,
   type RetryRecord,
+  type InboxMessage,
+  type ActivationRecord,
   type SlotClaimRecord,
 } from './types.js';
 
@@ -40,8 +42,47 @@ export interface ClaimDeliveryInput {
   eventKey: string;
   deliveryKeys: DeliveryKey[];
   now?: Date;
+  clock?: () => Date;
   token?: string;
   hooks?: ClaimHooks;
+}
+
+export async function resolveDeliveryKeys(input: {
+  root: string;
+  activation: ActivationRecord;
+  messages: Pick<InboxMessage, 'id'>[];
+}): Promise<DeliveryKey[]> {
+  const files = await enumerateJsonRecords(
+    path.join(
+      collaborationPaths(input.root, input.activation.collaborationId)
+        .directory,
+      'retries',
+      input.activation.participantId,
+    ),
+    { root: input.root, maxEntries: 4096 },
+  );
+  const generations = new Map<string, number>();
+  for (const file of files) {
+    const retry = await readJsonRecord<RetryRecord>(file, { root: input.root });
+    if (
+      retry.activationId !== input.activation.id ||
+      retry.participantId !== input.activation.participantId ||
+      !Number.isSafeInteger(retry.retryGeneration) ||
+      retry.retryGeneration < 1
+    )
+      throw new CollaborationError(
+        'MALFORMED_RECORD',
+        'retry record identity or generation is invalid',
+      );
+    generations.set(
+      retry.messageId,
+      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration),
+    );
+  }
+  return input.messages.map((message) => ({
+    messageId: message.id,
+    retryGeneration: generations.get(message.id) ?? 0,
+  }));
 }
 
 function safeKey(domain: string, value: string): string {
@@ -240,7 +281,7 @@ export async function claimDelivery(input: ClaimDeliveryInput): Promise<{
   const after = await activationStatus(
     input.root,
     input.pin,
-    input.now ?? new Date(),
+    input.clock?.() ?? new Date(),
   );
   return {
     event: eventResult.record,

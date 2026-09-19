@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -18,6 +18,8 @@ import {
   openCollaboration,
   takeOverMembership,
 } from './membership.js';
+import { activationDirectory } from './paths.js';
+import { canonicalRecordHash } from './records.js';
 
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'activation-test-'));
@@ -34,6 +36,19 @@ async function fixture() {
   });
   return { root, collaborationId, pin };
 }
+
+const humanEvidence = (qualifiedAt: Date) => ({
+  hostVersion: 'fixture-1.0',
+  surface: 'fixture-native-prompt',
+  qualifiedAt: qualifiedAt.toISOString(),
+});
+
+const humanProvenance = (nativeEventId: string) => ({
+  hostVersion: 'fixture-1.0',
+  surface: 'fixture-native-prompt',
+  nativeEventId,
+  trustedHumanOrigin: true as const,
+});
 
 describe('delivery activation', () => {
   test('publishes the complete immutable schema and requires termination before a successor', async () => {
@@ -80,12 +95,14 @@ describe('delivery activation', () => {
       expiryMode: 'human-idle',
       idleTimeoutMs: 1000,
       maxDurationMs: 2500,
+      humanProvenanceEvidence: humanEvidence(start),
     });
     await recordHumanActivity({
       root: input.root,
       pin: input.pin,
       eventKey: 'human-1',
       now: new Date(start.getTime() + 900),
+      provenance: humanProvenance('human-1'),
     });
     expect(
       (
@@ -101,6 +118,7 @@ describe('delivery activation', () => {
       pin: input.pin,
       eventKey: 'human-2',
       now: new Date(start.getTime() + 1800),
+      provenance: humanProvenance('human-2'),
     });
     const capped = await activationStatus(
       input.root,
@@ -118,6 +136,28 @@ describe('delivery activation', () => {
         pin: input.pin,
         eventKey: 'late',
         now: new Date(start.getTime() + 2600),
+        provenance: humanProvenance('late'),
+      }),
+    ).rejects.toMatchObject({ code: 'DELIVERY_INACTIVE' });
+    await expect(
+      recordHumanActivity({
+        root: input.root,
+        pin: input.pin,
+        eventKey: 'arbitrary-cli-event',
+        now: new Date(start.getTime() + 10),
+        provenance: humanProvenance('different-native-event'),
+      }),
+    ).rejects.toThrow('native and exact');
+    await expect(
+      recordHumanActivity({
+        root: input.root,
+        pin: input.pin,
+        eventKey: 'not-trusted',
+        now: new Date(start.getTime() + 10),
+        provenance: {
+          ...humanProvenance('not-trusted'),
+          trustedHumanOrigin: false,
+        } as unknown as Parameters<typeof recordHumanActivity>[0]['provenance'],
       }),
     ).rejects.toMatchObject({ code: 'DELIVERY_INACTIVE' });
   });
@@ -138,6 +178,7 @@ describe('delivery activation', () => {
         pin: input.pin,
         eventKey: 'peer-message',
         now: new Date(start.getTime() + 10),
+        provenance: humanProvenance('peer-message'),
       }),
     ).rejects.toMatchObject({ code: 'DELIVERY_CONFLICT' });
     expect(
@@ -149,6 +190,38 @@ describe('delivery activation', () => {
         )
       ).terminationReason,
     ).toBe('expired');
+  });
+
+  test('rejects human-idle enablement and renewal without exact host provenance', async () => {
+    const input = await fixture();
+    const start = new Date('2026-09-19T10:00:00.000Z');
+    await expect(
+      enableActivation({
+        ...input,
+        worktree: '/tmp/owner',
+        now: start,
+        expiryMode: 'human-idle',
+      }),
+    ).rejects.toMatchObject({ code: 'DELIVERY_INACTIVE' });
+    await enableActivation({
+      ...input,
+      worktree: '/tmp/owner',
+      now: start,
+      expiryMode: 'human-idle',
+      humanProvenanceEvidence: humanEvidence(start),
+    });
+    await expect(
+      recordHumanActivity({
+        root: input.root,
+        pin: input.pin,
+        eventKey: 'arbitrary-cli-event',
+        now: new Date(start.getTime() + 10),
+        provenance: {
+          ...humanProvenance('different-native-event'),
+          hostVersion: 'unqualified-version',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'DELIVERY_INACTIVE' });
   });
 
   test('recognizes closure, departure, and binding succession as terminal', async () => {
@@ -215,5 +288,64 @@ describe('delivery activation', () => {
         worktree: '/tmp/owner',
       }),
     ).rejects.toMatchObject({ code: 'DELIVERY_CONFLICT' });
+  });
+
+  test.each([
+    [
+      'overlong hard expiry',
+      (record: Record<string, unknown>) => {
+        record.hardExpiresAt = '2026-09-20T10:00:00.001Z';
+        record.fixedExpiresAt = '2026-09-20T10:00:00.001Z';
+      },
+    ],
+    [
+      'reversed hard expiry',
+      (record: Record<string, unknown>) => {
+        record.hardExpiresAt = '2026-09-19T09:59:59.999Z';
+      },
+    ],
+    [
+      'fixed expiry beyond hard expiry',
+      (record: Record<string, unknown>) => {
+        record.hardExpiresAt = '2026-09-19T11:00:00.000Z';
+        record.fixedExpiresAt = '2026-09-19T11:00:00.001Z';
+      },
+    ],
+    [
+      'mismatched attestation epoch',
+      (record: Record<string, unknown>) => {
+        record.noObserverMonitorAttestation = {
+          pin: record.pin,
+          epoch: 1,
+          confirmedAt: record.startedAt,
+        };
+      },
+    ],
+  ])('fails closed for correctly hashed %s records', async (_label, mutate) => {
+    const input = await fixture();
+    const now = new Date('2026-09-19T10:00:00.000Z');
+    const activation = await enableActivation({
+      ...input,
+      worktree: '/tmp/owner',
+      now,
+      fixedDurationMs: 60 * 60 * 1000,
+    });
+    const file = path.join(
+      activationDirectory(input.root, input.pin),
+      'epochs',
+      '0.json',
+    );
+    const record = JSON.parse(await readFile(file, 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    mutate(record);
+    delete record.contentHash;
+    record.contentHash = canonicalRecordHash(record);
+    await writeFile(file, `${JSON.stringify(record)}\n`);
+    await expect(
+      activationStatus(input.root, input.pin, now),
+    ).rejects.toMatchObject({ code: 'MALFORMED_RECORD' });
+    expect(activation.id).toBe(record.id);
   });
 });

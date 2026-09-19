@@ -8,6 +8,7 @@ import { enableActivation } from './activation.js';
 import {
   latestDeliveryDiagnostic,
   publishDeliveryDiagnostic,
+  type DeliveryDiagnosticInput,
 } from './diagnostics.js';
 import { openCollaboration } from './membership.js';
 import { activationDirectory } from './paths.js';
@@ -46,7 +47,7 @@ describe('delivery diagnostics', () => {
       stage: 'output-attempted' as const,
       outcomeCode: 'stdout-written',
       errorCode: null,
-    };
+    } satisfies DeliveryDiagnosticInput;
     const first = await publishDeliveryDiagnostic({
       root: f.root,
       pin: f.pin,
@@ -77,7 +78,7 @@ describe('delivery diagnostics', () => {
       stage: 'event-claimed' as const,
       outcomeCode: 'claimed',
       errorCode: null,
-    };
+    } satisfies DeliveryDiagnosticInput;
     await publishDeliveryDiagnostic({
       root: f.root,
       pin: f.pin,
@@ -87,7 +88,10 @@ describe('delivery diagnostics', () => {
       publishDeliveryDiagnostic({
         root: f.root,
         pin: f.pin,
-        diagnostic: { ...base, outcomeCode: 'different' },
+        diagnostic: {
+          ...base,
+          outcomeCode: 'stdout-written',
+        } as unknown as DeliveryDiagnosticInput,
       }),
     ).rejects.toMatchObject({ code: 'RECORD_CONFLICT' });
     await expect(
@@ -97,8 +101,8 @@ describe('delivery diagnostics', () => {
         diagnostic: {
           ...base,
           attemptId: 'attempt-secret',
-          outcomeCode: 'password=hidden',
-        },
+          eventKey: 'password=hidden',
+        } as unknown as DeliveryDiagnosticInput,
       }),
     ).rejects.toThrow('sensitive');
     await expect(
@@ -129,4 +133,53 @@ describe('delivery diagnostics', () => {
       capacityError: expect.stringContaining('4096'),
     });
   }, 30_000);
+
+  test('confines identifiers, rejects raw error text, and validates complete records on read', async () => {
+    const f = await fixture();
+    const base = {
+      attemptId: 'attempt-3',
+      activationId: f.activation.id,
+      eventKey: 'event-3',
+      boundary: 'stop' as const,
+      recordedAt: '2026-09-19T10:00:00.000Z',
+      stage: 'output-attempted' as const,
+      outcomeCode: 'stdout-written' as const,
+      errorCode: null,
+    } satisfies DeliveryDiagnosticInput;
+    for (const attemptId of ['../escape', 'nested/escape', '..']) {
+      await expect(
+        publishDeliveryDiagnostic({
+          root: f.root,
+          pin: f.pin,
+          diagnostic: { ...base, attemptId },
+        }),
+      ).rejects.toThrow('path-safe');
+    }
+    await expect(
+      publishDeliveryDiagnostic({
+        root: f.root,
+        pin: f.pin,
+        diagnostic: {
+          ...base,
+          errorCode: 'ENOENT /private/host/path',
+        } as unknown as DeliveryDiagnosticInput,
+      }),
+    ).rejects.toThrow('error code is unsupported');
+    const record = await publishDeliveryDiagnostic({
+      root: f.root,
+      pin: f.pin,
+      diagnostic: base,
+    });
+    const directory = path.join(
+      activationDirectory(f.root, f.pin),
+      'diagnostics',
+    );
+    await writeFile(
+      path.join(directory, 'attempt-3.json'),
+      `${JSON.stringify({ ...record, stage: 'not-a-stage' })}\n`,
+    );
+    await expect(
+      latestDeliveryDiagnostic({ root: f.root, pin: f.pin }),
+    ).rejects.toMatchObject({ code: 'MALFORMED_RECORD' });
+  });
 });

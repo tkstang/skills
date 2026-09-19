@@ -139,6 +139,15 @@ export interface ActivityReceiptRecord extends HasSchemaVersion {
   contentHash: string;
 }
 
+export interface HumanProvenanceEvidenceRecord extends HasSchemaVersion {
+  activationId: string;
+  pin: Pin;
+  hostVersion: string;
+  surface: string;
+  qualifiedAt: string;
+  contentHash: string;
+}
+
 export interface ActivationRevocationRecord extends HasSchemaVersion {
   activationId: string;
   revokedAt: string;
@@ -187,8 +196,16 @@ export interface DeliveryDiagnosticRecord extends HasSchemaVersion {
     | 'messages-claimed'
     | 'final-validation'
     | 'output-attempted';
-  outcomeCode: string;
-  errorCode: string | null;
+  outcomeCode:
+    | 'claimed'
+    | 'stdout-written'
+    | 'host-output-attempted'
+    | 'watch-notification-attempted';
+  errorCode:
+    | 'diagnostic-write-failed'
+    | 'host-timeout'
+    | 'host-protocol-error'
+    | null;
   contentHash: string;
 }
 

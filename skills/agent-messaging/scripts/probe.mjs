@@ -759,6 +759,8 @@ function assertIntegerRange(value, label, minimum, maximum) {
 }
 function validateActivation(record) {
   try {
+    if (record.schemaVersion !== SCHEMA_VERSION)
+      throw new TypeError("activation schema version is unsupported");
     assertUuid(record.id, "activation ID");
     assertUuid(record.collaborationId, "activation collaboration ID");
     assertUuid(record.participantId, "activation participant ID");
@@ -789,8 +791,13 @@ function validateActivation(record) {
     }
     if (!["human-idle", "fixed"].includes(record.expiryMode))
       throw new TypeError("activation expiry mode is unsupported");
-    timestamp(record.startedAt, "activation startedAt");
-    timestamp(record.hardExpiresAt, "activation hardExpiresAt");
+    const startedAt = timestamp(record.startedAt, "activation startedAt");
+    const hardExpiresAt = timestamp(
+      record.hardExpiresAt,
+      "activation hardExpiresAt"
+    );
+    if (hardExpiresAt <= startedAt || hardExpiresAt - startedAt > MAX_ACTIVATION_DURATION_MS)
+      throw new TypeError("activation hard expiry must be within 24 hours");
     if (record.expiryMode === "human-idle") {
       assertIntegerRange(
         record.idleTimeoutMs ?? 0,
@@ -805,7 +812,37 @@ function validateActivation(record) {
         throw new TypeError("fixed activation cannot have idleTimeoutMs");
       if (record.fixedExpiresAt === null)
         throw new TypeError("fixed activation requires fixedExpiresAt");
-      timestamp(record.fixedExpiresAt, "activation fixedExpiresAt");
+      const fixedExpiresAt = timestamp(
+        record.fixedExpiresAt,
+        "activation fixedExpiresAt"
+      );
+      if (fixedExpiresAt <= startedAt || fixedExpiresAt > hardExpiresAt)
+        throw new TypeError(
+          "fixed activation expiry must follow start and not exceed hard expiry"
+        );
+    }
+    if (record.thirdPartyHookAcknowledgment) {
+      if (!/^[a-f0-9]{64}$/u.test(
+        record.thirdPartyHookAcknowledgment.configurationFingerprint
+      ))
+        throw new TypeError("hook acknowledgment fingerprint is invalid");
+      const acknowledgedAt = timestamp(
+        record.thirdPartyHookAcknowledgment.acknowledgedAt,
+        "hook acknowledgment time"
+      );
+      if (acknowledgedAt < startedAt || acknowledgedAt > hardExpiresAt)
+        throw new TypeError("hook acknowledgment time is outside activation");
+    }
+    if (record.noObserverMonitorAttestation) {
+      assertPin(record.noObserverMonitorAttestation.pin);
+      if (!pinsEqual(record.noObserverMonitorAttestation.pin, record.pin) || record.noObserverMonitorAttestation.epoch !== record.epoch)
+        throw new TypeError("Monitor attestation identity is invalid");
+      const confirmedAt = timestamp(
+        record.noObserverMonitorAttestation.confirmedAt,
+        "Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError("Monitor attestation time is outside activation");
     }
     assertIntegerRange(
       record.maxContinuations,
@@ -1104,45 +1141,122 @@ function validateOwnedResources(resources) {
   for (const value of [...resources.registrations, ...resources.processes])
     assertBoundedString(value, "probe owned resource", 512);
 }
-async function withTimeout(operation, milliseconds) {
-  let timer;
-  try {
-    return await Promise.race([
+async function abortable(input) {
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort("interrupted");
+  if (input.parentSignal?.aborted) abortFromParent();
+  input.parentSignal?.addEventListener("abort", abortFromParent, {
+    once: true
+  });
+  const timer = setTimeout(
+    () => controller.abort("timeout"),
+    input.milliseconds
+  );
+  let settled = false;
+  let value;
+  let error;
+  const operation = Promise.resolve().then(() => input.start(controller.signal)).then(
+    (result) => {
+      value = result;
+      settled = true;
+    },
+    (failure) => {
+      error = failure;
+      settled = true;
+    }
+  );
+  await Promise.race([
+    operation,
+    new Promise((resolve) => {
+      if (controller.signal.aborted) {
+        resolve();
+        return;
+      }
+      controller.signal.addEventListener("abort", () => resolve(), {
+        once: true
+      });
+    })
+  ]);
+  const timedOut = controller.signal.reason === "timeout";
+  const interrupted = controller.signal.reason === "interrupted";
+  if (!settled && controller.signal.aborted) {
+    await Promise.race([
       operation,
-      new Promise((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("PROBE_TIMEOUT")),
-          milliseconds
-        );
-      })
+      new Promise((resolve) => setTimeout(resolve, input.milliseconds))
     ]);
-  } finally {
-    if (timer) clearTimeout(timer);
   }
+  clearTimeout(timer);
+  input.parentSignal?.removeEventListener("abort", abortFromParent);
+  return { value, error, timedOut, interrupted, quiescent: settled };
 }
 async function runHostProbe(plan, adapter, options = {}) {
   if (!plan.authorizationComplete)
     return { status: "unverified", receipts: [], cleanupVerified: false };
   if (!options.ownershipCheck)
     return { status: "unverified", receipts: [], cleanupVerified: false };
-  const ownershipAllowed = await withTimeout(
-    options.ownershipCheck(plan),
-    plan.timeoutMs
-  ).catch(() => false);
-  if (!ownershipAllowed)
+  const ownership = await abortable({
+    start: () => options.ownershipCheck(plan),
+    milliseconds: plan.timeoutMs,
+    parentSignal: options.signal
+  });
+  if (!ownership.quiescent || ownership.error || !ownership.value)
     return { status: "unverified", receipts: [], cleanupVerified: false };
-  let owned = { registrations: [], processes: [] };
+  const owned = { registrations: [], processes: [] };
   let cleanupVerified = false;
   const receipts = [];
   let status = "completed";
   let stop = false;
+  let operationsQuiescent = true;
+  const own = (kind, id) => {
+    assertBoundedString(id, "probe owned resource", 512);
+    if (owned[kind].length >= 16)
+      throw new TypeError("probe owned-resource list exceeds 16 entries");
+    if (!owned[kind].includes(id)) owned[kind].push(id);
+  };
+  const contextFor = (signal) => ({
+    signal,
+    ownRegistration: (id) => {
+      if (signal.aborted) throw new Error("PROBE_ABORTED");
+      own("registrations", id);
+    },
+    ownProcess: (id) => {
+      if (signal.aborted) throw new Error("PROBE_ABORTED");
+      own("processes", id);
+    }
+  });
+  const cleanOwnedResources = async () => {
+    try {
+      validateOwnedResources(owned);
+      if (!operationsQuiescent) return false;
+      const resources = {
+        registrations: [...owned.registrations],
+        processes: [...owned.processes]
+      };
+      const cleanup = await abortable({
+        start: (signal) => adapter.cleanup(resources, signal),
+        milliseconds: plan.timeoutMs
+      });
+      if (!cleanup.quiescent || cleanup.error || cleanup.timedOut) return false;
+      const verification = await abortable({
+        start: () => adapter.verifyCleanup(resources),
+        milliseconds: plan.timeoutMs
+      });
+      return verification.quiescent && !verification.error && !verification.timedOut && verification.value === true;
+    } catch {
+      return false;
+    }
+  };
   try {
-    const prepared = await withTimeout(adapter.setup(plan), plan.timeoutMs);
-    validateOwnedResources(prepared);
-    owned = {
-      registrations: [...prepared.registrations],
-      processes: [...prepared.processes]
-    };
+    const setup = await abortable({
+      start: (signal) => adapter.setup(plan, contextFor(signal)),
+      milliseconds: plan.timeoutMs,
+      parentSignal: options.signal
+    });
+    operationsQuiescent = setup.quiescent;
+    if (!setup.quiescent || setup.error || setup.timedOut || setup.interrupted)
+      throw new Error(
+        setup.interrupted ? "PROBE_INTERRUPTED" : "PROBE_TIMEOUT"
+      );
     for (let attempt = 1; attempt <= plan.maxAttempts; attempt += 1) {
       for (let event = 1; event <= plan.maxEvents; event += 1) {
         if (options.signal?.aborted) {
@@ -1152,10 +1266,22 @@ async function runHostProbe(plan, adapter, options = {}) {
           break;
         }
         try {
-          const raw = await withTimeout(
-            adapter.invoke({ plan, attempt, event }),
-            plan.timeoutMs
-          );
+          const invocation = await abortable({
+            start: (signal) => adapter.invoke({
+              plan,
+              attempt,
+              event,
+              context: contextFor(signal)
+            }),
+            milliseconds: plan.timeoutMs,
+            parentSignal: options.signal
+          });
+          operationsQuiescent = invocation.quiescent;
+          if (!invocation.quiescent || invocation.error || invocation.timedOut || invocation.interrupted || !invocation.value)
+            throw new Error(
+              invocation.interrupted ? "PROBE_INTERRUPTED" : "PROBE_TIMEOUT"
+            );
+          const raw = invocation.value;
           assertBoundedString(raw.eventId, "probe event ID", 128);
           if (Number.isNaN(Date.parse(raw.observedAt)))
             throw new TypeError("probe receipt timestamp is invalid");
@@ -1176,12 +1302,12 @@ async function runHostProbe(plan, adapter, options = {}) {
             errorCode: raw.unsupported ? "unsupported" : null
           });
         } catch (error) {
-          status = "unknown";
+          status = error instanceof Error && error.message === "PROBE_INTERRUPTED" ? "interrupted" : "unknown";
           receipts.push(
             unknownReceipt(
               plan,
               `event-${event}`,
-              error instanceof Error && error.message === "PROBE_TIMEOUT" ? "timeout" : "fixture-error"
+              error instanceof Error && error.message === "PROBE_INTERRUPTED" ? "interrupted" : error instanceof Error && error.message === "PROBE_TIMEOUT" ? "timeout" : "fixture-error"
             )
           );
           stop = true;
@@ -1192,27 +1318,16 @@ async function runHostProbe(plan, adapter, options = {}) {
         break;
     }
   } catch (error) {
-    status = "unknown";
+    status = error instanceof Error && error.message === "PROBE_INTERRUPTED" ? "interrupted" : "unknown";
     receipts.push(
       unknownReceipt(
         plan,
         "setup",
-        error instanceof Error && error.message === "PROBE_TIMEOUT" ? "timeout" : "fixture-error"
+        error instanceof Error && error.message === "PROBE_INTERRUPTED" ? "interrupted" : error instanceof Error && error.message === "PROBE_TIMEOUT" ? "timeout" : "fixture-error"
       )
     );
   } finally {
-    try {
-      await withTimeout(
-        adapter.cleanup({
-          registrations: [...owned.registrations],
-          processes: [...owned.processes]
-        }),
-        plan.timeoutMs
-      );
-      cleanupVerified = true;
-    } catch {
-      cleanupVerified = false;
-    }
+    cleanupVerified = await cleanOwnedResources();
   }
   return { status, receipts, cleanupVerified };
 }

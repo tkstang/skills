@@ -5,7 +5,11 @@ import {
   activationStatus,
   recordHumanActivity,
 } from '../../../../shared/collaboration/activation.js';
-import { claimDelivery } from '../../../../shared/collaboration/claims.js';
+import {
+  claimDelivery,
+  resolveDeliveryKeys,
+  type ClaimHooks,
+} from '../../../../shared/collaboration/claims.js';
 import { publishDeliveryDiagnostic } from '../../../../shared/collaboration/diagnostics.js';
 import { listInbox } from '../../../../shared/collaboration/messages.js';
 import { resolveCollaborationRoot } from '../../../../shared/collaboration/paths.js';
@@ -37,6 +41,12 @@ export interface HookDependencies {
   now?: () => Date;
   sleep?: (milliseconds: number) => Promise<void>;
   diagnostic?: (message: string) => void;
+  afterMessageClaim?: () => void | Promise<void>;
+  claimHooks?: Omit<ClaimHooks, 'beforeFinalValidation'>;
+  humanProvenanceEvidence?: {
+    hostVersion: string;
+    surface: string;
+  };
 }
 
 function boundedEnvelope(
@@ -109,18 +119,18 @@ export async function handleBoundary(
   const status = await activationStatus(root, pin, now);
   if (!status.activation || !status.active)
     return { output: null, envelope: null };
+  const activation = status.activation;
   if (
-    status.activation.worktree !== path.resolve(input.cwd) ||
-    status.activation.controller !== 'standalone-messaging' ||
-    status.activation.mechanism !== 'stop'
+    activation.worktree !== path.resolve(input.cwd) ||
+    activation.controller !== 'standalone-messaging' ||
+    activation.mechanism !== 'stop'
   ) {
     return { output: null, envelope: null };
   }
   if (
     input.runtime === 'claude-code' &&
-    (!status.activation.noObserverMonitorAttestation ||
-      status.activation.noObserverMonitorAttestation.epoch !==
-        status.activation.epoch)
+    (!activation.noObserverMonitorAttestation ||
+      activation.noObserverMonitorAttestation.epoch !== activation.epoch)
   ) {
     return { output: null, envelope: null };
   }
@@ -131,21 +141,30 @@ export async function handleBoundary(
     worktree: input.cwd,
     inventory,
     acknowledgedFingerprint:
-      status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+      activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
     now,
   });
   if (!ownership.automaticAllowed) return { output: null, envelope: null };
-  if (input.boundary === 'prompt-start' && input.provenHuman) {
+  if (
+    input.boundary === 'prompt-start' &&
+    input.provenHuman &&
+    dependencies.humanProvenanceEvidence
+  ) {
     await recordHumanActivity({
       root,
       pin,
       eventKey: input.eventId,
       now,
+      provenance: {
+        ...dependencies.humanProvenanceEvidence,
+        nativeEventId: input.eventId,
+        trustedHumanOrigin: true,
+      },
     }).catch(() => undefined);
   }
   let inbox = await listInbox({
     root,
-    collaborationId: status.activation.collaborationId,
+    collaborationId: activation.collaborationId,
     pin,
   });
   let eligible =
@@ -155,16 +174,16 @@ export async function handleBoundary(
   if (
     eligible.length === 0 &&
     input.boundary === 'stop' &&
-    status.activation.waitMs > 0
+    activation.waitMs > 0
   ) {
     await (
       dependencies.sleep ??
       ((milliseconds) =>
         new Promise((resolve) => setTimeout(resolve, milliseconds)))
-    )(status.activation.waitMs);
+    )(activation.waitMs);
     inbox = await listInbox({
       root,
-      collaborationId: status.activation.collaborationId,
+      collaborationId: activation.collaborationId,
       pin,
     });
     eligible = inbox.messages.filter((message) => message.kind === 'request');
@@ -172,10 +191,7 @@ export async function handleBoundary(
   if (eligible.length === 0) return { output: null, envelope: null };
   const finalNow = currentTime();
   const finalStatus = await activationStatus(root, pin, finalNow);
-  if (
-    !finalStatus.active ||
-    finalStatus.activation?.id !== status.activation.id
-  ) {
+  if (!finalStatus.active || finalStatus.activation?.id !== activation.id) {
     return { output: null, envelope: null };
   }
   const finalInventory = await inventoryFor(input, env);
@@ -185,29 +201,71 @@ export async function handleBoundary(
     worktree: input.cwd,
     inventory: finalInventory,
     acknowledgedFingerprint:
-      status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+      activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
     now: finalNow,
   });
   if (!finalOwnership.automaticAllowed) return { output: null, envelope: null };
   const attemptId = randomUUID();
   const eventKey = `${input.runtime}:${input.boundary}:${input.eventId}`;
+  const deliveryKeys = await resolveDeliveryKeys({
+    root,
+    activation,
+    messages: eligible,
+  });
+  const validateFinalBoundary = async (): Promise<boolean> => {
+    const checkedAt = currentTime();
+    const checked = await activationStatus(root, pin, checkedAt);
+    if (
+      !checked.active ||
+      checked.activation?.id !== activation.id ||
+      checked.activation.controller !== 'standalone-messaging' ||
+      checked.activation.mechanism !== 'stop' ||
+      checked.activation.worktree !== path.resolve(input.cwd) ||
+      input.continuationActive
+    )
+      return false;
+    const checkedOwnership = await assessAutomaticOwnership({
+      root,
+      pin,
+      worktree: input.cwd,
+      inventory: await inventoryFor(input, env),
+      acknowledgedFingerprint:
+        checked.activation.thirdPartyHookAcknowledgment
+          ?.configurationFingerprint,
+      now: checkedAt,
+    });
+    return checkedOwnership.automaticAllowed;
+  };
+  let boundaryValid = true;
   const claim = await claimDelivery({
     root,
     pin,
     eventKey,
-    deliveryKeys: eligible.map((message) => ({
-      messageId: message.id,
-      retryGeneration: 0,
-    })),
+    deliveryKeys,
     token: attemptId,
     now: finalNow,
+    clock: currentTime,
+    hooks: {
+      ...dependencies.claimHooks,
+      afterMessageClaim:
+        dependencies.afterMessageClaim ??
+        dependencies.claimHooks?.afterMessageClaim,
+      beforeFinalValidation: async () => {
+        boundaryValid = await validateFinalBoundary();
+      },
+    },
   });
-  if (!claim.slot || claim.owned.length === 0 || !claim.activeAfterClaim)
+  if (
+    !boundaryValid ||
+    !claim.slot ||
+    claim.owned.length === 0 ||
+    !claim.activeAfterClaim
+  )
     return { output: null, envelope: null };
   const ownedIds = new Set(claim.owned.map((message) => message.messageId));
   const envelope = boundedEnvelope(
     eligible.filter((message) => ownedIds.has(message.id)),
-    status.activation.collaborationId,
+    activation.collaborationId,
     pin,
   );
   await publishDeliveryDiagnostic({
@@ -215,7 +273,7 @@ export async function handleBoundary(
     pin,
     diagnostic: {
       attemptId,
-      activationId: status.activation.id,
+      activationId: activation.id,
       eventKey,
       boundary: input.boundary,
       recordedAt: finalNow.toISOString(),
@@ -224,6 +282,7 @@ export async function handleBoundary(
       errorCode: null,
     },
   }).catch(() => dependencies.diagnostic?.('diagnostic-write-failed'));
+  if (!(await validateFinalBoundary())) return { output: null, envelope: null };
   const output =
     input.boundary === 'stop'
       ? { decision: 'block', reason: envelope }

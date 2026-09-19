@@ -7,21 +7,12 @@ import {
 import {
   claimDelivery,
   deliveryClaimStatus,
+  resolveDeliveryKeys,
   watchBatchEventKey,
-  type DeliveryKey,
 } from '../../../shared/collaboration/claims.js';
 import { publishDeliveryDiagnostic } from '../../../shared/collaboration/diagnostics.js';
 import { listInbox } from '../../../shared/collaboration/messages.js';
-import { collaborationPaths } from '../../../shared/collaboration/paths.js';
-import {
-  enumerateJsonRecords,
-  readJsonRecord,
-} from '../../../shared/collaboration/records.js';
-import type {
-  InboxMessage,
-  Pin,
-  RetryRecord,
-} from '../../../shared/collaboration/types.js';
+import type { Pin } from '../../../shared/collaboration/types.js';
 import {
   assessAutomaticOwnership,
   inspectClaudeStopInventory,
@@ -109,40 +100,6 @@ async function inventoryFor(input: WatchInput) {
     ? (JSON.parse(env.AGENT_MESSAGING_CLAUDE_PLUGINS) as Record<string, string>)
     : {};
   return inspectClaudeStopInventory({ settingsPaths, installedPlugins });
-}
-
-async function deliveryKeys(
-  input: WatchInput,
-  activationId: string,
-  participantId: string,
-  messages: InboxMessage[],
-): Promise<DeliveryKey[]> {
-  const files = await enumerateJsonRecords(
-    path.join(
-      collaborationPaths(input.root, input.collaborationId).directory,
-      'retries',
-      participantId,
-    ),
-    { root: input.root, maxEntries: 4096 },
-  );
-  const generations = new Map<string, number>();
-  for (const file of files) {
-    const retry = await readJsonRecord<RetryRecord>(file, { root: input.root });
-    if (
-      retry.activationId !== activationId ||
-      retry.participantId !== participantId
-    ) {
-      continue;
-    }
-    generations.set(
-      retry.messageId,
-      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration),
-    );
-  }
-  return messages.map((message) => ({
-    messageId: message.id,
-    retryGeneration: generations.get(message.id) ?? 0,
-  }));
 }
 
 async function acceptedOwnership(input: WatchInput, now: Date) {
@@ -238,12 +195,11 @@ export async function watchInbox(
       (message) => message.kind === 'request' && !message.inert,
     );
     if (requests.length > 0) {
-      const keys = await deliveryKeys(
-        input,
-        activation.id,
-        activation.participantId,
-        requests,
-      );
+      const keys = await resolveDeliveryKeys({
+        root: input.root,
+        activation,
+        messages: requests,
+      });
       const eventKey = watchBatchEventKey({
         activationId: activation.id,
         bindingGeneration: activation.bindingGeneration,
@@ -256,6 +212,7 @@ export async function watchInbox(
         eventKey,
         deliveryKeys: keys,
         now,
+        clock: currentTime,
         hooks: {
           afterEventClaim: dependencies.afterEventClaim,
           beforeFinalValidation: async () => {
@@ -282,6 +239,16 @@ export async function watchInbox(
             errorCode: null,
           },
         }).catch(() => undefined);
+        const preEmit = await acceptedOwnership(input, currentTime());
+        if (
+          !preEmit.allowed ||
+          preEmit.status.activation?.id !== activation.id
+        ) {
+          reason = preEmit.status.active
+            ? 'ownership-refused'
+            : 'activation-inactive';
+          break;
+        }
         await dependencies.emit({
           type: 'agent-messaging-request-notification',
           collaborationId: input.collaborationId,

@@ -74,11 +74,12 @@ export interface ProbeOwnedResources {
 }
 
 export interface ProbeAdapter {
-  setup(plan: HostProbePlan): Promise<ProbeOwnedResources>;
+  setup(plan: HostProbePlan, context: ProbeOperationContext): Promise<void>;
   invoke(input: {
     plan: HostProbePlan;
     attempt: number;
     event: number;
+    context: ProbeOperationContext;
   }): Promise<{
     eventId: string;
     observedAt: string;
@@ -88,7 +89,14 @@ export interface ProbeAdapter {
     humanOriginObserved: boolean;
     unsupported?: boolean;
   }>;
-  cleanup(resources: ProbeOwnedResources): Promise<void>;
+  cleanup(resources: ProbeOwnedResources, signal: AbortSignal): Promise<void>;
+  verifyCleanup(resources: ProbeOwnedResources): Promise<boolean>;
+}
+
+export interface ProbeOperationContext {
+  signal: AbortSignal;
+  ownRegistration(id: string): void;
+  ownProcess(id: string): void;
 }
 
 function integerInRange(
@@ -213,24 +221,65 @@ function validateOwnedResources(resources: ProbeOwnedResources): void {
     assertBoundedString(value, 'probe owned resource', 512);
 }
 
-async function withTimeout<T>(
-  operation: Promise<T>,
-  milliseconds: number,
-): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
+async function abortable<T>(input: {
+  start: (signal: AbortSignal) => Promise<T>;
+  milliseconds: number;
+  parentSignal?: AbortSignal;
+}): Promise<{
+  value?: T;
+  error?: unknown;
+  timedOut: boolean;
+  interrupted: boolean;
+  quiescent: boolean;
+}> {
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort('interrupted');
+  if (input.parentSignal?.aborted) abortFromParent();
+  input.parentSignal?.addEventListener('abort', abortFromParent, {
+    once: true,
+  });
+  const timer = setTimeout(
+    () => controller.abort('timeout'),
+    input.milliseconds,
+  );
+  let settled = false;
+  let value: T | undefined;
+  let error: unknown;
+  const operation = Promise.resolve()
+    .then(() => input.start(controller.signal))
+    .then(
+      (result) => {
+        value = result;
+        settled = true;
+      },
+      (failure) => {
+        error = failure;
+        settled = true;
+      },
+    );
+  await Promise.race([
+    operation,
+    new Promise<void>((resolve) => {
+      if (controller.signal.aborted) {
+        resolve();
+        return;
+      }
+      controller.signal.addEventListener('abort', () => resolve(), {
+        once: true,
+      });
+    }),
+  ]);
+  const timedOut = controller.signal.reason === 'timeout';
+  const interrupted = controller.signal.reason === 'interrupted';
+  if (!settled && controller.signal.aborted) {
+    await Promise.race([
       operation,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('PROBE_TIMEOUT')),
-          milliseconds,
-        );
-      }),
+      new Promise<void>((resolve) => setTimeout(resolve, input.milliseconds)),
     ]);
-  } finally {
-    if (timer) clearTimeout(timer);
   }
+  clearTimeout(timer);
+  input.parentSignal?.removeEventListener('abort', abortFromParent);
+  return { value, error, timedOut, interrupted, quiescent: settled };
 }
 
 export async function runHostProbe(
@@ -249,24 +298,74 @@ export async function runHostProbe(
     return { status: 'unverified', receipts: [], cleanupVerified: false };
   if (!options.ownershipCheck)
     return { status: 'unverified', receipts: [], cleanupVerified: false };
-  const ownershipAllowed = await withTimeout(
-    options.ownershipCheck(plan),
-    plan.timeoutMs,
-  ).catch(() => false);
-  if (!ownershipAllowed)
+  const ownership = await abortable({
+    start: () => options.ownershipCheck!(plan),
+    milliseconds: plan.timeoutMs,
+    parentSignal: options.signal,
+  });
+  if (!ownership.quiescent || ownership.error || !ownership.value)
     return { status: 'unverified', receipts: [], cleanupVerified: false };
-  let owned: ProbeOwnedResources = { registrations: [], processes: [] };
+  const owned: ProbeOwnedResources = { registrations: [], processes: [] };
   let cleanupVerified = false;
   const receipts: SanitizedProbeReceipt[] = [];
   let status: 'completed' | 'interrupted' | 'unknown' = 'completed';
   let stop = false;
+  let operationsQuiescent = true;
+  const own = (kind: keyof ProbeOwnedResources, id: string) => {
+    assertBoundedString(id, 'probe owned resource', 512);
+    if (owned[kind].length >= 16)
+      throw new TypeError('probe owned-resource list exceeds 16 entries');
+    if (!owned[kind].includes(id)) owned[kind].push(id);
+  };
+  const contextFor = (signal: AbortSignal): ProbeOperationContext => ({
+    signal,
+    ownRegistration: (id) => {
+      if (signal.aborted) throw new Error('PROBE_ABORTED');
+      own('registrations', id);
+    },
+    ownProcess: (id) => {
+      if (signal.aborted) throw new Error('PROBE_ABORTED');
+      own('processes', id);
+    },
+  });
+  const cleanOwnedResources = async (): Promise<boolean> => {
+    try {
+      validateOwnedResources(owned);
+      if (!operationsQuiescent) return false;
+      const resources = {
+        registrations: [...owned.registrations],
+        processes: [...owned.processes],
+      };
+      const cleanup = await abortable({
+        start: (signal) => adapter.cleanup(resources, signal),
+        milliseconds: plan.timeoutMs,
+      });
+      if (!cleanup.quiescent || cleanup.error || cleanup.timedOut) return false;
+      const verification = await abortable({
+        start: () => adapter.verifyCleanup(resources),
+        milliseconds: plan.timeoutMs,
+      });
+      return (
+        verification.quiescent &&
+        !verification.error &&
+        !verification.timedOut &&
+        verification.value === true
+      );
+    } catch {
+      return false;
+    }
+  };
   try {
-    const prepared = await withTimeout(adapter.setup(plan), plan.timeoutMs);
-    validateOwnedResources(prepared);
-    owned = {
-      registrations: [...prepared.registrations],
-      processes: [...prepared.processes],
-    };
+    const setup = await abortable({
+      start: (signal) => adapter.setup(plan, contextFor(signal)),
+      milliseconds: plan.timeoutMs,
+      parentSignal: options.signal,
+    });
+    operationsQuiescent = setup.quiescent;
+    if (!setup.quiescent || setup.error || setup.timedOut || setup.interrupted)
+      throw new Error(
+        setup.interrupted ? 'PROBE_INTERRUPTED' : 'PROBE_TIMEOUT',
+      );
     for (let attempt = 1; attempt <= plan.maxAttempts; attempt += 1) {
       for (let event = 1; event <= plan.maxEvents; event += 1) {
         if (options.signal?.aborted) {
@@ -276,10 +375,29 @@ export async function runHostProbe(
           break;
         }
         try {
-          const raw = await withTimeout(
-            adapter.invoke({ plan, attempt, event }),
-            plan.timeoutMs,
-          );
+          const invocation = await abortable({
+            start: (signal) =>
+              adapter.invoke({
+                plan,
+                attempt,
+                event,
+                context: contextFor(signal),
+              }),
+            milliseconds: plan.timeoutMs,
+            parentSignal: options.signal,
+          });
+          operationsQuiescent = invocation.quiescent;
+          if (
+            !invocation.quiescent ||
+            invocation.error ||
+            invocation.timedOut ||
+            invocation.interrupted ||
+            !invocation.value
+          )
+            throw new Error(
+              invocation.interrupted ? 'PROBE_INTERRUPTED' : 'PROBE_TIMEOUT',
+            );
+          const raw = invocation.value;
           assertBoundedString(raw.eventId, 'probe event ID', 128);
           if (Number.isNaN(Date.parse(raw.observedAt)))
             throw new TypeError('probe receipt timestamp is invalid');
@@ -304,14 +422,19 @@ export async function runHostProbe(
             errorCode: raw.unsupported ? 'unsupported' : null,
           });
         } catch (error) {
-          status = 'unknown';
+          status =
+            error instanceof Error && error.message === 'PROBE_INTERRUPTED'
+              ? 'interrupted'
+              : 'unknown';
           receipts.push(
             unknownReceipt(
               plan,
               `event-${event}`,
-              error instanceof Error && error.message === 'PROBE_TIMEOUT'
-                ? 'timeout'
-                : 'fixture-error',
+              error instanceof Error && error.message === 'PROBE_INTERRUPTED'
+                ? 'interrupted'
+                : error instanceof Error && error.message === 'PROBE_TIMEOUT'
+                  ? 'timeout'
+                  : 'fixture-error',
             ),
           );
           stop = true;
@@ -322,29 +445,23 @@ export async function runHostProbe(
         break;
     }
   } catch (error) {
-    status = 'unknown';
+    status =
+      error instanceof Error && error.message === 'PROBE_INTERRUPTED'
+        ? 'interrupted'
+        : 'unknown';
     receipts.push(
       unknownReceipt(
         plan,
         'setup',
-        error instanceof Error && error.message === 'PROBE_TIMEOUT'
-          ? 'timeout'
-          : 'fixture-error',
+        error instanceof Error && error.message === 'PROBE_INTERRUPTED'
+          ? 'interrupted'
+          : error instanceof Error && error.message === 'PROBE_TIMEOUT'
+            ? 'timeout'
+            : 'fixture-error',
       ),
     );
   } finally {
-    try {
-      await withTimeout(
-        adapter.cleanup({
-          registrations: [...owned.registrations],
-          processes: [...owned.processes],
-        }),
-        plan.timeoutMs,
-      );
-      cleanupVerified = true;
-    } catch {
-      cleanupVerified = false;
-    }
+    cleanupVerified = await cleanOwnedResources();
   }
   return { status, receipts, cleanupVerified };
 }
