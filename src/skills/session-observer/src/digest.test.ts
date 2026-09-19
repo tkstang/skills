@@ -376,6 +376,111 @@ function cursorDigestOptions(
 // ---------------------------------------------------------------------------
 
 describe('Cursor digest v2 behavior', () => {
+  test('includes open-frame calls only in stateless review activity', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'unterminated.jsonl');
+    const context = await cursorDigestAnalysis(transcriptPath);
+    const digest = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation'),
+      mode: 'review',
+      includeActivity: true,
+      activityRenderFormat: 'markdown',
+      cursorCapturedAt: '2026-09-19T12:00:00.000Z',
+    });
+
+    expect(digest.activity).toMatchObject({
+      mode: 'review',
+      deliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 0,
+        end: 3,
+      },
+      counts: {
+        capturedSource: { calls: 1, pendingLifecycleCalls: 1 },
+        deliveredRange: { calls: 1, pendingLifecycleCalls: 1 },
+        displayed: { calls: 1, pendingLifecycleCalls: 1 },
+      },
+      events: [
+        {
+          nativeName: 'shell',
+          outcome: 'unknown',
+          lifecycleAvailability: 'pending-lifecycle',
+          turnOutcome: 'pending',
+          locator: {
+            sourceFrameIndex: 2,
+            recordIndex: 2,
+          },
+        },
+      ],
+    });
+    expect(renderMarkdown(digest)).toContain('pending lifecycle 1');
+  });
+
+  test('delivers settled calls at the terminal checkpoint without replay', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'terminal-success.jsonl');
+    const context = await cursorDigestAnalysis(transcriptPath);
+    const turn = context.analysis.turns[0]!;
+    const observedState = cursorDigestState(transcriptPath, context, {
+      lastRecordIndex: 5,
+      openTurn: {
+        turnId: turn.turnId,
+        fromFrameIndex: 0,
+        observedThroughFrame: 4,
+        deliveredEntryKeys: turn.assistantRecords.map(
+          (record) => record.entryKey,
+        ),
+        assistantEntryKeys: turn.assistantRecords.map(
+          (record) => record.entryKey,
+        ),
+        humanRecordIndexes: turn.humanRecordIndexes,
+        toolRecordIndexes: turn.toolRecordIndexes,
+        hasHumanInput: true,
+        hasAutomaticControlInput: false,
+        lifecycle: 'pending',
+      },
+    });
+    const first = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation', observedState),
+      fromIndex: 5,
+      includeActivity: true,
+      cursorActivityDeliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 0,
+        end: 6,
+      },
+    });
+    const repeat = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation', observedState),
+      fromIndex: 6,
+      includeActivity: true,
+      cursorActivityDeliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 6,
+        end: 6,
+      },
+    });
+
+    expect(first.entries).toEqual([]);
+    expect(first.activity).toMatchObject({
+      deliveryRange: { start: 0, end: 6 },
+      counts: { deliveredRange: { calls: 1, pendingLifecycleCalls: 0 } },
+      events: [
+        {
+          nativeName: 'read_file',
+          outcome: 'unknown',
+          lifecycleAvailability: 'settled',
+          turnOutcome: 'success',
+          locator: {
+            sourceFrameIndex: 2,
+            deliveryFrameIndex: 5,
+            recordIndex: 5,
+          },
+        },
+      ],
+    });
+    expect(repeat.activity?.events).toEqual([]);
+    expect(repeat.activity?.counts.deliveredRange.calls).toBe(0);
+  });
+
   test('bounds maxTurns by structural Cursor turn identity', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-max-turns-'));
     try {

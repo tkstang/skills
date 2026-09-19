@@ -1078,9 +1078,14 @@ async function emitCursorDelta(
   eventState: WatchEventState,
 ): Promise<boolean> {
   const newFrames = result.digest.range.newFrames;
+  const activity = prepareActivityDelta(result.digest, target);
   const shouldRender =
-    newFrames > 0 &&
-    !(args.quietEmpty && result.digest.accounting.rendered.count === 0);
+    (newFrames > 0 || activity.renderable) &&
+    !(
+      args.quietEmpty &&
+      result.digest.accounting.rendered.count === 0 &&
+      !activity.renderable
+    );
   if (shouldRender) {
     const rendered = renderMarkdown(result.digest);
     const ts = new Date(deps.now()).toISOString();
@@ -1101,6 +1106,9 @@ async function emitCursorDelta(
       args.eventLog,
       eventMetadata(ts, result.digest, rendered),
     );
+    if (activity.diagnosticSignature) {
+      target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+    }
     eventState.eventCount++;
     eventState.lastHeartbeatAt = deps.now();
     await watchStateLib.recordWatcherEvent({
@@ -1731,14 +1739,6 @@ export async function runWatchLoop(
   deps: WatchLoopDeps = {},
 ): Promise<{ reason: string; eventCount: number }> {
   const runtime = args.runtime ?? 'auto';
-  if (
-    args.includeActivity &&
-    (runtime === 'cursor' || args.session?.startsWith('cursor:'))
-  ) {
-    throw new Error(
-      '--include-activity is not available for Cursor review or catch-up yet.',
-    );
-  }
   const cwd = args.cwd ?? process.cwd();
   const eventLog = args.eventLog
     ? await resolveEventLogPath(args.eventLog)

@@ -1,4 +1,5 @@
 import type {
+  ActivityDeliveryRange,
   ActivityRenderFormat,
   ActivityReport,
 } from '../../../../shared/transcript/activity/types.js';
@@ -591,6 +592,8 @@ export type CursorBuildDigestOptions = BuildDigestOptions & {
   cursorAnalysis: CursorTranscriptAnalysis;
   cursorState: CursorSessionStateEntry | null;
   cursorContinuity: 'new' | 'verified';
+  cursorActivityDeliveryRange?: ActivityDeliveryRange;
+  cursorCapturedAt?: string;
 };
 
 export interface SessionStateEntry {

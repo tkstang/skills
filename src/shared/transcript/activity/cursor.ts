@@ -156,6 +156,7 @@ function lifecycleCounts(
 function coverage(
   events: readonly ExtractedActivityEvent[],
   scan: CursorTranscriptScan,
+  mode: CursorActivityExtractionMode,
 ): ActivityCoverageEntry[] {
   const entries: ActivityCoverageEntry[] = [
     {
@@ -163,11 +164,15 @@ function coverage(
       status: 'available',
       captured: events.length,
     },
-    {
-      dataClass: 'results',
-      status: 'not-recorded',
-      captured: 0,
-    },
+    ...(events.length > 0 || mode === 'stateless-snapshot'
+      ? [
+          {
+            dataClass: 'results' as const,
+            status: 'not-recorded' as const,
+            captured: 0,
+          },
+        ]
+      : []),
   ];
   if (scan.blockingFrame) {
     entries.push({
@@ -199,7 +204,7 @@ export function extractCursorActivity(
       sourceBytes: input.scan.file.size,
     },
     events,
-    coverage: coverage(events, input.scan),
+    coverage: coverage(events, input.scan, input.mode),
     diagnostics: input.scan.blockingFrame
       ? [
           {

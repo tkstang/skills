@@ -204,7 +204,7 @@ export type ActivityProjectionMode = 'watch' | 'catch-up' | 'review' | 'export';
 export type ActivityRenderFormat = 'compact-json' | 'markdown';
 
 export interface ActivityDeliveryRange {
-  indexBase: 'zero-based-decoded-record-index';
+  indexBase: 'zero-based-decoded-record-index' | 'zero-based-jsonl-frame-index';
   start: number;
   end: number;
 }
@@ -244,6 +244,14 @@ export interface ProjectedActivityEvent {
   nativeStatus?: string;
   origin?: string;
   turnId?: string;
+  lifecycleAvailability?: 'settled' | 'pending-lifecycle';
+  turnOutcome?:
+    | 'pending'
+    | 'success'
+    | 'aborted'
+    | 'error'
+    | 'cancelled'
+    | 'unknown';
   inputPreview?: ActivityPreview;
   originalInputPreview?: ActivityPreview;
   outputPreview?: ActivityPreview;
@@ -268,6 +276,7 @@ export interface ActivityScopedCounts {
   scope: 'captured-source' | 'delivered-range' | 'displayed';
   calls: number;
   countedInvocations: number;
+  pendingLifecycleCalls: number;
   results: number;
   items: number;
   failures: number;

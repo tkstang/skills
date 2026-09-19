@@ -48,6 +48,13 @@ function markdownData(value: unknown): string {
 
 function locatorText(locator: ActivityLocator | undefined): string {
   if (!locator) return 'source-wide';
+  if (locator.sourceFrameIndex !== undefined) {
+    const delivery =
+      locator.deliveryFrameIndex === undefined
+        ? ''
+        : `, delivery frame ${locator.deliveryFrameIndex}`;
+    return `source frame ${locator.sourceFrameIndex}${delivery}, line ${locator.physicalLine}, pointer ${locator.jsonPointer || '/'}`;
+  }
   const record =
     locator.recordIndex === undefined ? '' : `, record ${locator.recordIndex}`;
   return `line ${locator.physicalLine}${record}, pointer ${locator.jsonPointer || '/'}`;
@@ -79,6 +86,8 @@ function eventLines(event: ProjectedActivityEvent): string[] {
       nativeStatus: event.nativeStatus,
       origin: event.origin,
       turnId: event.turnId,
+      lifecycleAvailability: event.lifecycleAvailability,
+      turnOutcome: event.turnOutcome,
       externalReference: event.externalReference,
       childReference: event.childReference,
     }).filter(([, value]) => value !== undefined),
@@ -99,7 +108,7 @@ function eventLines(event: ProjectedActivityEvent): string[] {
 }
 
 function countLine(counts: ActivityScopedCounts): string {
-  return `- ${counts.scope}: calls ${counts.calls}; counted invocations ${counts.countedInvocations}; results ${counts.results}; items ${counts.items}; failures ${counts.failures}`;
+  return `- ${counts.scope}: calls ${counts.calls}; counted invocations ${counts.countedInvocations}; pending lifecycle ${counts.pendingLifecycleCalls}; results ${counts.results}; items ${counts.items}; failures ${counts.failures}`;
 }
 
 export function renderActivityMarkdown(report: ActivityReport): string {

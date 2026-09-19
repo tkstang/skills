@@ -787,6 +787,8 @@ async function buildCursorReviewDigest(
     includeToolCalls: args.includeTools,
     includeToolResults: args.includeToolResults,
     includeCommandMessages: args.includeCommandMessages,
+    includeActivity: args.includeActivity,
+    activityRenderFormat: args.json ? 'compact-json' : 'markdown',
     maxTurns: args.maxTurns,
     maxBytes: args.maxBytes,
     sessionId: candidate.sessionId,
@@ -802,6 +804,7 @@ async function buildCursorReviewDigest(
     cursorAnalysis: selected.analysis,
     cursorState: ephemeralState,
     cursorContinuity: 'new',
+    cursorCapturedAt: new Date().toISOString(),
   });
 }
 
@@ -914,13 +917,6 @@ async function runReview(args: CliArgs): Promise<void> {
   if (!isRuntime(runtime)) {
     return emitError(
       `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
-      1,
-    );
-  }
-
-  if (includeActivity && runtime === 'cursor') {
-    return emitError(
-      '--include-activity is not available for Cursor review or catch-up yet.',
       1,
     );
   }
@@ -1582,18 +1578,6 @@ async function runWatch(args: CliArgs): Promise<void> {
 
   const pinned = parsePinnedSession(args.session);
   if (pinned && 'error' in pinned) return emitError(pinned.error, 1);
-  let activityRuntime = pinned?.runtime ?? args.runtime;
-  if (args.includeActivity && activityRuntime === 'auto') {
-    const resolved = await resolveAutoRuntime(args.cwd);
-    activityRuntime = resolved.runtime ?? activityRuntime;
-  }
-  if (args.includeActivity && activityRuntime === 'cursor') {
-    return emitError(
-      '--include-activity is not available for Cursor review or catch-up yet.',
-      1,
-    );
-  }
-
   if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
     return emitWatchSetupError(
       args,

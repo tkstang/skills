@@ -2622,7 +2622,7 @@ function claudeSystemActivity(source, detailed) {
 function extractClaudeRecord(source, detailed) {
   const { record } = detailed;
   const events = [];
-  const coverage = [];
+  const coverage2 = [];
   const message = isJsonObject2(record.message) ? record.message : void 0;
   const content = message?.content;
   const provenance = claudeUserRecordProvenance(record);
@@ -2678,7 +2678,7 @@ function extractClaudeRecord(source, detailed) {
         return;
       }
       if (blockType?.includes("tool")) {
-        coverage.push({
+        coverage2.push({
           dataClass: "record-activity",
           status: "unsupported",
           captured: 0,
@@ -2693,7 +2693,7 @@ function extractClaudeRecord(source, detailed) {
     provenance === "legacy-absent" ? void 0 : provenance
   );
   events.push(...topLevelResult.events);
-  coverage.push(...topLevelResult.coverage);
+  coverage2.push(...topLevelResult.coverage);
   if (provenance === "runtime-notification") {
     const locator = recordLocator(detailed, "/origin/kind");
     events.push({
@@ -2705,7 +2705,7 @@ function extractClaudeRecord(source, detailed) {
       origin: provenance
     });
   }
-  return { events, coverage, diagnostics: [] };
+  return { events, coverage: coverage2, diagnostics: [] };
 }
 
 // src/shared/transcript/activity/codex.ts
@@ -3027,7 +3027,7 @@ function itemCompletedActivity(source, detailed, payload) {
     ...nativeStatus === void 0 ? {} : { status: nativeStatus },
     trajectoryAvailability: "not-read"
   } : void 0;
-  const coverage = childReference2 ? [
+  const coverage2 = childReference2 ? [
     {
       dataClass: "child-trajectory",
       status: "not-read",
@@ -3037,7 +3037,7 @@ function itemCompletedActivity(source, detailed, payload) {
   ] : [];
   const diagnostics = outputCapDiagnostics(detailed, item, "/payload/item");
   if (diagnostics.length > 0) {
-    coverage.push(
+    coverage2.push(
       ...diagnostics.map((diagnostic) => ({
         dataClass: "items",
         status: "truncated",
@@ -3062,7 +3062,7 @@ function itemCompletedActivity(source, detailed, payload) {
         ...childReference2 === void 0 ? {} : { childReference: childReference2 }
       }
     ],
-    coverage,
+    coverage: coverage2,
     diagnostics
   };
 }
@@ -3203,7 +3203,7 @@ function extractionFailure(locator) {
 function extractActivity(input) {
   validateInput(input);
   const events = [];
-  const coverage = [];
+  const coverage2 = [];
   const diagnostics = [];
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator = {
@@ -3214,7 +3214,7 @@ function extractActivity(input) {
       code: sourceDiagnosticCode(sourceDiagnostic.kind),
       locator
     });
-    coverage.push({
+    coverage2.push({
       dataClass: "record-activity",
       status: "malformed",
       captured: 0,
@@ -3233,7 +3233,7 @@ function extractActivity(input) {
       });
     }
     events.push(...extracted.events);
-    coverage.push(...extracted.coverage);
+    coverage2.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
   }
   return {
@@ -3244,7 +3244,7 @@ function extractActivity(input) {
       sourceBytes: input.read.sourceBytes
     },
     events,
-    coverage: [...baseCoverage(events), ...coverage],
+    coverage: [...baseCoverage(events), ...coverage2],
     diagnostics
   };
 }
@@ -3275,6 +3275,10 @@ function markdownData(value) {
 }
 function locatorText(locator) {
   if (!locator) return "source-wide";
+  if (locator.sourceFrameIndex !== void 0) {
+    const delivery = locator.deliveryFrameIndex === void 0 ? "" : `, delivery frame ${locator.deliveryFrameIndex}`;
+    return `source frame ${locator.sourceFrameIndex}${delivery}, line ${locator.physicalLine}, pointer ${locator.jsonPointer || "/"}`;
+  }
   const record = locator.recordIndex === void 0 ? "" : `, record ${locator.recordIndex}`;
   return `line ${locator.physicalLine}${record}, pointer ${locator.jsonPointer || "/"}`;
 }
@@ -3296,6 +3300,8 @@ function eventLines(event) {
       nativeStatus: event.nativeStatus,
       origin: event.origin,
       turnId: event.turnId,
+      lifecycleAvailability: event.lifecycleAvailability,
+      turnOutcome: event.turnOutcome,
       externalReference: event.externalReference,
       childReference: event.childReference
     }).filter(([, value]) => value !== void 0)
@@ -3311,7 +3317,7 @@ function eventLines(event) {
   ];
 }
 function countLine(counts) {
-  return `- ${counts.scope}: calls ${counts.calls}; counted invocations ${counts.countedInvocations}; results ${counts.results}; items ${counts.items}; failures ${counts.failures}`;
+  return `- ${counts.scope}: calls ${counts.calls}; counted invocations ${counts.countedInvocations}; pending lifecycle ${counts.pendingLifecycleCalls}; results ${counts.results}; items ${counts.items}; failures ${counts.failures}`;
 }
 function renderActivityMarkdown(report) {
   const lines = [
@@ -3349,9 +3355,9 @@ function renderActivityMarkdown(report) {
   }
   if (report.coverage.length > 0) {
     lines.push("", "### Coverage", "");
-    for (const coverage of report.coverage) {
+    for (const coverage2 of report.coverage) {
       lines.push(
-        `- ${coverage.dataClass}: ${coverage.status}; captured ${coverage.captured}; ${locatorText(coverage.locator)}`
+        `- ${coverage2.dataClass}: ${coverage2.status}; captured ${coverage2.captured}; ${locatorText(coverage2.locator)}`
       );
     }
   }
@@ -3560,6 +3566,8 @@ function projectEvent(event, limits, suppressLinkedItemOutput) {
     ...event.nativeStatus === void 0 ? {} : { nativeStatus: event.nativeStatus },
     ...event.origin === void 0 ? {} : { origin: event.origin },
     ...event.turnId === void 0 ? {} : { turnId: event.turnId },
+    ...event.lifecycleAvailability === void 0 ? {} : { lifecycleAvailability: event.lifecycleAvailability },
+    ...event.turnOutcome === void 0 ? {} : { turnOutcome: event.turnOutcome },
     ...Object.hasOwn(event, "arguments") ? { inputPreview: preview(event.arguments, limits.previewBytes) } : {},
     ...Object.hasOwn(event, "originalArguments") ? {
       originalInputPreview: preview(
@@ -3580,6 +3588,9 @@ function countEvents(scope, events) {
     calls: events.filter((event) => event.kind === "call").length,
     countedInvocations: events.filter(
       (event) => event.kind === "call" && event.ownership === "owned"
+    ).length,
+    pendingLifecycleCalls: events.filter(
+      (event) => event.kind === "call" && event.lifecycleAvailability === "pending-lifecycle"
     ).length,
     results: events.filter((event) => event.kind === "result").length,
     items: events.filter((event) => event.kind === "item").length,
@@ -3769,6 +3780,146 @@ function projectActivity(activity, options) {
     options,
     ACTIVITY_PROJECTION_LIMITS[options.mode]
   );
+}
+
+// src/shared/transcript/activity/cursor.ts
+function validateInput2(input) {
+  if (input.source.runtime !== "cursor" || !input.source.sessionId.trim() || !input.source.nativeSessionId.trim() || !input.source.transcriptPath.trim()) {
+    throw new Error("Cursor activity extraction requires an exact source");
+  }
+  if (!input.capturedAt.trim()) {
+    throw new Error("Cursor activity extraction requires a capture time");
+  }
+  if (input.scan.indexBase !== "zero-based-jsonl-frame-index") {
+    throw new Error("Cursor activity extraction requires frame-indexed input");
+  }
+}
+function isSettled(turn) {
+  return turn.terminalFrameIndex !== null;
+}
+function eventLocator(sourceFrameIndex, blockIndex, terminalFrameIndex) {
+  const deliveryFrameIndex = terminalFrameIndex ?? sourceFrameIndex;
+  return {
+    // Cursor JSONL frames retain a one-to-one physical-line coordinate even
+    // though delivery is selected by terminal frame rather than source line.
+    physicalLine: sourceFrameIndex + 1,
+    recordIndex: deliveryFrameIndex,
+    sourceFrameIndex,
+    ...terminalFrameIndex === null ? {} : { deliveryFrameIndex: terminalFrameIndex },
+    jsonPointer: `/message/content/${blockIndex}`
+  };
+}
+function eventKey2(turn, sourceFrameIndex, blockIndex, scan) {
+  const positional = `${turn.turnId}:frame:${sourceFrameIndex}:block:${blockIndex}`;
+  return isSettled(turn) ? positional : `${positional}:snapshot:${scan.safePrefixSha256}`;
+}
+function callEvents(input) {
+  return input.analysis.turns.flatMap((turn) => {
+    const settled = isSettled(turn);
+    if (input.mode === "stateful-delivery" && !settled) return [];
+    return (turn.toolRecords ?? []).map(
+      (tool) => ({
+        eventKey: eventKey2(
+          turn,
+          tool.sourceFrameIndex,
+          tool.blockIndex,
+          input.scan
+        ),
+        kind: "call",
+        nativeType: tool.nativeType,
+        locator: eventLocator(
+          tool.sourceFrameIndex,
+          tool.blockIndex,
+          turn.terminalFrameIndex
+        ),
+        // Cursor records only turn-level terminal evidence. A successful,
+        // errored, or aborted turn never proves an individual call's outcome.
+        outcome: "unknown",
+        turnId: turn.turnId,
+        lifecycleAvailability: settled ? "settled" : "pending-lifecycle",
+        turnOutcome: turn.lifecycle,
+        ...tool.nativeName === void 0 ? {} : { nativeName: tool.nativeName },
+        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {}
+      })
+    );
+  });
+}
+function lifecycleCounts(analysis, emittedCalls, mode) {
+  let settledCalls = 0;
+  let pendingLifecycleCalls = 0;
+  for (const turn of analysis.turns) {
+    const count = turn.toolRecords?.length ?? 0;
+    if (isSettled(turn)) settledCalls += count;
+    else pendingLifecycleCalls += count;
+  }
+  return {
+    capturedCalls: settledCalls + pendingLifecycleCalls,
+    settledCalls,
+    pendingLifecycleCalls,
+    emittedCalls,
+    deferredPendingCalls: mode === "stateful-delivery" ? pendingLifecycleCalls : 0
+  };
+}
+function coverage(events, scan, mode) {
+  const entries = [
+    {
+      dataClass: "calls",
+      status: "available",
+      captured: events.length
+    },
+    ...events.length > 0 || mode === "stateless-snapshot" ? [
+      {
+        dataClass: "results",
+        status: "not-recorded",
+        captured: 0
+      }
+    ] : []
+  ];
+  if (scan.blockingFrame) {
+    entries.push({
+      dataClass: "record-activity",
+      status: "malformed",
+      captured: 0,
+      locator: {
+        physicalLine: scan.blockingFrame.frameIndex + 1,
+        recordIndex: scan.blockingFrame.frameIndex,
+        sourceFrameIndex: scan.blockingFrame.frameIndex,
+        jsonPointer: ""
+      }
+    });
+  }
+  return entries;
+}
+function extractCursorActivity(input) {
+  validateInput2(input);
+  const events = callEvents(input);
+  const counts = lifecycleCounts(input.analysis, events.length, input.mode);
+  return {
+    activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
+    source: input.source,
+    sourceSnapshot: {
+      capturedAt: input.capturedAt,
+      sourceBytes: input.scan.file.size
+    },
+    events,
+    coverage: coverage(events, input.scan, input.mode),
+    diagnostics: input.scan.blockingFrame ? [
+      {
+        code: input.scan.blockingFrame.parseState === "partial" ? "SOURCE_PARTIAL_TAIL" : "SOURCE_MALFORMED_RECORD",
+        locator: {
+          physicalLine: input.scan.blockingFrame.frameIndex + 1,
+          recordIndex: input.scan.blockingFrame.frameIndex,
+          sourceFrameIndex: input.scan.blockingFrame.frameIndex,
+          jsonPointer: ""
+        }
+      }
+    ] : [],
+    cursor: {
+      indexBase: input.scan.indexBase,
+      mode: input.mode,
+      counts
+    }
+  };
 }
 
 // src/shared/transcript/cursor-analysis.ts
@@ -4815,6 +4966,87 @@ function buildCursorDigest(transcriptPath, opts) {
     includeToolResults: opts.includeToolResults ?? false,
     includeCommandMessages: opts.includeCommandMessages ?? false
   };
+  let activity;
+  if (opts.includeActivity) {
+    const stateless = (opts.mode ?? "review") === "review";
+    const activityMode = stateless ? "review" : "catch-up";
+    const defaultStart = stateless ? 0 : opts.cursorState?.continuity.nextFrameIndex ?? fromIndex;
+    const defaultEnd = stateless ? scan.totalFrames : analysis.turns.reduce(
+      (end, turn) => turn.terminalFrameIndex !== null && turn.terminalFrameIndex < nextIndex ? Math.max(end, turn.terminalFrameIndex + 1) : end,
+      defaultStart
+    );
+    const deliveryRange = opts.cursorActivityDeliveryRange ?? {
+      indexBase: "zero-based-jsonl-frame-index",
+      start: defaultStart,
+      end: defaultEnd
+    };
+    const source = {
+      runtime: "cursor",
+      sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+      nativeSessionId: opts.cursorIdentity.sessionId,
+      transcriptPath
+    };
+    const capturedAt = opts.cursorCapturedAt ?? (/* @__PURE__ */ new Date()).toISOString();
+    try {
+      activity = projectActivity(
+        correlateActivity(
+          extractCursorActivity({
+            source,
+            scan,
+            analysis,
+            capturedAt,
+            mode: stateless ? "stateless-snapshot" : "stateful-delivery"
+          })
+        ),
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? "compact-json",
+          deliveryRange
+        }
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt,
+            sourceBytes: scan.file.size
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: "record-activity",
+              status: "not-read",
+              captured: 0
+            }
+          ],
+          diagnostics: [
+            {
+              code: "ACTIVITY_EXTRACTION_ERROR",
+              locator: { physicalLine: 1, jsonPointer: "" }
+            }
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 }
+          }
+        },
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? "compact-json",
+          deliveryRange
+        }
+      );
+    }
+  }
   return {
     schemaVersion: 2,
     runtime: "cursor",
@@ -4838,6 +5070,7 @@ function buildCursorDigest(transcriptPath, opts) {
     },
     accounting,
     entries,
+    ...activity ? { activity } : {},
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -8200,6 +8433,12 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
       );
     }
   }
+  const activityStartFrame = deliveryUncertain === null ? state.continuity.nextFrameIndex : state.pendingDelivery.expectedCheckpoint.nextFrameIndex;
+  const activityEndFrame = deliveryUncertain === null ? settledNextFrameIndex(
+    selected,
+    (selected.scan.safeThroughFrame ?? -1) + 1,
+    activityStartFrame
+  ) : state.pendingDelivery.intendedCheckpoint.nextFrameIndex;
   const digest = await buildDigest("cursor", candidate.transcriptPath, {
     ...args,
     fromIndex: continuity.fromFrameIndex,
@@ -8218,7 +8457,13 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     cursorScan: selected.scan,
     cursorAnalysis: selected.analysis,
     cursorState: deliveryUncertain === null && confirmedObservation === null ? { ...state, stabilityCandidate: null } : state,
-    cursorContinuity: continuity.status
+    cursorContinuity: continuity.status,
+    cursorCapturedAt: selectedObservedAt,
+    cursorActivityDeliveryRange: {
+      indexBase: "zero-based-jsonl-frame-index",
+      start: activityStartFrame,
+      end: activityEndFrame
+    }
   });
   if (deliveryUncertain !== null) {
     const pending = state.pendingDelivery;
@@ -8465,11 +8710,6 @@ async function observeCatchUp(args, deps = {}) {
       );
     }
     runtime = resolved.runtime;
-  }
-  if (args.includeActivity && runtime === "cursor") {
-    return errorOutcome(
-      "--include-activity is not available for Cursor review or catch-up yet."
-    );
   }
   if (pinnedSession) {
     if (!isRuntime(runtime)) {
@@ -9915,7 +10155,8 @@ async function finalizeCursorOutput(result, chunk, deps) {
 }
 async function emitCursorDelta(result, target, args, deps, eventState) {
   const newFrames = result.digest.range.newFrames;
-  const shouldRender = newFrames > 0 && !(args.quietEmpty && result.digest.accounting.rendered.count === 0);
+  const activity = prepareActivityDelta(result.digest, target);
+  const shouldRender = (newFrames > 0 || activity.renderable) && !(args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable);
   if (shouldRender) {
     const rendered = renderMarkdown(result.digest);
     const ts = new Date(deps.now()).toISOString();
@@ -9934,6 +10175,9 @@ async function emitCursorDelta(result, target, args, deps, eventState) {
       args.eventLog,
       eventMetadata(ts, result.digest, rendered)
     );
+    if (activity.diagnosticSignature) {
+      target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+    }
     eventState.eventCount++;
     eventState.lastHeartbeatAt = deps.now();
     await recordWatcherEvent({
@@ -10402,11 +10646,6 @@ function installSignalHandlers(eventState) {
 }
 async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? "auto";
-  if (args.includeActivity && (runtime === "cursor" || args.session?.startsWith("cursor:"))) {
-    throw new Error(
-      "--include-activity is not available for Cursor review or catch-up yet."
-    );
-  }
   const cwd = args.cwd ?? process.cwd();
   const eventLog = args.eventLog ? await resolveEventLogPath(args.eventLog) : void 0;
   const resolvedMaxPendingMs = maxPendingMs(args.maxPendingSec);

@@ -1552,6 +1552,120 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('emits one Cursor activity-only delta when an observed open turn settles', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-activity-settle');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-activity-settle';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Inspect the watched file.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        role: 'assistant',
+        message: {
+          content: [
+            { type: 'text', text: 'I will inspect it.' },
+            {
+              type: 'tool_use',
+              name: 'Read',
+              input: { path: 'watched.md' },
+            },
+          ],
+        },
+      });
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 19, 14, 0, 0);
+      let appendedTerminal = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          includeActivity: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.01,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (appendedTerminal) return;
+            const state = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
+            if (state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex !== 2)
+              return;
+            appendedTerminal = true;
+            await appendCursorFrame(transcriptPath, {
+              type: 'turn_ended',
+              status: 'error',
+            });
+          },
+        },
+      );
+
+      expect(appendedTerminal).toBe(true);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+      const deltas = parseJsonLines(stdout.join('')).filter(
+        (event) => event.type === 'delta',
+      );
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        activityOnly: true,
+        newRecords: 1,
+        ranges: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 2,
+          toIndex: 2,
+          nextIndex: 3,
+        },
+        digest: {
+          activityOnly: true,
+          entries: [],
+          activity: {
+            deliveryRange: {
+              indexBase: 'zero-based-jsonl-frame-index',
+              start: 0,
+              end: 3,
+            },
+            counts: {
+              deliveredRange: {
+                countedInvocations: 1,
+                pendingLifecycleCalls: 0,
+              },
+            },
+            events: [
+              expect.objectContaining({
+                nativeName: 'Read',
+                outcome: 'unknown',
+                turnOutcome: 'error',
+                lifecycleAvailability: 'settled',
+                locator: expect.objectContaining({
+                  sourceFrameIndex: 1,
+                  deliveryFrameIndex: 2,
+                  recordIndex: 2,
+                }),
+              }),
+            ],
+          },
+        },
+      });
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      expect(
+        state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
+      ).toBe(3);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.pendingDelivery).toBe(
+        null,
+      );
+    });
+  });
+
   test('delivers bounded Cursor prefixes without starvation during continuous max-pending growth', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = join(home, 'workspace', 'watch-cursor-prefix-growth');

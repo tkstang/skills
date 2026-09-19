@@ -25,6 +25,7 @@ import { createHash } from 'node:crypto';
 import {
   correlateActivity,
   extractActivity,
+  extractCursorActivity,
   projectActivity,
   renderActivityMarkdown,
 } from '../../../../shared/transcript/activity/index.js';
@@ -32,6 +33,7 @@ import type {
   ActivityProjectionMode,
   ActivityReport,
   ActivitySource,
+  ActivityDeliveryRange,
 } from '../../../../shared/transcript/activity/types.js';
 import type {
   CursorAssistantContentRecord,
@@ -1025,6 +1027,99 @@ function buildCursorDigest(
     includeCommandMessages: opts.includeCommandMessages ?? false,
   };
 
+  let activity: ActivityReport | undefined;
+  if (opts.includeActivity) {
+    const stateless = (opts.mode ?? 'review') === 'review';
+    const activityMode: ActivityProjectionMode = stateless
+      ? 'review'
+      : 'catch-up';
+    const defaultStart = stateless
+      ? 0
+      : (opts.cursorState?.continuity.nextFrameIndex ?? fromIndex);
+    const defaultEnd = stateless
+      ? scan.totalFrames
+      : analysis.turns.reduce(
+          (end, turn) =>
+            turn.terminalFrameIndex !== null &&
+            turn.terminalFrameIndex < nextIndex
+              ? Math.max(end, turn.terminalFrameIndex + 1)
+              : end,
+          defaultStart,
+        );
+    const deliveryRange: ActivityDeliveryRange =
+      opts.cursorActivityDeliveryRange ?? {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: defaultStart,
+        end: defaultEnd,
+      };
+    const source: ActivitySource & { runtime: 'cursor' } = {
+      runtime: 'cursor',
+      sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+      nativeSessionId: opts.cursorIdentity.sessionId,
+      transcriptPath,
+    };
+    const capturedAt = opts.cursorCapturedAt ?? new Date().toISOString();
+    try {
+      activity = projectActivity(
+        correlateActivity(
+          extractCursorActivity({
+            source,
+            scan,
+            analysis,
+            capturedAt,
+            mode: stateless ? 'stateless-snapshot' : 'stateful-delivery',
+          }),
+        ),
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? 'compact-json',
+          deliveryRange,
+        },
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt,
+            sourceBytes: scan.file.size,
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: 'record-activity',
+              status: 'not-read',
+              captured: 0,
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'ACTIVITY_EXTRACTION_ERROR',
+              locator: { physicalLine: 1, jsonPointer: '' },
+            },
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0,
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 },
+          },
+        },
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? 'compact-json',
+          deliveryRange,
+        },
+      );
+    }
+  }
+
   return {
     schemaVersion: 2,
     runtime: 'cursor',
@@ -1048,6 +1143,7 @@ function buildCursorDigest(
     },
     accounting,
     entries,
+    ...(activity ? { activity } : {}),
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],

@@ -1317,23 +1317,91 @@ describe('export CLI — bounded activity', () => {
     await rm(home, { recursive: true, force: true });
   });
 
-  test('rejects Cursor activity explicitly until frame extraction is available', async () => {
+  test('exports settled and pending-lifecycle Cursor calls with positional evidence', async () => {
     const home = await setupHome();
+    const marker = 'cursoractivity77';
+    await writeCursor(
+      home,
+      [
+        {
+          role: 'user',
+          message: {
+            content: [
+              { type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` },
+            ],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Read',
+                input: { path: 'settled.md' },
+              },
+            ],
+          },
+        },
+        { type: 'turn_ended', status: 'success' },
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Shell',
+                input: { command: 'printf pending' },
+              },
+            ],
+          },
+        },
+      ]
+        .map((frame) => JSON.stringify(frame))
+        .join('\n') + '\n',
+      'cursor-activity',
+    );
     const out = join(home, 'cursor-activity.md');
     const result = spawnCli(
-      ['--runtime', 'cursor', '--cwd', CWD, '--include-activity', '--out', out],
+      [
+        '--runtime',
+        'cursor',
+        '--cwd',
+        CWD,
+        '--match',
+        marker,
+        '--include-activity',
+        '--out',
+        out,
+      ],
       { HOME: home },
     );
 
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /unavailable for Cursor/);
-    let outputExists = true;
-    try {
-      await readFile(out, 'utf8');
-    } catch {
-      outputExists = false;
-    }
-    assert.equal(outputExists, false);
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.match(
+      markdown,
+      /Delivery range: \[0, 4\) zero-based-jsonl-frame-index/,
+    );
+    assert.match(
+      markdown,
+      /delivered-range: calls 2; counted invocations 2; pending lifecycle 1/,
+    );
+    assert.match(
+      markdown,
+      /call "Read"; unknown; owned; source frame 1, delivery frame 2, line 2, pointer \/message\/content\/0/,
+    );
+    assert.match(
+      markdown,
+      /call "Shell"; unknown; owned; source frame 3, line 4, pointer \/message\/content\/0/,
+    );
+    assert.match(markdown, /"lifecycleAvailability":"settled"/);
+    assert.match(markdown, /"lifecycleAvailability":"pending-lifecycle"/);
+    assert.match(markdown, /"turnOutcome":"success"/);
+    assert.match(markdown, /"turnOutcome":"pending"/);
+    assert.notMatch(markdown, /nativeId|nativeCallId|nativeStatus/);
+    assert.match(markdown, /results: not-recorded; captured 0/);
     await rm(home, { recursive: true, force: true });
   });
 });

@@ -50,15 +50,20 @@ import { promisify } from 'node:util';
 import {
   correlateActivity,
   extractActivity,
+  extractCursorActivity,
   projectActivity,
   renderActivityMarkdown,
 } from '../../../shared/transcript/activity/index.js';
 import type {
   ActivityReport,
   ActivitySource,
+  ActivityDeliveryRange,
 } from '../../../shared/transcript/activity/types.js';
+import { createCursorTurnAccumulator } from '../../../shared/transcript/cursor-analysis.js';
+import { scanCursorTranscript } from '../../../shared/transcript/cursor-frames.js';
 import type {
   DigestEntry,
+  JsonObject,
   Runtime,
   TranscriptMeta,
 } from '../../../shared/transcript/runtimes.js';
@@ -729,7 +734,7 @@ function unavailableActivityReport(
   source: ActivitySource,
   sourceBytes: number,
   capturedAt: string,
-  totalRecords: number,
+  deliveryRange: ActivityDeliveryRange,
 ): ActivityReport {
   return projectActivity(
     {
@@ -766,9 +771,7 @@ function unavailableActivityReport(
       mode: 'export',
       renderFormat: 'markdown',
       deliveryRange: {
-        indexBase: 'zero-based-decoded-record-index',
-        start: 0,
-        end: totalRecords,
+        ...deliveryRange,
       },
     },
   );
@@ -786,17 +789,87 @@ async function exportSession(
   session: Candidate,
   multi: boolean,
 ): Promise<string> {
-  const capturedRead = opts.includeActivity
-    ? await readRecordsDetailed(session.transcriptPath)
-    : undefined;
-  const records = capturedRead
-    ? capturedRead.records.map(({ record }) => record)
-    : await readRecords(session.transcriptPath);
+  const cursorCapture =
+    opts.includeActivity && runtime === 'cursor'
+      ? await (async () => {
+          const capturedAt = new Date().toISOString();
+          const accumulator = createCursorTurnAccumulator(
+            {
+              runtime: 'cursor',
+              projectCwd: opts.cwd,
+              sessionId: session.sessionId,
+              canonicalTranscriptPath: session.transcriptPath,
+            },
+            0,
+          );
+          const records: JsonObject[] = [];
+          const scan = await scanCursorTranscript(session.transcriptPath, {
+            onFrame(frame) {
+              accumulator.onFrame(frame);
+              if (frame.parseState === 'parsed' && frame.record !== null) {
+                records.push(frame.record);
+              }
+            },
+          });
+          return {
+            capturedAt,
+            scan,
+            analysis: accumulator.finish(scan),
+            records,
+          };
+        })()
+      : undefined;
+  const capturedRead =
+    opts.includeActivity && runtime !== 'cursor'
+      ? await readRecordsDetailed(session.transcriptPath)
+      : undefined;
+  const records = cursorCapture
+    ? cursorCapture.records
+    : capturedRead
+      ? capturedRead.records.map(({ record }) => record)
+      : await readRecords(session.transcriptPath);
   const normalized = normalizeEntries(runtime, records, {});
   const sanitized = sanitizeEntries(normalized, { runtime });
   const entries = stripMarkerAndEmpty(sanitized);
   let activity: ActivityReport | undefined;
-  if (opts.includeActivity && capturedRead && runtime !== 'cursor') {
+  if (opts.includeActivity && cursorCapture && runtime === 'cursor') {
+    const source: ActivitySource & { runtime: 'cursor' } = {
+      runtime: 'cursor',
+      sessionId: session.sessionId,
+      nativeSessionId: session.sessionId,
+      transcriptPath: session.transcriptPath,
+    };
+    const deliveryRange: ActivityDeliveryRange = {
+      indexBase: 'zero-based-jsonl-frame-index',
+      start: 0,
+      end: cursorCapture.scan.totalFrames,
+    };
+    try {
+      activity = projectActivity(
+        correlateActivity(
+          extractCursorActivity({
+            source,
+            scan: cursorCapture.scan,
+            analysis: cursorCapture.analysis,
+            capturedAt: cursorCapture.capturedAt,
+            mode: 'stateless-snapshot',
+          }),
+        ),
+        {
+          mode: 'export',
+          renderFormat: 'markdown',
+          deliveryRange,
+        },
+      );
+    } catch {
+      activity = unavailableActivityReport(
+        source,
+        cursorCapture.scan.file.size,
+        cursorCapture.capturedAt,
+        deliveryRange,
+      );
+    }
+  } else if (opts.includeActivity && capturedRead) {
     const identity = extractMetaFromRecords(
       runtime,
       records,
@@ -829,7 +902,11 @@ async function exportSession(
         source,
         capturedRead.sourceBytes,
         capturedRead.capturedAt,
-        records.length,
+        {
+          indexBase: 'zero-based-decoded-record-index',
+          start: 0,
+          end: records.length,
+        },
       );
     }
   }
@@ -875,13 +952,6 @@ async function main(): Promise<number> {
     );
     return 1;
   }
-  if (opts.includeActivity && runtime === 'cursor') {
-    console.error(
-      '[session-export-transcript] --include-activity is unavailable for Cursor until settled-frame activity support is enabled.',
-    );
-    return 1;
-  }
-
   // When no authoritative selector (--match/--session) is active, enumeration
   // must be able to tie each candidate to the cwd. In that mode (--all or the
   // no-selector "newest"/single path) a candidate with an unresolved cwd is

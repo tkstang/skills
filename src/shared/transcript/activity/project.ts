@@ -325,6 +325,12 @@ function projectEvent(
       : { nativeStatus: event.nativeStatus }),
     ...(event.origin === undefined ? {} : { origin: event.origin }),
     ...(event.turnId === undefined ? {} : { turnId: event.turnId }),
+    ...(event.lifecycleAvailability === undefined
+      ? {}
+      : { lifecycleAvailability: event.lifecycleAvailability }),
+    ...(event.turnOutcome === undefined
+      ? {}
+      : { turnOutcome: event.turnOutcome }),
     ...(Object.hasOwn(event, 'arguments')
       ? { inputPreview: preview(event.arguments, limits.previewBytes) }
       : {}),
@@ -367,6 +373,11 @@ function countEvents(
     calls: events.filter((event) => event.kind === 'call').length,
     countedInvocations: events.filter(
       (event) => event.kind === 'call' && event.ownership === 'owned',
+    ).length,
+    pendingLifecycleCalls: events.filter(
+      (event) =>
+        event.kind === 'call' &&
+        event.lifecycleAvailability === 'pending-lifecycle',
     ).length,
     results: events.filter((event) => event.kind === 'result').length,
     items: events.filter((event) => event.kind === 'item').length,

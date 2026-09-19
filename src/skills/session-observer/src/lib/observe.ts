@@ -1327,6 +1327,18 @@ async function observeCursorSession(
     }
   }
 
+  const activityStartFrame =
+    deliveryUncertain === null
+      ? state.continuity.nextFrameIndex
+      : state.pendingDelivery!.expectedCheckpoint.nextFrameIndex;
+  const activityEndFrame =
+    deliveryUncertain === null
+      ? settledNextFrameIndex(
+          selected,
+          (selected.scan.safeThroughFrame ?? -1) + 1,
+          activityStartFrame,
+        )
+      : state.pendingDelivery!.intendedCheckpoint.nextFrameIndex;
   const digest = (await buildDigest('cursor', candidate.transcriptPath, {
     ...args,
     fromIndex: continuity.fromFrameIndex,
@@ -1351,6 +1363,12 @@ async function observeCursorSession(
         ? { ...state, stabilityCandidate: null }
         : state,
     cursorContinuity: continuity.status,
+    cursorCapturedAt: selectedObservedAt,
+    cursorActivityDeliveryRange: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      start: activityStartFrame,
+      end: activityEndFrame,
+    },
   })) as CursorDigestV2;
 
   if (deliveryUncertain !== null) {
@@ -1661,12 +1679,6 @@ export async function observeCatchUp(
       );
     }
     runtime = resolved.runtime;
-  }
-
-  if (args.includeActivity && runtime === 'cursor') {
-    return errorOutcome(
-      '--include-activity is not available for Cursor review or catch-up yet.',
-    );
   }
 
   if (pinnedSession) {
