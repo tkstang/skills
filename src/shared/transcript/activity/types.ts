@@ -181,6 +181,102 @@ export interface CorrelatedActivity extends Omit<ExtractedActivity, 'events'> {
   correlationCounts: ActivityCorrelationCounts;
 }
 
+export type ActivityProjectionMode = 'watch' | 'catch-up' | 'review' | 'export';
+
+export interface ActivityDeliveryRange {
+  indexBase: 'zero-based-decoded-record-index';
+  start: number;
+  end: number;
+}
+
+export interface ActivityProjectionLimits {
+  maxBytes: number;
+  maxInvocations: number | null;
+  previewBytes: number;
+  lateContextBytes: number;
+}
+
+export interface ProjectActivityOptions {
+  mode: ActivityProjectionMode;
+  deliveryRange: ActivityDeliveryRange;
+}
+
+export interface ActivityPreview {
+  text: string;
+  sourceBytes: number;
+  displayedBytes: number;
+  truncated: boolean;
+}
+
+export interface ProjectedActivityEvent {
+  eventKey: string;
+  kind: ActivityEventKind;
+  nativeType: string;
+  locator: ActivityEventLocator;
+  outcome: ActivityOutcome;
+  ownership: ActivityOwnership;
+  category?: ActivityCategory;
+  relatedCallKey?: string;
+  nativeId?: string;
+  nativeCallId?: string;
+  nativeName?: string;
+  nativeStatus?: string;
+  origin?: string;
+  turnId?: string;
+  inputPreview?: ActivityPreview;
+  outputPreview?: ActivityPreview;
+  metadataPreview?: ActivityPreview;
+  outputPreviewOmitted?: 'exact-linked-duplicate-carrier';
+  externalReference?: ActivityExternalReference;
+  childReference?: ActivityChildReference;
+}
+
+export interface ActivityCallContext {
+  callKey: string;
+  availability: 'outside-delivered-range';
+  locator: ActivityEventLocator;
+  nativeCallId?: string;
+  nativeName?: string;
+  category?: ActivityCategory;
+  inputPreview?: ActivityPreview;
+}
+
+export interface ActivityScopedCounts {
+  scope: 'captured-source' | 'delivered-range' | 'displayed';
+  calls: number;
+  countedInvocations: number;
+  results: number;
+  items: number;
+  failures: number;
+}
+
+export interface ActivityOmissionCounts {
+  calls: number;
+  results: number;
+  failures: number;
+  invocationLimitGroups: number;
+  byteLimitGroups: number;
+}
+
+export interface ActivityReport {
+  activitySchemaVersion: typeof ACTIVITY_SCHEMA_VERSION;
+  mode: ActivityProjectionMode;
+  source: ActivitySource;
+  deliveryRange: ActivityDeliveryRange;
+  limits: ActivityProjectionLimits;
+  renderedBytes: number;
+  counts: {
+    capturedSource: ActivityScopedCounts;
+    deliveredRange: ActivityScopedCounts;
+    displayed: ActivityScopedCounts;
+  };
+  omitted: ActivityOmissionCounts;
+  events: ProjectedActivityEvent[];
+  callContexts: ActivityCallContext[];
+  coverage: ActivityCoverageEntry[];
+  diagnostics: ActivityDiagnostic[];
+}
+
 export interface ExtractedRecordActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];

@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.42'
+  version: '1.0.43'
 ---
 
 # {{distribution.name}}
