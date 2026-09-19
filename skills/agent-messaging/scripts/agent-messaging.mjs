@@ -3793,6 +3793,25 @@ function optional(parsed, name) {
   const value = parsed.flags.get(name);
   return typeof value === "string" ? value : void 0;
 }
+function jsonFlag(parsed, name) {
+  try {
+    return JSON.parse(required(parsed, name));
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new TypeError(`--${name} must contain valid JSON`, {
+        cause: error
+      });
+    }
+    throw error;
+  }
+}
+function jsonStringRecordFlag(parsed, name) {
+  const value = jsonFlag(parsed, name);
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every((entry) => typeof entry === "string")) {
+    throw new TypeError(`--${name} must be a JSON string map`);
+  }
+  return value;
+}
 function integer(parsed, name, fallback) {
   const value = optional(parsed, name);
   if (value === void 0) return fallback;
@@ -4040,7 +4059,7 @@ async function execute(parsed, io) {
         cwd: worktree,
         env: io.env,
         settingsPaths: optional(parsed, "settings-paths")?.split(path13.delimiter).filter(Boolean),
-        installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : void 0
+        installedPlugins: optional(parsed, "installed-plugins") ? jsonStringRecordFlag(parsed, "installed-plugins") : void 0
       })
     );
     const ownership = await assessAutomaticOwnership({
@@ -4165,7 +4184,7 @@ async function execute(parsed, io) {
   }
   if (command === "delivery" && subcommand === "probe-plan") {
     const pin = resolveSelf(parsed, io.env);
-    const commandArguments = JSON.parse(required(parsed, "command"));
+    const commandArguments = jsonFlag(parsed, "command");
     if (!Array.isArray(commandArguments) || !commandArguments.every((value) => typeof value === "string")) {
       throw new TypeError("--command must be a JSON string array");
     }
@@ -4207,7 +4226,7 @@ async function execute(parsed, io) {
         cwd: optional(parsed, "cwd") ?? io.cwd,
         env: io.env,
         settingsPaths: optional(parsed, "settings-paths")?.split(path13.delimiter).filter(Boolean),
-        installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : void 0
+        installedPlugins: optional(parsed, "installed-plugins") ? jsonStringRecordFlag(parsed, "installed-plugins") : void 0
       })
     );
     return {

@@ -188,6 +188,35 @@ function optional(parsed: Parsed, name: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function jsonFlag(parsed: Parsed, name: string): unknown {
+  try {
+    return JSON.parse(required(parsed, name)) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new TypeError(`--${name} must contain valid JSON`, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
+}
+
+function jsonStringRecordFlag(
+  parsed: Parsed,
+  name: string,
+): Record<string, string> {
+  const value = jsonFlag(parsed, name);
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    !Object.values(value).every((entry) => typeof entry === 'string')
+  ) {
+    throw new TypeError(`--${name} must be a JSON string map`);
+  }
+  return value as Record<string, string>;
+}
+
 function integer(parsed: Parsed, name: string, fallback: number): number {
   const value = optional(parsed, name);
   if (value === undefined) return fallback;
@@ -496,10 +525,7 @@ async function execute(
                 ?.split(path.delimiter)
                 .filter(Boolean),
               installedPlugins: optional(parsed, 'installed-plugins')
-                ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
-                    string,
-                    string
-                  >)
+                ? jsonStringRecordFlag(parsed, 'installed-plugins')
                 : undefined,
             }),
           );
@@ -656,7 +682,7 @@ async function execute(
   }
   if (command === 'delivery' && subcommand === 'probe-plan') {
     const pin = resolveSelf(parsed, io.env);
-    const commandArguments = JSON.parse(required(parsed, 'command')) as unknown;
+    const commandArguments = jsonFlag(parsed, 'command');
     if (
       !Array.isArray(commandArguments) ||
       !commandArguments.every((value) => typeof value === 'string')
@@ -708,10 +734,7 @@ async function execute(
                 ?.split(path.delimiter)
                 .filter(Boolean),
               installedPlugins: optional(parsed, 'installed-plugins')
-                ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
-                    string,
-                    string
-                  >)
+                ? jsonStringRecordFlag(parsed, 'installed-plugins')
                 : undefined,
             }),
           );

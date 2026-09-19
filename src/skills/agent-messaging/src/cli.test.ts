@@ -24,6 +24,56 @@ async function run(argv: string[], env: NodeJS.ProcessEnv = {}) {
 }
 
 describe('agent messaging CLI', () => {
+  test.each([
+    {
+      label: 'malformed probe command JSON',
+      command: 'probe-plan',
+      flag: 'command',
+      value: '{',
+      runtime: 'codex',
+    },
+    {
+      label: 'wrong-shaped probe command JSON',
+      command: 'probe-plan',
+      flag: 'command',
+      value: '{"executable":"/fixture/codex"}',
+      runtime: 'codex',
+    },
+    {
+      label: 'malformed installed-plugin JSON',
+      command: 'inspect',
+      flag: 'installed-plugins',
+      value: '{',
+      runtime: 'claude-code',
+    },
+    {
+      label: 'wrong-shaped installed-plugin JSON',
+      command: 'inspect',
+      flag: 'installed-plugins',
+      value: '{"fixture":42}',
+      runtime: 'claude-code',
+    },
+  ])('classifies $label as invalid input', async (fixture) => {
+    const result = await run([
+      'delivery',
+      fixture.command,
+      '--root',
+      '/tmp/agent-messaging-json-flags',
+      '--collab',
+      crypto.randomUUID(),
+      '--self',
+      `${fixture.runtime}:recipient`,
+      `--${fixture.flag}`,
+      fixture.value,
+      '--json',
+    ]);
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      ok: false,
+      code: 'INVALID_INPUT',
+    });
+  });
+
   test('generates an explicit non-executing host probe plan', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-cli-'));
     const collaborationId = crypto.randomUUID();

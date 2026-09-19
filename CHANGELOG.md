@@ -139,6 +139,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.19 classifies malformed JSON in `--command` and
+  `--installed-plugins` as invalid CLI input while retaining strict array and
+  string-map shape validation.
+
 - `session-observer-collab` 1.0.46 makes every lifecycle command honor a
   validated absolute `--root`, rejects command-specific unknown options, proves
   generated Codex/Cursor Stop hooks through symlinked bundles, and cleans
