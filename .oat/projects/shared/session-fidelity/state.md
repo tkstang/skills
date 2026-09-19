@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t01
-oat_last_commit: d64563a73caa46b7f7cc2f2de97f0f99b6d973ca
+oat_current_task: null
+oat_last_commit: 3422c843c78430ab9492c30884d1a728b935eb7f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -71,7 +71,7 @@ oat_workflow_origin: native # native | imported
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 oat_implement_exit_gate:
-  status: allowed
+  status: stale
   resolution: configured
   disposition: passed
   config_fingerprint: sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5
@@ -143,13 +143,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** PR #94 review fixes queued in phase p08
+**Status:** Phase p08 passed; fresh lifecycle closeout pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Implementation is complete: all 21 tasks, phase reviews p00 through p07, the narrowed final lifecycle re-review, the configured implementation exit gate, and the configured summary/document/PR sequence passed. Draft PRs #94 through #96 are open in GitHub stack #97.
+All 25 tasks and phase reviews p00 through p08 passed. The prior final lifecycle review and configured exit gate predate the substantive p08 fixes and are stale. The locally rebased stack awaits fresh closeout and republication.
 
 ## Artifacts
 
@@ -157,8 +157,8 @@ Implementation is complete: all 21 tasks, phase reviews p00 through p07, the nar
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (complete; 21/21 tasks, all reviews, exit gate and configured closeout passed)
-- **Pull requests:** #94 docs → #95 identity → #96 activity (draft stack #97)
+- **Implementation:** `implementation.md` (25/25 tasks and phase reviews complete; fresh final closeout pending)
+- **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; rewritten local heads not yet republished)
 
 ## Progress
 
@@ -183,7 +183,11 @@ Implementation is complete: all 21 tasks, phase reviews p00 through p07, the nar
 - ✓ Configured cross-family implementation exit gate passed and was received
 - ✓ Project summary generated with all deferred follow-ups
 - ✓ Approved documentation corrections committed and validated
-- ✓ Draft PR stack #97 published as PRs #94 through #96
+- ✓ PR stack #97 published and marked ready as PRs #94 through #96
+- ✓ All four PR #94 review fixes completed on the bottom layer
+- ✓ Fresh p08 phase review passed with zero findings
+- ✓ Identity and activity layers cascade-rebased onto the corrected bottom layer
+- ⧗ Fresh final lifecycle review, configured exit gate and stack republication pending
 
 ## Blockers
 
@@ -191,4 +195,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Monitor the draft stack's CI and review state, then use the PR revision/completion workflow after review and merge.
+Complete fresh lifecycle closeout for the p08 delta, republish stack #97, and verify the ready PRs and remote review state.

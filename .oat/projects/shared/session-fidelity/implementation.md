@@ -3,19 +3,19 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p08-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 21 previously planned implementation tasks, phase reviews p00 through p07, the narrowed final lifecycle re-review, the configured implementation exit gate, and the configured summary/document/PR closeout sequence completed. PR #94 then received four actionable remote-review findings; phase p08 reopens implementation to apply those fixes to the bottom stack layer and republish the stack.
+All 25 implementation tasks and phase reviews p00 through p08 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. A fresh final lifecycle review and configured exit gate remain before the rewritten stack is republished.
 
 ## Preparatory evidence
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- The agreed docs → identity → activity stack is published as draft PRs #94, #95, and #96. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
+- The agreed docs → identity → activity stack is published as ready PRs #94, #95, and #96. Its local rewritten heads await republication. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
 
 ## Progress Overview
 
@@ -29,9 +29,9 @@ All 21 previously planned implementation tasks, phase reviews p00 through p07, t
 | p05   | passed         | 2     | 2/2       |
 | p06   | passed         | 2     | 2/2       |
 | p07   | passed         | 2     | 2/2       |
-| p08   | in_progress    | 4     | 0/4       |
+| p08   | passed         | 4     | 4/4       |
 
-**Total:** 21/25 implementation tasks completed.
+**Total:** 25/25 implementation tasks completed.
 
 ## Phase 0
 
@@ -528,23 +528,38 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Phase 8
 
-**Status:** in_progress
+**Status:** passed
 
 ### Task p08-t01: (review) Align completed planning status
 
-**Status:** pending
+**Status:** completed
+**Commit:** ef2f2df3cc1e70ce063098ebdf34a3a11ac31739
+**Verification:** completed-status summaries agree with the durable planning and collaboration receipts; repository validation and diff checks passed.
 
 ### Task p08-t02: (review) Remove withdrawn multi-line recovery guidance
 
-**Status:** pending
+**Status:** completed
+**Commit:** 3ee572ffa7432576b37cbd703d8282b2f3adcb55
+**Verification:** obsolete escaped-newline recovery guidance and its fixture row are absent; repository validation and diff checks passed.
 
 ### Task p08-t03: (review) Keep detached MCP results opaque
 
-**Status:** pending
+**Status:** completed
+**Commit:** 795a157897f87415d53b01f2c62371b9dac20b40
+**Verification:** exact same-file MCP ID matches suppress detached result subtrees while unmatched and cross-file results retain prior traversal; privacy canaries passed 4/4.
 
 ### Task p08-t04: (review) Correct LF framing rationale
 
-**Status:** pending
+**Status:** completed
+**Commit:** 5a6716980f699c1e052a7be2b232bb4a3188dc09; recovery edfbb685040769b6f564bdb2a9eba50160c412b5
+**Verification:** maintained docs, source evidence and the inventory comment no longer attribute U+2028/U+2029 splitting to Node `readline`; docs build, formatting, validation, negative searches and diff checks passed. Recovery usage is 1/10 with no pending attempt.
+
+### Orchestration Run p08
+
+- Outcome: passed after four planned review-fix commits, one bounded recovery commit and one fresh independent review.
+- Implementation: request `sf-p08-implement-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, accepted bottom-layer head `edfbb685040769b6f564bdb2a9eba50160c412b5`; p08 recovery usage 1/10 with no pending attempt.
+- Review: artifact `reviews/p08-review-2026-09-19T211301Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `737d23e6211554864f401288e1d36ac2383c9c7b..edfbb685040769b6f564bdb2a9eba50160c412b5`.
+- Stack: `session-fidelity-identity` and `session-fidelity-activity` were cascade-rebased onto the accepted bottom layer; publication remains pending fresh lifecycle closeout.
 
 ### Orchestration Run p07
 
@@ -555,7 +570,7 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 
 ## Reviews
 
-Plan review, phases p00 through p07, and the narrowed final lifecycle re-review passed. The configured implementation exit gate remains before close-out sequencing.
+Plan review and phases p00 through p08 passed. The prior final lifecycle review and configured exit gate predate the substantive p08 changes, so fresh closeout review and gate evidence remain required.
 
 ## Final Summary (for PR/docs)
 
@@ -563,7 +578,7 @@ Session Observer and Session Export Transcript now support an opt-in `--include-
 
 The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
 
-Local acceptance passed type checking, generated-build freshness, 2,231 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Eight fresh phase reviews pass; p07 reports zero findings at every severity and independently closes both findings from the first final lifecycle review.
+Local acceptance passed type checking, generated-build freshness, 2,231 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Nine phase reviews pass. The p08 review reports zero findings and independently verifies all four PR #94 corrections plus the bounded recovery.
 
 The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting and Cursor settlement without widening the product scope. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
 
@@ -657,9 +672,9 @@ All three PRs opened as drafts with Conventional Commit titles and layer-specifi
 
 **New tasks added:** p08-t01, p08-t02, p08-t03, p08-t04.
 
-All four CodeRabbit findings were verified against the current tree and converted. No finding was deferred or dismissed. Phase p08 must apply the fixes to the `session-fidelity` bottom layer, cascade-rebase the identity and activity layers, republish stack #97, and obtain a focused PR #94 re-review before the project returns to complete status.
+All four CodeRabbit findings were verified against the current tree and converted. No finding was deferred or dismissed. Phase p08 applied the fixes to the `session-fidelity` bottom layer, passed independent review, and cascade-rebased the identity and activity layers. Fresh lifecycle closeout and stack republication remain before the project returns to complete status.
 
-**Next:** execute p08 through `oat-project-implement` starting at p08-t01.
+**Next:** complete fresh final lifecycle review and configured exit-gate processing, then republish stack #97 and verify PR #94's remote re-review.
 
 ## Planning Gate Review Received — 2026-09-19
 
