@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_generated: true
-oat_summary_last_task: p07-t02
+oat_summary_last_task: p09-t01
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -20,9 +20,11 @@ saved-position binding, and Claude provenance so stateful operations refuse
 ambiguous or changed sources instead of silently reusing unsafe state.
 
 The work fulfilled and archived `BL-260916-session-fidelity-opt`. Local
-acceptance and independent reviews passed; publication, merge, release,
-installation, and live-provider acceptance were outside this implementation
-run.
+acceptance and independent reviews through p08 passed. PRs #94, #95, and #96
+are published and ready on their prior remote heads; the cascade-rebased local
+heads containing the accepted p08 corrections still await republication. No
+merge, release, installation, global sync, or live-provider acceptance has
+occurred.
 
 ## What Was Implemented
 
@@ -52,10 +54,15 @@ run.
   call IDs, result payloads, versions, or usage.
 - Updated canonical skills, user and engineering documentation, generated
   standalone/plugin payloads, four affected skill versions, and the changelog.
-  The final local gate passed type checking, generated-build freshness, 2,231
+  The final local gate passed type checking, generated-build freshness, 2,232
   tests with one expected skip, repository validation, smoke, version checks,
   changed-file formatting/linting, a 56-page docs build, and fixture privacy
   checks.
+- Applied the four p08 corrections from PR #94 review: aligned completed
+  planning status, removed withdrawn multi-line recovery guidance, kept
+  detached MCP result subtrees opaque without a unique same-file ID match, and
+  corrected the LF framing rationale to describe the observed scanner rather
+  than attribute Unicode separator handling to Node `readline`.
 
 ## Key Decisions
 
@@ -96,6 +103,9 @@ run.
 - Review-driven corrections tightened provenance ownership, coverage and
   omission accounting, final-format byte budgeting, and Cursor settlement.
   These changes stayed within the activity and identity contracts.
+- The p08 review corrections changed closeout records, recovery guidance, MCP
+  evidence traversal, and framing documentation without changing the approved
+  activity contract or adding a compatibility path.
 
 ## Notable Challenges
 
@@ -107,6 +117,11 @@ run.
   `toolUseResult`, ambiguous child lineage, duplicate previews, and final-format
   budgets. Bounded recovery commits fixed each issue and fresh phase reviews
   passed.
+- PR #94 review arrived after the three-layer stack was already published.
+  Applying its four corrections to the bottom layer required cascade rebasing
+  the identity and activity layers, leaving accepted local heads ahead of the
+  still-ready remote PR heads until republication.
+
 ## Tradeoffs Made
 
 - Extraction and correlation operate on one selected source capture and keep
@@ -129,6 +144,13 @@ run.
 - Physical lines and decoded record indices are provenance coordinates, not
   observer checkpoints. Cursor frame and terminal delivery positions remain a
   separate coordinate system.
+- PRs #94 through #96 remain open, published, non-draft, and ready on their
+  prior remote heads. Their rewritten local heads include the accepted p08
+  planning-status, recovery-guidance, detached-MCP, and LF-framing corrections
+  and await republication before remote review or merge can cover those edits.
+- Merge, release, installation, global sync, and live-provider acceptance
+  remain separate lifecycle steps and have not occurred.
+
 ## Follow-up Items
 
 - **Codex item/call relation:** choose one authoritative native relation for
