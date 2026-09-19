@@ -13,7 +13,7 @@ oat_generated: false
 **Last Updated:** 2026-09-19
 
 This file tracks implementation, not planning completion. The next plan task is
-p01-t01, but execution awaits plan readiness and an authorized visible worktree.
+p01-t01; the plan is ready, but execution awaits an authorized visible worktree.
 No product code, hooks or installed skills have been changed by this plan review.
 
 ## Progress Overview
@@ -276,13 +276,13 @@ reviewed the committed amendments at 6c718f223921b891cbd9ecf49d720ca7b0534d12
 and verified all five fourth-round corrections. It passed the Important threshold
 with 0 Critical, 0 Important, 2 Medium and 2 Minor findings. Structured result:
 status=ok, receiveEligible=true, non-null handoff and matched run/project/invocation.
-Artifact reviews/artifact-plan-review-2026-09-19T131345Z.md and its received
+Artifact reviews/archived/artifact-plan-review-2026-09-19T131345Z.md and its received
 ledger row are committed at 1cab7972. Native Claude transcript
 c9973509-aef1-45f1-8fce-26dbf7671808 corroborates claude-fable-5-1 at
 assistant lines 19 and 216, final end_turn, with this exact run ID.
 
-Fifth-round findings remain pending user confirmation; proposed artifact-only
-remedies (no task IDs added or product work authorized):
+Fifth-round artifact remedies below were explicitly approved and applied
+(no task IDs added or product work authorized):
 
 - M1 (Minor scope): agree interrupted observation needs a distinct status and
   recovery contract. Recommend manual observer catch-up, not a new automatic
@@ -299,8 +299,16 @@ remedies (no task IDs added or product work authorized):
 - m2 (Negligible scope): agree; move the backlog formatting instruction into
   p04-t01 and describe the host's file-edit tool generically. No early closure.
 
-**Next:** User approval of fifth-round artifact remedies. The gate's threshold
-pass is not a clean plan disposition; readiness remains pending.
+**Disposition:** M1/M2/m1/m2 resolve_in_artifact, fixes_completed. The user then
+requested skipping an additional gate after these corrections. Local verification
+closes planning under that one-time rerun waiver; the historical event is not
+relabeled passed and future Frontier gates remain enabled. Archive:
+reviews/archived/artifact-plan-review-2026-09-19T131345Z.md. No product tests were
+run because only planning artifacts changed.
+
+**Next:** Begin p01-t01 through oat-project-implement in an authorized visible
+Codex worktree/task, after confirming execution checkpoints. No execution starts
+as part of this planning closeout.
 
 ## Deviations from Plan / Design
 

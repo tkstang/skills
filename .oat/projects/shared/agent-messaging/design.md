@@ -507,6 +507,17 @@ same immutable slot namespace; re-arm cannot reset it. No heartbeat, no-op or
 error is wake-bearing stdout. The receiving skill revalidates and explicitly
 reads the referenced peer range; only that normal read advances public offsets.
 
+An interrupted observation is not a retryable mailbox message. Status includes
+the exact peer/range, reports interruption only when evidence supports it and
+otherwise reports outcome unknown; it offers manual observer reading, not
+`delivery retry --message`. A crash after the event claim can suppress the same
+range for the rest of that activation, even if the private-cursor CAS never
+happened. An explicit pinned-range read remains available and advances public
+state normally, but does not reset/advance the private lease cursor, clear the
+claim or restore budget. Quiet-peer re-arm remains suppressed for that same
+event key. A changed selection may produce a distinct event; automatic recovery
+is not promised and no observation retry-generation protocol is added.
+
 The new command and its declarations/tests belong to observer-collab; bundle
 its already-permitted base-observer reader rather than modify the base skill.
 Standalone messaging still has no observer runtime dependency. Until this
@@ -783,6 +794,13 @@ explicit disarm recovery for triggered leases, publishing the full activation
 shape from the first epoch, and updating the approved-baseline pointer. These
 approved refinements are reflected above and in p04-t01; no product code has
 been implemented. The next independent gate reviews the amended bundle.
+
+The fifth Frontier gate subsequently verified those amendments and passed its
+blocking threshold. The user approved the remaining manual-observation recovery,
+task-staging, parity-test and wording corrections, now reflected in design/plan.
+After local verification the user requested skipping another plan gate; planning
+closes on that explicit one-time rerun waiver. No fresh independent pass or
+change to future Frontier gate policy is claimed.
 
 For F4, retain one receipt per proven human event and exact two-hour idle expiry.
 Thirty-minute receipt coalescing would expire up to thirty minutes before the

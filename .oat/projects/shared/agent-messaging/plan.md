@@ -1,17 +1,17 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: agent-messaging
@@ -29,8 +29,10 @@ separate cursors and shares one autonomous continuation owner and finite budget.
 approved by the user after selecting High dispatch with Frontier gate review.
 Design approval bookkeeping is committed at 2d399c33; the user-approved
 2026-09-19 ownership-policy amendment is committed at c0a61d53. Carry the latest
-complete committed project, not either historical baseline alone. This plan is a draft;
-only its completed review and gate disposition may make it implementation-ready.
+complete committed project, not either historical baseline alone. The fifth
+Frontier gate passed its blocking threshold; its four follow-ups are approved
+and locally verified. The user waived one further plan-gate rerun. This plan is
+implementation-ready on that recorded disposition, not a fresh independent pass.
 
 **Stack:** Node >=22, TypeScript, Node standard library, colocated Vitest tests;
 existing observer-collab MJS entrypoints retain adjacent declaration contracts.
@@ -284,7 +286,7 @@ activation.test.ts, claims.test.ts, diagnostics.test.ts.
   Stop-chain dedup survives message retry. Request-only deterministic watch batch
   event keys include activation, binding, sorted message IDs and retry generations.
 - Status explains spent/remaining slots, attempted-but-unacknowledged mail and
-  exact retry command. Known incomplete stages say "interrupted attempt — retry
+  exact retry command. Known incomplete message stages say "interrupted attempt — retry
   available"; a post-claim attempt without receipt says outcome unknown, not a
   fabricated proof that the host did or did not receive it.
 - Own immutable schema-v1 diagnostics at
@@ -669,12 +671,8 @@ task updates these same docs from its verified evidence before final acceptance.
 
 **Format:** pnpm exec oxfmt --write documentation/docs/user-guide/skills/agent-messaging.md documentation/docs/user-guide/skills/session-observer-collab.md documentation/docs/user-guide/skills/index.md documentation/docs/user-guide/skills/meta.json documentation/docs/user-guide/plugins/session/index.md documentation/docs/engineering/architecture/agent-messaging.md documentation/docs/engineering/architecture/index.md documentation/docs/engineering/architecture/meta.json plugins/consensus/README.md RELEASING.md src/distributions.ts CHANGELOG.md tests/tooling/generated-output-sync.test.ts
 Also format changed canonical version files and maintained manifests; never the
-generated inventory. For the messaging backlog item, run
-`pnpm exec oxfmt --stdin-filepath=agent-messaging-backlog.md < .oat/repo/pjm/backlog/items/BL-260619-inter-agent-direct-messaging.md`
-before archiving it, then apply the returned prose with apply_patch, preserving
-managed blocks. For another changed PJM prose file, substitute its actual input
-path and a non-ignored virtual .md filename; never redirect output over the input
-or hand-format a generated index.
+generated inventory. This task does not change or archive the backlog item;
+its conditional closure and formatting command belong to p04-t01.
 
 **Commit:** docs(p03-t03): document and verify agent messaging delivery
 
@@ -689,8 +687,10 @@ src/collab-control.mjs/.d.mts, src/lib/lease-state.mjs/.d.mts,
 src/lib/runtime-adapter.mjs/.d.mts, src/control.test.ts,
 src/messaging-composition.test.ts, src/runtime-claude-code-reference.test.ts,
 references/runtime-claude-code.md; messaging SKILL.md, CLI, registration, watch,
-their tests and references/runtime-claude-code.md plus live-acceptance.md;
-shared collaboration claims/types and tests only for composed observation keys.
+their tests, src/skills/agent-messaging/src/owner-contract.test.ts,
+and references/runtime-claude-code.md plus live-acceptance.md;
+shared collaboration claims/types/diagnostics and tests only for composed
+observation keys and truthful observation-attempt status.
 **Modify:** the two user skill pages and architecture page created in p03-t03,
 src/distributions.ts if the new entrypoint requires a declaration, affected
 canonical versions and CHANGELOG.md. Regenerate owned skill/plugin payloads and
@@ -742,6 +742,18 @@ is already a permitted bundled dependency of observer-collab.
   Recheck exact activation, closure, owner, inventory acknowledgment, deadline
   and peer continuity immediately before either notification. Shared slot history
   bounds message and observation wakes together across races and re-arm.
+- Distinguish observation-attempt status from message retry: include the exact
+  peer/range and report known interruption only when supported by recorded
+  evidence; otherwise report outcome unknown. Never advertise delivery retry
+  --message or a retry generation for an observation claim. A crash after the
+  event claim, including between slot reservation and cursor CAS, may suppress
+  the same range for the rest of that activation. The recovery is a normal
+  explicit observer read of the pinned range, available regardless of its wake
+  claim. That read advances public state under the existing reader contract;
+  it does not advance/reset the private lease cursor, clear claims or refund
+  slots. Quiet-peer re-arm remains suppressed for the same event key. A changed
+  selection may create a distinct event under the existing rules; do not
+  promise an automatic recovery notification or add an observation retry protocol.
 - Notification contains type, activation/attempt identity and bounded message
   IDs or exact peer range, not uncontrolled transcript prose. The receiving skill
   revalidates, checks inbox first, reads the exact referenced range through normal
@@ -754,7 +766,22 @@ is already a permitted bundled dependency of observer-collab.
   Claude composed receipt remains separately authorized and is required before
   marking that host/version wake tier live-supported.
 
-**Verify:** pnpm run test:vitest src/skills/session-observer-collab/src/claude-monitor.test.ts src/skills/session-observer-collab/src/claude-monitor-packaging.test.ts src/skills/session-observer-collab/src/messaging-composition.test.ts src/skills/session-observer-collab/src/control.test.ts src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/registration.test.ts src/skills/agent-messaging/src/watch.test.ts src/shared/collaboration/claims.test.ts src/shared/collaboration/activation.test.ts
+**Ordered implementation stages (one task; no renumbering):**
+
+1. Extend the lease owner-runtime contract and exact composed initial/re-arm
+   control. Run pnpm run test:vitest src/skills/session-observer-collab/src/control.test.ts src/skills/session-observer-collab/src/codex-hook.test.ts src/skills/session-observer-collab/src/cursor-hook.test.ts
+   and require green before stage 2; existing records and adapters stay valid.
+2. Implement the Monitor entrypoint, observation claims/status, declarations and
+   packaging. Run pnpm run test:vitest src/skills/session-observer-collab/src/claude-monitor.test.ts src/skills/session-observer-collab/src/claude-monitor-packaging.test.ts src/skills/session-observer-collab/src/messaging-composition.test.ts src/shared/collaboration/claims.test.ts src/shared/collaboration/diagnostics.test.ts
+   and require green before stage 3. Keep installed capability unavailable until
+   the messaging-side integration is verified.
+3. Enable the verified messaging-side composed capability, add owner-contract
+   fixtures, update skill instructions/docs/versions and regenerate outputs.
+   Run the complete Verify list and repeated p03-t03 checks below; conditional
+   backlog closure remains last. Isolate stage failures before further work,
+   then make the task's one atomic commit, never a half-enabled capability.
+
+**Verify:** pnpm run test:vitest src/skills/session-observer-collab/src/claude-monitor.test.ts src/skills/session-observer-collab/src/claude-monitor-packaging.test.ts src/skills/session-observer-collab/src/messaging-composition.test.ts src/skills/session-observer-collab/src/control.test.ts src/skills/session-observer-collab/src/codex-hook.test.ts src/skills/session-observer-collab/src/cursor-hook.test.ts src/skills/session-observer-collab/src/runtime-claude-code-reference.test.ts src/skills/agent-messaging/src/cli.test.ts src/skills/agent-messaging/src/registration.test.ts src/skills/agent-messaging/src/watch.test.ts src/skills/agent-messaging/src/owner-contract.test.ts src/shared/collaboration/claims.test.ts src/shared/collaboration/activation.test.ts src/shared/collaboration/diagnostics.test.ts
 Use synthetic transcripts and fake clocks: request-only wake with a quiet peer,
 observation-only wake, simultaneous request/range inbox priority, no-op quiet
 progress, duplicate runners, CAS loss, same-range re-arm dedup, exhaustion,
@@ -764,6 +791,15 @@ one cap; mail never advances either observer cursor; monitor transcript selectio
 changes private state only. Copied standalone and plugin bundles execute with
 Node alone outside the repo and no base watcher process or public-state writes.
 Test both existing phase-2 activation fixtures and all supported peer runtimes.
+Kill between event/slot claims and private-cursor CAS, then re-arm against a
+quiet peer: no duplicate wake, no reclaimed slot, unchanged private cursor and
+manual pinned-range read still available. Assert truthful interrupted/unknown
+status with no observation retry command, and that manual catch-up does not
+clear the claim or change private state. A post-CAS/pre-output interruption
+also preserves manual read availability without inventing proof of delivery.
+The owner-contract suite adds a valid claude-code lease: standalone delivery
+refuses active ownership, while only the exact verified composed epoch is
+recognized. Preserve existing Codex/Cursor parity fixtures.
 
 Repeat p03-t03's complete repository/build/docs/version checks after this task's
 changes. Then, if every backlog acceptance criterion is met, run PJM adoption
@@ -774,8 +810,13 @@ on the clean visible worktree and performs final Frontier review. No PR/push/
 merge, global install or live provider probe is implicitly authorized.
 
 **Format:** pnpm exec oxfmt --write src/skills/session-observer-collab src/skills/agent-messaging src/shared/collaboration src/distributions.ts CHANGELOG.md documentation/docs/user-guide/skills/agent-messaging.md documentation/docs/user-guide/skills/session-observer-collab.md documentation/docs/engineering/architecture/agent-messaging.md
-Use p03-t03's exact stdin command for any changed backlog prose before archiving;
-never format generated distributions or the generated documentation inventory.
+If this task closes the messaging backlog item, run
+`pnpm exec oxfmt --stdin-filepath=agent-messaging-backlog.md < .oat/repo/pjm/backlog/items/BL-260619-inter-agent-direct-messaging.md`
+before archiving it, then apply the returned prose with the host's file-edit
+tool, preserving managed blocks. For another changed PJM prose file, substitute
+its actual input path and a non-ignored virtual .md filename; never redirect
+output over the input or hand-format a generated index. Never format generated
+distributions or the generated documentation inventory.
 
 **Commit:** feat(p04-t01): compose bounded Claude inbox and observation notifications
 
@@ -795,7 +836,7 @@ never format generated distributions or the generated documentation inventory.
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T030934Z.md | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -             | -          | -           |
 | p04    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| plan   | artifact | received        | 2026-09-19 | reviews/artifact-plan-review-2026-09-19T131345Z.md          | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md | -             | -          | -           |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -888,6 +929,26 @@ tracking consistency. No residual findings. All 12 existing task IDs and review
 events are preserved; p04-t01 is the sole new task. Deliberate parent inheritance
 remains gpt-6-astra/high, above the resolved High gpt-5.6-sol/high threshold with
 a complete ladder. Independent Frontier re-review remains required.
+
+## Final Planning Disposition — 2026-09-19
+
+Fifth gate 94c9a069-05df-4541-84ef-5b56f699c674 passed the Important threshold
+at 6c718f223921b891cbd9ecf49d720ca7b0534d12 with 0 Critical, 0 Important,
+2 Medium and 2 Minor findings. The user approved all four artifact corrections:
+M1 distinguishes manual observation recovery from mailbox retries and preserves
+private cursor/claims/budget; M2 stages p04-t01 with green checkpoints; m1 adds
+Claude owner-contract fixtures; m2 moves backlog formatting to final acceptance.
+All are resolve_in_artifact, with no deferrals or added task IDs. The consumed
+review is archived as reviews/archived/artifact-plan-review-2026-09-19T131345Z.md.
+
+Correction-scoped inherited inline verification found no residual issues;
+task IDs/counts, file boundaries, stage/test commands and local links agree.
+Selection remains planning-parent-inline, gpt-6-astra/high from launcher evidence,
+above the freshly resolved High gpt-5.6-sol/high threshold; ladder complete.
+The user requested skipping an additional gate after these small corrections.
+This is a one-time post-fix rerun waiver, not a disabled lifecycle policy and
+not a new independent review. Keep the fifth event fixes_completed; do not
+relabel it passed. Final implementation Frontier review remains required.
 
 ## Implementation Complete
 

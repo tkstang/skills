@@ -14,7 +14,7 @@ oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T13:16:33Z'
+oat_project_state_updated: '2026-09-19T13:23:50Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Fifth Frontier gate verified the approved changes and passed its blocking threshold; four smaller findings await user disposition.
+**Status:** Plan ready: fifth Frontier gate passed its threshold, four follow-ups approved and locally verified, additional plan-gate rerun waived by the user.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 4 sequential phases, 13 tasks; fifth gate verified fourth-round changes, with 2 Medium and 2 Minor findings awaiting disposition; not implementation-ready.
+- **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
 - **Implementation:** implementation.md — initialized to 0/13 pending tasks; no implementation started.
 
 ## Progress
@@ -129,12 +129,15 @@ Fable reviews. No implementation or live hook installation is authorized here.
   all five fourth-round corrections. Run 94c9a069-05df-4541-84ef-5b56f699c674
   passed the Important threshold, status=ok and receiveEligible=true with a
   matched handoff. It found 0 Critical, 0 Important, 2 Medium and 2 Minor.
-  Artifact reviews/artifact-plan-review-2026-09-19T131345Z.md is committed at
+  Artifact reviews/archived/artifact-plan-review-2026-09-19T131345Z.md was committed at
   1cab7972. Native transcript c9973509-aef1-45f1-8fce-26dbf7671808 confirms
   claude-fable-5-1 (assistant lines 19/216, final end_turn, exact run match).
   Root recommends manual interrupted-observation recovery with honest cursor
   semantics, staged p04-t01 checkpoints, owner-contract fixtures and formatting
-  wording cleanup. These new changes need user approval and are not applied.
+  wording cleanup. The user approved all four, now applied and locally verified.
+  The user then requested skipping an additional gate after these corrections;
+  no sixth gate was launched. The fifth event remains fixes_completed, not a
+  fabricated independent pass. Planning is complete on this explicit disposition.
 
 ## Dispatch and Gate Review Policy
 
@@ -170,15 +173,17 @@ has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
 complete. Fifth gate passed its blocking threshold but retains four smaller
-findings requiring user disposition before plan readiness.
+findings that are now approved and resolved. Its post-fix rerun was waived by the
+user; no planning blocker remains.
 All five Frontier identities are corroborated.
 No product implementation has started.
 
 ## Next Milestone
 
-Obtain user approval for the fifth gate's four proposed artifact corrections.
+Start implementation from p01-t01 in an authorized visible Codex worktree/task.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
-at independent gates. Preserve pending plan readiness until the required plan
-review and gate disposition are recorded.
+at independent gates. The one-time plan rerun waiver does not disable future
+gates or change the reusable configuration. Confirm execution checkpoints at
+implementation start.
 The full-draft choice overrides workflow.designMode=selective for this run only;
-the reusable preference remains unchanged. Keep the plan unready.
+the reusable preference remains unchanged. Product implementation is not started.
