@@ -59,7 +59,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Active planning
 
-There are **16 active item files** after closing and archiving agent messaging. Its deterministic implementation remains in completed history; exact live-host acceptance is an active, separately authorized follow-up.
+There are **30 active item files** after closing and archiving agent messaging. Its deterministic implementation remains in completed history; exact live-host acceptance is an active, separately authorized follow-up.
 
 The confirmed immediate lane remains **BL-260916-add-a-first-party-install — First-party standalone installer** (approved, owner/start not claimed). Agent messaging is implemented on its delivery branch and archived from the active backlog; merge, release, global installation, and live acceptance remain separate boundaries. The September 16 alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
