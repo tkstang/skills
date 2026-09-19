@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p09-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 25 implementation tasks and phase reviews p00 through p08 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. A fresh final lifecycle review and configured exit gate remain before the rewritten stack is republished.
+The first 25 implementation tasks and phase reviews p00 through p08 are complete. Phase p08 resolved the four actionable PR #94 findings on the bottom stack layer and the identity/activity layers were cascade-rebased. Final review found one stale generated-summary claim, now queued as p09-t01 before re-review, the configured exit gate, and stack republication.
 
 ## Preparatory evidence
 
@@ -30,8 +30,9 @@ All 25 implementation tasks and phase reviews p00 through p08 are complete. Phas
 | p06   | passed         | 2     | 2/2       |
 | p07   | passed         | 2     | 2/2       |
 | p08   | passed         | 4     | 4/4       |
+| p09   | in_progress    | 1     | 0/1       |
 
-**Total:** 25/25 implementation tasks completed.
+**Total:** 25/26 implementation tasks completed.
 
 ## Phase 0
 
@@ -561,6 +562,14 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Review: artifact `reviews/p08-review-2026-09-19T211301Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings over `737d23e6211554864f401288e1d36ac2383c9c7b..edfbb685040769b6f564bdb2a9eba50160c412b5`.
 - Stack: `session-fidelity-identity` and `session-fidelity-activity` were cascade-rebased onto the accepted bottom layer; publication remains pending fresh lifecycle closeout.
 
+## Phase 9
+
+**Status:** in_progress
+
+### Task p09-t01: (review) Align the project summary with p08 and publication state
+
+**Status:** pending
+
 ### Orchestration Run p07
 
 - Outcome: passed after two final-review fix commits, no recovery attempts and one fresh root-owned review round.
@@ -675,6 +684,21 @@ All three PRs opened as drafts with Conventional Commit titles and layer-specifi
 All four CodeRabbit findings were verified against the current tree and converted. No finding was deferred or dismissed. Phase p08 applied the fixes to the `session-fidelity` bottom layer, passed independent review, and cascade-rebased the identity and activity layers. Fresh lifecycle closeout and stack republication remain before the project returns to complete status.
 
 **Next:** complete fresh final lifecycle review and configured exit-gate processing, then republish stack #97 and verify PR #94's remote re-review.
+
+### Review Received: final (p08 closeout)
+
+**Date:** 2026-09-19
+**Review artifact:** `reviews/archived/final-review-2026-09-19T213154Z.md`
+
+**Findings:** 0 Critical, 0 High, 1 Medium, 0 Low.
+
+**New tasks added:** p09-t01.
+
+**Design drift / artifact alignment notes:**
+
+- M1: the shipped p08 implementation and current project state are accepted as authoritative. The generated summary predates p08 and the ready PR publication state, so p09-t01 aligns that lifecycle artifact while preserving the distinction between already-published remote heads and rewritten local heads awaiting republication.
+
+**Next:** execute p09-t01 through `oat-project-implement`, mark this artifact-identified event `fixes_completed`, and run a final re-review before the configured exit gate.
 
 ## Planning Gate Review Received — 2026-09-19
 

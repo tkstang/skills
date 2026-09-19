@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p09-t01
 oat_last_commit: 3422c843c78430ab9492c30884d1a728b935eb7f
 oat_blockers: []
 associated_issues:
@@ -137,19 +137,19 @@ oat_pr_status: ready # null | ready | open | closed | merged — actual PR state
 oat_pr_url: https://github.com/tkstang/skills/pull/96 # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T20:38:49+00:00"
+oat_project_state_updated: "2026-09-19T21:43:27+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Phase p08 passed; fresh lifecycle closeout pending
+**Status:** Final-review summary alignment queued in p09
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All 25 tasks and phase reviews p00 through p08 passed. The prior final lifecycle review and configured exit gate predate the substantive p08 fixes and are stale. The locally rebased stack awaits fresh closeout and republication.
+The first 25 tasks and phase reviews p00 through p08 passed. Final review found one stale generated-summary claim, queued as p09-t01. The prior configured exit gate remains stale, and the locally rebased stack awaits fresh closeout and republication.
 
 ## Artifacts
 
@@ -157,7 +157,7 @@ All 25 tasks and phase reviews p00 through p08 passed. The prior final lifecycle
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (25/25 tasks and phase reviews complete; fresh final closeout pending)
+- **Implementation:** `implementation.md` (25/26 tasks complete; p09 summary alignment pending)
 - **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; rewritten local heads not yet republished)
 
 ## Progress
@@ -187,7 +187,7 @@ All 25 tasks and phase reviews p00 through p08 passed. The prior final lifecycle
 - ✓ All four PR #94 review fixes completed on the bottom layer
 - ✓ Fresh p08 phase review passed with zero findings
 - ✓ Identity and activity layers cascade-rebased onto the corrected bottom layer
-- ⧗ Fresh final lifecycle review, configured exit gate and stack republication pending
+- ⧗ p09 summary alignment, final re-review, configured exit gate and stack republication pending
 
 ## Blockers
 
@@ -195,4 +195,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Complete fresh lifecycle closeout for the p08 delta, republish stack #97, and verify the ready PRs and remote review state.
+Complete p09-t01, re-review the corrected closeout record, run the configured exit gate, republish stack #97, and verify the ready PRs and remote review state.
