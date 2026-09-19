@@ -101,7 +101,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Open Questions
 
-- **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; the completed draft proceeds to planning without a design HiLL gate; revised peer read-back is pending.
+- **Design depth resolved:** user selected lightweight design. The user subsequently requested the whole design draft; the completed draft proceeded to planning without a design HiLL gate, and Fable completed the revised peer read-back with no open design findings.
 - **Contract detail:** settle stable event identity, result updates, count/range scope, source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
 - **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
 - **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable committed the evidence snapshot and maintained schema pages in `c970c876`; the project references now point to those durable locations.
@@ -124,7 +124,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 
 ## Next Steps
 
-Discovery is captured and lightweight design is selected. Use the completed design to generate stable tasks and verification commands, resolve dispatch and gate posture, review the plan, and commit a ready handoff. The plan and matching pending implementation ledger include the approved 19-task refinement; review evidence is recorded in plan.md.
+Discovery was captured and lightweight design selected before planning began. The completed plan and its matching pre-implementation ledger incorporated the approved 19-task refinement; planning-review evidence and later implementation status are recorded in the plan and implementation artifacts. This discovery snapshot does not claim merge, release, installation, or live-provider acceptance.
 
 ## References
 

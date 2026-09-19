@@ -9,13 +9,13 @@ oat_generated: false
 
 # Implementation: session-fidelity
 
-No source implementation has started. The approved pre-implementation refinement passed focused artifact review at e3c25f3a, with its sole Minor table-formatting finding corrected; prior gate findings remain dispositioned. `oat_current_task_id` names the first planned task, not an active implementation.
+This bottom-layer copy preserves the pre-implementation ledger snapshot: at that point, no source implementation had started. The approved refinement passed focused artifact review at e3c25f3a, with its sole Minor table-formatting finding corrected; later project records document the completed planning gates and implementation phases. The snapshot does not claim merge, release, installation, or live-provider acceptance, and its `oat_current_task_id` names the first task planned at that time rather than the current project task.
 
 ## Preparatory evidence
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- Stack layers are agreed, but local stack arrangement, PR publication, merge and installation have not occurred.
+- At this historical snapshot, stack layers were agreed, but local stack arrangement, PR publication, merge and installation had not occurred.
 
 ## Progress Overview
 
@@ -173,13 +173,13 @@ No source implementation has started. The approved pre-implementation refinement
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
-## Reviews
+## Reviews (historical pre-implementation snapshot)
 
-Plan review is pending. Code reviews are tracked in `plan.md`; none has passed.
+At this snapshot, plan review was pending and no code review had passed. Later planning and code-review receipts are tracked in `plan.md` and the current implementation records.
 
-## Final Summary
+## Final Summary (historical pre-implementation snapshot)
 
-Not implemented. No feature acceptance or completion claim.
+At this snapshot, the feature was not implemented and no acceptance or completion claim was made.
 
 ## Planning Gate Review Received — 2026-09-19
 
