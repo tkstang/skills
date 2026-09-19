@@ -582,6 +582,10 @@ The exact `bc066ea6a6f73bd417a28a7a65e99cad8a44f6d5..d14359fa7188655564275c52c4d
 
 The configured `oat-project-implement` gate resolved from user configuration with `onFailure: block` and two remediation attempts. Its immutable reviewed head is `d14359fa7188655564275c52c4ddadfbd68055c9`; the logical base is `origin/main` at merge base `d74abe671561053154d3012e1b8edd11fc079dcf`. The qualified effective-delta fingerprint, excluding only `state.md`, is `sha256:effective-delta-v1:1ca14f5e7a9589e0b419a5e665d752afe8fe15a6bdb9b380f759386ebccabb31`. The resolved declaration fingerprint is `sha256:94671d8d5f24560ccaac19595added0c71a89defa8b2a3f4be1d1027b96581e5`. No gate process has launched yet.
 
+### Implementation Exit Gate Launch Intent
+
+Attempt `b6a66107-9461-4400-8fdc-fdcf8da6bc5f` was persisted before launch at `2026-09-19T18:54:32Z`. The exact configured command will write its structured stdout envelope to `reviews/exit-gate-b6a66107-9461-4400-8fdc-fdcf8da6bc5f-result.json`; launch acceptance, run marker and result fields remain unset until corroborated after invocation.
+
 ## Planning Gate Review Received — 2026-09-19
 
 **Artifact:** reviews/archived/artifact-plan-review-2026-09-19T003400Z.md
