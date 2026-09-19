@@ -13,7 +13,7 @@ oat_children: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
-oat_phase: discovery
+oat_phase: design
 oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
@@ -22,28 +22,29 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-18T23:42:07Z'
+oat_project_state_updated: '2026-09-19T00:15:00Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Discovery captured; full lightweight design draft requested.
+**Status:** Discovery validated; full design draft revised after Fable's first review.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
 ## Current Phase
 
-Quick-mode discovery for independent three-or-more-agent messaging, shared
-collaboration storage, and opt-in start/stop delivery checks. User scope is
-captured in discovery.md. The user selected a full design draft for review with
-a separately started Claude Fable session; no implementation is authorized here.
+Quick-mode design for independent three-or-more-agent messaging across local
+repositories/worktrees, shared collaboration storage, and bounded delivery.
+The full draft incorporates the user's decisions relayed through Fable's exact
+session and verified against raw records. Driver owns tracked-file mutations;
+Fable reviews. No implementation or live hook installation is authorized here.
 
 ## Artifacts
 
-- **Discovery:** discovery.md — substantive capture; completion awaits the quick-start validation boundary.
+- **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
-- **Design:** Draft-and-review selected; drafting next.
+- **Design:** design.md — complete draft, revised once after peer review; approval pending.
 - **Plan:** plan.md — scaffold only, not implementation-ready.
 - **Implementation:** implementation.md — scaffold only; no implementation started.
 
@@ -54,6 +55,10 @@ a separately started Claude Fable session; no implementation is authorized here.
 - Discovery backfilled from the conversation, canonical contracts, vault note,
   Agent Mail prior art, and a bounded source-only host adapter inventory.
 - No product source, installed hooks, provider configuration, or transcripts changed.
+- Revised storage/control toward immutable publication and exclusive claims;
+  added explicit takeover, cross-repo membership, first-enable disclosure,
+  bounded Claude notification, Cursor probes, and human-only idle expiry.
+- Vault hooks reference written and linked in Harnesses/README and AI Resources MOC.
 
 ## Operational Notes
 
@@ -64,12 +69,14 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-No technical blocker. User and Fable review will follow the committed design
-draft before plan generation.
+No drafting blocker. The driver's whoami fails because exact session discovery
+has multiple matching transcript candidates; collaboration remains stateless
+buffered-manual on the driver side. Fable has its own finite Monitor. No driver
+watcher or automatic lease was armed. Current revision awaits peer/user review.
 
 ## Next Milestone
 
-Write the complete lightweight design in one pass. The user's explicit request
-for a full draft overrides workflow.designMode=selective for this project run;
-do not change the reusable config preference. Keep the plan unready while the
-design awaits review.
+Review the committed design's immutable claim races, takeover receipt snapshot,
+and host-specific human-prompt provenance. Resolve feedback before plan generation.
+The full-draft choice overrides workflow.designMode=selective for this run only;
+the reusable preference remains unchanged. Keep the plan unready.
