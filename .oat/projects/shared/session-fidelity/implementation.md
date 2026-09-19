@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p11-t01
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 27 implementation tasks and phase reviews p00 through p10 are complete. Phase p10 corrected the effective legacy tool filters and accounting reported by activity mode and passed independent review with zero findings. Refreshed lifecycle closeout remains before stack republication.
+The first 27 implementation tasks and phase reviews p00 through p10 are complete. The post-p10 final lifecycle review passed its blocking threshold and added p11-t01 to align stale summary/publication wording and one trailing-whitespace defect before the refreshed gate.
 
 ## Preparatory evidence
 
@@ -32,8 +32,9 @@ All 27 implementation tasks and phase reviews p00 through p10 are complete. Phas
 | p08   | passed         | 4     | 4/4       |
 | p09   | passed         | 1     | 1/1       |
 | p10   | passed         | 1     | 1/1       |
+| p11   | in_progress    | 1     | 0/1       |
 
-**Total:** 27/27 implementation tasks completed.
+**Total:** 27/28 implementation tasks completed.
 
 ## Phase 0
 
@@ -600,6 +601,14 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Outcome: passed after one planned task commit, no recovery attempts and one fresh independent review.
 - Outstanding p10 items: none. Next: refreshed final lifecycle review and configured exit gate.
 
+## Phase 11
+
+**Status:** in_progress
+
+### Task p11-t01: (review) Align the final summary and lifecycle whitespace
+
+**Status:** pending
+
 ### Final Verification After p10
 
 The refreshed project-wide suite passed from the committed p10 review baseline: 149 test files passed with one skipped, 2,232 tests passed with one skipped, lint completed with the same four pre-existing `no-shadow` warnings, and type-check, build, build freshness, repository validation, mocked end-to-end smoke and diff checks passed. The distribution build left the worktree clean.
@@ -797,6 +806,20 @@ The six earlier Low follow-ups remain explicitly deferred under their recorded t
 The finding remains valid after stack #97 republication. Activity mode correctly suppresses duplicate legacy markers, but its returned filter flags and filtered counts describe the caller request instead of the effective normalization behavior. No finding was deferred or dismissed.
 
 **Next:** execute p10-t01 through `oat-project-implement`, review the focused fix, and republish PR #96.
+
+### Review Received: final (p10 closeout)
+
+**Date:** 2026-09-19
+**Review artifact:** `reviews/archived/final-review-2026-09-19T224031Z.md`
+**Reviewed head:** `3c91633d03a819d5945fd461961648ec9c303cce`
+
+**Findings:** 0 Critical, 0 High, 1 Medium, 1 Low.
+
+**New tasks added:** p11-t01.
+
+The review confirmed the p10 behavior, version/generated closure, 27-task accounting and full verification. Its Medium finding identifies stale `summary.md` metadata and publication prose that still describe the pre-republication p08 state; its Low finding identifies an extra blank line at EOF in the received PR #96 artifact. Both are bounded lifecycle-artifact corrections.
+
+**Next:** execute p11-t01, run a narrowed final re-review, then refresh the configured exit gate.
 
 ## Planning Gate Review Received — 2026-09-19
 

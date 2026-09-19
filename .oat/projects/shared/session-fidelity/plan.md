@@ -524,6 +524,24 @@ git add src/skills/session-observer CHANGELOG.md skills plugins
 git commit -m "fix(p10-t01): report effective activity filters"
 ```
 
+## Phase 11: Post-p10 lifecycle artifact alignment
+
+**Layer:** activity (`session-fidelity-activity`). **Depends on:** final lifecycle review `final-review-2026-09-19T224031Z.md` at `3c91633d03a819d5945fd461961648ec9c303cce`.
+
+### Task p11-t01: (review) Align the final summary and lifecycle whitespace
+
+**Files:** `.oat/projects/shared/session-fidelity/summary.md`; `.oat/projects/shared/session-fidelity/implementation.md`; `.oat/projects/shared/session-fidelity/reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md`.
+
+**Implement:** Update the generated summary through p10, including `oat_summary_last_task`, the effective-filter correction, post-p10 verification, eleven passing phase reviews and the exact publication boundary: the accepted p08 stack was republished, while only the p10 top-layer delta awaits publication. Align the stale preparatory sentence in `implementation.md`. Remove the received PR #96 artifact's extra blank line at EOF. Preserve the unmerged, unreleased, uninstalled and live-provider boundaries.
+
+**Verify:** Run `rg -n 'p09-t01|through p08|cascade-rebased local heads|p10|effective filter|republication|2,232|eleven' .oat/projects/shared/session-fidelity/summary.md .oat/projects/shared/session-fidelity/implementation.md`, `oat project validate-plan --project-path .oat/projects/shared/session-fidelity --json`, `pnpm run validate`, and `git diff --check b51a106d14ee3d25884b5b24fa8f8949da301f90..HEAD`.
+
+```bash
+git add .oat/projects/shared/session-fidelity/summary.md .oat/projects/shared/session-fidelity/implementation.md
+git add -f .oat/projects/shared/session-fidelity/reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md
+git commit -m "docs(p11-t01): align post-p10 lifecycle summary"
+```
+
 ## Reviews
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
@@ -564,6 +582,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | github-pr #96 | code     | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md | 3b580feb3401cfece7bf297ff16ccfda24b45a66 | -          | -           |
 | github-pr #96 | code     | fixes_completed | 2026-09-19 | reviews/archived/remote-pr-96-review-2026-09-19T222328Z.md | 2c4ea64f725830ba7affce59eabce65bf651cc6f | auto       | -           |
 | p10    | code     | passed          | 2026-09-19 | reviews/p10-review-2026-09-19T223234Z.md                    | 2c4ea64f725830ba7affce59eabce65bf651cc6f | auto       | codex-high  |
+| final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T224031Z.md         | 3c91633d03a819d5945fd461961648ec9c303cce | auto       | codex-high  |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -571,7 +590,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation and Review-Fix Status
 
-**Planned total:** 11 phases, 27 tasks. All tasks and every phase review through p10 passed.
+**Planned total:** 12 phases, 28 tasks. The first 27 tasks and every phase review through p10 passed; p11 contains one final-review artifact alignment fix.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.
@@ -584,8 +603,9 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 - p08: 4 tasks — planning-status alignment, withdrawn parser-guidance cleanup, detached MCP-result opacity, and LF-framing documentation correction.
 - p09: 1 task — align the generated project summary with p08 and the current publication boundary.
 - p10: 1 task — align reported legacy tool filters and filtered counts with activity-mode suppression.
+- p11: 1 task — align the generated summary/publication boundary and final lifecycle whitespace.
 
-The schema documentation preparatory commit and all 27 implementation tasks are complete; phase reviews p00 through p10 passed. Stack #97 is published and ready, with the locally reviewed p10 commit still awaiting refreshed lifecycle closeout and top-branch republication. Merge, release, installation and live-provider acceptance are not claimed.
+The schema documentation preparatory commit and the first 27 implementation tasks are complete; phase reviews p00 through p10 passed. Phase p11 must align the stale generated summary and whitespace found by the post-p10 final lifecycle review before the refreshed gate and top-branch republication. Merge, release, installation and live-provider acceptance are not claimed.
 
 ## References
 
