@@ -1009,7 +1009,7 @@ green.
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -                                        | -          | -                             |
 | p04    | code     | pending         | -          | -                                                           | -                                        | -          | -                             |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md | -                                        | -          | -                             |
-| final  | code     | received        | 2026-09-19 | reviews/final-review-2026-09-19T214803Z.md                  | c6d3424378ae33d0bcdee90dc9e1e3651a44d430 | gate       | claude-fable-skip-permissions |
+| final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T214803Z.md         | c6d3424378ae33d0bcdee90dc9e1e3651a44d430 | gate       | claude-fable-skip-permissions |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -1133,7 +1133,7 @@ relabel it passed. Final implementation Frontier review remains required.
 - Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
 - Phase 5: 12 tasks — all first final-review findings and complete proof.
 
-**Total: 25 tasks. Completed: 25/25. Next: final Frontier re-review.**
+**Total: 25 tasks. Completed: 25/25. Final Frontier review: passed.**
 Planning approval is not implementation, live acceptance, release or merge.
 
 ## References

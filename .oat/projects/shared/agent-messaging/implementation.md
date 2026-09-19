@@ -19,7 +19,8 @@ Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 passed its final bounded independent
 review with no findings. The first final Frontier review found 3 Important,
 5 Medium, and 4 Minor issues. All 12 Phase 5 repair tasks are complete and
-root-verified; 25 of 25 tasks are complete pending final re-review.
+root-verified. The second and final configured Frontier gate passed; its
+non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 
 ## Progress Overview
 
@@ -28,8 +29,8 @@ root-verified; 25 of 25 tasks are complete pending final re-review.
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | completed | 3     | 3/3       |
-| Phase 4 | review_pending | 1     | 1/1       |
-| Phase 5 | review_pending | 12    | 12/12     |
+| Phase 4 | completed | 1     | 1/1       |
+| Phase 5 | completed | 12    | 12/12     |
 
 **Total:** 25/25 tasks completed
 
@@ -1114,6 +1115,40 @@ shared ownership primitives, polling/input hygiene, and an unrelated historical
 formatting change. No live provider, installation, publication, push, PR, or
 merge action is authorized by these fixes.
 
+## Review Received: final round 2
+
+**Date:** 2026-09-19
+**Artifact:** `reviews/archived/final-review-2026-09-19T214803Z.md`
+**Reviewed head:** `c6d3424378ae33d0bcdee90dc9e1e3651a44d430`
+**Invocation:** gate (`claude-fable-skip-permissions`)
+**Run:** `a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944`
+**Verdict:** passed at High threshold — 0 Critical, 0 High, 1 Medium, 4 Low
+
+The reviewer independently confirmed all 12 first-round findings resolved and
+reproduced the two load-bearing repairs. The passing-gate judgment sweep made
+these durable dispositions without another gate attempt:
+
+- `M1` — **addressed now** in `dd22025c`: `collab-control` accepts and validates
+  an explicit absolute root, rejects unknown options, and generated bundles run
+  the documented arm → enable → Monitor sequence against one non-default root.
+- `L1` — **addressed now** in `dd22025c`: the armed-lease private-cursor fix is
+  disclosed under CHANGELOG Fixed.
+- `L2` — **addressed now** in `dd22025c`: generated Codex and Cursor Stop hooks
+  execute through symlinked installs with eligible leases and observable output.
+- `L3` — **rejected with rationale**: importing direct-execution entrypoints
+  under a synthetic nonexistent `argv[1]` is outside the shipped invocation
+  contract; all supported real/symlinked direct executions are proven, and the
+  pre-existing manual CLI follows the same main-guard shape.
+- `L4` — **addressed now** in `dd22025c`: packaging tests remove their known
+  temporary install directories and symlinks.
+
+The bounded sweep bumped session-observer-collab to 1.0.46. Verification passed
+120 focused tests, the full suite with 2,256 passed and 1 skipped, build/check,
+validation, type-check, smoke, version validation, formatting, lint, and clean
+worktree validation. No live provider, installation, publication, push, PR, or
+merge action occurred. The configured gate budget is consumed at 2/2; passing
+judgment-sweep fixes are not re-gated.
+
 ## Review Received: p03 round 1
 
 **Date:** 2026-09-19
@@ -1505,17 +1540,17 @@ This is historical planning-review context; product code now exists.
 
 ## Test Results
 
-Phase verification is current through Phase 5 recovery commit `cd76aa88` and a
-clean worktree validation run. The first final Frontier review's 12 findings are
-fixed; the second configured final review remains.
+Phase verification is current through passing-gate sweep commit `dd22025c` and
+a clean worktree validation run. The second configured Frontier gate passed and
+all sub-threshold findings have durable dispositions.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
 | 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
 | 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint | all | 0 | Accepted after final bounded independent review |
-| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Tasks complete; final review fixes queued |
-| 5     | 153 focused proof + 18 recovery-focused; full suite (2,249 tests); build/check/validate/type/smoke/version/internal-flags/docs/worktree validation | all | 0 | Tasks complete; final re-review pending |
+| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Completed; final review accepted |
+| 5     | 153 focused proof + 18 recovery-focused + 120 sweep-focused; full suite (2,256 tests); build/check/validate/type/smoke/version/internal-flags/docs/worktree validation | all | 0 | Completed; final review passed |
 
 ## Final Summary (for PR/docs)
 
@@ -1530,12 +1565,13 @@ two skill roots; owned standalone, Session, and Consensus payloads plus the docs
 site were regenerated from those sources.
 
 Verification includes every phase's focused suites, a clean final worktree run
-with 2,249 passing tests and 1 skipped, generated freshness, type-check,
+with 2,256 passing tests and 1 skipped, generated freshness, type-check,
 validation, smoke, version validation, scoped formatting/lint, and a 54-page
 documentation build. `BL-260619-inter-agent-direct-messaging` is closed and
 archived after green PJM preflight/postflight, while
 `BL-260919-verify-live-agent-messaging` owns separately authorized live
-acceptance. One configured final re-review remains. Publication, push/PR/merge,
+acceptance. The second and final configured Frontier gate passed at its High
+threshold and every sub-threshold finding is dispositioned. Publication, push/PR/merge,
 user/global installation, provider configuration, and live host acceptance were
 not performed and remain separate authorization/evidence boundaries.
 

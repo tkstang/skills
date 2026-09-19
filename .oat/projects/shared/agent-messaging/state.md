@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: cd76aa885369468bf68ee5604359b2a791934bce
+oat_last_commit: dd22025c005d89033a72b23f443985bb88cb78f6
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -43,7 +43,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** All 25 tasks are complete; final Frontier re-review is pending.
+**Status:** All 25 tasks are complete; final Frontier review passed.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -60,8 +60,9 @@ implemented and locally verified the finite Claude composed Monitor, shared
 inbox/observation budget, docs/distributions, and conditional backlog closeout.
 The first final Frontier review found 3 Important, 5 Medium, and 4 Minor issues.
 All 12 are fixed in Phase 5, with bounded recovery attempt 1/10 settled after
-root validation. Live hook installation and live acceptance remain separately
-authorized.
+root validation. The second configured Frontier gate passed and its one Medium
+and four Low findings are dispositioned. Live hook installation and live
+acceptance remain separately authorized.
 
 ## Artifacts
 
@@ -69,7 +70,7 @@ authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — 5 sequential phases, 25 tasks; Phase 5 contains every first-final-review finding.
-- **Implementation:** implementation.md — Run 1 has 25/25 tasks complete; final Frontier re-review is pending.
+- **Implementation:** implementation.md — Run 1 has 25/25 tasks complete; final Frontier review passed and its judgment sweep is complete.
 
 ## Progress
 
@@ -249,6 +250,18 @@ authorized.
   p05-t01 through p05-t12; no finding is deferred. The gate artifact and project
   log receipts are committed at `7a9ced3d` and `12a79e63`. No live/provider,
   install, publish, push, PR, or merge action occurred.
+- **Final Frontier review round 2:** Gate run
+  `a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944` reviewed `c6d34243` through the exact
+  configured `claude-fable-skip-permissions` target and passed the High threshold
+  with 0 Critical, 0 High, 1 Medium, and 4 Low findings. Artifact:
+  `reviews/archived/final-review-2026-09-19T214803Z.md`. It confirmed all 12
+  first-round findings resolved. Passing-gate sweep commit `dd22025c` addressed
+  M1 and L1/L2/L4; L3 is rejected with rationale because synthetic import with a
+  nonexistent `argv[1]` is outside the supported direct-execution contract.
+  Verification passed 120 focused tests and the full suite with 2,256 passed,
+  1 skipped, plus clean worktree validation. Gate budget is consumed at 2/2;
+  no third gate is launched. No live/provider, install, publish, push, PR, or
+  merge action occurred.
 - **Phase 5 implementation:** Twelve ordered commits from `ca6d5d15` through
   `a8a2e811` resolve every final-review finding. Full validation exposed one
   stale owner-contract fixture; append-only recovery `cd76aa88` corrected it.
@@ -293,6 +306,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Commit root phase-transition bookkeeping, then use the second and final
-configured Frontier review attempt. Live hook installation remains a separate
-authorization boundary.
+Commit final review-receive bookkeeping, then continue the configured
+pre-approval closeout sequence. Live hook installation, push, PR, merge, and
+live acceptance remain separate authorization boundaries.
