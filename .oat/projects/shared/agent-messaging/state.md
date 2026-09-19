@@ -44,7 +44,7 @@ oat_implement_exit_gate:
   gate_run_id: a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944
   gate_target: claude-fable-skip-permissions
   reviewed_head: c6d3424378ae33d0bcdee90dc9e1e3651a44d430
-  freshness_head: dd22025c005d89033a72b23f443985bb88cb78f6
+  freshness_head: b69c4ae5fbc1ec848fb37822b752220fa42ff436
   artifact: reviews/archived/final-review-2026-09-19T214803Z.md
   receive_completed: true
   findings:
@@ -61,7 +61,8 @@ oat_post_implement_sequence:
     - summary
     - document
     - pr
-  pre_approval_completed: []
+  pre_approval_completed:
+    - summary
   approval: pending
   approval_source: null
   post_approval: []
