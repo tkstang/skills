@@ -58,8 +58,9 @@ does not establish live provider discovery or permission behavior.
   continuation, and cleanup as separate facts for the exact host version,
   session, and worktree. A passing build or fixture never promotes a live row.
   Keep manual fallback when a row is unverified; Cursor delivery remains manual,
-  and Claude composed Monitor remains pending until its dedicated acceptance
-  phase completes.
+  and the fixture-tested finite Claude composed Monitor ships; installed,
+  invoked, and recipient-observed live tiers remain unverified until its
+  dedicated acceptance phase completes.
 - Live messaging probes require separate explicit authority for the exact
   host/session, hook or trust changes, quota budget, finite timeout, and owned
   cleanup. Do not combine them with the paid Consensus live gate or infer one
