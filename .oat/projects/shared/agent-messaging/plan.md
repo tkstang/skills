@@ -64,7 +64,7 @@ No daemon, database, MCP server, third-party runtime dependency, or Git subproce
 
 ## Parallelism
 
-p01 -> p02 -> p03 -> p04 is sequential. p02 consumes p01's schemas, membership and
+p01 -> p02 -> p03 -> p04 -> p05 is sequential. p02 consumes p01's schemas, membership and
 publication primitive; p03 consumes both and modifies the same shared runtime,
 distribution declaration, generated outputs, skill versions, and changelog.
 p04 adds the dedicated Claude composed Monitor on p03's controller contract and
@@ -823,6 +823,169 @@ distributions or the generated documentation inventory.
 
 **Commit:** feat(p04-t01): compose bounded Claude inbox and observation notifications
 
+## Phase 5: Final review fixes and proof completion (12 tasks)
+
+This phase resolves every finding from the first final Frontier review. It does
+not authorize provider calls, hook installation, publication, push, PR, merge,
+or live acceptance. Preserve the review's exact behavioral boundaries and keep
+each task in one atomic Conventional Commit.
+
+### Task p05-t01: Make shipped entrypoints symlink-safe
+
+**Finding:** final-I1.
+**Modify:** the Claude Monitor, Claude/Codex delivery hooks, and the edited
+Codex/Cursor Stop entrypoints plus their packaging tests.
+**Implement:** compare canonical real paths for the invoked script and
+`import.meta.url`, including URL-escaped paths. Execute each generated entrypoint
+through a symlinked directory and prove it runs rather than silently exiting.
+**Verify:** focused hook and packaging suites; copied standalone and plugin
+payloads executed with Node alone through real and symlinked paths.
+**Commit:** fix(p05-t01): make shipped entrypoints symlink-safe
+
+### Task p05-t02: Share read-only Claude ownership inventory primitives
+
+**Finding:** final-m2.
+**Modify:** shared collaboration inventory/ownership modules, messaging
+registration imports, Monitor imports, declarations, distribution ownership,
+tests, versions, changelog, and generated payloads.
+**Implement:** move the read-only Claude inventory and automatic-ownership
+assessment into `src/shared/collaboration/`; remove the messaging skill source
+root from observer-collab's allowed source roots without changing behavior.
+**Verify:** registration, Monitor, generated-runtime, build freshness, validation,
+type-check, and skill-version checks.
+**Commit:** refactor(p05-t02): share Claude ownership inventory primitives
+
+### Task p05-t03: Bind Claude delivery to a real bounded inventory
+
+**Finding:** final-I2.
+**Modify:** activation/types, delivery enable/inspect/register, hook/watch/Monitor
+boundary checks, Claude runtime references, skill guidance, tests, versions,
+changelog, and generated payloads.
+**Implement:** resolve standard user, project, project-local, and managed Claude
+settings by default; retain explicit source overrides; fail closed when no
+required inventory source can be resolved; persist the resolved source set in
+the immutable activation and re-inspect that same set at every delivery boundary.
+Document flags and supported environment overrides. Do not infer installed
+plugin inventory that the host cannot enumerate.
+**Verify:** default-path third-party Stop disclosure, acknowledgment fingerprint,
+post-enable mutation refusal without environment setup, unreadable/absent source
+refusal, explicit override parity, and all Claude hook/watch/Monitor suites.
+**Commit:** fix(p05-t03): bind Claude delivery to resolved inventory sources
+
+### Task p05-t04: Keep observation interruptions out of message retry status
+
+**Finding:** final-M1.
+**Modify:** shared claims/status derivation, CLI status rendering tests, versions,
+changelog, and generated payloads.
+**Implement:** exclude observation events from `interruptedAttempts` and
+`outcomeUnknown`; report them only through observation-attempt status and the
+manual pinned-range recovery. Never generate a message retry command for them.
+**Verify:** claims and CLI status suites covering pre-slot observation interruption
+and shared-budget refusal.
+**Commit:** fix(p05-t04): separate observation attempts from message retries
+
+### Task p05-t05: Require an eligible lease at each Monitor boundary
+
+**Finding:** final-M2.
+**Modify:** Claude Monitor composition checks and tests, declarations if needed,
+versions, changelog, and generated payloads.
+**Implement:** initial and iteration checks accept only armed/waiting eligible
+leases and return an explicit re-arm-required result for triggered leases. The
+post-CAS check may accept triggered only when the sole refusal reason is the
+expected triggered state; identity and peer-continuity failures still refuse.
+**Verify:** triggered restart consumes no slot/event, continuity failure after
+CAS refuses, normal post-CAS notification still succeeds, and race semantics
+remain bounded.
+**Commit:** fix(p05-t05): enforce Monitor lease eligibility by boundary
+
+### Task p05-t06: Expose redacted Monitor outcomes and invocation
+
+**Finding:** final-M3.
+**Modify:** Monitor main/output diagnostics, message-notification diagnostics,
+Claude runtime reference, skill guidance, tests, versions, changelog, and
+generated payloads.
+**Implement:** emit one redacted terminal reason to stderr, return nonzero for
+refusals, preserve validation error detail without secrets, publish a Monitor
+boundary diagnostic for message notifications, align on
+`--collaboration-id`, and document complete arm/enable/launch/re-arm commands.
+Stdout remains reserved for the single bounded notification.
+**Verify:** quiet completion versus refusal exit/output, validation errors,
+message and observation diagnostics, and documented commands against CLI parsing.
+**Commit:** fix(p05-t06): report Monitor outcomes and invocation
+
+### Task p05-t07: Align Monitor polling and input hygiene
+
+**Finding:** final-m3.
+**Modify:** Monitor defaults/argument validation, runtime guidance, tests,
+versions, changelog, and generated payloads.
+**Implement:** use a 1000 ms default poll, require an absolute root through the
+shared validator, and document that an unacknowledged selected request retains
+inbox priority and must be acknowledged before another observation wake.
+**Verify:** default interval, relative-root refusal, explicit interval override,
+and duplicate unacknowledged request behavior.
+**Commit:** fix(p05-t07): align Monitor polling and root validation
+
+### Task p05-t08: Complete the Phase 4 critical-path proof
+
+**Finding:** final-I3.
+**Modify:** Monitor behavior/packaging tests and only test-enabling seams needed
+to exercise the real implementation.
+**Implement:** add the complete omitted matrix: shared-cap exhaustion across both
+wake kinds; expiry, revocation, takeover, and closure during a run; prefix change
+and truncation; wrong identities; private no-op progress; duplicate runners;
+interrupted output; event/slot/CAS kill and quiet re-arm; no observation retry;
+Cursor, Codex, and Claude peers; synthetic transcripts through real
+`buildDigest`; real and symlinked generated bundles; no public-state write or
+child process.
+**Verify:** the expanded focused suites must fail against the reviewed defects
+and pass against the repaired behavior, followed by build freshness and full
+repository validation.
+**Commit:** test(p05-t08): complete composed Monitor acceptance proof
+
+### Task p05-t09: Correct plugin and release Monitor status
+
+**Finding:** final-M4.
+**Modify:** `plugins/consensus/README.md`, `RELEASING.md`, and any canonical
+source that owns generated plugin wording.
+**Implement:** state that the fixture-tested finite composed Monitor ships while
+installed, invoked, and recipient-observed live tiers remain unverified.
+**Verify:** no stale pending wording; docs/manifests/build freshness agree.
+**Commit:** docs(p05-t09): correct composed Monitor release status
+
+### Task p05-t10: Track separately authorized live messaging acceptance
+
+**Finding:** final-M5.
+**Modify:** PJM backlog through its managed lifecycle and the archived messaging
+item link only as supported by PJM tooling.
+**Implement:** after green `oat pjm doctor --json`, add an open follow-up for
+authorized live Codex prompt/Stop, Claude prompt/Stop/watch, and Claude composed
+Monitor wake acceptance. Link it from the archived item and managed index. Do
+not run any live provider flow.
+**Verify:** PJM doctor before and after, generated index consistency, and an open
+backlog owner for every unverified live tier.
+**Commit:** chore(p05-t10): track live messaging acceptance
+
+### Task p05-t11: Align design data models with shipped records
+
+**Finding:** final-m1.
+**Modify:** project design and the agent-messaging architecture page.
+**Implement:** document activation `composedMonitorAttestation`, lease
+`composedActivation`, additive compatibility, and `observerLeaseId` as
+enable-time provenance rather than a re-arm identity.
+**Verify:** model names and semantics agree with canonical types and runtime
+checks; documentation build remains green.
+**Commit:** docs(p05-t11): align composed activation data models
+
+### Task p05-t12: Restore unrelated completed-history text
+
+**Finding:** final-m4.
+**Modify:** `.oat/repo/pjm/backlog/completed.md` only.
+**Implement:** restore the historical `GIT_*` spelling changed by the closeout
+formatter, leaving the messaging completion entry untouched.
+**Verify:** the diff changes only that historical escape and PJM doctor remains
+green.
+**Commit:** chore(p05-t12): restore completed backlog history text
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target                   |
@@ -833,7 +996,7 @@ distributions or the generated documentation inventory.
 | p01    | code     | passed          | 2026-09-19 | reviews/code-p01-authorized-review-2026-09-19T161151Z.md    | d3cd0e9c8a12b3057b2c403ce9587bc81402ef66 | subagent   | -                             |
 | p02    | code     | fixes_completed | 2026-09-19 | reviews/code-p02-review-2026-09-19T172855Z.md               | a54d9baf2e618ae3885cf8053e3719f558b3ef45 | subagent   | -                             |
 | p02    | code     | passed          | 2026-09-19 | reviews/code-p02-rereview-2026-09-19T181232Z.md             | 14f26df47fea4161f36f88c618596b827133cdf5 | subagent   | -                             |
-| final  | code     | received        | 2026-09-19 | reviews/final-review-2026-09-19T204112Z.md                  | 30b4d45aebc314a4fcfbbe53eedbc6bcfd1d5fc0 | gate       | claude-fable-skip-permissions |
+| final  | code     | fixes_added     | 2026-09-19 | reviews/archived/final-review-2026-09-19T204112Z.md         | 30b4d45aebc314a4fcfbbe53eedbc6bcfd1d5fc0 | gate       | claude-fable-skip-permissions |
 | spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -                             |
 | design | artifact | pending         | -          | -                                                           | -                                        | -          | -                             |
 | p03    | code     | fixes_completed | 2026-09-19 | reviews/code-p03-review-2026-09-19T190153Z.md               | d6bd6d6a2894fb7de3368c8c92af51a5842b717b | subagent   | -                             |
@@ -959,7 +1122,7 @@ This is a one-time post-fix rerun waiver, not a disabled lifecycle policy and
 not a new independent review. Keep the fifth event fixes_completed; do not
 relabel it passed. Final implementation Frontier review remains required.
 
-## Implementation Complete
+## Implementation Status
 
 **Planned, not implemented:**
 
@@ -967,8 +1130,9 @@ relabel it passed. Final implementation Frontier review remains required.
 - Phase 2: 4 tasks — finite activation, host adapters, watch and acceptance probes.
 - Phase 3: 3 tasks — shared observer logs, Stop composition and distribution docs.
 - Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
+- Phase 5: 12 tasks — all first final-review findings and complete proof.
 
-**Total: 13 tasks. Completed: 0/13. First task: p01-t01.**
+**Total: 25 tasks. Completed: 13/25. Current task: p05-t01.**
 Planning approval is not implementation, live acceptance, release or merge.
 
 ## References

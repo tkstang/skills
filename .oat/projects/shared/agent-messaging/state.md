@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: b9904d625e4eec8331cdb18b53a1709dc4abcce0
+oat_current_task: p05-t01
+oat_last_commit: 12a79e63
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -40,7 +40,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** All 13 tasks are complete; final Frontier review is pending.
+**Status:** Final review is blocking; 12 Phase 5 repair tasks are queued.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -55,16 +55,17 @@ findings; fresh independent review passed, and both remaining Mediums were fixed
 in Phase 3. Phase 3 passed its final bounded review with no findings. Phase 4
 implemented and locally verified the finite Claude composed Monitor, shared
 inbox/observation budget, docs/distributions, and conditional backlog closeout.
-All implementation tasks are complete; final Frontier review and approval-aware
-closeout remain. Live hook installation remains separately authorized.
+The first final Frontier review found 3 Important, 5 Medium, and 4 Minor issues.
+All 12 are assigned to Phase 5, starting at p05-t01. Live hook installation and
+live acceptance remain separately authorized.
 
 ## Artifacts
 
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 13/13 tasks complete; final Frontier review is pending.
+- **Plan:** plan.md — 5 sequential phases, 25 tasks; Phase 5 contains every first-final-review finding.
+- **Implementation:** implementation.md — Run 1 has 13/25 tasks complete; Phase 5 fixes are in progress.
 
 ## Progress
 
@@ -236,6 +237,14 @@ closeout remain. Live hook installation remains separately authorized.
 - **Backlog closeout:** PJM doctor passed before and after closeout. The completed
   acceptance criteria were recorded, and `BL-260619-inter-agent-direct-messaging`
   is closed and archived. Live host/install acceptance remains unverified.
+- **Final Frontier review round 1:** Gate run
+  `aafd4a07-bf15-4b25-b1c9-c8ef9dd405ac` reviewed `30b4d45a` through the exact
+  configured `claude-fable-skip-permissions` target and returned blocking with
+  0 Critical, 3 Important, 5 Medium, and 4 Minor findings. Artifact:
+  `reviews/archived/final-review-2026-09-19T204112Z.md`. Auto-disposition created
+  p05-t01 through p05-t12; no finding is deferred. The gate artifact and project
+  log receipts are committed at `7a9ced3d` and `12a79e63`. No live/provider,
+  install, publish, push, PR, or merge action occurred.
 
 ## Dispatch and Gate Review Policy
 
@@ -270,6 +279,6 @@ No implementation blocker is currently known.
 
 ## Next Milestone
 
-Run the configured independent Frontier final review against `b9904d62` plus
-this committed closeout baseline. Live hook installation remains a separate
-authorization boundary.
+Execute Phase 5 tasks p05-t01 through p05-t12, reproduce the repository gates,
+then use the second and final configured Frontier review attempt. Live hook
+installation remains a separate authorization boundary.

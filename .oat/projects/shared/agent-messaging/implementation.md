@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -17,8 +17,9 @@ this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
 Critical or Important findings. Phase 3 passed its final bounded independent
-review with no findings. All 13 implementation tasks are complete; final
-Frontier review and approval-aware closeout remain pending.
+review with no findings. The first final Frontier review found 3 Important,
+5 Medium, and 4 Minor issues. All 12 are Phase 5 repair tasks; 13 of 25 tasks
+are complete.
 
 ## Progress Overview
 
@@ -28,8 +29,9 @@ Frontier review and approval-aware closeout remain pending.
 | Phase 2 | completed | 4     | 4/4       |
 | Phase 3 | completed | 3     | 3/3       |
 | Phase 4 | review_pending | 1     | 1/1       |
+| Phase 5 | in_progress | 12    | 0/12      |
 
-**Total:** 13/13 tasks completed
+**Total:** 13/25 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -117,6 +119,26 @@ Frontier review and approval-aware closeout remain pending.
 
 **Status:** completed
 **Commit:** b9904d625e4eec8331cdb18b53a1709dc4abcce0
+
+## Phase 5: Final review fixes and proof completion (12 tasks)
+
+**Status:** in_progress
+**Started:** 2026-09-19
+
+| Task | Finding | Status | Commit |
+| ---- | ------- | ------ | ------ |
+| p05-t01 | final-I1 symlink-safe entrypoints | in_progress | - |
+| p05-t02 | final-m2 shared ownership inventory | pending | - |
+| p05-t03 | final-I2 bounded Claude inventory | pending | - |
+| p05-t04 | final-M1 observation retry status | pending | - |
+| p05-t05 | final-M2 triggered lease boundaries | pending | - |
+| p05-t06 | final-M3 Monitor diagnostics and invocation | pending | - |
+| p05-t07 | final-m3 polling and input hygiene | pending | - |
+| p05-t08 | final-I3 Phase 4 proof completion | pending | - |
+| p05-t09 | final-M4 plugin and release docs | pending | - |
+| p05-t10 | final-M5 live-acceptance follow-up | pending | - |
+| p05-t11 | final-m1 design data model alignment | pending | - |
+| p05-t12 | final-m4 completed-history restoration | pending | - |
 
 ## Orchestration Runs
 
@@ -985,6 +1007,24 @@ diagnostics:
   `BL-260619-inter-agent-direct-messaging` is closed and archived. Live
   host/install acceptance remains explicitly unverified and separate.
 
+## Review Received: final round 1
+
+**Date:** 2026-09-19
+**Artifact:** `reviews/archived/final-review-2026-09-19T204112Z.md`
+**Reviewed head:** `30b4d45aebc314a4fcfbbe53eedbc6bcfd1d5fc0`
+**Invocation:** gate (`claude-fable-skip-permissions`)
+**Verdict:** blocking — 0 Critical, 3 Important, 5 Medium, 4 Minor
+
+Auto-disposition converted every finding into an explicit Phase 5 task:
+`p05-t01` through `p05-t12`. Nothing is deferred or rejected. The Important
+findings cover symlinked entrypoints, bounded Claude inventory, and missing
+critical-path proof. The Medium findings cover observation retry truthfulness,
+triggered-lease checks, Monitor diagnostics/invocation, stale release wording,
+and ownership of live acceptance. The Minor findings cover data-model drift,
+shared ownership primitives, polling/input hygiene, and an unrelated historical
+formatting change. No live provider, installation, publication, push, PR, or
+merge action is authorized by these fixes.
+
 ## Review Received: p03 round 1
 
 **Date:** 2026-09-19
@@ -1377,18 +1417,21 @@ This is historical planning-review context; product code now exists.
 ## Test Results
 
 Phase verification is current through Phase 4 commit `b9904d62` and the clean
-worktree validation run. Final independent Frontier review is still pending.
+worktree validation run. The first final Frontier review is received and
+blocking; Phase 5 fixes and a second configured final review remain.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
 | 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Accepted after fresh independent review |
 | 3     | 243 focused + full suite (2,216 tests); build/check/validate/type/smoke/version/format/lint | all | 0 | Accepted after final bounded independent review |
-| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Tasks complete; final Frontier review pending |
+| 4     | stages 104 + 28 + 191 focused; full suite (2,225 tests); build/check/validate/type/smoke/version/docs/worktree validation | all | 0 | Tasks complete; final review fixes queued |
+| 5     | pending | - | - | 12 first-final-review fixes |
 
 ## Final Summary (for PR/docs)
 
-All 13 implementation tasks are complete. The project now ships a
+The original 13 implementation tasks are complete; 12 first-final-review repair
+tasks are now in progress. The project currently ships a
 dependency-free shared collaboration container with addressed messages,
 receipts, immutable logs/rendered views, finite activation and claims, bounded
 Codex/Claude host adapters, a request-only watch, content-bound observer
@@ -1401,8 +1444,8 @@ Verification includes every phase's focused suites, a clean final worktree run
 with 2,225 passing tests and 1 skipped, generated freshness, type-check,
 validation, smoke, version validation, scoped formatting/lint, and a 54-page
 documentation build. `BL-260619-inter-agent-direct-messaging` is closed and
-archived after green PJM preflight/postflight. Final independent Frontier review
-and approval-aware workflow closeout remain. Publication, push/PR/merge,
+archived after green PJM preflight/postflight. The first final review is blocking
+until Phase 5 is complete; one configured final re-review remains. Publication, push/PR/merge,
 user/global installation, provider configuration, and live host acceptance were
 not performed and remain separate authorization/evidence boundaries.
 
