@@ -1140,3 +1140,7 @@ Phase p03 passes. No optional external phase review gate is configured, and p03 
 ```
 
 Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+#### Continuation p04-t02-recovery-resume-01
+
+Root transition audit of immutable p04-t02 commit `d054880562f23c14e3bfe7538a6cd414c54311e1` found one Important final-format projection gap: non-export reports are budgeted as compact JSON, but observer text subsequently applies expanding Markdown escaping and can emit far beyond the declared 32 KiB guard. The original `sf-p04-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p04-t02-recovery-01` may reserve cumulative p04 attempt 1/10 only after this continuation is committed. Scope is limited to making the final observer text representation participate in activity byte budgeting, preserving JSON/export semantics, and adding hostile-punctuation watch/review text regressions; phase review remains unauthorized until recovery is settled.

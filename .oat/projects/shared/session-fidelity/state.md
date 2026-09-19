@@ -1,5 +1,5 @@
 ---
-oat_current_task: p04-t02
+oat_current_task: p04-t02-recovery-01
 oat_last_commit: 05240ee2ce2cb877de0b2a2d365f82e1e110b6d9
 oat_blockers: []
 associated_issues:
@@ -108,13 +108,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Exporter activity integration ready
+**Status:** Export sanitizer recovery in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p03 are passed. p04-t01 now exports bounded source-attributed activity from one captured snapshot while preserving filenames, statelessness and no-flag behavior; its transition audit found zero Critical/Important findings. p04-t02 extends the sanitizer boundary coverage before phase review.
+p01 through p03 are passed. p04-t02 produced `d0548805`, but transition audit found one Important final-format budget gap: hostile Markdown punctuation can expand observer text activity beyond its declared 32 KiB cap after projection. Bounded p04 recovery attempt 1/10 is authorized to make final text rendering participate in activity budgeting.
 
 ## Artifacts
 
@@ -145,4 +145,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p04-t02 adversarial export sanitization and activity-boundary coverage.
+Complete bounded p04-t02 recovery attempt 1/10, then run the p04 phase review.
