@@ -4,6 +4,7 @@
 
 ## Curated Overview
 
+- **September 18 collaboration follow-ups:** captured two small, medium-priority session-observer reliability tasks: [Codex self identity with duplicate rollouts](items/BL-260919-resolve-codex-self-identity.md) and [default digest coverage/full-history recovery](items/BL-260919-improve-default-observer.md). Both are independent of agent-messaging; digest usability also stays separate from opt-in activity fidelity. The managed index now contains 16 active items; no kickoff order changed.
 - **September 17 state:** 14 active items remain after five completed September items were closed and archived. See the historical [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The September 16 alignment mapped 19 items in 16 candidate projects; later ordering remains proposed.
 - **Merged baseline:** PR #83 completed the documentation IA/visuals and typed config reference; canonical source colocation, Session packaging, Must We?, Next Steps, and Session Retro are already on main. Transitive skill-version validation is implemented and archived, not a future prerequisite.
 - **Immediate workflow:** **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** is the remaining approved onboarding lane; owner/start are not claimed.
@@ -18,8 +19,10 @@
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
 | BL-260916-add-a-first-party-install | Add a first-party install command for standalone skills | open | medium | feature | S |
+| BL-260919-improve-default-observer | Improve default observer digest coverage and full-history recovery | open | medium | task | S |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
+| BL-260919-resolve-codex-self-identity | Resolve Codex self identity with duplicate rollout candidates | open | medium | task | S |
 | BL-260916-session-fidelity-opt | Session fidelity: opt-in --include-activity for observer and exporter | open | medium | feature | L |
 | BL-260619-shared-session-log-substrate | Stateless multi-session activity merge | open | medium | initiative | L |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
