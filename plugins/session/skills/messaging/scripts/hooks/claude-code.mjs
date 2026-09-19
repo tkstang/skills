@@ -2038,9 +2038,11 @@ async function handleBoundary(input, dependencies = {}) {
     worktree: input.cwd,
     inventory,
     acknowledgedFingerprint: activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: activation.controller,
     now
   });
-  if (!ownership.automaticAllowed) return { output: null, envelope: null };
+  if (!ownership.automaticAllowed || ownership.controller !== activation.controller)
+    return { output: null, envelope: null };
   if (input.boundary === "prompt-start" && input.provenHuman && dependencies.humanProvenanceEvidence) {
     await recordHumanActivity({
       root,
@@ -2082,9 +2084,11 @@ async function handleBoundary(input, dependencies = {}) {
     worktree: input.cwd,
     inventory: finalInventory,
     acknowledgedFingerprint: activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: activation.controller,
     now: finalNow
   });
-  if (!finalOwnership.automaticAllowed) return { output: null, envelope: null };
+  if (!finalOwnership.automaticAllowed || finalOwnership.controller !== activation.controller)
+    return { output: null, envelope: null };
   const attemptId = randomUUID5();
   const eventKey = `${input.runtime}:${input.boundary}:${input.eventId}`;
   const deliveryKeys = await resolveDeliveryKeys({
@@ -2103,9 +2107,10 @@ async function handleBoundary(input, dependencies = {}) {
       worktree: input.cwd,
       inventory: await inventoryFor(input, env),
       acknowledgedFingerprint: checked.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+      requestedController: checked.activation.controller,
       now: checkedAt
     });
-    return checkedOwnership.automaticAllowed;
+    return checkedOwnership.automaticAllowed && checkedOwnership.controller === checked.activation.controller;
   };
   let boundaryValid = true;
   const claim = await claimDelivery({

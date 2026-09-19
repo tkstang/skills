@@ -1975,9 +1975,13 @@ async function acceptedOwnership(input, now) {
     worktree: input.worktree,
     inventory: await inventoryFor(input),
     acknowledgedFingerprint: status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: status.activation.controller,
     now
   });
-  return { status, allowed: ownership.automaticAllowed };
+  return {
+    status,
+    allowed: ownership.automaticAllowed && ownership.controller === status.activation.controller
+  };
 }
 async function watchInbox(input, dependencies) {
   const pollMs = input.pollMs ?? DEFAULT_WATCH_POLL_MS;

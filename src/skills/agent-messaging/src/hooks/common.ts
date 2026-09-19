@@ -142,9 +142,14 @@ export async function handleBoundary(
     inventory,
     acknowledgedFingerprint:
       activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: activation.controller,
     now,
   });
-  if (!ownership.automaticAllowed) return { output: null, envelope: null };
+  if (
+    !ownership.automaticAllowed ||
+    ownership.controller !== activation.controller
+  )
+    return { output: null, envelope: null };
   if (
     input.boundary === 'prompt-start' &&
     input.provenHuman &&
@@ -202,9 +207,14 @@ export async function handleBoundary(
     inventory: finalInventory,
     acknowledgedFingerprint:
       activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: activation.controller,
     now: finalNow,
   });
-  if (!finalOwnership.automaticAllowed) return { output: null, envelope: null };
+  if (
+    !finalOwnership.automaticAllowed ||
+    finalOwnership.controller !== activation.controller
+  )
+    return { output: null, envelope: null };
   const attemptId = randomUUID();
   const eventKey = `${input.runtime}:${input.boundary}:${input.eventId}`;
   const deliveryKeys = await resolveDeliveryKeys({
@@ -232,9 +242,13 @@ export async function handleBoundary(
       acknowledgedFingerprint:
         checked.activation.thirdPartyHookAcknowledgment
           ?.configurationFingerprint,
+      requestedController: checked.activation.controller,
       now: checkedAt,
     });
-    return checkedOwnership.automaticAllowed;
+    return (
+      checkedOwnership.automaticAllowed &&
+      checkedOwnership.controller === checked.activation.controller
+    );
   };
   let boundaryValid = true;
   const claim = await claimDelivery({

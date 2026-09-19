@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import {
+  activationStatus,
   disableActivation,
   enableActivation,
 } from '../../../shared/collaboration/activation.js';
@@ -17,6 +18,9 @@ import {
   openCollaboration,
 } from '../../../shared/collaboration/membership.js';
 import { sendMessage } from '../../../shared/collaboration/messages.js';
+import { codexStopCommand } from '../../session-observer-collab/src/codex-lifecycle.mjs';
+import { arm } from '../../session-observer-collab/src/collab-control.mjs';
+import { installCodexStopBundle } from '../../session-observer-collab/src/lib/codex-install.mjs';
 import {
   MAX_WATCH_DURATION_MS,
   watchInbox,
@@ -110,6 +114,41 @@ function runner(f: Awaited<ReturnType<typeof fixture>>) {
       },
     },
   };
+}
+
+async function addObserverOwner(root: string, hooksPath: string, now: number) {
+  const peerTranscript = path.join(root, 'observer-peer.jsonl');
+  await writeFile(peerTranscript, '{}\n');
+  await arm(
+    root,
+    {
+      runtime: 'codex',
+      peerRuntime: 'claude-code',
+      session: 'recipient',
+      peerSession: 'observer-peer',
+      cwd: '/tmp/recipient',
+      peerTranscript,
+      leaseMs: 60_000,
+      continuationCap: 3,
+      loopCap: 3,
+    },
+    now,
+  );
+  const launcher = path.join(root, 'observer-stop.mjs');
+  await installCodexStopBundle({
+    scriptPath: launcher,
+    sourceScriptPath: path.resolve(
+      'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+    ),
+  });
+  await writeFile(
+    hooksPath,
+    JSON.stringify({
+      hooks: { Stop: [{ hooks: [{ command: codexStopCommand(launcher) }] }] },
+    }),
+  );
+  const leasePath = path.join(root, 'leases', 'recipient.json');
+  return { leasePath, leaseBytes: await readFile(leasePath) };
 }
 
 describe('finite inbox watch', () => {
@@ -385,6 +424,55 @@ describe('finite inbox watch', () => {
       ),
     ).toMatchObject({ reason: 'ownership-refused', notifications: 0 });
     expect(await readFile(leasePath, 'utf8')).toBe(lease);
+  });
+
+  test('keeps an in-flight standalone watch silent when a composed observer owner appears', async () => {
+    const f = await fixture();
+    await send(f, 'request', 'controller race');
+    const hooksPath = path.join(f.root, 'hooks.json');
+    await writeFile(hooksPath, '{}\n');
+    const active = runner(f);
+    let observer: Awaited<ReturnType<typeof addObserverOwner>> | undefined;
+    const result = await watchInbox(
+      {
+        root: f.root,
+        collaborationId: f.collaborationId,
+        pin: f.recipient,
+        worktree: '/tmp/recipient',
+        durationMs: 2,
+        pollMs: 1,
+        env: { ...f.env, AGENT_MESSAGING_HOOKS_PATH: hooksPath },
+      },
+      {
+        ...active.dependencies,
+        afterEventClaim: async () => {
+          observer = await addObserverOwner(f.root, hooksPath, f.now.getTime());
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      reason: 'ownership-refused',
+      notifications: 0,
+      claimedRequests: 0,
+    });
+    expect(active.notifications).toEqual([]);
+    expect(observer).toBeDefined();
+    expect(await readFile(observer!.leasePath)).toEqual(observer!.leaseBytes);
+    expect(
+      await deliveryClaimStatus({ root: f.root, pin: f.recipient }),
+    ).toMatchObject({
+      spentSlots: 1,
+      remainingSlots: 19,
+      interruptedAttempts: [],
+      outcomeUnknown: [expect.any(String)],
+    });
+    expect(await activationStatus(f.root, f.recipient)).toMatchObject({
+      active: true,
+      activation: {
+        id: f.activation.id,
+        controller: 'standalone-messaging',
+      },
+    });
   });
 
   test('contains no daemon or child-process launch path', async () => {

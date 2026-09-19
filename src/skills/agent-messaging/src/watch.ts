@@ -130,9 +130,15 @@ async function acceptedOwnership(input: WatchInput, now: Date) {
     inventory: await inventoryFor(input),
     acknowledgedFingerprint:
       status.activation.thirdPartyHookAcknowledgment?.configurationFingerprint,
+    requestedController: status.activation.controller,
     now,
   });
-  return { status, allowed: ownership.automaticAllowed };
+  return {
+    status,
+    allowed:
+      ownership.automaticAllowed &&
+      ownership.controller === status.activation.controller,
+  };
 }
 
 export async function watchInbox(

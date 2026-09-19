@@ -121,6 +121,11 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.12 binds every standalone Stop and foreground-watch
+  ownership recheck to the active epoch's immutable controller, so a newly
+  composed observer owner makes an in-flight standalone boundary emit nothing
+  while preserving its finite claims and activation state.
+
 - `agent-messaging` 1.0.11 and `session-observer-collab` 1.0.36 require the
   versioned, content-bound Phase 3 observer composition capability, keep
   registration bound to the active activation's immutable controller across

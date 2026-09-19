@@ -1,10 +1,13 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 
-import { enableActivation } from '../../../shared/collaboration/activation.js';
+import {
+  activationStatus,
+  enableActivation,
+} from '../../../shared/collaboration/activation.js';
 import { deliveryClaimStatus } from '../../../shared/collaboration/claims.js';
 import {
   joinCollaboration,
@@ -12,6 +15,9 @@ import {
 } from '../../../shared/collaboration/membership.js';
 import { sendMessage } from '../../../shared/collaboration/messages.js';
 import { activationDirectory } from '../../../shared/collaboration/paths.js';
+import { codexStopCommand } from '../../session-observer-collab/src/codex-lifecycle.mjs';
+import { arm } from '../../session-observer-collab/src/collab-control.mjs';
+import { installCodexStopBundle } from '../../session-observer-collab/src/lib/codex-install.mjs';
 import { runAgentMessagingCli } from './agent-messaging.js';
 import { runClaudeCodeHook } from './hooks/claude-code.js';
 import { runCodexHook } from './hooks/codex.js';
@@ -69,6 +75,41 @@ async function fixture(
     AGENT_MESSAGING_CLAUDE_SETTINGS: '',
   };
   return { root, collaborationId, recipient, activation, messageId, env };
+}
+
+async function addObserverOwner(root: string, hooksPath: string) {
+  const peerTranscript = path.join(root, 'observer-peer.jsonl');
+  await writeFile(peerTranscript, '{}\n');
+  await arm(
+    root,
+    {
+      runtime: 'codex',
+      peerRuntime: 'claude-code',
+      session: 'recipient',
+      peerSession: 'observer-peer',
+      cwd: '/tmp/recipient',
+      peerTranscript,
+      leaseMs: 60_000,
+      continuationCap: 3,
+      loopCap: 3,
+    },
+    Date.now(),
+  );
+  const launcher = path.join(root, 'observer-stop.mjs');
+  await installCodexStopBundle({
+    scriptPath: launcher,
+    sourceScriptPath: path.resolve(
+      'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+    ),
+  });
+  await writeFile(
+    hooksPath,
+    JSON.stringify({
+      hooks: { Stop: [{ hooks: [{ command: codexStopCommand(launcher) }] }] },
+    }),
+  );
+  const leasePath = path.join(root, 'leases', 'recipient.json');
+  return { leasePath, leaseBytes: await readFile(leasePath) };
 }
 
 describe('host delivery hooks', () => {
@@ -372,6 +413,45 @@ describe('host delivery hooks', () => {
       },
     );
     expect(output).toBeNull();
+  });
+
+  test('keeps an in-flight standalone Stop silent when a composed observer owner appears', async () => {
+    const f = await fixture();
+    const hooksPath = path.join(f.root, 'hooks.json');
+    await writeFile(hooksPath, '{}\n');
+    let observer: Awaited<ReturnType<typeof addObserverOwner>> | undefined;
+    const output = await runCodexHook(
+      {
+        hook_event_name: 'Stop',
+        session_id: 'recipient',
+        cwd: '/tmp/recipient',
+        event_id: 'composed-owner-after-claim',
+      },
+      {
+        env: { ...f.env, AGENT_MESSAGING_HOOKS_PATH: hooksPath },
+        afterMessageClaim: async () => {
+          observer = await addObserverOwner(f.root, hooksPath);
+        },
+      },
+    );
+    expect(output).toBeNull();
+    expect(observer).toBeDefined();
+    expect(await readFile(observer!.leasePath)).toEqual(observer!.leaseBytes);
+    expect(
+      await deliveryClaimStatus({ root: f.root, pin: f.recipient }),
+    ).toMatchObject({
+      spentSlots: 1,
+      remainingSlots: 19,
+      interruptedAttempts: [],
+      outcomeUnknown: [expect.any(String)],
+    });
+    expect(await activationStatus(f.root, f.recipient)).toMatchObject({
+      active: true,
+      activation: {
+        id: f.activation.id,
+        controller: 'standalone-messaging',
+      },
+    });
   });
 
   test.each([
