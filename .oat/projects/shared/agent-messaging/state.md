@@ -17,18 +17,22 @@ oat_phase: design
 oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 oat_docs_updated: null
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T00:15:00Z'
+oat_project_state_updated: '2026-09-19T00:43:25Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Discovery validated; design findings addressed for exact-commit re-review.
+**Status:** Discovery validated; design passed Fable's exact-commit review; High dispatch selected.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
@@ -44,7 +48,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
-- **Design:** design.md — F1–F6 disposition recorded; exact-commit peer re-review pending.
+- **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approval pending.
 - **Plan:** plan.md — scaffold only, not implementation-ready.
 - **Implementation:** implementation.md — scaffold only; no implementation started.
 
@@ -63,6 +67,29 @@ Fable reviews. No implementation or live hook installation is authorized here.
   event/slot/message claim ordering, deterministic request-only watch keys,
   explicit takeover authority, and close/admission races. Retained exact idle
   expiry rather than approximate receipt coalescing; latency verification planned.
+- Fable's final check passed e95a0d91 (Claude transcript record 721, verified
+  against the raw completed assistant turn). Both observer follow-ups were
+  captured separately in 3f935df1; neither expands messaging scope.
+
+## Dispatch and Gate Review Policy
+
+The user selected **High** for managed project dispatch, with **Frontier review
+at gates**. High is a maximum for ordinary dispatch, not a requirement to use
+the most expensive eligible worker for every task. The reusable candidate ladder
+remains configuration-owned; do not copy compiled model targets into this policy.
+
+Independent lifecycle gate review is separate from the project dispatch ceiling.
+The plan and final implementation gates remain configured and enabled; the
+currently configured Fable target is available, while Cursor targets are disabled
+for this repository. No gate was launched by recording this choice. At execution,
+verify the selected gate reviewer and returned invocation evidence satisfy the
+Frontier requirement; do not silently accept a lower/default fallback as that
+review. If the configured route cannot meet it, report the mismatch before
+counting the gate as satisfied. Keep reusable gate commands provider-neutral.
+
+This choice does not configure additional per-phase gates or HiLL pauses; those
+remain separate planning/execution choices. Existing root and Fable collaboration
+sessions are unchanged. No global/user-scope configuration was changed.
 
 ## Operational Notes
 
@@ -76,13 +103,14 @@ do not delete locks or discard artifacts.
 No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
-watcher or automatic lease was armed. Current revision awaits peer/user review.
+watcher or automatic lease was armed. Peer design review passed; user design
+approval remains pending.
 
 ## Next Milestone
 
-Fable checks the revised design at its exact commit. Prepare the three-phase
-plan while preserving pending review/readiness. Dispatch ladder is complete;
-the project dispatch policy is unresolved and requires an operator choice before
-plan artifact review/readiness.
+After user design approval, prepare the three-phase plan and its reviews.
+Dispatch ladder is complete and the project ceiling is High; Frontier is required
+at independent gates. Preserve pending plan readiness until the required plan
+review and gate disposition are recorded.
 The full-draft choice overrides workflow.designMode=selective for this run only;
 the reusable preference remains unchanged. Keep the plan unready.
