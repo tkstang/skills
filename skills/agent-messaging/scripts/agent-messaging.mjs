@@ -3494,24 +3494,32 @@ async function uninstallCodexMessagingHooks(input) {
   if (!config || typeof config !== "object" || Array.isArray(config))
     return { changed: false };
   const next = structuredClone(config);
+  if (!next.hooks || typeof next.hooks !== "object" || Array.isArray(next.hooks)) {
+    return { changed: false };
+  }
   const hooks = next.hooks;
-  if (!hooks) return { changed: false };
   const command = codexMessagingCommand(input.scriptPath);
   let changed = false;
+  const removeGroup = /* @__PURE__ */ Symbol("remove-group");
   for (const event of ["UserPromptSubmit", "Stop"]) {
-    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
-    hooks[event] = groups.map((group) => {
+    if (!Array.isArray(hooks[event])) continue;
+    let eventChanged = false;
+    const groups = hooks[event];
+    const filteredGroups = groups.map((group) => {
       if (!group || typeof group !== "object" || Array.isArray(group))
         return group;
-      const entries = Array.isArray(group.hooks) ? group.hooks ?? [] : [];
+      const entries = group.hooks;
+      if (!Array.isArray(entries)) return group;
       const filtered = entries.filter(
         (entry) => !entry || typeof entry !== "object" || Array.isArray(entry) || entry.command !== command
       );
-      if (filtered.length !== entries.length) changed = true;
+      if (filtered.length === entries.length) return group;
+      eventChanged = true;
+      changed = true;
+      if (filtered.length === 0) return removeGroup;
       return { ...group, hooks: filtered };
-    }).filter(
-      (group) => !group || typeof group !== "object" || Array.isArray(group) || (group.hooks?.length ?? 0) > 0
-    );
+    }).filter((group) => group !== removeGroup);
+    if (eventChanged) hooks[event] = filteredGroups;
   }
   if (changed) await writeJsonAtomic(input.hooksPath, next);
   return { changed };

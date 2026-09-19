@@ -70,21 +70,27 @@ export async function uninstallCodexMessagingHooks(input: {
   if (!config || typeof config !== 'object' || Array.isArray(config))
     return { changed: false };
   const next = structuredClone(config) as Record<string, unknown>;
-  const hooks = next.hooks as Record<string, unknown> | undefined;
-  if (!hooks) return { changed: false };
+  if (
+    !next.hooks ||
+    typeof next.hooks !== 'object' ||
+    Array.isArray(next.hooks)
+  ) {
+    return { changed: false };
+  }
+  const hooks = next.hooks as Record<string, unknown>;
   const command = codexMessagingCommand(input.scriptPath);
   let changed = false;
+  const removeGroup = Symbol('remove-group');
   for (const event of ['UserPromptSubmit', 'Stop']) {
-    const groups = Array.isArray(hooks[event])
-      ? (hooks[event] as unknown[])
-      : [];
-    hooks[event] = groups
+    if (!Array.isArray(hooks[event])) continue;
+    let eventChanged = false;
+    const groups = hooks[event] as unknown[];
+    const filteredGroups = groups
       .map((group) => {
         if (!group || typeof group !== 'object' || Array.isArray(group))
           return group;
-        const entries = Array.isArray((group as { hooks?: unknown }).hooks)
-          ? ((group as { hooks: unknown[] }).hooks ?? [])
-          : [];
+        const entries = (group as { hooks?: unknown }).hooks;
+        if (!Array.isArray(entries)) return group;
         const filtered = entries.filter(
           (entry) =>
             !entry ||
@@ -92,16 +98,14 @@ export async function uninstallCodexMessagingHooks(input: {
             Array.isArray(entry) ||
             (entry as { command?: unknown }).command !== command,
         );
-        if (filtered.length !== entries.length) changed = true;
+        if (filtered.length === entries.length) return group;
+        eventChanged = true;
+        changed = true;
+        if (filtered.length === 0) return removeGroup;
         return { ...group, hooks: filtered };
       })
-      .filter(
-        (group) =>
-          !group ||
-          typeof group !== 'object' ||
-          Array.isArray(group) ||
-          ((group as { hooks?: unknown[] }).hooks?.length ?? 0) > 0,
-      );
+      .filter((group) => group !== removeGroup);
+    if (eventChanged) hooks[event] = filteredGroups;
   }
   if (changed) await writeJsonAtomic(input.hooksPath, next);
   return { changed };

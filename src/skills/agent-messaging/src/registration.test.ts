@@ -54,6 +54,69 @@ describe('messaging hook registration', () => {
     expect(await readFile(hooksPath, 'utf8')).toContain('node third-party.mjs');
   });
 
+  test.each([
+    ['primitive config', 42],
+    ['array config', []],
+    ['null hook map', { hooks: null }],
+    ['primitive hook map', { hooks: 'malformed' }],
+    ['array hook map', { hooks: [] }],
+    ['absent owned events', { hooks: { Other: ['unchanged'] } }],
+    ['primitive owned event', { hooks: { Stop: 'malformed' } }],
+    ['object owned event', { hooks: { UserPromptSubmit: {} } }],
+  ])('preserves an unrelated %s during uninstall', async (_label, config) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'registration-uninstall-'));
+    const hooksPath = path.join(root, 'hooks.json');
+    const scriptPath = path.join(root, 'messaging.mjs');
+    const original = `${JSON.stringify(config, null, 2)}\n`;
+    await writeFile(hooksPath, original);
+
+    await expect(
+      uninstallCodexMessagingHooks({ hooksPath, scriptPath }),
+    ).resolves.toEqual({ changed: false });
+    expect(await readFile(hooksPath, 'utf8')).toBe(original);
+  });
+
+  test('removes owned entries without normalizing malformed or absent event shapes', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'registration-uninstall-'));
+    const hooksPath = path.join(root, 'hooks.json');
+    const scriptPath = path.join(root, 'messaging.mjs');
+    const command = `node -- '${scriptPath}'`;
+    await writeFile(
+      hooksPath,
+      `${JSON.stringify(
+        {
+          hooks: {
+            Stop: [
+              { hooks: 'malformed', label: 'preserve' },
+              {
+                hooks: [
+                  { type: 'command', command, timeout: 65 },
+                  { type: 'command', command: 'node unrelated.mjs' },
+                ],
+              },
+            ],
+            Other: { untouched: true },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    await expect(
+      uninstallCodexMessagingHooks({ hooksPath, scriptPath }),
+    ).resolves.toEqual({ changed: true });
+    expect(JSON.parse(await readFile(hooksPath, 'utf8'))).toEqual({
+      hooks: {
+        Stop: [
+          { hooks: 'malformed', label: 'preserve' },
+          { hooks: [{ type: 'command', command: 'node unrelated.mjs' }] },
+        ],
+        Other: { untouched: true },
+      },
+    });
+  });
+
   test('recognizes only a marked owned messaging launcher', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'registration-'));
     const hooksPath = path.join(root, 'hooks.json');

@@ -139,6 +139,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.21 removes only owned entries from valid Codex hook
+  arrays during uninstall, preserving primitive, array, absent-event, malformed,
+  and unrelated configuration shapes.
+
 - `agent-messaging` 1.0.20 times the first activity-receipt activation read as
   cold and the second as warm, tests their true invocation order, and honestly
   relabels the earlier primed-call measurements as historical warm evidence.
