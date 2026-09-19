@@ -686,3 +686,60 @@ Root transition audit of immutable p02-t04 commit `5440c56a06f19f3a4bd437b4aa94b
 - Recovery commit: 06de319615c00279ba56fda04d749ec5857775af
 - Verification: root passed 51 focused project/correlate/extract tests, type-check, build freshness and four-owner version validation; closure audit found no Critical/Important issue.
 - Reason: suppression now requires an actual retained linked-result output, preserving the sole failed-item preview while leaving true duplicate behavior unchanged.
+
+#### Dispatch sf-p02-review-01
+
+```json
+{
+  "request_id": "sf-p02-review-01",
+  "caller": "oat-project-implement",
+  "scope": "p02-review-round-01",
+  "objective": "Review the complete p02 activity layer for plan alignment, evidence fidelity, privacy boundaries and bounded projection semantics",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p02",
+    "taskIds": ["p02-t01", "p02-t02", "p02-t03", "p02-t04", "p02-t05"],
+    "base": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "reviewedHead": "1d748fa9b5909bdbae123eab6a63b10d02304d4a",
+    "artifact": "reviews/p02-review-2026-09-19T141151Z.md",
+    "handle": "/root/p02_review"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Transcript privacy, exact evidence, identity ownership and omission accounting make subtle review misses expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p02-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
