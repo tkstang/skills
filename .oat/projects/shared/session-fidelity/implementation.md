@@ -21,7 +21,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
-| p00   | pending | 1     | 0/1       |
+| p00   | review  | 1     | 1/1       |
 | p01   | pending | 5     | 0/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
@@ -29,17 +29,17 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 0/19 implementation tasks completed.
+**Total:** 1/19 implementation tasks completed.
 
 ## Phase 0
 
-**Status:** pending
+**Status:** awaiting root review
 
 ### Task p00-t01: Arrange and verify the three review layers
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; root-owned stack arrangement.
+**Status:** completed
+**Commit:** 4e6c63fa
+**Verification:** stack JSON and recovery/base/diff checks passed; root-owned stack arrangement.
 
 ## Phase 1
 
