@@ -415,6 +415,7 @@ function parsePinnedSession(session?: string): PinnedSessionParseResult {
       error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
     };
   }
+
   return { runtime, sessionId };
 }
 
@@ -912,6 +913,13 @@ async function runReview(args: CliArgs): Promise<void> {
   if (!isRuntime(runtime)) {
     return emitError(
       `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+      1,
+    );
+  }
+
+  if (includeActivity && runtime === 'cursor') {
+    return emitError(
+      '--include-activity is not available for Cursor review or catch-up yet.',
       1,
     );
   }
@@ -1565,6 +1573,13 @@ async function runState(args: CliArgs): Promise<void> {
 
 async function runWatch(args: CliArgs): Promise<void> {
   if (args.help) return printWatchUsage(args.subcommand);
+
+  if (args.includeActivity) {
+    return emitError(
+      '--include-activity is not available for watch or catch-up-then-watch yet.',
+      1,
+    );
+  }
 
   if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
     return emitWatchSetupError(

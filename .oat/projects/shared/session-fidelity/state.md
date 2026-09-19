@@ -28,8 +28,17 @@ oat_phase_recovery_policy:
       used_attempts: 3
       pending_attempt: null
     p03:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: p03-t01-recovery-01
+        original_request_id: sf-p03-implement-01
+        original_task_id: p03-t01
+        original_commit: 820465752eb5de4b7527fa8c96901f7ef090ecb2
+        discovered_by: root transition audit
+        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
+        reservation_head: 1da65e0c74d5a4f5711c0a0b03c0abd3f33ac563
+        status: completed
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets

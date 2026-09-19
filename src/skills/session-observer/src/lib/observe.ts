@@ -1661,6 +1661,12 @@ export async function observeCatchUp(
     runtime = resolved.runtime;
   }
 
+  if (args.includeActivity && runtime === 'cursor') {
+    return errorOutcome(
+      '--include-activity is not available for Cursor review or catch-up yet.',
+    );
+  }
+
   if (pinnedSession) {
     if (!isRuntime(runtime)) {
       return errorOutcome(`Unknown runtime: ${runtime}`);

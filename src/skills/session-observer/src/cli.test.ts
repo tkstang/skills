@@ -575,6 +575,55 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
+  test.each([
+    {
+      command: 'review',
+      extra: ['--session', 'cursor:future-cursor-session'],
+      message: 'not available for Cursor review or catch-up yet',
+    },
+    {
+      command: 'catch-up',
+      extra: ['--session', 'cursor:future-cursor-session'],
+      message: 'not available for Cursor review or catch-up yet',
+    },
+    {
+      command: 'watch',
+      extra: ['--runtime', 'claude-code'],
+      message: 'not available for watch or catch-up-then-watch yet',
+    },
+    {
+      command: 'catch-up-then-watch',
+      extra: ['--runtime', 'codex'],
+      message: 'not available for watch or catch-up-then-watch yet',
+    },
+  ])(
+    'rejects unavailable $command activity before creating state',
+    async ({ command, extra, message }) => {
+      const home = await mkdtemp(join(tmpdir(), `cli-reject-${command}-`));
+      try {
+        const stateDir = join(home, '.state');
+        const result = spawnCli(
+          [
+            command,
+            '--cwd',
+            join(home, 'project'),
+            '--include-activity',
+            ...extra,
+          ],
+          { HOME: home, STATE_DIR: stateDir },
+        );
+
+        expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(1);
+        expect(result.stderr).toContain(message);
+        await expect(
+          readFile(join(stateDir, 'state.json'), 'utf8'),
+        ).rejects.toThrow();
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
+
   test('watch --help lists watch flags', () => {
     const result = spawnCli(['watch', '--help']);
     expect(

@@ -8738,6 +8738,11 @@ async function observeCatchUp(args, deps = {}) {
     }
     runtime = resolved.runtime;
   }
+  if (args.includeActivity && runtime === "cursor") {
+    return errorOutcome(
+      "--include-activity is not available for Cursor review or catch-up yet."
+    );
+  }
   if (pinnedSession) {
     if (!isRuntime(runtime)) {
       return errorOutcome(`Unknown runtime: ${runtime}`);
@@ -11422,6 +11427,12 @@ async function runReview(args) {
       1
     );
   }
+  if (includeActivity && runtime === "cursor") {
+    return emitError(
+      "--include-activity is not available for Cursor review or catch-up yet.",
+      1
+    );
+  }
   if (runtime === "cursor" && markRead2) {
     const recovery = await cursorLegacyRecoveryPayload({
       ...args,
@@ -11962,6 +11973,12 @@ async function runState(args) {
 }
 async function runWatch(args) {
   if (args.help) return printWatchUsage(args.subcommand);
+  if (args.includeActivity) {
+    return emitError(
+      "--include-activity is not available for watch or catch-up-then-watch yet.",
+      1
+    );
+  }
   if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
     return emitWatchSetupError(
       args,
