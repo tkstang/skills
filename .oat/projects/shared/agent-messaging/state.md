@@ -13,8 +13,8 @@ oat_children: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
-oat_phase: design
-oat_phase_status: complete
+oat_phase: plan
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -32,7 +32,7 @@ oat_generated: false
 
 # Project State: agent-messaging
 
-**Status:** Design approved by the user after Fable's exact-commit review; ready for plan authoring.
+**Status:** Design approved; three-phase, twelve-task plan drafted and awaiting reviews.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-18
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — scaffold only, not implementation-ready.
+- **Plan:** plan.md — 3 sequential phases, 12 tasks; artifact/gate review pending, not implementation-ready.
 - **Implementation:** implementation.md — scaffold only; no implementation started.
 
 ## Progress
@@ -108,7 +108,7 @@ complete; no drafting blocker remains.
 
 ## Next Milestone
 
-Prepare the three-phase plan and its reviews from the approved design.
+Review the drafted three-phase plan against the approved design.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
