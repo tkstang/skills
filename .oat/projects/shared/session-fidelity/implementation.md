@@ -191,3 +191,5 @@ Findings are identified below by their order within the artifact because it supp
 - m3, Commit-field guidance: `resolve_in_artifact`. Move sanitizer scope into the p04 Implement paragraphs; keep Commit fields message-only.
 
 No implementation tasks added or completed. Plan stays unready pending verification of these dispositions. The gate’s project-log auto-commit hit an index lock; preserve the appended record in the normal review-bookkeeping commit.
+
+Final structured re-review at `08622012` confirmed M1 and Minor corrections plus both rejections. It identified one remaining Medium precision issue in M2: the branch base must include phase-review fixes/bookkeeping after the p01-t04 source commit. Corrected p02-t01 to branch from the reviewed identity HEAD, verify its full SHA equals `ACTIVITY_BASE`, and require p01-t04 as an ancestor. This is part of the accepted transition-ownership correction; no scope or task-count change. The retained gate is the final verification of the corrected bundle.
