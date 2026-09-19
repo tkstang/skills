@@ -93,7 +93,7 @@ oat_generated: false
 
 ## Current Phase
 
-Design and 16-task plan drafted; Fable read-back incorporated. Dispatch policy and review-gate choices remain pending before formal plan review. No design HiLL gate is configured.
+Design and 16-task plan drafted; Fable read-back incorporated. The Claude task-notification scope choice, dispatch policy and review-gate choices remain pending before formal plan review. No design HiLL gate is configured.
 
 ## Artifacts
 
@@ -115,7 +115,7 @@ Design and 16-task plan drafted; Fable read-back incorporated. Dispatch policy a
 - ✓ Schema documentation committed by Fable as `c970c876`; editing turn released
 - ✓ User selected docs → identity → activity stack using `gh stack`
 - ✓ Fable read-back incorporated into design and the 16-task plan
-- ⧗ Dispatch policy, phase-gate preference, lifecycle-gate choices and formal plan review pending
+- ⧗ Claude provenance scope, dispatch policy, phase-gate preference, lifecycle-gate choices and formal plan review pending
 
 ## Blockers
 

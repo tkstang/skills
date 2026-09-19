@@ -8,7 +8,7 @@ oat_phase_status: in_progress
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_generated: false
-oat_template: false
+oat_template: true
 ---
 
 # Implementation Plan: session-fidelity
@@ -32,6 +32,10 @@ The user selected `gh stack` in this order:
 Before source implementation, the root must arrange these local layers using `gh-stack` and verify `gh stack view --json`. The docs commit currently follows OAT planning commits on `session-fidelity`; preserve that history through recoverable refs when arranging layers and keep each PR's diff scoped to its concern. Place project planning artifacts in the top activity layer; preserve layer-local validation evidence with its code. Use distinct branch names without a `session-fidelity/` prefix while the `session-fidelity` branch exists. Do not create hidden worktrees. Publication, merge, installation and live provider execution are outside this planning invocation.
 
 Record each code layer's exact base as `IDENTITY_BASE` or `ACTIVITY_BASE` in implementation evidence before changing it; use that actual ref for version validation. These names below are shell variables bound to those verified refs, never guessed placeholders. No source changes have been implemented.
+
+## Open scope choice
+
+The user is discussing default Claude task-notification provenance with Fable. Including it would add native `origin.kind == "task-notification"` handling to existing automatic-control provenance and classifier/ranking regression coverage in the identity layer, while preserving today’s absent-field behavior. Deferring it requires a separate tracked follow-up rather than describing it as already fixed. Neither option is selected; do not finalize readiness until the user’s choice is recorded.
 
 ## Parallelism
 
@@ -282,7 +286,7 @@ Existing pending scaffold rows are preserved. Quick mode has no spec; that legac
 | p06    | code     | pending | -    | -        | -             | -          | -           |
 | plan   | artifact | pending | -    | -        | -             | -          | -           |
 
-Before readiness: resolve project dispatch policy; finish phase/lifecycle gate choices; incorporate Fable's read-back; run the configured structured plan review and quick-start gate with the complete discovery/design/plan bundle. Pending gates are not passed by the documentation build or peer silence.
+Before readiness: resolve the open default Claude task-notification provenance scope choice; resolve project dispatch policy; finish phase/lifecycle gate choices; incorporate Fable's read-back; run the configured structured plan review and quick-start gate with the complete discovery/design/plan bundle. Pending gates are not passed by the documentation build or peer silence.
 
 ## Implementation Complete
 

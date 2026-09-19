@@ -42,3 +42,7 @@ The design incorporates this handoff and awaits Fable's read-back. There is no d
 ## Revised-design read-back
 
 Fable reviewed `3e16dd9c` at record 1677. Incorporated: an identity-layer inherited-context warning for no-flag child digests/exports; failure-priority for standalone failed Codex item events independently of canonical call outcomes; planning artifacts in the top stack layer; stateless pending Cursor calls; a 128 KiB review budget; a 64 MiB activity-export safety cap with size/omission notices; and runtime-specific path/identity validators. These revisions require peer read-back and projection tests. Default Claude conversation-origin labeling remains a separate follow-up; the activity path still uses native origin evidence now.
+
+## Scope-choice correction
+
+Fable's records 1718/1737 and human question at 1695 establish that default Claude task-notification provenance is still being discussed. The earlier driver note treating it as a deferred follow-up was premature. The design/plan now leave the choice open. Fable now leans toward narrow in-scope handling for consistent digest provenance and avoiding duplicated release work; no user selection is yet observed.

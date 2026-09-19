@@ -86,7 +86,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 - **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge:** consume the established activity contract in a later project.
 - Fuller activity artifacts and additional provider adapters remain future options, not requirements of this item.
 
-- Default Claude conversation-origin labeling is a separate follow-up, as Fable recommended; activity provenance is in this project, but changing every default conversation message is not.
+- Default Claude conversation-origin labeling is an open user scope decision. Fable initially recommended a follow-up, then explained the consistency and release-overhead costs and now leans toward a narrow identity-layer correction. The user has asked about tradeoffs but has not selected either option. Activity provenance remains included regardless.
 
 ## Current Repository Evidence
 
@@ -103,6 +103,8 @@ These requirements combine the backlog, existing repository decisions, and the o
 - **Contract detail:** settle stable event identity, result updates, count/range scope, byte/source coordinates, and projection budgets in design without replacing legacy entry/checkpoint contracts.
 - **Metadata and sidecars resolved:** no sidecar reads in v1; preserve identity-rich references and accurate unread/truncated coverage.
 - **Fixture provenance approved:** audit observed local schemas, derive reviewed sanitized fixtures, and document observed versions/uncertainty. Fable committed the evidence snapshot and maintained schema pages in `c970c876`; the project references now point to those durable locations.
+
+- **Open user scope choice:** map native Claude `origin.kind == "task-notification"` to existing automatic-control provenance in default conversation/classifier output now, or keep that change as a separately tracked follow-up. Preserve absent-field behavior and verify ranking if included; do not finalize the plan until the choice is recorded.
 
 ## Assumptions
 
