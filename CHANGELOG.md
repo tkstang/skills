@@ -82,6 +82,7 @@
 
 ### Fixed
 
+- `session-observer` 1.0.58, `session-observer-collab` 1.0.47, `session-export-transcript` 2.0.15, and `session-fork-to-destination` 0.2.23 keep activity reports within their serialized byte and displayed-invocation envelopes while preserving explicit metadata and evidence-group omission counts.
 - `session-observer` 1.0.57, `session-observer-collab` 1.0.46, `session-export-transcript` 2.0.14, and `session-fork-to-destination` 0.2.22 preserve exact source snapshot and native argument evidence while keeping parse diagnostics and projected output bounded and content-free.
 - `session-observer` 1.0.55, `session-observer-collab` 1.0.44, `session-export-transcript` 2.0.12, and `session-fork-to-destination` 0.2.20 retain a linked failed item's sole output preview when its exact-ID-linked result has no output carrier.
 - `session-observer` 1.0.53, `session-observer-collab` 1.0.42, `session-export-transcript` 2.0.10, and `session-fork-to-destination` 0.2.18 keep Codex activity ownership unknown when child lineage or history boundaries are incomplete or conflicting, and classify the observed current task and asynchronous ask native names without broadening unknown-name matching.

@@ -112,6 +112,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     countLine(report.counts.displayed),
     `- Omitted evidence: calls ${report.omitted.calls}; results ${report.omitted.results}; failures ${report.omitted.failures}`,
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
+    `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
     '',
     '### Events',
     '',

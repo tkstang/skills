@@ -263,6 +263,8 @@ export interface ActivityOmissionCounts {
   failures: number;
   invocationLimitGroups: number;
   byteLimitGroups: number;
+  coverageEntries: number;
+  diagnostics: number;
 }
 
 export interface ActivityReport {

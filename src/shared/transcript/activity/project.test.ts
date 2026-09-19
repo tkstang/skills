@@ -1,5 +1,12 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
+import { readRecordsDetailed } from '../runtimes.js';
+import { correlateActivity } from './correlate.js';
+import { extractActivity } from './extract.js';
 import {
   ACTIVITY_PROJECTION_LIMITS,
   projectActivity,
@@ -229,6 +236,104 @@ describe('activity projection budgets', () => {
     });
   });
 
+  it('applies the watch invocation limit to inherited calls', () => {
+    const events = Array.from({ length: 81 }, (_, index) =>
+      event(`inherited-${index}`, 'call', index, {
+        ownership: 'inherited',
+      }),
+    );
+    const report = projectActivity(activity(events), {
+      mode: 'watch',
+      deliveryRange: wholeRange(events),
+    });
+
+    expect(report.events).toHaveLength(80);
+    expect(report.events[0]?.eventKey).toBe('inherited-1');
+    expect(report.omitted).toMatchObject({
+      calls: 1,
+      invocationLimitGroups: 1,
+    });
+    expect(report.counts.deliveredRange).toMatchObject({
+      calls: 81,
+      countedInvocations: 0,
+    });
+    expect(report.counts.displayed).toMatchObject({
+      calls: 80,
+      countedInvocations: 0,
+    });
+  });
+
+  it('applies the review invocation limit to unknown calls', () => {
+    const events = Array.from({ length: 1_025 }, (_, index) =>
+      event(`unknown-${index}`, 'call', index, { ownership: 'unknown' }),
+    );
+    const report = projectActivityWithLimits(
+      activity(events),
+      { mode: 'review', deliveryRange: wholeRange(events) },
+      { ...ACTIVITY_PROJECTION_LIMITS.review, maxBytes: 2 * 1024 * 1024 },
+    );
+
+    expect(report.events).toHaveLength(1_024);
+    expect(report.events[0]?.eventKey).toBe('unknown-1');
+    expect(report.omitted).toMatchObject({
+      calls: 1,
+      invocationLimitGroups: 1,
+    });
+    expect(report.counts.deliveredRange).toMatchObject({
+      calls: 1_025,
+      countedInvocations: 0,
+    });
+    expect(report.counts.displayed).toMatchObject({
+      calls: 1_024,
+      countedInvocations: 0,
+    });
+  });
+
+  it('prioritizes failures across mixed ownership without changing owned counts', () => {
+    const calls = Array.from({ length: 81 }, (_, index) =>
+      event(`mixed-${index}`, 'call', index, {
+        ownership: (['inherited', 'unknown', 'owned'] as const)[index % 3],
+      }),
+    );
+    const events = [
+      ...calls,
+      event('mixed-failure', 'result', 81, {
+        ownership: 'inherited',
+        relatedCallKey: 'mixed-0',
+        outcome: 'error',
+      }),
+    ];
+    const report = projectActivity(activity(events), {
+      mode: 'watch',
+      deliveryRange: wholeRange(events),
+    });
+
+    expect(
+      report.events.some((candidate) => candidate.eventKey === 'mixed-0'),
+    ).toBe(true);
+    expect(
+      report.events.some((candidate) => candidate.eventKey === 'mixed-1'),
+    ).toBe(false);
+    expect(report.omitted).toMatchObject({
+      calls: 1,
+      results: 0,
+      failures: 0,
+      invocationLimitGroups: 1,
+    });
+    expect(report.counts.deliveredRange).toMatchObject({
+      calls: 81,
+      countedInvocations: 27,
+      results: 1,
+      failures: 1,
+    });
+    expect(report.counts.displayed).toMatchObject({
+      calls: 80,
+      countedInvocations: 27,
+      results: 1,
+      failures: 1,
+    });
+  });
+
   it('reports a bounded earlier call context for a late result', () => {
     const events = [
       event('early-call', 'call', 0, {
@@ -428,6 +533,52 @@ describe('activity projection budgets', () => {
       failures: 1,
       byteLimitGroups: 1,
     });
+  });
+
+  it('bounds malformed-source metadata with deterministic explicit omissions', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'activity-project-'));
+    const transcriptPath = join(directory, 'malformed.jsonl');
+    const privateSourceMarker = 'private-malformed-source';
+    const sourceText = `${Array.from(
+      { length: 1_000 },
+      (_, index) => `${privateSourceMarker}-${index}`,
+    ).join('\n')}\n`;
+    try {
+      await writeFile(transcriptPath, sourceText, 'utf8');
+      const read = await readRecordsDetailed(transcriptPath);
+      const extracted = extractActivity({
+        source: { ...SOURCE, transcriptPath },
+        read,
+      });
+      const correlated = correlateActivity(extracted);
+      const options = {
+        mode: 'watch' as const,
+        deliveryRange: {
+          indexBase: 'zero-based-decoded-record-index' as const,
+          start: 0,
+          end: 0,
+        },
+      };
+
+      const first = projectActivity(correlated, options);
+      const second = projectActivity(correlated, options);
+      const serialized = renderActivityReport(first);
+
+      expect(first.events).toEqual([]);
+      expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
+      expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes);
+      expect(first.omitted.diagnostics).toBeGreaterThan(0);
+      expect(first.omitted.coverageEntries).toBeGreaterThan(0);
+      expect(first.diagnostics.length + first.omitted.diagnostics).toBe(1_000);
+      expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_004);
+      expect(second.diagnostics).toEqual(first.diagnostics);
+      expect(second.coverage).toEqual(first.coverage);
+      expect(second.omitted).toEqual(first.omitted);
+      expect(first.diagnostics.at(-1)?.locator.physicalLine).toBe(1_000);
+      expect(serialized).not.toContain(privateSourceMarker);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('keeps the activity budget independent from conversation content', () => {

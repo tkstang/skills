@@ -5,7 +5,9 @@ import {
 } from './render.js';
 import type {
   ActivityCallContext,
+  ActivityCoverageEntry,
   ActivityDeliveryRange,
+  ActivityDiagnostic,
   ActivityPreview,
   ActivityProjectionLimits,
   ActivityProjectionMode,
@@ -53,7 +55,7 @@ interface EvidenceGroup {
   key: string;
   events: CorrelatedActivityEvent[];
   call?: CorrelatedActivityEvent;
-  countedInvocation: boolean;
+  displayedInvocation: boolean;
   failure: boolean;
   recency: number;
 }
@@ -61,6 +63,19 @@ interface EvidenceGroup {
 interface OmissionReasons {
   invocationLimitGroups: number;
   byteLimitGroups: number;
+  coverageEntries: number;
+  diagnostics: number;
+}
+
+interface ReportMetadata {
+  coverage: ActivityCoverageEntry[];
+  diagnostics: ActivityDiagnostic[];
+}
+
+interface MetadataCandidate {
+  kind: keyof ReportMetadata;
+  index: number;
+  locator: ActivityCoverageEntry['locator'];
 }
 
 function inRange(
@@ -182,7 +197,7 @@ function buildGroups(activity: CorrelatedActivity): EvidenceGroup[] {
       key,
       events: events.toSorted(compareChronology),
       ...(call === undefined ? {} : { call }),
-      countedInvocation: call?.ownership === 'owned',
+      displayedInvocation: call !== undefined,
       failure: events.some(
         (event) => event.outcome === 'error' || event.outcome === 'cancelled',
       ),
@@ -203,7 +218,7 @@ function deliveredGroups(
       {
         ...group,
         events,
-        countedInvocation: deliveredCall?.ownership === 'owned',
+        displayedInvocation: deliveredCall !== undefined,
         failure: events.some(
           (event) => event.outcome === 'error' || event.outcome === 'cancelled',
         ),
@@ -211,6 +226,77 @@ function deliveredGroups(
       },
     ];
   });
+}
+
+function deliveredMetadata(
+  activity: CorrelatedActivity,
+  range: ActivityDeliveryRange,
+): ReportMetadata {
+  const locatorInRange = (
+    locator: ActivityCoverageEntry['locator'],
+  ): boolean => {
+    const index = locator?.recordIndex;
+    return index === undefined || (index >= range.start && index < range.end);
+  };
+  return {
+    coverage: activity.coverage.filter((entry) =>
+      locatorInRange(entry.locator),
+    ),
+    diagnostics: activity.diagnostics.filter((entry) =>
+      locatorInRange(entry.locator),
+    ),
+  };
+}
+
+function compareMetadataPriority(
+  left: MetadataCandidate,
+  right: MetadataCandidate,
+): number {
+  return (
+    (right.locator?.recordIndex ?? -1) - (left.locator?.recordIndex ?? -1) ||
+    (right.locator?.physicalLine ?? -1) - (left.locator?.physicalLine ?? -1) ||
+    Number(right.kind === 'diagnostics') -
+      Number(left.kind === 'diagnostics') ||
+    left.index - right.index
+  );
+}
+
+function retainMetadata(
+  metadata: ReportMetadata,
+  retainedCount: number,
+): ReportMetadata {
+  const priority = [
+    ...metadata.coverage.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'coverage',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.diagnostics.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'diagnostics',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+  ].toSorted(compareMetadataPriority);
+  const retainedCoverage = new Set<number>();
+  const retainedDiagnostics = new Set<number>();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    (candidate.kind === 'coverage'
+      ? retainedCoverage
+      : retainedDiagnostics
+    ).add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage.filter((_, index) =>
+      retainedCoverage.has(index),
+    ),
+    diagnostics: metadata.diagnostics.filter((_, index) =>
+      retainedDiagnostics.has(index),
+    ),
+  };
 }
 
 function projectEvent(
@@ -310,6 +396,7 @@ function buildReport(
   limits: ActivityProjectionLimits,
   groups: readonly EvidenceGroup[],
   retainedKeys: ReadonlySet<string>,
+  metadata: ReportMetadata,
   reasons: OmissionReasons,
 ): ActivityReport {
   const deliveredEvents = groups.flatMap((group) => group.events);
@@ -405,22 +492,8 @@ function buildReport(
     },
     events,
     callContexts,
-    coverage: activity.coverage.filter((entry) => {
-      const index = entry.locator?.recordIndex;
-      return (
-        index === undefined ||
-        (index >= options.deliveryRange.start &&
-          index < options.deliveryRange.end)
-      );
-    }),
-    diagnostics: activity.diagnostics.filter((diagnostic) => {
-      const index = diagnostic.locator.recordIndex;
-      return (
-        index === undefined ||
-        (index >= options.deliveryRange.start &&
-          index < options.deliveryRange.end)
-      );
-    }),
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics,
   };
   return finalizeRenderedBytes(report);
 }
@@ -433,16 +506,21 @@ export function projectActivityWithLimits(
   validateRange(options.deliveryRange);
   validateLimits(limits);
   const groups = deliveredGroups(activity, options.deliveryRange);
-  const counted = groups
-    .filter((group) => group.countedInvocation)
+  const displayedInvocations = groups
+    .filter((group) => group.displayedInvocation)
     .toSorted(compareHighPriority);
   const invocationOmitted =
-    limits.maxInvocations === null ? [] : counted.slice(limits.maxInvocations);
+    limits.maxInvocations === null
+      ? []
+      : displayedInvocations.slice(limits.maxInvocations);
   const retained = new Set(groups.map((group) => group.key));
   for (const group of invocationOmitted) retained.delete(group.key);
+  const metadata = deliveredMetadata(activity, options.deliveryRange);
   const initialReasons: OmissionReasons = {
     invocationLimitGroups: invocationOmitted.length,
     byteLimitGroups: 0,
+    coverageEntries: 0,
+    diagnostics: 0,
   };
   const initial = buildReport(
     activity,
@@ -450,6 +528,7 @@ export function projectActivityWithLimits(
     limits,
     groups,
     retained,
+    metadata,
     initialReasons,
   );
   if (initial.renderedBytes <= limits.maxBytes) return initial;
@@ -472,6 +551,7 @@ export function projectActivityWithLimits(
       limits,
       groups,
       candidateKeys,
+      metadata,
       {
         ...initialReasons,
         byteLimitGroups: removedCount,
@@ -484,10 +564,39 @@ export function projectActivityWithLimits(
       low = removedCount + 1;
     }
   }
-  if (!best) {
-    throw new RangeError('Activity report metadata exceeds the byte limit');
+  if (best) return best;
+
+  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  let metadataLow = 0;
+  let metadataHigh = metadataCount;
+  while (metadataLow <= metadataHigh) {
+    const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
+    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      new Set(),
+      retainedMetadata,
+      {
+        ...initialReasons,
+        byteLimitGroups: removable.length,
+        coverageEntries:
+          metadata.coverage.length - retainedMetadata.coverage.length,
+        diagnostics:
+          metadata.diagnostics.length - retainedMetadata.diagnostics.length,
+      },
+    );
+    if (candidate.renderedBytes <= limits.maxBytes) {
+      best = candidate;
+      metadataLow = retainedCount + 1;
+    } else {
+      metadataHigh = retainedCount - 1;
+    }
   }
-  return best;
+  if (best) return best;
+  throw new RangeError('Activity report envelope exceeds the byte limit');
 }
 
 export function projectActivity(
