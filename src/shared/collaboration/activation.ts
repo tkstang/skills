@@ -61,6 +61,7 @@ export interface EnableActivationInput {
   waitMs?: number;
   thirdPartyHookAcknowledgment?: ActivationRecord['thirdPartyHookAcknowledgment'];
   noObserverMonitorAttestation?: ActivationRecord['noObserverMonitorAttestation'];
+  noObserverMonitorConfirmed?: boolean;
   now?: Date;
   activationId?: string;
 }
@@ -503,7 +504,11 @@ export async function enableActivation(
     mechanism: input.mechanism ?? 'stop',
     controller: input.controller ?? 'standalone-messaging',
     thirdPartyHookAcknowledgment: input.thirdPartyHookAcknowledgment ?? null,
-    noObserverMonitorAttestation: input.noObserverMonitorAttestation ?? null,
+    noObserverMonitorAttestation:
+      input.noObserverMonitorAttestation ??
+      (input.noObserverMonitorConfirmed
+        ? { pin: input.pin, epoch, confirmedAt: startedAt }
+        : null),
     startedAt,
     hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),
     expiryMode,

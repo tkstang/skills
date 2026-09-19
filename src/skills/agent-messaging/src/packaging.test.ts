@@ -54,7 +54,21 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.4'");
+      ).toContain("version: '1.0.5'");
+
+      for (const hook of ['codex.mjs', 'claude-code.mjs']) {
+        const hookResult = spawnSync(
+          process.execPath,
+          [path.join(destination, 'scripts', 'hooks', hook)],
+          {
+            encoding: 'utf8',
+            input: '{"hook_event_name":"Unknown"}\n',
+            env: { HOME: destination, PATH: process.env.PATH },
+          },
+        );
+        expect(hookResult.status).toBe(0);
+        expect(hookResult.stdout).toBe('');
+      }
 
       const root = path.join(destination, 'state');
       const collaborationId = crypto.randomUUID();

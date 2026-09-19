@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.4'
+  version: '1.0.5'
 ---
 
 # messaging
@@ -125,6 +125,32 @@ Status labels a known pre-output crash as `interrupted attempt — retry availab
 and a post-claim attempt without a host receipt as `outcome unknown`. Expiry is
 visible and requires explicit re-enable; slots are never refunded or replenished
 by renewal.
+
+Codex and Claude Code include fail-closed prompt/Stop adapters, but fixture
+coverage is not installation or live-delivery proof. Before enabling, inspect
+the exact session's hook inventory and continuation owner:
+
+```bash
+node <skill-dir>/scripts/agent-messaging.mjs delivery inspect \
+  --collab <uuid> --self codex:<id> --hooks-path <absolute-hooks.json>
+```
+
+Unrelated Stop commands require `--acknowledge-stop-hooks <fingerprint>` on
+enable; this acknowledges possible interference without claiming those scripts
+are inert or trusted. Active, triggered, or uncertain observer ownership refuses
+standalone delivery and preserves manual inbox access. Claude additionally
+requires `--confirm-no-observer-monitor` from the acting session. Read
+[Codex runtime](references/runtime-codex.md) or
+[Claude Code runtime](references/runtime-claude-code.md) before registration.
+
+Registration is explicit and scoped. It preserves unrelated hooks and does not
+perform provider trust approval:
+
+```bash
+node <skill-dir>/scripts/agent-messaging.mjs delivery register \
+  --collab <uuid> --self codex:<id> --hooks-path <absolute-hooks.json> \
+  --script-path <absolute-installed-hook.mjs>
+```
 
 ## Collaboration log and status
 

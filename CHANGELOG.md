@@ -4,6 +4,12 @@
 
 ### Added
 
+- `agent-messaging` 1.0.5 adds fail-closed Codex and Claude Code prompt/Stop
+  adapters, exact-session observer ownership detection, scoped third-party hook
+  fingerprints, Claude Monitor attestation, explicit registration generation,
+  bounded untrusted envelopes, and separate fixture-versus-live capability
+  labels; no live hook, trust, provider, or global configuration is changed.
+
 - `agent-messaging` 1.0.4 adds immutable activation epochs, fixed or
   provenance-bound human-idle expiry, finite non-reusable continuation slots,
   retryable event/message claims, redacted bounded diagnostics, and honest

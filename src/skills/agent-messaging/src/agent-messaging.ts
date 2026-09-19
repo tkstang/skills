@@ -55,6 +55,14 @@ import {
   type Pin,
   type ClosedRecord,
 } from '../../../shared/collaboration/types.js';
+import {
+  assessAutomaticOwnership,
+  claudeSessionHookDeclaration,
+  inspectClaudeStopInventory,
+  inspectCodexStopInventory,
+  installCodexMessagingHooks,
+  uninstallCodexMessagingHooks,
+} from './registration.js';
 
 export interface CliIo {
   env: NodeJS.ProcessEnv;
@@ -137,7 +145,16 @@ function parse(argv: readonly string[]): Parsed {
       continue;
     }
     const name = token.slice(2);
-    if (['json', 'help', 'all', 'body-stdin', 'what-stdin'].includes(name)) {
+    if (
+      [
+        'json',
+        'help',
+        'all',
+        'body-stdin',
+        'what-stdin',
+        'confirm-no-observer-monitor',
+      ].includes(name)
+    ) {
       flags.set(name, true);
       continue;
     }
@@ -427,14 +444,60 @@ async function execute(
   }
   if (command === 'delivery' && subcommand === 'enable') {
     const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === 'cursor')
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'Cursor automatic delivery is unverified; use the manual inbox',
+      );
     const expiryMode = optional(parsed, 'expiry-mode') ?? 'fixed';
     if (!['fixed', 'human-idle'].includes(expiryMode))
       throw new TypeError('--expiry-mode must be fixed or human-idle');
+    const worktree = optional(parsed, 'cwd') ?? io.cwd;
+    const inventory =
+      pin.runtime === 'codex'
+        ? await inspectCodexStopInventory(
+            optional(parsed, 'hooks-path') ??
+              path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
+          )
+        : await inspectClaudeStopInventory({
+            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
+              .split(path.delimiter)
+              .filter(Boolean),
+            installedPlugins: optional(parsed, 'installed-plugins')
+              ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
+                  string,
+                  string
+                >)
+              : {},
+          });
+    const ownership = await assessAutomaticOwnership({
+      root,
+      pin,
+      worktree,
+      inventory,
+      acknowledgedFingerprint:
+        optional(parsed, 'acknowledge-stop-hooks') ?? null,
+    });
+    if (!ownership.automaticAllowed) {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ''}`,
+      );
+    }
+    if (
+      pin.runtime === 'claude-code' &&
+      !parsed.flags.has('confirm-no-observer-monitor')
+    ) {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'Claude standalone delivery requires --confirm-no-observer-monitor from the acting session',
+      );
+    }
     const data = await enableActivation({
       root,
       collaborationId,
       pin,
-      worktree: optional(parsed, 'cwd') ?? io.cwd,
+      worktree,
       activationId: optional(parsed, 'activation-id'),
       mechanism: (optional(parsed, 'mechanism') ?? 'stop') as
         | 'stop'
@@ -454,6 +517,15 @@ async function execute(
       ),
       maxContinuations: integer(parsed, 'max-continuations', 20),
       waitMs: integer(parsed, 'wait-ms', 0),
+      thirdPartyHookAcknowledgment: ownership.acknowledgedFingerprint
+        ? {
+            configurationFingerprint: ownership.acknowledgedFingerprint,
+            acknowledgedAt: new Date().toISOString(),
+          }
+        : null,
+      noObserverMonitorConfirmed:
+        pin.runtime === 'claude-code' &&
+        parsed.flags.has('confirm-no-observer-monitor'),
     });
     return { operation: 'delivery.enable', collaborationId, data };
   }
@@ -487,6 +559,116 @@ async function execute(
         pin: resolveSelf(parsed, io.env),
         priorAttemptId: required(parsed, 'attempt'),
         messageId: required(parsed, 'message'),
+      }),
+    };
+  }
+  if (command === 'delivery' && subcommand === 'inspect') {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === 'cursor') {
+      return {
+        operation: 'delivery.inspect',
+        collaborationId,
+        data: {
+          capability: 'manual-only',
+          reason: 'current Cursor start/Stop delivery is not proven',
+        },
+      };
+    }
+    const inventory =
+      pin.runtime === 'codex'
+        ? await inspectCodexStopInventory(
+            optional(parsed, 'hooks-path') ??
+              path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
+          )
+        : await inspectClaudeStopInventory({
+            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
+              .split(path.delimiter)
+              .filter(Boolean),
+            installedPlugins: {},
+          });
+    return {
+      operation: 'delivery.inspect',
+      collaborationId,
+      data: await assessAutomaticOwnership({
+        root,
+        pin,
+        worktree: optional(parsed, 'cwd') ?? io.cwd,
+        inventory,
+        acknowledgedFingerprint:
+          optional(parsed, 'acknowledge-stop-hooks') ?? null,
+      }),
+    };
+  }
+  if (command === 'delivery' && subcommand === 'register') {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === 'cursor')
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'Cursor automatic delivery is unverified; use the manual inbox',
+      );
+    const scriptPath = required(parsed, 'script-path');
+    const worktree = optional(parsed, 'cwd') ?? io.cwd;
+    const hooksPath = optional(parsed, 'hooks-path');
+    const inventory =
+      pin.runtime === 'codex'
+        ? await inspectCodexStopInventory(
+            hooksPath ??
+              path.join(io.env.HOME ?? io.cwd, '.codex', 'hooks.json'),
+          )
+        : await inspectClaudeStopInventory({
+            settingsPaths: (optional(parsed, 'settings-paths') ?? '')
+              .split(path.delimiter)
+              .filter(Boolean),
+            installedPlugins: optional(parsed, 'installed-plugins')
+              ? (JSON.parse(required(parsed, 'installed-plugins')) as Record<
+                  string,
+                  string
+                >)
+              : {},
+          });
+    const ownership = await assessAutomaticOwnership({
+      root,
+      pin,
+      worktree,
+      inventory,
+      acknowledgedFingerprint:
+        optional(parsed, 'acknowledge-stop-hooks') ?? null,
+    });
+    if (!ownership.automaticAllowed) {
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ''}`,
+      );
+    }
+    return {
+      operation: 'delivery.register',
+      collaborationId,
+      data:
+        pin.runtime === 'codex'
+          ? await installCodexMessagingHooks({
+              hooksPath: hooksPath ?? required(parsed, 'hooks-path'),
+              scriptPath,
+            })
+          : {
+              changed: false,
+              declaration: claudeSessionHookDeclaration(scriptPath),
+              notice:
+                'Generate only: apply this session-scoped declaration explicitly; trust and invocation remain unverified.',
+            },
+    };
+  }
+  if (command === 'delivery' && subcommand === 'unregister') {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime !== 'codex')
+      throw new TypeError(
+        'Claude session-scoped declarations are removed by their owning session configuration',
+      );
+    return {
+      operation: 'delivery.unregister',
+      collaborationId,
+      data: await uninstallCodexMessagingHooks({
+        hooksPath: required(parsed, 'hooks-path'),
+        scriptPath: required(parsed, 'script-path'),
       }),
     };
   }

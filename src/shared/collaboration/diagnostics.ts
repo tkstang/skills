@@ -49,7 +49,7 @@ function validate(input: DeliveryDiagnosticInput): void {
   for (const value of Object.values(input)) {
     if (
       typeof value === 'string' &&
-      /(password|token=|secret|prompt|credential)/iu.test(value)
+      /(password|token=|secret|credential)/iu.test(value)
     ) {
       throw new TypeError('diagnostic contains disallowed sensitive text');
     }

@@ -4,7 +4,7 @@
 // src/skills/agent-messaging/src/agent-messaging.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
 import { realpathSync } from "node:fs";
-import path9 from "node:path";
+import path10 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
@@ -1497,7 +1497,7 @@ async function enableActivation(input) {
     mechanism: input.mechanism ?? "stop",
     controller: input.controller ?? "standalone-messaging",
     thirdPartyHookAcknowledgment: input.thirdPartyHookAcknowledgment ?? null,
-    noObserverMonitorAttestation: input.noObserverMonitorAttestation ?? null,
+    noObserverMonitorAttestation: input.noObserverMonitorAttestation ?? (input.noObserverMonitorConfirmed ? { pin: input.pin, epoch, confirmedAt: startedAt } : null),
     startedAt,
     hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),
     expiryMode,
@@ -1559,7 +1559,7 @@ async function recordHumanActivity(input) {
     )
   };
   const safeKey2 = await import("node:crypto").then(
-    ({ createHash: createHash4 }) => createHash4("sha256").update(`human\0${input.eventKey}`).digest("hex")
+    ({ createHash: createHash5 }) => createHash5("sha256").update(`human\0${input.eventKey}`).digest("hex")
   );
   await publishImmutableRecord(
     path4.join(
@@ -2491,6 +2491,353 @@ async function acknowledgeMessage(input) {
   return { ack, duplicate: false };
 }
 
+// src/skills/agent-messaging/src/registration.ts
+import { createHash as createHash4 } from "node:crypto";
+import { lstat as lstat4, mkdir as mkdir2, readFile as readFile3, rename as rename2, writeFile } from "node:fs/promises";
+import path9 from "node:path";
+var OBSERVER_LEASE_SCHEMA_VERSION = 6;
+var OBSERVER_LAUNCHER_OWNER = "session-observer-collab-codex-stop";
+var OBSERVER_BUNDLE_MANIFEST = ".session-observer-collab-bundle.json";
+var OBSERVER_BUNDLE_FILES = [
+  "session-observer-collab/scripts/hooks/codex-stop.mjs"
+];
+var MESSAGING_HOOK_OWNER = "agent-messaging-host-hook-v1";
+function fingerprint(registrations) {
+  return createHash4("sha256").update(
+    canonicalJson(
+      registrations.map(({ source, command }) => ({ source, command })).toSorted(
+        (left, right) => left.source.localeCompare(right.source) || left.command.localeCompare(right.command)
+      )
+    )
+  ).digest("hex");
+}
+function stopCommands(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const hooks = value.hooks;
+  if (!hooks || typeof hooks !== "object" || Array.isArray(hooks)) return [];
+  const groups = hooks.Stop;
+  if (!Array.isArray(groups)) return [];
+  const commands = [];
+  for (const group of groups) {
+    if (!group || typeof group !== "object" || Array.isArray(group)) continue;
+    const entries = group.hooks;
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (entry && typeof entry === "object" && !Array.isArray(entry) && typeof entry.command === "string") {
+        commands.push(entry.command);
+      }
+    }
+  }
+  return commands;
+}
+function commandScript(command) {
+  const match = /^node\s+--\s+(?:'((?:[^']|'"'"')*)'|"([^"]+)"|(\S+))$/u.exec(
+    command.trim()
+  );
+  const raw = match?.[1] ?? match?.[2] ?? match?.[3];
+  return raw ? raw.replaceAll(`'"'"'`, `'`) : null;
+}
+async function recognizedObserverLauncher(command) {
+  const script = commandScript(command);
+  if (!script || !path9.isAbsolute(script)) return false;
+  const launcher = await readFile3(script, "utf8").catch(() => null);
+  const marker = launcher?.match(
+    new RegExp(`^// ${OBSERVER_LAUNCHER_OWNER}:([a-f0-9]{24})$`, "mu")
+  );
+  if (!launcher || !marker) return false;
+  const supportRoot = path9.join(
+    path9.dirname(script),
+    `.${path9.basename(script)}.support`,
+    marker[1]
+  );
+  const manifest = await readFile3(
+    path9.join(supportRoot, OBSERVER_BUNDLE_MANIFEST),
+    "utf8"
+  ).then((bytes) => JSON.parse(bytes)).catch(() => null);
+  if (!manifest || manifest.owner !== OBSERVER_LAUNCHER_OWNER || manifest.version !== marker[1] || JSON.stringify(manifest.files) !== JSON.stringify(OBSERVER_BUNDLE_FILES)) {
+    return false;
+  }
+  return Promise.all(
+    OBSERVER_BUNDLE_FILES.map((file) => lstat4(path9.join(supportRoot, file)))
+  ).then(
+    (entries) => entries.every((entry) => entry.isFile() && !entry.isSymbolicLink()),
+    () => false
+  );
+}
+async function recognizedMessagingLauncher(command) {
+  const script = commandScript(command);
+  if (!script || !path9.isAbsolute(script)) return false;
+  const info = await lstat4(script).catch(() => null);
+  if (!info || !info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 * 1024) {
+    return false;
+  }
+  const launcher = await readFile3(script, "utf8").catch(() => null);
+  if (!launcher || !launcher.includes(`"${MESSAGING_HOOK_OWNER}"`))
+    return false;
+  const header = launcher.slice(0, 512);
+  return header.includes("// GENERATED skill payload for agent-messaging.") && (header.includes("// src/skills/agent-messaging/src/hooks/codex.ts") || header.includes("// src/skills/agent-messaging/src/hooks/claude-code.ts"));
+}
+async function readConfig(file) {
+  return readFile3(file, "utf8").then(
+    (value) => JSON.parse(value),
+    (error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  );
+}
+async function inspectCodexStopInventory(hooksPath) {
+  if (!path9.isAbsolute(hooksPath))
+    throw new TypeError("Codex hooks path must be absolute");
+  const unreadableSources = [];
+  let config = null;
+  try {
+    config = await readConfig(hooksPath);
+  } catch {
+    unreadableSources.push(hooksPath);
+  }
+  const registrations = [];
+  for (const command of stopCommands(config)) {
+    registrations.push({
+      source: hooksPath,
+      command,
+      recognizedObserver: await recognizedObserverLauncher(command),
+      recognizedMessaging: await recognizedMessagingLauncher(command)
+    });
+  }
+  return {
+    runtime: "codex",
+    registrations,
+    fingerprint: fingerprint(registrations),
+    unreadableSources,
+    unresolvedPlugins: [],
+    visibilityLimits: []
+  };
+}
+async function inspectClaudeStopInventory(input) {
+  const registrations = [];
+  const unreadableSources = [];
+  const unresolvedPlugins = [];
+  const enabledPlugins = /* @__PURE__ */ new Set();
+  for (const source of input.settingsPaths) {
+    if (!path9.isAbsolute(source))
+      throw new TypeError("Claude settings paths must be absolute");
+    let config = null;
+    try {
+      config = await readConfig(source);
+    } catch {
+      unreadableSources.push(source);
+      continue;
+    }
+    for (const command of stopCommands(config)) {
+      registrations.push({
+        source,
+        command,
+        recognizedObserver: false,
+        recognizedMessaging: await recognizedMessagingLauncher(command)
+      });
+    }
+    if (config && typeof config === "object" && !Array.isArray(config)) {
+      const plugins = config.enabledPlugins;
+      if (plugins && typeof plugins === "object" && !Array.isArray(plugins)) {
+        for (const [name, enabled] of Object.entries(plugins)) {
+          if (enabled === true) enabledPlugins.add(name);
+        }
+      }
+    }
+  }
+  for (const name of enabledPlugins) {
+    const pluginRoot = input.installedPlugins?.[name];
+    if (!pluginRoot || !path9.isAbsolute(pluginRoot)) {
+      unresolvedPlugins.push(name);
+      continue;
+    }
+    const source = path9.join(pluginRoot, "hooks", "hooks.json");
+    let config = null;
+    try {
+      config = await readConfig(source);
+    } catch {
+      unreadableSources.push(source);
+      continue;
+    }
+    for (const command of stopCommands(config)) {
+      registrations.push({
+        source,
+        command,
+        recognizedObserver: false,
+        recognizedMessaging: await recognizedMessagingLauncher(command)
+      });
+    }
+  }
+  return {
+    runtime: "claude-code",
+    registrations,
+    fingerprint: fingerprint(registrations),
+    unreadableSources,
+    unresolvedPlugins,
+    visibilityLimits: [
+      "session-scoped skill and agent frontmatter hooks are not enumerable from loaded settings files"
+    ]
+  };
+}
+async function inspectObserverLease(input) {
+  const file = path9.join(input.root, "leases", `${input.pin.sessionId}.json`);
+  let info;
+  try {
+    info = await lstat4(file);
+  } catch (error) {
+    if (error.code === "ENOENT") return "absent";
+    return "uncertain";
+  }
+  if (!info.isFile() || info.isSymbolicLink() || process.getuid && info.uid !== process.getuid() || info.size > 64 * 1024) {
+    return "uncertain";
+  }
+  let lease;
+  try {
+    lease = JSON.parse(await readFile3(file, "utf8"));
+  } catch {
+    return "uncertain";
+  }
+  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || lease.ownerCwd !== path9.resolve(input.worktree) || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
+    lease.state
+  ) || !Number.isSafeInteger(lease.continuationCount) || !Number.isSafeInteger(lease.continuationCap) || !Number.isSafeInteger(lease.loopCount) || !Number.isSafeInteger(lease.loopCap) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || Number.isNaN(Date.parse(lease.armedAt)) || Number.isNaN(Date.parse(lease.expiresAt)) || Date.parse(lease.expiresAt) - Date.parse(lease.armedAt) !== lease.leaseMs) {
+    return "uncertain";
+  }
+  if (lease.state === "triggered") return "present";
+  if (["idle", "disarmed"].includes(lease.state)) return "inactive";
+  const now = (input.now ?? /* @__PURE__ */ new Date()).getTime();
+  if (now >= Date.parse(lease.expiresAt) || lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap) {
+    return "inactive";
+  }
+  return "present";
+}
+async function assessAutomaticOwnership(input) {
+  assertPin(input.pin);
+  const lease = await inspectObserverLease(input);
+  const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
+  if (lease === "present" || lease === "uncertain") {
+    return {
+      automaticAllowed: false,
+      observerOwner: lease,
+      reason: lease === "present" ? "an exact-session observer continuation owner is active or triggered" : "observer ownership cannot be established safely",
+      recoveryCommand,
+      inventory: input.inventory,
+      thirdPartyAcknowledgmentRequired: false,
+      acknowledgedFingerprint: null
+    };
+  }
+  if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0) {
+    return {
+      automaticAllowed: false,
+      observerOwner: lease,
+      reason: "required hook inventory is unreadable or unresolved",
+      recoveryCommand: null,
+      inventory: input.inventory,
+      thirdPartyAcknowledgmentRequired: false,
+      acknowledgedFingerprint: null
+    };
+  }
+  const thirdParty = input.inventory.registrations.filter(
+    (registration) => !registration.recognizedObserver && !registration.recognizedMessaging
+  );
+  if (thirdParty.length > 0 && input.acknowledgedFingerprint !== input.inventory.fingerprint) {
+    return {
+      automaticAllowed: false,
+      observerOwner: lease,
+      reason: "third-party Stop registrations require exact scoped acknowledgment",
+      recoveryCommand: null,
+      inventory: input.inventory,
+      thirdPartyAcknowledgmentRequired: true,
+      acknowledgedFingerprint: null
+    };
+  }
+  return {
+    automaticAllowed: true,
+    observerOwner: lease,
+    reason: "no active observer owner and the bounded hook inventory is accepted",
+    recoveryCommand: null,
+    inventory: input.inventory,
+    thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
+    acknowledgedFingerprint: thirdParty.length > 0 ? input.inventory.fingerprint : null
+  };
+}
+function shellQuote(value) {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+function codexMessagingCommand(scriptPath) {
+  if (!path9.isAbsolute(scriptPath))
+    throw new TypeError("messaging hook script path must be absolute");
+  return `node -- ${shellQuote(path9.resolve(scriptPath))}`;
+}
+async function writeJsonAtomic(file, value) {
+  await mkdir2(path9.dirname(file), { recursive: true, mode: 448 });
+  const temporary = `${file}.tmp-${process.pid}-${Date.now()}`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}
+`, {
+    mode: 384
+  });
+  await rename2(temporary, file);
+}
+async function installCodexMessagingHooks(input) {
+  if (!path9.isAbsolute(input.hooksPath))
+    throw new TypeError("Codex hooks path must be absolute");
+  const config = await readConfig(input.hooksPath) ?? {};
+  const hooks = config.hooks && typeof config.hooks === "object" && !Array.isArray(config.hooks) ? structuredClone(config.hooks) : {};
+  const command = codexMessagingCommand(input.scriptPath);
+  let changed = false;
+  for (const event of ["UserPromptSubmit", "Stop"]) {
+    const groups = Array.isArray(hooks[event]) ? structuredClone(hooks[event]) : [];
+    const exists = stopCommands({ hooks: { Stop: groups } }).includes(command);
+    if (!exists) {
+      groups.push({ hooks: [{ type: "command", command, timeout: 65 }] });
+      hooks[event] = groups;
+      changed = true;
+    }
+  }
+  if (changed) await writeJsonAtomic(input.hooksPath, { ...config, hooks });
+  return { changed, exactCommand: command };
+}
+async function uninstallCodexMessagingHooks(input) {
+  if (!path9.isAbsolute(input.hooksPath))
+    throw new TypeError("Codex hooks path must be absolute");
+  const config = await readConfig(input.hooksPath);
+  if (!config || typeof config !== "object" || Array.isArray(config))
+    return { changed: false };
+  const next = structuredClone(config);
+  const hooks = next.hooks;
+  if (!hooks) return { changed: false };
+  const command = codexMessagingCommand(input.scriptPath);
+  let changed = false;
+  for (const event of ["UserPromptSubmit", "Stop"]) {
+    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
+    hooks[event] = groups.map((group) => {
+      if (!group || typeof group !== "object" || Array.isArray(group))
+        return group;
+      const entries = Array.isArray(group.hooks) ? group.hooks ?? [] : [];
+      const filtered = entries.filter(
+        (entry) => !entry || typeof entry !== "object" || Array.isArray(entry) || entry.command !== command
+      );
+      if (filtered.length !== entries.length) changed = true;
+      return { ...group, hooks: filtered };
+    }).filter(
+      (group) => !group || typeof group !== "object" || Array.isArray(group) || (group.hooks?.length ?? 0) > 0
+    );
+  }
+  if (changed) await writeJsonAtomic(input.hooksPath, next);
+  return { changed };
+}
+function claudeSessionHookDeclaration(scriptPath) {
+  const command = codexMessagingCommand(scriptPath);
+  return {
+    hooks: {
+      UserPromptSubmit: [
+        { hooks: [{ type: "command", command, timeout: 65 }] }
+      ],
+      Stop: [{ hooks: [{ type: "command", command, timeout: 65 }] }]
+    }
+  };
+}
+
 // src/skills/agent-messaging/src/agent-messaging.ts
 function attachOpenContext(error, collaborationId, root) {
   const contextual = error instanceof Error ? error : new Error(String(error));
@@ -2546,7 +2893,14 @@ function parse(argv) {
       continue;
     }
     const name = token.slice(2);
-    if (["json", "help", "all", "body-stdin", "what-stdin"].includes(name)) {
+    if ([
+      "json",
+      "help",
+      "all",
+      "body-stdin",
+      "what-stdin",
+      "confirm-no-observer-monitor"
+    ].includes(name)) {
       flags.set(name, true);
       continue;
     }
@@ -2640,9 +2994,9 @@ function resolveSelf(parsed, env) {
 function rootFor(parsed, env) {
   const explicit = optional(parsed, "root");
   if (explicit) {
-    if (!path9.isAbsolute(explicit))
+    if (!path10.isAbsolute(explicit))
       throw new TypeError("--root must be absolute");
-    return path9.resolve(explicit);
+    return path10.resolve(explicit);
   }
   return resolveCollaborationRoot(env);
 }
@@ -2784,14 +3138,45 @@ async function execute(parsed, io) {
   }
   if (command === "delivery" && subcommand === "enable") {
     const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === "cursor")
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        "Cursor automatic delivery is unverified; use the manual inbox"
+      );
     const expiryMode = optional(parsed, "expiry-mode") ?? "fixed";
     if (!["fixed", "human-idle"].includes(expiryMode))
       throw new TypeError("--expiry-mode must be fixed or human-idle");
+    const worktree = optional(parsed, "cwd") ?? io.cwd;
+    const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
+      optional(parsed, "hooks-path") ?? path10.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+    ) : await inspectClaudeStopInventory({
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path10.delimiter).filter(Boolean),
+      installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
+    });
+    const ownership = await assessAutomaticOwnership({
+      root,
+      pin,
+      worktree,
+      inventory,
+      acknowledgedFingerprint: optional(parsed, "acknowledge-stop-hooks") ?? null
+    });
+    if (!ownership.automaticAllowed) {
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ""}`
+      );
+    }
+    if (pin.runtime === "claude-code" && !parsed.flags.has("confirm-no-observer-monitor")) {
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        "Claude standalone delivery requires --confirm-no-observer-monitor from the acting session"
+      );
+    }
     const data = await enableActivation({
       root,
       collaborationId,
       pin,
-      worktree: optional(parsed, "cwd") ?? io.cwd,
+      worktree,
       activationId: optional(parsed, "activation-id"),
       mechanism: optional(parsed, "mechanism") ?? "stop",
       expiryMode,
@@ -2808,7 +3193,12 @@ async function execute(parsed, io) {
         MAX_ACTIVATION_DURATION_MS
       ),
       maxContinuations: integer(parsed, "max-continuations", 20),
-      waitMs: integer(parsed, "wait-ms", 0)
+      waitMs: integer(parsed, "wait-ms", 0),
+      thirdPartyHookAcknowledgment: ownership.acknowledgedFingerprint ? {
+        configurationFingerprint: ownership.acknowledgedFingerprint,
+        acknowledgedAt: (/* @__PURE__ */ new Date()).toISOString()
+      } : null,
+      noObserverMonitorConfirmed: pin.runtime === "claude-code" && parsed.flags.has("confirm-no-observer-monitor")
     });
     return { operation: "delivery.enable", collaborationId, data };
   }
@@ -2842,6 +3232,93 @@ async function execute(parsed, io) {
         pin: resolveSelf(parsed, io.env),
         priorAttemptId: required(parsed, "attempt"),
         messageId: required(parsed, "message")
+      })
+    };
+  }
+  if (command === "delivery" && subcommand === "inspect") {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === "cursor") {
+      return {
+        operation: "delivery.inspect",
+        collaborationId,
+        data: {
+          capability: "manual-only",
+          reason: "current Cursor start/Stop delivery is not proven"
+        }
+      };
+    }
+    const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
+      optional(parsed, "hooks-path") ?? path10.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+    ) : await inspectClaudeStopInventory({
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path10.delimiter).filter(Boolean),
+      installedPlugins: {}
+    });
+    return {
+      operation: "delivery.inspect",
+      collaborationId,
+      data: await assessAutomaticOwnership({
+        root,
+        pin,
+        worktree: optional(parsed, "cwd") ?? io.cwd,
+        inventory,
+        acknowledgedFingerprint: optional(parsed, "acknowledge-stop-hooks") ?? null
+      })
+    };
+  }
+  if (command === "delivery" && subcommand === "register") {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime === "cursor")
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        "Cursor automatic delivery is unverified; use the manual inbox"
+      );
+    const scriptPath = required(parsed, "script-path");
+    const worktree = optional(parsed, "cwd") ?? io.cwd;
+    const hooksPath = optional(parsed, "hooks-path");
+    const inventory = pin.runtime === "codex" ? await inspectCodexStopInventory(
+      hooksPath ?? path10.join(io.env.HOME ?? io.cwd, ".codex", "hooks.json")
+    ) : await inspectClaudeStopInventory({
+      settingsPaths: (optional(parsed, "settings-paths") ?? "").split(path10.delimiter).filter(Boolean),
+      installedPlugins: optional(parsed, "installed-plugins") ? JSON.parse(required(parsed, "installed-plugins")) : {}
+    });
+    const ownership = await assessAutomaticOwnership({
+      root,
+      pin,
+      worktree,
+      inventory,
+      acknowledgedFingerprint: optional(parsed, "acknowledge-stop-hooks") ?? null
+    });
+    if (!ownership.automaticAllowed) {
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ""}`
+      );
+    }
+    return {
+      operation: "delivery.register",
+      collaborationId,
+      data: pin.runtime === "codex" ? await installCodexMessagingHooks({
+        hooksPath: hooksPath ?? required(parsed, "hooks-path"),
+        scriptPath
+      }) : {
+        changed: false,
+        declaration: claudeSessionHookDeclaration(scriptPath),
+        notice: "Generate only: apply this session-scoped declaration explicitly; trust and invocation remain unverified."
+      }
+    };
+  }
+  if (command === "delivery" && subcommand === "unregister") {
+    const pin = resolveSelf(parsed, io.env);
+    if (pin.runtime !== "codex")
+      throw new TypeError(
+        "Claude session-scoped declarations are removed by their owning session configuration"
+      );
+    return {
+      operation: "delivery.unregister",
+      collaborationId,
+      data: await uninstallCodexMessagingHooks({
+        hooksPath: required(parsed, "hooks-path"),
+        scriptPath: required(parsed, "script-path")
       })
     };
   }
@@ -3013,7 +3490,7 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     return exitFor(error);
   }
 }
-if (process.argv[1] && realpathSync(path9.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path10.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runAgentMessagingCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });
