@@ -450,6 +450,22 @@ handing off ownership. Missing confirmation or lost session context retains
 manual delivery until reconfirmed; do not describe attestation as host proof.
 Verified composed mode uses its single selected Monitor controller instead.
 
+Composed Claude activation is recorded on both sides of the ownership boundary.
+The immutable messaging activation carries `composedMonitorAttestation`, which
+captures the exact owner/peer pins, activation and collaboration IDs, the
+observer lease selected at enable time, and the acting-session confirmations
+that the old Monitor and standalone watcher were stopped. The observer lease
+carries `composedActivation`, binding its owner/peer sessions, cwd, transcript,
+controller, mechanism, and the same activation/collaboration IDs. Both records
+must agree before a Monitor can emit.
+
+`composedMonitorAttestation.observerLeaseId` is enable-time provenance, not the
+identity of every later re-arm lease. A re-arm publishes a fresh lease ID while
+preserving its `composedActivation` binding and the activation's finite budget;
+each Monitor invocation captures that current lease ID and refuses if it changes
+during the run. The immutable activation is not rewritten merely to follow a
+re-arm.
+
 Adapters validate native payloads and exact session/worktree, emit only valid
 host output on stdout, and send redacted diagnostics to stderr. Unknown events
 or missing identity fail closed. Messaging failures must not block a human
@@ -632,6 +648,21 @@ type Activation = {
     epoch: number;
     confirmedAt: string;
   } | null; // Claude standalone only; watch re-arm also needs fresh confirmation
+  composedMonitorAttestation: {
+    owner: Pin;
+    peer: Pin;
+    observerLeaseId: string; // lease selected when this activation was enabled
+    activationId: string;
+    collaborationId: string;
+    epoch: number;
+    confirmedAt: string;
+    oldMonitorStopped: true;
+    standaloneWatcherStopped: true;
+  } | null; // Claude observer-collab Monitor only
+  claudeInventorySources: {
+    settingsPaths: string[];
+    installedPlugins: Record<string, string>;
+  } | null;
   startedAt: string;
   hardExpiresAt: string;
   expiryMode: 'human-idle' | 'fixed';
@@ -639,6 +670,32 @@ type Activation = {
   fixedExpiresAt: string | null;
   maxContinuations: number;
   waitMs: number;
+};
+type ObserverLease = {
+  schemaVersion: 6;
+  leaseId: string;
+  runtime: 'claude-code' | 'codex' | 'cursor';
+  peerRuntime: 'claude-code' | 'codex' | 'cursor';
+  ownerSession: string;
+  ownerCwd: string;
+  peerSession: string;
+  peerTranscript: string;
+  composedActivation?: {
+    collaborationId: string;
+    activationId: string;
+    controller: 'observer-collab';
+    mechanism: 'monitor';
+    ownerRuntime: 'claude-code';
+    ownerSession: string;
+    peerRuntime: 'claude-code' | 'codex' | 'cursor';
+    peerSession: string;
+    ownerCwd: string;
+    peerTranscript: string;
+    confirmedAt: string;
+    oldMonitorStopped: true;
+    standaloneWatcherStopped: true;
+  } | null; // required for a Claude owner; omitted by existing Codex/Cursor leases
+  // Remaining cursor, continuity, budget, wait, expiry, and diagnostic fields.
 };
 type Claim = {
   schemaVersion: 1;
@@ -652,10 +709,15 @@ type Claim = {
 
 Common metadata records include schema version, UUID/key, author pin, timestamp,
 and canonical content hash. The first activation publisher writes this complete
-schema-v1 shape, including standalone controller and nullable acknowledgment/
-attestation fields. Later tasks populate values for new epochs; they do not
-change schema-v1 shape or rewrite phase-2 live-probe records. Common records use
-the same validation conventions. Hash send fields plus resolved identities, excluding
+schema-v1 shape, including standalone controller and nullable acknowledgment,
+attestation, and inventory fields. These additions are compatibility-preserving
+for existing Codex/Cursor and standalone activation records: absent optional
+composition data is treated as no composed capability, never inferred. The
+lease's `composedActivation` member is likewise additive for Codex/Cursor; a
+Claude owner lease must provide the complete binding and otherwise fails closed.
+Later tasks populate values for new epochs; they do not rewrite phase-2
+live-probe records. Common records use the same validation conventions. Hash
+send fields plus resolved identities, excluding
 server-created receipt timestamps and the hash itself. A reply reference must
 exist in the same collaboration and involve the replying participant. Reject
 unknown kinds, invalid integers/IDs, self-send, stale bindings, and malformed

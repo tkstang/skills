@@ -76,6 +76,34 @@ uncertain, or competing routes. A recognized observer hook without an active
 lease permits standalone messaging. Controller changes require explicit disable
 and re-enable rather than mutation of an active epoch.
 
+### Composed activation records
+
+Claude composed Monitor ownership is reciprocal rather than inferred from one
+record:
+
+| Record               | Composition field            | What it binds                                                                                                          |
+| -------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Messaging activation | `composedMonitorAttestation` | Exact owner/peer pins, activation and collaboration IDs, enable-time observer lease provenance, and stop confirmations |
+| Observer lease       | `composedActivation`         | Exact owner/peer sessions, cwd, transcript, controller/mechanism, activation and collaboration IDs, and confirmations  |
+
+Both sides must agree before the composed Monitor emits. The activation also
+stores the exact Claude settings and installed-plugin inventory sources that
+were resolved at enable time so delivery can re-read the same sources at every
+boundary.
+
+The activation's `observerLeaseId` records which observer lease established
+ownership when enablement occurred. It is provenance, not the identity of every
+later re-arm lease. Re-arm creates a new lease ID while preserving the lease's
+`composedActivation`, the immutable activation, and the existing continuation
+budget. Each finite Monitor invocation captures the current lease ID and exits
+if that lease changes during the run.
+
+These fields are additive. Existing Codex and Cursor leases omit
+`composedActivation`, and non-composed or non-Claude activations carry no
+composed attestation. Absence never grants composed capability. A Claude owner
+lease must contain the complete binding or validation fails closed, while
+existing Codex/Cursor behavior remains unchanged.
+
 ## Capability evidence
 
 Documentation, fixture coverage, installation, trust, invocation, recipient
