@@ -1009,6 +1009,7 @@ green.
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T125014Z.md | -                                        | -          | -                             |
 | p04    | code     | pending         | -          | -                                                           | -                                        | -          | -                             |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md | -                                        | -          | -                             |
+| final  | code     | received        | 2026-09-19 | reviews/final-review-2026-09-19T214803Z.md                  | c6d3424378ae33d0bcdee90dc9e1e3651a44d430 | gate       | claude-fable-skip-permissions |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
