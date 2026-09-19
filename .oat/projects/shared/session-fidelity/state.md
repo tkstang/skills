@@ -99,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Identity passed; activity base setup
+**Status:** Activity implementation ready
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. Fresh review of `455daba2..d4069b77` passed with 0 Critical, 0 Important and one nonblocking Medium watcher-diagnostic follow-up. Activity remains unstarted until root records the reviewed identity tip as `ACTIVITY_BASE` and creates the next local stack branch.
+All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. Fresh review of `455daba2..d4069b77` passed with 0 Critical, 0 Important and one nonblocking Medium watcher-diagnostic follow-up. Root created the local `session-fidelity-activity` stack branch and recorded the reviewed identity tip `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535` as `ACTIVITY_BASE`; p02 source work has not started.
 
 ## Artifacts
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Record the reviewed identity tip as `ACTIVITY_BASE`, create/register the activity branch, and begin p02-t01.
+Dispatch p02 on the activity branch and begin p02-t01 from the recorded `ACTIVITY_BASE`.

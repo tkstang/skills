@@ -77,11 +77,15 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 2
 
-**Status:** pending
+**Status:** in progress
+**ACTIVITY_BASE:** `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`
+**Stack:** `session-fidelity-identity <- session-fidelity-activity`; local only, unpublished.
+
+Root verified `gh stack view --json` after creating `session-fidelity-activity`: its saved base and initial HEAD both equal the reviewed identity tip `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. The p01-t04 commit `f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb` and p01-t05 commit `d310dac8c6d76487a221aaa193481a643c0ea689` are ancestors. No p02 source edit preceded this record.
 
 ### Task p02-t01: Add captured fixtures and LF-only detailed source reading
 
-**Status:** pending
+**Status:** activity base established; implementation pending
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
