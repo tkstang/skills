@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p03-review
+oat_current_task_id: p03-review-fix-1
 oat_generated: false
 ---
 
@@ -16,8 +16,8 @@ This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
-Critical or Important findings. Phase 3 implementation is complete and awaits
-fresh independent review.
+Critical or Important findings. Phase 3 review returned two Important and two
+Medium findings; bounded fix round 1/3 is active.
 
 ## Progress Overview
 
@@ -25,7 +25,7 @@ fresh independent review.
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
-| Phase 3 | review_pending | 3     | 3/3       |
+| Phase 3 | fixes_active | 3     | 3/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
 **Total:** 12/13 tasks completed
@@ -741,6 +741,49 @@ diagnostics:
   - live-provider-actions:none
 ```
 
+#### Dispatch: p03 review round 1
+
+```yaml
+request_id: dispatch-agent-messaging-p03-review-20260919
+caller: oat-project-implement
+scope: phase:p03
+objective: Independently review the complete Phase 3 implementation and bookkeeping.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: review-target
+selected_route: native
+payload:
+  phase_base: 254e190e081fc7af07931bc5b118b1d80643065d
+  reviewed_head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
+  artifact: reviews/code-p03-review-2026-09-19T190153Z.md
+launch_status: accepted
+child_outcome: blocking
+configured_invocation_evidence:
+  - resolver-report:p03-review
+  - "Dispatch: scope=p03-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=2,medium=2,minor=0
+  - reconnaissance:attempted
+  - review-cycles:1/3
+  - fix-rounds:0/3
+```
+
+The reviewer reported `Reconnaissance: attempted` with complete orchestration
+evidence. Its structural project-log entry is deferred until the terminal Phase
+3 outcome so the fix continuation starts from a clean worktree.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -764,6 +807,22 @@ diagnostics:
 - Phase 3 composition triggered and resolved both deferred Phase 2 Medium
   findings: exact-expiry equality is inactive, and `host-output-attempted` is
   not recorded before the final output veto.
+
+## Review Received: p03 round 1
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 3 code review](reviews/code-p03-review-2026-09-19T190153Z.md)
+**Reviewed head:** `d6bd6d6a2894fb7de3368c8c92af51a5842b717b`
+**Findings:** 0 Critical, 2 Important, 2 Medium, 0 Minor.
+**Status:** fixes_completed; fresh independent re-review pending.
+
+The blocking findings require a versioned composition-capability proof for
+installed observer bundles and registration binding to the active activation's
+immutable controller across lease-arm/disarm races. The Medium findings replace
+the disconnected public-cursor fixture with the real observer offset and
+qualify the changelog's Codex verification wording as fixture-tested rather than
+live acceptance. All four are accepted as in-scope fixes under p03-t02/p03-t03;
+no task IDs are added or renumbered.
 
 ## Review Received: p02 round 1
 
