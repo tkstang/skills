@@ -146,13 +146,35 @@ No deferred/rejected findings or design departures.
 
 **Subsequent verification:** The independent second gate reviewed eec9583b and
 confirmed all seven corrections. Its four additional findings are recorded in
-reviews/artifact-plan-review-2026-09-19T021241Z.md; none has been dispositioned or
-applied yet. Counts: 0 Critical, 0 Important, 2 Medium, 2 Minor. The gate returned
+reviews/archived/artifact-plan-review-2026-09-19T021241Z.md. Counts: 0 Critical,
+0 Important, 2 Medium, 2 Minor. The gate returned
 status=ok, receiveEligible=true and a corroborated handoff; it passed the
 Important threshold, not a zero-finding check.
 
-**Next:** Obtain user disposition of the second review before further plan edits.
-Review bookkeeping is not authorization to implement.
+### Review Received: plan (second gate)
+
+**Date:** 2026-09-19
+**Review artifact:** [Second plan gate](reviews/archived/artifact-plan-review-2026-09-19T021241Z.md)
+**User decision:** Approve all four proposed corrections.
+**Status:** fixes_completed; re-review pending. No tasks added or renumbered.
+
+All four are resolve_in_artifact:
+
+- M1 (Minor scope): p03-t02 binds the single composed controller to the epoch,
+  changes CLI/hooks/watch/registration, and runs both messaging and observer tests.
+- M2 (Minor scope): p02-t02 names hook scopes, caller-selected launcher marker,
+  lease path/schema/effective-state semantics and a test-only parity contract;
+  shipped runtime dependencies stay unchanged.
+- m1 (Minor scope): both skills receive exact-message-ID dedup and inbox-first
+  instructions in p03-t02.
+- m2 (Negligible scope): p03-t03 supplies an executable stdin formatter command
+  for the backlog item, retaining managed-block and generated-index boundaries.
+
+Frontier identity was verified from Claude transcript
+7c6df088-35f6-47be-b380-71abd861dd71: claude-fable-5-1, assistant lines 19
+and 247, final end_turn. No findings were deferred or rejected.
+
+**Next:** Re-review the corrected plan. No implementation is authorized here.
 
 ## Deviations from Plan / Design
 
