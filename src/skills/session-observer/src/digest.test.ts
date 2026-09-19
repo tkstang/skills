@@ -33,6 +33,7 @@ const automaticWakeFixtures = [
 
 import { createCursorTurnAccumulator } from '../../../shared/transcript/cursor-analysis.js';
 import { scanCursorTranscript } from '../../../shared/transcript/cursor-frames.js';
+import { readRecordsDetailed } from '../../../shared/transcript/runtimes.js';
 import { buildDigest, renderJson, renderMarkdown } from './lib/digest.js';
 import type {
   CursorIdentityEvidence,
@@ -2191,5 +2192,131 @@ describe('ask-user exchanges', () => {
     ).toBe(true);
     // The turn's other content is unaffected by the ask-user carve-out.
     expect(md).toContain('Discovery is complete and committed.');
+  });
+});
+
+describe('optional activity projection', () => {
+  test('keeps the default digest byte-compatible when activity is absent', async () => {
+    const baseline = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    const explicitOff = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+      includeActivity: false,
+    });
+
+    expect(renderJson(explicitOff)).toBe(renderJson(baseline));
+    expect(renderMarkdown(explicitOff)).toBe(renderMarkdown(baseline));
+  });
+
+  test('attaches independently budgeted activity and suppresses duplicate legacy markers', async () => {
+    const digest = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+      includeActivity: true,
+      maxTurns: 1,
+      maxBytes: 80,
+    });
+    const markdown = renderMarkdown(digest);
+
+    expect(digest.schemaVersion).toBe(1);
+    expect(digest.activity).toMatchObject({
+      activitySchemaVersion: 1,
+      mode: 'review',
+      deliveryRange: { start: 0, end: 11 },
+      counts: {
+        capturedSource: { countedInvocations: 3 },
+        deliveredRange: { countedInvocations: 3 },
+      },
+    });
+    expect(digest.entries).toHaveLength(2);
+    expect(digest.entries.at(-1)?.text).toContain("You're welcome");
+    expect(digest.activity!.events.length).toBeGreaterThan(0);
+    expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
+      digest.activity!.limits.maxBytes,
+    );
+    expect(markdown).toContain('## Activity');
+    expect(markdown).not.toContain('[Bash]');
+    expect(markdown).not.toContain('[Read → result]');
+  });
+
+  test('uses the raw delivered range for catch-up activity', async () => {
+    const digest = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 4,
+      mode: 'catch-up',
+      includeActivity: true,
+    });
+
+    expect(digest.activity).toMatchObject({
+      mode: 'catch-up',
+      deliveryRange: { start: 4, end: 11 },
+      counts: {
+        capturedSource: { countedInvocations: 3 },
+        deliveredRange: { countedInvocations: 2 },
+      },
+    });
+  });
+
+  test('preserves conversation with explicit unavailable coverage when the optional pass fails', async () => {
+    const capturedRead = await readRecordsDetailed(typicalClaude);
+    Object.defineProperty(capturedRead, 'diagnostics', {
+      get() {
+        throw new Error('injected optional extraction failure');
+      },
+    });
+
+    const digest = await buildDigest('claude-code', typicalClaude, {
+      includeActivity: true,
+      capturedRead,
+    });
+
+    expect(digest.entries.length).toBeGreaterThan(0);
+    expect(digest.activity).toMatchObject({
+      coverage: [
+        {
+          dataClass: 'record-activity',
+          status: 'not-read',
+          captured: 0,
+        },
+      ],
+      diagnostics: [{ code: 'ACTIVITY_EXTRACTION_ERROR' }],
+    });
+  });
+
+  test('retains ask-user human and automatic-resolution caveats in activity mode', async () => {
+    const claude = await buildDigest(
+      'claude-code',
+      join(FIXTURES, 'claude-code', 'ask-user-question.jsonl'),
+      {
+        includeActivity: true,
+        includeToolCalls: true,
+        includeToolResults: true,
+      },
+    );
+    const codex = await buildDigest(
+      'codex',
+      join(FIXTURES, 'codex', 'request-user-input.jsonl'),
+      {
+        includeActivity: true,
+        includeToolCalls: true,
+        includeToolResults: true,
+      },
+    );
+
+    expect(renderMarkdown(claude)).toContain(
+      'Design depth: "Actually, show me the tradeoffs first."',
+    );
+    expect(
+      claude.entries.filter((entry) => entry.kind === 'ask_user'),
+    ).toHaveLength(4);
+    expect(renderMarkdown(codex)).toContain('auto-resolves after 120s');
   });
 });

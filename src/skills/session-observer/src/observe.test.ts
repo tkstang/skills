@@ -300,6 +300,100 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test('projects catch-up activity from the delivered range and retains existing state advancement', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-activity-range';
+      const sessionId = 'observe-activity-range';
+      const transcriptPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-activity.jsonl',
+        sessionId,
+        [
+          { role: 'user', content: 'first question' },
+          { role: 'assistant', content: 'first answer' },
+        ],
+      );
+      const first = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: `claude-code:${sessionId}`,
+      });
+      expect(first.ok).toBe(true);
+
+      await appendFile(
+        transcriptPath,
+        [
+          JSON.stringify({
+            sessionId,
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'Checking.' },
+                {
+                  type: 'tool_use',
+                  id: 'tool-range',
+                  name: 'Read',
+                  input: { file_path: 'README.md' },
+                },
+              ],
+            },
+          }),
+          JSON.stringify({
+            sessionId,
+            type: 'user',
+            message: {
+              role: 'user',
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: 'tool-range',
+                  content: 'fixture output',
+                },
+              ],
+            },
+          }),
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const second = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: `claude-code:${sessionId}`,
+        includeTools: true,
+        includeToolResults: true,
+        includeActivity: true,
+      });
+      expect(second.ok).toBe(true);
+      if (!second.ok) throw new Error(second.message);
+      expect(second.digest.activity).toMatchObject({
+        mode: 'catch-up',
+        deliveryRange: { start: 2, end: 4 },
+        counts: {
+          capturedSource: { countedInvocations: 1 },
+          deliveredRange: { countedInvocations: 1 },
+        },
+      });
+      expect(
+        second.digest.entries.some((entry) => entry.kind === 'tool_call'),
+      ).toBe(false);
+      expect(
+        second.digest.entries.some((entry) => entry.kind === 'tool_result'),
+      ).toBe(false);
+      expect(second.markedRead).toBe(true);
+
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        4,
+      );
+    });
+  });
+
   test.each([
     { label: 'missing', storedPath: null, code: 'SAVED_POSITION_PATH_MISSING' },
     {

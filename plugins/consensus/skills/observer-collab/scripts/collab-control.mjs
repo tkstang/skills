@@ -1345,6 +1345,36 @@ async function scanCursorTranscript(transcriptPath, options) {
 // src/skills/session-observer/src/lib/digest.ts
 import { createHash as createHash4 } from "node:crypto";
 
+// src/shared/transcript/activity/project.ts
+var KIB = 1024;
+var MIB = 1024 * KIB;
+var ACTIVITY_PROJECTION_LIMITS = {
+  watch: {
+    maxBytes: 32 * KIB,
+    maxInvocations: 80,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  "catch-up": {
+    maxBytes: 32 * KIB,
+    maxInvocations: 80,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  review: {
+    maxBytes: 128 * KIB,
+    maxInvocations: 1024,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  export: {
+    maxBytes: 64 * MIB,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  }
+};
+
 // src/skills/session-observer-collab/src/lib/selected-prefix.mjs
 var SHA256 = /^[a-f0-9]{64}$/u;
 function selectedPrefixError() {

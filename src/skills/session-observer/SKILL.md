@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.58'
+  version: '1.0.59'
 ---
 
 # {{distribution.name}}
@@ -87,6 +87,7 @@ Use this skill when any of the following applies:
 | `--include-command-messages` | boolean                            | false           | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`.                                                                                                |
 | `--debug`                    | boolean                            | false           | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. For `locate --json`, includes lookup diagnostics such as Claude's expected project-dir slugs. |
 | `--include-tool-results`     | boolean                            | false           | Include tool-result markers without tool-call markers (unusual; emits a note suggesting `--debug`).                                                                                              |
+| `--include-activity`         | boolean                            | false           | Include a separately bounded, source-attributed activity report. Tool call/result markers are suppressed from the conversation section when this is enabled.                                     |
 | `--json`                     | boolean                            | false           | Machine-readable JSON output (default is markdown).                                                                                                                                              |
 | `--max-turns N`              | integer                            | —               | Tail-slice to last N turn groups.                                                                                                                                                                |
 | `--max-bytes N`              | integer                            | —               | Tail-slice to last N bytes of content.                                                                                                                                                           |

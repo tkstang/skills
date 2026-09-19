@@ -1,3 +1,4 @@
+import type { ActivityReport } from '../../../../shared/transcript/activity/types.js';
 import type {
   CursorLifecycleState,
   CursorTranscriptAnalysis,
@@ -14,6 +15,7 @@ import type {
   JsonObject,
   Runtime,
   TranscriptMeta,
+  DetailedTranscriptRead,
 } from '../../../../shared/transcript/runtimes.js';
 
 export type {
@@ -452,6 +454,8 @@ export interface BuildDigestOptions {
   includeToolCalls?: boolean;
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
+  includeActivity?: boolean;
+  capturedRead?: DetailedTranscriptRead;
   maxTurns?: number;
   maxBytes?: number;
   sessionId?: string;
@@ -483,6 +487,7 @@ export interface Digest {
   range: DigestRange;
   accounting: DigestAccounting;
   entries: DigestEntry[];
+  activity?: ActivityReport;
   filters: DigestFilters;
   warnings: string[];
   fallbacks: TranscriptCandidate[];
@@ -730,6 +735,7 @@ export interface WatchLoopArgs {
   includeTools?: boolean;
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
+  includeActivity?: boolean;
   maxTurns?: number;
   maxBytes?: number;
   debounceSec?: number;
@@ -771,6 +777,7 @@ export interface CliArgs extends WatchLoopArgs {
   includeTools: boolean;
   includeToolResults: boolean;
   includeCommandMessages: boolean;
+  includeActivity: boolean;
   debug: boolean;
   markRead: boolean;
   watch: boolean;

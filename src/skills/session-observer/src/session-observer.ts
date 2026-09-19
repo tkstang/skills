@@ -83,6 +83,7 @@ function parseCliArgs(argv: string[]): CliArgs {
       'include-tools': { type: 'boolean', default: false },
       'include-tool-results': { type: 'boolean', default: false },
       'include-command-messages': { type: 'boolean', default: false },
+      'include-activity': { type: 'boolean', default: false },
       debug: { type: 'boolean', default: false },
       'max-turns': { type: 'string', default: undefined },
       'max-bytes': { type: 'string', default: undefined },
@@ -111,6 +112,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     'include-tools'?: boolean;
     'include-tool-results'?: boolean;
     'include-command-messages'?: boolean;
+    'include-activity'?: boolean;
     debug?: boolean;
     'max-turns'?: string;
     'max-bytes'?: string;
@@ -182,6 +184,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     includeTools,
     includeToolResults,
     includeCommandMessages: values['include-command-messages'] || false,
+    includeActivity: values['include-activity'] ?? false,
     debug: values.debug ?? false,
     maxTurns,
     maxBytes,
@@ -465,6 +468,7 @@ function printUsage(): never {
       '  --cwd <path>                        (default: process.cwd())',
       '  --include-tools                     Include tool call markers',
       '  --include-command-messages          Include Claude slash-command payloads',
+      '  --include-activity                  Include bounded source-attributed activity',
       '  --debug                             Include tool calls and results',
       '  --json                              Output JSON instead of markdown',
       '  --max-turns <N>                     Limit to last N turn groups',
@@ -862,6 +866,7 @@ async function runReview(args: CliArgs): Promise<void> {
     includeTools,
     includeToolResults,
     includeCommandMessages,
+    includeActivity,
     maxTurns,
     maxBytes,
     json,
@@ -1000,6 +1005,7 @@ async function runReview(args: CliArgs): Promise<void> {
               includeToolCalls: includeTools,
               includeToolResults,
               includeCommandMessages,
+              includeActivity,
               maxTurns,
               maxBytes,
               sessionId: pinned.sessionId,
@@ -1131,6 +1137,7 @@ async function runReview(args: CliArgs): Promise<void> {
             includeToolCalls: includeTools,
             includeToolResults,
             includeCommandMessages,
+            includeActivity,
             maxTurns,
             maxBytes,
             sessionId: winner.sessionId,
@@ -1569,6 +1576,7 @@ async function runWatch(args: CliArgs): Promise<void> {
   try {
     await runWatchLoop({
       ...args,
+      includeActivity: false,
       catchUpFirst: args.subcommand === 'catch-up-then-watch',
     });
   } catch (err) {

@@ -530,6 +530,49 @@ describe('CLI subcommand dispatch', () => {
       result.stdout.includes('--watch'),
       'help should list top-level --watch alias',
     ).toBeTruthy();
+    expect(result.stdout).toContain('--include-activity');
+  });
+
+  test('review --include-activity exposes the optional schema without advancing state', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-activity-'));
+    try {
+      const cwd = join(home, 'Code', 'activity-project');
+      const sessionId = 'cli-review-activity';
+      await mkdir(cwd, { recursive: true });
+      await copyClaudeTranscript(home, cwd, sessionId);
+      const stateDir = join(home, '.state');
+
+      const result = spawnCli(
+        [
+          'review',
+          '--runtime',
+          'claude-code',
+          '--session',
+          `claude-code:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--include-activity',
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        mode: 'review',
+        activity: {
+          activitySchemaVersion: 1,
+          mode: 'review',
+          deliveryRange: { start: 0 },
+        },
+      });
+      await expect(
+        readFile(join(stateDir, 'state.json'), 'utf8'),
+      ).rejects.toThrow();
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 
   test('watch --help lists watch flags', () => {
