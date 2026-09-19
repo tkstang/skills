@@ -17,7 +17,7 @@ The user explicitly disabled further external gate reviews for this closeout and
 
 - `c970c876`: schema documentation and dated evidence committed by Fable; docs build/format reported passing, privacy canaries independently rerun passing by the driver.
 - `3e16dd9c`: driver reconciled the documentation handoff and delivery design. Later design/plan revisions incorporate Fable’s read-back.
-- The agreed docs → identity → activity stack is published as ready PRs #94, #95, and #96. The accepted p08 stack was republished; only the p10 top-layer effective-filter correction awaits publication. Merge, release, installation, global synchronization, and live-provider acceptance have not occurred.
+- The agreed docs → identity → activity stack was published as PRs #94, #95, and #96. PR #94 has merged. PRs #95 and #96 remain ready on prior remote heads; the reviewed p12 identity fix and cascade-rebased activity head await publication. Release, installation, global synchronization, and live-provider acceptance have not occurred.
 
 ## Progress Overview
 
@@ -642,6 +642,10 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Outcome: passed after one planned task commit, no recovery attempts and one fresh independent review.
 - Outstanding p12 items: none. Next: full verification, final independent review, publication and remote-thread resolution.
 
+### Final Verification After p12 Restack
+
+The combined post-p12 stack passed 149 test files with one skipped and 2,247 tests with one skipped. Lint completed with the same four pre-existing `no-shadow` warnings; type-check, build, build freshness, repository validation, mocked end-to-end smoke and diff checks passed. The distribution build left the worktree clean.
+
 ### Remote Review Received: github-pr #95
 
 **Date:** 2026-09-19
@@ -679,7 +683,7 @@ The refreshed project-wide suite passed from the committed p10 review baseline: 
 
 ## Reviews
 
-Plan review and phases p00 through p10 passed. The PR #96 effective-filter finding is fixed and independently verified; refreshed final lifecycle review and configured-gate evidence remain required.
+Plan review and phases p00 through p12 passed. All accepted PR #95/#96 findings are fixed and independently reviewed. One final independent lifecycle review remains; the user disabled further external gate reviews for this closeout.
 
 ## Final Summary (for PR/docs)
 
@@ -687,9 +691,9 @@ Session Observer and Session Export Transcript now support an opt-in `--include-
 
 The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. Activity mode now reports the effective suppression of legacy tool markers and counts those filtered entries consistently. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
 
-Local acceptance, including the post-p10 rerun, passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Eleven phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, p09 verifies the corrected generated summary, and p10 verifies the PR #96 effective-filter fix and distribution closure.
+Local acceptance, including the post-p12 restack rerun, passed type checking, generated-build freshness, 2,247 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Thirteen phase reviews pass. The p08 review verifies all four PR #94 corrections, p10 verifies the PR #96 effective-filter fix, p11 verifies closeout artifact alignment, and p12 verifies the three PR #95 identity-integrity fixes and distribution closure.
 
-The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting, Cursor settlement and effective filter reporting without widening the product scope. The PR stack is published and ready; the p10 top-layer update awaits republication. Merge, release, installation and live provider acceptance have not occurred.
+The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, cache identity, lineage validation, availability/omission accounting, final-format byte budgeting, Cursor settlement and effective filter reporting without widening the product scope. PR #94 is merged; the reviewed #95/#96 heads await publication. Release, installation and live provider acceptance have not occurred.
 
 ### Review Received: final
 

@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
 oat_generated: true
-oat_summary_last_task: p10-t01
+oat_summary_last_task: p12-t01
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -20,10 +20,10 @@ saved-position binding, and Claude provenance so stateful operations refuse
 ambiguous or changed sources instead of silently reusing unsafe state.
 
 The work fulfilled and archived `BL-260916-session-fidelity-opt`. Local
-acceptance and eleven independent phase reviews through p10 passed. The
-accepted p08 stack was republished as ready PRs #94, #95, and #96; only the p10
-top-layer effective-filter correction awaits publication. No merge, release,
-installation, global sync, or live-provider acceptance has occurred.
+acceptance and thirteen independent phase reviews through p12 passed. PR #94
+merged; PRs #95 and #96 remain open and ready. The reviewed p12 identity fix and
+rebased activity head await publication. No release, installation, global sync,
+or live-provider acceptance has occurred.
 
 ## What Was Implemented
 
@@ -50,13 +50,16 @@ installation, global sync, or live-provider acceptance has occurred.
 - Made activity mode report its effective suppression of legacy tool markers
   and count the suppressed call/result entries consistently, including under
   observer debug output.
+- Hardened Codex identity boundaries: persistent cache reuse now requires a
+  subsecond filesystem identity signature, malformed present lineage fields
+  fail closed, and every export selection path rejects invalid identities.
 - Integrated Cursor frame evidence using positional call identity and existing
   terminal settlement. Stateful delivery waits for settled turns and avoids
   replay; stateless review/export may show pending evidence without inventing
   call IDs, result payloads, versions, or usage.
 - Updated canonical skills, user and engineering documentation, generated
   standalone/plugin payloads, four affected skill versions, and the changelog.
-  Post-p10 verification passed type checking, generated-build freshness, 2,232
+  Post-p12 verification passed type checking, generated-build freshness, 2,247
   tests with one expected skip, repository validation, smoke, version checks,
   changed-file formatting/linting, a 56-page docs build, and fixture privacy
   checks.
@@ -109,6 +112,9 @@ installation, global sync, or live-provider acceptance has occurred.
 - The p08 review corrections changed closeout records, recovery guidance, MCP
   evidence traversal, and framing documentation without changing the approved
   activity contract or adding a compatibility path.
+- The p12 review corrections invalidate weaker persistent identity cache
+  entries and malformed optional lineage rather than preserving compatibility
+  with unsafe cached or ambiguous evidence.
 
 ## Notable Challenges
 
@@ -121,10 +127,9 @@ installation, global sync, or live-provider acceptance has occurred.
   budgets. Bounded recovery commits fixed each issue and fresh phase reviews
   passed.
 - PR #94 review arrived after the three-layer stack was already published.
-  Applying its four corrections to the bottom layer required cascade rebasing
-  the identity and activity layers and republishing the accepted p08 stack.
-  The later p10 review correction now leaves only the activity top layer ahead
-  of its ready remote PR head.
+  Its corrections required cascade rebasing both upper layers before #94
+  merged. Later PR #95 and #96 review fixes required another identity/activity
+  restack while retaining layer-specific review boundaries.
 
 ## Tradeoffs Made
 
@@ -148,13 +153,11 @@ installation, global sync, or live-provider acceptance has occurred.
 - Physical lines and decoded record indices are provenance coordinates, not
   observer checkpoints. Cursor frame and terminal delivery positions remain a
   separate coordinate system.
-- PRs #94 through #96 remain open, published, non-draft, and ready. Their
-  republished heads include the accepted p08 planning-status,
-  recovery-guidance, detached-MCP, and LF-framing corrections. Only the p10
-  effective-filter correction on the activity layer awaits publication before
-  remote review or merge can cover it.
-- Merge, release, installation, global sync, and live-provider acceptance
-  remain separate lifecycle steps and have not occurred.
+- PR #94 is merged. PRs #95 and #96 remain open, non-draft, and ready on their
+  prior remote heads. The reviewed p12 identity fix and rebased activity head
+  await publication before remote review or merge can cover them.
+- Release, installation, global sync, and live-provider acceptance remain
+  separate lifecycle steps and have not occurred.
 
 ## Follow-up Items
 

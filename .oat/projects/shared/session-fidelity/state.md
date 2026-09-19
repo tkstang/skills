@@ -130,9 +130,9 @@ oat_implement_exit_gate:
   failure: null
   updated_at: '2026-09-19T22:22:00Z'
 oat_post_implement_sequence:
-  status: complete
+  status: in_progress
   source: configured
-  final_phase: p07
+  final_phase: p12
   pre_approval:
     - summary
     - document
@@ -157,13 +157,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** p12 passed; publication and remote resolution pending
+**Status:** full verification passed; final independent review pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All 29 implementation tasks and phase reviews p00 through p12 passed. The identity layer contains the reviewed p12 fix and the activity layer is cascade-rebased onto it. Full verification, final independent review, publication and GitHub thread resolution remain.
+All 29 implementation tasks and phase reviews p00 through p12 passed, followed by the full combined suite. The identity layer contains the reviewed p12 fix and the activity layer is cascade-rebased onto it. Final independent review, publication and GitHub thread resolution remain.
 
 ## Artifacts
 
@@ -172,7 +172,7 @@ All 29 implementation tasks and phase reviews p00 through p12 passed. The identi
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
 - **Implementation:** `implementation.md` (29/29 tasks and phase reviews complete; closeout pending)
-- **Pull requests:** #94 docs → #95 identity → #96 activity (ready stack #97; PR #96 remote head predates p10)
+- **Pull requests:** #94 merged; #95 identity → #96 activity remain open and ready on prior remote heads
 
 ## Progress
 
@@ -215,7 +215,8 @@ All 29 implementation tasks and phase reviews p00 through p12 passed. The identi
 - ✓ PR #96 feedback re-received; sole finding already fixed by p10
 - ✓ p12 identity-layer fix completed and independently reviewed
 - ✓ Activity layer cascade-rebased onto reviewed identity head
-- ⧗ Full verification, final independent review, publication and thread resolution pending
+- ✓ Full post-p12 repository verification passed
+- ⧗ Final independent review, publication and thread resolution pending
 
 ## Blockers
 
