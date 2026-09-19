@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t03-recovery-01
+oat_current_task_id: p02-t04
 oat_generated: false
 ---
 
@@ -23,13 +23,13 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | in progress | 5     | 2/5       |
+| p02   | in progress | 5     | 3/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 8/19 implementation tasks completed.
+**Total:** 9/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -97,9 +97,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p02-t03: Correlate calls and classify activity without guessing
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 8bc62b0bf9bdbc3f8ba095c61b2fd9bc4c8e585c; recovery 4e2932e7262bb90ad7dcd9dd51c365b1a1ef615a
+**Verification:** correlation uses only unique explicit IDs inside the selected source, preserves ambiguous reuse/unmatched results/independent polls, keeps standalone item counts separate and applies exact native-name categories without enrichments. Root transition audit found two Important gaps; bounded cumulative recovery attempt 2/10 now keeps incomplete/conflicting child lineage and boundaries unknown/un-counted, preserves direct/nested parent evidence independently, and recognizes observed current Codex task/ask names while unknown names remain `other`. Root passed 41 focused correlate/extract tests, type checking, build freshness and four-owner version validation. Closure audit found 0 Critical/Important.
 
 ### Task p02-t04: Project bounded activity reports
 
@@ -651,3 +651,18 @@ Root transition audit of immutable p02-t02 commit `709dda734ea3a88bba73693149fab
 #### Continuation p02-t03-recovery-resume-01
 
 Root transition audit of immutable p02-t03 commit `8bc62b0bf9bdbc3f8ba095c61b2fd9bc4c8e585c` found two Important gaps. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t03-recovery-01` may reserve cumulative p02 attempt 2/10 only after this continuation is committed. Scope is limited to keeping incomplete/conflicting child-lineage evidence unknown and adding observed current Codex task/ask native names to the exact classifier; p02-t04 remains unauthorized.
+
+### Recovery Event p02-t03-recovery-01
+
+- Phase/task: p02 / p02-t03
+- Original request: sf-p02-implement-01
+- Original commit: 8bc62b0bf9bdbc3f8ba095c61b2fd9bc4c8e585c
+- Defect class: composition
+- Discovered by: root transition audit p02_t02_audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 4e2932e7262bb90ad7dcd9dd51c365b1a1ef615a
+- Verification: root passed 41 focused correlate/extract tests, type-check, build freshness and four-owner version validation; closure audit found no Critical/Important issue.
+- Reason: bounded ownership and classifier corrections passed declared checks while preserving immutable task history and conservative linkage.

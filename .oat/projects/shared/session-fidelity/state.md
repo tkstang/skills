@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t03-recovery-01
-oat_last_commit: 22806e16fffef601cc5da501b3acacad2b2c1d5f
+oat_current_task: p02-t04
+oat_last_commit: 4e2932e7262bb90ad7dcd9dd51c365b1a1ef615a
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -26,16 +26,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p02:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: p02-t03-recovery-01
-        original_request_id: sf-p02-implement-01
-        original_task_id: p02-t03
-        original_commit: 8bc62b0bf9bdbc3f8ba095c61b2fd9bc4c8e585c
-        discovered_by: root transition audit p02_t02_audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: c7d35e3a8b909d497716b7430b852c4d9e1cf826
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -117,7 +108,7 @@ oat_generated: false
 
 ## Current Phase
 
-p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 and p02-t02 are complete through recovery `22806e16`; p02 recovery usage is 1/10 with no pending marker. Detailed reads, obscured fixtures and source-attributed Claude/Codex extraction pass focused reader/extractor, build, type, version and privacy checks. Explicit-evidence correlation and classification are next.
+p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 through p02-t03 are complete through recovery `4e2932e7`; p02 recovery usage is 2/10 with no pending marker. Detailed reads, obscured fixtures, source-attributed extraction and explicit-evidence correlation/classification pass focused, build, type, version and privacy checks. Bounded projection and rendering are next.
 
 ## Artifacts
 
@@ -125,7 +116,7 @@ p01 is passed and the local activity branch remains stacked from recorded `ACTIV
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (8/19 tasks completed; p01 passed, p02 in progress)
+- **Implementation:** `implementation.md` (9/19 tasks completed; p01 passed, p02 in progress)
 
 ## Progress
 
@@ -148,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p02-t03 explicit-evidence correlation and native activity classification without guessing.
+Implement p02-t04 bounded activity projection and deterministic rendering with honest omission counts.
