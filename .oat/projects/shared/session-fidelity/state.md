@@ -157,13 +157,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** full verification passed; final independent review pending
+**Status:** final independent review passed; publication pending
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All 29 implementation tasks and phase reviews p00 through p12 passed, followed by the full combined suite. The identity layer contains the reviewed p12 fix and the activity layer is cascade-rebased onto it. Final independent review, publication and GitHub thread resolution remain.
+All 29 implementation tasks and phase reviews p00 through p12 passed, followed by the full combined suite and a zero-finding final independent review. The identity layer contains the reviewed p12 fix and the activity layer is cascade-rebased onto it. Publication and GitHub thread resolution remain.
 
 ## Artifacts
 
@@ -216,7 +216,8 @@ All 29 implementation tasks and phase reviews p00 through p12 passed, followed b
 - ✓ p12 identity-layer fix completed and independently reviewed
 - ✓ Activity layer cascade-rebased onto reviewed identity head
 - ✓ Full post-p12 repository verification passed
-- ⧗ Final independent review, publication and thread resolution pending
+- ✓ Final independent lifecycle review passed with zero findings
+- ⧗ Publication and thread resolution pending
 
 ## Blockers
 
@@ -224,4 +225,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run full verification and final independent review, publish the remaining stack, reply to and resolve all PR #95/#96 threads, then verify mergeability.
+Publish the remaining stack, reply to and resolve all PR #95/#96 threads, then verify checks and mergeability.
