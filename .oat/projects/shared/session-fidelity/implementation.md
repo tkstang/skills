@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p01-t03
+    reason: 'p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.'
+    since: 2026-09-19
 oat_last_updated: 2026-09-19
 oat_current_task_id: p01-t03
 oat_generated: false
@@ -22,7 +25,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | active  | 5     | 2/5       |
+| p01   | blocked | 5     | 2/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
@@ -43,7 +46,7 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ## Phase 1
 
-**Status:** in_progress
+**Status:** blocked
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
@@ -59,9 +62,10 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ### Task p01-t03: Reject unsafe saved positions and watcher path changes
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** blocked after task commit
+**Commit:** afffe4a594fc0712807ce2050a10da200d3d40df
+**Verification:** original task suite 304/304 and CLI 51/51, type-check, build:check, format/lint and version checks passed. Root transition review found review --mark-read swallowing state-read failures; its correction remains outstanding after a failed recovery assertion.
+**Blocker:** p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.
 
 ### Task p01-t04: Correct native Claude provenance atomically
 
@@ -327,16 +331,20 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
     "phase": "p01",
     "plan": ".oat/projects/shared/session-fidelity/plan.md",
     "initialBase": "018958a0",
-    "handle": "/root/p01_implement"
+    "handle": "/root/p01_implement",
+    "phaseBase": "455daba2807b1539da566ce863b613720ab79d82",
+    "finalHead": "09b69928bffd96687b5c3f5979bd59dc73fa73d8"
   },
   "launch_status": "accepted",
-  "child_outcome": null,
+  "child_outcome": "blocked-failed-recovery",
   "configured_invocation_evidence": [
     "resolver:review-target",
     "native:materialized-role"
   ],
   "runtime_confirmation": "not-reported",
-  "diagnostics": [],
+  "diagnostics": [
+    "p01-t03-recovery-01 failed: expected stderr pathname absent from Node EISDIR text"
+  ],
   "continuation_events": [],
   "task_class": "consequential",
   "model_class_floor": "consequential",
@@ -363,3 +371,20 @@ Plan-required root Git arrangement at gpt-6-astra/high; task 4e6c63fa and tracki
 - Phase execution base: 455daba2807b1539da566ce863b613720ab79d82 (acceptance handshake). No t02 work before bookkeeping.
 
 Task p01-t02 handoff verified: one immutable commit after 8a61c156, clean tree, post-commit build:check and 278 tests passed; no recovery used. Root read-through confirmed shared native identity propagation and explicit exact-pin failure paths. Next p01-t03.
+
+#### Recovery Event p01-t03-recovery-01
+
+- Phase/task: p01 / p01-t03; original request sf-p01-implement-01.
+- Original immutable commit: afffe4a594fc0712807ce2050a10da200d3d40df.
+- Discovered by: root task-transition review: review --mark-read treats state read or lock failure as an absent entry.
+- Defect class: test; disposition: failed-attempt; authorization: phase-standing; attempt 2/10.
+- Exact target: oat-phase-implementer-gpt-5-6-sol-high; model selected:gpt-5.6-sol, effort selected:high, policy/ceiling High unchanged.
+- Failed verification: focused CLI suite 51 passed, 1 failed. Assertion expected marked.stderr to contain state.json; actual output began `[session-observer] Unexpected error: EISDIR: illegal operation on a directory, read`. The correction produced nonzero exit with no digest, but the path-specific assertion failed. Relevant phase verification was not run after that failure.
+- Successful recovery commit: none. All bounded source/test/generated corrections were restored to the immutable task commit. Ledger-only failed terminal commit: 09b69928bffd96687b5c3f5979bd59dc73fa73d8.
+- Root reconciliation: verified clean tree, only state.md changed after afffe4a5, matching committed failed marker/event/request/task/target/attempt, and immutable original task history. Cleared pending_attempt only after validation; used_attempts remains 2 and terminal-stop disposition is preserved.
+
+#### Phase p01 terminal outcome
+
+BLOCKED at 09b69928; three of five tasks executed, two accepted complete and p01-t03 blocked after commit. t04/t05 unstarted. No optional child, phase review, activity branch, final verification or exit gate occurred. Prior p01-t01 recovery remains recorded with its original accepted transition evidence; its later restatement does not replace that evidence.
+
+Concrete resume scope: on renewed user direction, use the same accepted phase handle/target, preserve the attempt count, reserve the next bounded correction attempt, remove the catch-all null fallback from validateReviewMarkReadBinding, assert EISDIR/nonzero/no-digest without requiring a pathname, run focused plus relevant phase checks, then resume p01-t04/t05. No plan redesign is needed. Root must not continue automatically: oat-project-implement references/phase-execution.md requires preserving the failed-attempt terminal-stop disposition and then stopping.

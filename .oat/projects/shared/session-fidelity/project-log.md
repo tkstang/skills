@@ -56,6 +56,14 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 sf-p00-pass-20260919: p00 passed independent review with zero findings and zero fix loops; see implementation.md and reviews/p00-review-2026-09-19T014930Z.md.
 
+### 2026-09-19 · structural · oat-project-implement · p01
+
+sf-p01-terminal-20260919: phase blocked after p01-t03 recovery attempt 2 failed a pathname-specific EISDIR assertion; correction restored, terminal ledger validated, used count 2 preserved, no phase review or fix loop. See implementation.md.
+
+### 2026-09-19 · structural · oat-project-implement · stop
+
+sf-stop-recovery-20260919: stopping under phase-execution failed-attempt terminal rule; renewed direction needed to reapply the bounded mark-read correction with a portable assertion. Same target and history retained; see implementation.md.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

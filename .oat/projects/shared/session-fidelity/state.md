@@ -1,7 +1,10 @@
 ---
 oat_current_task: p01-t03
-oat_last_commit: 7287ac5ba67a0400fddc4bd47fcb1a63f99d6071
-oat_blockers: []
+oat_last_commit: 09b69928bffd96687b5c3f5979bd59dc73fa73d8
+oat_blockers:
+  - task_id: p01-t03
+    reason: 'p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.'
+    since: 2026-09-19
 associated_issues:
   - type: backlog
     ref: BL-260916-session-fidelity-opt
@@ -23,16 +26,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p01:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: p01-t03-recovery-01
-        original_request_id: sf-p01-implement-01
-        original_task_id: p01-t03
-        original_commit: afffe4a594fc0712807ce2050a10da200d3d40df
-        discovered_by: 'root task-transition review: review --mark-read treats state read or lock failure as an absent entry'
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: afffe4a594fc0712807ce2050a10da200d3d40df
-        status: failed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -102,19 +96,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-19T01:39:17.103902+00:00'
+oat_project_state_updated: '2026-09-19T02:45:13.588994+00:00'
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Implementation in progress
+**Status:** Implementation blocked at failed recovery boundary
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; p00 passed independent review; p01-t01 and p01-t02 are verified; p01-t03 is next.
+Identity implementation is blocked at p01-t03 after a failed bounded recovery check. The original task commit passes its declared checks, but review --mark-read still swallows state-read errors. The attempted correction was restored because a new EISDIR assertion incorrectly required a pathname. The invoked workflow requires a terminal stop. Recovery usage is 2/10; failed marker reconciled and cleared, stop disposition retained. p01-t04/t05 and activity remain unstarted. See implementation.md for exact commits and resume scope.
 
 ## Artifacts
 
@@ -122,7 +116,7 @@ Design and 19-task plan amended; Fable read-back incorporated. High dispatch is 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (3/19 tasks completed; identity implementation active)
+- **Implementation:** `implementation.md` (3/19 tasks completed; p01-t03 blocked after commit)
 
 ## Progress
 
@@ -141,8 +135,8 @@ Design and 19-task plan amended; Fable read-back incorporated. High dispatch is 
 
 ## Blockers
 
-None
+p01-t03 bounded recovery failed on an overly specific EISDIR test assertion; workflow requires terminal stop before another correction.
 
 ## Next Milestone
 
-Implement native identity and safe state binding, continuing p01-t03.
+Receive direction to resume the bounded p01-t03 correction with its assertion fixed, then continue implementation through the remaining phases and configured gates.
