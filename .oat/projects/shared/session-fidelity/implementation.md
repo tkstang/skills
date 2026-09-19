@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p06-review
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-All 19 planned implementation tasks are complete and the full local acceptance suite is green. The final p06 review remains before implementation lifecycle close-out.
+All 19 planned implementation tasks and every phase review are complete. The full local acceptance suite is green; the separate final lifecycle review remains before exit-gate and close-out sequencing.
 
 ## Preparatory evidence
 
@@ -27,7 +27,7 @@ All 19 planned implementation tasks are complete and the full local acceptance s
 | p03   | passed         | 2     | 2/2       |
 | p04   | passed         | 2     | 2/2       |
 | p05   | passed         | 2     | 2/2       |
-| p06   | review pending | 2     | 2/2       |
+| p06   | passed         | 2     | 2/2       |
 
 **Total:** 19/19 implementation tasks completed.
 
@@ -312,7 +312,7 @@ Root transition audit of immutable p06-t01 commit `41887b160994707c33ffaddc17c7f
 
 ## Phase 6
 
-**Status:** review pending
+**Status:** passed
 
 ### Task p06-t01: Document and build the tested feature
 
@@ -372,7 +372,7 @@ The complete local gate passed at the accepted p06 source head: type checking, g
     "handle": "/root/p06_review"
   },
   "launch_status": "accepted",
-  "child_outcome": "running",
+  "child_outcome": "completed-pass",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
@@ -387,13 +387,33 @@ The complete local gate passed at the accepted p06 source head: type checking, g
 
 Dispatch: scope=p06-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
 
+#### Phase p06 review round 1 — passed
+
+Formal artifact `reviews/p06-review-2026-09-19T175805Z.md` reviewed `0bbaee8281ed4eeda8539b1670209529b09caf4e..0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900`: 0 Critical, 0 Important, 0 Medium, 0 Minor. It independently confirms the user-facing activity contract and limits, all four owner versions and changelog entries, fresh generated payloads, complete local acceptance boundaries, and correct PJM closure. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Independent review verification passed build freshness, four-owner version validation, PJM doctor, authored formatting, documentation production build and exact-range diff checks.
+
+Phase p06 passes. All 19 implementation tasks and all seven phase reviews are complete. Continue to the mandatory final lifecycle review without claiming publication, merge, release, installation or live-provider acceptance.
+
+### Orchestration Run p06
+
+- Outcome: passed after two planned task commits, one bounded phase-recovery fix and one fresh root-owned review round.
+- Implementation: request `sf-p06-implement-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, final accepted task commit `0cd6a6fe6f1b16aa8cc0e5562097fe0688cd6900`; p06 recovery usage 1/10 with no pending attempt.
+- Review: artifact `reviews/p06-review-2026-09-19T175805Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings across the complete p06 range.
+- Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
+- Outstanding p06 items: none. Next: mandatory final lifecycle review and configured implementation exit gate.
+
 ## Reviews
 
-Plan review and phases p00 through p05 passed. p06 implementation is complete and awaits its fresh root-owned phase review.
+Plan review and phases p00 through p06 passed. The mandatory final lifecycle review remains pending.
 
-## Final Summary (historical pre-implementation snapshot)
+## Final Summary (for PR/docs)
 
-Implementation and local acceptance are complete. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
+Session Observer and Session Export Transcript now support an opt-in `--include-activity` view while preserving their existing default digest and sanitized export behavior. The shared transcript layer provides detailed physical-line provenance, native Claude/Codex/Cursor evidence extraction, explicit coverage states, call/result correlation, bounded final-format projection, late-result context and Cursor terminal-settlement delivery without inventing missing evidence.
+
+The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, four affected skill versions and the Unreleased changelog are synchronized. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
+
+Local acceptance passed type checking, generated-build freshness, 2,231 tests with one expected skip, repository validation, mocked end-to-end smoke, four-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Seven fresh phase reviews pass; p06 reports zero findings at every severity.
+
+The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting and Cursor settlement without widening the product scope. Publication, merge, release, installation and live provider acceptance remain outside this implementation run.
 
 ## Planning Gate Review Received — 2026-09-19
 
