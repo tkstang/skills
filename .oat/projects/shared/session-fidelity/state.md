@@ -1,5 +1,5 @@
 ---
-oat_current_task: p01-review-round-02
+oat_current_task: p02-t01-activity-base
 oat_last_commit: 8affc30a56e8f4c33c6bc50a6d632d93d37baa01
 oat_blockers: []
 associated_issues:
@@ -99,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Identity re-review pending
+**Status:** Identity passed; activity base setup
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. The original phase handle closed the formal first-header gap, Fable's cross-runtime ambiguity finding, catch-up state-read failure, exporter root preference, and changelog/version fanout. Implementer and root verification pass. Activity remains unstarted until a fresh root-owned narrowed re-review passes.
+All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. Fresh review of `455daba2..d4069b77` passed with 0 Critical, 0 Important and one nonblocking Medium watcher-diagnostic follow-up. Activity remains unstarted until root records the reviewed identity tip as `ACTIVITY_BASE` and creates the next local stack branch.
 
 ## Artifacts
 
@@ -113,7 +113,7 @@ All five p01 tasks and the accepted review fixes are implemented through `8affc3
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (6/19 tasks completed; p01 re-review pending)
+- **Implementation:** `implementation.md` (6/19 tasks completed; p01 passed)
 
 ## Progress
 
@@ -136,4 +136,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Pass the fresh p01 narrowed re-review, then record the reviewed identity tip as `ACTIVITY_BASE`.
+Record the reviewed identity tip as `ACTIVITY_BASE`, create/register the activity branch, and begin p02-t01.

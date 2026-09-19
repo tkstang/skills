@@ -64,6 +64,10 @@ sf-p01-terminal-20260919: phase blocked after p01-t03 recovery attempt 2 failed 
 
 sf-stop-recovery-20260919: stopping under phase-execution failed-attempt terminal rule; renewed direction needed to reapply the bounded mark-read correction with a portable assertion. Same target and history retained; see implementation.md.
 
+### 2026-09-19 · structural · oat-project-implement · p01
+
+sf-p01-outcome-20260919-d4069b77 Phase p01 passed after bounded fixes and fresh review: 0 Critical, 0 Important, 1 deferred Medium; see reviews/p01-review-2026-09-19T122907Z-round2.md.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

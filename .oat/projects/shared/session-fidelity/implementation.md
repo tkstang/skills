@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-review-round-02
+oat_current_task_id: p02-t01-activity-base
 oat_generated: false
 ---
 
@@ -22,7 +22,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | re-review pending | 5     | 5/5       |
+| p01   | passed  | 5     | 5/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
@@ -43,7 +43,7 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 
 ## Phase 1
 
-**Status:** implementation and bounded review fix complete; re-review pending
+**Status:** passed
 
 ### Task p01-t01: Resolve native Codex identity and lineage
 
@@ -540,7 +540,7 @@ Implementer verification passed the 772-test focused p01 set, an 8-test override
     "handle": "/root/p01_review_round2"
   },
   "launch_status": "accepted",
-  "child_outcome": "running",
+  "child_outcome": "completed-pass",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
@@ -554,3 +554,11 @@ Implementer verification passed the 772-test focused p01 set, an 8-test override
 ```
 
 Dispatch: scope=p01-review-round-02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+#### Phase p01 review round 2 — passed
+
+Fresh artifact `reviews/p01-review-2026-09-19T122907Z-round2.md` reviewed `455daba2807b1539da566ce863b613720ab79d82..d4069b773c3784b37da796ba40dbd5c3cbc6d228`: 0 Critical, 0 Important, 1 Medium, 0 Minor. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Independent review verification passed 439/439 and 260/260 focused tests, build freshness, type checking and four-owner version validation. The prior formal first-header finding and every accepted Fable fix are verified closed.
+
+The nonblocking Medium finding is the already deferred watcher diagnostic: schema-v1 polling maps every `stat` failure to missing-path/reset guidance instead of reserving that guidance for `ENOENT`/`ENOTDIR`. The watcher still exits safely and preserves saved state, so this does not block the identity layer. Carry the diagnostic classification and injected non-missing-error regression as follow-up scope; do not expand p02 with it.
+
+Phase p01 passes. Activity implementation remains untouched. Root must now establish and record the reviewed identity tip as `ACTIVITY_BASE` before p02 source edits.
