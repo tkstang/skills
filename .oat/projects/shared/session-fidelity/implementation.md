@@ -73,7 +73,7 @@ No source implementation has started. Setup choices are recorded; the plan is aw
 
 **Status:** pending
 
-### Task p02-t01: Add LF-only detailed source reading
+### Task p02-t01: Add captured fixtures and LF-only detailed source reading
 
 **Status:** pending
 **Commit:** -
@@ -97,11 +97,11 @@ No source implementation has started. Setup choices are recorded; the plan is aw
 **Commit:** -
 **Verification:** not run; follow plan commands after implementation.
 
-### Task p02-t05: Add lightly obscured captured fixtures
+### Task p02-t05: Verify the shared pipeline against captured fixtures
 
 **Status:** pending
 **Commit:** -
-**Verification:** not run; practical obscuring checks without a user approval stop.
+**Verification:** not run; captured end-to-end shared pipeline coverage.
 
 ## Phase 3
 

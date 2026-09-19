@@ -32,7 +32,7 @@ The user selected `gh stack` in this order:
 2. **Identity/cursor correction:** phase p01; independently buildable and reviewable.
 3. **Activity support:** phases p02–p06; depends on the identity layer.
 
-Task p00-t01 arranges these local layers using `gh-stack` and verifies `gh stack view --json`. The docs commit currently follows OAT planning commits on `session-fidelity`; preserve that history through recoverable refs when arranging layers and keep each PR's diff scoped to its concern. Place project planning artifacts in the top activity layer; preserve layer-local validation evidence with its code. Use distinct branch names without a `session-fidelity/` prefix while the `session-fidelity` branch exists. Do not create hidden worktrees. Publication, merge, installation and live provider execution are outside this planning invocation.
+Task p00-t01 registers the bottom docs layer with the current initial planning/schema history, then code layers are added as they begin. Keep `.oat/projects/**` bookkeeping with the layer being worked on. This preserves the three-layer story without rewriting planning history or creating a second worktree. Use distinct branch names without a `session-fidelity/` prefix while the `session-fidelity` branch exists. Publication, merge, installation and live provider execution are outside this planning invocation.
 
 Record each code layer's exact base as `IDENTITY_BASE` or `ACTIVITY_BASE` in implementation evidence before changing it; use that actual ref for version validation. These names below are shell variables bound to those verified refs, never guessed placeholders. No source changes have been implemented.
 
@@ -70,13 +70,13 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files/state:** local Git refs and `gh stack` metadata; project implementation evidence. No product source edits.
 
-**Implement:** Record the starting branch/HEAD, clean status and all peer commits; create and verify a local recovery ref. Use the `gh-stack` skill to form docs → identity → activity, keeping `c970c876` as the independent bottom docs delta and replaying project planning artifacts in the top activity layer. Preserve the original branch/recovery ref rather than destructively rewriting shared history. Verify each branch base/diff and exact commit inclusion. Do not publish, force-push, merge, or create a hidden worktree. Keep the root planning checkout on the top layer. Create the lower identity implementation worktree through a visible Codex app task on this same machine; pass the top checkout’s committed plan/design as absolute read-only inputs. Root records progress/reviews only on the top layer and replays it after lower-layer commits. The identity worker owns code in its visible worktree and cannot stage project artifacts. Execute activity tasks in the top checkout after replay. Verify gh-stack ownership and worktree constraints before every branch/rebase operation; no peer remains an active writer during arrangement.
+**Implement:** Record the starting branch/HEAD, clean status and parked peer edits; create and verify a local recovery ref. Use `gh-stack` to register the current docs/planning history as the bottom layer. Add identity, then activity only when starting those phases; preserve existing history and keep later bookkeeping with its owning layer. Verify each diff: bottom docs/planning, identity/provenance, activity. No checkout into a branch lacking the plan, no extra implementation worktree, no force-push or hidden history rewrite. Root owns Git operations.
 
 **Format:** format only changed project evidence via the task execution contract; Git metadata is not a formatter input.
 
-**Verify:** `gh stack view --json`; inspect branch diffs against their recorded parents, confirm recovery-ref reachability and absence of source feature changes in the docs layer; run `pnpm --dir documentation build` on the docs layer and check for unrelated config changes. Restore the intended implementation layer with a clean tree.
+**Verify:** `gh stack view --json`; inspect each existing layer diff against its recorded parent and verify recovery-ref reachability. Confirm the bottom contains no runtime feature implementation. The docs build already passed on the committed baseline; rerun only if arrangement changes its content. Start code work on the identity layer with a clean tree.
 
-**Commit:** `chore(p00-t01): record verified session fidelity stack layout` for root-owned project evidence on the top layer; do not invent a source commit merely to populate a branch.
+**Commit:** `chore(p00-t01): record session fidelity stack boundaries` for project evidence; do not create empty source commits merely to populate branches.
 
 ## Phase 1: Native identity and safe state binding
 
@@ -132,17 +132,17 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 ## Phase 2: Detailed reads and shared activity contract
 
-**Layer:** activity. **Depends on:** p01. Establish a fresh `ACTIVITY_BASE` before this layer.
+**Layer:** activity. **Depends on:** p01. Establish a fresh `ACTIVITY_BASE` before this layer. Capture fixtures in p02-t01 before implementing extractors. Stable task IDs and sequential order remain unchanged; p02-t05 verifies the integrated shared pipeline against those captures.
 
-### Task p02-t01: Add LF-only detailed source reading
+### Task p02-t01: Add captured fixtures and LF-only detailed source reading
 
-**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; authored edge fixtures under `src/shared/transcript/fixtures/session-fidelity/` and README. Captured fixture derivation is owned by p02-t05.
+**Files:** `src/shared/transcript/runtimes.ts`, `runtimes.test.ts`; small captured fixtures and authored edge cases under `src/shared/transcript/fixtures/session-fidelity/`, with README provenance.
 
-**Implement:** Return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Use synthetic edge cases here. The captured fixtures in p02-t05 must then verify the detailed reader against observed native shapes before consumer integration.
+**Implement:** Return detailed records with byte ranges, physical lines, unchanged logical decoded indices and diagnostics while preserving readRecords output/warnings. First regression includes U+2028/U+2029 within strings, escaped carriage return, CRLF, blanks, malformed interior, valid no-newline and partial tail. Before building extractors, derive minimal slices from the approved local stores, with the user-requested light obscuring: remove credentials/tokens/encrypted reasoning and replace private paths/identifiers/third-party personal content while preserving useful safe native values and consistent IDs. Do not copy whole sessions or commit raw intermediate slices. Record client version/observation provenance, using unknown where no version is recorded. Inspect final fixture diffs and run practical private-term/credential checks as normal task verification, with no approval or independent review checkpoint. Use the existing snapshot inventory/canaries if needed; do not promote it to scripts/. Supplement captures with synthetic framing/error cases.
 
 **Format:** follow the file-scoped task execution contract above.
 
-**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
+**Verify:** `pnpm run test:vitest src/shared/transcript/runtimes.test.ts`; `node --test .oat/repo/reference/research/session-schemas-2026-09-18/inventory.canary.test.mjs` if the inventory is used; `pnpm run type-check`. Compare legacy decoded records and warnings byte-for-byte against pre-change expectations.
 
 **Commit:** `feat(p02-t01): add detailed transcript provenance and schema fixtures`.
 
@@ -150,7 +150,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** New `src/shared/transcript/activity/types.ts`, `extract.ts`, `claude-code.ts`, `codex.ts`, `extract.test.ts`; fixture README and focused fixtures.
 
-**Implement:** Implement versioned source-attributed events, metadata, coverage and diagnostics. Cover Claude multiblock calls/results, top-level toolUseResult string/array/object, unread persisted output, origin.kind task notifications through the shared provenance helper from p01-t04, exact message-ID usage deduplication, empty errors and absent-error unknowns. Cover Codex function/custom/web-search carriers and item_completed evidence; native child IDs, statuses, compaction and output cap warnings. Exclude reasoning/instruction bodies. Preserve raw native arguments internally before presentation budgets. Per-record extraction failures degrade narrowly with ACTIVITY_EXTRACTION_ERROR; core reads and identity failures still fail closed.
+**Implement:** Implement versioned source-attributed events, metadata, coverage and diagnostics. Cover Claude multiblock calls/results, top-level toolUseResult string/array/object, unread persisted output, origin.kind task notifications through the shared provenance helper from p01-t04, empty errors and absent-error unknowns. Cover Codex function/custom/web-search carriers and item_completed evidence; native child IDs, statuses, model/lifecycle/compaction markers and output cap warnings. Exclude reasoning/instruction bodies. Preserve raw native arguments internally before presentation budgets. Per-record extraction failures degrade narrowly with ACTIVITY_EXTRACTION_ERROR; core reads and identity failures still fail closed.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -162,7 +162,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** New `src/shared/transcript/activity/correlate.ts`, `classify.ts`, `correlate.test.ts`; shared activity types/extractors.
 
-**Implement:** Pair only explicit native IDs in the same source scope; preserve repeated calls, ambiguous reuse, unmatched/multiple outputs and independent poll invocations. Inherited ordinal ranges are excluded from child invocation counts; absent/conflicting boundaries remain unknown. Cross-stream item outcomes remain standalone unless corroborated IDs link them. An optional turn/ordinal candidate relation is explicitly inferred and cannot set canonical call outcome. Process handles establish pending evidence, not success. Response-stream call counts and standalone item evidence counts remain separate.
+**Implement:** Pair only explicit native IDs in the same source scope; preserve repeated calls, ambiguous reuse, unmatched/multiple outputs and independent poll invocations. Inherited ordinal ranges are excluded from child invocation counts; absent/conflicting boundaries remain unknown. Cross-stream item outcomes remain standalone unless corroborated IDs link them. Do not infer cross-stream associations from turn/order/text. Exact corroborated native-ID links are allowed; otherwise item evidence stays standalone. Process handles establish pending evidence, not success; do not link polling calls into a process lifecycle in v1. Response-stream call counts and standalone item evidence counts remain separate.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -174,7 +174,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Files:** New `src/shared/transcript/activity/project.ts`, `render.ts`, `index.ts`, `project.test.ts`; shared activity types.
 
-**Implement:** Project existing delivery ranges with 32KiB/80-invocation watch/catch-up and 128KiB/1024-invocation review caps. Export has no total invocation cap but a 64MiB activity-section safety cap and 2KiB input/output previews per invocation, with size/omission notices in the header. Budget all serialized activity overhead; prioritize failures by invocation group then render chronologically. Standalone failed item events and their explicitly inferred candidate groups get failure priority without setting a call’s canonical outcome. Test a late item-only Codex failure under a tight cap, including unmatched and ambiguous cases. Late results receive at most 256 UTF-8 bytes of out-of-range call context, excluded from counts. Preserve actual available tails, explicit omissions, source locators, separate count scopes and escaped/control-safe output. Avoid duplicate output previews when a response group and its explicitly inferred item candidate are both displayed: retain the item’s status/exit/duration/locator and inferred label, use one preview carrier, and give unlinked item events their own preview. Tiny budgets remain bounded and diagnostic, never malformed JSON.
+**Implement:** Apply 32KiB/80-invocation watch/catch-up and 128KiB/1024-invocation review limits, plus 2KiB previews and 256-byte late-call context. Export has no invocation-count limit and a 64MiB activity-section safety ceiling with a size/omission header. Use per-mode invocation limits, clipped previews and one final serialized-size guard; drop lowest-priority internal call/result groups, prioritize explicit failures and recent evidence, then render chronologically. Standalone failed Codex item events have priority without a guessed call association. Retain one preview for exact-ID-linked duplicate carriers; leave unlinked evidence separate. Emit global omitted call/result/failure counts, source locators and explicit count scopes. Do not add per-category omission tables, omitted-range compaction, inferred links, a grouped tool index, derived enrichments or a special fallback mode. Test late item-only failures and groups too large to fit under a tight cap.
 
 **Format:** follow the file-scoped task execution contract above.
 
@@ -182,17 +182,17 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Commit:** `feat(p02-t04): project bounded activity with honest omission counts`.
 
-### Task p02-t05: Add lightly obscured captured fixtures
+### Task p02-t05: Verify the shared pipeline against captured fixtures
 
-**Files:** new dev-only `scripts/session-schema-inventory.mjs` and `scripts/session-schema-inventory.canary.test.mjs` when promoting the existing inventory workflow; small captures and README under `src/shared/transcript/fixtures/session-fidelity/`; shared reader/extractor/correlation/project tests.
+**Files:** `src/shared/transcript/activity/index.ts` and new `integration.test.ts`; the p02-t01 fixture README where coverage evidence needs clarification.
 
-**Implement:** Derive minimal slices from the approved local stores. Obscure private home paths, identifiers and third-party personal content; remove credentials/tokens and encrypted reasoning; preserve consistent call/result ID relationships and useful ordinary source content. Do not copy whole sessions or commit temporary raw slices. Cover documented Claude/Codex/Cursor activity and identity shapes, late/item-only failures, large outputs, ask-user provenance and child references. Record observation/version provenance; use unknown when a client version is not recorded. Inspect the final fixture diff and run practical private-term/credential checks before commit. This is ordinary task verification, with no extra user approval or mandatory independent fixture gate, per the user's latest direction. Promote the reviewed inventory script without changing the dated snapshot; retain its allowlist and canary checks.
+**Implement:** Exercise detailed reading → extraction → exact correlation → delivered-range selection → projection as one shared pipeline using the already obscured captures. Cover a late result with earlier call context, an unlinked failed item event under a budget, inherited child history, malformed input and omitted counts. Connect the public shared entrypoint using the implemented modules; do not introduce another abstraction, provider runtime or inventory script. This task proves the shared seams before consumers integrate them.
 
-**Format:** follow the file-scoped task execution contract; preserve JSONL framing.
+**Format:** follow the file-scoped task execution contract.
 
-**Verify:** `node --test scripts/session-schema-inventory.canary.test.mjs`; `pnpm run test:vitest src/shared/transcript/runtimes.test.ts src/shared/transcript/activity`; inspect only final captured fixtures for private literals/credentials and confirm relational IDs and expected parse/correlation outcomes remain intact. No live provider call is required.
+**Verify:** `pnpm run test:vitest src/shared/transcript/activity/integration.test.ts`; `pnpm run type-check`; verify representative captured event identities and source/count scopes against the fixture README.
 
-**Commit:** `test(p02-t05): add obscured native session fixtures`.
+**Commit:** `test(p02-t05): verify captured activity through the shared pipeline`.
 
 ## Phase 3: Observer activity delivery
 
@@ -248,7 +248,7 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 **Verify:** `pnpm run build`, then `pnpm run test:vitest src/skills/session-export-transcript/src/cli.test.ts src/skills/session-export-transcript/src/sanitize.test.ts`; `pnpm run type-check`.
 
-**Commit:** `test(p04-t02): protect export sanitization and activity boundaries`.
+**Commit:** `test(p04-t02): protect export sanitization and activity boundaries`. Implement the core sanitization regression in p04-t01 alongside the feature; this task adds only remaining adversarial coverage, not a second implementation pass.
 
 ## Phase 5: Cursor terminal-settled activity
 

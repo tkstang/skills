@@ -12,7 +12,7 @@ oat_generated: false
 
 Run `oat-project-quick-start session-fidelity` using **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter** as the brief. Produce discovery and an execution-ready plan; this invocation does not implement the feature.
 
-The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, session metadata, and explicit coverage. Existing default output and export sanitization remain intact. The user subsequently added Codex native-session identity/safe cursor binding and native Claude conversation provenance corrections; these are explicit exceptions to preserving default behavior.
+The backlog calls for an opt-in rich activity view in `session-observer` and `session-export-transcript`, with correlated native tool calls/results, bounded previews, source provenance, source model/lifecycle/compaction metadata, and explicit coverage. Existing default output and export sanitization remain intact. The user subsequently added Codex native-session identity/safe cursor binding and native Claude conversation provenance corrections; these are explicit exceptions to preserving default behavior.
 
 ## Clarifying Questions
 
@@ -55,7 +55,7 @@ These requirements combine the backlog, existing repository decisions, and the o
 - Build generated distributions from canonical sources; never hand-edit generated payloads. Account for transitive skill-version impact, bump affected `metadata.version` fields, and add matching Unreleased changelog entries during implementation.
 - This increment adds no sidecar reads; recorded child IDs, agent paths, and nicknames remain actionable references after the locator fix. No arbitrary output-path following or same-directory predecessor guessing.
 - Count scopes and preview omissions must be explicit. Tail previews come from the actual available tail; truncation cannot silently conceal later failures.
-- Use recorded source evidence for status, exit codes, model/usage/lifecycle metadata, and subagent/MCP activity. Keep native status separate from inferred convenience fields.
+- Use recorded source evidence for status, exit codes, model/lifecycle/compaction metadata, and subagent/MCP activity. Keep native status separate from inferred convenience fields.
 - Use deterministic sanitized fixtures derived from observed local sessions for implementation verification, supplemented with authored edge cases. Existing research examples are authored examples, not captures proving support for currently installed clients.
 - Ship backlog close-out in the implementation PR only after all acceptance criteria pass. This planning run leaves the item open.
 
@@ -87,6 +87,8 @@ These requirements combine the backlog, existing repository decisions, and the o
 - Fuller activity artifacts and additional provider adapters remain future options, not requirements of this item.
 
 - Default Claude provenance is now in scope: human record 1850 requests the fix now. Lightweight captured-fixture obscuring without a user approval stop is the latest direction at records 1850/1874.
+
+- Complexity reductions: defer token accounting, inferred cross-stream associations, process linking, derived enrichments, grouped tool indexes and inventory-tool promotion. Keep native categories, exact-ID correlation, coverage, byte/line provenance and Cursor support required by the backlog.
 
 ## Current Repository Evidence
 
