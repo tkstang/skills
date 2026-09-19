@@ -95,23 +95,32 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md
   handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (minor=6). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md to disposition them before marking the final review row passed.'
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation:
+    gate_run_id: 05d3cda3-7de8-475c-b831-9bdd011c51c7
+    handoff: 'Gate passed at the important threshold, but the final review still contains non-blocking findings (minor=6). Run oat-project-review-receive for .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md to disposition them before marking the final review row passed.'
+    source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md
+    scope: final
+    type: code
+    source_filename: final-review-2026-09-19T190056Z.md
+  receive_source_artifact: .oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md
+  receive_archived_artifact: .oat/projects/shared/session-fidelity/reviews/archived/final-review-2026-09-19T190056Z.md
+  receive_event_identity:
+    scope: final
+    type: code
+    source_filename: final-review-2026-09-19T190056Z.md
+  receive_pre_head: 72b29780eb835cecda230a06430e1ef44dcc0ca5
   receive_commit: null
   receive_eligible: true
   receive_completed: false
   failure: null
-  updated_at: '2026-09-19T19:04:20Z'
+  updated_at: '2026-09-19T19:07:30Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-19T19:04:20+00:00"
+oat_project_state_updated: "2026-09-19T19:07:30+00:00"
 oat_generated: false
 ---
 
