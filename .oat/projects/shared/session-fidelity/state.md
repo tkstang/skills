@@ -1,5 +1,5 @@
 ---
-oat_current_task: p03-t02
+oat_current_task: p03-t02-recovery-01
 oat_last_commit: 4d5b1bbb0d25c95708091caf6f7083f5456301e3
 oat_blockers: []
 associated_issues:
@@ -105,13 +105,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Observer watch integration in progress
+**Status:** Observer watch recovery in progress
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 and p02 are passed. p03-t01 plus bounded recovery `4d5b1bbb` now expose opt-in activity for Claude/Codex review and direct catch-up while explicitly rejecting unavailable Cursor and watch combinations before mutation. Recovery usage is 1/10 with no pending marker. The same phase handle continues with p03-t02 watch delivery.
+p01 and p02 are passed. p03-t02 produced `a3494155`, but root transition audit found one Important fully-budget-omitted activity gap under `--quiet-empty`. Bounded p03 recovery attempt 2/10 is authorized to treat honest delivered-range and omission accounting as renderable activity and add the zero-displayed regression.
 
 ## Artifacts
 
@@ -142,4 +142,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p03-t02 activity-only watch delivery without cursor drift or collaboration wake authority.
+Complete bounded p03-t02 recovery attempt 2/10, then perform the p03 phase review.

@@ -991,3 +991,7 @@ Root transition audit of immutable p03-t01 commit `820465752eb5de4b7527fa8c96901
 - Recovery commit: `4d5b1bbb0d25c95708091caf6f7083f5456301e3`
 - Verification: root passed 157 focused observer tests, type checking, generated freshness, repository validation and three-owner version validation. Fresh read-only closure audit found zero Critical/Important findings and confirmed both rejections occur before state mutation or loop startup.
 - Reason: unsupported Cursor and watch activity modes now fail clearly while preserving Claude/Codex review and direct catch-up behavior; p03-t02 and p05 retain ownership of the deferred capabilities.
+
+#### Continuation p03-t02-recovery-resume-01
+
+Root transition audit of immutable p03-t02 commit `a34941554634e2ec5551dd6063f4d10117599d7b` found one Important projection-boundary gap: when the activity byte budget removes every displayed event, nonzero delivered-range and omission accounting can be suppressed by `--quiet-empty` after the conversation cursor has advanced. The original `sf-p03-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p03-t02-recovery-01` may reserve cumulative p03 attempt 2/10 only after this continuation is committed. Scope is limited to treating fully budget-omitted delivered activity as renderable and adding a zero-displayed activity-only regression; phase review remains unauthorized until the recovery is settled.
