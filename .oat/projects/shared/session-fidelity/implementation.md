@@ -131,7 +131,7 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ## Phase 4
 
-**Status:** in progress
+**Status:** completed
 
 ### Task p04-t01: Add opt-in activity to Markdown export
 
@@ -1201,8 +1201,8 @@ Root transition audit of immutable p04-t02 commit `d054880562f23c14e3bfe7538a6cd
     "artifact": "reviews/p04-review-2026-09-19T163743Z.md",
     "handle": "/root/p04_review"
   },
-  "launch_status": "intent-persisted",
-  "child_outcome": "pending-launch",
+  "launch_status": "accepted",
+  "child_outcome": "completed-pass",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [],
@@ -1216,3 +1216,17 @@ Root transition audit of immutable p04-t02 commit `d054880562f23c14e3bfe7538a6cd
 ```
 
 Dispatch: scope=p04-review-round-01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
+
+#### Phase p04 review round 1 — passed
+
+Formal artifact `reviews/p04-review-2026-09-19T163743Z.md` reviewed `e76881ec18f7dc0251fe3185f98ffc106af567c7..7214653b859166fd2cdc55faebe2559afa85fb70`: 0 Critical, 0 Important, 0 Medium, 0 Minor. It independently confirms the p04-t02 final-format budget correction and every exporter privacy/default-compatibility boundary. `**Reconnaissance:** not-attempted` appears exactly once and no `Review Orchestration` section exists. Independent review verification passed 277/277 focused tests, type checking, build freshness, four-owner version validation, repository validation and diff checks.
+
+Phase p04 passes. No optional external phase review gate is configured, and p04 is not a HiLL checkpoint. Continue to p05-t01 without a user pause.
+
+### Orchestration Run p04
+
+- Outcome: passed after two planned task commits, one bounded phase-recovery fix and one fresh root-owned review round.
+- Implementation: request `sf-p04-implement-01`, exact target `oat-phase-implementer-gpt-5-6-sol-high`, final source commit `7214653b859166fd2cdc55faebe2559afa85fb70`; p04 recovery usage 1/10 with no pending attempt.
+- Review: artifact `reviews/p04-review-2026-09-19T163743Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings across the complete p04 range.
+- Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
+- Outstanding p04 items: none. Next: p05-t01 Cursor activity extraction.

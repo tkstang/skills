@@ -1,5 +1,5 @@
 ---
-oat_current_task: p04-review
+oat_current_task: p05-t01
 oat_last_commit: 7214653b859166fd2cdc55faebe2559afa85fb70
 oat_blockers: []
 associated_issues:
@@ -32,6 +32,9 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p04:
       used_attempts: 1
+      pending_attempt: null
+    p05:
+      used_attempts: 0
       pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -108,13 +111,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Export activity review pending
+**Status:** Cursor activity extraction ready
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-p01 through p03 are passed. p04 implementation is complete through recovery `7214653b`: exporter activity is bounded and labeled, adversarial Markdown stays inert, and observer Markdown/JSON budgets now measure their actual final format. p04 recovery usage is 1/10 with no pending marker. Formal phase review is next.
+p01 through p04 are passed. The fresh p04 phase review found zero findings across 277 tests and all structural gates. Exporter activity is bounded and labeled, adversarial Markdown stays inert, and observer Markdown/JSON budgets measure their actual final format. No external phase gate or p04 HiLL checkpoint applies. Cursor extraction begins at p05-t01.
 
 ## Artifacts
 
@@ -122,7 +125,7 @@ p01 through p03 are passed. p04 implementation is complete through recovery `721
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (15/19 tasks completed; p01 through p03 passed, p04 review pending)
+- **Implementation:** `implementation.md` (15/19 tasks completed; p01 through p04 passed, p05 ready)
 
 ## Progress
 
@@ -145,4 +148,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Run the fresh root-owned p04 phase review over the immutable exporter range.
+Implement p05-t01 stable Cursor activity extraction from recorded frame evidence.
