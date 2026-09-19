@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { access, cp, mkdtemp, readFile } from 'node:fs/promises';
+import { access, cp, mkdtemp, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -41,6 +41,8 @@ describe('agent messaging packaging', () => {
         path.join(tmpdir(), 'agent-messaging-installed-'),
       );
       await cp(source, destination, { recursive: true });
+      const linkedDestination = `${destination}-linked`;
+      await symlink(destination, linkedDestination, 'dir');
       const executable = path.join(
         destination,
         'scripts',
@@ -54,23 +56,25 @@ describe('agent messaging packaging', () => {
       expect(result.stdout).toContain('agent-messaging');
       expect(
         await readFile(path.join(destination, 'SKILL.md'), 'utf8'),
-      ).toContain("version: '1.0.13'");
+      ).toContain("version: '1.0.14'");
 
       await access(path.join(destination, 'scripts', 'watch.mjs'));
       await access(path.join(destination, 'scripts', 'probe.mjs'));
 
       for (const hook of ['codex.mjs', 'claude-code.mjs']) {
-        const hookResult = spawnSync(
-          process.execPath,
-          [path.join(destination, 'scripts', 'hooks', hook)],
-          {
-            encoding: 'utf8',
-            input: '{"hook_event_name":"Unknown"}\n',
-            env: { HOME: destination, PATH: process.env.PATH },
-          },
-        );
-        expect(hookResult.status).toBe(0);
-        expect(hookResult.stdout).toBe('');
+        for (const installed of [destination, linkedDestination]) {
+          const hookResult = spawnSync(
+            process.execPath,
+            [path.join(installed, 'scripts', 'hooks', hook)],
+            {
+              encoding: 'utf8',
+              input: 'not-json\n',
+              env: { HOME: destination, PATH: process.env.PATH },
+            },
+          );
+          expect(hookResult.status).toBe(0);
+          expect(hookResult.stderr).toContain('SyntaxError');
+        }
       }
 
       const root = path.join(destination, 'state');

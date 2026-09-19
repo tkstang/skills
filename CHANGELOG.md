@@ -128,6 +128,10 @@
 
 ### Fixed
 
+- `agent-messaging` 1.0.14 and `session-observer-collab` 1.0.38 make shipped
+  hook and Monitor entrypoints execute correctly through real or symlinked
+  installation paths, including URL-escaped paths.
+
 - `agent-messaging` 1.0.12 binds every standalone Stop and foreground-watch
   ownership recheck to the active epoch's immutable controller, so a newly
   composed observer owner makes an in-flight standalone boundary emit nothing

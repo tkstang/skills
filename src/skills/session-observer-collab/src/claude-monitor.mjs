@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 import { activationStatus } from '../../../shared/collaboration/activation.js';
 import {
@@ -528,7 +530,10 @@ export async function runClaudeMonitorMain(
   return runClaudeMonitor(input);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   runClaudeMonitorMain().catch((error) => {
     process.stderr.write(`claude-monitor: ${error?.code ?? 'error'}\n`);
     process.exitCode = 1;

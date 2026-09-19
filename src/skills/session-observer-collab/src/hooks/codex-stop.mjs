@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 import { activationStatus } from '../../../../shared/collaboration/activation.js';
 import {
@@ -605,6 +607,9 @@ export async function runCodexStopMain() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   runCodexStopMain().catch(() => {});
 }

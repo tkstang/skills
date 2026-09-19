@@ -2,7 +2,9 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/hooks/codex-stop.mjs
+import { realpathSync } from "node:fs";
 import { readFile as readFile4 } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -5409,7 +5411,7 @@ async function runCodexStopMain() {
     process.removeListener("SIGTERM", terminate);
   }
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   runCodexStopMain().catch(() => {
   });
 }

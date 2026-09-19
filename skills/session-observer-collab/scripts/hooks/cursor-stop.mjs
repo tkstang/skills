@@ -2,7 +2,9 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/hooks/cursor-stop.mjs
+import { realpathSync } from "node:fs";
 import { readFile as readFile3 } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 // src/skills/session-observer/src/lib/digest.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -3820,7 +3822,7 @@ async function runCursorStopMain() {
     process.stdout.write(`${JSON.stringify(result)}
 `);
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   runCursorStopMain().catch(() => {
   });
 }

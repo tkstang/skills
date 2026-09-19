@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // agent-messaging-host-hook-v1
 
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,7 +90,8 @@ export async function runCodexHookMain(): Promise<void> {
 
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+  realpathSync(path.resolve(process.argv[1])) ===
+    realpathSync(fileURLToPath(import.meta.url))
 ) {
   runCodexHookMain().catch(() => undefined);
 }

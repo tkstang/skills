@@ -2,6 +2,7 @@
 // GENERATED skill payload for agent-messaging.
 
 // src/skills/agent-messaging/src/hooks/codex.ts
+import { realpathSync } from "node:fs";
 import path10 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2282,7 +2283,7 @@ async function runCodexHookMain() {
     );
   }
 }
-if (process.argv[1] && path10.resolve(process.argv[1]) === path10.resolve(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path10.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runCodexHookMain().catch(() => void 0);
 }
 export {

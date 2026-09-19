@@ -3,7 +3,9 @@
 
 // src/skills/session-observer-collab/src/claude-monitor.mjs
 import { createHash as createHash10 } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { readFile as readFile5 } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -5816,7 +5818,7 @@ async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.
   };
   return runClaudeMonitor(input);
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   runClaudeMonitorMain().catch((error) => {
     process.stderr.write(`claude-monitor: ${error?.code ?? "error"}
 `);

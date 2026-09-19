@@ -2,6 +2,7 @@
 // GENERATED skill payload for agent-messaging.
 
 // src/skills/agent-messaging/src/hooks/claude-code.ts
+import { realpathSync } from "node:fs";
 import path10 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2280,7 +2281,7 @@ async function runClaudeCodeHookMain() {
     );
   }
 }
-if (process.argv[1] && path10.resolve(process.argv[1]) === path10.resolve(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && realpathSync(path10.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   runClaudeCodeHookMain().catch(() => void 0);
 }
 export {
