@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t04
-oat_last_commit: d3251efa6f73303151ac9a41de08423fe512caf3
+oat_current_task: p01-t05
+oat_last_commit: 70f6b2df111cbf28fe6f7cc49725f9e26590c895
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -23,16 +23,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p01:
       used_attempts: 4
-      pending_attempt:
-        attempt: 4
-        event_id: p01-t04-recovery-01
-        original_request_id: sf-p01-implement-01
-        original_task_id: p01-t04
-        original_commit: f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb
-        discovered_by: 'root task-transition review: explicit Claude provenance can be overwritten by envelope text'
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -108,13 +99,13 @@ oat_generated: false
 
 # Project State: session-fidelity
 
-**Status:** Identity implementation active at p01-t04
+**Status:** Identity implementation active at p01-t05
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-The bounded p01-t03 recovery is accepted at `d3251efa`: mark-read now fails before digest delivery when saved state cannot be read. Recovery usage is 3/10 with no pending attempt. The original phase agent may continue with p01-t04 after the root tracking handshake; p01-t05 and activity remain unstarted.
+p01-t04 and its bounded recovery are accepted through `70f6b2df`: explicit Claude provenance now survives envelope-shaped content, while legacy absent provenance retains existing validated-envelope behavior. Recovery usage is 4/10 with no pending attempt. The original phase agent may continue with p01-t05 after the root tracking handshake; activity remains unstarted.
 
 ## Artifacts
 
@@ -122,7 +113,7 @@ The bounded p01-t03 recovery is accepted at `d3251efa`: mark-read now fails befo
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (4/19 tasks completed; p01-t04 next)
+- **Implementation:** `implementation.md` (5/19 tasks completed; p01-t05 next)
 
 ## Progress
 
@@ -141,8 +132,8 @@ The bounded p01-t03 recovery is accepted at `d3251efa`: mark-read now fails befo
 
 ## Blockers
 
-None. Both prior failed-attempt evidence and all three consumed recovery attempts remain preserved.
+None. Prior failed-attempt evidence and all four consumed recovery attempts remain preserved.
 
 ## Next Milestone
 
-Complete p01-t04 native Claude provenance atomically, then p01-t05 documentation and full identity-layer validation.
+Complete p01-t05 documentation and full identity-layer validation, then run the required identity phase review.

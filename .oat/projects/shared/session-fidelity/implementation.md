@@ -3,13 +3,13 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t04
+oat_current_task_id: p01-t05
 oat_generated: false
 ---
 
 # Implementation: session-fidelity
 
-This bottom-layer copy preserves the pre-implementation ledger snapshot: at that point, no source implementation had started. The approved refinement passed focused artifact review at e3c25f3a, with its sole Minor table-formatting finding corrected; later project records document the completed planning gates and implementation phases. The snapshot does not claim merge, release, installation, or live-provider acceptance, and its `oat_current_task_id` names the first task planned at that time rather than the current project task.
+Identity-layer implementation is active. The approved pre-implementation refinement passed focused artifact review at e3c25f3a, with its sole Minor table-formatting finding corrected; prior gate findings remain dispositioned.
 
 ## Preparatory evidence
 
@@ -22,14 +22,14 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | active  | 5     | 3/5       |
+| p01   | active  | 5     | 4/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 4/19 implementation tasks completed.
+**Total:** 5/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -65,9 +65,9 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ### Task p01-t04: Correct native Claude provenance atomically
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb; recovery 70f6b2df111cbf28fe6f7cc49725f9e26590c895
+**Verification:** root independently reran the declared 15-file suite 459/459, build:check, type-check, and four-owner version validation. Native human/task-notification/peer/unknown/absent provenance, observer labeling and engagement, export/fork exclusion, collaboration completion, and automatic-control boundaries are covered. Recovery attempt 4/10 ensures explicit provenance cannot be overwritten by envelope-shaped content; its completed marker was validated and cleared.
 
 ### Task p01-t05: Document and validate the identity layer
 
@@ -329,13 +329,13 @@ Dispatch: scope=p00 action=review role=reviewer producer=unknown provenance=unkn
     "finalHead": "09b69928bffd96687b5c3f5979bd59dc73fa73d8"
   },
   "launch_status": "accepted",
-  "child_outcome": "blocked-failed-recovery",
+  "child_outcome": "in-progress",
   "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
   "runtime_confirmation": "not-reported",
   "diagnostics": [
     "p01-t03-recovery-01 failed: expected stderr pathname absent from Node EISDIR text"
   ],
-  "continuation_events": ["p01-recovery-3-resume-01"],
+  "continuation_events": ["p01-recovery-3-resume-01", "p01-t04-usage-resume-01"],
   "task_class": "consequential",
   "model_class_floor": "consequential",
   "classification_source": "caller",
@@ -392,3 +392,17 @@ The user supplied renewed direction with “continue” after the reconciled fai
 - Bounded correction: propagate saved-state read/lock failures before delivery and prove EISDIR/nonzero/empty stdout without requiring a platform-dependent pathname. Runtime source/test plus generated observer closure only.
 - Verification: committed-HEAD focused CLI 52/52 and declared p01-t03 suite 304/304 passed both in the phase report and root rerun; type-check and build:check passed. Root verified immutable history, clean tree, matching completed marker/request/task/target/attempt before clearing pending_attempt. used_attempts remains 3.
 - Next: p01-t04 after the required root tracking handshake.
+
+#### Continuation p01-t04-usage-resume-01
+
+The original phase handle stopped mid-task when its provider usage window was exhausted, leaving an 11-file in-scope authored diff on clean base `ca941710`. The user reinvoked `oat-project-implement` after the reported reset. Root verified the original handle was resumable, the diff stayed within p01-t04, and the exact `oat-phase-implementer-gpt-5-6-sol-high` target resolved unchanged with no notices. The same handle reconciled and completed its own diff; no replacement, recovered patch, recovery attempt or route change was used.
+
+#### Recovery Event p01-t04-recovery-01
+
+- Phase/task: p01 / p01-t04; original request sf-p01-implement-01.
+- Original immutable commit: f4fc4ded03d5774a0a34418ab0f7964ec3dbb9bb. Recovery commit: 70f6b2df111cbf28fe6f7cc49725f9e26590c895.
+- Defect class: composition; discovered in root task-transition review when explicit Claude provenance could be overwritten by envelope-shaped text.
+- Disposition: recovered; phase-standing authorization; attempt 4/10; exact target oat-phase-implementer-gpt-5-6-sol-high unchanged.
+- Bounded correction: allow content-derived automatic-control classification for legacy-absent Claude records only; explicit human remains human, peer/unknown remains unmarked, and task notification remains runtime notification. Other runtime defaults remain unchanged. Shared runtime source/test plus generated closure only.
+- Verification: committed-HEAD focused suite 213/213 and declared p01-t04 suite 459/459 passed in the phase report; root independently reran the full 459/459 suite, build:check, type-check and four-owner version validation. Root verified immutable history, clean tree, matching completed marker/request/task/target/attempt before clearing pending_attempt. used_attempts remains 4.
+- Next: p01-t05 after the required root tracking handshake.
