@@ -59,6 +59,38 @@ export interface ClosedRecord extends HasSchemaVersion {
   closedAt: string;
 }
 
+export type MessageKind = 'request' | 'update';
+export type MessagePriority = 'normal' | 'high';
+
+export interface MessageRecord extends HasSchemaVersion {
+  id: string;
+  collaborationId: string;
+  from: {
+    participantId: string;
+    generation: number;
+    pin: Pin;
+  };
+  to: {
+    participantId: string;
+    generation: number;
+  };
+  kind: MessageKind;
+  priority: MessagePriority;
+  subject: string;
+  body: string;
+  replyTo: { participantId: string; messageId: string } | null;
+  createdAt: string;
+  contentHash: string;
+}
+
+export interface AckRecord extends HasSchemaVersion {
+  messageId: string;
+  messageHash: string;
+  recipient: Pin;
+  bindingGeneration: number;
+  receivedAt: string;
+}
+
 export function assertUuid(value: string, label = 'UUID'): void {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(

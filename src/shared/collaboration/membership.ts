@@ -18,6 +18,7 @@ import {
   assertUuid,
   pinsEqual,
   type BindingRecord,
+  type AckRecord,
   type ClosedRecord,
   type CollaborationRecord,
   type DepartureRecord,
@@ -288,6 +289,32 @@ export async function takeOverMembership(
       'expected previous pin is not current',
     );
   }
+  const paths = collaborationPaths(input.root, input.collaborationId);
+  const ackDirectory = path.join(
+    paths.acknowledgments,
+    current.member.participantId,
+    String(current.binding.generation),
+  );
+  const ackFiles = await enumerateJsonRecords(ackDirectory, {
+    maxEntries: 4096,
+  });
+  const ackRecords = await Promise.all(
+    ackFiles.map((file) => readJsonRecord<AckRecord>(file)),
+  );
+  const inheritedAckRefs = [
+    ...current.binding.inheritedAckRefs,
+    ...ackRecords.map((ack) => ({
+      messageId: ack.messageId,
+      messageHash: ack.messageHash,
+    })),
+  ].filter(
+    (ack, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.messageId === ack.messageId &&
+          candidate.messageHash === ack.messageHash,
+      ) === index,
+  );
   const binding: BindingRecord = {
     schemaVersion: 1,
     participantId: current.member.participantId,
@@ -297,9 +324,8 @@ export async function takeOverMembership(
     previousPin: current.binding.pin,
     reason: input.reason,
     createdAt: timestamp(input.now),
-    inheritedAckRefs: current.binding.inheritedAckRefs,
+    inheritedAckRefs,
   };
-  const paths = collaborationPaths(input.root, input.collaborationId);
   try {
     await publishImmutableRecord(
       path.join(
