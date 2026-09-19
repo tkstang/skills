@@ -15,15 +15,15 @@ oat_generated: false
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
-Critical or Important findings. Phase 2 implementation is complete; its
-independent review is blocking, and bounded fixes are active before Phase 3.
+Critical or Important findings. Phase 2 review fixes are complete and await a
+fresh independent review before Phase 3.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
-| Phase 2 | fixes_in_progress | 4     | 4/4       |
+| Phase 2 | review_pending | 4     | 4/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
@@ -63,7 +63,7 @@ independent review is blocking, and bounded fixes are active before Phase 3.
 
 ## Phase 2: Finite activation and host delivery (4 tasks)
 
-**Status:** fixes_in_progress
+**Status:** review_pending
 **Started:** 2026-09-19
 
 ### Task p02-t01: Implement activation epochs, finite claims, and recovery
@@ -563,6 +563,8 @@ diagnostics:
 nested_dispatches:
   - dispatch-agent-messaging-p02-recon-t01-20260919:completed-read-only
   - dispatch-agent-messaging-p02-recon-hosts-20260919:completed-read-only
+continuation_events:
+  - cont-agent-messaging-p02-review-fix-1:0703f1e3:completed
 ```
 
 Dispatch policy: high; selected=high; cap=high (codex, enforced — variant
@@ -633,6 +635,25 @@ The reviewer reported `Reconnaissance: attempted` with complete orchestration
 evidence. Its single structural project-log entry is deferred until the terminal
 Phase 2 outcome so the fix continuation starts from a clean worktree.
 
+### Review Fix Event cont-agent-messaging-p02-review-fix-1
+
+- Phase: p02
+- Original request: dispatch-agent-messaging-p02-a213af0d-6ad3-48c7-a379-942f42ef8976
+- Review artifact: reviews/code-p02-review-2026-09-19T172855Z.md
+- Reviewed head: a54d9baf2e618ae3885cf8053e3719f558b3ef45
+- Fix base: d970ecc6b6c5797a8bb5110045f02111d9065978
+- Disposition: fixes_completed; fresh independent re-review pending
+- Attempt: 1/3
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Dispatch stamp: `Dispatch: scope=p02-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- Fix commit: 0703f1e32391a1a498eb0274ac2da5d914d2352d
+- Findings addressed: 0 Critical, 7 Important, 1 Medium, 0 Minor.
+- Verification: root reproduced the full suite (2,201 passed, 1 skipped),
+  `build:check`, `validate`, type-check, smoke, skill-version validation, and
+  diff checks. The focused Phase 2 suite passed 86/86 in the fix continuation.
+- Recovery: none. No live provider, configuration, installation, quota, push,
+  PR, merge, or Cursor-adapter action occurred.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -655,7 +676,7 @@ Phase 2 outcome so the fix continuation starts from a clean worktree.
 **Review artifact:** [Phase 2 code review](reviews/code-p02-review-2026-09-19T172855Z.md)
 **Reviewed head:** `a54d9baf2e618ae3885cf8053e3719f558b3ef45`
 **Findings:** 0 Critical, 7 Important, 1 Medium, 0 Minor.
-**Status:** fixes_added; bounded fix loop round 1/3 pending.
+**Status:** fixes_completed; fresh independent re-review pending.
 
 The blocking findings cover fresh final-boundary revalidation, Stop retry
 generation consumption, proven human-origin renewal, complete observer lease
@@ -663,6 +684,12 @@ validation, complete hook-configuration fingerprints, confined/allowlisted
 diagnostics, and cancellable/quiescent probe timeouts. The Medium finding adds
 on-read activation hard-cap relationship validation. All eight are accepted as
 in-scope fixes under existing Phase 2 tasks; no task IDs are added or renumbered.
+
+Fix round 1 completed in `0703f1e32391a1a498eb0274ac2da5d914d2352d`.
+It adds direct coverage for every finding, bumps agent-messaging to 1.0.8, and
+regenerates only its standalone and Session payloads. Root reproduced the full
+suite (2,201 passed, 1 skipped), `build:check`, `validate`, type-check, smoke,
+and skill-version validation. No recovery event was required.
 
 ## Review Received: p01 round 1
 
@@ -954,12 +981,13 @@ This is historical planning-review context; product code now exists.
 
 Phase 1 product verification is current through the user-authorized fix round 3,
 its packaging recovery, and the passing independent review. Phase 2 root
-transition verification is current through `9738a11c`; review fixes are active.
+transition verification is current through fix commit `0703f1e3`; fresh
+independent review is pending.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 81 focused + 25 isolated generated-output + full suite (2,127 tests); build/check/validate/type/smoke | all | 0 | Accepted after independent review |
-| 2     | 65 focused + full suite (2,180 tests); build/check/validate/type/smoke/version | all | 0 | Review fixes active after blocking independent review |
+| 2     | 86 focused + full suite (2,201 tests); build/check/validate/type/smoke/version | all | 0 | Fix round 1 complete; fresh independent review pending |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 
@@ -968,9 +996,9 @@ transition verification is current through `9738a11c`; review fixes are active.
 Phase 1 is implemented and independently accepted. Phase 2 implementation is
 complete and root-verified: finite delivery ownership, bounded Codex/Claude
 adapters, foreground request watch, both generated distributions, and honest
-probe evidence are green, but the blocking Phase 2 review has eight accepted
-fixes in progress. Phases 3–4, publication, installation, merge, and live
-acceptance remain incomplete.
+probe evidence are green, and all eight blocking-review findings have fixes in
+`0703f1e3`. Fresh Phase 2 review, Phases 3–4, publication, installation, merge,
+and live acceptance remain incomplete.
 
 ## References
 
