@@ -645,9 +645,7 @@ async function validateReviewMarkReadBinding(
   candidate: TranscriptCandidate,
   json: boolean,
 ): Promise<void> {
-  const existing = await stateLib
-    .getSession(runtime, candidate.sessionId)
-    .catch(() => null);
+  const existing = await stateLib.getSession(runtime, candidate.sessionId);
   const validation = await stateLib.validateSavedPosition(
     runtime,
     candidate.sessionId,

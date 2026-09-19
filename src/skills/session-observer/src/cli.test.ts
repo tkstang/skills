@@ -1727,6 +1727,45 @@ describe('Cursor CLI state and delivery composition', () => {
     }
   });
 
+  test('review --mark-read fails before digest delivery when saved state cannot be read', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-state-read-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '15151515-aaaa-4151-8151-151515151515';
+      await writeNativeCodexTranscript(home, cwd, 'selected.jsonl', sessionId);
+      const stateDir = join(home, '.state');
+      await mkdir(join(stateDir, 'state.json'), { recursive: true });
+      const baseArgs = [
+        'review',
+        '--runtime',
+        'codex',
+        '--session',
+        `codex:${sessionId}`,
+        '--cwd',
+        cwd,
+        '--json',
+      ];
+
+      const stateless = spawnCli(baseArgs, { HOME: home, STATE_DIR: stateDir });
+      expect(stateless.status, `${stateless.stderr}\n${stateless.stdout}`).toBe(
+        0,
+      );
+      expect(JSON.parse(stateless.stdout).sessionId).toBe(sessionId);
+
+      const marked = spawnCli([...baseArgs, '--mark-read'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(marked.status).toBe(1);
+      expect(marked.stdout).toBe('');
+      expect(marked.stderr).toContain(
+        '[session-observer] Unexpected error: EISDIR:',
+      );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('pinned review renders digest v2 and advances only through --mark-read delivery finalization', async () => {
     const home = await realpath(
       await mkdtemp(join(tmpdir(), 'cli-cursor-review-v2-')),

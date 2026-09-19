@@ -9447,7 +9447,7 @@ async function emitObserveFailure(args, result) {
   return emit(result.message, exitCode);
 }
 async function validateReviewMarkReadBinding(runtime, candidate, json) {
-  const existing = await getSession(runtime, candidate.sessionId).catch(() => null);
+  const existing = await getSession(runtime, candidate.sessionId);
   const validation = await validateSavedPosition(
     runtime,
     candidate.sessionId,
