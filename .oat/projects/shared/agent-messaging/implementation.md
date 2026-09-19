@@ -14,15 +14,14 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. Phase 1 implementation and one bounded recovery are complete. Its
-independent review is blocking, and the bounded review-fix loop is active before
-Phase 2 begins.
+2026-09-19. Phase 1 implementation, one bounded recovery, and review-fix round 1
+are complete. The phase is awaiting independent re-review before Phase 2 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | fixes_in_progress | 5     | 5/5       |
+| Phase 1 | re_review_pending | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -31,7 +30,7 @@ Phase 2 begins.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** fixes_in_progress
+**Status:** re_review_pending
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -197,6 +196,7 @@ diagnostics:
   - phase-report:2817142d
 continuation_events:
   - cont-agent-messaging-p01-recover-1:7739c65a:completed
+  - cont-agent-messaging-p01-review-fix-1:7bf347f3:completed
 ```
 
 Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
@@ -294,6 +294,24 @@ No project-log review-orchestration entry was added because the reviewer
 reported reconnaissance as `not-attempted`; exactly one valid signal was
 consumed for this round.
 
+### Review Fix Event cont-agent-messaging-p01-review-fix-1
+
+- Phase: p01
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Review artifact: reviews/code-p01-review-2026-09-19T140258Z.md
+- Reviewed head: 8866df01da3041e49d8b530e7e5d005059783330
+- Fix base: e46e0f717a998f7afa82c16480a3de3fff6e6b38
+- Disposition: fixes_completed; independent re-review pending
+- Attempt: 1/2
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Dispatch stamp: `Dispatch: scope=p01-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- Fix commit: 7bf347f309a0fc63d40e246513e3bd96f2622c45
+- Findings addressed: 0 Critical, 9 Important, 2 Medium, 0 Minor.
+- Verification: root reproduced the focused suite, full suite (2,108 passed,
+  1 skipped), `build:check`, `validate`, type-check, and smoke against the exact
+  fix commit. The implementer also passed skill-version validation, docs build,
+  scoped lint/format, and diff checks.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -304,6 +322,8 @@ consumed for this round.
 - Root transition verification reproduced the 48 focused tests and discovered
   the release-versioning inventory gap; the original phase handle recovered it
   in append-only commit `7739c65a` with attempt 1/10.
+- Review-fix round 1 resolved all 11 findings in commit `7bf347f3`; root
+  reproduced the full repository and Phase 1 verification before re-review.
 
 ## Review Received: p01 round 1
 
@@ -311,7 +331,7 @@ consumed for this round.
 **Review artifact:** [Phase 1 code review](reviews/code-p01-review-2026-09-19T140258Z.md)
 **Reviewed head:** `8866df01da3041e49d8b530e7e5d005059783330`
 **Findings:** 0 Critical, 9 Important, 2 Medium, 0 Minor.
-**Status:** fixes_added; bounded fix loop round 1/2 pending.
+**Status:** fixes_completed; independent re-review pending.
 
 The blocking review found two missing repository inventory expectations,
 insufficient record validation and join crash recovery, unbounded writer and
@@ -320,6 +340,11 @@ unreported close/takeover races, unsafe rendered-view reads, incomplete
 adversarial proof, missing creation/staleness context, and fail-open closed-marker
 inspection. All findings remain within the existing p01 task scope; no task IDs
 were added or renumbered.
+
+Fix round 1 completed at `7bf347f309a0fc63d40e246513e3bd96f2622c45`.
+The original Phase 1 handle implemented every review disposition and added the
+required protocol, safety, packaging, and adversarial verification. No finding
+was deferred.
 
 ## Review Received: plan
 

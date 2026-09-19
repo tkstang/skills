@@ -827,7 +827,7 @@ distributions or the generated documentation inventory.
 
 | Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------- |
-| p01    | code     | fixes_added     | 2026-09-19 | reviews/code-p01-review-2026-09-19T140258Z.md                | 8866df01da3041e49d8b530e7e5d005059783330 | subagent   | -           |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/code-p01-review-2026-09-19T140258Z.md                | 8866df01da3041e49d8b530e7e5d005059783330 | subagent   | -           |
 | p02    | code     | pending         | -          | -                                                           | -             | -          | -           |
 | final  | code     | pending         | -          | -                                                           | -             | -          | -           |
 | spec   | artifact | pending         | -          | -                                                           | -             | -          | -           |
