@@ -132,4 +132,5 @@ and alternatives behind the architecture.
 - [Build & Distribution](generated-runtime.md) — The canonical-owner → complete standalone/plugin payload build contract and the never-hand-edit rule.
 - [Consensus Runtime](consensus-runtime.md) — Execution boundaries, structured verdicts, durable state, and mode-dependent outcomes.
 - [Shared transcript-core](transcript-core.md) — One source of truth for per-provider transcript knowledge, with a committed generated copy per consuming skill.
+- [Native session schemas](session-schemas/index.md) — What Codex, Claude Code, and Cursor actually write to their transcripts, observed from recorded sessions.
 - [Cursor collaboration reliability](cursor-collaboration-reliability.md) — Exact identity, content-first observation, state continuity, and lease-scoped completion for Cursor collaboration.

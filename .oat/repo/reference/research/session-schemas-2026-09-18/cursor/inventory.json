@@ -1,0 +1,640 @@
+{
+ "generatedOn": "2026-09-18",
+ "review": "reviewed-vocabulary allowlist applied",
+ "privacy": "structure-only; values only at ENUM_PATHS when identifier-shaped (MCP names generalised); keys only when identifier-shaped and seen in >= 3 files; tool output never decoded; no post-processing",
+ "options": {
+  "maxLineBytes": 8000000,
+  "minFiles": 3
+ },
+ "diagnostics": {
+  "files": 300,
+  "lines": 40931,
+  "blank": 0,
+  "malformed": 0,
+  "oversizedBytes": 0,
+  "unreadable": 0,
+  "depthTruncated": 0,
+  "jsonDepthTruncated": 0
+ },
+ "groups": [
+  {
+   "discriminator": "(no-type) | role=assistant",
+   "count": 32445,
+   "fileCount": 291,
+   "clientVersions": [],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 32445
+     },
+     "count": 32445,
+     "fileCount": 291
+    },
+    "$.message": {
+     "types": {
+      "object": 32445
+     },
+     "count": 32445,
+     "fileCount": 291
+    },
+    "$.message.content": {
+     "types": {
+      "array": 32445
+     },
+     "count": 32445,
+     "fileCount": 291
+    },
+    "$.message.content[type=text]": {
+     "types": {
+      "object": 14002
+     },
+     "count": 14002,
+     "fileCount": 291
+    },
+    "$.message.content[type=text].text": {
+     "types": {
+      "string": 14000,
+      "string(json)": 2
+     },
+     "count": 14002,
+     "fileCount": 291
+    },
+    "$.message.content[type=text].type": {
+     "types": {
+      "string": 14002
+     },
+     "count": 14002,
+     "fileCount": 291,
+     "values": {
+      "text": 14002
+     }
+    },
+    "$.message.content[type=tool_use]": {
+     "types": {
+      "object": 51672
+     },
+     "count": 51672,
+     "fileCount": 289
+    },
+    "$.message.content[type=tool_use].input": {
+     "types": {
+      "object": 45677,
+      "object(third-party, not described)": 548,
+      "string": 5447
+     },
+     "count": 51672,
+     "fileCount": 289
+    },
+    "$.message.content[type=tool_use].input.<dynamic-key>": {
+     "types": {
+      "number": 4514,
+      "boolean": 170
+     },
+     "count": 4684,
+     "fileCount": 209
+    },
+    "$.message.content[type=tool_use].input.<rare-key>": {
+     "types": {},
+     "count": 5,
+     "fileCount": 2,
+     "collapsedPaths": 2
+    },
+    "$.message.content[type=tool_use].input.<unreviewed-key>": {
+     "types": {
+      "string": 8,
+      "array": 8
+     },
+     "count": 16,
+     "fileCount": 3
+    },
+    "$.message.content[type=tool_use].input.block_until_ms": {
+     "types": {
+      "number": 11873
+     },
+     "count": 11873,
+     "fileCount": 258
+    },
+    "$.message.content[type=tool_use].input.command": {
+     "types": {
+      "string": 15416
+     },
+     "count": 15416,
+     "fileCount": 278
+    },
+    "$.message.content[type=tool_use].input.contents": {
+     "types": {
+      "string": 219,
+      "string(json)": 2
+     },
+     "count": 221,
+     "fileCount": 58
+    },
+    "$.message.content[type=tool_use].input.description": {
+     "types": {
+      "string": 15934
+     },
+     "count": 15934,
+     "fileCount": 278
+    },
+    "$.message.content[type=tool_use].input.explanation": {
+     "types": {
+      "string": 48
+     },
+     "count": 48,
+     "fileCount": 15
+    },
+    "$.message.content[type=tool_use].input.glob": {
+     "types": {
+      "string": 2363
+     },
+     "count": 2363,
+     "fileCount": 207
+    },
+    "$.message.content[type=tool_use].input.glob_file_search": {
+     "types": {
+      "string": 3
+     },
+     "count": 3,
+     "fileCount": 3
+    },
+    "$.message.content[type=tool_use].input.glob_pattern": {
+     "types": {
+      "string": 1262
+     },
+     "count": 1262,
+     "fileCount": 213
+    },
+    "$.message.content[type=tool_use].input.head_limit": {
+     "types": {
+      "number": 6913
+     },
+     "count": 6913,
+     "fileCount": 232
+    },
+    "$.message.content[type=tool_use].input.limit": {
+     "types": {
+      "number": 9105
+     },
+     "count": 9105,
+     "fileCount": 249
+    },
+    "$.message.content[type=tool_use].input.merge": {
+     "types": {
+      "boolean": 404
+     },
+     "count": 404,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.model": {
+     "types": {
+      "string": 97
+     },
+     "count": 97,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.multiline": {
+     "types": {
+      "boolean": 27
+     },
+     "count": 27,
+     "fileCount": 16
+    },
+    "$.message.content[type=tool_use].input.namespace": {
+     "types": {
+      "string": 89
+     },
+     "count": 89,
+     "fileCount": 21
+    },
+    "$.message.content[type=tool_use].input.new_string": {
+     "types": {
+      "string": 2033,
+      "string(json)": 1
+     },
+     "count": 2034,
+     "fileCount": 57
+    },
+    "$.message.content[type=tool_use].input.notify_on_output": {
+     "types": {
+      "object": 12,
+      "string": 1
+     },
+     "count": 13,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_use].input.notify_on_output.<rare-key>": {
+     "types": {},
+     "count": 11,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.message.content[type=tool_use].input.notify_on_output.pattern": {
+     "types": {
+      "string": 12
+     },
+     "count": 12,
+     "fileCount": 3
+    },
+    "$.message.content[type=tool_use].input.notify_on_output.reason": {
+     "types": {
+      "string": 12
+     },
+     "count": 12,
+     "fileCount": 3
+    },
+    "$.message.content[type=tool_use].input.offset": {
+     "types": {
+      "number": 8395,
+      "string": 2
+     },
+     "count": 8397,
+     "fileCount": 245
+    },
+    "$.message.content[type=tool_use].input.old_string": {
+     "types": {
+      "string": 2033,
+      "string(json)": 1
+     },
+     "count": 2034,
+     "fileCount": 57
+    },
+    "$.message.content[type=tool_use].input.output_mode": {
+     "types": {
+      "string": 6867
+     },
+     "count": 6867,
+     "fileCount": 238
+    },
+    "$.message.content[type=tool_use].input.path": {
+     "types": {
+      "string": 26865
+     },
+     "count": 26865,
+     "fileCount": 286
+    },
+    "$.message.content[type=tool_use].input.pattern": {
+     "types": {
+      "string": 8167
+     },
+     "count": 8167,
+     "fileCount": 250
+    },
+    "$.message.content[type=tool_use].input.prompt": {
+     "types": {
+      "string": 518
+     },
+     "count": 518,
+     "fileCount": 15
+    },
+    "$.message.content[type=tool_use].input.questions": {
+     "types": {
+      "array": 182
+     },
+     "count": 182,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[]": {
+     "types": {
+      "object": 200
+     },
+     "count": 200,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].allow_multiple": {
+     "types": {
+      "boolean": 95
+     },
+     "count": 95,
+     "fileCount": 11
+    },
+    "$.message.content[type=tool_use].input.questions[].id": {
+     "types": {
+      "string": 200
+     },
+     "count": 200,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].options": {
+     "types": {
+      "array": 200
+     },
+     "count": 200,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].options[]": {
+     "types": {
+      "object": 543
+     },
+     "count": 543,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].options[].id": {
+     "types": {
+      "string": 543
+     },
+     "count": 543,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].options[].label": {
+     "types": {
+      "string": 543
+     },
+     "count": 543,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.questions[].prompt": {
+     "types": {
+      "string": 200
+     },
+     "count": 200,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.resume": {
+     "types": {
+      "string": 229
+     },
+     "count": 229,
+     "fileCount": 11
+    },
+    "$.message.content[type=tool_use].input.run_in_background": {
+     "types": {
+      "boolean": 511
+     },
+     "count": 511,
+     "fileCount": 15
+    },
+    "$.message.content[type=tool_use].input.search_term": {
+     "types": {
+      "string": 56
+     },
+     "count": 56,
+     "fileCount": 14
+    },
+    "$.message.content[type=tool_use].input.server": {
+     "types": {
+      "string": 142
+     },
+     "count": 142,
+     "fileCount": 76
+    },
+    "$.message.content[type=tool_use].input.shell_id": {
+     "types": {
+      "string": 571
+     },
+     "count": 571,
+     "fileCount": 68
+    },
+    "$.message.content[type=tool_use].input.subagent_type": {
+     "types": {
+      "string": 394
+     },
+     "count": 394,
+     "fileCount": 15
+    },
+    "$.message.content[type=tool_use].input.target_directory": {
+     "types": {
+      "string": 1225
+     },
+     "count": 1225,
+     "fileCount": 212
+    },
+    "$.message.content[type=tool_use].input.target_mode_id": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_use].input.title": {
+     "types": {
+      "string": 155
+     },
+     "count": 155,
+     "fileCount": 12
+    },
+    "$.message.content[type=tool_use].input.todos": {
+     "types": {
+      "array": 408
+     },
+     "count": 408,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.todos[]": {
+     "types": {
+      "object": 1346
+     },
+     "count": 1346,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.todos[].content": {
+     "types": {
+      "string": 880
+     },
+     "count": 880,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.todos[].id": {
+     "types": {
+      "string": 1346
+     },
+     "count": 1346,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.todos[].status": {
+     "types": {
+      "string": 1327
+     },
+     "count": 1327,
+     "fileCount": 69
+    },
+    "$.message.content[type=tool_use].input.toolName": {
+     "types": {
+      "string": 76
+     },
+     "count": 76,
+     "fileCount": 25
+    },
+    "$.message.content[type=tool_use].input.type": {
+     "types": {
+      "string": 84
+     },
+     "count": 84,
+     "fileCount": 13
+    },
+    "$.message.content[type=tool_use].input.url": {
+     "types": {
+      "string": 60
+     },
+     "count": 60,
+     "fileCount": 11
+    },
+    "$.message.content[type=tool_use].input.working_directory": {
+     "types": {
+      "string": 12036
+     },
+     "count": 12036,
+     "fileCount": 215
+    },
+    "$.message.content[type=tool_use].name": {
+     "types": {
+      "string": 51672
+     },
+     "count": 51672,
+     "fileCount": 289,
+     "values": {
+      "Shell": 15417,
+      "Glob": 1270,
+      "ReadFile": 12513,
+      "rg": 6684,
+      "AwaitShell": 610,
+      "Subagent": 484,
+      "TodoWrite": 404,
+      "GetDynamicTools": 106,
+      "CallDynamicTool": 113,
+      "ApplyPatch": 5447,
+      "AskQuestion": 182,
+      "SwitchMode": 7,
+      "CreatePlan": 4,
+      "Delete": 205,
+      "WebFetch": 60,
+      "GetMcpTools": 151,
+      "CallMcpTool": 435,
+      "WebSearch": 56,
+      "Read": 3800,
+      "Grep": 1427,
+      "StrReplace": 2034,
+      "Write": 221,
+      "Task": 34,
+      "ReadLints": 8
+     }
+    },
+    "$.message.content[type=tool_use].type": {
+     "types": {
+      "string": 51672
+     },
+     "count": 51672,
+     "fileCount": 289,
+     "values": {
+      "tool_use": 51672
+     }
+    },
+    "$.role": {
+     "types": {
+      "string": 32445
+     },
+     "count": 32445,
+     "fileCount": 291,
+     "values": {
+      "assistant": 32445
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "(no-type) | role=user",
+   "count": 8194,
+   "fileCount": 295,
+   "clientVersions": [],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 8194
+     },
+     "count": 8194,
+     "fileCount": 295
+    },
+    "$.message": {
+     "types": {
+      "object": 8194
+     },
+     "count": 8194,
+     "fileCount": 295
+    },
+    "$.message.content": {
+     "types": {
+      "array": 8194
+     },
+     "count": 8194,
+     "fileCount": 295
+    },
+    "$.message.content[type=text]": {
+     "types": {
+      "object": 8194
+     },
+     "count": 8194,
+     "fileCount": 295
+    },
+    "$.message.content[type=text].text": {
+     "types": {
+      "string": 8194
+     },
+     "count": 8194,
+     "fileCount": 295
+    },
+    "$.message.content[type=text].type": {
+     "types": {
+      "string": 8194
+     },
+     "count": 8194,
+     "fileCount": 295,
+     "values": {
+      "text": 8194
+     }
+    },
+    "$.role": {
+     "types": {
+      "string": 8194
+     },
+     "count": 8194,
+     "fileCount": 295,
+     "values": {
+      "user": 8194
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "turn_ended",
+   "count": 292,
+   "fileCount": 291,
+   "clientVersions": [],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 292
+     },
+     "count": 292,
+     "fileCount": 291
+    },
+    "$.error": {
+     "types": {
+      "string": 5
+     },
+     "count": 5,
+     "fileCount": 5
+    },
+    "$.status": {
+     "types": {
+      "string": 292
+     },
+     "count": 292,
+     "fileCount": 291,
+     "values": {
+      "success": 287,
+      "error": 5
+     }
+    },
+    "$.type": {
+     "types": {
+      "string": 292
+     },
+     "count": 292,
+     "fileCount": 291,
+     "values": {
+      "turn_ended": 292
+     }
+    }
+   }
+  }
+ ]
+}

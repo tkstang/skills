@@ -1,0 +1,5868 @@
+{
+ "generatedOn": "2026-09-18",
+ "review": "reviewed-vocabulary allowlist applied",
+ "privacy": "structure-only; values only at ENUM_PATHS when identifier-shaped (MCP names generalised); keys only when identifier-shaped and seen in >= 3 files; tool output never decoded; no post-processing",
+ "options": {
+  "maxLineBytes": 8000000,
+  "minFiles": 3
+ },
+ "diagnostics": {
+  "files": 300,
+  "lines": 160452,
+  "blank": 0,
+  "malformed": 0,
+  "oversizedBytes": 0,
+  "unreadable": 0,
+  "depthTruncated": 0,
+  "jsonDepthTruncated": 64
+ },
+ "groups": [
+  {
+   "discriminator": "event_msg | payload.type=item_completed",
+   "count": 47140,
+   "fileCount": 289,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload": {
+     "types": {
+      "object": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.completed_at_ms": {
+     "types": {
+      "number": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.item": {
+     "types": {
+      "object": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.item.<rare-key>": {
+     "types": {},
+     "count": 24,
+     "fileCount": 2,
+     "collapsedPaths": 4
+    },
+    "$.payload.item.action": {
+     "types": {
+      "object": 363
+     },
+     "count": 363,
+     "fileCount": 27
+    },
+    "$.payload.item.action.pattern": {
+     "types": {
+      "string": 43
+     },
+     "count": 43,
+     "fileCount": 14
+    },
+    "$.payload.item.action.queries": {
+     "types": {
+      "null": 9,
+      "array": 126
+     },
+     "count": 135,
+     "fileCount": 23
+    },
+    "$.payload.item.action.queries[]": {
+     "types": {
+      "string": 388
+     },
+     "count": 388,
+     "fileCount": 20
+    },
+    "$.payload.item.action.query": {
+     "types": {
+      "string": 11,
+      "null": 57
+     },
+     "count": 68,
+     "fileCount": 23
+    },
+    "$.payload.item.action.type": {
+     "types": {
+      "string": 363
+     },
+     "count": 363,
+     "fileCount": 27
+    },
+    "$.payload.item.action.url": {
+     "types": {
+      "string": 130,
+      "null": 18
+     },
+     "count": 148,
+     "fileCount": 24
+    },
+    "$.payload.item.agent_path": {
+     "types": {
+      "string": 1198
+     },
+     "count": 1198,
+     "fileCount": 142
+    },
+    "$.payload.item.agent_thread_id": {
+     "types": {
+      "string": 1198
+     },
+     "count": 1198,
+     "fileCount": 142
+    },
+    "$.payload.item.agents_states": {
+     "types": {
+      "object": 986
+     },
+     "count": 986,
+     "fileCount": 41
+    },
+    "$.payload.item.agents_states.<rare-key>": {
+     "types": {},
+     "count": 17,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.payload.item.aggregated_output": {
+     "types": {
+      "string": 16044,
+      "string(json)": 781
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.arguments": {
+     "types": {
+      "object(third-party, not described)": 100
+     },
+     "count": 100,
+     "fileCount": 13
+    },
+    "$.payload.item.changes": {
+     "types": {
+      "object": 1982
+     },
+     "count": 1982,
+     "fileCount": 118
+    },
+    "$.payload.item.changes.<dynamic-key>": {
+     "types": {
+      "object": 1982
+     },
+     "count": 1982,
+     "fileCount": 118
+    },
+    "$.payload.item.client_id": {
+     "types": {
+      "string": 717
+     },
+     "count": 717,
+     "fileCount": 33
+    },
+    "$.payload.item.command": {
+     "types": {
+      "array": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.command[]": {
+     "types": {
+      "string": 50475
+     },
+     "count": 50475,
+     "fileCount": 255
+    },
+    "$.payload.item.content": {
+     "types": {
+      "array": 6102
+     },
+     "count": 6102,
+     "fileCount": 289
+    },
+    "$.payload.item.content.<rare-key>": {
+     "types": {},
+     "count": 39,
+     "fileCount": 1,
+     "collapsedPaths": 3
+    },
+    "$.payload.item.content[type=<unreviewed-value>]": {
+     "types": {
+      "object": 5288
+     },
+     "count": 5288,
+     "fileCount": 289
+    },
+    "$.payload.item.content[type=<unreviewed-value>].name": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=<unreviewed-value>].path": {
+     "types": {
+      "string": 63
+     },
+     "count": 63,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=<unreviewed-value>].text": {
+     "types": {
+      "string": 5165,
+      "string(json)": 60
+     },
+     "count": 5225,
+     "fileCount": 289
+    },
+    "$.payload.item.content[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 5288
+     },
+     "count": 5288,
+     "fileCount": 289
+    },
+    "$.payload.item.content[type=text]": {
+     "types": {
+      "object": 877
+     },
+     "count": 877,
+     "fileCount": 83
+    },
+    "$.payload.item.content[type=text].text": {
+     "types": {
+      "string": 877
+     },
+     "count": 877,
+     "fileCount": 83
+    },
+    "$.payload.item.content[type=text].text_elements": {
+     "types": {
+      "array": 877
+     },
+     "count": 877,
+     "fileCount": 83
+    },
+    "$.payload.item.content[type=text].text_elements[]": {
+     "types": {
+      "object": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=text].text_elements[].byte_range": {
+     "types": {
+      "object": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=text].text_elements[].byte_range.end": {
+     "types": {
+      "number": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=text].text_elements[].byte_range.start": {
+     "types": {
+      "number": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=text].text_elements[].placeholder": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 19
+    },
+    "$.payload.item.content[type=text].type": {
+     "types": {
+      "string": 877
+     },
+     "count": 877,
+     "fileCount": 83
+    },
+    "$.payload.item.cwd": {
+     "types": {
+      "string": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.delivery": {
+     "types": {
+      "string": 16
+     },
+     "count": 16,
+     "fileCount": 7
+    },
+    "$.payload.item.duration": {
+     "types": {
+      "object": 16925
+     },
+     "count": 16925,
+     "fileCount": 255
+    },
+    "$.payload.item.duration.nanos": {
+     "types": {
+      "number": 16925
+     },
+     "count": 16925,
+     "fileCount": 255
+    },
+    "$.payload.item.duration.secs": {
+     "types": {
+      "number": 16925
+     },
+     "count": 16925,
+     "fileCount": 255
+    },
+    "$.payload.item.durationMs": {
+     "types": {
+      "number": 38
+     },
+     "count": 38,
+     "fileCount": 6
+    },
+    "$.payload.item.exit_code": {
+     "types": {
+      "number": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.formatted_output": {
+     "types": {
+      "string": 16061,
+      "string(json)": 764
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.id": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.item.kind": {
+     "types": {
+      "string": 1438
+     },
+     "count": 1438,
+     "fileCount": 146,
+     "values": {
+      "interacted": 608,
+      "started": 238,
+      "completed": 340,
+      "web.search": 202,
+      "clock.sleep": 38,
+      "interrupted": 12
+     }
+    },
+    "$.payload.item.memory_citation": {
+     "types": {
+      "object": 259
+     },
+     "count": 259,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries": {
+     "types": {
+      "array": 259
+     },
+     "count": 259,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries[]": {
+     "types": {
+      "object": 364
+     },
+     "count": 364,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries[].lineEnd": {
+     "types": {
+      "number": 364
+     },
+     "count": 364,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries[].lineStart": {
+     "types": {
+      "number": 364
+     },
+     "count": 364,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries[].note": {
+     "types": {
+      "string": 364
+     },
+     "count": 364,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.entries[].path": {
+     "types": {
+      "string": 364
+     },
+     "count": 364,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.rolloutIds": {
+     "types": {
+      "array": 259
+     },
+     "count": 259,
+     "fileCount": 97
+    },
+    "$.payload.item.memory_citation.rolloutIds[]": {
+     "types": {
+      "string": 264
+     },
+     "count": 264,
+     "fileCount": 76
+    },
+    "$.payload.item.parsed_cmd": {
+     "types": {
+      "array": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>]": {
+     "types": {
+      "object": 22134
+     },
+     "count": 22134,
+     "fileCount": 255
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>].cmd": {
+     "types": {
+      "string": 22134
+     },
+     "count": 22134,
+     "fileCount": 255
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>].name": {
+     "types": {
+      "string": 8533
+     },
+     "count": 8533,
+     "fileCount": 243
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>].path": {
+     "types": {
+      "string": 10974,
+      "null": 170
+     },
+     "count": 11144,
+     "fileCount": 246
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>].query": {
+     "types": {
+      "string": 2236
+     },
+     "count": 2236,
+     "fileCount": 232
+    },
+    "$.payload.item.parsed_cmd[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 22134
+     },
+     "count": 22134,
+     "fileCount": 255
+    },
+    "$.payload.item.path": {
+     "types": {
+      "string": 17
+     },
+     "count": 17,
+     "fileCount": 4
+    },
+    "$.payload.item.phase": {
+     "types": {
+      "string": 4747
+     },
+     "count": 4747,
+     "fileCount": 280
+    },
+    "$.payload.item.pluginId": {
+     "types": {
+      "string": 51
+     },
+     "count": 51,
+     "fileCount": 11
+    },
+    "$.payload.item.process_id": {
+     "types": {
+      "string": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.query": {
+     "types": {
+      "string": 363
+     },
+     "count": 363,
+     "fileCount": 27
+    },
+    "$.payload.item.questions": {
+     "types": {
+      "array": 16
+     },
+     "count": 16,
+     "fileCount": 7
+    },
+    "$.payload.item.questions[]": {
+     "types": {
+      "object": 24
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.payload.item.questions[].options": {
+     "types": {
+      "array": 23,
+      "null": 1
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.payload.item.questions[].options[]": {
+     "types": {
+      "string": 63
+     },
+     "count": 63,
+     "fileCount": 7
+    },
+    "$.payload.item.questions[].title": {
+     "types": {
+      "string": 24
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.payload.item.raw_content": {
+     "types": {
+      "array": 19365
+     },
+     "count": 19365,
+     "fileCount": 282
+    },
+    "$.payload.item.readOnlyHint": {
+     "types": {
+      "boolean": 95
+     },
+     "count": 95,
+     "fileCount": 11
+    },
+    "$.payload.item.receiver_agents": {
+     "types": {
+      "array": 986
+     },
+     "count": 986,
+     "fileCount": 41
+    },
+    "$.payload.item.receiver_agents.<rare-key>": {
+     "types": {},
+     "count": 68,
+     "fileCount": 2,
+     "collapsedPaths": 4
+    },
+    "$.payload.item.receiver_thread_ids": {
+     "types": {
+      "array": 986
+     },
+     "count": 986,
+     "fileCount": 41
+    },
+    "$.payload.item.receiver_thread_ids.<rare-key>": {
+     "types": {},
+     "count": 17,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.payload.item.result": {
+     "types": {
+      "object(third-party, not described)": 100
+     },
+     "count": 100,
+     "fileCount": 13
+    },
+    "$.payload.item.results": {
+     "types": {
+      "array": 313
+     },
+     "count": 313,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>]": {
+     "types": {
+      "object": 2411
+     },
+     "count": 2411,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].domain": {
+     "types": {
+      "string": 2361
+     },
+     "count": 2361,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].ref_id": {
+     "types": {
+      "string": 2411
+     },
+     "count": 2411,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].snippet": {
+     "types": {
+      "string": 2411
+     },
+     "count": 2411,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].thumbnail_url": {
+     "types": {
+      "string": 323
+     },
+     "count": 323,
+     "fileCount": 22
+    },
+    "$.payload.item.results[type=<unreviewed-value>].title": {
+     "types": {
+      "string": 2387
+     },
+     "count": 2387,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 2411
+     },
+     "count": 2411,
+     "fileCount": 27
+    },
+    "$.payload.item.results[type=<unreviewed-value>].url": {
+     "types": {
+      "string": 2361
+     },
+     "count": 2361,
+     "fileCount": 27
+    },
+    "$.payload.item.review_output": {
+     "types": {
+      "object": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.review_output.findings": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.review_output.findings[]": {
+     "types": {
+      "object": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].body": {
+     "types": {
+      "string": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].code_location": {
+     "types": {
+      "object": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].code_location.absolute_file_path": {
+     "types": {
+      "string": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].code_location.line_range": {
+     "types": {
+      "object": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].code_location.line_range.end": {
+     "types": {
+      "number": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].code_location.line_range.start": {
+     "types": {
+      "number": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].confidence_score": {
+     "types": {
+      "number": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].priority": {
+     "types": {
+      "number": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.findings[].title": {
+     "types": {
+      "string": 8
+     },
+     "count": 8,
+     "fileCount": 4
+    },
+    "$.payload.item.review_output.overall_confidence_score": {
+     "types": {
+      "number": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.review_output.overall_correctness": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.review_output.overall_explanation": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.sender_thread_id": {
+     "types": {
+      "string": 986
+     },
+     "count": 986,
+     "fileCount": 41
+    },
+    "$.payload.item.server": {
+     "types": {
+      "string": 100
+     },
+     "count": 100,
+     "fileCount": 13
+    },
+    "$.payload.item.source": {
+     "types": {
+      "string": 16825
+     },
+     "count": 16825,
+     "fileCount": 255
+    },
+    "$.payload.item.status": {
+     "types": {
+      "string": 19893
+     },
+     "count": 19893,
+     "fileCount": 255,
+     "values": {
+      "completed": 18906,
+      "failed": 987
+     }
+    },
+    "$.payload.item.stderr": {
+     "types": {
+      "string": 18611
+     },
+     "count": 18611,
+     "fileCount": 255
+    },
+    "$.payload.item.stdout": {
+     "types": {
+      "string": 18026,
+      "string(json)": 781
+     },
+     "count": 18807,
+     "fileCount": 255
+    },
+    "$.payload.item.summary_text": {
+     "types": {
+      "array": 19365
+     },
+     "count": 19365,
+     "fileCount": 282
+    },
+    "$.payload.item.summary_text[]": {
+     "types": {
+      "string": 19003
+     },
+     "count": 19003,
+     "fileCount": 144
+    },
+    "$.payload.item.target": {
+     "types": {
+      "object": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.target.<rare-key>": {
+     "types": {},
+     "count": 2,
+     "fileCount": 1,
+     "collapsedPaths": 2
+    },
+    "$.payload.item.target.branch": {
+     "types": {
+      "string": 6
+     },
+     "count": 6,
+     "fileCount": 6
+    },
+    "$.payload.item.target.type": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.item.tool": {
+     "types": {
+      "string": 1086
+     },
+     "count": 1086,
+     "fileCount": 46
+    },
+    "$.payload.item.type": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289,
+     "values": {
+      "AgentMessage": 5225,
+      "Reasoning": 19365,
+      "CommandExecution": 16825,
+      "SubAgentActivity": 1198,
+      "UserMessage": 877,
+      "CollabAgentToolCall": 986,
+      "Extension": 240,
+      "FileChange": 1982,
+      "ContextCompaction": 150,
+      "EnteredReviewMode": 7,
+      "ExitedReviewMode": 7,
+      "ImageView": 17,
+      "McpToolCall": 100,
+      "WebSearch": 161
+     }
+    },
+    "$.payload.item.user_facing_hint": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.started_at_ms": {
+     "types": {
+      "number": 45083
+     },
+     "count": 45083,
+     "fileCount": 283
+    },
+    "$.payload.thread_id": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289,
+     "values": {
+      "item_completed": 47140
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289
+    },
+    "$.type": {
+     "types": {
+      "string": 47140
+     },
+     "count": 47140,
+     "fileCount": 289,
+     "values": {
+      "event_msg": 47140
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=token_count",
+   "count": 20272,
+   "fileCount": 283,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 20250
+     },
+     "count": 20250,
+     "fileCount": 282
+    },
+    "$.payload": {
+     "types": {
+      "object": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info": {
+     "types": {
+      "object": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage": {
+     "types": {
+      "object": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.output_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.last_token_usage.total_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.model_context_window": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage": {
+     "types": {
+      "object": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.input_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.output_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.info.total_token_usage.total_tokens": {
+     "types": {
+      "number": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits": {
+     "types": {
+      "object": 20271,
+      "null": 1
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.credits": {
+     "types": {
+      "object": 19791,
+      "null": 480
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.credits.balance": {
+     "types": {
+      "string": 19790,
+      "null": 1
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.credits.has_credits": {
+     "types": {
+      "boolean": 19791
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.credits.unlimited": {
+     "types": {
+      "boolean": 19791
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.individual_limit": {
+     "types": {
+      "null": 20271
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.limit_id": {
+     "types": {
+      "string": 20271
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.limit_name": {
+     "types": {
+      "null": 14914,
+      "string": 5357
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.plan_type": {
+     "types": {
+      "null": 7205,
+      "string": 13066
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.primary": {
+     "types": {
+      "object": 19791,
+      "null": 480
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.primary.resets_at": {
+     "types": {
+      "number": 19791
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.primary.used_percent": {
+     "types": {
+      "number": 19791
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.primary.window_minutes": {
+     "types": {
+      "number": 19791
+     },
+     "count": 19791,
+     "fileCount": 281
+    },
+    "$.payload.rate_limits.rate_limit_reached_type": {
+     "types": {
+      "null": 20271
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.secondary": {
+     "types": {
+      "null": 14914,
+      "object": 5357
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.rate_limits.secondary.resets_at": {
+     "types": {
+      "number": 5357
+     },
+     "count": 5357,
+     "fileCount": 87
+    },
+    "$.payload.rate_limits.secondary.used_percent": {
+     "types": {
+      "number": 5357
+     },
+     "count": 5357,
+     "fileCount": 87
+    },
+    "$.payload.rate_limits.secondary.window_minutes": {
+     "types": {
+      "number": 5357
+     },
+     "count": 5357,
+     "fileCount": 87
+    },
+    "$.payload.rate_limits.spend_control_reached": {
+     "types": {
+      "null": 20271
+     },
+     "count": 20271,
+     "fileCount": 283
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 20272
+     },
+     "count": 20272,
+     "fileCount": 283,
+     "values": {
+      "token_count": 20272
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 20272
+     },
+     "count": 20272,
+     "fileCount": 283
+    },
+    "$.type": {
+     "types": {
+      "string": 20272
+     },
+     "count": 20272,
+     "fileCount": 283,
+     "values": {
+      "event_msg": 20272
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=reasoning",
+   "count": 20101,
+   "fileCount": 282,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 20081
+     },
+     "count": 20081,
+     "fileCount": 281
+    },
+    "$.payload": {
+     "types": {
+      "object": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.payload.content": {
+     "types": {
+      "null": 2193
+     },
+     "count": 2193,
+     "fileCount": 10
+    },
+    "$.payload.encrypted_content": {
+     "types": {
+      "string": 19817,
+      "null": 284
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.payload.summary": {
+     "types": {
+      "array": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.payload.summary[type=<unreviewed-value>]": {
+     "types": {
+      "object": 15350
+     },
+     "count": 15350,
+     "fileCount": 144
+    },
+    "$.payload.summary[type=<unreviewed-value>].text": {
+     "types": {
+      "string": 15350
+     },
+     "count": 15350,
+     "fileCount": 144
+    },
+    "$.payload.summary[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 15350
+     },
+     "count": 15350,
+     "fileCount": 144
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 20101
+     },
+     "count": 20101,
+     "fileCount": 282,
+     "values": {
+      "reasoning": 20101
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 20101
+     },
+     "count": 20101,
+     "fileCount": 282
+    },
+    "$.type": {
+     "types": {
+      "string": 20101
+     },
+     "count": 20101,
+     "fileCount": 282,
+     "values": {
+      "response_item": 20101
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "token_usage_record",
+   "count": 18286,
+   "fileCount": 283,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-09-07",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 18264
+     },
+     "count": 18264,
+     "fileCount": 282
+    },
+    "$.payload": {
+     "types": {
+      "object": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.response_id": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.root_turn_id": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.session_id": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_id": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage": {
+     "types": {
+      "object": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.thread_token_usage.total_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage": {
+     "types": {
+      "object": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.turn_token_usage.total_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage": {
+     "types": {
+      "object": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.cache_write_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.cached_input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.input_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.reasoning_output_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.payload.usage.total_tokens": {
+     "types": {
+      "number": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283
+    },
+    "$.type": {
+     "types": {
+      "string": 18286
+     },
+     "count": 18286,
+     "fileCount": 283,
+     "values": {
+      "token_usage_record": 18286
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=custom_tool_call",
+   "count": 15764,
+   "fileCount": 255,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 15743
+     },
+     "count": 15743,
+     "fileCount": 254
+    },
+    "$.payload": {
+     "types": {
+      "object": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.payload.call_id": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.payload.input": {
+     "types": {
+      "string": 15763,
+      "string(json)": 1
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.payload.name": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255,
+     "values": {
+      "exec": 15623,
+      "apply_patch": 141
+     }
+    },
+    "$.payload.status": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255,
+     "values": {
+      "completed": 15764
+     }
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255,
+     "values": {
+      "custom_tool_call": 15764
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255
+    },
+    "$.type": {
+     "types": {
+      "string": 15764
+     },
+     "count": 15764,
+     "fileCount": 255,
+     "values": {
+      "response_item": 15764
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=custom_tool_call_output",
+   "count": 15760,
+   "fileCount": 255,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 15760
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.metadata": {
+     "types": {
+      "object": 100
+     },
+     "count": 100,
+     "fileCount": 3
+    },
+    "$.metadata.client_authored": {
+     "types": {
+      "boolean": 100
+     },
+     "count": 100,
+     "fileCount": 3
+    },
+    "$.metadata.fallback_token_limit_override": {
+     "types": {
+      "number": 100
+     },
+     "count": 100,
+     "fileCount": 3
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 15739
+     },
+     "count": 15739,
+     "fileCount": 254
+    },
+    "$.payload": {
+     "types": {
+      "object": 15760
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 15760
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.payload.call_id": {
+     "types": {
+      "string": 15760
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 15585
+     },
+     "count": 15585,
+     "fileCount": 255
+    },
+    "$.payload.output": {
+     "types": {
+      "array": 15527,
+      "string": 233
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.payload.output[type=input_image]": {
+     "types": {
+      "object": 133
+     },
+     "count": 133,
+     "fileCount": 4
+    },
+    "$.payload.output[type=input_image].detail": {
+     "types": {
+      "string": 133
+     },
+     "count": 133,
+     "fileCount": 4
+    },
+    "$.payload.output[type=input_image].image_url": {
+     "types": {
+      "string": 133
+     },
+     "count": 133,
+     "fileCount": 4
+    },
+    "$.payload.output[type=input_image].type": {
+     "types": {
+      "string": 133
+     },
+     "count": 133,
+     "fileCount": 4
+    },
+    "$.payload.output[type=input_text]": {
+     "types": {
+      "object": 35768
+     },
+     "count": 35768,
+     "fileCount": 253
+    },
+    "$.payload.output[type=input_text].text": {
+     "types": {
+      "string": 28086,
+      "string(json)": 7682
+     },
+     "count": 35768,
+     "fileCount": 253
+    },
+    "$.payload.output[type=input_text].type": {
+     "types": {
+      "string": 35768
+     },
+     "count": 35768,
+     "fileCount": 253
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 15760
+     },
+     "count": 15760,
+     "fileCount": 255,
+     "values": {
+      "custom_tool_call_output": 15760
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 15760
+     },
+     "count": 15760,
+     "fileCount": 255
+    },
+    "$.type": {
+     "types": {
+      "string": 15760
+     },
+     "count": 15760,
+     "fileCount": 255,
+     "values": {
+      "response_item": 15760
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=message",
+   "count": 7924,
+   "fileCount": 290,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 7924
+     },
+     "count": 7924,
+     "fileCount": 290
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 7918
+     },
+     "count": 7918,
+     "fileCount": 289
+    },
+    "$.payload": {
+     "types": {
+      "object": 7924
+     },
+     "count": 7924,
+     "fileCount": 290
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 7924
+     },
+     "count": 7924,
+     "fileCount": 290
+    },
+    "$.payload.content": {
+     "types": {
+      "array": 7924
+     },
+     "count": 7924,
+     "fileCount": 290
+    },
+    "$.payload.content[type=input_image]": {
+     "types": {
+      "object": 18
+     },
+     "count": 18,
+     "fileCount": 3
+    },
+    "$.payload.content[type=input_image].detail": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 3
+    },
+    "$.payload.content[type=input_image].image_url": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 3
+    },
+    "$.payload.content[type=input_image].type": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 3,
+     "values": {
+      "input_image": 18
+     }
+    },
+    "$.payload.content[type=input_text]": {
+     "types": {
+      "object": 4188
+     },
+     "count": 4188,
+     "fileCount": 290
+    },
+    "$.payload.content[type=input_text].text": {
+     "types": {
+      "string": 4188
+     },
+     "count": 4188,
+     "fileCount": 290
+    },
+    "$.payload.content[type=input_text].type": {
+     "types": {
+      "string": 4188
+     },
+     "count": 4188,
+     "fileCount": 290,
+     "values": {
+      "input_text": 4188
+     }
+    },
+    "$.payload.content[type=output_text]": {
+     "types": {
+      "object": 5331
+     },
+     "count": 5331,
+     "fileCount": 290
+    },
+    "$.payload.content[type=output_text].text": {
+     "types": {
+      "string": 5271,
+      "string(json)": 60
+     },
+     "count": 5331,
+     "fileCount": 290
+    },
+    "$.payload.content[type=output_text].type": {
+     "types": {
+      "string": 5331
+     },
+     "count": 5331,
+     "fileCount": 290,
+     "values": {
+      "output_text": 5331
+     }
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 7895
+     },
+     "count": 7895,
+     "fileCount": 290
+    },
+    "$.payload.phase": {
+     "types": {
+      "string": 4853
+     },
+     "count": 4853,
+     "fileCount": 281,
+     "values": {
+      "commentary": 3755,
+      "final_answer": 1098
+     }
+    },
+    "$.payload.role": {
+     "types": {
+      "string": 7924
+     },
+     "count": 7924,
+     "fileCount": 290,
+     "values": {
+      "developer": 1030,
+      "user": 1563,
+      "assistant": 5331
+     }
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 7924
+     },
+     "count": 7924,
+     "fileCount": 290,
+     "values": {
+      "message": 7924
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 7924
+     },
+     "count": 7924,
+     "fileCount": 290
+    },
+    "$.type": {
+     "types": {
+      "string": 7924
+     },
+     "count": 7924,
+     "fileCount": 290,
+     "values": {
+      "response_item": 7924
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=function_call",
+   "count": 3251,
+   "fileCount": 150,
+   "clientVersions": [
+    "0.144.5",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.arguments": {
+     "types": {
+      "string(third-party, not described)": 2298,
+      "string(json)": 953
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.arguments<json>": {
+     "types": {
+      "object": 953
+     },
+     "count": 953,
+     "fileCount": 24
+    },
+    "$.payload.arguments<json>.<rare-key>": {
+     "types": {},
+     "count": 447,
+     "fileCount": 2,
+     "collapsedPaths": 7
+    },
+    "$.payload.arguments<json>.cell_id": {
+     "types": {
+      "string": 82
+     },
+     "count": 82,
+     "fileCount": 8
+    },
+    "$.payload.arguments<json>.cmd": {
+     "types": {
+      "string": 705
+     },
+     "count": 705,
+     "fileCount": 4
+    },
+    "$.payload.arguments<json>.max_tokens": {
+     "types": {
+      "number": 82
+     },
+     "count": 82,
+     "fileCount": 8
+    },
+    "$.payload.arguments<json>.questions": {
+     "types": {
+      "array": 45
+     },
+     "count": 45,
+     "fileCount": 18
+    },
+    "$.payload.arguments<json>.questions[]": {
+     "types": {
+      "object": 65
+     },
+     "count": 65,
+     "fileCount": 18
+    },
+    "$.payload.arguments<json>.questions[].header": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 14
+    },
+    "$.payload.arguments<json>.questions[].id": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 14
+    },
+    "$.payload.arguments<json>.questions[].options": {
+     "types": {
+      "array": 64
+     },
+     "count": 64,
+     "fileCount": 18
+    },
+    "$.payload.arguments<json>.questions[].question": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 14
+    },
+    "$.payload.arguments<json>.questions[].title": {
+     "types": {
+      "string": 24
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.payload.arguments<json>.workdir": {
+     "types": {
+      "string": 327
+     },
+     "count": 327,
+     "fileCount": 3
+    },
+    "$.payload.arguments<json>.yield_time_ms": {
+     "types": {
+      "number": 477
+     },
+     "count": 477,
+     "fileCount": 10
+    },
+    "$.payload.call_id": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.name": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150,
+     "values": {
+      "send_message": 472,
+      "spawn_agent": 245,
+      "wait_agent": 1031,
+      "interrupt_agent": 111,
+      "followup_task": 137,
+      "sleep": 38,
+      "request_user_input_async": 16,
+      "list_agents": 159,
+      "exec_command": 705,
+      "request_user_input": 29,
+      "<unreviewed-value>": 104,
+      "wait": 82,
+      "multi_agent_v1__spawn_agent": 4,
+      "write_stdin": 43,
+      "mcp__<server>__<tool>": 4,
+      "update_plan": 25,
+      "view_image": 46
+     }
+    },
+    "$.payload.namespace": {
+     "types": {
+      "string": 2294
+     },
+     "count": 2294,
+     "fileCount": 146
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150,
+     "values": {
+      "function_call": 3251
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.type": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150,
+     "values": {
+      "response_item": 3251
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=function_call_output",
+   "count": 3251,
+   "fileCount": 150,
+   "clientVersions": [
+    "0.144.5",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.metadata": {
+     "types": {
+      "object": 69
+     },
+     "count": 69,
+     "fileCount": 13
+    },
+    "$.metadata.client_authored": {
+     "types": {
+      "boolean": 69
+     },
+     "count": 69,
+     "fileCount": 13
+    },
+    "$.metadata.fallback_token_limit_override": {
+     "types": {
+      "number": 69
+     },
+     "count": 69,
+     "fileCount": 13
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.call_id": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 3168
+     },
+     "count": 3168,
+     "fileCount": 150
+    },
+    "$.payload.output": {
+     "types": {
+      "string": 1541,
+      "string(json)": 1481,
+      "array": 229
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.payload.output.<rare-key>": {
+     "types": {},
+     "count": 196,
+     "fileCount": 2,
+     "collapsedPaths": 4
+    },
+    "$.payload.output[type=input_text]": {
+     "types": {
+      "object": 347
+     },
+     "count": 347,
+     "fileCount": 17
+    },
+    "$.payload.output[type=input_text].text": {
+     "types": {
+      "string": 273,
+      "string(json)": 74
+     },
+     "count": 347,
+     "fileCount": 17
+    },
+    "$.payload.output[type=input_text].type": {
+     "types": {
+      "string": 347
+     },
+     "count": 347,
+     "fileCount": 17
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150,
+     "values": {
+      "function_call_output": 3251
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150
+    },
+    "$.type": {
+     "types": {
+      "string": 3251
+     },
+     "count": 3251,
+     "fileCount": 150,
+     "values": {
+      "response_item": 3251
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "turn_context",
+   "count": 1399,
+   "fileCount": 283,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1398
+     },
+     "count": 1398,
+     "fileCount": 282
+    },
+    "$.payload": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.<rare-key>": {
+     "types": {},
+     "count": 68,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.payload.active_permission_profile": {
+     "types": {
+      "object": 208
+     },
+     "count": 208,
+     "fileCount": 19
+    },
+    "$.payload.active_permission_profile.id": {
+     "types": {
+      "string": 208
+     },
+     "count": 208,
+     "fileCount": 19
+    },
+    "$.payload.approval_policy": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.approvals_reviewer": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode.mode": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode.settings": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode.settings.developer_instructions": {
+     "types": {
+      "null": 407,
+      "string": 992
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode.settings.model": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.collaboration_mode.settings.reasoning_effort": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.comp_hash": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.current_date": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.cwd": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.disabled_plugin_ids": {
+     "types": {
+      "array": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.payload.effort": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.file_system_sandbox_policy": {
+     "types": {
+      "object": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries": {
+     "types": {
+      "array": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[]": {
+     "types": {
+      "object": 304
+     },
+     "count": 304,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].access": {
+     "types": {
+      "string": 304
+     },
+     "count": 304,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].missing_path_behavior": {
+     "types": {
+      "string": 78
+     },
+     "count": 78,
+     "fileCount": 26
+    },
+    "$.payload.file_system_sandbox_policy.entries[].path": {
+     "types": {
+      "object": 304
+     },
+     "count": 304,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].path.path": {
+     "types": {
+      "string": 196
+     },
+     "count": 196,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].path.type": {
+     "types": {
+      "string": 304
+     },
+     "count": 304,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].path.value": {
+     "types": {
+      "object": 108
+     },
+     "count": 108,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.entries[].path.value.kind": {
+     "types": {
+      "string": 108
+     },
+     "count": 108,
+     "fileCount": 27
+    },
+    "$.payload.file_system_sandbox_policy.kind": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.model": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.multi_agent_version": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283,
+     "values": {
+      "v2": 1301,
+      "disabled": 7,
+      "v1": 91
+     }
+    },
+    "$.payload.permission_profile": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.permission_profile.file_system": {
+     "types": {
+      "object": 41
+     },
+     "count": 41,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries": {
+     "types": {
+      "array": 41
+     },
+     "count": 41,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[]": {
+     "types": {
+      "object": 309
+     },
+     "count": 309,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[].access": {
+     "types": {
+      "string": 309
+     },
+     "count": 309,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[].missing_path_behavior": {
+     "types": {
+      "string": 78
+     },
+     "count": 78,
+     "fileCount": 26
+    },
+    "$.payload.permission_profile.file_system.entries[].path": {
+     "types": {
+      "object": 309
+     },
+     "count": 309,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[].path.path": {
+     "types": {
+      "string": 196
+     },
+     "count": 196,
+     "fileCount": 27
+    },
+    "$.payload.permission_profile.file_system.entries[].path.type": {
+     "types": {
+      "string": 309
+     },
+     "count": 309,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[].path.value": {
+     "types": {
+      "object": 113
+     },
+     "count": 113,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.entries[].path.value.kind": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.file_system.type": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.network": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 31
+    },
+    "$.payload.permission_profile.type": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.personality": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.realtime_active": {
+     "types": {
+      "boolean": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.root_turn_id": {
+     "types": {
+      "string": 1271
+     },
+     "count": 1271,
+     "fileCount": 283
+    },
+    "$.payload.sandbox_policy": {
+     "types": {
+      "object": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.sandbox_policy.<rare-key>": {
+     "types": {},
+     "count": 10,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.payload.sandbox_policy.exclude_slash_tmp": {
+     "types": {
+      "boolean": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.sandbox_policy.exclude_tmpdir_env_var": {
+     "types": {
+      "boolean": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.sandbox_policy.network_access": {
+     "types": {
+      "boolean": 36
+     },
+     "count": 36,
+     "fileCount": 27
+    },
+    "$.payload.sandbox_policy.type": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.summary": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.timezone": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.workspace_roots": {
+     "types": {
+      "array": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.payload.workspace_roots[]": {
+     "types": {
+      "string": 1644
+     },
+     "count": 1644,
+     "fileCount": 283
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283
+    },
+    "$.type": {
+     "types": {
+      "string": 1399
+     },
+     "count": 1399,
+     "fileCount": 283,
+     "values": {
+      "turn_context": 1399
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "world_state",
+   "count": 1243,
+   "fileCount": 283,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1243
+     },
+     "count": 1243,
+     "fileCount": 283
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1242
+     },
+     "count": 1242,
+     "fileCount": 282
+    },
+    "$.payload": {
+     "types": {
+      "object": 1243
+     },
+     "count": 1243,
+     "fileCount": 283
+    },
+    "$.payload.full": {
+     "types": {
+      "boolean": 1243
+     },
+     "count": 1243,
+     "fileCount": 283
+    },
+    "$.payload.state": {
+     "types": {
+      "object": 1243
+     },
+     "count": 1243,
+     "fileCount": 283
+    },
+    "$.payload.state.agents_md": {
+     "types": {
+      "object": 495
+     },
+     "count": 495,
+     "fileCount": 283
+    },
+    "$.payload.state.agents_md.directory": {
+     "types": {
+      "string": 446
+     },
+     "count": 446,
+     "fileCount": 275
+    },
+    "$.payload.state.agents_md.text": {
+     "types": {
+      "string": 494
+     },
+     "count": 494,
+     "fileCount": 283
+    },
+    "$.payload.state.apps_instructions": {
+     "types": {
+      "boolean": 464
+     },
+     "count": 464,
+     "fileCount": 283
+    },
+    "$.payload.state.collaboration_mode": {
+     "types": {
+      "object": 531,
+      "string": 5
+     },
+     "count": 536,
+     "fileCount": 283
+    },
+    "$.payload.state.collaboration_mode.instructions": {
+     "types": {
+      "string": 523
+     },
+     "count": 523,
+     "fileCount": 283
+    },
+    "$.payload.state.collaboration_mode.mode": {
+     "types": {
+      "string": 439
+     },
+     "count": 439,
+     "fileCount": 283
+    },
+    "$.payload.state.collaboration_mode.model": {
+     "types": {
+      "string": 469
+     },
+     "count": 469,
+     "fileCount": 283
+    },
+    "$.payload.state.context_window_guidance": {
+     "types": {
+      "string": 429,
+      "null": 1
+     },
+     "count": 430,
+     "fileCount": 283
+    },
+    "$.payload.state.environments": {
+     "types": {
+      "object": 1145
+     },
+     "count": 1145,
+     "fileCount": 283
+    },
+    "$.payload.state.environments_instructions": {
+     "types": {
+      "boolean": 440
+     },
+     "count": 440,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.current_date": {
+     "types": {
+      "string": 536
+     },
+     "count": 536,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.environments": {
+     "types": {
+      "object": 454
+     },
+     "count": 454,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.environments.local": {
+     "types": {
+      "object": 454
+     },
+     "count": 454,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.environments.local.cwd": {
+     "types": {
+      "string": 454
+     },
+     "count": 454,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.environments.local.shell": {
+     "types": {
+      "string": 450
+     },
+     "count": 450,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.environments.local.status": {
+     "types": {
+      "string": 450
+     },
+     "count": 450,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.filesystem": {
+     "types": {
+      "string": 469
+     },
+     "count": 469,
+     "fileCount": 283
+    },
+    "$.payload.state.environments.subagents": {
+     "types": {
+      "string": 721,
+      "null": 84
+     },
+     "count": 805,
+     "fileCount": 111
+    },
+    "$.payload.state.environments.timezone": {
+     "types": {
+      "string": 450
+     },
+     "count": 450,
+     "fileCount": 283
+    },
+    "$.payload.state.git_attribution": {
+     "types": {
+      "boolean": 439,
+      "null": 2
+     },
+     "count": 441,
+     "fileCount": 283
+    },
+    "$.payload.state.host_skills": {
+     "types": {
+      "object": 582
+     },
+     "count": 582,
+     "fileCount": 283
+    },
+    "$.payload.state.host_skills.body": {
+     "types": {
+      "string": 582
+     },
+     "count": 582,
+     "fileCount": 283
+    },
+    "$.payload.state.host_skills.includeInstructions": {
+     "types": {
+      "boolean": 440
+     },
+     "count": 440,
+     "fileCount": 283
+    },
+    "$.payload.state.managed_developer_instructions": {
+     "types": {
+      "object": 429
+     },
+     "count": 429,
+     "fileCount": 283
+    },
+    "$.payload.state.model": {
+     "types": {
+      "string": 469,
+      "null": 2
+     },
+     "count": 471,
+     "fileCount": 283
+    },
+    "$.payload.state.multi_agent_mode": {
+     "types": {
+      "object": 525,
+      "null": 2
+     },
+     "count": 527,
+     "fileCount": 283
+    },
+    "$.payload.state.multi_agent_mode.mode": {
+     "types": {
+      "string": 409
+     },
+     "count": 409,
+     "fileCount": 264
+    },
+    "$.payload.state.multi_agent_mode.usage_hint_hash": {
+     "types": {
+      "string": 490
+     },
+     "count": 490,
+     "fileCount": 264
+    },
+    "$.payload.state.multi_agent_usage_hint": {
+     "types": {
+      "string": 392
+     },
+     "count": 392,
+     "fileCount": 264
+    },
+    "$.payload.state.orchestrator_skills": {
+     "types": {
+      "object": 434
+     },
+     "count": 434,
+     "fileCount": 283
+    },
+    "$.payload.state.orchestrator_skills.enabled": {
+     "types": {
+      "boolean": 434
+     },
+     "count": 434,
+     "fileCount": 283
+    },
+    "$.payload.state.orchestrator_skills.includeInstructions": {
+     "types": {
+      "boolean": 434
+     },
+     "count": 434,
+     "fileCount": 283
+    },
+    "$.payload.state.permissions": {
+     "types": {
+      "object": 439,
+      "string": 5
+     },
+     "count": 444,
+     "fileCount": 283
+    },
+    "$.payload.state.permissions.approved_command_prefixes": {
+     "types": {
+      "array": 439
+     },
+     "count": 439,
+     "fileCount": 283
+    },
+    "$.payload.state.permissions.approved_command_prefixes[]": {
+     "types": {
+      "array": 4390
+     },
+     "count": 4390,
+     "fileCount": 283
+    },
+    "$.payload.state.permissions.approved_command_prefixes[][]": {
+     "types": {
+      "string": 7902
+     },
+     "count": 7902,
+     "fileCount": 283
+    },
+    "$.payload.state.permissions.instructions": {
+     "types": {
+      "string": 439
+     },
+     "count": 439,
+     "fileCount": 283
+    },
+    "$.payload.state.persistent_mode": {
+     "types": {
+      "object": 429,
+      "null": 1
+     },
+     "count": 430,
+     "fileCount": 283
+    },
+    "$.payload.state.personality": {
+     "types": {
+      "object": 475,
+      "null": 2
+     },
+     "count": 477,
+     "fileCount": 283
+    },
+    "$.payload.state.personality.model": {
+     "types": {
+      "string": 469
+     },
+     "count": 469,
+     "fileCount": 283
+    },
+    "$.payload.state.personality.personality": {
+     "types": {
+      "string": 447
+     },
+     "count": 447,
+     "fileCount": 283
+    },
+    "$.payload.state.plugins_instructions": {
+     "types": {
+      "boolean": 462
+     },
+     "count": 462,
+     "fileCount": 283
+    },
+    "$.payload.state.realtime": {
+     "types": {
+      "object": 442
+     },
+     "count": 442,
+     "fileCount": 283
+    },
+    "$.payload.state.realtime.active": {
+     "types": {
+      "boolean": 442
+     },
+     "count": 442,
+     "fileCount": 283
+    },
+    "$.payload.state.skills": {
+     "types": {
+      "object": 450
+     },
+     "count": 450,
+     "fileCount": 283
+    },
+    "$.payload.state.skills.includeInstructions": {
+     "types": {
+      "boolean": 450
+     },
+     "count": 450,
+     "fileCount": 283
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1243
+     },
+     "count": 1243,
+     "fileCount": 283
+    },
+    "$.type": {
+     "types": {
+      "string": 1243
+     },
+     "count": 1243,
+     "fileCount": 283,
+     "values": {
+      "world_state": 1243
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=task_started",
+   "count": 1193,
+   "fileCount": 290,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1192
+     },
+     "count": 1192,
+     "fileCount": 289
+    },
+    "$.payload": {
+     "types": {
+      "object": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.payload.collaboration_mode_kind": {
+     "types": {
+      "string": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.payload.model_context_window": {
+     "types": {
+      "number": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.payload.started_at": {
+     "types": {
+      "number": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 1193
+     },
+     "count": 1193,
+     "fileCount": 290,
+     "values": {
+      "task_started": 1193
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1193
+     },
+     "count": 1193,
+     "fileCount": 290
+    },
+    "$.type": {
+     "types": {
+      "string": 1193
+     },
+     "count": 1193,
+     "fileCount": 290,
+     "values": {
+      "event_msg": 1193
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "inter_agent_communication_metadata",
+   "count": 1122,
+   "fileCount": 231,
+   "clientVersions": [
+    "0.144.5",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.trigger_turn": {
+     "types": {
+      "boolean": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.type": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231,
+     "values": {
+      "inter_agent_communication_metadata": 1122
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=agent_message",
+   "count": 1122,
+   "fileCount": 231,
+   "clientVersions": [
+    "0.144.5",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.<dynamic-key>": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.author": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.content": {
+     "types": {
+      "array": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.content[type=encrypted_content]": {
+     "types": {
+      "object": 765
+     },
+     "count": 765,
+     "fileCount": 227
+    },
+    "$.payload.content[type=encrypted_content].encrypted_content": {
+     "types": {
+      "string": 765
+     },
+     "count": 765,
+     "fileCount": 227
+    },
+    "$.payload.content[type=encrypted_content].type": {
+     "types": {
+      "string": 765
+     },
+     "count": 765,
+     "fileCount": 227,
+     "values": {
+      "encrypted_content": 765
+     }
+    },
+    "$.payload.content[type=input_text]": {
+     "types": {
+      "object": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.content[type=input_text].text": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.content[type=input_text].type": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231,
+     "values": {
+      "input_text": 1122
+     }
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 1114
+     },
+     "count": 1114,
+     "fileCount": 231
+    },
+    "$.payload.recipient": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231,
+     "values": {
+      "agent_message": 1122
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231
+    },
+    "$.type": {
+     "types": {
+      "string": 1122
+     },
+     "count": 1122,
+     "fileCount": 231,
+     "values": {
+      "response_item": 1122
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=task_complete",
+   "count": 1099,
+   "fileCount": 285,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 1098
+     },
+     "count": 1098,
+     "fileCount": 284
+    },
+    "$.payload": {
+     "types": {
+      "object": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.payload.completed_at": {
+     "types": {
+      "number": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.payload.duration_ms": {
+     "types": {
+      "number": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.payload.error": {
+     "types": {
+      "object": 7
+     },
+     "count": 7,
+     "fileCount": 4
+    },
+    "$.payload.error.codex_error_info": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 4
+    },
+    "$.payload.error.message": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 4
+    },
+    "$.payload.last_agent_message": {
+     "types": {
+      "string": 1023,
+      "string(json)": 61,
+      "null": 15
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.payload.started_at": {
+     "types": {
+      "number": 1053
+     },
+     "count": 1053,
+     "fileCount": 285
+    },
+    "$.payload.time_to_first_token_ms": {
+     "types": {
+      "number": 1089
+     },
+     "count": 1089,
+     "fileCount": 278
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 1099
+     },
+     "count": 1099,
+     "fileCount": 285,
+     "values": {
+      "task_complete": 1099
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1099
+     },
+     "count": 1099,
+     "fileCount": 285
+    },
+    "$.type": {
+     "types": {
+      "string": 1099
+     },
+     "count": 1099,
+     "fileCount": 285,
+     "values": {
+      "event_msg": 1099
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=thread_settings_applied",
+   "count": 864,
+   "fileCount": 143,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_id": {
+     "types": {
+      "string": 755
+     },
+     "count": 755,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.<rare-key>": {
+     "types": {},
+     "count": 12,
+     "fileCount": 1,
+     "collapsedPaths": 3
+    },
+    "$.payload.thread_settings.active_permission_profile": {
+     "types": {
+      "object": 216
+     },
+     "count": 216,
+     "fileCount": 11
+    },
+    "$.payload.thread_settings.active_permission_profile.id": {
+     "types": {
+      "string": 216
+     },
+     "count": 216,
+     "fileCount": 11
+    },
+    "$.payload.thread_settings.approval_policy": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.approvals_reviewer": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode.mode": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode.settings": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode.settings.developer_instructions": {
+     "types": {
+      "string": 725,
+      "null": 139
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode.settings.model": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.collaboration_mode.settings.reasoning_effort": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.cwd": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.model": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.model_provider_id": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.permission_profile": {
+     "types": {
+      "object": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.permission_profile.file_system": {
+     "types": {
+      "object": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries": {
+     "types": {
+      "array": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[]": {
+     "types": {
+      "object": 98
+     },
+     "count": 98,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].access": {
+     "types": {
+      "string": 98
+     },
+     "count": 98,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].path": {
+     "types": {
+      "object": 98
+     },
+     "count": 98,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].path.<rare-key>": {
+     "types": {},
+     "count": 72,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].path.type": {
+     "types": {
+      "string": 98
+     },
+     "count": 98,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].path.value": {
+     "types": {
+      "object": 26
+     },
+     "count": 26,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.entries[].path.value.kind": {
+     "types": {
+      "string": 26
+     },
+     "count": 26,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.file_system.type": {
+     "types": {
+      "string": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.network": {
+     "types": {
+      "string": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.payload.thread_settings.permission_profile.type": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.personality": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.reasoning_effort": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.payload.thread_settings.reasoning_summary": {
+     "types": {
+      "string": 551
+     },
+     "count": 551,
+     "fileCount": 129
+    },
+    "$.payload.thread_settings.service_tier": {
+     "types": {
+      "string": 859
+     },
+     "count": 859,
+     "fileCount": 143
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143,
+     "values": {
+      "thread_settings_applied": 864
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143
+    },
+    "$.type": {
+     "types": {
+      "string": 864
+     },
+     "count": 864,
+     "fileCount": 143,
+     "values": {
+      "event_msg": 864
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "session_meta",
+   "count": 380,
+   "fileCount": 300,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 379
+     },
+     "count": 379,
+     "fileCount": 299
+    },
+    "$.payload": {
+     "types": {
+      "object": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.agent_nickname": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.agent_path": {
+     "types": {
+      "string": 206
+     },
+     "count": 206,
+     "fileCount": 206
+    },
+    "$.payload.agent_role": {
+     "types": {
+      "string": 207
+     },
+     "count": 207,
+     "fileCount": 207
+    },
+    "$.payload.base_instructions": {
+     "types": {
+      "object": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.base_instructions.provenance": {
+     "types": {
+      "object": 379
+     },
+     "count": 379,
+     "fileCount": 299
+    },
+    "$.payload.base_instructions.provenance.model": {
+     "types": {
+      "string": 368
+     },
+     "count": 368,
+     "fileCount": 288
+    },
+    "$.payload.base_instructions.provenance.type": {
+     "types": {
+      "string": 379
+     },
+     "count": 379,
+     "fileCount": 299
+    },
+    "$.payload.base_instructions.text": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.cli_version": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300,
+     "values": {
+      "0.154.0": 312,
+      "0.155.1": 4,
+      "0.153.4": 61,
+      "0.144.5": 1,
+      "0.151.0": 1,
+      "0.149.1": 1
+     }
+    },
+    "$.payload.context_window": {
+     "types": {
+      "object": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.context_window.window_id": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.cwd": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.dynamic_tools": {
+     "types": {
+      "array": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>]": {
+     "types": {
+      "object": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].description": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].name": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools": {
+     "types": {
+      "array": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>]": {
+     "types": {
+      "object": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].deferLoading": {
+     "types": {
+      "boolean": 640
+     },
+     "count": 640,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].description": {
+     "types": {
+      "string": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema": {
+     "types": {
+      "object": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.<dynamic-key>": {
+     "types": {
+      "string": 365
+     },
+     "count": 365,
+     "fileCount": 18
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.additionalProperties": {
+     "types": {
+      "boolean": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.properties": {
+     "types": {
+      "object": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.properties.<dynamic-key>": {
+     "types": {
+      "object": 527
+     },
+     "count": 527,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.required": {
+     "types": {
+      "array": 437
+     },
+     "count": 437,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.required[]": {
+     "types": {
+      "string": 555
+     },
+     "count": 555,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].inputSchema.type": {
+     "types": {
+      "string": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].name": {
+     "types": {
+      "string": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].tools[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 670
+     },
+     "count": 670,
+     "fileCount": 19
+    },
+    "$.payload.dynamic_tools[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 19
+    },
+    "$.payload.forked_from_id": {
+     "types": {
+      "string": 98
+     },
+     "count": 98,
+     "fileCount": 92
+    },
+    "$.payload.forked_from_ordinal_exclusive": {
+     "types": {
+      "number": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.git": {
+     "types": {
+      "object": 369
+     },
+     "count": 369,
+     "fileCount": 292
+    },
+    "$.payload.git.branch": {
+     "types": {
+      "string": 360
+     },
+     "count": 360,
+     "fileCount": 290
+    },
+    "$.payload.git.commit_hash": {
+     "types": {
+      "string": 369
+     },
+     "count": 369,
+     "fileCount": 292
+    },
+    "$.payload.git.repository_url": {
+     "types": {
+      "string": 368
+     },
+     "count": 368,
+     "fileCount": 291
+    },
+    "$.payload.history_base": {
+     "types": {
+      "object": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.history_base.end_byte_offset": {
+     "types": {
+      "number": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.history_base.end_ordinal_exclusive": {
+     "types": {
+      "number": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.history_base.thread_id": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.payload.history_mode": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300,
+     "values": {
+      "paginated": 379,
+      "legacy": 1
+     }
+    },
+    "$.payload.id": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.model_provider": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.multi_agent_version": {
+     "types": {
+      "string": 224
+     },
+     "count": 224,
+     "fileCount": 218,
+     "values": {
+      "v2": 213,
+      "disabled": 8,
+      "v1": 3
+     }
+    },
+    "$.payload.originator": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300,
+     "unsafeValues": 148,
+     "values": {
+      "codex-tui": 166,
+      "codex_exec": 47,
+      "<unreviewed-value>": 19
+     }
+    },
+    "$.payload.parent_thread_id": {
+     "types": {
+      "string": 217
+     },
+     "count": 217,
+     "fileCount": 217
+    },
+    "$.payload.runtime_workspace_roots": {
+     "types": {
+      "array": 4
+     },
+     "count": 4,
+     "fileCount": 4
+    },
+    "$.payload.runtime_workspace_roots[]": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 4
+    },
+    "$.payload.session_id": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.source": {
+     "types": {
+      "object": 217,
+      "string": 163
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.payload.source.subagent": {
+     "types": {
+      "object": 210,
+      "string": 7
+     },
+     "count": 217,
+     "fileCount": 217
+    },
+    "$.payload.source.subagent.<rare-key>": {
+     "types": {},
+     "count": 1,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.payload.source.subagent.thread_spawn": {
+     "types": {
+      "object": 209
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.source.subagent.thread_spawn.agent_nickname": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.source.subagent.thread_spawn.agent_path": {
+     "types": {
+      "string": 206,
+      "null": 3
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.source.subagent.thread_spawn.agent_role": {
+     "types": {
+      "string": 207,
+      "null": 2
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.source.subagent.thread_spawn.depth": {
+     "types": {
+      "number": 209
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.source.subagent.thread_spawn.parent_thread_id": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 209
+    },
+    "$.payload.subagent_history_start_ordinal": {
+     "types": {
+      "number": 98
+     },
+     "count": 98,
+     "fileCount": 98
+    },
+    "$.payload.thread_source": {
+     "types": {
+      "string": 373
+     },
+     "count": 373,
+     "fileCount": 293
+    },
+    "$.payload.timestamp": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300
+    },
+    "$.type": {
+     "types": {
+      "string": 380
+     },
+     "count": 380,
+     "fileCount": 300,
+     "values": {
+      "session_meta": 380
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "compacted",
+   "count": 232,
+   "fileCount": 107,
+   "clientVersions": [
+    "0.144.5",
+    "0.149.1",
+    "0.151.0",
+    "0.153.4",
+    "0.154.0",
+    "0.155.1"
+   ],
+   "firstDay": "2026-07-25",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload": {
+     "types": {
+      "object": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.compaction_response_id": {
+     "types": {
+      "string": 207,
+      "null": 23
+     },
+     "count": 230,
+     "fileCount": 107
+    },
+    "$.payload.first_window_id": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.guardian_history": {
+     "types": {
+      "array": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=agent_message]": {
+     "types": {
+      "object": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].<dynamic-key>": {
+     "types": {
+      "object": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].author": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].content": {
+     "types": {
+      "array": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=encrypted_content]": {
+     "types": {
+      "object": 127
+     },
+     "count": 127,
+     "fileCount": 30
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=encrypted_content].encrypted_content": {
+     "types": {
+      "string": 127
+     },
+     "count": 127,
+     "fileCount": 30
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=encrypted_content].type": {
+     "types": {
+      "string": 127
+     },
+     "count": 127,
+     "fileCount": 30
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=input_text]": {
+     "types": {
+      "object": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=input_text].text": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].content[type=input_text].type": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].id": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].recipient": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=agent_message].type": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 37
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output]": {
+     "types": {
+      "object": 4027
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].<dynamic-key>": {
+     "types": {
+      "object": 4027
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].call_id": {
+     "types": {
+      "string": 4027
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].id": {
+     "types": {
+      "string": 4027
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output": {
+     "types": {
+      "array": 3989,
+      "string": 38
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_image]": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_image].detail": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_image].image_url": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_image].type": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_text]": {
+     "types": {
+      "object": 9375
+     },
+     "count": 9375,
+     "fileCount": 49
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_text].text": {
+     "types": {
+      "string": 6770,
+      "string(json)": 2605
+     },
+     "count": 9375,
+     "fileCount": 49
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].output[type=input_text].type": {
+     "types": {
+      "string": 9375
+     },
+     "count": 9375,
+     "fileCount": 49
+    },
+    "$.payload.guardian_history[type=custom_tool_call_output].type": {
+     "types": {
+      "string": 4027
+     },
+     "count": 4027,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call]": {
+     "types": {
+      "object": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].<dynamic-key>": {
+     "types": {
+      "object": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].call_id": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].id": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].input": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].name": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].status": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=custom_tool_call].type": {
+     "types": {
+      "string": 3993
+     },
+     "count": 3993,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=function_call_output]": {
+     "types": {
+      "object": 608
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call_output].<dynamic-key>": {
+     "types": {
+      "object": 608
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call_output].call_id": {
+     "types": {
+      "string": 608
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call_output].id": {
+     "types": {
+      "string": 608
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call_output].output": {
+     "types": {
+      "string": 230,
+      "string(json)": 339,
+      "array": 39
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call_output].output[type=input_text]": {
+     "types": {
+      "object": 84
+     },
+     "count": 84,
+     "fileCount": 8
+    },
+    "$.payload.guardian_history[type=function_call_output].output[type=input_text].text": {
+     "types": {
+      "string": 67,
+      "string(json)": 17
+     },
+     "count": 84,
+     "fileCount": 8
+    },
+    "$.payload.guardian_history[type=function_call_output].output[type=input_text].type": {
+     "types": {
+      "string": 84
+     },
+     "count": 84,
+     "fileCount": 8
+    },
+    "$.payload.guardian_history[type=function_call_output].type": {
+     "types": {
+      "string": 608
+     },
+     "count": 608,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call]": {
+     "types": {
+      "object": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].<dynamic-key>": {
+     "types": {
+      "object": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].arguments": {
+     "types": {
+      "string(third-party, not described)": 521,
+      "string(json)": 81
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].call_id": {
+     "types": {
+      "string": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].id": {
+     "types": {
+      "string": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].name": {
+     "types": {
+      "string": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=function_call].namespace": {
+     "types": {
+      "string": 521
+     },
+     "count": 521,
+     "fileCount": 31
+    },
+    "$.payload.guardian_history[type=function_call].type": {
+     "types": {
+      "string": 602
+     },
+     "count": 602,
+     "fileCount": 34
+    },
+    "$.payload.guardian_history[type=message]": {
+     "types": {
+      "object": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].<dynamic-key>": {
+     "types": {
+      "object": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].content": {
+     "types": {
+      "array": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].content[type=input_image]": {
+     "types": {
+      "object": 72
+     },
+     "count": 72,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=message].content[type=input_image].detail": {
+     "types": {
+      "string": 72
+     },
+     "count": 72,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=message].content[type=input_image].image_url": {
+     "types": {
+      "string": 72
+     },
+     "count": 72,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=message].content[type=input_image].type": {
+     "types": {
+      "string": 72
+     },
+     "count": 72,
+     "fileCount": 3
+    },
+    "$.payload.guardian_history[type=message].content[type=input_text]": {
+     "types": {
+      "object": 2830
+     },
+     "count": 2830,
+     "fileCount": 39
+    },
+    "$.payload.guardian_history[type=message].content[type=input_text].text": {
+     "types": {
+      "string": 2830
+     },
+     "count": 2830,
+     "fileCount": 39
+    },
+    "$.payload.guardian_history[type=message].content[type=input_text].type": {
+     "types": {
+      "string": 2830
+     },
+     "count": 2830,
+     "fileCount": 39
+    },
+    "$.payload.guardian_history[type=message].content[type=output_text]": {
+     "types": {
+      "object": 1275
+     },
+     "count": 1275,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].content[type=output_text].text": {
+     "types": {
+      "string": 1275
+     },
+     "count": 1275,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].content[type=output_text].type": {
+     "types": {
+      "string": 1275
+     },
+     "count": 1275,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].id": {
+     "types": {
+      "string": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].phase": {
+     "types": {
+      "string": 1232
+     },
+     "count": 1232,
+     "fileCount": 49
+    },
+    "$.payload.guardian_history[type=message].role": {
+     "types": {
+      "string": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=message].type": {
+     "types": {
+      "string": 4017
+     },
+     "count": 4017,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning]": {
+     "types": {
+      "object": 4938
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning].<dynamic-key>": {
+     "types": {
+      "object": 4938
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning].content": {
+     "types": {
+      "null": 517
+     },
+     "count": 517,
+     "fileCount": 16
+    },
+    "$.payload.guardian_history[type=reasoning].encrypted_content": {
+     "types": {
+      "string": 4924,
+      "null": 14
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning].id": {
+     "types": {
+      "string": 4938
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning].summary": {
+     "types": {
+      "array": 4938
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.guardian_history[type=reasoning].summary[type=<unreviewed-value>]": {
+     "types": {
+      "object": 3868
+     },
+     "count": 3868,
+     "fileCount": 35
+    },
+    "$.payload.guardian_history[type=reasoning].summary[type=<unreviewed-value>].text": {
+     "types": {
+      "string": 3868
+     },
+     "count": 3868,
+     "fileCount": 35
+    },
+    "$.payload.guardian_history[type=reasoning].summary[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 3868
+     },
+     "count": 3868,
+     "fileCount": 35
+    },
+    "$.payload.guardian_history[type=reasoning].type": {
+     "types": {
+      "string": 4938
+     },
+     "count": 4938,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record": {
+     "types": {
+      "object": 125,
+      "null": 105
+     },
+     "count": 230,
+     "fileCount": 107
+    },
+    "$.payload.latest_token_usage_record.response_id": {
+     "types": {
+      "string": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.root_turn_id": {
+     "types": {
+      "string": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.session_id": {
+     "types": {
+      "string": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_id": {
+     "types": {
+      "string": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage": {
+     "types": {
+      "object": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.thread_token_usage.total_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_id": {
+     "types": {
+      "string": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage": {
+     "types": {
+      "object": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.cache_write_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.cached_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.reasoning_output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.turn_token_usage.total_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage": {
+     "types": {
+      "object": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.cache_write_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.cached_input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.input_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.reasoning_output_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.latest_token_usage_record.usage.total_tokens": {
+     "types": {
+      "number": 125
+     },
+     "count": 125,
+     "fileCount": 50
+    },
+    "$.payload.message": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.previous_window_id": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history": {
+     "types": {
+      "array": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=<unreviewed-value>]": {
+     "types": {
+      "object": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=<unreviewed-value>].<dynamic-key>": {
+     "types": {
+      "object": 230
+     },
+     "count": 230,
+     "fileCount": 106
+    },
+    "$.payload.replacement_history[type=<unreviewed-value>].encrypted_content": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=<unreviewed-value>].id": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=agent_message]": {
+     "types": {
+      "object": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].<dynamic-key>": {
+     "types": {
+      "object": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].author": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content": {
+     "types": {
+      "array": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=encrypted_content]": {
+     "types": {
+      "object": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=encrypted_content].encrypted_content": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=encrypted_content].type": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=input_text]": {
+     "types": {
+      "object": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=input_text].text": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].content[type=input_text].type": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].id": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].recipient": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=agent_message].type": {
+     "types": {
+      "string": 130
+     },
+     "count": 130,
+     "fileCount": 26
+    },
+    "$.payload.replacement_history[type=message]": {
+     "types": {
+      "object": 6163
+     },
+     "count": 6163,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].<dynamic-key>": {
+     "types": {
+      "object": 6163
+     },
+     "count": 6163,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].content": {
+     "types": {
+      "array": 6163
+     },
+     "count": 6163,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].content[type=input_image]": {
+     "types": {
+      "object": 212
+     },
+     "count": 212,
+     "fileCount": 6
+    },
+    "$.payload.replacement_history[type=message].content[type=input_image].detail": {
+     "types": {
+      "string": 212
+     },
+     "count": 212,
+     "fileCount": 6
+    },
+    "$.payload.replacement_history[type=message].content[type=input_image].image_url": {
+     "types": {
+      "string": 212
+     },
+     "count": 212,
+     "fileCount": 6
+    },
+    "$.payload.replacement_history[type=message].content[type=input_image].type": {
+     "types": {
+      "string": 212
+     },
+     "count": 212,
+     "fileCount": 6
+    },
+    "$.payload.replacement_history[type=message].content[type=input_text]": {
+     "types": {
+      "object": 7684
+     },
+     "count": 7684,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].content[type=input_text].text": {
+     "types": {
+      "string": 7684
+     },
+     "count": 7684,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].content[type=input_text].type": {
+     "types": {
+      "string": 7684
+     },
+     "count": 7684,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].id": {
+     "types": {
+      "string": 6101
+     },
+     "count": 6101,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].role": {
+     "types": {
+      "string": 6163
+     },
+     "count": 6163,
+     "fileCount": 107
+    },
+    "$.payload.replacement_history[type=message].type": {
+     "types": {
+      "string": 6163
+     },
+     "count": 6163,
+     "fileCount": 107
+    },
+    "$.payload.retained_context": {
+     "types": {
+      "object": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.retained_context.incomplete": {
+     "types": {
+      "boolean": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.retained_context.next_order": {
+     "types": {
+      "number": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.retained_context.user_messages": {
+     "types": {
+      "array": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.retained_context.user_messages_incomplete": {
+     "types": {
+      "boolean": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.retained_context.verified_answers": {
+     "types": {
+      "array": 94
+     },
+     "count": 94,
+     "fileCount": 42
+    },
+    "$.payload.window_id": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.payload.window_number": {
+     "types": {
+      "number": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107
+    },
+    "$.type": {
+     "types": {
+      "string": 232
+     },
+     "count": 232,
+     "fileCount": 107,
+     "values": {
+      "compacted": 232
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=turn_aborted",
+   "count": 36,
+   "fileCount": 24,
+   "clientVersions": [
+    "0.153.4",
+    "0.154.0"
+   ],
+   "firstDay": "2026-09-11",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.ordinal": {
+     "types": {
+      "number": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload": {
+     "types": {
+      "object": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.completed_at": {
+     "types": {
+      "number": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.duration_ms": {
+     "types": {
+      "number": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.reason": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.started_at": {
+     "types": {
+      "number": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.turn_id": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.payload.type": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 24,
+     "values": {
+      "turn_aborted": 36
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 24
+    },
+    "$.type": {
+     "types": {
+      "string": 36
+     },
+     "count": 36,
+     "fileCount": 24,
+     "values": {
+      "event_msg": 36
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "<unreviewed-value> | payload.type=<unreviewed-value>",
+   "count": 8,
+   "fileCount": 1,
+   "clientVersions": [
+    "0.153.4"
+   ],
+   "firstDay": "2026-09-08",
+   "lastDay": "2026-09-08",
+   "paths": {
+    "$.<rare-key>": {
+     "types": {},
+     "count": 74,
+     "fileCount": 1,
+     "collapsedPaths": 10
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=agent_message",
+   "count": 3,
+   "fileCount": 1,
+   "clientVersions": [
+    "0.155.1"
+   ],
+   "firstDay": "2026-09-18",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$.<rare-key>": {
+     "types": {},
+     "count": 24,
+     "fileCount": 1,
+     "collapsedPaths": 8
+    }
+   }
+  },
+  {
+   "discriminator": "event_msg | payload.type=<unreviewed-value>",
+   "count": 1,
+   "fileCount": 1,
+   "clientVersions": [
+    "0.155.1"
+   ],
+   "firstDay": "2026-09-18",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$.<rare-key>": {
+     "types": {},
+     "count": 11,
+     "fileCount": 1,
+     "collapsedPaths": 8
+    }
+   }
+  },
+  {
+   "discriminator": "response_item | payload.type=<unreviewed-value>",
+   "count": 1,
+   "fileCount": 1,
+   "clientVersions": [
+    "0.153.4"
+   ],
+   "firstDay": "2026-09-14",
+   "lastDay": "2026-09-14",
+   "paths": {
+    "$.<rare-key>": {
+     "types": {},
+     "count": 9,
+     "fileCount": 1,
+     "collapsedPaths": 9
+    }
+   }
+  }
+ ]
+}

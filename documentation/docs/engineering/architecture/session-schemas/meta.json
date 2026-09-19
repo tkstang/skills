@@ -1,0 +1,5 @@
+{
+  "title": "Native session schemas",
+  "pagesIndex": "[Overview](/engineering/architecture/session-schemas)",
+  "pages": ["codex", "claude-code", "cursor"]
+}
