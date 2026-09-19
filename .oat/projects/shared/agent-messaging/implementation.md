@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p03-review-2
+oat_current_task_id: p03-review-fix-2
 oat_generated: false
 ---
 
@@ -16,9 +16,9 @@ This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
 2026-09-19. Phase 1 passed its user-authorized fresh independent review with no
 Critical or Important findings. Phase 2 passed fresh independent review with no
-Critical or Important findings. Phase 3 review returned two Important and two
-Medium findings; bounded fix round 1/3 is complete and fresh independent
-re-review is pending.
+Critical or Important findings. Phase 3 review fix round 1 resolved all four
+prior findings, but fresh re-review found one Important controller-boundary
+race; bounded fix round 2/3 is active.
 
 ## Progress Overview
 
@@ -26,7 +26,7 @@ re-review is pending.
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 5     | 5/5       |
 | Phase 2 | completed | 4     | 4/4       |
-| Phase 3 | review_pending | 3     | 3/3       |
+| Phase 3 | fixes_active | 3     | 3/3       |
 | Phase 4 | pending | 1     | 0/1       |
 
 **Total:** 12/13 tasks completed
@@ -804,6 +804,51 @@ evidence. Its structural project-log entry is deferred until the terminal Phase
 - Recovery: none. No live provider, configuration, installation, quota, push,
   PR, merge, or backlog action occurred.
 
+#### Dispatch: p03 review round 2
+
+```yaml
+request_id: dispatch-agent-messaging-p03-review-2-20260919
+caller: oat-project-implement
+scope: phase:p03
+objective: Freshly re-review the complete Phase 3 implementation and round-one fixes.
+action: review
+role_name: oat-reviewer-gpt-5-6-sol-high
+role_class: reviewer
+provider: codex
+dispatch_context: root-native
+dispatch_policy: high
+dispatch_ceiling: high
+authority: write:review-artifact-only
+role_selector: oat-reviewer-gpt-5-6-sol-high
+model_selector: gpt-5.6-sol
+model_selector_granularity: exact
+effort_selector: high
+service_tier_selector: priority
+selection_source: review-target
+selected_route: native
+payload:
+  prior_reviewed_head: d6bd6d6a2894fb7de3368c8c92af51a5842b717b
+  fix_commit: 8750de97738ca51cdab25dc306f6a5029237bdfe
+  reviewed_head: 8e461d899975956e57d56481c96b9b4c60a2533e
+  artifact: reviews/code-p03-rereview-2026-09-19T192712Z.md
+launch_status: accepted
+child_outcome: blocking
+configured_invocation_evidence:
+  - resolver-report:p03-review-2
+  - "Dispatch: scope=p03-review-2 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high"
+runtime_confirmation: not-reported
+diagnostics:
+  - findings:critical=0,important=1,medium=0,minor=0
+  - reconnaissance:attempted
+  - review-cycles:2/3
+  - fix-rounds:1/3
+```
+
+The reviewer reported `Reconnaissance: attempted`; one advisory lane completed
+and one launch was unavailable at the native thread limit, with the reviewer
+covering that deterministic lane inline. Structural evidence remains deferred
+until the terminal Phase 3 outcome.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -849,6 +894,21 @@ It adds a versioned, content-bound composition capability, immutable-controller
 registration checks with both ownership races, real public/private cursor
 evidence, and corrected release wording. Root reproduced the focused and full
 repository gates; fresh independent re-review is pending.
+
+## Review Received: p03 round 2
+
+**Date:** 2026-09-19
+**Review artifact:** [Phase 3 re-review](reviews/code-p03-rereview-2026-09-19T192712Z.md)
+**Reviewed head:** `8e461d899975956e57d56481c96b9b4c60a2533e`
+**Findings:** 0 Critical, 1 Important, 0 Medium, 0 Minor.
+**Status:** fixes_completed; final bounded independent re-review pending.
+
+The fresh reviewer verified all four round-one findings as resolved, then found
+the same immutable-controller constraint missing from standalone Stop/watch
+runtime rechecks. A stale standalone callback could accept newly appeared
+observer ownership and emit outside its activation's controller. Fix round 2/3
+is accepted in scope under p03-t02 and must add both Stop and foreground-watch
+race fixtures before the final bounded Phase 3 re-review.
 
 ## Review Received: p02 round 1
 
