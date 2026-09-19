@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p02-t04-recovery-01
+oat_current_task_id: p02-t05
 oat_generated: false
 ---
 
@@ -23,13 +23,13 @@ Identity-layer implementation is active. The approved pre-implementation refinem
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
 | p01   | passed  | 5     | 5/5       |
-| p02   | in progress | 5     | 3/5       |
+| p02   | in progress | 5     | 4/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 9/19 implementation tasks completed.
+**Total:** 10/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -103,9 +103,9 @@ Root verified `gh stack view --json` after creating `session-fidelity-activity`:
 
 ### Task p02-t04: Project bounded activity reports
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 5440c56a06f19f3a4bd437b4aa94b07510f37245; recovery 06de319615c00279ba56fda04d749ec5857775af
+**Verification:** pure mode-bounded projection applies the exact watch/catch-up/review/export limits, scalar-safe UTF-8 previews, late-call context, failure/recent priority, chronological rendering, final format-aware size guard, explicit scoped counts and global omissions without forbidden inference or fallback. Root transition audit found one Important duplicate-preview gap; bounded cumulative recovery attempt 3/10 now suppresses a linked item preview only when an actual retained result output preview exists. Root passed 51 focused project/correlate/extract tests, type checking, build freshness and four-owner version validation. Closure audit found 0 Critical/Important.
 
 ### Task p02-t05: Verify the shared pipeline against captured fixtures
 
@@ -671,3 +671,18 @@ Root transition audit of immutable p02-t03 commit `8bc62b0bf9bdbc3f8ba095c61b2fd
 #### Continuation p02-t04-recovery-resume-01
 
 Root transition audit of immutable p02-t04 commit `5440c56a06f19f3a4bd437b4aa94b07510f37245` found one Important preview-suppression gap. The original `sf-p02-implement-01` handle must resume on exact target `oat-phase-implementer-gpt-5-6-sol-high` in recover mode. Recovery event `p02-t04-recovery-01` may reserve cumulative p02 attempt 3/10 only after this continuation is committed. Scope is limited to suppressing a linked item preview only when a retained linked result actually has an output carrier/preview, with a missing-result-output failure regression; p02-t05 remains unauthorized.
+
+### Recovery Event p02-t04-recovery-01
+
+- Phase/task: p02 / p02-t04
+- Original request: sf-p02-implement-01
+- Original commit: 5440c56a06f19f3a4bd437b4aa94b07510f37245
+- Defect class: composition
+- Discovered by: root transition audit p02_t02_audit
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 3/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-high
+- Recovery commit: 06de319615c00279ba56fda04d749ec5857775af
+- Verification: root passed 51 focused project/correlate/extract tests, type-check, build freshness and four-owner version validation; closure audit found no Critical/Important issue.
+- Reason: suppression now requires an actual retained linked-result output, preserving the sole failed-item preview while leaving true duplicate behavior unchanged.

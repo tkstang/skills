@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t04-recovery-01
-oat_last_commit: 4e2932e7262bb90ad7dcd9dd51c365b1a1ef615a
+oat_current_task: p02-t05
+oat_last_commit: 06de319615c00279ba56fda04d749ec5857775af
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -26,16 +26,7 @@ oat_phase_recovery_policy:
       pending_attempt: null
     p02:
       used_attempts: 3
-      pending_attempt:
-        attempt: 3
-        event_id: p02-t04-recovery-01
-        original_request_id: sf-p02-implement-01
-        original_task_id: p02-t04
-        original_commit: 5440c56a06f19f3a4bd437b4aa94b07510f37245
-        discovered_by: root transition audit p02_t02_audit
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-high
-        reservation_head: 0a671b5691a78b789f199608fca6ca1ec6acdc43
-        status: completed
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
@@ -117,7 +108,7 @@ oat_generated: false
 
 ## Current Phase
 
-p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 through p02-t03 are complete through recovery `4e2932e7`; p02 recovery usage is 2/10 with no pending marker. Detailed reads, obscured fixtures, source-attributed extraction and explicit-evidence correlation/classification pass focused, build, type, version and privacy checks. Bounded projection and rendering are next.
+p01 is passed and the local activity branch remains stacked from recorded `ACTIVITY_BASE` `83ee0e43e00b88eb3f2f56939cc1db0a68dfa535`. p02-t01 through p02-t04 are complete through recovery `06de3196`; p02 recovery usage is 3/10 with no pending marker. Detailed reads, obscured fixtures, extraction, exact correlation/classification and bounded projection pass focused, build, type, version and privacy checks. Shared pipeline integration verification is next.
 
 ## Artifacts
 
@@ -125,7 +116,7 @@ p01 is passed and the local activity branch remains stacked from recorded `ACTIV
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (9/19 tasks completed; p01 passed, p02 in progress)
+- **Implementation:** `implementation.md` (10/19 tasks completed; p01 passed, p02 in progress)
 
 ## Progress
 
@@ -148,4 +139,4 @@ None. Prior failed-attempt evidence and all four consumed recovery attempts rema
 
 ## Next Milestone
 
-Implement p02-t04 bounded activity projection and deterministic rendering with honest omission counts.
+Implement p02-t05 end-to-end shared pipeline verification against the obscured captures.
