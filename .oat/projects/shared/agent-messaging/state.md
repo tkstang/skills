@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 7bf347f309a0fc63d40e246513e3bd96f2622c45
+oat_last_commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -18,7 +18,7 @@ oat_phase_recovery_policy:
   phase_attempt_limits: {}
   phase_attempt_usage:
     p01:
-      used_attempts: 1
+      used_attempts: 2
       pending_attempt: null
 oat_phase: implement
 oat_phase_status: in_progress
@@ -33,13 +33,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T14:57:57Z'
+oat_project_state_updated: '2026-09-19T15:22:00Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 re-review is blocking; bounded review-fix round 2 is active before p02-t01.
+**Status:** Phase 1 review-fix round 2 is complete; final independent re-review is pending before p02-t01.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -48,10 +48,9 @@ oat_generated: false
 Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
-Phase 1 implementation is committed and verified. Re-review confirmed six prior
-findings resolved but found 6 Important and 1 Medium residual issues. The final
-bounded review-fix round is the active boundary before p02-t01. Live hook
-installation remains separately authorized.
+Phase 1 implementation and both bounded review-fix rounds are committed and
+verified. Final independent re-review is the active boundary before p02-t01.
+Live hook installation remains separately authorized.
 
 ## Artifacts
 
@@ -59,7 +58,7 @@ installation remains separately authorized.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
 - **Plan:** plan.md — complete and implementation-ready; 4 sequential phases, 13 tasks. Fifth gate follow-ups resolved with user approval and a one-time post-fix rerun waiver.
-- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; Phase 1 review-fix round 2 is active.
+- **Implementation:** implementation.md — Run 1 has 5/13 tasks complete; final Phase 1 re-review is pending.
 
 ## Progress
 
@@ -158,7 +157,11 @@ installation remains separately authorized.
   verdict with 0 Critical, 6 Important, 1 Medium, and 0 Minor findings. Artifact:
   `reviews/code-p01-rereview-2026-09-19T1445Z.md`. The Medium stale-tracking
   finding is resolved in review-receive bookkeeping; the six product/proof
-  findings are assigned to bounded fix round 2/2.
+  findings were resolved by fix round 2/2 at `66de3e5b`.
+- **Final p01 fix verification:** A process-test listener race found by root was
+  recovered in `5d94e390`. Root reproduced the target test, full suite (2,116
+  passed, 1 skipped), generated freshness, validation, type-check, smoke, and
+  version validation. Final independent re-review remains pending.
 
 ## Dispatch and Gate Review Policy
 
@@ -189,15 +192,13 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-Phase 1 cannot advance while its second re-review's six Important findings
-remain open. They concern binding-cap enforcement, stale join retry semantics,
-takeover inbox replay, ancestor-symlink containment, complete authoritative
-record integrity, and actual child-process crash/contention proof. These are
-bounded Phase 1 fixes, not design or authorization blockers.
+No implementation blocker is currently known. Phase 1 remains gated on its
+final independent re-review after exhausting the configured 2/2 bounded fix
+rounds; any new blocking finding must be escalated rather than silently retried.
 
 ## Next Milestone
 
-Complete bounded Phase 1 review-fix round 2/2 on the original accepted
-implementer handle, rerun the complete verification gate, and obtain a fresh
-independent Phase 1 review before starting p02-t01. Continue in this existing
-user-designated worktree; do not create another worktree.
+Obtain the final independent Phase 1 review on the settled fix/recovery head.
+Advance to p02-t01 only on a passing verdict; otherwise stop at the configured
+retry boundary and report the blocker. Continue in this existing user-designated
+worktree; do not create another worktree.

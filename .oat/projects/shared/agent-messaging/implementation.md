@@ -14,15 +14,15 @@ oat_generated: false
 
 This file tracks implementation, not planning completion. The user authorized
 this existing `backlog-triage` worktree as the implementation worktree on
-2026-09-19. Phase 1 implementation, one bounded recovery, and review-fix round 1
-are complete. Independent re-review is blocking; bounded review-fix round 2 is
-active before Phase 2 begins.
+2026-09-19. Phase 1 implementation, both bounded review-fix rounds, and their
+recoveries are complete. The phase awaits its final independent re-review before
+Phase 2 begins.
 
 ## Progress Overview
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | fixes_in_progress | 5     | 5/5       |
+| Phase 1 | re_review_pending | 5     | 5/5       |
 | Phase 2 | pending | 4     | 0/4       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 1     | 0/1       |
@@ -31,7 +31,7 @@ active before Phase 2 begins.
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
-**Status:** fixes_in_progress
+**Status:** re_review_pending
 **Started:** 2026-09-19
 
 ### Task p01-t01: Define schemas, root resolution, and no-clobber publication
@@ -198,6 +198,8 @@ diagnostics:
 continuation_events:
   - cont-agent-messaging-p01-recover-1:7739c65a:completed
   - cont-agent-messaging-p01-review-fix-1:7bf347f3:completed
+  - cont-agent-messaging-p01-review-fix-2:66de3e5b:completed
+  - cont-agent-messaging-p01-fix-2-test-recovery:5d94e390:completed
 ```
 
 Dispatch policy: high; selected=medium; cap=high (codex, enforced — variant
@@ -355,6 +357,43 @@ No project-log review-orchestration entry was added because the reviewer
 reported reconnaissance as `not-attempted`; exactly one valid signal was
 consumed for this round.
 
+### Review Fix Event cont-agent-messaging-p01-review-fix-2
+
+- Phase: p01
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Review artifact: reviews/code-p01-rereview-2026-09-19T1445Z.md
+- Reviewed head: 67b811def41104d75a05d6175229e6e5539ccc9d
+- Fix base: 2cdc63630ed5e589d3161e4992dc7409beb2e775
+- Disposition: fixes_completed; final independent re-review pending
+- Attempt: 2/2
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Dispatch stamp: `Dispatch: scope=p01-fix-2 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- Fix commit: 66de3e5b1b52ad0c5147dd00305db0d33dd17fdd
+- Findings addressed: 0 Critical, 6 Important, 0 Medium, 0 Minor; the sole
+  Medium tracking finding was resolved in the review-receive commit.
+- Verification: binding-cap, stale-join, takeover replay, ancestor containment,
+  authoritative integrity, actual-runtime SIGKILL barriers, and two-process
+  sender contention all have direct tests.
+
+### Recovery Event cont-agent-messaging-p01-fix-2-test-recovery
+
+- Phase/task: p01 / review-fix round 2 proof
+- Original request: dispatch-agent-messaging-p01-8973e8cb-7090-4db8-b498-2e58c40b4d68
+- Original fix commit: 66de3e5b1b52ad0c5147dd00305db0d33dd17fdd
+- Defect class: test
+- Discovered by: root sequential `pnpm run test`
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Recovery commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
+- Cause: the second fast child could exit before its sequentially attached exit
+  listener, leaving the process-contention test pending until Vitest timeout.
+- Verification: pre-attached exit promises, bounded internal deadlines, and
+  guaranteed cleanup passed 10 repeated target runs and two worker full-suite
+  runs. Root reproduced the target and full suite (2,116 passed, 1 skipped),
+  `build:check`, `validate`, type-check, smoke, and version validation.
+
 <!-- orchestration-runs-end -->
 
 ## Implementation Log
@@ -395,7 +434,7 @@ was deferred.
 **Review artifact:** [Phase 1 re-review](reviews/code-p01-rereview-2026-09-19T1445Z.md)
 **Reviewed head:** `67b811def41104d75a05d6175229e6e5539ccc9d`
 **Findings:** 0 Critical, 6 Important, 1 Medium, 0 Minor.
-**Status:** fixes_added; bounded fix loop round 2/2 pending.
+**Status:** fixes_completed; final independent re-review pending.
 
 The re-review confirmed six prior findings resolved but found binding-cap
 publication, stale initial-join retry, takeover inbox classification, ancestor
@@ -404,6 +443,11 @@ real process-isolation proof still incomplete. The Medium tracking-staleness
 finding is resolved in this review-receive bookkeeping commit by updating the
 current test, summary, blocker, and next-milestone sections. The six product and
 proof findings remain within existing p01 scope; no task IDs were added.
+
+Fix round 2 completed at `66de3e5b1b52ad0c5147dd00305db0d33dd17fdd`.
+Its process-contention proof was stabilized without weakening coverage in
+append-only recovery commit `5d94e390b341d82d2e92d00cf661808ac7e8704f`.
+All seven round-2 findings are resolved; final independent re-review is pending.
 
 ## Review Received: plan
 
