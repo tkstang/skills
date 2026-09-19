@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: null
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -20,7 +20,8 @@ Critical or Important findings. Phase 3 passed its final bounded independent
 review with no findings. The first final Frontier review found 3 Important,
 5 Medium, and 4 Minor issues. All 12 Phase 5 repair tasks are complete and
 root-verified. The second and final configured Frontier gate passed; its
-non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
+non-blocking judgment sweep is dispositioned. All original 25 tasks are complete.
+Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
 
 ## Progress Overview
 
@@ -31,8 +32,9 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 | Phase 3 | completed | 3     | 3/3       |
 | Phase 4 | completed | 1     | 1/1       |
 | Phase 5 | completed | 12    | 12/12     |
+| Phase 6 | in_progress | 9   | 0/9       |
 
-**Total:** 25/25 tasks completed
+**Total:** 25/34 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -113,7 +115,7 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 
 ## Phase 4: Claude composed Monitor and final acceptance (1 task)
 
-**Status:** review_pending
+**Status:** completed
 **Started:** 2026-09-19
 
 ### Task p04-t01: Add the single finite Claude composed Monitor
@@ -123,7 +125,7 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 
 ## Phase 5: Final review fixes and proof completion (12 tasks)
 
-**Status:** review_pending
+**Status:** completed
 **Started:** 2026-09-19
 
 | Task    | Finding                                     | Status    | Commit   |
@@ -142,6 +144,38 @@ non-blocking judgment sweep is dispositioned. All 25 tasks are complete.
 | p05-t12 | final-m4 completed-history restoration      | completed | a8a2e811 |
 
 **Recovery commit:** cd76aa885369468bf68ee5604359b2a791934bce
+
+## Phase 6: Remote review and CI fixes (9 tasks)
+
+**Status:** in_progress
+**Started:** 2026-09-19
+
+| Task    | Finding                                 | Status  | Commit |
+| ------- | --------------------------------------- | ------- | ------ |
+| p06-t01 | lifecycle phase metadata                | pending | -      |
+| p06-t02 | completed-plan status prose             | pending | -      |
+| p06-t03 | current backlog count                   | pending | -      |
+| p06-t04 | malformed JSON CLI classification      | pending | -      |
+| p06-t05 | activation cold/warm timing             | pending | -      |
+| p06-t06 | uninstall hook shape guards            | pending | -      |
+| p06-t07 | agent-messaging packaging URL decoding | pending | -      |
+| p06-t08 | observer shared-log URL decoding       | pending | -      |
+| p06-t09 | Linux socket-backed stdin              | pending | -      |
+
+## Remote Review Received — PR #98, cycle 1/3
+
+- Reviewed head: `4dc50a6e533e138bb535930d13121579ed5ab776`.
+- Findings: 0 Critical, 1 Important, 3 Medium, 4 Minor; all eight CodeRabbit
+  findings converted to Phase 6 tasks.
+- Lifecycle metadata is partially valid: Phase 4/5 labels are stale, but terminal
+  `oat_status` remains in progress while final lifecycle approval is pending.
+- The reviewed suggestion to restore 16 active backlog items is superseded by
+  the main-branch merge; the generated index correctly reports 30, while the
+  stale current-state summary will be reconciled.
+- PR validation independently exposed Linux `/dev/stdin` reopening failure for
+  socket-backed child stdin; p06-t09 owns the portable stream fix.
+- Replies are authorized and will be posted with dispositions and fix commit
+  hashes after implementation, followed by re-fetching unresolved feedback.
 
 ## Orchestration Runs
 

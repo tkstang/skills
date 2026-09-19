@@ -986,6 +986,109 @@ formatter, leaving the messaging completion entry untouched.
 green.
 **Commit:** chore(p05-t12): restore completed backlog history text
 
+## Phase 6: Remote review and CI fixes (9 tasks)
+
+This phase records the first remote PR review cycle for PR #98. It addresses all
+six inline CodeRabbit findings, both review-summary nitpicks, and the failing
+Linux validation job. The lifecycle and backlog-count findings are qualified by
+current project state: final lifecycle approval remains pending, and the current
+generated backlog count is 30 rather than the reviewed historical value of 16.
+
+### Task p06-t01: Synchronize completed phase metadata
+
+**Finding:** CodeRabbit thread 4055124514 (partially valid).
+**Analyze:** distinguish completed implementation phases from the still-pending
+terminal lifecycle approval.
+**Implement:** mark Phase 4 and Phase 5 completed in implementation tracking;
+retain top-level `oat_status: in_progress` and pending approval state.
+**Verify:** phase rows, task rows, and post-implementation state agree.
+**Project verify:** inspect OAT state and project artifact consistency.
+**Commit:** chore(p06-t01): synchronize implementation phase metadata
+
+### Task p06-t02: Correct completed-plan status prose
+
+**Finding:** CodeRabbit thread 4055124520.
+**Analyze:** preserve historical review events while removing stale next-step text.
+**Implement:** state that the final Frontier review passed and that Phases 1-5
+are implemented; retain the pending final lifecycle approval boundary.
+**Verify:** plan task counts and review ledger remain historically accurate.
+**Project verify:** run changed-file formatting checks.
+**Commit:** docs(p06-t02): correct completed implementation prose
+
+### Task p06-t03: Reconcile the active backlog count
+
+**Finding:** CodeRabbit thread 4055124523 (reviewed suggestion superseded).
+**Analyze:** compare the generated backlog index with the current-state summary.
+**Implement:** preserve the generated index count of 30 and update stale
+current-state prose from 16 to 30.
+**Verify:** count active item rows and run PJM doctor before and after.
+**Project verify:** verify the generated PJM index is unchanged and consistent.
+**Commit:** docs(p06-t03): reconcile active backlog count
+
+### Task p06-t04: Classify malformed JSON flags as invalid input
+
+**Finding:** CodeRabbit thread 4055124527.
+**Analyze:** inventory JSON-valued CLI flags and their exit/error mapping.
+**Implement:** translate JSON parse failures for `--command` and
+`--installed-plugins` into `TypeError` without weakening shape validation.
+**Verify:** add malformed and wrong-shape CLI regressions expecting exit 2 and
+`INVALID_INPUT`.
+**Project verify:** run the agent-messaging CLI suite, build freshness, validation,
+type-check, skill-version validation, and generated-output checks.
+**Commit:** fix(p06-t04): classify malformed json flags as invalid input
+
+### Task p06-t05: Measure activation cold and warm calls in order
+
+**Finding:** CodeRabbit thread 4055124531.
+**Analyze:** trace activation calls before benchmark timing and existing evidence.
+**Implement:** time the first activation read as cold and the second as warm;
+clarify that historical published values did not measure a true first call.
+**Verify:** assert call ordering without assuming cold must be slower.
+**Project verify:** run probe/reference tests, build freshness, validation,
+type-check, and skill-version checks.
+**Commit:** fix(p06-t05): measure activation benchmark calls in order
+
+### Task p06-t06: Preserve malformed uninstall hook configuration
+
+**Finding:** CodeRabbit thread 4055124533.
+**Analyze:** enumerate primitive, array, absent-event, and non-array-event shapes.
+**Implement:** mutate only non-null object hook maps and array-valued owned event
+lists; leave unrelated malformed or absent configuration untouched.
+**Verify:** add uninstall regressions covering every guarded shape.
+**Project verify:** run registration tests, build freshness, validation,
+type-check, and skill-version checks.
+**Commit:** fix(p06-t06): guard uninstall hook configuration shapes
+
+### Task p06-t07: Decode agent-messaging packaging paths
+
+**Finding:** CodeRabbit review-summary nitpick for packaging.test.ts.
+**Analyze:** confirm URL-derived repository paths may remain percent-encoded.
+**Implement:** derive the repository root with `fileURLToPath`.
+**Verify:** run agent-messaging packaging tests.
+**Project verify:** run changed-file lint and format checks.
+**Commit:** test(p06-t07): decode agent messaging package paths
+
+### Task p06-t08: Decode observer shared-log test paths
+
+**Finding:** CodeRabbit review-summary nitpick for shared-log.test.ts.
+**Analyze:** confirm the same encoded-path risk in observer-collab tests.
+**Implement:** derive the repository root with `fileURLToPath`.
+**Verify:** run observer shared-log tests.
+**Project verify:** run changed-file lint and format checks.
+**Commit:** test(p06-t08): decode observer shared log paths
+
+### Task p06-t09: Read hook stdin portably on Linux
+
+**Finding:** failed PR validate job 105985105640.
+**Analyze:** reproduce Linux socket-backed stdin behavior and exclude entrypoint
+guard and timeout failures.
+**Implement:** consume `process.stdin` as a stream in the canonical Codex and
+Cursor Stop hooks instead of reopening `/dev/stdin`; regenerate distributions.
+**Verify:** run generated symlink-entrypoint tests and the complete hook suites.
+**Project verify:** run build, build freshness, validation, type-check, skill
+version checks, and clean-worktree validation before pushing.
+**Commit:** fix(p06-t09): read stop hook stdin portably
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                          | Reviewed Head                            | Invocation | Gate Target                   |
@@ -1010,6 +1113,7 @@ green.
 | p04    | code     | pending         | -          | -                                                                 | -                                        | -          | -                             |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md       | -                                        | -          | -                             |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T214803Z.md               | c6d3424378ae33d0bcdee90dc9e1e3651a44d430 | gate       | claude-fable-skip-permissions |
+| remote-pr-98 | code | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-98-review-2026-09-19T234311Z.md         | 4dc50a6e533e138bb535930d13121579ed5ab776 | -          | -                             |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -1121,19 +1225,20 @@ above the freshly resolved High gpt-5.6-sol/high threshold; ladder complete.
 The user requested skipping an additional gate after these small corrections.
 This is a one-time post-fix rerun waiver, not a disabled lifecycle policy and
 not a new independent review. Keep the fifth event fixes_completed; do not
-relabel it passed. Final implementation Frontier review remains required.
+relabel it passed. The final implementation Frontier review subsequently passed.
 
 ## Implementation Status
 
-**Planned, not implemented:**
+**Implemented before remote review:**
 
 - Phase 1: 5 tasks — independent storage, membership, messages, logs and CLI.
 - Phase 2: 4 tasks — finite activation, host adapters, watch and acceptance probes.
 - Phase 3: 3 tasks — shared observer logs, Stop composition and distribution docs.
 - Phase 4: 1 task — dedicated Claude composed Monitor and final acceptance.
 - Phase 5: 12 tasks — all first final-review findings and complete proof.
+- Phase 6: 9 tasks — remote review and Linux CI fixes, now in progress.
 
-**Total: 25 tasks. Completed: 25/25. Final Frontier review: passed.**
+**Total: 34 tasks. Completed: 25/34. Final Frontier review: passed; remote fixes in progress.**
 Planning approval is not implementation, live acceptance, release or merge.
 
 ## References
