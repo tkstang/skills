@@ -762,3 +762,62 @@ The original `sf-p02-implement-01` handle resumed on exact target `oat-phase-imp
 Codex function-call JSON arguments now retain the exact original carrier alongside the parsed object, while custom/object carriers remain exact and malformed JSON retains the call with a content-free `ARGUMENT_PARSE_ERROR` locator. Detailed records retain the source carrier internally, and the same completed read supplies exact UTF-8 source bytes plus capture time; only bounded snapshot metadata reaches the activity report. Legacy decoded values and warning text remain compatible, and raw carriers do not enter projected reports or diagnostics.
 
 Implementer and root independently passed 185/185 focused p02 tests, type checking, build freshness, four-owner version validation and the 2/2 privacy canary. Repository validation, fixture privacy scanning and scoped formatting/linting also passed in the implementer run. A read-only closure audit verified both Important findings closed with no new Critical/Important regression and independently passed the 185 tests, type checking, build freshness, version validation and diff check. A fresh root-owned p02 reviewer must now assess the updated range.
+
+#### Dispatch sf-p02-review-02
+
+```json
+{
+  "request_id": "sf-p02-review-02",
+  "caller": "oat-project-implement",
+  "scope": "p02-review-round-02",
+  "objective": "Re-review the complete p02 activity layer after the bounded argument-evidence and source-snapshot fixes",
+  "action": "review",
+  "role_name": "oat-reviewer",
+  "role_class": "review",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "review-artifact-only",
+  "role_selector": "oat-reviewer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "review-target",
+  "selected_route": "native",
+  "deadline_seconds": 1200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p02",
+    "taskIds": ["p02-t01", "p02-t02", "p02-t03", "p02-t04", "p02-t05"],
+    "base": "83ee0e43e00b88eb3f2f56939cc1db0a68dfa535",
+    "reviewedHead": "eb6252b6f611420c44128859870280d83f30dc7f",
+    "fixCommit": "4df1cdabd13b7752927eec6c4c7f690a9aad5910",
+    "priorArtifact": "reviews/p02-review-2026-09-19T141151Z.md",
+    "artifact": "reviews/p02-review-2026-09-19T143548Z-round2.md",
+    "handle": "/root/p02_review_round2"
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:review-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": ["p02-review-fix-01"],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "caller",
+  "classification_reason": "Transcript privacy, exact evidence, identity ownership and omission accounting make subtle review misses expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p02-review-round-02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high
