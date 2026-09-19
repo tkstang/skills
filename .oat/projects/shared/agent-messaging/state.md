@@ -1,7 +1,10 @@
 ---
 oat_current_task: p02-t01
 oat_last_commit: 5d94e390b341d82d2e92d00cf661808ac7e8704f
-oat_blockers: []
+oat_blockers:
+  - task_id: p01
+    reason: 'Final review found three Important shared-storage defects after review cycles 3/3 and fix rounds 2/2 were exhausted; explicit user direction is required before another correction.'
+    since: 2026-09-19
 associated_issues:
   - type: backlog
     ref: BL-260619-inter-agent-direct-messaging
@@ -21,7 +24,7 @@ oat_phase_recovery_policy:
       used_attempts: 2
       pending_attempt: null
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: blocked
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_dispatch_policy:
@@ -33,13 +36,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T15:22:00Z'
+oat_project_state_updated: '2026-09-19T15:35:33Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Phase 1 review-fix round 2 is complete; final independent re-review is pending before p02-t01.
+**Status:** Phase 1 is blocked after final review; p02-t01 has not begun.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,8 +52,10 @@ Implementation of independent three-or-more-agent messaging across local
 repositories/worktrees, shared collaboration storage, and bounded delivery.
 The user explicitly designated this existing worktree for the sequential run.
 Phase 1 implementation and both bounded review-fix rounds are committed and
-verified. Final independent re-review is the active boundary before p02-t01.
-Live hook installation remains separately authorized.
+verified, but final review found three Important shared-storage defects. The
+configured 3/3 review cycles and 2/2 fix rounds are exhausted, so explicit user
+direction is required before any further correction. Live hook installation
+remains separately authorized.
 
 ## Artifacts
 
@@ -161,7 +166,12 @@ Live hook installation remains separately authorized.
 - **Final p01 fix verification:** A process-test listener race found by root was
   recovered in `5d94e390`. Root reproduced the target test, full suite (2,116
   passed, 1 skipped), generated freshness, validation, type-check, smoke, and
-  version validation. Final independent re-review remains pending.
+  version validation.
+- **Phase 1 final review:** Reviewed through `057cc67a` and confirmed all
+  round-2 findings resolved, but returned Blocking with 0 Critical, 3 Important,
+  0 Medium, and 0 Minor findings. Artifact:
+  `reviews/code-p01-final-review-2026-09-19T152245Z.md`. Retry governance is
+  exhausted; no additional fix was dispatched.
 
 ## Dispatch and Gate Review Policy
 
@@ -192,13 +202,14 @@ do not delete locks or discard artifacts.
 
 ## Blockers
 
-No implementation blocker is currently known. Phase 1 remains gated on its
-final independent re-review after exhausting the configured 2/2 bounded fix
-rounds; any new blocking finding must be escalated rather than silently retried.
+Phase 1 final review reproduced three Important defects: authoritative reads
+follow intermediate symlinks and rejected writes mutate the escaped tree;
+record-kind detection uses unanchored ancestor names and breaks legal roots;
+and `open` cannot idempotently retry its own partial commit because `createdAt`
+changes. The 3/3 review-cycle and 2/2 fix-round limits are exhausted.
 
 ## Next Milestone
 
-Obtain the final independent Phase 1 review on the settled fix/recovery head.
-Advance to p02-t01 only on a passing verdict; otherwise stop at the configured
-retry boundary and report the blocker. Continue in this existing user-designated
-worktree; do not create another worktree.
+Await explicit user direction on whether to authorize one additional bounded
+Phase 1 correction for the three final-review findings. Do not begin p02-t01 and
+do not create another worktree.

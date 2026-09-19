@@ -60,6 +60,10 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:2,minor:2 exit=0 status=ok artifact=.oat/projects/shared/agent-messaging/reviews/artifact-plan-review-2026-09-19T131345Z.md run=94c9a069-05df-4541-84ef-5b56f699c674
 
+### 2026-09-19 · structural · oat-project-implement · p01
+
+p01 blocked after final review: verdict=blocking findings=0-critical/3-important/0-medium/0-minor review-cycles=3/3 fix-rounds=2/2 artifact=reviews/code-p01-final-review-2026-09-19T152245Z.md id=p01-final-review-057cc67a
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
