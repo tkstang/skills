@@ -4,6 +4,13 @@
 
 ### Added
 
+- `agent-messaging` 1.0.13 and `session-observer-collab` 1.0.37 add the
+  fixture-tested finite Claude composed Monitor: exact activation and peer pins,
+  inbox-first selection, shared message/observation slots, slot-before-private-
+  cursor-CAS ordering, bounded range-only notifications, explicit re-arm without
+  budget reset, and truthful non-retryable observation-attempt status. Live
+  Claude receipt remains separately authorized and unverified.
+
 - `agent-messaging` 1.0.9 and `session-observer-collab` 1.0.35 compose one
   fixture-tested, composition-capable Codex Stop owner with inbox-first
   selection, a shared finite continuation budget, observer-CAS loss containment,

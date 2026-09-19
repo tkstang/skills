@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.36'
+  version: '1.0.37'
 ---
 
 # {{distribution.name}}
@@ -174,9 +174,16 @@ Composition requires the active exact-session lease, the immutable
 A hook without a lease is not an owner. Active mismatched, legacy, uncomposed,
 or uncertain owners fail closed. Disable, close, takeover, expiry, or budget
 exhaustion stops composed automatic delivery without deleting observation
-history. Claude composed Monitor support is unavailable until its dedicated
-adapter is shipped; Cursor remains buffered-manual because its continuation
-boundary is unverified.
+history. Claude composition uses the dedicated finite
+`scripts/claude-monitor.mjs` entrypoint. It requires one exact immutable
+observer-collab/monitor activation, explicit self/peer/transcript/cwd pins and
+fresh confirmation that the legacy Monitor and standalone watcher are stopped.
+It checks inbox requests first, reserves the shared slot before private-cursor
+CAS for observation, emits at most one bounded notification, and exits within
+30 minutes and both expiry bounds. Explicit re-arm preserves cursor and slot
+history; no daemon, self-rearm, observation retry, or public-offset mutation is
+created. Cursor remains buffered-manual because its continuation boundary is
+unverified.
 
 Inspect addressed requests before peer ranges and deduplicate only by exact
 message ID already present in working context. A transcript quote of the same

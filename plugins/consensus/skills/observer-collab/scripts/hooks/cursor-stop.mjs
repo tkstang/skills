@@ -2270,7 +2270,7 @@ var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
 var MAX_CONTINUATIONS = 100;
 var MAX_LOOPS = 1e3;
 var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var RECORD_INDEX_BASE2 = "zero-based-jsonl-record-index";
 var FRAME_INDEX_BASE2 = "zero-based-jsonl-frame-index";
@@ -2312,7 +2312,7 @@ function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
       "invalid-owner-runtime",
-      "owner runtime must be codex or cursor"
+      "owner runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
@@ -2513,6 +2513,24 @@ function validateLease(raw) {
   validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
+  if (value.runtime === "claude-code") {
+    const composition = value.composedActivation;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.collaborationId
+    ) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.activationId
+    ) || composition.controller !== "observer-collab" || composition.mechanism !== "monitor" || composition.ownerRuntime !== value.runtime || composition.ownerSession !== value.ownerSession || composition.peerRuntime !== value.peerRuntime || composition.peerSession !== value.peerSession || composition.ownerCwd !== value.ownerCwd || composition.peerTranscript !== value.peerTranscript || typeof composition.confirmedAt !== "string" || !Number.isFinite(Date.parse(composition.confirmedAt)) || composition.oldMonitorStopped !== true || composition.standaloneWatcherStopped !== true) {
+      throw new LeaseError(
+        "invalid-composed-activation",
+        "Claude owner lease requires an exact composed Monitor activation and stop attestations"
+      );
+    }
+  } else if (value.composedActivation !== void 0 && value.composedActivation !== null) {
+    throw new LeaseError(
+      "invalid-composed-activation",
+      "only a Claude owner lease may bind a composed Monitor activation"
+    );
+  }
   validateId(value.ownerSession, "owner-session");
   validateId(value.peerSession, "peer-session");
   value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");

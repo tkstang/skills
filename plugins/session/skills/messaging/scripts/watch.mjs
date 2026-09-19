@@ -850,6 +850,28 @@ function validateActivation(record) {
       if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
         throw new TypeError("Monitor attestation time is outside activation");
     }
+    if (record.composedMonitorAttestation) {
+      const attestation = record.composedMonitorAttestation;
+      assertPin(attestation.owner);
+      assertPin(attestation.peer);
+      assertUuid(attestation.activationId, "Monitor activation ID");
+      assertUuid(attestation.collaborationId, "Monitor collaboration ID");
+      assertBoundedString(
+        attestation.observerLeaseId,
+        "Monitor observer lease ID",
+        128
+      );
+      if (!pinsEqual(attestation.owner, record.pin) || attestation.activationId !== record.id || attestation.collaborationId !== record.collaborationId || attestation.epoch !== record.epoch || attestation.oldMonitorStopped !== true || attestation.standaloneWatcherStopped !== true)
+        throw new TypeError("composed Monitor attestation identity is invalid");
+      const confirmedAt = timestamp(
+        attestation.confirmedAt,
+        "composed Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError(
+          "composed Monitor attestation time is outside activation"
+        );
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",
@@ -1263,7 +1285,8 @@ async function deliveryClaimStatus(input) {
       spentSlots: 0,
       remainingSlots: 0,
       interruptedAttempts: [],
-      outcomeUnknown: []
+      outcomeUnknown: [],
+      observationAttempts: []
     };
   const base = path5.join(
     activationDirectory(input.root, input.pin),
@@ -1307,6 +1330,14 @@ async function deliveryClaimStatus(input) {
   const outcomeUnknown = events.filter(
     (event) => messages.some((message) => message.token === event.token)
   ).map((event) => event.token);
+  const observationAttempts = events.filter(
+    (event) => event.observation !== void 0
+  ).map((event) => ({
+    attemptId: event.token,
+    eventKey: event.eventKey,
+    observation: event.observation,
+    status: slots.some((slot) => slot.token === event.token) ? "outcome-unknown" : "interrupted"
+  }));
   return {
     spentSlots: slots.length,
     remainingSlots: Math.max(
@@ -1314,7 +1345,8 @@ async function deliveryClaimStatus(input) {
       status.activation.maxContinuations - slots.length
     ),
     interruptedAttempts,
-    outcomeUnknown
+    outcomeUnknown,
+    observationAttempts
   };
 }
 
@@ -1327,7 +1359,8 @@ var OUTCOME_CODES = /* @__PURE__ */ new Set([
   "claimed",
   "stdout-written",
   "host-output-attempted",
-  "watch-notification-attempted"
+  "watch-notification-attempted",
+  "observation-notification-attempted"
 ]);
 var ERROR_CODES = /* @__PURE__ */ new Set(
   ["diagnostic-write-failed", "host-timeout", "host-protocol-error"]
@@ -1338,7 +1371,9 @@ function validate(input) {
     throw new TypeError("diagnostic attempt ID is not path-safe");
   assertUuid(input.activationId, "diagnostic activation ID");
   assertBoundedString(input.eventKey, "diagnostic event key", 256);
-  if (!["prompt-start", "stop", "watch", "manual"].includes(input.boundary))
+  if (!["prompt-start", "stop", "watch", "monitor", "manual"].includes(
+    input.boundary
+  ))
     throw new TypeError("diagnostic boundary is unsupported");
   if (![
     "event-claimed",
@@ -1350,6 +1385,20 @@ function validate(input) {
     throw new TypeError("diagnostic stage is unsupported");
   if (!OUTCOME_CODES.has(input.outcomeCode))
     throw new TypeError("diagnostic outcome code is unsupported");
+  if (input.attemptKind !== void 0 && !["message", "observation"].includes(input.attemptKind))
+    throw new TypeError("diagnostic attempt kind is unsupported");
+  if (input.attemptKind === "observation" && !input.observation)
+    throw new TypeError("observation diagnostic requires exact range identity");
+  if (input.observation) {
+    const observation = input.observation;
+    assertPin(observation.owner);
+    assertPin(observation.peer);
+    if (![
+      "zero-based-jsonl-record-index",
+      "zero-based-jsonl-frame-index"
+    ].includes(observation.indexBase) || !Number.isSafeInteger(observation.fromIndex) || !Number.isSafeInteger(observation.toIndex) || !Number.isSafeInteger(observation.nextIndex) || observation.fromIndex < 0 || observation.toIndex < observation.fromIndex || observation.nextIndex !== observation.toIndex + 1 || !/^[a-f0-9]{64}$/u.test(observation.selectedPrefixIdentity))
+      throw new TypeError("diagnostic observation identity is invalid");
+  }
   if (input.errorCode !== null && !ERROR_CODES.has(input.errorCode))
     throw new TypeError("diagnostic error code is unsupported");
   if (Number.isNaN(Date.parse(input.recordedAt)))
@@ -1749,7 +1798,7 @@ function validateObserverLease(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new TypeError("observer lease must be an object");
   const lease = raw;
-  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || !validLeaseId(lease.leaseId) || !["codex", "cursor"].includes(lease.runtime) || !["claude-code", "codex", "cursor"].includes(lease.peerRuntime) || !validLeaseId(lease.ownerSession) || !validLeaseId(lease.peerSession) || typeof lease.ownerCwd !== "string" || !path8.isAbsolute(lease.ownerCwd) || lease.ownerCwd.includes("\0") || typeof lease.peerTranscript !== "string" || !path8.isAbsolute(lease.peerTranscript) || lease.peerTranscript.includes("\0") || typeof lease.peerCanonicalTranscriptPath !== "string" || !path8.isAbsolute(lease.peerCanonicalTranscriptPath) || lease.peerCanonicalTranscriptPath.includes("\0") || path8.resolve(lease.peerTranscript) !== path8.resolve(lease.peerCanonicalTranscriptPath) || lease.peerIndexBase !== (lease.peerRuntime === "cursor" ? "zero-based-jsonl-frame-index" : "zero-based-jsonl-record-index") || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
+  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || !validLeaseId(lease.leaseId) || !["claude-code", "codex", "cursor"].includes(lease.runtime) || !["claude-code", "codex", "cursor"].includes(lease.peerRuntime) || !validLeaseId(lease.ownerSession) || !validLeaseId(lease.peerSession) || typeof lease.ownerCwd !== "string" || !path8.isAbsolute(lease.ownerCwd) || lease.ownerCwd.includes("\0") || typeof lease.peerTranscript !== "string" || !path8.isAbsolute(lease.peerTranscript) || lease.peerTranscript.includes("\0") || typeof lease.peerCanonicalTranscriptPath !== "string" || !path8.isAbsolute(lease.peerCanonicalTranscriptPath) || lease.peerCanonicalTranscriptPath.includes("\0") || path8.resolve(lease.peerTranscript) !== path8.resolve(lease.peerCanonicalTranscriptPath) || lease.peerIndexBase !== (lease.peerRuntime === "cursor" ? "zero-based-jsonl-frame-index" : "zero-based-jsonl-record-index") || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
     lease.state
   ) || !validTimestamp(lease.armedAt) || !validTimestamp(lease.expiresAt) || !validTimestamp(lease.updatedAt) || !validInteger(lease.waitMs, 0, 6e4) || !validInteger(lease.leaseMs, 1, 24 * 60 * 60 * 1e3) || !validInteger(lease.peerCursor, 0, Number.MAX_SAFE_INTEGER) || !validInteger(lease.continuationCount, 0, 100) || !validInteger(lease.continuationCap, 1, 100) || !validInteger(lease.loopCount, 0, 1e3) || !validInteger(lease.loopCap, 1, 1e3) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || lease.diagnostic !== null && typeof lease.diagnostic !== "string")
     throw new TypeError("observer lease schema is invalid");
@@ -1776,6 +1825,11 @@ function validateObserverLease(raw) {
   } else if (lease.peerContinuity !== null) {
     throw new TypeError("observer record continuity is invalid");
   }
+  if (lease.runtime === "claude-code") {
+    const composed = lease.composedActivation;
+    if (!composed || composed.controller !== "observer-collab" || composed.mechanism !== "monitor" || composed.ownerRuntime !== lease.runtime || composed.ownerSession !== lease.ownerSession || composed.peerRuntime !== lease.peerRuntime || composed.peerSession !== lease.peerSession || composed.ownerCwd !== lease.ownerCwd || composed.peerTranscript !== lease.peerTranscript || composed.oldMonitorStopped !== true || composed.standaloneWatcherStopped !== true || !validTimestamp(composed.confirmedAt))
+      throw new TypeError("Claude composed Monitor lease is invalid");
+  }
   return lease;
 }
 async function inspectObserverLease(input) {
@@ -1784,32 +1838,36 @@ async function inspectObserverLease(input) {
   try {
     info = await lstat3(file);
   } catch (error) {
-    if (error.code === "ENOENT") return "absent";
-    return "uncertain";
+    if (error.code === "ENOENT")
+      return { state: "absent", lease: null };
+    return { state: "uncertain", lease: null };
   }
   if (!info.isFile() || info.isSymbolicLink() || process.getuid && info.uid !== process.getuid() || info.size > 64 * 1024) {
-    return "uncertain";
+    return { state: "uncertain", lease: null };
   }
   let lease;
   try {
     lease = validateObserverLease(JSON.parse(await readFile2(file, "utf8")));
   } catch {
-    return "uncertain";
+    return { state: "uncertain", lease: null };
   }
   if (lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || path8.resolve(lease.ownerCwd) !== path8.resolve(input.worktree)) {
-    return "uncertain";
+    return { state: "uncertain", lease };
   }
-  if (lease.state === "triggered") return "present";
-  if (["idle", "disarmed"].includes(lease.state)) return "inactive";
+  if (lease.state === "triggered") return { state: "present", lease };
+  if (["idle", "disarmed"].includes(lease.state))
+    return { state: "inactive", lease };
   const now = (input.now ?? /* @__PURE__ */ new Date()).getTime();
   if (now >= Date.parse(lease.expiresAt) || lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap || lease.state === "waiting" && (lease.waitDeadlineAt === null || now >= Date.parse(lease.waitDeadlineAt))) {
-    return "inactive";
+    return { state: "inactive", lease };
   }
-  return "present";
+  return { state: "present", lease };
 }
 async function assessAutomaticOwnership(input) {
   assertPin(input.pin);
-  const lease = await inspectObserverLease(input);
+  const inspectedLease = await inspectObserverLease(input);
+  const lease = inspectedLease.state;
+  const observerLease = inspectedLease.lease;
   const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
   if (lease === "uncertain") {
     return {
@@ -1820,7 +1878,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0) {
@@ -1832,7 +1892,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   const recognizedObserver = input.inventory.registrations.some(
@@ -1852,22 +1914,29 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     if (input.pin.runtime === "claude-code") {
-      return {
-        automaticAllowed: false,
-        observerOwner: lease,
-        controller: null,
-        reason: "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor",
-        recoveryCommand: null,
-        inventory: input.inventory,
-        thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
-      };
+      const composed = observerLease?.composedActivation;
+      if (!composed || composed.activationId !== input.requestedActivationId || composed.collaborationId !== input.requestedCollaborationId) {
+        return {
+          automaticAllowed: false,
+          observerOwner: lease,
+          controller: null,
+          reason: "Claude composed delivery requires the exact verified composed Monitor activation",
+          recoveryCommand: null,
+          inventory: input.inventory,
+          thirdPartyAcknowledgmentRequired: false,
+          acknowledgedFingerprint: null,
+          composedMonitorLeaseId: null,
+          composedMonitorPeer: null
+        };
+      }
     }
-    if (!recognizedObserver) {
+    if (input.pin.runtime !== "claude-code" && !recognizedObserver) {
       return {
         automaticAllowed: false,
         observerOwner: lease,
@@ -1876,7 +1945,9 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     if (recognizedMessaging) {
@@ -1888,7 +1959,9 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand: null,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     controller = "observer-collab";
@@ -1898,11 +1971,13 @@ async function assessAutomaticOwnership(input) {
         automaticAllowed: false,
         observerOwner: lease,
         controller: null,
-        reason: input.pin.runtime === "claude-code" ? "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
+        reason: input.pin.runtime === "claude-code" ? "composed-monitor-inactive: Claude observer delivery requires an exact active dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
         recoveryCommand: null,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     controller = "standalone-messaging";
@@ -1919,7 +1994,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: true,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   return {
@@ -1930,7 +2007,12 @@ async function assessAutomaticOwnership(input) {
     recoveryCommand: null,
     inventory: input.inventory,
     thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
-    acknowledgedFingerprint: thirdParty.length > 0 ? input.inventory.fingerprint : null
+    acknowledgedFingerprint: thirdParty.length > 0 ? input.inventory.fingerprint : null,
+    composedMonitorLeaseId: input.pin.runtime === "claude-code" && controller === "observer-collab" ? observerLease?.leaseId ?? null : null,
+    composedMonitorPeer: input.pin.runtime === "claude-code" && controller === "observer-collab" ? {
+      runtime: observerLease.peerRuntime,
+      sessionId: observerLease.peerSession
+    } : null
   };
 }
 

@@ -85,12 +85,12 @@ observer composition, but they do not prove a live host path.
 
 Current conservative labels are:
 
-| Host path                                          | Repository evidence           | Live claim                                                                      |
-| -------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| Codex prompt/Stop/watch and composed observer Stop | Documented and fixture-tested | Unverified until an authorized exact-host receipt exists.                       |
-| Claude Code prompt/Stop/finite watch               | Documented and fixture-tested | Unverified; standalone Monitor also needs acting-session ownership attestation. |
-| Claude composed observer Monitor                   | Not implemented in this phase | Pending Phase `p04-t01`; enablement reports `composed-monitor-unavailable`.     |
-| Cursor automatic delivery                          | No verified native boundary   | Unsupported; use manual turn-start and attempted-stop inbox checks.             |
+| Host path                                          | Repository evidence           | Live claim                                                                                              |
+| -------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Codex prompt/Stop/watch and composed observer Stop | Documented and fixture-tested | Unverified until an authorized exact-host receipt exists.                                               |
+| Claude Code prompt/Stop/finite watch               | Documented and fixture-tested | Unverified; standalone Monitor also needs acting-session ownership attestation.                         |
+| Claude composed observer Monitor                   | Documented and fixture-tested | Finite inbox-first controller ships; installed/invoked/recipient-observed live tiers remain unverified. |
+| Cursor automatic delivery                          | No verified native boundary   | Unsupported; use manual turn-start and attempted-stop inbox checks.                                     |
 
 Live probes are opt-in because they may mutate hook/trust state, invoke a
 provider, spend quota, and require owned cleanup. Static build and test gates

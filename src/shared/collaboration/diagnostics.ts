@@ -11,6 +11,7 @@ import {
 } from './records.js';
 import {
   assertBoundedString,
+  assertPin,
   assertUuid,
   SCHEMA_VERSION,
   type DeliveryDiagnosticRecord,
@@ -30,6 +31,7 @@ const OUTCOME_CODES = new Set<DeliveryDiagnosticRecord['outcomeCode']>([
   'stdout-written',
   'host-output-attempted',
   'watch-notification-attempted',
+  'observation-notification-attempted',
 ]);
 const ERROR_CODES = new Set<NonNullable<DeliveryDiagnosticRecord['errorCode']>>(
   ['diagnostic-write-failed', 'host-timeout', 'host-protocol-error'],
@@ -45,7 +47,11 @@ function validate(input: DeliveryDiagnosticInput): void {
     throw new TypeError('diagnostic attempt ID is not path-safe');
   assertUuid(input.activationId, 'diagnostic activation ID');
   assertBoundedString(input.eventKey, 'diagnostic event key', 256);
-  if (!['prompt-start', 'stop', 'watch', 'manual'].includes(input.boundary))
+  if (
+    !['prompt-start', 'stop', 'watch', 'monitor', 'manual'].includes(
+      input.boundary,
+    )
+  )
     throw new TypeError('diagnostic boundary is unsupported');
   if (
     ![
@@ -59,6 +65,32 @@ function validate(input: DeliveryDiagnosticInput): void {
     throw new TypeError('diagnostic stage is unsupported');
   if (!OUTCOME_CODES.has(input.outcomeCode))
     throw new TypeError('diagnostic outcome code is unsupported');
+  if (
+    input.attemptKind !== undefined &&
+    !['message', 'observation'].includes(input.attemptKind)
+  )
+    throw new TypeError('diagnostic attempt kind is unsupported');
+  if (input.attemptKind === 'observation' && !input.observation)
+    throw new TypeError('observation diagnostic requires exact range identity');
+  if (input.observation) {
+    const observation = input.observation;
+    assertPin(observation.owner);
+    assertPin(observation.peer);
+    if (
+      ![
+        'zero-based-jsonl-record-index',
+        'zero-based-jsonl-frame-index',
+      ].includes(observation.indexBase) ||
+      !Number.isSafeInteger(observation.fromIndex) ||
+      !Number.isSafeInteger(observation.toIndex) ||
+      !Number.isSafeInteger(observation.nextIndex) ||
+      observation.fromIndex < 0 ||
+      observation.toIndex < observation.fromIndex ||
+      observation.nextIndex !== observation.toIndex + 1 ||
+      !/^[a-f0-9]{64}$/u.test(observation.selectedPrefixIdentity)
+    )
+      throw new TypeError('diagnostic observation identity is invalid');
+  }
   if (input.errorCode !== null && !ERROR_CODES.has(input.errorCode))
     throw new TypeError('diagnostic error code is unsupported');
   if (Number.isNaN(Date.parse(input.recordedAt)))

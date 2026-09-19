@@ -844,6 +844,28 @@ function validateActivation(record) {
       if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
         throw new TypeError("Monitor attestation time is outside activation");
     }
+    if (record.composedMonitorAttestation) {
+      const attestation = record.composedMonitorAttestation;
+      assertPin(attestation.owner);
+      assertPin(attestation.peer);
+      assertUuid(attestation.activationId, "Monitor activation ID");
+      assertUuid(attestation.collaborationId, "Monitor collaboration ID");
+      assertBoundedString(
+        attestation.observerLeaseId,
+        "Monitor observer lease ID",
+        128
+      );
+      if (!pinsEqual(attestation.owner, record.pin) || attestation.activationId !== record.id || attestation.collaborationId !== record.collaborationId || attestation.epoch !== record.epoch || attestation.oldMonitorStopped !== true || attestation.standaloneWatcherStopped !== true)
+        throw new TypeError("composed Monitor attestation identity is invalid");
+      const confirmedAt = timestamp(
+        attestation.confirmedAt,
+        "composed Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError(
+          "composed Monitor attestation time is outside activation"
+        );
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",

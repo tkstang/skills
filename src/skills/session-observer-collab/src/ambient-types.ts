@@ -10,10 +10,8 @@ import { claimAdapterTrigger } from './lib/runtime-adapter.mjs';
 
 const peerRuntime: 'claude-code' | 'codex' | 'cursor' =
   validatePeerRuntime('claude-code');
-const ownerRuntime: 'codex' | 'cursor' = validateOwnerRuntime('codex');
-
-// @ts-expect-error claude-code is a peer runtime, not an owner runtime.
-validateOwnerRuntime('claude-code');
+const ownerRuntime: 'claude-code' | 'codex' | 'cursor' =
+  validateOwnerRuntime('claude-code');
 
 const lease = null as unknown as Lease;
 const waitStartedAt: string | null = lease.waitStartedAt;

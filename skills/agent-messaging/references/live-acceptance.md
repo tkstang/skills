@@ -17,7 +17,7 @@ worktree.
 | Claude Code prompt start         | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Claude Code Stop                 | yes               | yes            | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 | Claude Code finite watch         | yes               | yes            | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
-| Claude composed observer Monitor | pending p04-t01   | unsupported    | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
+| Claude composed observer Monitor | yes               | yes            | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 | Claude Code human-origin renewal | yes               | fixture only   | unverified | unverified | unverified | unverified                 | n/a                   | unverified       |
 | Cursor start / Stop / idle       | bounded plan only | unsupported    | unverified | unverified | unverified | unverified                 | unverified            | unverified       |
 
@@ -48,8 +48,8 @@ probe, it must also re-run the ownership truth table: readable inventory, exact
 third-party fingerprint acknowledgment, and either no active or uncertain
 observer owner or one exact verified composed observer owner. The acting-session
 Claude Monitor attestation remains mandatory where applicable. Codex composed
-Stop is fixture-tested but remains live unverified. Claude composed Monitor
-belongs to p04-t01 and currently reports `composed-monitor-unavailable`.
+Stop and the bounded Claude composed Monitor are fixture-tested but remain live
+unverified. A live Claude receipt still requires separate authorization.
 
 Receipts contain only the probe/host/version/boundary, bounded event identity and
 provenance, observation timestamp, explicit observed booleans, outcome, and a

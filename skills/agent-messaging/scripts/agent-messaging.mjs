@@ -1263,6 +1263,28 @@ function validateActivation(record) {
       if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
         throw new TypeError("Monitor attestation time is outside activation");
     }
+    if (record.composedMonitorAttestation) {
+      const attestation = record.composedMonitorAttestation;
+      assertPin(attestation.owner);
+      assertPin(attestation.peer);
+      assertUuid(attestation.activationId, "Monitor activation ID");
+      assertUuid(attestation.collaborationId, "Monitor collaboration ID");
+      assertBoundedString(
+        attestation.observerLeaseId,
+        "Monitor observer lease ID",
+        128
+      );
+      if (!pinsEqual(attestation.owner, record.pin) || attestation.activationId !== record.id || attestation.collaborationId !== record.collaborationId || attestation.epoch !== record.epoch || attestation.oldMonitorStopped !== true || attestation.standaloneWatcherStopped !== true)
+        throw new TypeError("composed Monitor attestation identity is invalid");
+      const confirmedAt = timestamp2(
+        attestation.confirmedAt,
+        "composed Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError(
+          "composed Monitor attestation time is outside activation"
+        );
+    }
     assertIntegerRange(
       record.maxContinuations,
       "max continuations",
@@ -1526,9 +1548,10 @@ async function enableActivation(input) {
   if (fixedDurationMs !== null && (!Number.isSafeInteger(fixedDurationMs) || fixedDurationMs <= 0 || fixedDurationMs > maxDurationMs))
     throw new TypeError("fixed expiry must fit the activation duration");
   const epoch = existing.length;
+  const activationId = input.activationId ?? randomUUID3();
   const base = {
     schemaVersion: SCHEMA_VERSION,
-    id: input.activationId ?? randomUUID3(),
+    id: activationId,
     epoch,
     previousEpoch: epoch === 0 ? null : epoch - 1,
     collaborationId: input.collaborationId,
@@ -1540,6 +1563,16 @@ async function enableActivation(input) {
     controller: input.controller ?? "standalone-messaging",
     thirdPartyHookAcknowledgment: input.thirdPartyHookAcknowledgment ?? null,
     noObserverMonitorAttestation: input.noObserverMonitorAttestation ?? (input.noObserverMonitorConfirmed ? { pin: input.pin, epoch, confirmedAt: startedAt } : null),
+    composedMonitorAttestation: input.composedMonitorAttestation ? {
+      ...input.composedMonitorAttestation,
+      owner: input.pin,
+      activationId,
+      collaborationId: input.collaborationId,
+      epoch,
+      confirmedAt: startedAt,
+      oldMonitorStopped: true,
+      standaloneWatcherStopped: true
+    } : null,
     startedAt,
     hardExpiresAt: new Date(now.getTime() + maxDurationMs).toISOString(),
     expiryMode,
@@ -1927,7 +1960,8 @@ async function deliveryClaimStatus(input) {
       spentSlots: 0,
       remainingSlots: 0,
       interruptedAttempts: [],
-      outcomeUnknown: []
+      outcomeUnknown: [],
+      observationAttempts: []
     };
   const base = path5.join(
     activationDirectory(input.root, input.pin),
@@ -1971,6 +2005,14 @@ async function deliveryClaimStatus(input) {
   const outcomeUnknown = events.filter(
     (event) => messages.some((message) => message.token === event.token)
   ).map((event) => event.token);
+  const observationAttempts = events.filter(
+    (event) => event.observation !== void 0
+  ).map((event) => ({
+    attemptId: event.token,
+    eventKey: event.eventKey,
+    observation: event.observation,
+    status: slots.some((slot) => slot.token === event.token) ? "outcome-unknown" : "interrupted"
+  }));
   return {
     spentSlots: slots.length,
     remainingSlots: Math.max(
@@ -1978,7 +2020,8 @@ async function deliveryClaimStatus(input) {
       status.activation.maxContinuations - slots.length
     ),
     interruptedAttempts,
-    outcomeUnknown
+    outcomeUnknown,
+    observationAttempts
   };
 }
 
@@ -1991,7 +2034,8 @@ var OUTCOME_CODES = /* @__PURE__ */ new Set([
   "claimed",
   "stdout-written",
   "host-output-attempted",
-  "watch-notification-attempted"
+  "watch-notification-attempted",
+  "observation-notification-attempted"
 ]);
 var ERROR_CODES = /* @__PURE__ */ new Set(
   ["diagnostic-write-failed", "host-timeout", "host-protocol-error"]
@@ -2002,7 +2046,9 @@ function validate(input) {
     throw new TypeError("diagnostic attempt ID is not path-safe");
   assertUuid(input.activationId, "diagnostic activation ID");
   assertBoundedString(input.eventKey, "diagnostic event key", 256);
-  if (!["prompt-start", "stop", "watch", "manual"].includes(input.boundary))
+  if (!["prompt-start", "stop", "watch", "monitor", "manual"].includes(
+    input.boundary
+  ))
     throw new TypeError("diagnostic boundary is unsupported");
   if (![
     "event-claimed",
@@ -2014,6 +2060,20 @@ function validate(input) {
     throw new TypeError("diagnostic stage is unsupported");
   if (!OUTCOME_CODES.has(input.outcomeCode))
     throw new TypeError("diagnostic outcome code is unsupported");
+  if (input.attemptKind !== void 0 && !["message", "observation"].includes(input.attemptKind))
+    throw new TypeError("diagnostic attempt kind is unsupported");
+  if (input.attemptKind === "observation" && !input.observation)
+    throw new TypeError("observation diagnostic requires exact range identity");
+  if (input.observation) {
+    const observation = input.observation;
+    assertPin(observation.owner);
+    assertPin(observation.peer);
+    if (![
+      "zero-based-jsonl-record-index",
+      "zero-based-jsonl-frame-index"
+    ].includes(observation.indexBase) || !Number.isSafeInteger(observation.fromIndex) || !Number.isSafeInteger(observation.toIndex) || !Number.isSafeInteger(observation.nextIndex) || observation.fromIndex < 0 || observation.toIndex < observation.fromIndex || observation.nextIndex !== observation.toIndex + 1 || !/^[a-f0-9]{64}$/u.test(observation.selectedPrefixIdentity))
+      throw new TypeError("diagnostic observation identity is invalid");
+  }
   if (input.errorCode !== null && !ERROR_CODES.has(input.errorCode))
     throw new TypeError("diagnostic error code is unsupported");
   if (Number.isNaN(Date.parse(input.recordedAt)))
@@ -3118,7 +3178,7 @@ function validateObserverLease(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new TypeError("observer lease must be an object");
   const lease = raw;
-  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || !validLeaseId(lease.leaseId) || !["codex", "cursor"].includes(lease.runtime) || !["claude-code", "codex", "cursor"].includes(lease.peerRuntime) || !validLeaseId(lease.ownerSession) || !validLeaseId(lease.peerSession) || typeof lease.ownerCwd !== "string" || !path10.isAbsolute(lease.ownerCwd) || lease.ownerCwd.includes("\0") || typeof lease.peerTranscript !== "string" || !path10.isAbsolute(lease.peerTranscript) || lease.peerTranscript.includes("\0") || typeof lease.peerCanonicalTranscriptPath !== "string" || !path10.isAbsolute(lease.peerCanonicalTranscriptPath) || lease.peerCanonicalTranscriptPath.includes("\0") || path10.resolve(lease.peerTranscript) !== path10.resolve(lease.peerCanonicalTranscriptPath) || lease.peerIndexBase !== (lease.peerRuntime === "cursor" ? "zero-based-jsonl-frame-index" : "zero-based-jsonl-record-index") || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
+  if (lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION || !validLeaseId(lease.leaseId) || !["claude-code", "codex", "cursor"].includes(lease.runtime) || !["claude-code", "codex", "cursor"].includes(lease.peerRuntime) || !validLeaseId(lease.ownerSession) || !validLeaseId(lease.peerSession) || typeof lease.ownerCwd !== "string" || !path10.isAbsolute(lease.ownerCwd) || lease.ownerCwd.includes("\0") || typeof lease.peerTranscript !== "string" || !path10.isAbsolute(lease.peerTranscript) || lease.peerTranscript.includes("\0") || typeof lease.peerCanonicalTranscriptPath !== "string" || !path10.isAbsolute(lease.peerCanonicalTranscriptPath) || lease.peerCanonicalTranscriptPath.includes("\0") || path10.resolve(lease.peerTranscript) !== path10.resolve(lease.peerCanonicalTranscriptPath) || lease.peerIndexBase !== (lease.peerRuntime === "cursor" ? "zero-based-jsonl-frame-index" : "zero-based-jsonl-record-index") || !["armed", "waiting", "idle", "triggered", "disarmed"].includes(
     lease.state
   ) || !validTimestamp(lease.armedAt) || !validTimestamp(lease.expiresAt) || !validTimestamp(lease.updatedAt) || !validInteger(lease.waitMs, 0, 6e4) || !validInteger(lease.leaseMs, 1, 24 * 60 * 60 * 1e3) || !validInteger(lease.peerCursor, 0, Number.MAX_SAFE_INTEGER) || !validInteger(lease.continuationCount, 0, 100) || !validInteger(lease.continuationCap, 1, 100) || !validInteger(lease.loopCount, 0, 1e3) || !validInteger(lease.loopCap, 1, 1e3) || lease.continuationCount > lease.continuationCap || lease.loopCount > lease.loopCap || lease.diagnostic !== null && typeof lease.diagnostic !== "string")
     throw new TypeError("observer lease schema is invalid");
@@ -3145,6 +3205,11 @@ function validateObserverLease(raw) {
   } else if (lease.peerContinuity !== null) {
     throw new TypeError("observer record continuity is invalid");
   }
+  if (lease.runtime === "claude-code") {
+    const composed = lease.composedActivation;
+    if (!composed || composed.controller !== "observer-collab" || composed.mechanism !== "monitor" || composed.ownerRuntime !== lease.runtime || composed.ownerSession !== lease.ownerSession || composed.peerRuntime !== lease.peerRuntime || composed.peerSession !== lease.peerSession || composed.ownerCwd !== lease.ownerCwd || composed.peerTranscript !== lease.peerTranscript || composed.oldMonitorStopped !== true || composed.standaloneWatcherStopped !== true || !validTimestamp(composed.confirmedAt))
+      throw new TypeError("Claude composed Monitor lease is invalid");
+  }
   return lease;
 }
 async function inspectObserverLease(input) {
@@ -3153,32 +3218,36 @@ async function inspectObserverLease(input) {
   try {
     info = await lstat4(file);
   } catch (error) {
-    if (error.code === "ENOENT") return "absent";
-    return "uncertain";
+    if (error.code === "ENOENT")
+      return { state: "absent", lease: null };
+    return { state: "uncertain", lease: null };
   }
   if (!info.isFile() || info.isSymbolicLink() || process.getuid && info.uid !== process.getuid() || info.size > 64 * 1024) {
-    return "uncertain";
+    return { state: "uncertain", lease: null };
   }
   let lease;
   try {
     lease = validateObserverLease(JSON.parse(await readFile3(file, "utf8")));
   } catch {
-    return "uncertain";
+    return { state: "uncertain", lease: null };
   }
   if (lease.runtime !== input.pin.runtime || lease.ownerSession !== input.pin.sessionId || path10.resolve(lease.ownerCwd) !== path10.resolve(input.worktree)) {
-    return "uncertain";
+    return { state: "uncertain", lease };
   }
-  if (lease.state === "triggered") return "present";
-  if (["idle", "disarmed"].includes(lease.state)) return "inactive";
+  if (lease.state === "triggered") return { state: "present", lease };
+  if (["idle", "disarmed"].includes(lease.state))
+    return { state: "inactive", lease };
   const now = (input.now ?? /* @__PURE__ */ new Date()).getTime();
   if (now >= Date.parse(lease.expiresAt) || lease.continuationCount >= lease.continuationCap || lease.loopCount >= lease.loopCap || lease.state === "waiting" && (lease.waitDeadlineAt === null || now >= Date.parse(lease.waitDeadlineAt))) {
-    return "inactive";
+    return { state: "inactive", lease };
   }
-  return "present";
+  return { state: "present", lease };
 }
 async function assessAutomaticOwnership(input) {
   assertPin(input.pin);
-  const lease = await inspectObserverLease(input);
+  const inspectedLease = await inspectObserverLease(input);
+  const lease = inspectedLease.state;
+  const observerLease = inspectedLease.lease;
   const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
   if (lease === "uncertain") {
     return {
@@ -3189,7 +3258,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   if (input.inventory.unreadableSources.length > 0 || input.inventory.unresolvedPlugins.length > 0) {
@@ -3201,7 +3272,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   const recognizedObserver = input.inventory.registrations.some(
@@ -3221,22 +3294,29 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     if (input.pin.runtime === "claude-code") {
-      return {
-        automaticAllowed: false,
-        observerOwner: lease,
-        controller: null,
-        reason: "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor",
-        recoveryCommand: null,
-        inventory: input.inventory,
-        thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
-      };
+      const composed = observerLease?.composedActivation;
+      if (!composed || composed.activationId !== input.requestedActivationId || composed.collaborationId !== input.requestedCollaborationId) {
+        return {
+          automaticAllowed: false,
+          observerOwner: lease,
+          controller: null,
+          reason: "Claude composed delivery requires the exact verified composed Monitor activation",
+          recoveryCommand: null,
+          inventory: input.inventory,
+          thirdPartyAcknowledgmentRequired: false,
+          acknowledgedFingerprint: null,
+          composedMonitorLeaseId: null,
+          composedMonitorPeer: null
+        };
+      }
     }
-    if (!recognizedObserver) {
+    if (input.pin.runtime !== "claude-code" && !recognizedObserver) {
       return {
         automaticAllowed: false,
         observerOwner: lease,
@@ -3245,7 +3325,9 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     if (recognizedMessaging) {
@@ -3257,7 +3339,9 @@ async function assessAutomaticOwnership(input) {
         recoveryCommand: null,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     controller = "observer-collab";
@@ -3267,11 +3351,13 @@ async function assessAutomaticOwnership(input) {
         automaticAllowed: false,
         observerOwner: lease,
         controller: null,
-        reason: input.pin.runtime === "claude-code" ? "composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
+        reason: input.pin.runtime === "claude-code" ? "composed-monitor-inactive: Claude observer delivery requires an exact active dedicated composed Monitor" : "observer-collab requires an active exact-session lease and verified composed-capable adapter",
         recoveryCommand: null,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null
+        acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null
       };
     }
     controller = "standalone-messaging";
@@ -3288,7 +3374,9 @@ async function assessAutomaticOwnership(input) {
       recoveryCommand: null,
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: true,
-      acknowledgedFingerprint: null
+      acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null
     };
   }
   return {
@@ -3299,7 +3387,12 @@ async function assessAutomaticOwnership(input) {
     recoveryCommand: null,
     inventory: input.inventory,
     thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
-    acknowledgedFingerprint: thirdParty.length > 0 ? input.inventory.fingerprint : null
+    acknowledgedFingerprint: thirdParty.length > 0 ? input.inventory.fingerprint : null,
+    composedMonitorLeaseId: input.pin.runtime === "claude-code" && controller === "observer-collab" ? observerLease?.leaseId ?? null : null,
+    composedMonitorPeer: input.pin.runtime === "claude-code" && controller === "observer-collab" ? {
+      runtime: observerLease.peerRuntime,
+      sessionId: observerLease.peerSession
+    } : null
   };
 }
 function shellQuote(value) {
@@ -3616,6 +3709,8 @@ function parse(argv) {
       "body-stdin",
       "what-stdin",
       "confirm-no-observer-monitor",
+      "confirm-old-monitor-stopped",
+      "confirm-standalone-watcher-stopped",
       "probe-opt-in"
     ].includes(name)) {
       flags.set(name, true);
@@ -3873,6 +3968,7 @@ async function execute(parsed, io) {
     if (!["stop", "monitor"].includes(mechanism))
       throw new TypeError("--mechanism must be stop or monitor");
     const requestedController = optional(parsed, "controller");
+    const requestedActivationId = optional(parsed, "activation-id");
     if (requestedController !== void 0 && !["standalone-messaging", "observer-collab"].includes(requestedController)) {
       throw new TypeError(
         "--controller must be standalone-messaging or observer-collab"
@@ -3890,7 +3986,9 @@ async function execute(parsed, io) {
       worktree,
       inventory,
       acknowledgedFingerprint: optional(parsed, "acknowledge-stop-hooks") ?? null,
-      requestedController
+      requestedController,
+      requestedActivationId,
+      requestedCollaborationId: collaborationId
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(
@@ -3898,12 +3996,17 @@ async function execute(parsed, io) {
         `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ""}`
       );
     }
-    if (ownership.controller === "observer-collab" && mechanism !== "stop") {
+    if (ownership.controller === "observer-collab" && (pin.runtime === "claude-code" && mechanism !== "monitor" || pin.runtime !== "claude-code" && mechanism !== "stop")) {
       throw new DeliveryError(
         "DELIVERY_INACTIVE",
-        "observer-collab requires the verified Stop adapter; Claude composed Monitor remains unavailable"
+        pin.runtime === "claude-code" ? "Claude observer-collab requires the verified finite composed Monitor" : "observer-collab requires the verified Stop adapter"
       );
     }
+    if (ownership.controller === "observer-collab" && pin.runtime === "claude-code" && (!parsed.flags.has("confirm-old-monitor-stopped") || !parsed.flags.has("confirm-standalone-watcher-stopped")))
+      throw new DeliveryError(
+        "DELIVERY_INACTIVE",
+        "Claude composed Monitor enable requires fresh acting-session confirmation that the old Monitor and standalone watcher are stopped"
+      );
     if (ownership.controller === "standalone-messaging" && pin.runtime === "claude-code" && !parsed.flags.has("confirm-no-observer-monitor")) {
       throw new DeliveryError(
         "DELIVERY_INACTIVE",
@@ -3915,7 +4018,7 @@ async function execute(parsed, io) {
       collaborationId,
       pin,
       worktree,
-      activationId: optional(parsed, "activation-id"),
+      activationId: requestedActivationId,
       mechanism,
       controller: ownership.controller ?? void 0,
       expiryMode,
@@ -3937,7 +4040,18 @@ async function execute(parsed, io) {
         configurationFingerprint: ownership.acknowledgedFingerprint,
         acknowledgedAt: (/* @__PURE__ */ new Date()).toISOString()
       } : null,
-      noObserverMonitorConfirmed: ownership.controller === "standalone-messaging" && pin.runtime === "claude-code" && parsed.flags.has("confirm-no-observer-monitor")
+      noObserverMonitorConfirmed: ownership.controller === "standalone-messaging" && pin.runtime === "claude-code" && parsed.flags.has("confirm-no-observer-monitor"),
+      composedMonitorAttestation: ownership.controller === "observer-collab" && pin.runtime === "claude-code" && ownership.composedMonitorLeaseId && ownership.composedMonitorPeer ? {
+        owner: pin,
+        peer: ownership.composedMonitorPeer,
+        observerLeaseId: ownership.composedMonitorLeaseId,
+        activationId: requestedActivationId,
+        collaborationId,
+        epoch: 0,
+        confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        oldMonitorStopped: true,
+        standaloneWatcherStopped: true
+      } : null
     });
     return { operation: "delivery.enable", collaborationId, data };
   }
@@ -4069,7 +4183,9 @@ async function execute(parsed, io) {
       worktree,
       inventory,
       acknowledgedFingerprint: optional(parsed, "acknowledge-stop-hooks") ?? null,
-      requestedController: activation.controller
+      requestedController: activation.controller,
+      requestedActivationId: activation.id,
+      requestedCollaborationId: activation.collaborationId
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(

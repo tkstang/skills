@@ -1,4 +1,4 @@
-export type OwnerRuntime = 'codex' | 'cursor';
+export type OwnerRuntime = 'claude-code' | 'codex' | 'cursor';
 export type PeerRuntime = 'claude-code' | OwnerRuntime;
 export type Runtime = OwnerRuntime;
 export type CompletionIndexBase =
@@ -32,6 +32,21 @@ export interface Lease {
   peerTranscript: string;
   peerCanonicalTranscriptPath: string;
   peerIndexBase: CompletionIndexBase;
+  composedActivation?: {
+    collaborationId: string;
+    activationId: string;
+    controller: 'observer-collab';
+    mechanism: 'monitor';
+    ownerRuntime: 'claude-code';
+    ownerSession: string;
+    peerRuntime: PeerRuntime;
+    peerSession: string;
+    ownerCwd: string;
+    peerTranscript: string;
+    confirmedAt: string;
+    oldMonitorStopped: true;
+    standaloneWatcherStopped: true;
+  } | null;
   state: LeaseState;
   peerCursor: number;
   peerContinuity: TranscriptContinuityCheckpoint | null;

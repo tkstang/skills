@@ -36,6 +36,38 @@ async function fixture() {
 }
 
 describe('delivery diagnostics', () => {
+  test('records bounded observation-attempt identity without inventing delivery', async () => {
+    const f = await fixture();
+    const diagnostic = await publishDeliveryDiagnostic({
+      root: f.root,
+      pin: f.pin,
+      diagnostic: {
+        attemptId: 'observation-1',
+        activationId: f.activation.id,
+        eventKey: 'observation-event',
+        boundary: 'monitor',
+        attemptKind: 'observation',
+        observation: {
+          owner: f.pin,
+          peer: { runtime: 'claude-code', sessionId: 'peer' },
+          indexBase: 'zero-based-jsonl-record-index',
+          fromIndex: 0,
+          toIndex: 2,
+          nextIndex: 3,
+          selectedPrefixIdentity: 'b'.repeat(64),
+        },
+        recordedAt: '2026-09-19T10:00:00.000Z',
+        stage: 'output-attempted',
+        outcomeCode: 'observation-notification-attempted',
+        errorCode: null,
+      },
+    });
+    expect(diagnostic).toMatchObject({
+      attemptKind: 'observation',
+      observation: { fromIndex: 0, toIndex: 2 },
+    });
+  });
+
   test('publishes only bounded allowlisted outcome evidence', async () => {
     const f = await fixture();
     const diagnostic = {

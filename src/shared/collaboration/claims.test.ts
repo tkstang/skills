@@ -10,8 +10,10 @@ import { describe, expect, test } from 'vitest';
 import { disableActivation, enableActivation } from './activation.js';
 import {
   claimDelivery,
+  claimObservation,
   createDeliveryRetry,
   deliveryClaimStatus,
+  observationEventKey,
   watchBatchEventKey,
 } from './claims.js';
 import { openCollaboration } from './membership.js';
@@ -40,6 +42,61 @@ async function fixture(maxContinuations = 2) {
 }
 
 describe('delivery claims', () => {
+  test('shares slots with non-retryable observation claims and reports exact truthful status', async () => {
+    const f = await fixture(2);
+    const observation = {
+      owner: f.pin,
+      peer: { runtime: 'claude-code' as const, sessionId: 'peer' },
+      indexBase: 'zero-based-jsonl-record-index' as const,
+      fromIndex: 4,
+      toIndex: 6,
+      nextIndex: 7,
+      selectedPrefixIdentity: 'a'.repeat(64),
+    };
+    const eventKey = observationEventKey({
+      activationId: f.activation.id,
+      observation,
+    });
+    await expect(
+      claimObservation({
+        root: f.root,
+        pin: f.pin,
+        eventKey: 'mismatched-observation-key',
+        observation,
+      }),
+    ).rejects.toThrow('observation event key does not match its identity');
+    const claimed = await claimObservation({
+      root: f.root,
+      pin: f.pin,
+      eventKey,
+      observation,
+      token: 'observation-1',
+    });
+    expect(claimed.slot?.slot).toBe(1);
+    expect(
+      await deliveryClaimStatus({ root: f.root, pin: f.pin }),
+    ).toMatchObject({
+      spentSlots: 1,
+      remainingSlots: 1,
+      observationAttempts: [
+        {
+          attemptId: 'observation-1',
+          eventKey,
+          observation: { fromIndex: 4, toIndex: 6 },
+          status: 'outcome-unknown',
+        },
+      ],
+    });
+    expect(
+      await claimObservation({
+        root: f.root,
+        pin: f.pin,
+        eventKey,
+        observation,
+      }),
+    ).toMatchObject({ duplicateEvent: true, slot: null });
+  });
+
   test('orders event, slot, and message claims without acknowledging mail', async () => {
     const f = await fixture();
     const messageId = crypto.randomUUID();

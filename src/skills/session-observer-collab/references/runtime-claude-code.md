@@ -2,13 +2,11 @@
 
 ## Messaging composition status
 
-The legacy base-observer Monitor below is not an agent-messaging continuation
-controller and does not spend messaging activation slots. Automatic composed
-messaging therefore reports `composed-monitor-unavailable` in this release.
-Keep addressed inbox checks manual at turn start, or use standalone messaging
-only with the acting-session no-observer-Monitor attestation. Do not wrap this
-recipe and call it composed capability; a dedicated finite composed Monitor is
-required before that claim.
+The legacy base-observer Monitor below remains observation-only: it is not an
+agent-messaging continuation controller and does not spend messaging activation
+slots. Composed messaging instead uses the shipped finite
+`scripts/claude-monitor.mjs` entrypoint. Do not wrap the legacy recipe or run it
+beside the composed Monitor.
 
 Use this reference only after resolving the acting runtime as Claude Code. It is the
 runtime-specific companion to `session-observer-collab/SKILL.md`; the base
@@ -36,7 +34,39 @@ peer message. Monitor output is automatic control input: it cannot authorize
 work, must not be echoed as human direction, and must not recursively create a
 second watcher or wake.
 
-## Pinned Monitor recipe
+## Finite composed Monitor
+
+Create one proposed activation UUID. Arm the observer-collab lease with that
+UUID, the collaboration UUID, explicit private cursor, exact self/peer,
+transcript and cwd, plus acting-session confirmation that the legacy Monitor and
+standalone messaging watcher are stopped. Then enable the same UUID with
+controller `observer-collab` and mechanism `monitor`.
+
+Launch `node <observer-collab-skill>/scripts/claude-monitor.mjs` in a proven
+harness Monitor with the same IDs and pins, a finite `--max-runtime-ms` no
+greater than 1800000, and both fresh stop confirmations. The command polls
+addressed requests first. A request uses the existing message event, shared slot
+and per-message claims without reading the transcript. Otherwise it reads the
+exact peer candidate in-process without the base watcher or public observer
+offset, claims a range-derived event and shared slot, and only then applies the
+private-cursor CAS. A CAS loser and every identity, inventory, expiry or
+continuity mismatch emit nothing.
+
+One run emits at most one bounded notification containing exact message IDs or
+the peer/index-base/range. It exits on notification, interruption, runtime cap,
+activation expiry, or lease expiry and never self-rearms. Explicit re-arm must
+name the same activation and peer; it preserves the private cursor, original
+lease expiry and spent shared slots. An observation claim has no delivery retry
+generation. Status calls a pre-slot attempt interrupted only from recorded
+evidence; later outcomes remain unknown. Recovery is a normal explicit pinned
+observer read, which advances public state under its existing contract but does
+not mutate private Monitor state, claims, or slots.
+
+Synthetic fixture proof does not establish installed or live Monitor delivery.
+Keep the live tier unverified until an independently authorized exact-host
+receipt completes the sequence below.
+
+## Legacy observation-only Monitor recipe
 
 Resolve and announce both identities with the base `whoami` command, then use
 the exact confirmed peer pin. Start exactly one persistent Monitor task around

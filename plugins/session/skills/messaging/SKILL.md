@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.12'
+  version: '1.0.13'
 ---
 
 # messaging
@@ -151,8 +151,14 @@ an active lease selects standalone messaging. Active mismatched, legacy,
 uncomposed, or uncertain ownership still refuses automatic delivery.
 
 Changing controllers requires explicit disable and re-enable; never create a
-second route for an active epoch. Claude observer composition reports
-`composed-monitor-unavailable` until the dedicated composed Monitor ships.
+second route for an active epoch. Claude observer composition uses the finite
+`<observer-collab-skill>/scripts/claude-monitor.mjs` entrypoint. Arm it with an
+explicit activation UUID, exact self/peer pins, transcript, cwd, private cursor,
+and acting-session confirmations that the legacy observer Monitor and standalone
+messaging watcher are stopped. Enable that exact UUID with
+`--controller observer-collab --mechanism monitor`; a mismatch stays manual.
+Each foreground run lasts at most 30 minutes, emits at most one bounded
+notification, shares the epoch's remaining slots, and never self-rearms.
 Claude standalone delivery additionally requires
 `--confirm-no-observer-monitor` from the acting session. Read
 [Codex runtime](references/runtime-codex.md) or
@@ -176,11 +182,18 @@ node <skill-dir>/scripts/agent-messaging.mjs delivery watch \
   --collab <uuid> --self codex:<id> --duration 5m --poll-ms 1000
 ```
 
-The notification contains attributed request metadata, never message bodies.
+The standalone notification contains attributed request metadata, never message bodies.
 Updates remain visible in the manual inbox but do not wake the watch. Re-arm
 uses the same activation and remaining continuation slots. Claude requires a
 fresh `--confirm-no-observer-monitor` on every watch start; native Stop and a
 standalone Monitor are mutually exclusive activation mechanisms.
+
+The composed Claude Monitor checks inbox requests before transcript selection.
+Message notifications contain exact IDs; observation notifications contain the
+exact peer and range, never transcript prose. Observation attempts have no
+message retry generation: interrupted or outcome-unknown status points to a
+normal explicit pinned-range observer read. Re-arm preserves the private cursor,
+activation expiry, and spent shared slots.
 
 In a composed observer session, inspect the addressed inbox before any peer
 range. Deduplicate only by exact message ID already present in working context:

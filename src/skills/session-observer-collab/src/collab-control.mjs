@@ -71,7 +71,9 @@ export function parseArgs(argv) {
       rawKey === 'json' ||
       rawKey === 'confirmed' ||
       rawKey === 'remove-script' ||
-      rawKey === 'what-stdin'
+      rawKey === 'what-stdin' ||
+      rawKey === 'confirm-old-monitor-stopped' ||
+      rawKey === 'confirm-standalone-watcher-stopped'
     ) {
       options[key] = true;
       continue;
@@ -228,12 +230,42 @@ export async function arm(root, options, now = Date.now()) {
     1,
     MAX_LOOPS,
   );
-  const cursor = numberOption(
-    options.cursor ?? 0,
-    'cursor',
-    0,
-    Number.MAX_SAFE_INTEGER,
-  );
+  const composedActivation =
+    runtime === 'claude-code'
+      ? (() => {
+          const collaborationId = String(options.collaborationId ?? '');
+          const activationId = String(options.activationId ?? '');
+          const uuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+          if (!uuid.test(collaborationId) || !uuid.test(activationId))
+            throw new Error(
+              'Claude Monitor arm requires --collaboration-id and --activation-id UUIDs',
+            );
+          if (
+            options.confirmOldMonitorStopped !== true ||
+            options.confirmStandaloneWatcherStopped !== true
+          ) {
+            throw new Error(
+              'Claude Monitor arm requires exact acting-session confirmation that the old Monitor and standalone watcher are stopped',
+            );
+          }
+          return {
+            collaborationId,
+            activationId,
+            controller: 'observer-collab',
+            mechanism: 'monitor',
+            ownerRuntime: runtime,
+            ownerSession,
+            peerRuntime,
+            peerSession,
+            ownerCwd,
+            peerTranscript: peerPath.peerTranscript,
+            confirmedAt: new Date(now).toISOString(),
+            oldMonitorStopped: true,
+            standaloneWatcherStopped: true,
+          };
+        })()
+      : null;
   const identity = {
     runtime,
     peerRuntime,
@@ -254,6 +286,53 @@ export async function arm(root, options, now = Date.now()) {
         if (error?.code !== 'cursor-lease-rearm-required') throw error;
         existing = null;
       }
+      const isClaudeRearm = runtime === 'claude-code' && existing !== null;
+      if (isClaudeRearm) {
+        if (
+          existing.runtime !== runtime ||
+          existing.peerRuntime !== peerRuntime ||
+          existing.ownerSession !== ownerSession ||
+          existing.ownerCwd !== ownerCwd ||
+          existing.peerSession !== peerSession ||
+          existing.peerTranscript !== peerPath.peerTranscript ||
+          existing.composedActivation?.collaborationId !==
+            composedActivation.collaborationId ||
+          existing.composedActivation?.activationId !==
+            composedActivation.activationId
+        ) {
+          throw new Error(
+            'Claude Monitor re-arm must preserve the exact owner, peer, transcript, cwd, collaboration, and activation',
+          );
+        }
+        if (
+          now >= Date.parse(existing.expiresAt) ||
+          existing.continuationCount >= existing.continuationCap ||
+          existing.loopCount >= existing.loopCap
+        ) {
+          throw new Error(
+            'Claude Monitor re-arm cannot revive an expired or exhausted observer lease',
+          );
+        }
+      }
+      if (
+        runtime === 'claude-code' &&
+        !isClaudeRearm &&
+        options.cursor === undefined
+      ) {
+        throw new Error(
+          'Claude Monitor initial arm requires an explicit private --cursor',
+        );
+      }
+      const cursor = numberOption(
+        options.cursor ?? existing?.peerCursor ?? 0,
+        'cursor',
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+      if (isClaudeRearm && cursor !== existing.peerCursor)
+        throw new Error(
+          'Claude Monitor re-arm cannot reset the private cursor',
+        );
       const peerContinuity =
         peerRuntime === 'cursor'
           ? await captureCursorArmContinuity(
@@ -269,6 +348,7 @@ export async function arm(root, options, now = Date.now()) {
         loopCap,
         waitMs,
         leaseMs,
+        ...(runtime === 'claude-code' ? { composedActivation } : {}),
       };
       if (
         existing &&
@@ -289,18 +369,23 @@ export async function arm(root, options, now = Date.now()) {
         state: 'armed',
         peerCursor: cursor,
         peerContinuity,
-        continuationCount: 0,
-        continuationCap,
-        loopCount: 0,
-        loopCap,
+        ...(runtime === 'claude-code' ? { composedActivation } : {}),
+        continuationCount: isClaudeRearm ? existing.continuationCount : 0,
+        continuationCap: isClaudeRearm
+          ? existing.continuationCap
+          : continuationCap,
+        loopCount: isClaudeRearm ? existing.loopCount : 0,
+        loopCap: isClaudeRearm ? existing.loopCap : loopCap,
         waitMs,
         leaseMs,
         waitStartedAt: null,
         waitDeadlineAt: null,
         waitToken: null,
         waitPid: null,
-        armedAt: stamp,
-        expiresAt: new Date(now + leaseMs).toISOString(),
+        armedAt: isClaudeRearm ? existing.armedAt : stamp,
+        expiresAt: isClaudeRearm
+          ? existing.expiresAt
+          : new Date(now + leaseMs).toISOString(),
         updatedAt: stamp,
         diagnostic: null,
       };

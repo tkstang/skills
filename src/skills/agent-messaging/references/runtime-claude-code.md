@@ -32,6 +32,29 @@ fresh confirmation without changing the epoch or replenishing its budget.
 The watch also rechecks inventory and ownership before each output, lasts no
 more than 30 minutes or the activation expiry, and never self-rearms.
 
+## Composed observer Monitor
+
+Observer composition uses
+`<observer-collab-skill>/scripts/claude-monitor.mjs`, not the standalone watch
+and not the base observer's `catch-up-then-watch`. Initial arm names an explicit
+activation UUID, exact self and peer pins, transcript, cwd and private cursor.
+The acting session confirms that the legacy observer Monitor and standalone
+messaging watcher are stopped; every foreground run repeats those confirmations.
+
+Enable that exact UUID with controller `observer-collab` and mechanism
+`monitor`. The command polls requests first. With no request, it reads a
+candidate range without changing public observer offsets, reserves an immutable
+event and shared slot, then applies the private-cursor CAS. A CAS loser emits
+nothing. Each run emits at most one bounded ID/range notification and exits no
+later than 30 minutes, activation expiry, or observer-lease expiry. Re-arm keeps
+the same activation, peer, cursor, expiry and spent slots; it never self-rearms.
+
+An observation claim is not a message and has no `delivery retry --message`
+path. Status reports a recorded pre-slot interruption only when proven;
+otherwise the outcome is unknown. Recovery is a normal explicit observer read
+of the pinned range, which may advance public state but never clears claims,
+changes the private Monitor cursor, or refunds slots.
+
 ## Boundary contract
 
 Exact session ID, absolute cwd, stable event identity, activation, and ownership

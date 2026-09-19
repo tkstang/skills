@@ -1149,6 +1149,10 @@ process.stdout.write(JSON.stringify(result));
       path.join(repositoryRoot, 'src/shared/collaboration'),
       path.join(root, 'src/shared/collaboration'),
     );
+    await copyIfPresent(
+      path.join(repositoryRoot, 'src/skills/agent-messaging'),
+      path.join(root, 'src/skills/agent-messaging'),
+    );
 
     await copyIfPresent(
       path.join(repositoryRoot, 'src/plugins/consensus'),

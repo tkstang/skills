@@ -1,7 +1,7 @@
 ---
 id: BL-260619-inter-agent-direct-messaging
 title: Inter-agent direct messaging (addressable, prioritized)
-status: open
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M
@@ -11,7 +11,7 @@ labels:
   - messaging
 assignee: null
 created: 2026-06-19T23:57:18Z
-updated: 2026-09-19T00:12:00Z
+updated: 2026-09-19T20:18:05Z
 associated_issues: []
 legacy_id: bl-f59f
 ---

@@ -17,6 +17,10 @@ export interface ArmOptions {
   continuationCap?: string | number;
   loopCap?: string | number;
   cursor?: string | number;
+  collaborationId?: string;
+  activationId?: string;
+  confirmOldMonitorStopped?: boolean;
+  confirmStandaloneWatcherStopped?: boolean;
 }
 
 export interface RunResult {

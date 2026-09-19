@@ -1520,7 +1520,7 @@ var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
 var MAX_CONTINUATIONS = 100;
 var MAX_LOOPS = 1e3;
 var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var RECORD_INDEX_BASE = "zero-based-jsonl-record-index";
 var FRAME_INDEX_BASE = "zero-based-jsonl-frame-index";
@@ -1562,7 +1562,7 @@ function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
       "invalid-owner-runtime",
-      "owner runtime must be codex or cursor"
+      "owner runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
@@ -1775,6 +1775,24 @@ function validateLease(raw) {
   validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
+  if (value.runtime === "claude-code") {
+    const composition = value.composedActivation;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.collaborationId
+    ) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.activationId
+    ) || composition.controller !== "observer-collab" || composition.mechanism !== "monitor" || composition.ownerRuntime !== value.runtime || composition.ownerSession !== value.ownerSession || composition.peerRuntime !== value.peerRuntime || composition.peerSession !== value.peerSession || composition.ownerCwd !== value.ownerCwd || composition.peerTranscript !== value.peerTranscript || typeof composition.confirmedAt !== "string" || !Number.isFinite(Date.parse(composition.confirmedAt)) || composition.oldMonitorStopped !== true || composition.standaloneWatcherStopped !== true) {
+      throw new LeaseError(
+        "invalid-composed-activation",
+        "Claude owner lease requires an exact composed Monitor activation and stop attestations"
+      );
+    }
+  } else if (value.composedActivation !== void 0 && value.composedActivation !== null) {
+    throw new LeaseError(
+      "invalid-composed-activation",
+      "only a Claude owner lease may bind a composed Monitor activation"
+    );
+  }
   validateId(value.ownerSession, "owner-session");
   validateId(value.peerSession, "peer-session");
   value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");
@@ -2695,7 +2713,7 @@ function parseArgs(argv) {
       /-([a-z])/g,
       (_, letter) => letter.toUpperCase()
     );
-    if (rawKey === "json" || rawKey === "confirmed" || rawKey === "remove-script" || rawKey === "what-stdin") {
+    if (rawKey === "json" || rawKey === "confirmed" || rawKey === "remove-script" || rawKey === "what-stdin" || rawKey === "confirm-old-monitor-stopped" || rawKey === "confirm-standalone-watcher-stopped") {
       options[key] = true;
       continue;
     }
@@ -2839,12 +2857,35 @@ async function arm(root, options, now = Date.now()) {
     1,
     MAX_LOOPS
   );
-  const cursor = numberOption(
-    options.cursor ?? 0,
-    "cursor",
-    0,
-    Number.MAX_SAFE_INTEGER
-  );
+  const composedActivation = runtime === "claude-code" ? (() => {
+    const collaborationId = String(options.collaborationId ?? "");
+    const activationId = String(options.activationId ?? "");
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+    if (!uuid.test(collaborationId) || !uuid.test(activationId))
+      throw new Error(
+        "Claude Monitor arm requires --collaboration-id and --activation-id UUIDs"
+      );
+    if (options.confirmOldMonitorStopped !== true || options.confirmStandaloneWatcherStopped !== true) {
+      throw new Error(
+        "Claude Monitor arm requires exact acting-session confirmation that the old Monitor and standalone watcher are stopped"
+      );
+    }
+    return {
+      collaborationId,
+      activationId,
+      controller: "observer-collab",
+      mechanism: "monitor",
+      ownerRuntime: runtime,
+      ownerSession,
+      peerRuntime,
+      peerSession,
+      ownerCwd,
+      peerTranscript: peerPath.peerTranscript,
+      confirmedAt: new Date(now).toISOString(),
+      oldMonitorStopped: true,
+      standaloneWatcherStopped: true
+    };
+  })() : null;
   const identity = {
     runtime,
     peerRuntime,
@@ -2866,6 +2907,34 @@ async function arm(root, options, now = Date.now()) {
         if (error?.code !== "cursor-lease-rearm-required") throw error;
         existing = null;
       }
+      const isClaudeRearm = runtime === "claude-code" && existing !== null;
+      if (isClaudeRearm) {
+        if (existing.runtime !== runtime || existing.peerRuntime !== peerRuntime || existing.ownerSession !== ownerSession || existing.ownerCwd !== ownerCwd || existing.peerSession !== peerSession || existing.peerTranscript !== peerPath.peerTranscript || existing.composedActivation?.collaborationId !== composedActivation.collaborationId || existing.composedActivation?.activationId !== composedActivation.activationId) {
+          throw new Error(
+            "Claude Monitor re-arm must preserve the exact owner, peer, transcript, cwd, collaboration, and activation"
+          );
+        }
+        if (now >= Date.parse(existing.expiresAt) || existing.continuationCount >= existing.continuationCap || existing.loopCount >= existing.loopCap) {
+          throw new Error(
+            "Claude Monitor re-arm cannot revive an expired or exhausted observer lease"
+          );
+        }
+      }
+      if (runtime === "claude-code" && !isClaudeRearm && options.cursor === void 0) {
+        throw new Error(
+          "Claude Monitor initial arm requires an explicit private --cursor"
+        );
+      }
+      const cursor = numberOption(
+        options.cursor ?? existing?.peerCursor ?? 0,
+        "cursor",
+        0,
+        Number.MAX_SAFE_INTEGER
+      );
+      if (isClaudeRearm && cursor !== existing.peerCursor)
+        throw new Error(
+          "Claude Monitor re-arm cannot reset the private cursor"
+        );
       const peerContinuity = peerRuntime === "cursor" ? await captureCursorArmContinuity(
         peerPath.peerCanonicalTranscriptPath,
         cursor
@@ -2877,7 +2946,8 @@ async function arm(root, options, now = Date.now()) {
         continuationCap,
         loopCap,
         waitMs,
-        leaseMs
+        leaseMs,
+        ...runtime === "claude-code" ? { composedActivation } : {}
       };
       if (existing && ["armed", "waiting"].includes(effectiveLease(existing, now).state) && Object.entries(request).every(
         ([key, value]) => value !== null && typeof value === "object" ? JSON.stringify(existing[key]) === JSON.stringify(value) : existing[key] === value
@@ -2892,18 +2962,19 @@ async function arm(root, options, now = Date.now()) {
         state: "armed",
         peerCursor: cursor,
         peerContinuity,
-        continuationCount: 0,
-        continuationCap,
-        loopCount: 0,
-        loopCap,
+        ...runtime === "claude-code" ? { composedActivation } : {},
+        continuationCount: isClaudeRearm ? existing.continuationCount : 0,
+        continuationCap: isClaudeRearm ? existing.continuationCap : continuationCap,
+        loopCount: isClaudeRearm ? existing.loopCount : 0,
+        loopCap: isClaudeRearm ? existing.loopCap : loopCap,
         waitMs,
         leaseMs,
         waitStartedAt: null,
         waitDeadlineAt: null,
         waitToken: null,
         waitPid: null,
-        armedAt: stamp,
-        expiresAt: new Date(now + leaseMs).toISOString(),
+        armedAt: isClaudeRearm ? existing.armedAt : stamp,
+        expiresAt: isClaudeRearm ? existing.expiresAt : new Date(now + leaseMs).toISOString(),
         updatedAt: stamp,
         diagnostic: null
       };

@@ -122,6 +122,17 @@ export interface ActivationRecord extends HasSchemaVersion {
     epoch: number;
     confirmedAt: string;
   } | null;
+  composedMonitorAttestation: {
+    owner: Pin;
+    peer: Pin;
+    observerLeaseId: string;
+    activationId: string;
+    collaborationId: string;
+    epoch: number;
+    confirmedAt: string;
+    oldMonitorStopped: true;
+    standaloneWatcherStopped: true;
+  } | null;
   startedAt: string;
   hardExpiresAt: string;
   expiryMode: ExpiryMode;
@@ -160,8 +171,19 @@ export interface EventClaimRecord extends HasSchemaVersion {
   token: string;
   eventKey: string;
   proposedDeliveryKeys: string[];
+  observation?: ObservationClaimIdentity;
   attemptedAt: string;
   contentHash: string;
+}
+
+export interface ObservationClaimIdentity {
+  owner: Pin;
+  peer: Pin;
+  indexBase: 'zero-based-jsonl-record-index' | 'zero-based-jsonl-frame-index';
+  fromIndex: number;
+  toIndex: number;
+  nextIndex: number;
+  selectedPrefixIdentity: string;
 }
 
 export interface SlotClaimRecord extends EventClaimRecord {
@@ -188,7 +210,9 @@ export interface DeliveryDiagnosticRecord extends HasSchemaVersion {
   attemptId: string;
   activationId: string;
   eventKey: string;
-  boundary: 'prompt-start' | 'stop' | 'watch' | 'manual';
+  boundary: 'prompt-start' | 'stop' | 'watch' | 'monitor' | 'manual';
+  attemptKind?: 'message' | 'observation';
+  observation?: ObservationClaimIdentity;
   recordedAt: string;
   stage:
     | 'event-claimed'
@@ -200,7 +224,8 @@ export interface DeliveryDiagnosticRecord extends HasSchemaVersion {
     | 'claimed'
     | 'stdout-written'
     | 'host-output-attempted'
-    | 'watch-notification-attempted';
+    | 'watch-notification-attempted'
+    | 'observation-notification-attempted';
   errorCode:
     | 'diagnostic-write-failed'
     | 'host-timeout'

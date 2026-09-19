@@ -51,6 +51,8 @@ export interface OwnershipAssessment {
   inventory: HookInventory;
   thirdPartyAcknowledgmentRequired: boolean;
   acknowledgedFingerprint: string | null;
+  composedMonitorLeaseId: string | null;
+  composedMonitorPeer: Pin | null;
 }
 
 function fingerprint(registrations: StopRegistration[]): string {
@@ -349,6 +351,21 @@ interface ObserverLease {
   waitToken: string | null;
   waitPid: number | null;
   diagnostic: string | null;
+  composedActivation?: {
+    collaborationId: string;
+    activationId: string;
+    controller: 'observer-collab';
+    mechanism: 'monitor';
+    ownerRuntime: 'claude-code';
+    ownerSession: string;
+    peerRuntime: string;
+    peerSession: string;
+    ownerCwd: string;
+    peerTranscript: string;
+    confirmedAt: string;
+    oldMonitorStopped: true;
+    standaloneWatcherStopped: true;
+  } | null;
 }
 
 const SAFE_LEASE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/u;
@@ -377,7 +394,7 @@ function validateObserverLease(raw: unknown): ObserverLease {
   if (
     lease.schemaVersion !== OBSERVER_LEASE_SCHEMA_VERSION ||
     !validLeaseId(lease.leaseId) ||
-    !['codex', 'cursor'].includes(lease.runtime) ||
+    !['claude-code', 'codex', 'cursor'].includes(lease.runtime) ||
     !['claude-code', 'codex', 'cursor'].includes(lease.peerRuntime) ||
     !validLeaseId(lease.ownerSession) ||
     !validLeaseId(lease.peerSession) ||
@@ -465,6 +482,24 @@ function validateObserverLease(raw: unknown): ObserverLease {
   } else if (lease.peerContinuity !== null) {
     throw new TypeError('observer record continuity is invalid');
   }
+  if (lease.runtime === 'claude-code') {
+    const composed = lease.composedActivation;
+    if (
+      !composed ||
+      composed.controller !== 'observer-collab' ||
+      composed.mechanism !== 'monitor' ||
+      composed.ownerRuntime !== lease.runtime ||
+      composed.ownerSession !== lease.ownerSession ||
+      composed.peerRuntime !== lease.peerRuntime ||
+      composed.peerSession !== lease.peerSession ||
+      composed.ownerCwd !== lease.ownerCwd ||
+      composed.peerTranscript !== lease.peerTranscript ||
+      composed.oldMonitorStopped !== true ||
+      composed.standaloneWatcherStopped !== true ||
+      !validTimestamp(composed.confirmedAt)
+    )
+      throw new TypeError('Claude composed Monitor lease is invalid');
+  }
   return lease;
 }
 
@@ -473,14 +508,18 @@ async function inspectObserverLease(input: {
   pin: Pin;
   worktree: string;
   now?: Date;
-}): Promise<'absent' | 'inactive' | 'present' | 'uncertain'> {
+}): Promise<{
+  state: 'absent' | 'inactive' | 'present' | 'uncertain';
+  lease: ObserverLease | null;
+}> {
   const file = path.join(input.root, 'leases', `${input.pin.sessionId}.json`);
   let info;
   try {
     info = await lstat(file);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent';
-    return 'uncertain';
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return { state: 'absent', lease: null };
+    return { state: 'uncertain', lease: null };
   }
   if (
     !info.isFile() ||
@@ -488,23 +527,24 @@ async function inspectObserverLease(input: {
     (process.getuid && info.uid !== process.getuid()) ||
     info.size > 64 * 1024
   ) {
-    return 'uncertain';
+    return { state: 'uncertain', lease: null };
   }
   let lease: ObserverLease;
   try {
     lease = validateObserverLease(JSON.parse(await readFile(file, 'utf8')));
   } catch {
-    return 'uncertain';
+    return { state: 'uncertain', lease: null };
   }
   if (
     lease.runtime !== input.pin.runtime ||
     lease.ownerSession !== input.pin.sessionId ||
     path.resolve(lease.ownerCwd) !== path.resolve(input.worktree)
   ) {
-    return 'uncertain';
+    return { state: 'uncertain', lease };
   }
-  if (lease.state === 'triggered') return 'present';
-  if (['idle', 'disarmed'].includes(lease.state)) return 'inactive';
+  if (lease.state === 'triggered') return { state: 'present', lease };
+  if (['idle', 'disarmed'].includes(lease.state))
+    return { state: 'inactive', lease };
   const now = (input.now ?? new Date()).getTime();
   if (
     now >= Date.parse(lease.expiresAt) ||
@@ -514,9 +554,9 @@ async function inspectObserverLease(input: {
       (lease.waitDeadlineAt === null ||
         now >= Date.parse(lease.waitDeadlineAt)))
   ) {
-    return 'inactive';
+    return { state: 'inactive', lease };
   }
-  return 'present';
+  return { state: 'present', lease };
 }
 
 export async function assessAutomaticOwnership(input: {
@@ -526,10 +566,14 @@ export async function assessAutomaticOwnership(input: {
   inventory: HookInventory;
   acknowledgedFingerprint?: string | null;
   requestedController?: DeliveryController | null;
+  requestedActivationId?: string | null;
+  requestedCollaborationId?: string | null;
   now?: Date;
 }): Promise<OwnershipAssessment> {
   assertPin(input.pin);
-  const lease = await inspectObserverLease(input);
+  const inspectedLease = await inspectObserverLease(input);
+  const lease = inspectedLease.state;
+  const observerLease = inspectedLease.lease;
   const recoveryCommand = `node <observer-collab-skill>/scripts/collab-control.mjs disarm --session ${input.pin.sessionId}`;
   if (lease === 'uncertain') {
     return {
@@ -541,6 +585,8 @@ export async function assessAutomaticOwnership(input: {
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
       acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null,
     };
   }
   if (
@@ -556,6 +602,8 @@ export async function assessAutomaticOwnership(input: {
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: false,
       acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null,
     };
   }
   const recognizedObserver = input.inventory.registrations.some(
@@ -577,22 +625,33 @@ export async function assessAutomaticOwnership(input: {
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
         acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null,
       };
     }
     if (input.pin.runtime === 'claude-code') {
-      return {
-        automaticAllowed: false,
-        observerOwner: lease,
-        controller: null,
-        reason:
-          'composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor',
-        recoveryCommand: null,
-        inventory: input.inventory,
-        thirdPartyAcknowledgmentRequired: false,
-        acknowledgedFingerprint: null,
-      };
+      const composed = observerLease?.composedActivation;
+      if (
+        !composed ||
+        composed.activationId !== input.requestedActivationId ||
+        composed.collaborationId !== input.requestedCollaborationId
+      ) {
+        return {
+          automaticAllowed: false,
+          observerOwner: lease,
+          controller: null,
+          reason:
+            'Claude composed delivery requires the exact verified composed Monitor activation',
+          recoveryCommand: null,
+          inventory: input.inventory,
+          thirdPartyAcknowledgmentRequired: false,
+          acknowledgedFingerprint: null,
+          composedMonitorLeaseId: null,
+          composedMonitorPeer: null,
+        };
+      }
     }
-    if (!recognizedObserver) {
+    if (input.pin.runtime !== 'claude-code' && !recognizedObserver) {
       return {
         automaticAllowed: false,
         observerOwner: lease,
@@ -603,6 +662,8 @@ export async function assessAutomaticOwnership(input: {
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
         acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null,
       };
     }
     if (recognizedMessaging) {
@@ -616,6 +677,8 @@ export async function assessAutomaticOwnership(input: {
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
         acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null,
       };
     }
     controller = 'observer-collab';
@@ -627,12 +690,14 @@ export async function assessAutomaticOwnership(input: {
         controller: null,
         reason:
           input.pin.runtime === 'claude-code'
-            ? 'composed-monitor-unavailable: Claude observer delivery requires the dedicated composed Monitor'
+            ? 'composed-monitor-inactive: Claude observer delivery requires an exact active dedicated composed Monitor'
             : 'observer-collab requires an active exact-session lease and verified composed-capable adapter',
         recoveryCommand: null,
         inventory: input.inventory,
         thirdPartyAcknowledgmentRequired: false,
         acknowledgedFingerprint: null,
+        composedMonitorLeaseId: null,
+        composedMonitorPeer: null,
       };
     }
     controller = 'standalone-messaging';
@@ -655,6 +720,8 @@ export async function assessAutomaticOwnership(input: {
       inventory: input.inventory,
       thirdPartyAcknowledgmentRequired: true,
       acknowledgedFingerprint: null,
+      composedMonitorLeaseId: null,
+      composedMonitorPeer: null,
     };
   }
   return {
@@ -670,6 +737,17 @@ export async function assessAutomaticOwnership(input: {
     thirdPartyAcknowledgmentRequired: thirdParty.length > 0,
     acknowledgedFingerprint:
       thirdParty.length > 0 ? input.inventory.fingerprint : null,
+    composedMonitorLeaseId:
+      input.pin.runtime === 'claude-code' && controller === 'observer-collab'
+        ? (observerLease?.leaseId ?? null)
+        : null,
+    composedMonitorPeer:
+      input.pin.runtime === 'claude-code' && controller === 'observer-collab'
+        ? ({
+            runtime: observerLease!.peerRuntime,
+            sessionId: observerLease!.peerSession,
+          } as Pin)
+        : null,
   };
 }
 

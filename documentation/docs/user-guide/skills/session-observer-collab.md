@@ -208,8 +208,15 @@ history.
 Composition is capability-checked, not inferred from an installed hook. A
 recognized observer hook without an active lease permits standalone messaging.
 Mismatched, legacy, uncomposed, competing, or uncertain ownership fails closed.
-Claude composed Monitor is pending Phase `p04-t01`; requesting it currently
-returns `composed-monitor-unavailable` and preserves manual/start inbox checks.
+Claude composed Monitor is fixture-tested through the finite
+`scripts/claude-monitor.mjs` entrypoint. It requires one exact immutable
+observer-collab/monitor activation and fresh acting-session confirmation that
+the legacy Monitor and standalone watcher are stopped. It checks requests first,
+shares one slot cap with observation, claims the slot before private-cursor CAS,
+emits at most one bounded ID/range notification and never self-rearms. Re-arm
+preserves the cursor, expiry and spent slots. Live Monitor-to-agent receipt is
+still unverified and separately authorized; manual/start inbox checks remain the
+fallback.
 Unknown Cursor delivery also remains manual. No current fixture result proves a
 live provider installed, trusted, invoked, delivered context, continued, or
 cleaned up the route.

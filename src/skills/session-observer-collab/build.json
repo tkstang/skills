@@ -2,6 +2,7 @@
   "runtime": [
     "src/codex-lifecycle.mjs",
     "src/collab-control.mjs",
+    "src/claude-monitor.mjs",
     "src/hooks/codex-stop.mjs",
     "src/hooks/cursor-stop.mjs",
     "src/lib/codex-install.mjs",

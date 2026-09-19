@@ -158,6 +158,8 @@ function parse(argv: readonly string[]): Parsed {
         'body-stdin',
         'what-stdin',
         'confirm-no-observer-monitor',
+        'confirm-old-monitor-stopped',
+        'confirm-standalone-watcher-stopped',
         'probe-opt-in',
       ].includes(name)
     ) {
@@ -470,6 +472,7 @@ async function execute(
     if (!['stop', 'monitor'].includes(mechanism))
       throw new TypeError('--mechanism must be stop or monitor');
     const requestedController = optional(parsed, 'controller');
+    const requestedActivationId = optional(parsed, 'activation-id');
     if (
       requestedController !== undefined &&
       !['standalone-messaging', 'observer-collab'].includes(requestedController)
@@ -506,6 +509,8 @@ async function execute(
         | 'standalone-messaging'
         | 'observer-collab'
         | undefined,
+      requestedActivationId,
+      requestedCollaborationId: collaborationId,
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(
@@ -513,12 +518,28 @@ async function execute(
         `${ownership.reason}${ownership.recoveryCommand ? `; recovery: ${ownership.recoveryCommand}` : ''}`,
       );
     }
-    if (ownership.controller === 'observer-collab' && mechanism !== 'stop') {
+    if (
+      ownership.controller === 'observer-collab' &&
+      ((pin.runtime === 'claude-code' && mechanism !== 'monitor') ||
+        (pin.runtime !== 'claude-code' && mechanism !== 'stop'))
+    ) {
       throw new DeliveryError(
         'DELIVERY_INACTIVE',
-        'observer-collab requires the verified Stop adapter; Claude composed Monitor remains unavailable',
+        pin.runtime === 'claude-code'
+          ? 'Claude observer-collab requires the verified finite composed Monitor'
+          : 'observer-collab requires the verified Stop adapter',
       );
     }
+    if (
+      ownership.controller === 'observer-collab' &&
+      pin.runtime === 'claude-code' &&
+      (!parsed.flags.has('confirm-old-monitor-stopped') ||
+        !parsed.flags.has('confirm-standalone-watcher-stopped'))
+    )
+      throw new DeliveryError(
+        'DELIVERY_INACTIVE',
+        'Claude composed Monitor enable requires fresh acting-session confirmation that the old Monitor and standalone watcher are stopped',
+      );
     if (
       ownership.controller === 'standalone-messaging' &&
       pin.runtime === 'claude-code' &&
@@ -534,7 +555,7 @@ async function execute(
       collaborationId,
       pin,
       worktree,
-      activationId: optional(parsed, 'activation-id'),
+      activationId: requestedActivationId,
       mechanism,
       controller: ownership.controller ?? undefined,
       expiryMode: expiryMode as 'fixed' | 'human-idle',
@@ -562,6 +583,23 @@ async function execute(
         ownership.controller === 'standalone-messaging' &&
         pin.runtime === 'claude-code' &&
         parsed.flags.has('confirm-no-observer-monitor'),
+      composedMonitorAttestation:
+        ownership.controller === 'observer-collab' &&
+        pin.runtime === 'claude-code' &&
+        ownership.composedMonitorLeaseId &&
+        ownership.composedMonitorPeer
+          ? {
+              owner: pin,
+              peer: ownership.composedMonitorPeer,
+              observerLeaseId: ownership.composedMonitorLeaseId,
+              activationId: requestedActivationId!,
+              collaborationId,
+              epoch: 0,
+              confirmedAt: new Date().toISOString(),
+              oldMonitorStopped: true,
+              standaloneWatcherStopped: true,
+            }
+          : null,
     });
     return { operation: 'delivery.enable', collaborationId, data };
   }
@@ -721,6 +759,8 @@ async function execute(
       acknowledgedFingerprint:
         optional(parsed, 'acknowledge-stop-hooks') ?? null,
       requestedController: activation.controller,
+      requestedActivationId: activation.id,
+      requestedCollaborationId: activation.collaborationId,
     });
     if (!ownership.automaticAllowed) {
       throw new DeliveryError(

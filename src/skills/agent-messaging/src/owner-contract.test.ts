@@ -256,7 +256,7 @@ describe('observer owner contract', () => {
     });
   });
 
-  test('reports Claude composed Monitor as unavailable until its adapter exists', async () => {
+  test('recognizes only the exact verified Claude composed Monitor activation', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'owner-contract-'));
     const inventory = await inspectCodexStopInventory(
       path.join(root, 'missing-hooks.json'),
@@ -272,7 +272,63 @@ describe('observer owner contract', () => {
     ).toMatchObject({
       automaticAllowed: false,
       controller: null,
-      reason: expect.stringContaining('composed-monitor-unavailable'),
+      reason: expect.stringContaining('composed-monitor-inactive'),
     });
+    const activationId = '11111111-1111-4111-8111-111111111111';
+    const collaborationId = '22222222-2222-4222-8222-222222222222';
+    const composed = {
+      ...lease('armed'),
+      runtime: 'claude-code',
+      composedActivation: {
+        collaborationId,
+        activationId,
+        controller: 'observer-collab',
+        mechanism: 'monitor',
+        ownerRuntime: 'claude-code',
+        ownerSession: 'owner',
+        peerRuntime: 'claude-code',
+        peerSession: 'peer',
+        ownerCwd: '/tmp/worktree',
+        peerTranscript: '/tmp/peer.jsonl',
+        confirmedAt: '2026-09-19T10:00:00.000Z',
+        oldMonitorStopped: true,
+        standaloneWatcherStopped: true,
+      },
+    };
+    const file = leasePath(root, 'owner');
+    await import('node:fs/promises').then(({ mkdir }) =>
+      mkdir(path.dirname(file), { recursive: true }),
+    );
+    await writeFile(file, `${JSON.stringify(composed)}\n`);
+    const exact = await assessAutomaticOwnership({
+      root,
+      pin: { runtime: 'claude-code', sessionId: 'owner' },
+      worktree: '/tmp/worktree',
+      inventory: { ...inventory, runtime: 'claude-code' },
+      requestedController: 'observer-collab',
+      requestedActivationId: activationId,
+      requestedCollaborationId: collaborationId,
+      now: new Date('2026-09-19T10:30:00.000Z'),
+    });
+    expect(exact).toMatchObject({
+      automaticAllowed: true,
+      observerOwner: 'present',
+      controller: 'observer-collab',
+      composedMonitorLeaseId: 'lease-1',
+      composedMonitorPeer: { runtime: 'claude-code', sessionId: 'peer' },
+    });
+    expect(
+      await assessAutomaticOwnership({
+        ...exact,
+        root,
+        pin: { runtime: 'claude-code', sessionId: 'owner' },
+        worktree: '/tmp/worktree',
+        inventory: { ...inventory, runtime: 'claude-code' },
+        requestedController: 'observer-collab',
+        requestedActivationId: '33333333-3333-4333-8333-333333333333',
+        requestedCollaborationId: collaborationId,
+        now: new Date('2026-09-19T10:30:00.000Z'),
+      }),
+    ).toMatchObject({ automaticAllowed: false, controller: null });
   });
 });

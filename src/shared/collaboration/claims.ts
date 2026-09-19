@@ -13,6 +13,7 @@ import {
 } from './records.js';
 import {
   assertBoundedString,
+  assertPin,
   assertUuid,
   SCHEMA_VERSION,
   type EventClaimRecord,
@@ -22,6 +23,7 @@ import {
   type InboxMessage,
   type ActivationRecord,
   type SlotClaimRecord,
+  type ObservationClaimIdentity,
 } from './types.js';
 
 export interface DeliveryKey {
@@ -89,6 +91,176 @@ function safeKey(domain: string, value: string): string {
   return createHash('sha256')
     .update(`${domain}\0${value}`, 'utf8')
     .digest('hex');
+}
+
+function assertObservation(value: ObservationClaimIdentity): void {
+  assertPin(value.owner);
+  assertPin(value.peer);
+  if (
+    !['zero-based-jsonl-record-index', 'zero-based-jsonl-frame-index'].includes(
+      value.indexBase,
+    ) ||
+    !Number.isSafeInteger(value.fromIndex) ||
+    !Number.isSafeInteger(value.toIndex) ||
+    !Number.isSafeInteger(value.nextIndex) ||
+    value.fromIndex < 0 ||
+    value.toIndex < value.fromIndex ||
+    value.nextIndex !== value.toIndex + 1 ||
+    !/^[a-f0-9]{64}$/u.test(value.selectedPrefixIdentity)
+  )
+    throw new TypeError('observation claim identity is invalid');
+}
+
+export function observationEventKey(input: {
+  activationId: string;
+  observation: ObservationClaimIdentity;
+}): string {
+  assertUuid(input.activationId, 'activation ID');
+  assertObservation(input.observation);
+  const item = input.observation;
+  return safeKey(
+    'agent-messaging-composed-observation-v1',
+    [
+      input.activationId,
+      item.owner.runtime,
+      item.owner.sessionId,
+      item.peer.runtime,
+      item.peer.sessionId,
+      item.indexBase,
+      item.fromIndex,
+      item.toIndex,
+      item.nextIndex,
+      item.selectedPrefixIdentity,
+    ].join('\0'),
+  );
+}
+
+export async function claimObservation(input: {
+  root: string;
+  pin: Pin;
+  eventKey: string;
+  observation: ObservationClaimIdentity;
+  now?: Date;
+  clock?: () => Date;
+  token?: string;
+  hooks?: Pick<
+    ClaimHooks,
+    'afterEventClaim' | 'afterSlotClaim' | 'beforeFinalValidation'
+  >;
+}): Promise<{
+  event: EventClaimRecord;
+  slot: SlotClaimRecord | null;
+  duplicateEvent: boolean;
+  activeAfterClaim: boolean;
+}> {
+  assertObservation(input.observation);
+  const before = await activationStatus(
+    input.root,
+    input.pin,
+    input.now ?? new Date(),
+  );
+  if (!before.activation || !before.active)
+    throw new DeliveryError(
+      'DELIVERY_INACTIVE',
+      before.notice ?? 'delivery activation is inactive',
+    );
+  const activation = before.activation;
+  if (
+    input.eventKey !==
+    observationEventKey({
+      activationId: activation.id,
+      observation: input.observation,
+    })
+  )
+    throw new TypeError('observation event key does not match its identity');
+  const token = input.token ?? randomUUID();
+  const base = {
+    schemaVersion: SCHEMA_VERSION,
+    activationId: activation.id,
+    token,
+    eventKey: input.eventKey,
+    proposedDeliveryKeys: [],
+    observation: input.observation,
+    attemptedAt: (input.now ?? new Date()).toISOString(),
+  } satisfies Omit<EventClaimRecord, 'contentHash'>;
+  const claimRoot = path.join(
+    activationDirectory(input.root, input.pin),
+    'claims',
+    activation.id,
+  );
+  const eventPath = path.join(
+    claimRoot,
+    'events',
+    `${safeKey('event', input.eventKey)}.json`,
+  );
+  const eventResult = await publish<EventClaimRecord>(
+    eventPath,
+    base,
+    input.root,
+  ).catch(async (error) => {
+    if (
+      error instanceof CollaborationError &&
+      error.code === 'RECORD_CONFLICT'
+    ) {
+      const winner = await readJsonRecord<EventClaimRecord>(eventPath, {
+        root: input.root,
+      });
+      return {
+        created: false,
+        path: eventPath,
+        hash: winner.contentHash,
+        record: winner,
+      };
+    }
+    throw error;
+  });
+  if (!eventResult.created)
+    return {
+      event: eventResult.record,
+      slot: null,
+      duplicateEvent: true,
+      activeAfterClaim: false,
+    };
+  await input.hooks?.afterEventClaim?.();
+  let slot: SlotClaimRecord | null = null;
+  for (let number = 1; number <= activation.maxContinuations; number += 1) {
+    const result = await publish<SlotClaimRecord>(
+      path.join(claimRoot, 'slots', `${number}.json`),
+      { ...base, slot: number },
+      input.root,
+    ).catch((error) => {
+      if (
+        error instanceof CollaborationError &&
+        error.code === 'RECORD_CONFLICT'
+      )
+        return null;
+      throw error;
+    });
+    if (result?.created) {
+      slot = result.record;
+      break;
+    }
+  }
+  if (!slot)
+    return {
+      event: eventResult.record,
+      slot: null,
+      duplicateEvent: false,
+      activeAfterClaim: false,
+    };
+  await input.hooks?.afterSlotClaim?.();
+  await input.hooks?.beforeFinalValidation?.();
+  const after = await activationStatus(
+    input.root,
+    input.pin,
+    input.clock?.() ?? new Date(),
+  );
+  return {
+    event: eventResult.record,
+    slot,
+    duplicateEvent: false,
+    activeAfterClaim: after.active && after.activation?.id === activation.id,
+  };
 }
 
 export function deliveryKey(input: DeliveryKey): string {
@@ -398,6 +570,12 @@ export async function deliveryClaimStatus(input: {
   remainingSlots: number;
   interruptedAttempts: string[];
   outcomeUnknown: string[];
+  observationAttempts: Array<{
+    attemptId: string;
+    eventKey: string;
+    observation: ObservationClaimIdentity;
+    status: 'interrupted' | 'outcome-unknown';
+  }>;
 }> {
   const status = await activationStatus(input.root, input.pin);
   if (!status.activation)
@@ -406,6 +584,7 @@ export async function deliveryClaimStatus(input: {
       remainingSlots: 0,
       interruptedAttempts: [],
       outcomeUnknown: [],
+      observationAttempts: [],
     };
   const base = path.join(
     activationDirectory(input.root, input.pin),
@@ -456,6 +635,22 @@ export async function deliveryClaimStatus(input: {
       messages.some((message) => message.token === event.token),
     )
     .map((event) => event.token);
+  const observationAttempts = events
+    .filter(
+      (
+        event,
+      ): event is EventClaimRecord & {
+        observation: ObservationClaimIdentity;
+      } => event.observation !== undefined,
+    )
+    .map((event) => ({
+      attemptId: event.token,
+      eventKey: event.eventKey,
+      observation: event.observation,
+      status: slots.some((slot) => slot.token === event.token)
+        ? ('outcome-unknown' as const)
+        : ('interrupted' as const),
+    }));
   return {
     spentSlots: slots.length,
     remainingSlots: Math.max(
@@ -464,5 +659,6 @@ export async function deliveryClaimStatus(input: {
     ),
     interruptedAttempts,
     outcomeUnknown,
+    observationAttempts,
   };
 }

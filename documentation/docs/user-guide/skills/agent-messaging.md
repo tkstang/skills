@@ -100,9 +100,18 @@ The runtime supports four deliberately separate paths:
 Codex and Claude Code adapters are fixture-tested, but fixture coverage does not
 prove installation, trust, invocation, recipient context, continuation, or
 cleanup on a live host. Cursor remains manual-only. Claude standalone Monitor
-requires a fresh acting-session attestation; composed Claude observer Monitor is
-pending Phase `p04-t01` and currently fails closed as
-`composed-monitor-unavailable`.
+requires a fresh acting-session attestation. The composed Claude observer
+Monitor is fixture-tested through the finite observer-collab entrypoint, but its
+installed, invoked and recipient-observed live tiers remain unverified.
+
+For Claude composition, arm and enable one exact observer-collab/monitor
+activation after confirming the legacy observation Monitor and standalone
+messaging watcher are stopped. The foreground command checks requests first,
+shares the same immutable slot budget with observation, reserves a slot before
+private-cursor CAS, emits at most one ID/range-only notification and exits within
+30 minutes and both expiry bounds. Re-arm preserves the activation, cursor and
+spent slots. Observation claims have no message-retry command; recover by an
+explicit pinned observer read.
 
 When an exact Codex observer lease and its installed composition-capable adapter
 agree, `observer-collab` owns the single Stop route. It checks addressed inbox
