@@ -352,7 +352,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation Complete
 
-**Planned total:** 7 phases, 19 tasks; 2 implemented.
+**Planned total:** 7 phases, 19 tasks; 3 implemented.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.

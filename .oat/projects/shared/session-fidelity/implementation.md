@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p01-t02
+oat_current_task_id: p01-t03
 oat_generated: false
 ---
 
@@ -22,14 +22,14 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | passed  | 1     | 1/1       |
-| p01   | active  | 5     | 1/5       |
+| p01   | active  | 5     | 2/5       |
 | p02   | pending | 5     | 0/5       |
 | p03   | pending | 2     | 0/2       |
 | p04   | pending | 2     | 0/2       |
 | p05   | pending | 2     | 0/2       |
 | p06   | pending | 2     | 0/2       |
 
-**Total:** 2/19 implementation tasks completed.
+**Total:** 3/19 implementation tasks completed.
 
 ## Phase 0
 
@@ -53,9 +53,9 @@ This bottom-layer copy preserves the pre-implementation ledger snapshot: at that
 
 ### Task p01-t02: Propagate exact identity through discovery and consumers
 
-**Status:** pending
-**Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Status:** completed
+**Commit:** 7287ac5ba67a0400fddc4bd47fcb1a63f99d6071
+**Verification:** declared seven-file suite 278/278, build/build:check, type-check, skill-version validation against IDENTITY_BASE passed. Stale cache, duplicate/corrupt exact pins, canonical aliases, root-first ranking, whoami and child-context warnings verified. Observer/exporter authored changes and generated dependency closure only.
 
 ### Task p01-t03: Reject unsafe saved positions and watcher path changes
 
@@ -361,3 +361,5 @@ Plan-required root Git arrangement at gpt-6-astra/high; task 4e6c63fa and tracki
 - Bounded correction: reject malformed first payload/invalid present id before later headers; retain documented legacy no-native-id shape. Runtime source/tests plus generated closure only.
 - Verification: committed-HEAD runtime suite 118/118, build/build:check/type-check passed. Root verified immutable range, clean tree, committed matching completed marker and native role continuity before clearing pending_attempt. used_attempts remains 1.
 - Phase execution base: 455daba2807b1539da566ce863b613720ab79d82 (acceptance handshake). No t02 work before bookkeeping.
+
+Task p01-t02 handoff verified: one immutable commit after 8a61c156, clean tree, post-commit build:check and 278 tests passed; no recovery used. Root read-through confirmed shared native identity propagation and explicit exact-pin failure paths. Next p01-t03.
