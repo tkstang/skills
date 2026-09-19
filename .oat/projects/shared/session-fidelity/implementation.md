@@ -600,6 +600,10 @@ Phase p07 passes. Continue to the narrowed final lifecycle re-review against the
 - Outcome: passed after one planned task commit, no recovery attempts and one fresh independent review.
 - Outstanding p10 items: none. Next: refreshed final lifecycle review and configured exit gate.
 
+### Final Verification After p10
+
+The refreshed project-wide suite passed from the committed p10 review baseline: 149 test files passed with one skipped, 2,232 tests passed with one skipped, lint completed with the same four pre-existing `no-shadow` warnings, and type-check, build, build freshness, repository validation, mocked end-to-end smoke and diff checks passed. The distribution build left the worktree clean.
+
 ### Orchestration Run p07
 
 - Outcome: passed after two final-review fix commits, no recovery attempts and one fresh root-owned review round.
@@ -617,7 +621,7 @@ Session Observer and Session Export Transcript now support an opt-in `--include-
 
 The main authored seams are `src/shared/transcript/activity/`, the detailed reader and native normalizers under `src/shared/transcript/`, and the Observer/exporter integrations under `src/skills/session-observer/` and `src/skills/session-export-transcript/`. Canonical skill guidance, transcript references, user guides, engineering schema/core pages, generated standalone/plugin payloads, affected skill versions and the Unreleased changelog are synchronized. Watch polling now reserves reset/re-arm guidance for true missing paths and preserves other filesystem error diagnostics without advancing saved state. Activity mode now reports the effective suppression of legacy tool markers and counts those filtered entries consistently. BL-260916-session-fidelity-opt is closed and archived with 13 active backlog items remaining.
 
-Local acceptance passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Eleven phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, p09 verifies the corrected generated summary, and p10 verifies the PR #96 effective-filter fix and distribution closure.
+Local acceptance, including the post-p10 rerun, passed type checking, generated-build freshness, 2,232 tests with one expected skip, repository validation, mocked end-to-end smoke, affected-owner version validation, changed authored-file formatting/linting, privacy canaries and fixture scans, exact-range diff checks, a 56-page documentation production build, PJM doctor and stack-health checks. Eleven phase reviews pass. The p08 review independently verifies all four PR #94 corrections plus the bounded recovery, p09 verifies the corrected generated summary, and p10 verifies the PR #96 effective-filter fix and distribution closure.
 
 The approved design refinement defers new per-record byte ranges until a concrete consumer requires them while retaining physical line numbers, logical indices, original carriers and parse diagnostics. Review-driven corrections strengthened provenance ownership, availability/omission accounting, final-format byte budgeting, Cursor settlement and effective filter reporting without widening the product scope. The PR stack is published and ready; the p10 top-layer update awaits republication. Merge, release, installation and live provider acceptance have not occurred.
 
