@@ -1,0 +1,81 @@
+# Collaborative design decisions
+
+Astra drives design and planning; Fable provides feedback and coordinates the user-requested schema evidence lane. This is a durable synthesis, not an operational transcript or a claim of final peer consensus.
+
+## User direction
+
+- Draft the entire lightweight design for holistic review.
+- Include the Codex native child-session locator fix in this project.
+- Read no child/output sidecars in v1; preserve recorded child IDs, agent paths, nicknames, and unread coverage.
+- Use reviewed sanitized fixtures from real local recorded sessions and document the observed schemas.
+- Gather schema evidence now and store sanitized detail in project references.
+
+## Feedback incorporated
+
+- Independent activity/conversation budgets and independent activity schema version.
+- Minimal out-of-range call context for late results, excluded from invocation counts.
+- Explicit limits for inline stubs, external output tails, and unread child trajectories.
+- Fixture/provenance work and native identity correction before activity integration.
+- Parent/child collisions are a source-selection defect: exact pins must not use recency to choose a physical file, and state must reject source-path changes before advancing a cursor.
+- Schema inventories must generalize arbitrary keys and restrict exported values by verified native paths; key names alone are not a privacy boundary.
+
+## Work boundaries
+
+Astra owns design/discovery/state/plan and this summary. Fable owned the durable research snapshot and schema docs, committed them as `c970c876`, and released the editing turn. Astra now owns project-artifact updates. Source implementation has not started. The operational collaboration log is machine-local and gitignored; watcher setup problems do not imply agreement on the final design.
+
+## Completed review and schema corrections
+
+Fable completed review of the first full draft and delivered three evidence reports. The revised design accepts existing saved-path validation instead of a new binding marker, mode-specific budgets and invocation-group selection, bounded degradation of optional activity failures, and terminal-settled Cursor activity without revision receipts. Native identity uses the first Codex header plus filename corroboration, allowing inherited parent headers. Claude extraction includes top-level toolUseResult and deduplicates usage by message ID. Codex reads both response and item streams while keeping unproven cross-stream outcome links advisory.
+
+Two evidence limits remain explicit: cap-like payload lengths indicate possible source truncation, not proof; and a local sample's missing field does not establish permanent provider absence. Inherited child-history attribution needs a provenance boundary rather than a blanket assumption that every record belongs to the child. The schema inventory and reports are undergoing an additional bounded privacy/reproducibility check before commit.
+
+## Documentation handoff and stack decision
+
+Fable's completed handoff at Claude record 1590 reports the schema docs and research snapshot committed as `c970c876`; the worktree confirms those paths are committed and only driver-owned project artifacts remain modified. The user selected `gh stack` and inclusion of these docs: schema documentation, then identity/cursor corrections, then activity support. No stack or PR is published.
+
+The handoff corrected Claude task results to `user` records with top-level `origin.kind == "task-notification"`, and retained unknown outcomes when `is_error` is absent. Codex spawn results can provide child identity when explicitly recorded, but occurrence varies by sample. Inherited-history attribution uses the first header's ordinal boundary where present. The observed `.meta.json.toolUseId` relationship is documented evidence, not permission to read sidecars in runtime v1.
+
+Inventory allowlist mode now uses reviewed keys and values; discovery mode is explicitly unreviewed and local-only. Synthetic privacy canaries pass, and depth truncation is diagnosed. Fable reports its independent doc review fixes and successful docs build; the driver independently reran the canaries. Fable also observed `oat docs generate-index` with CLI 0.2.79 rewriting `.oat/config.json` and restored that unrelated change. Treat index generation as a command requiring a config diff check until that tooling behavior is resolved.
+
+The design incorporates this handoff and awaits Fable's read-back. There is no design HiLL checkpoint in this quick-mode project; the user's full-draft request does not require another section-by-section or holistic approval prompt before plan drafting.
+
+## Revised-design read-back
+
+Fable reviewed `3e16dd9c` at record 1677. Incorporated: an identity-layer inherited-context warning for no-flag child digests/exports; failure-priority for standalone failed Codex item events independently of canonical call outcomes; planning artifacts in the top stack layer; stateless pending Cursor calls; a 128 KiB review budget; a 64 MiB activity-export safety cap with size/omission notices; and runtime-specific path/identity validators. These revisions require peer read-back and projection tests. Default Claude conversation-origin labeling remains a separate follow-up; the activity path still uses native origin evidence now.
+
+## Scope-choice correction
+
+Fable's records 1718/1737 and human question at 1695 establish that default Claude task-notification provenance is still being discussed. The earlier driver note treating it as a deferred follow-up was premature. The design/plan now leave the choice open. Fable now leans toward narrow in-scope handling for consistent digest provenance and avoiding duplicated release work; no user selection is yet observed.
+
+## Plan review and setup choices
+
+Fable reviewed `795816fe` at record 1785. Added explicit root-owned stack task p00-t01, whoami CLI regression, independent captured-fixture derivation/review task p02-t05, preview deduplication without stronger outcome joins, and close-out follow-up offers. The original Option X at record 302 permitted review “by you or a careful reviewer”; the user selected it at 457. The later peer assertion that a human-only checkpoint was already required was too narrow. The plan now requires a separate reviewer before fixture promotion/commit, without adding a new human stop.
+
+The user explicitly chose High dispatch, disabled additional phase gates, and kept both configured lifecycle gates in the driver session. These settings are recorded; the Claude provenance scope choice remains open.
+
+## Final user scope decisions
+
+Human-origin Fable records 1850/1874 resolve the remaining choices: fix `origin.kind` now; no fixture approval is needed; light obscuring is sufficient. These supersede the earlier open-choice and independent-fixture-gate notes. The plan includes shared native Claude provenance in the identity layer, with an origin-consumer audit to preserve wake-envelope semantics, and a small captured-fixture task with practical private-field/credential checks. No mandatory human or independent fixture review is retained. The structure-only research snapshot and its inventory canaries are unchanged.
+
+## Complexity review disposition
+
+The user requested a complexity pass in Fable record 1887. The driver applied the complexity-review skill against the original backlog and accepted Fable's requirement-preserving cuts: no inferred cross-stream associations, token accounting, linked process lifecycle, derived enrichments, grouped tool index or inventory-tool promotion. Projection uses invocation/preview limits plus one final size guard with global omission counts. Byte/line provenance, native categories, coverage states, exact-ID correlation and Cursor remain required. The stack retains its existing planning history with the bottom docs layer, then adds code layers incrementally in the same checkout; this replaces the costly top-only planning/worktree arrangement. Captured fixtures move before extraction while retaining their existing task ID. No new layer or removal of Cursor scope is assumed.
+
+The structural plan reviewer found no Critical/Important issues at `0a6d99fd`, and two Medium issues: stale all-synthetic fixture wording and incomplete inventory promotion ownership. Both are superseded by the user's light-obscuring direction and the complexity decision to retain inventory tooling only in the dated snapshot. Captures now enter p02-t01 before extractor work; p02-t05 validates the integrated shared pipeline. IDs and numeric execution order remain stable.
+
+### Formal plan review — 2026-09-19
+
+The second structured review of `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` returned no findings. Both previous Medium findings are resolved; all 18 task IDs match the implementation ledger. Reviewer request `session-fidelity-plan-review-02` continued the existing inherited gpt-6-astra/high reviewer handle. This does not replace the retained lifecycle gate or authorize implementation.
+
+Fable reviewed the simplifications at human-visible record 2073 and reported no open design/plan findings apart from the pre-review template flag. That flag is intentional per quick-start Steps 3/3.7 and will be cleared only after the retained gate passes. The first gate run (`96ff6416-8431-4145-ba18-985bec37b222`) refused before review because the structured review bookkeeping had not been committed; no review handoff was produced. Commit the bookkeeping before retrying. This is an operational baseline rejection, not an evaluated review round.
+
+### Ready handoff — 2026-09-19
+
+Fable withdrew the template-flag concern after checking quick-start and confirmed no open design/plan findings (record 2104); later read-backs accepted the gate corrections and reviewed-tip branch base. The final retained gate passed at `40d0405e`; all findings and final precision corrections are dispositioned in implementation.md. High dispatch, disabled additional phase gates and retained lifecycle gates are unchanged. Fable also applied the user-requested tracked Cursor gate exclusions as `80982eed`, verified from shared configuration. No feature implementation or PR publication has started.
+
+### User-approved refinement — 2026-09-19
+
+After both peers converged, the user directly approved applying both recommendations. p01-t04 now retains the coupled provenance behavior, focused tests, generated output, versions and changelog; p01-t05 owns identity documentation and full validation/review. New reader byte ranges are deferred until a concrete consumer exists, with physical line/logical record identity retained. Existing Cursor continuity offsets, source-size metadata, UTF-8 budgets and framing regressions stay. This supersedes prior scope/task-count and rejection notes; the current plan has 19 pending tasks.
+
+
+Fable read-back through record 2919: no amendment findings; confirms 19 matching tasks, reviewed identity-tip base and retained Cursor/framing/budget contracts. Fable remains read-only for implementation and will review layer boundaries. The amendment check was the existing native structured reviewer, not a newly launched Claude gate. User explicitly authorized implementation after updates.

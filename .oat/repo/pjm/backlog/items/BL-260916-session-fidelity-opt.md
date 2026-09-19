@@ -1,6 +1,6 @@
 ---
 id: BL-260916-session-fidelity-opt
-title: "Session fidelity: opt-in --include-activity for observer and exporter"
+title: 'Session fidelity: opt-in --include-activity for observer and exporter'
 status: open
 priority: medium
 scope: feature
@@ -12,7 +12,7 @@ labels:
   - substrate
 assignee: null
 created: 2026-09-16T17:04:56.373Z
-updated: 2026-09-16T17:04:56.373Z
+updated: 2026-09-19T01:39:17.103902+00:00
 associated_issues: []
 external_plans: []
 ---
@@ -25,10 +25,14 @@ Add an opt-in rich activity view to session-observer and session-export-transcri
 
 ## Acceptance Criteria
 
-- Stage 1: a detailed read helper returns each decoded record with physical line/byte location and parse diagnostics; `readRecords()` and logical-index behavior unchanged; a shared `activity/` module holds native extractors, the typed contract, classification, and a pure projection function.
+- Stage 1: a detailed read helper returns each decoded record with one-based physical line and existing zero-based logical record index and parse diagnostics; `readRecords()` and logical-index behavior unchanged; a shared `activity/` module holds native extractors, the typed contract, classification, and a pure projection function.
 - Stage 2: Codex `function_call`, `function_call_output`, `custom_tool_call`, `custom_tool_call_output`, and web-search evidence are supported with parsed arguments and the original carrier preserved; `call_id` kept independent of message `id`; ask-user handling and its human/auto caveat preserved.
 - Stage 3: `--include-activity` on both skills threads through review, catch-up, and watch without changing exact-pin or checkpoint behavior; the digest gains a separate activity envelope; the exporter keeps its default sanitization; generated distributions register the new shared modules.
 - Stage 4: Cursor activity identity comes from the frame analysis; observer v2 and exporter paths tested separately; absent result payloads are reported as not-recorded, never implied.
 - Late results, malformed input, and large outputs are covered by tests; counts state whether they describe the delta, the display window, or the whole source.
 - Activity exports are labelled as activity/debug exports, not publish-safe; sidecar reads confined to expected session artifacts or approved roots.
 - Docs: both SKILL.md files and user guides document the flag, limits, sensitive data, and unsupported surfaces. Out of scope: daemon, cross-session warehouse, MCP server, all 17 provider adapters, automatic skill rewriting.
+
+## Accepted scope refinement — 2026-09-19
+
+The user approved deferring per-record byte ranges on the new detailed Claude/Codex reader until a concrete consumer requires them. Physical line numbers, logical record indices, original carriers and parse diagnostics remain required. Existing Cursor byte offsets/continuity checks, source-size metadata, UTF-8 output-budget accounting and LF/Unicode/CRLF framing regressions remain in scope. This amends Stage 1; historical research snapshots retain their original proposals.

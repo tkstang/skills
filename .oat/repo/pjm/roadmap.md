@@ -31,8 +31,19 @@ The following order is proposed, not yet operator-confirmed. Session fidelity re
 - **BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates.** Diagnose the exact-pin ambiguity found during collaboration without guessing from cwd or recency.
 - **BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery.** Make initial-catch-up omissions explicit and provide a bounded route to complete relevant history without folding this into messaging or opt-in activity fidelity.
 - **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter.** Separate design/build project using the retained research packet: detailed record locations, native call/result correlation, coverage states, privacy, and unchanged conversation defaults. It is not bundled into Review or messaging.
+- **BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test.** Reproduce and isolate the timing-dependent shutdown case after the session-fidelity stack, which edits the same test surface; fix the product path or the fixture according to the evidence.
 
 Coordinate the active observer/fidelity work with the shipped messaging identity and shared-state conventions, not an invented merged-log dependency. Exact live messaging acceptance does not authorize release or installation.
+
+### Session evidence and retrospectives
+
+Follow-ups to session fidelity, filed 2026-09-19 from its design collaboration. The purpose is to review what an agent did, not only what it said; compact views stay the default and higher fidelity is pulled when a question needs evidence.
+
+- **BL-260919-skill-attribution-in-session — Skill attribution in session activity events.** Smallest enabler for skill evaluation; may be absorbed into the fidelity activity layer.
+- **BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence.** First consumer: frozen evidence, observed/interpretation/change separation, coverage states passed through.
+- **BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency.** The primary application. Adherence and outcome stay separate findings.
+- **BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis.** Keystone for anything across sessions; capped JSON and complete Markdown are not enough.
+- **BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events.** and **BL-260919-collaboration-protocol-peer — Collaboration protocol: peer-initiated headless resume and provenance.** Protocol gaps observed during the fidelity collaboration.
 
 ## Later
 
@@ -43,6 +54,15 @@ Proposed after fidelity: the stateless merged view. Loop metrics and an evidence
 - **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge.** Depends on the session-fidelity activity contract. Deterministic provenance-preserving merge over exact pins; timestamps are ordering hints, not causal proof. No daemon/registration in v1 and no mutation of another consumer's offsets.
 - **BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh.** Separate design for consumer namespaces, ownership, locking/CAS, replay, and recovery. Neither inboxes nor a stateless view satisfy it.
 - **BL-260713-optional-idle-session — Optional idle-session application integrations.** Evidence-gated, opt-in assistance outside the dependency-free core. Queued inbox content does not imply ability to wake an idle host.
+
+### Evidence depth and cross-session retro
+
+- **BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts.** Mirrors the Codex child-pin fix; unlocks subagent evaluation before the full sidecar merge.
+- **BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros.** Depends on reviewable child transcripts.
+- **BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection.** Accumulates conclusions, not transcripts; distinct from the stateless merge.
+- **BL-260919-token-and-usage-accounting — Token and usage accounting for session activity.** Needed for cost and efficiency findings.
+- **BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view.** Opt-in, evidence-linked reads only.
+- **BL-260919-reintroduce-deferred-activity — Reintroduce deferred activity correlation and provenance.** and **BL-260919-grouped-activity-summaries — Grouped activity summaries and derived enrichments adapted from cli-continues.** Deferred by the fidelity complexity review; each returns only with its stated evidence or recurring need.
 
 ### Deliberation quality and research
 
@@ -60,5 +80,7 @@ These remain open, not abandoned. Moving them behind immediate workflow needs re
 - **BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern).** Panel breadth is not group convergence. Require evidence that two-peer convergence is insufficient.
 
 ## Uncommitted follow-up ideas
+
+Held from the 2026-09-19 session-evidence outline until the retro findings ledger has data: lightweight skill-version comparison, workflow telemetry (new-skill and heavy-skill detection, recurring failure modes), and model comparison within one runtime (cross-runtime comparison mostly measures what each runtime records). A watch emission filter for line-oriented consumers is also held; it overlaps inter-agent direct messaging.
 
 Per-workflow defaults and activation of reserved roles are known config limitations, not hidden scope in the peer-model fix. Strict required submission, extra transcript providers, typed-test-fixture polish, and broader orchestration remain ideas unless separately captured. Do not turn historical notes or a diagram into implementation commitments.

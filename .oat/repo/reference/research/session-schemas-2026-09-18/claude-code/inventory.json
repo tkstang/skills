@@ -1,0 +1,6394 @@
+{
+ "generatedOn": "2026-09-18",
+ "review": "reviewed-vocabulary allowlist applied",
+ "privacy": "structure-only; values only at ENUM_PATHS when identifier-shaped (MCP names generalised); keys only when identifier-shaped and seen in >= 3 files; tool output never decoded; no post-processing",
+ "options": {
+  "maxLineBytes": 8000000,
+  "minFiles": 3
+ },
+ "diagnostics": {
+  "files": 300,
+  "lines": 256978,
+  "blank": 0,
+  "malformed": 0,
+  "oversizedBytes": 0,
+  "unreadable": 0,
+  "depthTruncated": 0,
+  "jsonDepthTruncated": 0
+ },
+ "groups": [
+  {
+   "discriminator": "attachment",
+   "count": 141285,
+   "fileCount": 299,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.266",
+    "2.1.267",
+    "2.1.268",
+    "2.1.269",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.agentId": {
+     "types": {
+      "string": 96730
+     },
+     "count": 96730,
+     "fileCount": 244
+    },
+    "$.attachment": {
+     "types": {
+      "object": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.attachment.<rare-key>": {
+     "types": {},
+     "count": 27,
+     "fileCount": 1,
+     "collapsedPaths": 5
+    },
+    "$.attachment.<unreviewed-key>": {
+     "types": {
+      "array": 2,
+      "number": 106,
+      "string": 402,
+      "null": 3,
+      "object": 3
+     },
+     "count": 516,
+     "fileCount": 8
+    },
+    "$.attachment.addedBlocks": {
+     "types": {
+      "array": 320
+     },
+     "count": 320,
+     "fileCount": 295
+    },
+    "$.attachment.addedBlocks[]": {
+     "types": {
+      "string": 579
+     },
+     "count": 579,
+     "fileCount": 295
+    },
+    "$.attachment.addedLines": {
+     "types": {
+      "array": 540
+     },
+     "count": 540,
+     "fileCount": 291
+    },
+    "$.attachment.addedLines[]": {
+     "types": {
+      "string": 53440
+     },
+     "count": 53440,
+     "fileCount": 291
+    },
+    "$.attachment.addedNames": {
+     "types": {
+      "array": 569
+     },
+     "count": 569,
+     "fileCount": 295
+    },
+    "$.attachment.addedNames[]": {
+     "types": {
+      "string": 50519
+     },
+     "count": 50519,
+     "fileCount": 295
+    },
+    "$.attachment.addedTypes": {
+     "types": {
+      "array": 291
+     },
+     "count": 291,
+     "fileCount": 270
+    },
+    "$.attachment.addedTypes[]": {
+     "types": {
+      "string": 3673
+     },
+     "count": 3673,
+     "fileCount": 270
+    },
+    "$.attachment.allowedTools": {
+     "types": {
+      "array": 77
+     },
+     "count": 77,
+     "fileCount": 33
+    },
+    "$.attachment.allowedTools[]": {
+     "types": {
+      "string": 540
+     },
+     "count": 540,
+     "fileCount": 32
+    },
+    "$.attachment.autoModeConsentFlow": {
+     "types": {
+      "boolean": 254
+     },
+     "count": 254,
+     "fileCount": 241
+    },
+    "$.attachment.banner": {
+     "types": {
+      "string": 8
+     },
+     "count": 8,
+     "fileCount": 7
+    },
+    "$.attachment.bashFirst": {
+     "types": {
+      "boolean": 254
+     },
+     "count": 254,
+     "fileCount": 241
+    },
+    "$.attachment.bashFirstSteer": {
+     "types": {
+      "string": 242
+     },
+     "count": 242,
+     "fileCount": 234
+    },
+    "$.attachment.bypass": {
+     "types": {
+      "boolean": 254
+     },
+     "count": 254,
+     "fileCount": 241
+    },
+    "$.attachment.changed": {
+     "types": {
+      "boolean": 89
+     },
+     "count": 89,
+     "fileCount": 23
+    },
+    "$.attachment.changes": {
+     "types": {
+      "array": 487
+     },
+     "count": 487,
+     "fileCount": 19
+    },
+    "$.attachment.changes[]": {
+     "types": {
+      "object": 487
+     },
+     "count": 487,
+     "fileCount": 19
+    },
+    "$.attachment.changes[].field": {
+     "types": {
+      "string": 487
+     },
+     "count": 487,
+     "fileCount": 19
+    },
+    "$.attachment.changes[].from": {
+     "types": {
+      "string": 485
+     },
+     "count": 485,
+     "fileCount": 19
+    },
+    "$.attachment.clearAt": {
+     "types": {
+      "string": 28
+     },
+     "count": 28,
+     "fileCount": 3
+    },
+    "$.attachment.cliPrefix": {
+     "types": {
+      "string": 80
+     },
+     "count": 80,
+     "fileCount": 77
+    },
+    "$.attachment.command": {
+     "types": {
+      "string": 104932
+     },
+     "count": 104932,
+     "fileCount": 299
+    },
+    "$.attachment.commandMode": {
+     "types": {
+      "string": 656
+     },
+     "count": 656,
+     "fileCount": 85
+    },
+    "$.attachment.commit": {
+     "types": {
+      "string": 246
+     },
+     "count": 246,
+     "fileCount": 225
+    },
+    "$.attachment.content": {
+     "types": {
+      "string": 105168,
+      "object": 555,
+      "array": 106
+     },
+     "count": 105829,
+     "fileCount": 299
+    },
+    "$.attachment.content.<rare-key>": {
+     "types": {},
+     "count": 2,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.attachment.content.content": {
+     "types": {
+      "string": 529
+     },
+     "count": 529,
+     "fileCount": 100
+    },
+    "$.attachment.content.contentDiffersFromDisk": {
+     "types": {
+      "boolean": 529
+     },
+     "count": 529,
+     "fileCount": 100
+    },
+    "$.attachment.content.file": {
+     "types": {
+      "object": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.file.content": {
+     "types": {
+      "string": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.file.filePath": {
+     "types": {
+      "string": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.file.numLines": {
+     "types": {
+      "number": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.file.startLine": {
+     "types": {
+      "number": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.file.totalLines": {
+     "types": {
+      "number": 26
+     },
+     "count": 26,
+     "fileCount": 4
+    },
+    "$.attachment.content.parent": {
+     "types": {
+      "string": 262
+     },
+     "count": 262,
+     "fileCount": 100
+    },
+    "$.attachment.content.path": {
+     "types": {
+      "string": 529
+     },
+     "count": 529,
+     "fileCount": 100
+    },
+    "$.attachment.content.rawContent": {
+     "types": {
+      "string": 60
+     },
+     "count": 60,
+     "fileCount": 47
+    },
+    "$.attachment.content.type": {
+     "types": {
+      "string": 555
+     },
+     "count": 555,
+     "fileCount": 101
+    },
+    "$.attachment.context": {
+     "types": {
+      "object": 334
+     },
+     "count": 334,
+     "fileCount": 296
+    },
+    "$.attachment.context.gitStatus": {
+     "types": {
+      "string": 310
+     },
+     "count": 310,
+     "fileCount": 272
+    },
+    "$.attachment.context.userEmail": {
+     "types": {
+      "string": 334
+     },
+     "count": 334,
+     "fileCount": 296
+    },
+    "$.attachment.data": {
+     "types": {
+      "object": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.assumptions": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.assumptions[]": {
+     "types": {
+      "string": 27
+     },
+     "count": 27,
+     "fileCount": 7
+    },
+    "$.attachment.data.confidence": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.follow_up_questions": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.follow_up_questions[]": {
+     "types": {
+      "string": 24
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.attachment.data.recommendation": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.risks": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.risks[]": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.attachment.data.schema_version": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.take": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.data.understood_question": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.attachment.date": {
+     "types": {
+      "string": 352
+     },
+     "count": 352,
+     "fileCount": 296
+    },
+    "$.attachment.displayPath": {
+     "types": {
+      "string": 587
+     },
+     "count": 587,
+     "fileCount": 103
+    },
+    "$.attachment.durationMs": {
+     "types": {
+      "number": 104932
+     },
+     "count": 104932,
+     "fileCount": 299
+    },
+    "$.attachment.entries": {
+     "types": {
+      "array": 56
+     },
+     "count": 56,
+     "fileCount": 31
+    },
+    "$.attachment.entries[]": {
+     "types": {
+      "object": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].defer_loading": {
+     "types": {
+      "boolean": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].description": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].eager_input_streaming": {
+     "types": {
+      "boolean": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].input_schema": {
+     "types": {
+      "object": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].input_schema.<dynamic-key>": {
+     "types": {
+      "string": 55
+     },
+     "count": 55,
+     "fileCount": 12
+    },
+    "$.attachment.entries[].input_schema.<rare-key>": {
+     "types": {},
+     "count": 3,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.attachment.entries[].input_schema.additionalProperties": {
+     "types": {
+      "boolean": 61
+     },
+     "count": 61,
+     "fileCount": 11
+    },
+    "$.attachment.entries[].input_schema.properties": {
+     "types": {
+      "object": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].input_schema.properties.<dynamic-key>": {
+     "types": {
+      "object": 142
+     },
+     "count": 142,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].input_schema.required": {
+     "types": {
+      "array": 100
+     },
+     "count": 100,
+     "fileCount": 29
+    },
+    "$.attachment.entries[].input_schema.required[]": {
+     "types": {
+      "string": 191
+     },
+     "count": 191,
+     "fileCount": 29
+    },
+    "$.attachment.entries[].input_schema.type": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.entries[].name": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 30
+    },
+    "$.attachment.exitCode": {
+     "types": {
+      "number": 104932
+     },
+     "count": 104932,
+     "fileCount": 299
+    },
+    "$.attachment.failedMcpServers": {
+     "types": {
+      "array": 104
+     },
+     "count": 104,
+     "fileCount": 55
+    },
+    "$.attachment.failedMcpServers[]": {
+     "types": {
+      "object": 18
+     },
+     "count": 18,
+     "fileCount": 11
+    },
+    "$.attachment.failedMcpServers[].error": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 11
+    },
+    "$.attachment.failedMcpServers[].errorCode": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 11
+    },
+    "$.attachment.failedMcpServers[].name": {
+     "types": {
+      "string": 18
+     },
+     "count": 18,
+     "fileCount": 11
+    },
+    "$.attachment.filename": {
+     "types": {
+      "string": 415
+     },
+     "count": 415,
+     "fileCount": 124
+    },
+    "$.attachment.files": {
+     "types": {
+      "array": 309
+     },
+     "count": 309,
+     "fileCount": 274
+    },
+    "$.attachment.files[type=<unreviewed-value>]": {
+     "types": {
+      "object": 1157
+     },
+     "count": 1157,
+     "fileCount": 274
+    },
+    "$.attachment.files[type=<unreviewed-value>].content": {
+     "types": {
+      "string": 1157
+     },
+     "count": 1157,
+     "fileCount": 274
+    },
+    "$.attachment.files[type=<unreviewed-value>].path": {
+     "types": {
+      "string": 1157
+     },
+     "count": 1157,
+     "fileCount": 274
+    },
+    "$.attachment.files[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 1157
+     },
+     "count": 1157,
+     "fileCount": 274
+    },
+    "$.attachment.hookEvent": {
+     "types": {
+      "string": 104933
+     },
+     "count": 104933,
+     "fileCount": 299
+    },
+    "$.attachment.hookName": {
+     "types": {
+      "string": 104933
+     },
+     "count": 104933,
+     "fileCount": 299
+    },
+    "$.attachment.hostPrompt": {
+     "types": {
+      "string": 34
+     },
+     "count": 34,
+     "fileCount": 10
+    },
+    "$.attachment.identity": {
+     "types": {
+      "object": 113
+     },
+     "count": 113,
+     "fileCount": 93
+    },
+    "$.attachment.identity.knowledgeCutoff": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 93
+    },
+    "$.attachment.identity.marketingName": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 93
+    },
+    "$.attachment.identity.modelId": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 93
+    },
+    "$.attachment.isInitial": {
+     "types": {
+      "boolean": 572
+     },
+     "count": 572,
+     "fileCount": 291
+    },
+    "$.attachment.isMeta": {
+     "types": {
+      "boolean": 16
+     },
+     "count": 16,
+     "fileCount": 6
+    },
+    "$.attachment.isSubAgent": {
+     "types": {
+      "boolean": 6
+     },
+     "count": 6,
+     "fileCount": 6
+    },
+    "$.attachment.managedCommit": {
+     "types": {
+      "boolean": 13
+     },
+     "count": 13,
+     "fileCount": 12
+    },
+    "$.attachment.managedPr": {
+     "types": {
+      "boolean": 13
+     },
+     "count": 13,
+     "fileCount": 12
+    },
+    "$.attachment.model": {
+     "types": {
+      "string": 3889
+     },
+     "count": 3889,
+     "fileCount": 43
+    },
+    "$.attachment.names": {
+     "types": {
+      "array": 281
+     },
+     "count": 281,
+     "fileCount": 177
+    },
+    "$.attachment.names[]": {
+     "types": {
+      "string": 20985
+     },
+     "count": 20985,
+     "fileCount": 177
+    },
+    "$.attachment.needsAuthMcpServers": {
+     "types": {
+      "array": 63
+     },
+     "count": 63,
+     "fileCount": 30
+    },
+    "$.attachment.needsAuthMcpServers[]": {
+     "types": {
+      "string": 175
+     },
+     "count": 175,
+     "fileCount": 30
+    },
+    "$.attachment.origin": {
+     "types": {
+      "object": 121
+     },
+     "count": 121,
+     "fileCount": 17
+    },
+    "$.attachment.origin.<rare-key>": {
+     "types": {},
+     "count": 14,
+     "fileCount": 1,
+     "collapsedPaths": 4
+    },
+    "$.attachment.origin.kind": {
+     "types": {
+      "string": 121
+     },
+     "count": 121,
+     "fileCount": 17
+    },
+    "$.attachment.path": {
+     "types": {
+      "string": 529
+     },
+     "count": 529,
+     "fileCount": 100
+    },
+    "$.attachment.pendingMcpServers": {
+     "types": {
+      "array": 108
+     },
+     "count": 108,
+     "fileCount": 55
+    },
+    "$.attachment.pendingMcpServers[]": {
+     "types": {
+      "string": 43
+     },
+     "count": 43,
+     "fileCount": 24
+    },
+    "$.attachment.planExists": {
+     "types": {
+      "boolean": 6
+     },
+     "count": 6,
+     "fileCount": 6
+    },
+    "$.attachment.planFilePath": {
+     "types": {
+      "string": 6
+     },
+     "count": 6,
+     "fileCount": 6
+    },
+    "$.attachment.pr": {
+     "types": {
+      "string": 246
+     },
+     "count": 246,
+     "fileCount": 225
+    },
+    "$.attachment.prompt": {
+     "types": {
+      "string": 609,
+      "array": 61
+     },
+     "count": 670,
+     "fileCount": 89
+    },
+    "$.attachment.prompt.<rare-key>": {
+     "types": {},
+     "count": 201,
+     "fileCount": 2,
+     "collapsedPaths": 9
+    },
+    "$.attachment.readdedNames": {
+     "types": {
+      "array": 249
+     },
+     "count": 249,
+     "fileCount": 177
+    },
+    "$.attachment.readdedNames.<rare-key>": {
+     "types": {},
+     "count": 173,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.attachment.reason": {
+     "types": {
+      "string": 44
+     },
+     "count": 44,
+     "fileCount": 13
+    },
+    "$.attachment.reminderType": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 7
+    },
+    "$.attachment.removedNames": {
+     "types": {
+      "array": 569
+     },
+     "count": 569,
+     "fileCount": 295
+    },
+    "$.attachment.removedNames[]": {
+     "types": {
+      "string": 669
+     },
+     "count": 669,
+     "fileCount": 8
+    },
+    "$.attachment.removedTypes": {
+     "types": {
+      "array": 291
+     },
+     "count": 291,
+     "fileCount": 270
+    },
+    "$.attachment.sendUserFileHint": {
+     "types": {
+      "boolean": 246
+     },
+     "count": 246,
+     "fileCount": 225
+    },
+    "$.attachment.showConcurrencyNote": {
+     "types": {
+      "boolean": 291
+     },
+     "count": 291,
+     "fileCount": 270
+    },
+    "$.attachment.skillCount": {
+     "types": {
+      "number": 281
+     },
+     "count": 281,
+     "fileCount": 177
+    },
+    "$.attachment.skills": {
+     "types": {
+      "array": 10
+     },
+     "count": 10,
+     "fileCount": 3
+    },
+    "$.attachment.skills[]": {
+     "types": {
+      "object": 42
+     },
+     "count": 42,
+     "fileCount": 3
+    },
+    "$.attachment.skills[].content": {
+     "types": {
+      "string": 42
+     },
+     "count": 42,
+     "fileCount": 3
+    },
+    "$.attachment.skills[].name": {
+     "types": {
+      "string": 42
+     },
+     "count": 42,
+     "fileCount": 3
+    },
+    "$.attachment.skills[].path": {
+     "types": {
+      "string": 42
+     },
+     "count": 42,
+     "fileCount": 3
+    },
+    "$.attachment.snapshot": {
+     "types": {
+      "object": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.additionalWorkingDirectories": {
+     "types": {
+      "array": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.additionalWorkingDirectories[]": {
+     "types": {
+      "string": 200
+     },
+     "count": 200,
+     "fileCount": 16
+    },
+    "$.attachment.snapshot.isGitRepo": {
+     "types": {
+      "boolean": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.isWorktree": {
+     "types": {
+      "boolean": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.osVersion": {
+     "types": {
+      "string": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.platform": {
+     "types": {
+      "string": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.scratchpadDirectory": {
+     "types": {
+      "string": 355
+     },
+     "count": 355,
+     "fileCount": 64
+    },
+    "$.attachment.snapshot.shell": {
+     "types": {
+      "string": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snapshot.workingDirectory": {
+     "types": {
+      "string": 594
+     },
+     "count": 594,
+     "fileCount": 93
+    },
+    "$.attachment.snippet": {
+     "types": {
+      "string": 357
+     },
+     "count": 357,
+     "fileCount": 124
+    },
+    "$.attachment.source_uuid": {
+     "types": {
+      "string": 115
+     },
+     "count": 115,
+     "fileCount": 19
+    },
+    "$.attachment.stderr": {
+     "types": {
+      "string": 104932
+     },
+     "count": 104932,
+     "fileCount": 299
+    },
+    "$.attachment.stdout": {
+     "types": {
+      "string(json)": 104887,
+      "string": 45
+     },
+     "count": 104932,
+     "fileCount": 299
+    },
+    "$.attachment.steerOnly": {
+     "types": {
+      "boolean": 254
+     },
+     "count": 254,
+     "fileCount": 241
+    },
+    "$.attachment.surfacedNames": {
+     "types": {
+      "array": 25
+     },
+     "count": 25,
+     "fileCount": 25
+    },
+    "$.attachment.surfacedNames[]": {
+     "types": {
+      "string": 75
+     },
+     "count": 75,
+     "fileCount": 25
+    },
+    "$.attachment.systemPrompt": {
+     "types": {
+      "array": 200
+     },
+     "count": 200,
+     "fileCount": 89
+    },
+    "$.attachment.systemPrompt[]": {
+     "types": {
+      "string": 2161
+     },
+     "count": 2161,
+     "fileCount": 89
+    },
+    "$.attachment.text": {
+     "types": {
+      "string": 28078
+     },
+     "count": 28078,
+     "fileCount": 296
+    },
+    "$.attachment.timestamp": {
+     "types": {
+      "string": 656
+     },
+     "count": 656,
+     "fileCount": 85
+    },
+    "$.attachment.tools": {
+     "types": {
+      "array": 101
+     },
+     "count": 101,
+     "fileCount": 88
+    },
+    "$.attachment.tools[]": {
+     "types": {
+      "object": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].description": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].name": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema": {
+     "types": {
+      "object": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.description": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.eager_input_streaming": {
+     "types": {
+      "boolean": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema": {
+     "types": {
+      "object": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.<dynamic-key>": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.additionalProperties": {
+     "types": {
+      "boolean": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.properties": {
+     "types": {
+      "object": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.properties.<dynamic-key>": {
+     "types": {
+      "object": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.required": {
+     "types": {
+      "array": 818
+     },
+     "count": 818,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.required[]": {
+     "types": {
+      "string": 1409
+     },
+     "count": 1409,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.input_schema.type": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.tools[].schema.name": {
+     "types": {
+      "string": 1062
+     },
+     "count": 1062,
+     "fileCount": 88
+    },
+    "$.attachment.toolUseID": {
+     "types": {
+      "string": 107690
+     },
+     "count": 107690,
+     "fileCount": 299
+    },
+    "$.attachment.type": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.attachment.url": {
+     "types": {
+      "string": 243,
+      "null": 3
+     },
+     "count": 246,
+     "fileCount": 225
+    },
+    "$.attachment.wireHiddenNames": {
+     "types": {
+      "array": 243
+     },
+     "count": 243,
+     "fileCount": 177
+    },
+    "$.cwd": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 141285
+     },
+     "count": 141285,
+     "fileCount": 299,
+     "values": {
+      "false": 44555,
+      "true": 96730
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "null": 53,
+      "string": 141232
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.rendered": {
+     "types": {
+      "array": 29737
+     },
+     "count": 29737,
+     "fileCount": 293
+    },
+    "$.rendered[]": {
+     "types": {
+      "object": 29761
+     },
+     "count": 29761,
+     "fileCount": 293
+    },
+    "$.rendered[].content": {
+     "types": {
+      "string": 29703,
+      "array": 58
+     },
+     "count": 29761,
+     "fileCount": 293
+    },
+    "$.rendered[].content.<rare-key>": {
+     "types": {},
+     "count": 174,
+     "fileCount": 1,
+     "collapsedPaths": 3
+    },
+    "$.renderedInHumanTurn": {
+     "types": {
+      "array": 469
+     },
+     "count": 469,
+     "fileCount": 80
+    },
+    "$.renderedInHumanTurn[]": {
+     "types": {
+      "object": 469
+     },
+     "count": 469,
+     "fileCount": 80
+    },
+    "$.renderedInHumanTurn[].content": {
+     "types": {
+      "string": 469
+     },
+     "count": 469,
+     "fileCount": 80
+    },
+    "$.session_id": {
+     "types": {
+      "string": 36180
+     },
+     "count": 36180,
+     "fileCount": 25
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.slug": {
+     "types": {
+      "string": 109967
+     },
+     "count": 109967,
+     "fileCount": 219
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.type": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299,
+     "values": {
+      "attachment": 141285
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299,
+     "values": {
+      "external": 141285
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299
+    },
+    "$.version": {
+     "types": {
+      "string": 141285
+     },
+     "count": 141285,
+     "fileCount": 299,
+     "values": {
+      "2.1.276": 1443,
+      "2.1.277": 868,
+      "2.1.275": 701,
+      "2.1.273": 8764,
+      "2.1.261": 38498,
+      "2.1.263": 72794,
+      "2.1.270": 1896,
+      "2.1.271": 122,
+      "2.1.272": 2277,
+      "2.1.220": 128,
+      "2.1.223": 68,
+      "2.1.226": 20,
+      "2.1.258": 4574,
+      "2.1.260": 1015,
+      "2.1.268": 338,
+      "2.1.259": 2078,
+      "2.1.274": 290,
+      "2.1.269": 2959,
+      "2.1.266": 143,
+      "2.1.267": 158,
+      "2.1.265": 631,
+      "2.1.251": 1411,
+      "2.1.237": 109
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "assistant | message.role=assistant",
+   "count": 51731,
+   "fileCount": 297,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.267",
+    "2.1.268",
+    "2.1.269",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.<rare-key>": {
+     "types": {},
+     "count": 6,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.advisorModel": {
+     "types": {
+      "string": 1053
+     },
+     "count": 1053,
+     "fileCount": 17
+    },
+    "$.agentId": {
+     "types": {
+      "string": 33992
+     },
+     "count": 33992,
+     "fileCount": 244
+    },
+    "$.apiBlockIndex": {
+     "types": {
+      "number": 49178
+     },
+     "count": 49178,
+     "fileCount": 294
+    },
+    "$.attributionAgent": {
+     "types": {
+      "string": 33992
+     },
+     "count": 33992,
+     "fileCount": 244
+    },
+    "$.attributionMcpServer": {
+     "types": {
+      "string": 65
+     },
+     "count": 65,
+     "fileCount": 10
+    },
+    "$.attributionMcpTool": {
+     "types": {
+      "string": 65
+     },
+     "count": 65,
+     "fileCount": 10
+    },
+    "$.attributionSkill": {
+     "types": {
+      "string": 3011
+     },
+     "count": 3011,
+     "fileCount": 47
+    },
+    "$.cwd": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.effort": {
+     "types": {
+      "string": 51360
+     },
+     "count": 51360,
+     "fileCount": 288
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.error": {
+     "types": {
+      "string": 13
+     },
+     "count": 13,
+     "fileCount": 8
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.isApiErrorMessage": {
+     "types": {
+      "boolean": 21
+     },
+     "count": 21,
+     "fileCount": 9
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "false": 17739,
+      "true": 33992
+     }
+    },
+    "$.message": {
+     "types": {
+      "object": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.container": {
+     "types": {
+      "null": 22838
+     },
+     "count": 22838,
+     "fileCount": 175
+    },
+    "$.message.content": {
+     "types": {
+      "array": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.content[type=text]": {
+     "types": {
+      "object": 7803
+     },
+     "count": 7803,
+     "fileCount": 296
+    },
+    "$.message.content[type=text].text": {
+     "types": {
+      "string": 7803
+     },
+     "count": 7803,
+     "fileCount": 296
+    },
+    "$.message.content[type=text].type": {
+     "types": {
+      "string": 7803
+     },
+     "count": 7803,
+     "fileCount": 296,
+     "values": {
+      "text": 7803
+     }
+    },
+    "$.message.content[type=thinking]": {
+     "types": {
+      "object": 17217
+     },
+     "count": 17217,
+     "fileCount": 295
+    },
+    "$.message.content[type=thinking].signature": {
+     "types": {
+      "string": 17217
+     },
+     "count": 17217,
+     "fileCount": 295
+    },
+    "$.message.content[type=thinking].thinking": {
+     "types": {
+      "string": 17217
+     },
+     "count": 17217,
+     "fileCount": 295
+    },
+    "$.message.content[type=thinking].type": {
+     "types": {
+      "string": 17217
+     },
+     "count": 17217,
+     "fileCount": 295,
+     "values": {
+      "thinking": 17217
+     }
+    },
+    "$.message.content[type=tool_use]": {
+     "types": {
+      "object": 26712
+     },
+     "count": 26712,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].caller": {
+     "types": {
+      "object": 26712
+     },
+     "count": 26712,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].caller.type": {
+     "types": {
+      "string": 26712
+     },
+     "count": 26712,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].id": {
+     "types": {
+      "string": 26712
+     },
+     "count": 26712,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].input": {
+     "types": {
+      "object": 26676,
+      "object(third-party, not described)": 36
+     },
+     "count": 26712,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].input.<rare-key>": {
+     "types": {},
+     "count": 22,
+     "fileCount": 2,
+     "collapsedPaths": 6
+    },
+    "$.message.content[type=tool_use].input.<unreviewed-key>": {
+     "types": {
+      "string": 38,
+      "boolean": 13,
+      "number": 1
+     },
+     "count": 52,
+     "fileCount": 8
+    },
+    "$.message.content[type=tool_use].input.args": {
+     "types": {
+      "string": 28
+     },
+     "count": 28,
+     "fileCount": 18
+    },
+    "$.message.content[type=tool_use].input.assumptions": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.assumptions[]": {
+     "types": {
+      "string": 27
+     },
+     "count": 27,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.command": {
+     "types": {
+      "string": 23750
+     },
+     "count": 23750,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_use].input.confidence": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.content": {
+     "types": {
+      "string": 483,
+      "string(json)": 4
+     },
+     "count": 487,
+     "fileCount": 119
+    },
+    "$.message.content[type=tool_use].input.description": {
+     "types": {
+      "string": 23260
+     },
+     "count": 23260,
+     "fileCount": 271
+    },
+    "$.message.content[type=tool_use].input.file_path": {
+     "types": {
+      "string": 2020
+     },
+     "count": 2020,
+     "fileCount": 204
+    },
+    "$.message.content[type=tool_use].input.follow_up_questions": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.follow_up_questions[]": {
+     "types": {
+      "string": 24
+     },
+     "count": 24,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.limit": {
+     "types": {
+      "number": 164
+     },
+     "count": 164,
+     "fileCount": 47
+    },
+    "$.message.content[type=tool_use].input.max_results": {
+     "types": {
+      "number": 45
+     },
+     "count": 45,
+     "fileCount": 20
+    },
+    "$.message.content[type=tool_use].input.message": {
+     "types": {
+      "string": 152
+     },
+     "count": 152,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].input.model": {
+     "types": {
+      "string": 383
+     },
+     "count": 383,
+     "fileCount": 30
+    },
+    "$.message.content[type=tool_use].input.new_string": {
+     "types": {
+      "string": 867,
+      "string(json)": 2
+     },
+     "count": 869,
+     "fileCount": 56
+    },
+    "$.message.content[type=tool_use].input.offset": {
+     "types": {
+      "number": 169
+     },
+     "count": 169,
+     "fileCount": 50
+    },
+    "$.message.content[type=tool_use].input.old_string": {
+     "types": {
+      "string": 867,
+      "string(json)": 2
+     },
+     "count": 869,
+     "fileCount": 56
+    },
+    "$.message.content[type=tool_use].input.prompt": {
+     "types": {
+      "string": 504
+     },
+     "count": 504,
+     "fileCount": 34
+    },
+    "$.message.content[type=tool_use].input.query": {
+     "types": {
+      "string": 89
+     },
+     "count": 89,
+     "fileCount": 20
+    },
+    "$.message.content[type=tool_use].input.questions": {
+     "types": {
+      "array": 76
+     },
+     "count": 76,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[]": {
+     "types": {
+      "object": 118
+     },
+     "count": 118,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].header": {
+     "types": {
+      "string": 118
+     },
+     "count": 118,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].multiSelect": {
+     "types": {
+      "boolean": 118
+     },
+     "count": 118,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].options": {
+     "types": {
+      "array": 118
+     },
+     "count": 118,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].options[]": {
+     "types": {
+      "object": 335
+     },
+     "count": 335,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].options[].description": {
+     "types": {
+      "string": 335
+     },
+     "count": 335,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].options[].label": {
+     "types": {
+      "string": 335
+     },
+     "count": 335,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.questions[].question": {
+     "types": {
+      "string": 118
+     },
+     "count": 118,
+     "fileCount": 10
+    },
+    "$.message.content[type=tool_use].input.recipient": {
+     "types": {
+      "string": 152
+     },
+     "count": 152,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].input.recommendation": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.replace_all": {
+     "types": {
+      "boolean": 869
+     },
+     "count": 869,
+     "fileCount": 56
+    },
+    "$.message.content[type=tool_use].input.risks": {
+     "types": {
+      "array": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.risks[]": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.run_in_background": {
+     "types": {
+      "boolean": 369,
+      "string": 89
+     },
+     "count": 458,
+     "fileCount": 79
+    },
+    "$.message.content[type=tool_use].input.schema_version": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.skill": {
+     "types": {
+      "string": 44
+     },
+     "count": 44,
+     "fileCount": 28
+    },
+    "$.message.content[type=tool_use].input.subagent_type": {
+     "types": {
+      "string": 390
+     },
+     "count": 390,
+     "fileCount": 29
+    },
+    "$.message.content[type=tool_use].input.summary": {
+     "types": {
+      "string": 152
+     },
+     "count": 152,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].input.take": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.task_id": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.message.content[type=tool_use].input.timeout": {
+     "types": {
+      "number": 3788
+     },
+     "count": 3788,
+     "fileCount": 158
+    },
+    "$.message.content[type=tool_use].input.timeout_ms": {
+     "types": {
+      "number": 31
+     },
+     "count": 31,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_use].input.to": {
+     "types": {
+      "string": 152
+     },
+     "count": 152,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].input.type": {
+     "types": {
+      "string": 154
+     },
+     "count": 154,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].input.understood_question": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.message.content[type=tool_use].input.url": {
+     "types": {
+      "string": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.message.content[type=tool_use].name": {
+     "types": {
+      "string": 26712
+     },
+     "count": 26712,
+     "fileCount": 295,
+     "values": {
+      "Bash": 23719,
+      "Read": 816,
+      "ToolSearch": 45,
+      "Monitor": 31,
+      "TaskStop": 4,
+      "Skill": 44,
+      "Write": 335,
+      "Agent": 410,
+      "Edit": 869,
+      "WebSearch": 44,
+      "WebFetch": 93,
+      "mcp__<server>__<tool>": 36,
+      "StructuredOutput": 7,
+      "SendMessage": 152,
+      "AskUserQuestion": 76,
+      "Workflow": 19,
+      "ScheduleWakeup": 2,
+      "ListAgents": 7,
+      "SendFeedback": 2,
+      "SendUserFile": 1
+     }
+    },
+    "$.message.content[type=tool_use].type": {
+     "types": {
+      "string": 26712
+     },
+     "count": 26712,
+     "fileCount": 295,
+     "values": {
+      "tool_use": 26712
+     }
+    },
+    "$.message.context_management": {
+     "types": {
+      "null": 22838,
+      "object": 1
+     },
+     "count": 22839,
+     "fileCount": 176
+    },
+    "$.message.context_management.<rare-key>": {
+     "types": {},
+     "count": 1,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.message.diagnostics": {
+     "types": {
+      "null": 51251,
+      "object": 477
+     },
+     "count": 51728,
+     "fileCount": 297
+    },
+    "$.message.diagnostics.cache_miss_reason": {
+     "types": {
+      "object": 477
+     },
+     "count": 477,
+     "fileCount": 56
+    },
+    "$.message.diagnostics.cache_miss_reason.cache_missed_input_tokens": {
+     "types": {
+      "number": 182
+     },
+     "count": 182,
+     "fileCount": 44
+    },
+    "$.message.diagnostics.cache_miss_reason.type": {
+     "types": {
+      "string": 477
+     },
+     "count": 477,
+     "fileCount": 56
+    },
+    "$.message.id": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.input_transformations": {
+     "types": {
+      "array": 30120
+     },
+     "count": 30120,
+     "fileCount": 204
+    },
+    "$.message.input_transformations[type=<unreviewed-value>]": {
+     "types": {
+      "object": 32267
+     },
+     "count": 32267,
+     "fileCount": 3
+    },
+    "$.message.input_transformations[type=<unreviewed-value>].path": {
+     "types": {
+      "string": 32267
+     },
+     "count": 32267,
+     "fileCount": 3
+    },
+    "$.message.input_transformations[type=<unreviewed-value>].reason": {
+     "types": {
+      "string": 32267
+     },
+     "count": 32267,
+     "fileCount": 3
+    },
+    "$.message.input_transformations[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 32267
+     },
+     "count": 32267,
+     "fileCount": 3
+    },
+    "$.message.model": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "claude-fable-5-1": 11333,
+      "claude-opus-5": 39181,
+      "claude-sonnet-5": 846,
+      "claude-haiku-4-5-20251001": 350
+     },
+     "unsafeValues": 21
+    },
+    "$.message.role": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "assistant": 51731
+     }
+    },
+    "$.message.stop_details": {
+     "types": {
+      "null": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.stop_reason": {
+     "types": {
+      "string": 23863,
+      "null": 27868
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "tool_use": 21634,
+      "end_turn": 2208,
+      "stop_sequence": 21
+     }
+    },
+    "$.message.stop_sequence": {
+     "types": {
+      "null": 51710,
+      "string": 21
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.type": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "message": 51731
+     }
+    },
+    "$.message.usage": {
+     "types": {
+      "object": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.cache_creation": {
+     "types": {
+      "object": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.cache_creation_input_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.cache_creation.ephemeral_1h_input_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.cache_creation.ephemeral_5m_input_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.cache_read_input_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.inference_geo": {
+     "types": {
+      "string": 51710,
+      "null": 21
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.input_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.iterations": {
+     "types": {
+      "array": 23842,
+      "null": 21
+     },
+     "count": 23863,
+     "fileCount": 295
+    },
+    "$.message.usage.iterations[type=message]": {
+     "types": {
+      "object": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].cache_creation": {
+     "types": {
+      "object": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].cache_creation_input_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].cache_creation.ephemeral_1h_input_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].cache_creation.ephemeral_5m_input_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].cache_read_input_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].input_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].model": {
+     "types": {
+      "null": 1095
+     },
+     "count": 1095,
+     "fileCount": 17
+    },
+    "$.message.usage.iterations[type=message].output_tokens": {
+     "types": {
+      "number": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.iterations[type=message].type": {
+     "types": {
+      "string": 23835
+     },
+     "count": 23835,
+     "fileCount": 293
+    },
+    "$.message.usage.output_tokens": {
+     "types": {
+      "number": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.output_tokens_details": {
+     "types": {
+      "object": 22312,
+      "null": 18
+     },
+     "count": 22330,
+     "fileCount": 295
+    },
+    "$.message.usage.output_tokens_details.thinking_tokens": {
+     "types": {
+      "number": 22312
+     },
+     "count": 22312,
+     "fileCount": 293
+    },
+    "$.message.usage.server_tool_use": {
+     "types": {
+      "object": 23863
+     },
+     "count": 23863,
+     "fileCount": 295
+    },
+    "$.message.usage.server_tool_use.web_fetch_requests": {
+     "types": {
+      "number": 23863
+     },
+     "count": 23863,
+     "fileCount": 295
+    },
+    "$.message.usage.server_tool_use.web_search_requests": {
+     "types": {
+      "number": 23863
+     },
+     "count": 23863,
+     "fileCount": 295
+    },
+    "$.message.usage.service_tier": {
+     "types": {
+      "string": 51710,
+      "null": 21
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.message.usage.speed": {
+     "types": {
+      "string": 23842,
+      "null": 21
+     },
+     "count": 23863,
+     "fileCount": 295
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.perTurnEffort": {
+     "types": {
+      "string": 2421,
+      "null": 4118
+     },
+     "count": 6539,
+     "fileCount": 75
+    },
+    "$.requestId": {
+     "types": {
+      "string": 51713
+     },
+     "count": 51713,
+     "fileCount": 295
+    },
+    "$.session_id": {
+     "types": {
+      "string": 15042
+     },
+     "count": 15042,
+     "fileCount": 25
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.slug": {
+     "types": {
+      "string": 38657
+     },
+     "count": 38657,
+     "fileCount": 219
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.truncatedAfterOutput": {
+     "types": {
+      "boolean": 3
+     },
+     "count": 3,
+     "fileCount": 3
+    },
+    "$.type": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "assistant": 51731
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "external": 51731
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297
+    },
+    "$.version": {
+     "types": {
+      "string": 51731
+     },
+     "count": 51731,
+     "fileCount": 297,
+     "values": {
+      "2.1.276": 552,
+      "2.1.277": 311,
+      "2.1.275": 229,
+      "2.1.273": 2808,
+      "2.1.261": 13500,
+      "2.1.263": 25221,
+      "2.1.272": 717,
+      "2.1.220": 1015,
+      "2.1.223": 467,
+      "2.1.226": 73,
+      "2.1.258": 2503,
+      "2.1.260": 365,
+      "2.1.268": 86,
+      "2.1.270": 634,
+      "2.1.274": 88,
+      "2.1.259": 822,
+      "2.1.269": 1042,
+      "2.1.271": 41,
+      "2.1.266": 35,
+      "2.1.267": 35,
+      "2.1.265": 206,
+      "2.1.251": 825,
+      "2.1.237": 156
+     }
+    },
+    "$.wireIngestContext": {
+     "types": {
+      "object": 1141
+     },
+     "count": 1141,
+     "fileCount": 41
+    },
+    "$.wireIngestContext.<dynamic-key>": {
+     "types": {
+      "object": 1141
+     },
+     "count": 1141,
+     "fileCount": 41
+    },
+    "$.wireToolInputs": {
+     "types": {
+      "object": 2525
+     },
+     "count": 2525,
+     "fileCount": 58
+    },
+    "$.wireToolInputs.<dynamic-key>": {
+     "types": {
+      "object": 2525
+     },
+     "count": 2525,
+     "fileCount": 58
+    }
+   }
+  },
+  {
+   "discriminator": "user | message.role=user",
+   "count": 28873,
+   "fileCount": 298,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.267",
+    "2.1.268",
+    "2.1.269",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.<rare-key>": {
+     "types": {},
+     "count": 10,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.agentId": {
+     "types": {
+      "string": 19095
+     },
+     "count": 19095,
+     "fileCount": 244
+    },
+    "$.cwd": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.imagePasteIds": {
+     "types": {
+      "array": 21
+     },
+     "count": 21,
+     "fileCount": 6
+    },
+    "$.imagePasteIds[]": {
+     "types": {
+      "number": 24
+     },
+     "count": 24,
+     "fileCount": 6
+    },
+    "$.interruptedMessageId": {
+     "types": {
+      "string": 39
+     },
+     "count": 39,
+     "fileCount": 6
+    },
+    "$.isCompactSummary": {
+     "types": {
+      "boolean": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 271
+     },
+     "count": 271,
+     "fileCount": 110
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 28873
+     },
+     "count": 28873,
+     "fileCount": 298,
+     "values": {
+      "false": 9778,
+      "true": 19095
+     }
+    },
+    "$.isVisibleInTranscriptOnly": {
+     "types": {
+      "boolean": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.mcpMeta": {
+     "types": {
+      "object": 10
+     },
+     "count": 10,
+     "fileCount": 5
+    },
+    "$.mcpMeta.<dynamic-key>": {
+     "types": {
+      "object": 10
+     },
+     "count": 10,
+     "fileCount": 5
+    },
+    "$.message": {
+     "types": {
+      "object": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.message.content": {
+     "types": {
+      "string": 1836,
+      "array": 27037
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.message.content[type=image]": {
+     "types": {
+      "object": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=image].source": {
+     "types": {
+      "object": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=image].source.data": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=image].source.media_type": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=image].source.type": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7
+    },
+    "$.message.content[type=image].type": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 7,
+     "values": {
+      "image": 41
+     }
+    },
+    "$.message.content[type=text]": {
+     "types": {
+      "object": 328
+     },
+     "count": 328,
+     "fileCount": 35
+    },
+    "$.message.content[type=text].text": {
+     "types": {
+      "string": 328
+     },
+     "count": 328,
+     "fileCount": 35
+    },
+    "$.message.content[type=text].type": {
+     "types": {
+      "string": 328
+     },
+     "count": 328,
+     "fileCount": 35,
+     "values": {
+      "text": 328
+     }
+    },
+    "$.message.content[type=tool_result]": {
+     "types": {
+      "object": 26710
+     },
+     "count": 26710,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_result].content": {
+     "types": {
+      "string": 25932,
+      "array": 672,
+      "string(json)": 106
+     },
+     "count": 26710,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_result].content[type=<unreviewed-value>]": {
+     "types": {
+      "object": 75
+     },
+     "count": 75,
+     "fileCount": 20
+    },
+    "$.message.content[type=tool_result].content[type=<unreviewed-value>].tool_name": {
+     "types": {
+      "string": 75
+     },
+     "count": 75,
+     "fileCount": 20
+    },
+    "$.message.content[type=tool_result].content[type=<unreviewed-value>].type": {
+     "types": {
+      "string": 75
+     },
+     "count": 75,
+     "fileCount": 20
+    },
+    "$.message.content[type=tool_result].content[type=image]": {
+     "types": {
+      "object": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=image].source": {
+     "types": {
+      "object": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=image].source.data": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=image].source.media_type": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=image].source.type": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=image].type": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.message.content[type=tool_result].content[type=text]": {
+     "types": {
+      "object": 560
+     },
+     "count": 560,
+     "fileCount": 33
+    },
+    "$.message.content[type=tool_result].content[type=text].text": {
+     "types": {
+      "string": 386,
+      "string(json)": 174
+     },
+     "count": 560,
+     "fileCount": 33
+    },
+    "$.message.content[type=tool_result].content[type=text].type": {
+     "types": {
+      "string": 560
+     },
+     "count": 560,
+     "fileCount": 33
+    },
+    "$.message.content[type=tool_result].is_error": {
+     "types": {
+      "boolean": 23789
+     },
+     "count": 23789,
+     "fileCount": 295,
+     "values": {
+      "false": 23418,
+      "true": 371
+     }
+    },
+    "$.message.content[type=tool_result].tool_use_id": {
+     "types": {
+      "string": 26710
+     },
+     "count": 26710,
+     "fileCount": 295
+    },
+    "$.message.content[type=tool_result].type": {
+     "types": {
+      "string": 26710
+     },
+     "count": 26710,
+     "fileCount": 295,
+     "values": {
+      "tool_result": 26710
+     }
+    },
+    "$.message.role": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298,
+     "values": {
+      "user": 28873
+     }
+    },
+    "$.origin": {
+     "types": {
+      "object": 1453
+     },
+     "count": 1453,
+     "fileCount": 94
+    },
+    "$.origin.<rare-key>": {
+     "types": {},
+     "count": 16,
+     "fileCount": 2,
+     "collapsedPaths": 4
+    },
+    "$.origin.kind": {
+     "types": {
+      "string": 1453
+     },
+     "count": 1453,
+     "fileCount": 94
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 28627,
+      "null": 246
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.permissionMode": {
+     "types": {
+      "string": 1484
+     },
+     "count": 1484,
+     "fileCount": 52
+    },
+    "$.promptId": {
+     "types": {
+      "string": 28867
+     },
+     "count": 28867,
+     "fileCount": 298
+    },
+    "$.promptSource": {
+     "types": {
+      "string": 1485
+     },
+     "count": 1485,
+     "fileCount": 52
+    },
+    "$.queuePriority": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.queueSkipAttachments": {
+     "types": {
+      "boolean": 694
+     },
+     "count": 694,
+     "fileCount": 14
+    },
+    "$.session_id": {
+     "types": {
+      "string": 6834
+     },
+     "count": 6834,
+     "fileCount": 25
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.slug": {
+     "types": {
+      "string": 21569
+     },
+     "count": 21569,
+     "fileCount": 219
+    },
+    "$.sourceToolAssistantUUID": {
+     "types": {
+      "string": 26710
+     },
+     "count": 26710,
+     "fileCount": 295
+    },
+    "$.sourceToolUseID": {
+     "types": {
+      "string": 43
+     },
+     "count": 43,
+     "fileCount": 28
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.toolDenialKind": {
+     "types": {
+      "string": 29
+     },
+     "count": 29,
+     "fileCount": 10
+    },
+    "$.toolEndsTurn": {
+     "types": {
+      "boolean": 7
+     },
+     "count": 7,
+     "fileCount": 7
+    },
+    "$.toolUseResult": {
+     "types": {
+      "object": 26158,
+      "string": 378,
+      "string(json)": 10,
+      "array": 23
+     },
+     "count": 26569,
+     "fileCount": 293
+    },
+    "$.toolUseResult.<rare-key>": {
+     "types": {},
+     "count": 45,
+     "fileCount": 1,
+     "collapsedPaths": 27
+    },
+    "$.toolUseResult.<unreviewed-key>": {
+     "types": {
+      "string": 104,
+      "boolean": 13,
+      "number": 10,
+      "object": 1,
+      "array": 1
+     },
+     "count": 129,
+     "fileCount": 7
+    },
+    "$.toolUseResult.agentId": {
+     "types": {
+      "string": 384
+     },
+     "count": 384,
+     "fileCount": 32
+    },
+    "$.toolUseResult.allowedTools": {
+     "types": {
+      "array": 35
+     },
+     "count": 35,
+     "fileCount": 23
+    },
+    "$.toolUseResult.allowedTools[]": {
+     "types": {
+      "string": 358
+     },
+     "count": 358,
+     "fileCount": 23
+    },
+    "$.toolUseResult.annotations": {
+     "types": {
+      "object": 57
+     },
+     "count": 57,
+     "fileCount": 8
+    },
+    "$.toolUseResult.answers": {
+     "types": {
+      "object": 72
+     },
+     "count": 72,
+     "fileCount": 9
+    },
+    "$.toolUseResult.answers.<dynamic-key>": {
+     "types": {
+      "string": 72
+     },
+     "count": 72,
+     "fileCount": 9
+    },
+    "$.toolUseResult.backgroundCwdHint": {
+     "types": {
+      "string": 203
+     },
+     "count": 203,
+     "fileCount": 59
+    },
+    "$.toolUseResult.backgroundTaskId": {
+     "types": {
+      "string": 387
+     },
+     "count": 387,
+     "fileCount": 78
+    },
+    "$.toolUseResult.bashEditDiff": {
+     "types": {
+      "object": 313
+     },
+     "count": 313,
+     "fileCount": 34
+    },
+    "$.toolUseResult.bashEditDiff.<rare-key>": {
+     "types": {},
+     "count": 1,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.toolUseResult.bashEditDiff.changedFiles": {
+     "types": {
+      "array": 261
+     },
+     "count": 261,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.changedFiles[]": {
+     "types": {
+      "string": 871
+     },
+     "count": 871,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files": {
+     "types": {
+      "array": 313
+     },
+     "count": 313,
+     "fileCount": 34
+    },
+    "$.toolUseResult.bashEditDiff.files[]": {
+     "types": {
+      "object": 533
+     },
+     "count": 533,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].created": {
+     "types": {
+      "boolean": 75
+     },
+     "count": 75,
+     "fileCount": 20
+    },
+    "$.toolUseResult.bashEditDiff.files[].deleted": {
+     "types": {
+      "boolean": 21
+     },
+     "count": 21,
+     "fileCount": 3
+    },
+    "$.toolUseResult.bashEditDiff.files[].filePath": {
+     "types": {
+      "string": 533
+     },
+     "count": 533,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks": {
+     "types": {
+      "array": 533
+     },
+     "count": 533,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[]": {
+     "types": {
+      "object": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].lines": {
+     "types": {
+      "array": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].lines[]": {
+     "types": {
+      "string": 26115
+     },
+     "count": 26115,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].newLines": {
+     "types": {
+      "number": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].newStart": {
+     "types": {
+      "number": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].oldLines": {
+     "types": {
+      "number": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.files[].hunks[].oldStart": {
+     "types": {
+      "number": 903
+     },
+     "count": 903,
+     "fileCount": 29
+    },
+    "$.toolUseResult.bashEditDiff.moreFiles": {
+     "types": {
+      "number": 313
+     },
+     "count": 313,
+     "fileCount": 34
+    },
+    "$.toolUseResult.bashEditDiff.shared": {
+     "types": {
+      "boolean": 58
+     },
+     "count": 58,
+     "fileCount": 9
+    },
+    "$.toolUseResult.bytes": {
+     "types": {
+      "number": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.canReadOutputFile": {
+     "types": {
+      "boolean": 383
+     },
+     "count": 383,
+     "fileCount": 32
+    },
+    "$.toolUseResult.code": {
+     "types": {
+      "number": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.codeText": {
+     "types": {
+      "string": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.command": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.toolUseResult.commandName": {
+     "types": {
+      "string": 41
+     },
+     "count": 41,
+     "fileCount": 27
+    },
+    "$.toolUseResult.content": {
+     "types": {
+      "string": 321,
+      "array": 1
+     },
+     "count": 322,
+     "fileCount": 109
+    },
+    "$.toolUseResult.content.<rare-key>": {
+     "types": {},
+     "count": 3,
+     "fileCount": 1,
+     "collapsedPaths": 3
+    },
+    "$.toolUseResult.description": {
+     "types": {
+      "string": 383
+     },
+     "count": 383,
+     "fileCount": 32
+    },
+    "$.toolUseResult.durationMs": {
+     "types": {
+      "number": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.durationSeconds": {
+     "types": {
+      "number": 44
+     },
+     "count": 44,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file": {
+     "types": {
+      "object": 800
+     },
+     "count": 800,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.<rare-key>": {
+     "types": {},
+     "count": 4,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.toolUseResult.file.base64": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.content": {
+     "types": {
+      "string": 725,
+      "string(json)": 1
+     },
+     "count": 726,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.dimensions": {
+     "types": {
+      "object": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.dimensions.displayHeight": {
+     "types": {
+      "number": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.dimensions.displayWidth": {
+     "types": {
+      "number": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.dimensions.originalHeight": {
+     "types": {
+      "number": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.dimensions.originalWidth": {
+     "types": {
+      "number": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.filePath": {
+     "types": {
+      "string": 732
+     },
+     "count": 732,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.numLines": {
+     "types": {
+      "number": 726
+     },
+     "count": 726,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.originalSize": {
+     "types": {
+      "number": 70
+     },
+     "count": 70,
+     "fileCount": 4
+    },
+    "$.toolUseResult.file.startLine": {
+     "types": {
+      "number": 726
+     },
+     "count": 726,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.totalLines": {
+     "types": {
+      "number": 726
+     },
+     "count": 726,
+     "fileCount": 182
+    },
+    "$.toolUseResult.file.truncatedByTokenCap": {
+     "types": {
+      "boolean": 7
+     },
+     "count": 7,
+     "fileCount": 6
+    },
+    "$.toolUseResult.file.type": {
+     "types": {
+      "string": 68
+     },
+     "count": 68,
+     "fileCount": 4
+    },
+    "$.toolUseResult.filePath": {
+     "types": {
+      "string": 1141
+     },
+     "count": 1141,
+     "fileCount": 130
+    },
+    "$.toolUseResult.gitOperation": {
+     "types": {
+      "object": 213
+     },
+     "count": 213,
+     "fileCount": 68
+    },
+    "$.toolUseResult.gitOperation.branch": {
+     "types": {
+      "object": 5
+     },
+     "count": 5,
+     "fileCount": 3
+    },
+    "$.toolUseResult.gitOperation.branch.action": {
+     "types": {
+      "string": 5
+     },
+     "count": 5,
+     "fileCount": 3
+    },
+    "$.toolUseResult.gitOperation.branch.ref": {
+     "types": {
+      "string": 5
+     },
+     "count": 5,
+     "fileCount": 3
+    },
+    "$.toolUseResult.gitOperation.commit": {
+     "types": {
+      "object": 113
+     },
+     "count": 113,
+     "fileCount": 59
+    },
+    "$.toolUseResult.gitOperation.commit.branch": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 59
+    },
+    "$.toolUseResult.gitOperation.commit.kind": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 59
+    },
+    "$.toolUseResult.gitOperation.commit.sha": {
+     "types": {
+      "string": 113
+     },
+     "count": 113,
+     "fileCount": 59
+    },
+    "$.toolUseResult.gitOperation.pr": {
+     "types": {
+      "object": 58
+     },
+     "count": 58,
+     "fileCount": 10
+    },
+    "$.toolUseResult.gitOperation.pr.action": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 10
+    },
+    "$.toolUseResult.gitOperation.pr.number": {
+     "types": {
+      "number": 58
+     },
+     "count": 58,
+     "fileCount": 10
+    },
+    "$.toolUseResult.gitOperation.pr.url": {
+     "types": {
+      "string": 57
+     },
+     "count": 57,
+     "fileCount": 10
+    },
+    "$.toolUseResult.gitOperation.push": {
+     "types": {
+      "object": 44
+     },
+     "count": 44,
+     "fileCount": 16
+    },
+    "$.toolUseResult.gitOperation.push.branch": {
+     "types": {
+      "string": 44
+     },
+     "count": 44,
+     "fileCount": 16
+    },
+    "$.toolUseResult.interrupted": {
+     "types": {
+      "boolean": 23320
+     },
+     "count": 23320,
+     "fileCount": 289
+    },
+    "$.toolUseResult.isAsync": {
+     "types": {
+      "boolean": 383
+     },
+     "count": 383,
+     "fileCount": 32
+    },
+    "$.toolUseResult.isImage": {
+     "types": {
+      "boolean": 23320
+     },
+     "count": 23320,
+     "fileCount": 289
+    },
+    "$.toolUseResult.listing": {
+     "types": {
+      "string": 7
+     },
+     "count": 7,
+     "fileCount": 3
+    },
+    "$.toolUseResult.matches": {
+     "types": {
+      "array": 45
+     },
+     "count": 45,
+     "fileCount": 20
+    },
+    "$.toolUseResult.matches[]": {
+     "types": {
+      "string": 75
+     },
+     "count": 75,
+     "fileCount": 20
+    },
+    "$.toolUseResult.memdirStamped": {
+     "types": {
+      "boolean": 18
+     },
+     "count": 18,
+     "fileCount": 6
+    },
+    "$.toolUseResult.message": {
+     "types": {
+      "string": 158
+     },
+     "count": 158,
+     "fileCount": 8
+    },
+    "$.toolUseResult.newString": {
+     "types": {
+      "string": 818,
+      "string(json)": 2
+     },
+     "count": 820,
+     "fileCount": 54
+    },
+    "$.toolUseResult.noOutputExpected": {
+     "types": {
+      "boolean": 23320
+     },
+     "count": 23320,
+     "fileCount": 289
+    },
+    "$.toolUseResult.oldString": {
+     "types": {
+      "string": 818,
+      "string(json)": 2
+     },
+     "count": 820,
+     "fileCount": 54
+    },
+    "$.toolUseResult.originalFile": {
+     "types": {
+      "null": 885,
+      "string": 256
+     },
+     "count": 1141,
+     "fileCount": 130
+    },
+    "$.toolUseResult.outputFile": {
+     "types": {
+      "string": 383
+     },
+     "count": 383,
+     "fileCount": 32
+    },
+    "$.toolUseResult.persistedOutputPath": {
+     "types": {
+      "string": 269
+     },
+     "count": 269,
+     "fileCount": 140
+    },
+    "$.toolUseResult.persistedOutputSize": {
+     "types": {
+      "number": 269
+     },
+     "count": 269,
+     "fileCount": 140
+    },
+    "$.toolUseResult.persistent": {
+     "types": {
+      "boolean": 31
+     },
+     "count": 31,
+     "fileCount": 4
+    },
+    "$.toolUseResult.pin": {
+     "types": {
+      "object": 148
+     },
+     "count": 148,
+     "fileCount": 6
+    },
+    "$.toolUseResult.pin.id": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 6
+    },
+    "$.toolUseResult.pin.name": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 6
+    },
+    "$.toolUseResult.pin.ref": {
+     "types": {
+      "string": 148
+     },
+     "count": 148,
+     "fileCount": 6
+    },
+    "$.toolUseResult.prompt": {
+     "types": {
+      "string": 384
+     },
+     "count": 384,
+     "fileCount": 32
+    },
+    "$.toolUseResult.query": {
+     "types": {
+      "string": 89
+     },
+     "count": 89,
+     "fileCount": 20
+    },
+    "$.toolUseResult.questions": {
+     "types": {
+      "array": 72
+     },
+     "count": 72,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[]": {
+     "types": {
+      "object": 110
+     },
+     "count": 110,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].header": {
+     "types": {
+      "string": 110
+     },
+     "count": 110,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].multiSelect": {
+     "types": {
+      "boolean": 110
+     },
+     "count": 110,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].options": {
+     "types": {
+      "array": 110
+     },
+     "count": 110,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].options[]": {
+     "types": {
+      "object": 309
+     },
+     "count": 309,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].options[].description": {
+     "types": {
+      "string": 309
+     },
+     "count": 309,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].options[].label": {
+     "types": {
+      "string": 309
+     },
+     "count": 309,
+     "fileCount": 9
+    },
+    "$.toolUseResult.questions[].question": {
+     "types": {
+      "string": 110
+     },
+     "count": 110,
+     "fileCount": 9
+    },
+    "$.toolUseResult.replaceAll": {
+     "types": {
+      "boolean": 820
+     },
+     "count": 820,
+     "fileCount": 54
+    },
+    "$.toolUseResult.resolvedModel": {
+     "types": {
+      "string": 384
+     },
+     "count": 384,
+     "fileCount": 32
+    },
+    "$.toolUseResult.result": {
+     "types": {
+      "string": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.results": {
+     "types": {
+      "array": 44
+     },
+     "count": 44,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[]": {
+     "types": {
+      "object": 47,
+      "string": 45
+     },
+     "count": 92,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[].content": {
+     "types": {
+      "array": 47
+     },
+     "count": 47,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[].content[]": {
+     "types": {
+      "object": 391
+     },
+     "count": 391,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[].content[].title": {
+     "types": {
+      "string": 391
+     },
+     "count": 391,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[].content[].url": {
+     "types": {
+      "string": 391
+     },
+     "count": 391,
+     "fileCount": 4
+    },
+    "$.toolUseResult.results[].tool_use_id": {
+     "types": {
+      "string": 47
+     },
+     "count": 47,
+     "fileCount": 4
+    },
+    "$.toolUseResult.resumedAgentId": {
+     "types": {
+      "string": 123
+     },
+     "count": 123,
+     "fileCount": 5
+    },
+    "$.toolUseResult.returnCodeInterpretation": {
+     "types": {
+      "string": 206
+     },
+     "count": 206,
+     "fileCount": 118
+    },
+    "$.toolUseResult.searchCount": {
+     "types": {
+      "number": 44
+     },
+     "count": 44,
+     "fileCount": 4
+    },
+    "$.toolUseResult.staleReadFileStateHint": {
+     "types": {
+      "string": 118
+     },
+     "count": 118,
+     "fileCount": 42
+    },
+    "$.toolUseResult.staleRecovered": {
+     "types": {
+      "boolean": 23
+     },
+     "count": 23,
+     "fileCount": 12
+    },
+    "$.toolUseResult.status": {
+     "types": {
+      "string": 403
+     },
+     "count": 403,
+     "fileCount": 32
+    },
+    "$.toolUseResult.stderr": {
+     "types": {
+      "string": 23320
+     },
+     "count": 23320,
+     "fileCount": 289
+    },
+    "$.toolUseResult.stdout": {
+     "types": {
+      "string": 23221,
+      "string(json)": 99
+     },
+     "count": 23320,
+     "fileCount": 289
+    },
+    "$.toolUseResult.structuredPatch": {
+     "types": {
+      "array": 1141
+     },
+     "count": 1141,
+     "fileCount": 130
+    },
+    "$.toolUseResult.structuredPatch[]": {
+     "types": {
+      "object": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].lines": {
+     "types": {
+      "array": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].lines[]": {
+     "types": {
+      "string": 41200
+     },
+     "count": 41200,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].newLines": {
+     "types": {
+      "number": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].newStart": {
+     "types": {
+      "number": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].oldLines": {
+     "types": {
+      "number": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.structuredPatch[].oldStart": {
+     "types": {
+      "number": 1379
+     },
+     "count": 1379,
+     "fileCount": 62
+    },
+    "$.toolUseResult.success": {
+     "types": {
+      "boolean": 195
+     },
+     "count": 195,
+     "fileCount": 28
+    },
+    "$.toolUseResult.task_id": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.toolUseResult.task_type": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.toolUseResult.taskId": {
+     "types": {
+      "string": 50
+     },
+     "count": 50,
+     "fileCount": 5
+    },
+    "$.toolUseResult.timedOutAfterMs": {
+     "types": {
+      "number": 24
+     },
+     "count": 24,
+     "fileCount": 13
+    },
+    "$.toolUseResult.timeoutMs": {
+     "types": {
+      "number": 31
+     },
+     "count": 31,
+     "fileCount": 4
+    },
+    "$.toolUseResult.total_deferred_tools": {
+     "types": {
+      "number": 45
+     },
+     "count": 45,
+     "fileCount": 20
+    },
+    "$.toolUseResult.type": {
+     "types": {
+      "string": 1121
+     },
+     "count": 1121,
+     "fileCount": 197
+    },
+    "$.toolUseResult.url": {
+     "types": {
+      "string": 93
+     },
+     "count": 93,
+     "fileCount": 6
+    },
+    "$.toolUseResult.userModified": {
+     "types": {
+      "boolean": 1141
+     },
+     "count": 1141,
+     "fileCount": 130
+    },
+    "$.toolUseResult[type=text]": {
+     "types": {
+      "object": 23
+     },
+     "count": 23,
+     "fileCount": 6
+    },
+    "$.toolUseResult[type=text].text": {
+     "types": {
+      "string": 1,
+      "string(json)": 22
+     },
+     "count": 23,
+     "fileCount": 6
+    },
+    "$.toolUseResult[type=text].type": {
+     "types": {
+      "string": 23
+     },
+     "count": 23,
+     "fileCount": 6
+    },
+    "$.turnCompanion": {
+     "types": {
+      "boolean": 87
+     },
+     "count": 87,
+     "fileCount": 35
+    },
+    "$.type": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298,
+     "values": {
+      "user": 28873
+     }
+    },
+    "$.userFeedback": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.userType": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298,
+     "values": {
+      "external": 28873
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298
+    },
+    "$.version": {
+     "types": {
+      "string": 28873
+     },
+     "count": 28873,
+     "fileCount": 298,
+     "values": {
+      "2.1.276": 328,
+      "2.1.277": 203,
+      "2.1.275": 142,
+      "2.1.273": 1719,
+      "2.1.261": 7453,
+      "2.1.263": 14090,
+      "2.1.272": 446,
+      "2.1.220": 550,
+      "2.1.223": 259,
+      "2.1.226": 46,
+      "2.1.258": 1279,
+      "2.1.260": 179,
+      "2.1.268": 67,
+      "2.1.270": 351,
+      "2.1.274": 55,
+      "2.1.259": 409,
+      "2.1.269": 558,
+      "2.1.271": 22,
+      "2.1.266": 24,
+      "2.1.267": 19,
+      "2.1.265": 111,
+      "2.1.251": 461,
+      "2.1.237": 102
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "last-prompt",
+   "count": 4696,
+   "fileCount": 55,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.266",
+    "2.1.267",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 4696
+     },
+     "count": 4696,
+     "fileCount": 55
+    },
+    "$.lastPrompt": {
+     "types": {
+      "string": 4631
+     },
+     "count": 4631,
+     "fileCount": 52
+    },
+    "$.leafUuid": {
+     "types": {
+      "string": 4696
+     },
+     "count": 4696,
+     "fileCount": 55
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 4696
+     },
+     "count": 4696,
+     "fileCount": 55
+    },
+    "$.type": {
+     "types": {
+      "string": 4696
+     },
+     "count": 4696,
+     "fileCount": 55,
+     "values": {
+      "last-prompt": 4696
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "atis-latch",
+   "count": 4393,
+   "fileCount": 53,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.267",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 4393
+     },
+     "count": 4393,
+     "fileCount": 53
+    },
+    "$.atis": {
+     "types": {
+      "string": 4393
+     },
+     "count": 4393,
+     "fileCount": 53
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 4393
+     },
+     "count": 4393,
+     "fileCount": 53
+    },
+    "$.type": {
+     "types": {
+      "string": 4393
+     },
+     "count": 4393,
+     "fileCount": 53,
+     "values": {
+      "atis-latch": 4393
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "mode",
+   "count": 4312,
+   "fileCount": 29,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.266",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 4312
+     },
+     "count": 4312,
+     "fileCount": 29
+    },
+    "$.mode": {
+     "types": {
+      "string": 4312
+     },
+     "count": 4312,
+     "fileCount": 29
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 4312
+     },
+     "count": 4312,
+     "fileCount": 29
+    },
+    "$.type": {
+     "types": {
+      "string": 4312
+     },
+     "count": 4312,
+     "fileCount": 29,
+     "values": {
+      "mode": 4312
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "ai-title",
+   "count": 4048,
+   "fileCount": 42,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 4048
+     },
+     "count": 4048,
+     "fileCount": 42
+    },
+    "$.aiTitle": {
+     "types": {
+      "string": 4048
+     },
+     "count": 4048,
+     "fileCount": 42
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 4048
+     },
+     "count": 4048,
+     "fileCount": 42
+    },
+    "$.type": {
+     "types": {
+      "string": 4048
+     },
+     "count": 4048,
+     "fileCount": 42,
+     "values": {
+      "ai-title": 4048
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "permission-mode",
+   "count": 3981,
+   "fileCount": 28,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.266",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 3981
+     },
+     "count": 3981,
+     "fileCount": 28
+    },
+    "$.permissionMode": {
+     "types": {
+      "string": 3981
+     },
+     "count": 3981,
+     "fileCount": 28
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 3981
+     },
+     "count": 3981,
+     "fileCount": 28
+    },
+    "$.type": {
+     "types": {
+      "string": 3981
+     },
+     "count": 3981,
+     "fileCount": 28,
+     "values": {
+      "permission-mode": 3981
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "queue-operation",
+   "count": 3691,
+   "fileCount": 44,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.265",
+    "2.1.267",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 3691
+     },
+     "count": 3691,
+     "fileCount": 44
+    },
+    "$.content": {
+     "types": {
+      "string": 2428
+     },
+     "count": 2428,
+     "fileCount": 44
+    },
+    "$.operation": {
+     "types": {
+      "string": 3691
+     },
+     "count": 3691,
+     "fileCount": 44
+    },
+    "$.reason": {
+     "types": {
+      "string": 758
+     },
+     "count": 758,
+     "fileCount": 15
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 3691
+     },
+     "count": 3691,
+     "fileCount": 44
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 3691
+     },
+     "count": 3691,
+     "fileCount": 44
+    },
+    "$.type": {
+     "types": {
+      "string": 3691
+     },
+     "count": 3691,
+     "fileCount": 44,
+     "values": {
+      "queue-operation": 3691
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "bridge-session",
+   "count": 3223,
+   "fileCount": 23,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.266",
+    "2.1.268",
+    "2.1.270"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.bridgeSessionId": {
+     "types": {
+      "string": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.lastSequenceNum": {
+     "types": {
+      "number": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.ownerAccountUuid": {
+     "types": {
+      "string": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.ownerOrganizationUuid": {
+     "types": {
+      "string": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 3223
+     },
+     "count": 3223,
+     "fileCount": 23
+    },
+    "$.type": {
+     "types": {
+      "string": 3223
+     },
+     "count": 3223,
+     "fileCount": 23,
+     "values": {
+      "bridge-session": 3223
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "pr-link",
+   "count": 2880,
+   "fileCount": 11,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.261",
+    "2.1.272",
+    "2.1.273"
+   ],
+   "firstDay": "2026-08-07",
+   "lastDay": "2026-09-17",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.prNumber": {
+     "types": {
+      "number": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.prRepository": {
+     "types": {
+      "string": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.prUrl": {
+     "types": {
+      "string": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 2880
+     },
+     "count": 2880,
+     "fileCount": 11
+    },
+    "$.type": {
+     "types": {
+      "string": 2880
+     },
+     "count": 2880,
+     "fileCount": 11,
+     "values": {
+      "pr-link": 2880
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=stop_hook_summary",
+   "count": 1426,
+   "fileCount": 40,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.274",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.cwd": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hasOutput": {
+     "types": {
+      "boolean": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hookAdditionalContext": {
+     "types": {
+      "array": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hookCount": {
+     "types": {
+      "number": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hookErrors": {
+     "types": {
+      "array": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hookErrors.<rare-key>": {
+     "types": {},
+     "count": 44,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.hookInfos": {
+     "types": {
+      "array": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.hookInfos[]": {
+     "types": {
+      "object": 4020
+     },
+     "count": 4020,
+     "fileCount": 40
+    },
+    "$.hookInfos[].command": {
+     "types": {
+      "string": 4020
+     },
+     "count": 4020,
+     "fileCount": 40
+    },
+    "$.hookInfos[].durationMs": {
+     "types": {
+      "number": 4019
+     },
+     "count": 4019,
+     "fileCount": 40
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "false": 1426
+     }
+    },
+    "$.level": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "suggestion": 1426
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.preventedContinuation": {
+     "types": {
+      "boolean": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.session_id": {
+     "types": {
+      "string": 1266
+     },
+     "count": 1266,
+     "fileCount": 25
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.slug": {
+     "types": {
+      "string": 690
+     },
+     "count": 690,
+     "fileCount": 6
+    },
+    "$.stopReason": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.subtype": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "stop_hook_summary": 1426
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.toolUseID": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.type": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "system": 1426
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "external": 1426
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40
+    },
+    "$.version": {
+     "types": {
+      "string": 1426
+     },
+     "count": 1426,
+     "fileCount": 40,
+     "values": {
+      "2.1.276": 15,
+      "2.1.277": 6,
+      "2.1.275": 9,
+      "2.1.273": 215,
+      "2.1.261": 271,
+      "2.1.263": 309,
+      "2.1.272": 35,
+      "2.1.220": 124,
+      "2.1.223": 57,
+      "2.1.226": 4,
+      "2.1.258": 131,
+      "2.1.268": 6,
+      "2.1.270": 50,
+      "2.1.274": 2,
+      "2.1.259": 49,
+      "2.1.269": 30,
+      "2.1.271": 5,
+      "2.1.266": 3,
+      "2.1.265": 13,
+      "2.1.260": 31,
+      "2.1.251": 52,
+      "2.1.237": 9
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=turn_duration",
+   "count": 1276,
+   "fileCount": 25,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.<rare-key>": {
+     "types": {},
+     "count": 38,
+     "fileCount": 1,
+     "collapsedPaths": 1
+    },
+    "$.cwd": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.durationMs": {
+     "types": {
+      "number": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 1276
+     },
+     "count": 1276,
+     "fileCount": 25,
+     "values": {
+      "false": 1276
+     }
+    },
+    "$.messageCount": {
+     "types": {
+      "number": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.pendingBackgroundAgentCount": {
+     "types": {
+      "number": 510
+     },
+     "count": 510,
+     "fileCount": 12
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.slug": {
+     "types": {
+      "string": 652
+     },
+     "count": 652,
+     "fileCount": 5
+    },
+    "$.subtype": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25,
+     "values": {
+      "turn_duration": 1276
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.type": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25,
+     "values": {
+      "system": 1276
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25,
+     "values": {
+      "external": 1276
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25
+    },
+    "$.version": {
+     "types": {
+      "string": 1276
+     },
+     "count": 1276,
+     "fileCount": 25,
+     "values": {
+      "2.1.276": 16,
+      "2.1.277": 6,
+      "2.1.275": 9,
+      "2.1.273": 210,
+      "2.1.261": 234,
+      "2.1.263": 253,
+      "2.1.272": 16,
+      "2.1.220": 127,
+      "2.1.223": 57,
+      "2.1.226": 4,
+      "2.1.258": 135,
+      "2.1.268": 6,
+      "2.1.270": 18,
+      "2.1.259": 49,
+      "2.1.269": 28,
+      "2.1.266": 3,
+      "2.1.265": 13,
+      "2.1.260": 31,
+      "2.1.251": 52,
+      "2.1.237": 9
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "file-history-snapshot",
+   "count": 643,
+   "fileCount": 27,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.268",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.isSnapshotUpdate": {
+     "types": {
+      "boolean": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.messageId": {
+     "types": {
+      "string": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.snapshot": {
+     "types": {
+      "object": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.snapshot.messageId": {
+     "types": {
+      "string": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.snapshot.timestamp": {
+     "types": {
+      "string": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.snapshot.trackedFileBackups": {
+     "types": {
+      "object": 643
+     },
+     "count": 643,
+     "fileCount": 27
+    },
+    "$.snapshot.trackedFileBackups.<dynamic-key>": {
+     "types": {
+      "object": 489
+     },
+     "count": 489,
+     "fileCount": 14
+    },
+    "$.type": {
+     "types": {
+      "string": 643
+     },
+     "count": 643,
+     "fileCount": 27,
+     "values": {
+      "file-history-snapshot": 643
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=away_summary",
+   "count": 209,
+   "fileCount": 22,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.270",
+    "2.1.272",
+    "2.1.273",
+    "2.1.275",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.content": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.cwd": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 209
+     },
+     "count": 209,
+     "fileCount": 22,
+     "values": {
+      "false": 209
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.slug": {
+     "types": {
+      "string": 67
+     },
+     "count": 67,
+     "fileCount": 4
+    },
+    "$.subtype": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22,
+     "values": {
+      "away_summary": 209
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.type": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22,
+     "values": {
+      "system": 209
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22,
+     "values": {
+      "external": 209
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22
+    },
+    "$.version": {
+     "types": {
+      "string": 209
+     },
+     "count": 209,
+     "fileCount": 22,
+     "values": {
+      "2.1.277": 1,
+      "2.1.275": 7,
+      "2.1.273": 21,
+      "2.1.261": 32,
+      "2.1.263": 24,
+      "2.1.272": 6,
+      "2.1.220": 24,
+      "2.1.223": 9,
+      "2.1.226": 2,
+      "2.1.258": 40,
+      "2.1.270": 2,
+      "2.1.259": 21,
+      "2.1.269": 9,
+      "2.1.260": 10,
+      "2.1.237": 1
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "file-history-delta",
+   "count": 112,
+   "fileCount": 15,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.270",
+    "2.1.272",
+    "2.1.275",
+    "2.1.276",
+    "2.1.277"
+   ],
+   "firstDay": "2026-07-27",
+   "lastDay": "2026-09-18",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.backup": {
+     "types": {
+      "object": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.backup.backupFileName": {
+     "types": {
+      "null": 60,
+      "string": 52
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.backup.backupTime": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.backup.realParentDir": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.backup.version": {
+     "types": {
+      "number": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.messageId": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.snapshotMessageId": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.trackingPath": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15
+    },
+    "$.type": {
+     "types": {
+      "string": 112
+     },
+     "count": 112,
+     "fileCount": 15,
+     "values": {
+      "file-history-delta": 112
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "custom-title",
+   "count": 58,
+   "fileCount": 3,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.261",
+    "2.1.270"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.customTitle": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.type": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3,
+     "values": {
+      "custom-title": 58
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "agent-name",
+   "count": 58,
+   "fileCount": 3,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.261",
+    "2.1.270"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.agentName": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3
+    },
+    "$.type": {
+     "types": {
+      "string": 58
+     },
+     "count": 58,
+     "fileCount": 3,
+     "values": {
+      "agent-name": 58
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=informational",
+   "count": 30,
+   "fileCount": 10,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.261"
+   ],
+   "firstDay": "2026-08-30",
+   "lastDay": "2026-09-14",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.content": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.cwd": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "false": 30
+     }
+    },
+    "$.level": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "warning": 28,
+      "notice": 2
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.slug": {
+     "types": {
+      "string": 14
+     },
+     "count": 14,
+     "fileCount": 4
+    },
+    "$.subtype": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "informational": 30
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.type": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "system": 30
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "external": 30
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10
+    },
+    "$.version": {
+     "types": {
+      "string": 30
+     },
+     "count": 30,
+     "fileCount": 10,
+     "values": {
+      "2.1.270": 2,
+      "2.1.271": 1,
+      "2.1.258": 7,
+      "2.1.260": 1,
+      "2.1.259": 5,
+      "2.1.261": 4,
+      "2.1.266": 1,
+      "2.1.251": 9
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=local_command",
+   "count": 19,
+   "fileCount": 6,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.237",
+    "2.1.259",
+    "2.1.261",
+    "2.1.266"
+   ],
+   "firstDay": "2026-08-05",
+   "lastDay": "2026-09-15",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.<rare-key>": {
+     "types": {},
+     "count": 10,
+     "fileCount": 2,
+     "collapsedPaths": 1
+    },
+    "$.content": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.cwd": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "false": 19
+     }
+    },
+    "$.level": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "info": 19
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.subtype": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "local_command": 19
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.type": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "system": 19
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "external": 19
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6
+    },
+    "$.version": {
+     "types": {
+      "string": 19
+     },
+     "count": 19,
+     "fileCount": 6,
+     "values": {
+      "2.1.270": 2,
+      "2.1.220": 2,
+      "2.1.226": 4,
+      "2.1.263": 3,
+      "2.1.269": 4,
+      "2.1.266": 2,
+      "2.1.259": 2
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=compact_boundary",
+   "count": 15,
+   "fileCount": 6,
+   "clientVersions": [
+    "2.1.220",
+    "2.1.251",
+    "2.1.258",
+    "2.1.259",
+    "2.1.261",
+    "2.1.273"
+   ],
+   "firstDay": "2026-08-06",
+   "lastDay": "2026-09-17",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.cumulativeDroppedTokens": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.durationMs": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.postTokens": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preCompactDiscoveredTools": {
+     "types": {
+      "array": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preCompactDiscoveredTools[]": {
+     "types": {
+      "string": 54
+     },
+     "count": 54,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages.allUuids": {
+     "types": {
+      "array": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages.allUuids[]": {
+     "types": {
+      "string": 570
+     },
+     "count": 570,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages.anchorUuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages.uuids": {
+     "types": {
+      "array": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedMessages.uuids[]": {
+     "types": {
+      "string": 553
+     },
+     "count": 553,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedSegment": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedSegment.anchorUuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedSegment.headUuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preservedSegment.tailUuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.preTokens": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.compactMetadata.trigger": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.content": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.cwd": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "false": 15
+     }
+    },
+    "$.level": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "info": 15
+     }
+    },
+    "$.logicalParentUuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.parentUuid": {
+     "types": {
+      "null": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.slug": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.subtype": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "compact_boundary": 15
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.type": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "system": 15
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "external": 15
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6
+    },
+    "$.version": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 6,
+     "values": {
+      "2.1.273": 1,
+      "2.1.223": 1,
+      "2.1.226": 1,
+      "2.1.259": 1,
+      "2.1.261": 3,
+      "2.1.263": 4,
+      "2.1.269": 1,
+      "2.1.270": 1,
+      "2.1.258": 1,
+      "2.1.251": 1
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "cost-state",
+   "count": 15,
+   "fileCount": 8,
+   "clientVersions": [
+    "2.1.251",
+    "2.1.258",
+    "2.1.260",
+    "2.1.261",
+    "2.1.263",
+    "2.1.266",
+    "2.1.270"
+   ],
+   "paths": {
+    "$": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.hasUnknownModelCost": {
+     "types": {
+      "boolean": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.modelUsage": {
+     "types": {
+      "object": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.modelUsage.<dynamic-key>": {
+     "types": {
+      "object": 9
+     },
+     "count": 9,
+     "fileCount": 5
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.startTime": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalAPIDuration": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalAPIDurationWithoutRetries": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalCostUSD": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalDuration": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalLinesAdded": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalLinesRemoved": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.totalToolDuration": {
+     "types": {
+      "number": 15
+     },
+     "count": 15,
+     "fileCount": 8
+    },
+    "$.type": {
+     "types": {
+      "string": 15
+     },
+     "count": 15,
+     "fileCount": 8,
+     "values": {
+      "cost-state": 15
+     }
+    }
+   }
+  },
+  {
+   "discriminator": "system | subtype=<unreviewed-value>",
+   "count": 4,
+   "fileCount": 3,
+   "clientVersions": [
+    "2.1.258",
+    "2.1.259",
+    "2.1.272"
+   ],
+   "firstDay": "2026-09-04",
+   "lastDay": "2026-09-15",
+   "paths": {
+    "$": {
+     "types": {
+      "object": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.<rare-key>": {
+     "types": {},
+     "count": 16,
+     "fileCount": 2,
+     "collapsedPaths": 6
+    },
+    "$.cwd": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.entrypoint": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.gitBranch": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.isMeta": {
+     "types": {
+      "boolean": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.isSidechain": {
+     "types": {
+      "boolean": 4
+     },
+     "count": 4,
+     "fileCount": 3,
+     "values": {
+      "false": 4
+     }
+    },
+    "$.parentUuid": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.sessionId": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.subtype": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3,
+     "values": {
+      "<unreviewed-value>": 4
+     }
+    },
+    "$.timestamp": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.type": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3,
+     "values": {
+      "system": 4
+     }
+    },
+    "$.userType": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3,
+     "values": {
+      "external": 4
+     }
+    },
+    "$.uuid": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3
+    },
+    "$.version": {
+     "types": {
+      "string": 4
+     },
+     "count": 4,
+     "fileCount": 3,
+     "values": {
+      "2.1.272": 2,
+      "2.1.261": 1,
+      "2.1.258": 1
+     }
+    }
+   }
+  }
+ ]
+}
