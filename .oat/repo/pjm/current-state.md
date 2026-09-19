@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-09-17
+**Last updated:** 2026-09-19
 **Verified baseline:** `origin/main` at `6eb5fd8c`, plus the completed Consensus Review implementation on `feat/consensus-review`. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
 
 ## What is available in the verified source tree
@@ -30,7 +30,7 @@ Exact behavior: [Consensus guide](../../../documentation/docs/user-guide/consens
 
 - Observer discovers and reviews Claude Code, Codex, and supported Cursor transcript surfaces, with exact-pin catch-up, bounded foreground watch, filtered digests, and locked state.
 - Collaborative Observer composes that observation into bounded **N=2** collaboration. Peer text does not acquire user authority. Wake/callback capabilities remain harness-specific; bounded continuation is not an indefinite idle-session wake guarantee.
-- Export produces sanitized conversation Markdown by default. General correlated tool/result activity is not yet implemented; the optional `--include-activity` contract remains backlog work.
+- Export still produces sanitized conversation Markdown by default. The session-fidelity delivery branches add opt-in `--include-activity` exports and Observer digests with correlated native tool/result evidence, explicit coverage states, bounded previews, and unchanged flag-off behavior. This is branch delivery pending publication, merge, release, installation, and live provider acceptance.
 - Handoff captures portable continuation context; Retro reviews session evidence. Neither requires native provider-session forking.
 - **Session Fork to Destination is available as an alpha**, canonical version `0.2.3`. It discovers, previews, and prepares instructions for user-controlled Claude Code or Codex destinations; it does not invoke a provider, create a session, or write provider stores. Cursor lacks exact cwd evidence and fails closed. Use explicit supported-provider selection while `--provider all` encounters that incomplete surface.
 - The September 16 re-arm investigation is complete in PR #85. Deterministic fixtures found no lost renderable message across supported clean exact-pin `catch-up-then-watch` restarts, including SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, and competing-consumer interleavings. Raw-index gaps can reflect filtered activity. The legacy offset is persisted before stdout completion, so failed output can consume a range without replay; synthetic coverage verifies state and process stdout, not live harness delivery.
@@ -43,7 +43,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 - PR #83 reorganized the site into User Guide (Getting Started, Plugins, Standalone Skills) and Engineering (Architecture, Development, Contributing, Operations), expanded TypeScript/build guidance, added diagrams and the Markdown/Visuals catalog, and completed the configuration reference.
 - README is an entry point; the [documentation site source](../../../documentation/docs/index.md) is the detailed reference. Engineering owns the build/packaging/testing and CI/release explanations.
 - The Consensus Review branch adds the canonical Review guide, configuration and install forms, generated standalone/plugin payloads, and production-built navigation. Its first supporting versions are `consensus-review` 0.1.7 and Consensus plugin 0.2.0; neither version is claimed released or globally installed.
-- The retained [session-fidelity research packet](../reference/research/session-fidelity-2026-09-10/README.md) is design input, not implemented functionality. Its original source paths/revisions predate colocation; native schemas are observational and examples synthetic.
+- The retained [session-fidelity research packet](../reference/research/session-fidelity-2026-09-10/README.md) remains historical design input for the branch implementation. Its original source paths/revisions predate colocation; native schemas are observational and examples synthetic.
 
 ## Release and verification posture
 
@@ -56,11 +56,11 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Active planning
 
-There are **14 active item files** after closing and archiving the completed observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review. Those records remain in completed history rather than active planning.
+There are **13 active item files** after closing and archiving Session Fidelity in addition to the completed observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review. Those records remain in completed history rather than active planning.
 
 The confirmed immediate lane is now **BL-260916-add-a-first-party-install — First-party standalone installer** (approved, owner/start not claimed). Consensus Review is implemented on its delivery branch and archived from the active backlog; merge, release, global installation, and live acceptance remain separate boundaries. The September 16 alignment originally mapped 19 items to 16 candidate projects; later ordering remains proposed.
 
-Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session fidelity precedes the merged activity projection. Neither delivers safe N>2 consumer ownership automatically.
+Messaging is now a provider-neutral inbox project, independent of the stateless merged-log implementation. Session Fidelity is implemented on its stacked delivery branches and archived; the shared-session-log substrate may reuse its activity contract when that separate project is designed. Neither delivers safe N>2 consumer ownership automatically.
 
 - [Roadmap](roadmap.md) — Now / Next / Later direction.
 - [Backlog index](backlog/index.md) — active item inventory.

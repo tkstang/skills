@@ -1,7 +1,7 @@
 ---
 id: BL-260916-session-fidelity-opt
 title: 'Session fidelity: opt-in --include-activity for observer and exporter'
-status: open
+status: closed
 priority: medium
 scope: feature
 scope_estimate: L
@@ -12,7 +12,7 @@ labels:
   - substrate
 assignee: null
 created: 2026-09-16T17:04:56.373Z
-updated: 2026-09-19T01:39:17.103902+00:00
+updated: 2026-09-19T17:55:41Z
 associated_issues: []
 external_plans: []
 ---

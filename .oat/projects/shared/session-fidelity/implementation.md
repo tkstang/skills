@@ -324,7 +324,11 @@ Root transition audit of immutable p06-t01 commit `41887b160994707c33ffaddc17c7f
 
 **Status:** pending
 **Commit:** -
-**Verification:** not run; follow plan commands after implementation.
+**Verification:** acceptance complete; backlog lifecycle changes are staged for this task commit.
+
+#### Final acceptance evidence
+
+The complete local gate passed at the accepted p06 source head: type checking, generated-build freshness, 2,231 passing tests with one expected skip, repository validation, mocked end-to-end smoke, four-owner skill-version validation against the activity base, changed-file formatting and linting, and diff checks. The documentation production build generated 56 pages; its known `.oat/config.json` rewrite was restored byte-for-byte. PJM adoption is declared and healthy, all three registered stack layers report no rebase requirement, and captured activity fixtures passed the bounded privacy inventory. No live provider call, external installation, publication, merge, or release was performed.
 
 ## Reviews (historical pre-implementation snapshot)
 
