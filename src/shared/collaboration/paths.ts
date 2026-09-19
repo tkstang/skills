@@ -81,3 +81,11 @@ export function collaborationPaths(
 export function activationDirectory(root: string, pin: Pin): string {
   return path.join(root, 'activations', pinKey(pin));
 }
+
+export function memberBindingDirectory(
+  paths: CollaborationPaths,
+  participantId: string,
+): string {
+  assertUuid(participantId, 'participant ID');
+  return path.join(paths.bindings, participantId);
+}

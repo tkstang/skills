@@ -16,6 +16,49 @@ export interface HasSchemaVersion {
   schemaVersion: typeof SCHEMA_VERSION;
 }
 
+export interface CollaborationRecord extends HasSchemaVersion {
+  id: string;
+  label: string;
+  task: string;
+  createdAt: string;
+}
+
+export interface MemberRecord extends HasSchemaVersion {
+  alias: string;
+  participantId: string;
+  collaborationId: string;
+  createdAt: string;
+}
+
+export interface AckReference {
+  messageId: string;
+  messageHash: string;
+}
+
+export interface BindingRecord extends HasSchemaVersion {
+  participantId: string;
+  generation: number;
+  pin: Pin;
+  worktree: string;
+  previousPin: Pin | null;
+  reason: string;
+  createdAt: string;
+  inheritedAckRefs: AckReference[];
+}
+
+export interface DepartureRecord extends HasSchemaVersion {
+  participantId: string;
+  generation: number;
+  pin: Pin;
+  departedAt: string;
+}
+
+export interface ClosedRecord extends HasSchemaVersion {
+  collaborationId: string;
+  closedBy: Pin;
+  closedAt: string;
+}
+
 export function assertUuid(value: string, label = 'UUID'): void {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
