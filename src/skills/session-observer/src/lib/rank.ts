@@ -184,10 +184,21 @@ function hasAssistantAndUser(candidate: TranscriptCandidate): boolean {
   );
 }
 
+function isCodexChild(candidate: TranscriptCandidate): boolean {
+  return (
+    candidate.runtime === 'codex' &&
+    typeof candidate.nativeSessionId === 'string' &&
+    (typeof candidate.parentSessionId === 'string' ||
+      (typeof candidate.rootSessionId === 'string' &&
+        candidate.nativeSessionId !== candidate.rootSessionId))
+  );
+}
+
 function compareCandidatePreference(
   a: TranscriptCandidate,
   b: TranscriptCandidate,
 ): number {
+  if (isCodexChild(a) !== isCodexChild(b)) return isCodexChild(a) ? 1 : -1;
   if (isEngaged(a) !== isEngaged(b)) return isEngaged(a) ? -1 : 1;
   if (hasAssistantAndUser(a) !== hasAssistantAndUser(b)) {
     return hasAssistantAndUser(a) ? -1 : 1;
@@ -227,6 +238,7 @@ function closeEngagedTie(
   candidate: TranscriptCandidate,
   tieWindowSec: number,
 ): boolean {
+  if (isCodexChild(winner) !== isCodexChild(candidate)) return false;
   if (!isEngaged(winner) || !isEngaged(candidate)) return false;
   if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate))
     return false;

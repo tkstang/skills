@@ -18,6 +18,7 @@ import * as shippedCursorAnalysis from '../../../skills/session-observer/scripts
 import * as shippedCursorFrames from '../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
 import type { JsonObject, Runtime } from './runtimes.js';
 import {
+  claudeUserRecordProvenance,
   discoverPaths,
   encodeCwd,
   encodeCwdVariants,
@@ -46,6 +47,10 @@ const FIXTURES_CX = join(
 const FIXTURES_CURSOR = join(
   __dirname,
   '../../skills/session-observer/src/fixtures/cursor',
+);
+const SESSION_FIDELITY_CODEX_FIXTURES = join(
+  __dirname,
+  'fixtures/session-fidelity/codex',
 );
 
 function expectEqual<T>(actual: T, expected: T, message?: string) {
@@ -633,10 +638,76 @@ describe('extractMeta (codex)', () => {
     expectEqual(meta.sessionId, 'codex-payload-cwd-001');
     expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
   });
+
+  it('uses the first physical session header for a root rollout', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-00-00-11111111-1111-4111-8111-111111111111.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '11111111-1111-4111-8111-111111111111',
+      recordedCwd: '/workspace/root',
+      nativeSessionId: '11111111-1111-4111-8111-111111111111',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+    });
+  });
+
+  it('keeps child, root, and direct parent identity distinct from inherited headers', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-01-00-22222222-2222-4222-8222-222222222222.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '22222222-2222-4222-8222-222222222222',
+      recordedCwd: '/workspace/child',
+      nativeSessionId: '22222222-2222-4222-8222-222222222222',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+      parentSessionId: '33333333-3333-4333-8333-333333333333',
+      subagentHistoryStartOrdinal: 12,
+    });
+  });
+
+  it('keeps fork lineage separate from root and direct-parent lineage', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-02-00-44444444-4444-4444-8444-444444444444.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '44444444-4444-4444-8444-444444444444',
+      recordedCwd: '/workspace/fork',
+      nativeSessionId: '44444444-4444-4444-8444-444444444444',
+      rootSessionId: '44444444-4444-4444-8444-444444444444',
+      forkedFromSessionId: '33333333-3333-4333-8333-333333333333',
+    });
+  });
+
+  it('rejects a first-header identity that contradicts a recognized rollout filename', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-03-00-66666666-6666-4666-8666-666666666666.jsonl',
+      ),
+    );
+
+    expect(meta).toBeNull();
+  });
 });
 
 describe('exact provider lineage metadata', () => {
-  it('exposes Codex native, optional root, fork, and cwd fields without changing legacy sessionId', () => {
+  it('uses the first Codex header identity instead of a legacy caller id', () => {
     const meta = extractMetaFromRecords(
       'codex',
       [
@@ -656,17 +727,90 @@ describe('exact provider lineage metadata', () => {
     );
 
     expect(meta).toEqual({
-      sessionId: 'legacy-caller-id',
+      sessionId: 'native-child-id',
       recordedCwd: '/repo/target',
       nativeSessionId: 'native-child-id',
       rootSessionId: 'root-id',
       forkedFromSessionId: 'native-parent-id',
     });
-    expect(
-      new Set([meta?.sessionId, meta?.nativeSessionId, meta?.rootSessionId])
-        .size,
-    ).toBe(3);
+    expect(new Set([meta?.nativeSessionId, meta?.rootSessionId]).size).toBe(2);
   });
+
+  it.each([
+    ['session_id', null],
+    ['session_id', ''],
+    ['session_id', 42],
+    ['forked_from_id', null],
+    ['forked_from_id', ''],
+    ['forked_from_id', 42],
+    ['subagent_history_start_ordinal', null],
+    ['subagent_history_start_ordinal', -1],
+    ['subagent_history_start_ordinal', 1.5],
+    ['subagent_history_start_ordinal', '1'],
+  ])('rejects a present invalid Codex %s value', (field, value) => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          payload: {
+            id: 'native-child-id',
+            cwd: '/repo/target',
+            [field]: value,
+          },
+        },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toBeNull();
+  });
+
+  it.each([
+    {
+      label: 'omitted',
+      optional: {},
+      expected: {},
+    },
+    {
+      label: 'valid',
+      optional: {
+        session_id: 'root-id',
+        forked_from_id: 'fork-parent-id',
+        subagent_history_start_ordinal: 0,
+      },
+      expected: {
+        rootSessionId: 'root-id',
+        forkedFromSessionId: 'fork-parent-id',
+        subagentHistoryStartOrdinal: 0,
+      },
+    },
+  ])(
+    'preserves $label optional Codex lineage fields',
+    ({ optional, expected }) => {
+      const meta = extractMetaFromRecords(
+        'codex',
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: 'native-child-id',
+              cwd: '/repo/target',
+              ...optional,
+            },
+          },
+        ],
+        '/private/transcript-name.jsonl',
+      );
+
+      expect(meta).toEqual({
+        sessionId: 'native-child-id',
+        recordedCwd: '/repo/target',
+        nativeSessionId: 'native-child-id',
+        ...expected,
+      });
+    },
+  );
 
   it('does not mistake Codex message payload IDs for native session IDs', () => {
     const meta = extractMetaFromRecords(
@@ -711,7 +855,7 @@ describe('exact provider lineage metadata', () => {
     });
   });
 
-  it('omits contradictory or malformed optional lineage fields', () => {
+  it('accepts inherited parent headers after the physical Codex identity header', () => {
     const codex = extractMetaFromRecords(
       'codex',
       [
@@ -720,8 +864,76 @@ describe('exact provider lineage metadata', () => {
       ],
       '/private/fallback.jsonl',
     );
-    expect(codex).toEqual({ sessionId: 'fallback', recordedCwd: '/repo' });
+    expect(codex).toEqual({
+      sessionId: 'one',
+      recordedCwd: '/repo',
+      nativeSessionId: 'one',
+    });
+  });
 
+  it('rejects malformed first Codex headers instead of accepting a later inherited header', () => {
+    const laterId = '77777777-7777-4777-8777-777777777777';
+    const transcriptPath = `/private/rollout-2026-09-18T10-04-00-${laterId}.jsonl`;
+
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: 'malformed' },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { id: null } },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { cwd: '/repo/child' } },
+          {
+            type: 'session_meta',
+            payload: {
+              id: laterId,
+              session_id: laterId,
+              cwd: '/repo/child',
+            },
+          },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+  });
+
+  it('preserves a documented legacy Codex header with no native id', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-session',
+          payload: { cwd: '/repo/legacy' },
+        },
+      ],
+      '/private/legacy-session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'legacy-session',
+      recordedCwd: '/repo/legacy',
+    });
+  });
+
+  it('omits contradictory or malformed optional Claude lineage fields', () => {
     const claude = extractMetaFromRecords(
       'claude-code',
       [
@@ -1007,6 +1219,98 @@ describe('normalizeEntries (claude-code)', () => {
         recordIndex: 4,
       }),
     ]);
+  });
+
+  it('classifies only top-level native Claude provenance and preserves legacy records', () => {
+    expect(claudeUserRecordProvenance({ origin: { kind: 'human' } })).toBe(
+      'human',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'task-notification' } }),
+    ).toBe('runtime-notification');
+    expect(claudeUserRecordProvenance({})).toBe('legacy-absent');
+    expect(claudeUserRecordProvenance({ origin: { kind: 'peer' } })).toBe(
+      'unmarked',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'future-kind' } }),
+    ).toBe('unmarked');
+    expect(
+      claudeUserRecordProvenance({
+        attachment: { origin: { kind: 'human' } },
+      }),
+    ).toBe('legacy-absent');
+  });
+
+  it('marks human and task-notification records without upgrading peer or unknown provenance', async () => {
+    const recordsWithProvenance = await readRecords(
+      fixturePath('claude-code', 'native-provenance.jsonl'),
+    );
+    const userEntries = normalizeEntries(
+      'claude-code',
+      recordsWithProvenance,
+      {},
+    ).filter((entry) => entry.role === 'user');
+
+    expect(userEntries).toEqual([
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Human direction.',
+        origin: 'human',
+      }),
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Background task completed.',
+        origin: 'runtime-notification',
+        displayRole: 'runtime-notification',
+      }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+    ]);
+  });
+
+  it('allows envelope classification only for legacy-absent Claude provenance', () => {
+    const envelope =
+      '<session_observer_wake automatic="true" schema_version="2" runtime="codex" lease_id="lease-claude" peer="claude-code:peer" index_base="zero-based-jsonl-record-index" records="1-2">Review.</session_observer_wake>';
+    const entryFor = (kind?: string) =>
+      normalizeEntries(
+        'claude-code',
+        [
+          {
+            type: 'user',
+            ...(kind ? { origin: { kind } } : {}),
+            message: { role: 'user', content: envelope },
+          },
+        ],
+        {},
+      )[0];
+
+    expect(entryFor()).toMatchObject({
+      origin: 'automatic-control',
+      displayRole: 'automatic-control',
+      automaticControl: { automatic: true, leaseId: 'lease-claude' },
+    });
+    expect(entryFor('human')).toMatchObject({
+      kind: 'message',
+      origin: 'human',
+      text: envelope,
+    });
+    expect(entryFor('human')).not.toHaveProperty('automaticControl');
+    for (const kind of ['peer', 'future-kind']) {
+      expect(entryFor(kind)).toMatchObject({ kind: 'message', text: envelope });
+      expect(entryFor(kind)).not.toHaveProperty('origin');
+      expect(entryFor(kind)).not.toHaveProperty('automaticControl');
+    }
+    expect(entryFor('task-notification')).toMatchObject({
+      kind: 'message',
+      origin: 'runtime-notification',
+      displayRole: 'runtime-notification',
+      text: envelope,
+    });
+    expect(entryFor('task-notification')).not.toHaveProperty(
+      'automaticControl',
+    );
   });
 });
 
@@ -1491,6 +1795,45 @@ describe('normalizeEntries — ask-user exchanges', () => {
     expectOk(
       answer.text.includes('"Ship it?"="Ship"'),
       `fallback must preserve the answer, got: ${answer.text}`,
+    );
+  });
+
+  it('claude-code: attributes ask-user answers only to native human or legacy records', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const withOrigin = (kind: string) =>
+      records.map((record) => {
+        const message = record.message as JsonObject | undefined;
+        return message?.role === 'user'
+          ? { ...record, origin: { kind } }
+          : record;
+      });
+    const answersFor = (input: JsonObject[]) =>
+      normalizeEntries('claude-code', input, {}).filter(
+        (entry) => entry.role === 'user' && entry.kind === 'ask_user',
+      );
+
+    expect(answersFor(records).every((entry) => entry.origin === 'human')).toBe(
+      true,
+    );
+    expect(
+      answersFor(withOrigin('human')).every(
+        (entry) => entry.origin === 'human',
+      ),
+    ).toBe(true);
+    expect(
+      answersFor(withOrigin('peer')).every(
+        (entry) => entry.origin === undefined,
+      ),
+    ).toBe(true);
+    expect(answersFor(withOrigin('task-notification'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          origin: 'runtime-notification',
+          displayRole: 'runtime-notification',
+        }),
+      ]),
     );
   });
 

@@ -1,0 +1,2 @@
+{"timestamp":"2026-09-18T10:02:00Z","type":"session_meta","payload":{"id":"44444444-4444-4444-8444-444444444444","session_id":"44444444-4444-4444-8444-444444444444","forked_from_id":"33333333-3333-4333-8333-333333333333","cwd":"/workspace/fork","source":"cli"}}
+{"timestamp":"2026-09-18T10:02:01Z","type":"response_item","payload":{"type":"message","id":"msg-fork-1","role":"user","content":[{"type":"input_text","text":"Synthetic fork prompt"}]}}

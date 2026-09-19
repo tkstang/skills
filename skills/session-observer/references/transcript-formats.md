@@ -44,6 +44,26 @@ Session ID appears in multiple fields across record types:
 
 `runtimes.mjs` checks these in order and takes the first non-null value. Falls back to the file basename (without `.jsonl`) if no record carries one.
 
+### Native user provenance
+
+For ordinary Claude user records, only the record's top-level `origin.kind` is
+authoritative. Attachment provenance describes attachment transport and does
+not classify the enclosing message.
+
+| `origin.kind`                     | Normalized result                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `human`                           | `origin: "human"`                                                                                  |
+| `task-notification`               | `origin` and `displayRole`: `runtime-notification`                                                 |
+| absent                            | Legacy behavior, including validated legacy wake-envelope recognition and ask-user answer fallback |
+| `peer` or an unknown future value | Unmarked message; never upgraded from its text                                                     |
+
+Native runtime notifications remain visible in observer output, but do not
+count as human engagement, ask-user authority, recovery pointers, or
+collaboration completion. These shapes were observed across Claude Code client
+versions 2.1.220 through 2.1.276. The parser is schema-based and does not gate
+behavior on a hard-coded client version; re-check the contract when the native
+schema changes.
+
 ### Record types
 
 **Summary / meta record** (first record in the file):
@@ -212,42 +232,70 @@ When `toolUseResult` is absent, the block's prose `content` already names each q
 
 Codex stores transcripts under `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`. There is **no cwd in the file name**.
 
-The cwd is extracted from the **`session_started` record** at the top of the file:
+The cwd is extracted from the first physical **`session_meta` record**:
 
 ```json
 {
-  "type": "session_started",
-  "sessionId": "codex-session-001",
-  "cwd": "<project-cwd>",
-  "timestamp": "2026-05-14T10:00:00Z"
+  "type": "session_meta",
+  "payload": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "cwd": "<project-cwd>"
+  }
 }
 ```
 
-`runtimes.extractMeta` reads `record.cwd` at the **record top level** first, then falls back to `record.payload.cwd` for Codex versions that nest metadata under `payload`.
+`runtimes.extractMeta` reads top-level `record.cwd` first, then
+`record.payload.cwd`. The latter is the current rollout shape.
 
-`locate.mjs` caches the extracted `(sessionId, recordedCwd)` keyed by `${transcriptPath}:${mtime}` at `~/.local/state/session-observer/codex-cwd-cache.json` to avoid re-reading unchanged files on every poll or check.
+`locate.mjs` caches the extracted identity metadata under a
+`${transcriptPath}:${mtime}` key at
+`~/.local/state/session-observer/codex-cwd-cache.json`. A hit is reusable only
+when the entry carries the current native-identity cache version and matching
+file size; stale root-valued entries and changed files are reparsed. Duplicate
+canonical sources are still checked after lookup, so a cache hit cannot hide a
+second transcript claiming the same native ID.
 
-### Session ID placement
+### Native session identity and lineage
 
-Session ID appears at the record top level:
+The first physical `session_meta` record is authoritative. Its `payload.id` is
+the native rollout identity used by exact pins, `whoami`, ranking, cache keys,
+and saved-position validation. Once a first `session_meta` is present, a
+malformed payload or invalid ID fails closed; a later valid inherited header
+cannot take over. Legacy transcript shapes with no native ID retain their
+documented top-level/session-field fallback.
 
-- `record.sessionId` (most common, present on every record in the session)
-- `record.session_id`
-- `record.payload.sessionId`
-- `record.payload.session_id`
+Recognized rollout filenames (`rollout-...-<uuid>.jsonl`) corroborate native
+identity. A filename/header mismatch or malformed first header is an explicit
+invalid-identity diagnostic, including when later lines look valid. Canonical
+real paths deduplicate symlink aliases; two distinct canonical transcripts
+claiming one native ID are ambiguous and fail exact resolution.
 
-`runtimes.mjs` intentionally skips `payload.id` — in Codex message records that field holds a per-message ID (e.g. `"msg-001"`), not the session ID.
+Lineage is retained separately rather than folded into session identity:
+
+- `payload.session_id` is the root session when present.
+- `payload.parent_thread_id` or
+  `payload.source.subagent.thread_spawn.parent_thread_id` is the direct parent.
+- `payload.forked_from_id` identifies a fork source.
+- `payload.subagent_history_start_ordinal` marks the inherited-history
+  boundary when the provider supplies it.
+
+A child may therefore contain parent history while remaining pinned by its own
+`payload.id`. Digests warn about inherited context; if the boundary is absent,
+ownership of the inherited prefix is unknown.
 
 ### Record types
 
-**Session-started record** (first record, metadata):
+**Session metadata record** (first physical `session_meta`, metadata):
 
 ```json
 {
-  "type": "session_started",
-  "sessionId": "codex-session-001",
-  "cwd": "<project-cwd>",
-  "timestamp": "2026-05-14T10:00:00Z"
+  "type": "session_meta",
+  "payload": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "cwd": "<project-cwd>"
+  }
 }
 ```
 
@@ -470,19 +518,19 @@ facets. A mismatch blocks state advancement until an explicit reset/replay.
 
 ## Summary of Key Differences
 
-| Aspect                     | Claude Code                                             | Codex                                                | Cursor                                                     |
-| -------------------------- | ------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| cwd source                 | Directory name (encoded, lossy)                         | `record.cwd` or `record.payload.cwd`                 | Exact canonical cwd plus diagnostic encoded project slug   |
-| Session ID source          | `record.sessionId` or `message.sessionId`               | `record.sessionId` (every record)                    | Transcript basename or parent dir                          |
-| Message wrapper            | `record.message.role` / `record.message.content`        | `record.payload.role` / `record.payload.content`     | `record.role` / `record.message.content`                   |
-| Position contract          | Schema-v1 record index                                  | Schema-v1 record index                               | Schema-v2 physical frame index                             |
-| Completion contract        | Normalized record behavior                              | Normalized record behavior                           | Content-first observation; terminal-only completion        |
-| Tool call format           | `type: "tool_use"` in content array                     | `payload.type === "function_call"`                   | `type: "tool_use"` in content array                        |
-| Tool result format         | `type: "tool_result"` with `tool_use_id` (user message) | None in v1                                           | None in v1                                                 |
-| Name-to-result correlation | First-pass `tool_use_id → toolName` map                 | First-pass `call_id → questions` map (ask-user only) | N/A                                                        |
-| Ask-user tool              | `AskUserQuestion`                                       | `request_user_input`                                 | `AskQuestion`                                              |
-| Ask-user answer recorded   | Yes — `record.toolUseResult.answers` keyed by question  | Yes — `function_call_output` keyed by question id    | No — Cursor writes no tool results                         |
-| Discovery                  | Direct encoded-dir lookup + glob fallback               | Dated directory glob (7-day window)                  | Direct encoded-dir lookup + agent-transcript glob fallback |
+| Aspect                     | Claude Code                                             | Codex                                                                                   | Cursor                                                     |
+| -------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| cwd source                 | Directory name (encoded, lossy)                         | `record.cwd` or `record.payload.cwd`                                                    | Exact canonical cwd plus diagnostic encoded project slug   |
+| Session ID source          | `record.sessionId` or `message.sessionId`               | First physical `session_meta.payload.id`; legacy fallback only when native ID is absent | Transcript basename or parent dir                          |
+| Message wrapper            | `record.message.role` / `record.message.content`        | `record.payload.role` / `record.payload.content`                                        | `record.role` / `record.message.content`                   |
+| Position contract          | Schema-v1 record index                                  | Schema-v1 record index                                                                  | Schema-v2 physical frame index                             |
+| Completion contract        | Normalized record behavior                              | Normalized record behavior                                                              | Content-first observation; terminal-only completion        |
+| Tool call format           | `type: "tool_use"` in content array                     | `payload.type === "function_call"`                                                      | `type: "tool_use"` in content array                        |
+| Tool result format         | `type: "tool_result"` with `tool_use_id` (user message) | None in v1                                                                              | None in v1                                                 |
+| Name-to-result correlation | First-pass `tool_use_id → toolName` map                 | First-pass `call_id → questions` map (ask-user only)                                    | N/A                                                        |
+| Ask-user tool              | `AskUserQuestion`                                       | `request_user_input`                                                                    | `AskQuestion`                                              |
+| Ask-user answer recorded   | Yes — `record.toolUseResult.answers` keyed by question  | Yes — `function_call_output` keyed by question id                                       | No — Cursor writes no tool results                         |
+| Discovery                  | Direct encoded-dir lookup + glob fallback               | Dated directory glob (7-day window)                                                     | Direct encoded-dir lookup + agent-transcript glob fallback |
 
 ---
 

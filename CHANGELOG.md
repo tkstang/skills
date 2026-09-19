@@ -77,6 +77,19 @@
 
 ### Fixed
 
+- `session-observer` 1.0.49, `session-observer-collab` 1.0.38, `session-export-transcript` 2.0.6, and `session-fork-to-destination` 0.2.14 harden Codex identity boundaries by binding persistent observer cache hits to subsecond filesystem identity, rejecting malformed present lineage fields in the first native header, and preventing transcript export from selecting an invalid native identity through marker or fallback paths.
+- `session-observer` 1.0.48, `session-observer-collab` 1.0.37, `session-export-transcript` 2.0.5, and `session-fork-to-destination` 0.2.13 reject ID-less first Codex headers that precede native inherited headers, reject exact-pin ambiguity across distinct canonical Claude/Codex/Cursor sources while deduplicating path aliases, prefer Codex roots for unpinned export marker matches and marker-miss fallback, and fail stateful catch-up before delivery when saved state cannot be read. The observer release notes also cover the existing fail-closed missing-path watcher exit, marked-review state-read error, and transcript-shrink hard stop.
+- `session-observer` 1.0.47 and `session-observer-collab` 1.0.36 document the native Codex identity and lineage boundary, Claude human versus runtime-notification provenance, fail-closed saved-position binding, and exact scoped reset/re-arm procedure; `session-fork-to-destination` 0.2.12 aligns its discovery regression with the first physical Codex header contract.
+- `session-observer` 1.0.46, `session-observer-collab` 1.0.35,
+  `session-export-transcript` 2.0.4, and `session-fork-to-destination` 0.2.11
+  distinguish native Claude human input from runtime task notifications across
+  observer rendering and ranking, collaboration continuation, transcript
+  export, and fork previews.
+- Codex transcript identity now uses the first physical `session_meta` header,
+  corroborates recognized rollout filenames, and keeps root, direct-parent,
+  fork, and inherited-history lineage separate (`session-observer` 1.0.45,
+  `session-observer-collab` 1.0.34, `session-export-transcript` 2.0.3,
+  `session-fork-to-destination` 0.2.10).
 - `consensus-review` 0.1.12 rejects symlink and non-regular request files before opening them, and uses no-follow nonblocking open flags before bounded regular-file reads.
 - `consensus-review` 0.1.11 binds the deterministic clean and all-severity receipt fixtures byte-for-byte to `renderReviewMarkdown`, so receiver evidence cannot drift from renderer output.
 - Review host verification now treats a matching inherited parent as authoritative despite unrelated ambient markers, rejects explicit mismatches, and retains exact-single-marker verification when no parent is inherited (`consensus-review` 0.1.10, `create` 0.1.15, `decide` 0.1.15, `evaluate` 0.1.19, `panel` 0.1.12, `phone-a-friend` 0.1.11, `plan` 0.1.15, `refine` 0.1.18).

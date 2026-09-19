@@ -542,6 +542,39 @@ test('recordWatcherTarget stores resolved pinned target metadata', async () => {
   });
 });
 
+test('recordWatcherTarget requires owner re-arm before changing a leased source path', async () => {
+  await withTmpStateDir(async () => {
+    await watchState.startWatcher({
+      runtime: 'codex',
+      cwd: '/repo',
+      session: 'codex:leased',
+      pid: process.pid,
+      startedAt: '2026-09-18T12:00:00.000Z',
+    });
+    await watchState.recordWatcherTarget({
+      pid: process.pid,
+      target: {
+        runtime: 'codex',
+        sessionId: 'leased',
+        transcriptPath: '/tmp/original.jsonl',
+      },
+    });
+
+    await expect(
+      watchState.recordWatcherTarget({
+        pid: process.pid,
+        target: {
+          runtime: 'codex',
+          sessionId: 'leased',
+          transcriptPath: '/tmp/replacement.jsonl',
+        },
+      }),
+    ).rejects.toThrow(
+      /WATCH_TARGET_IDENTITY_MISMATCH.*original\.jsonl.*replacement\.jsonl.*re-arm/u,
+    );
+  });
+});
+
 test('persists a frame-index Cursor target with exact continuity and owner-only permissions', async () => {
   await withTmpStateDir(async (dir) => {
     await watchState.startWatcher({

@@ -196,6 +196,42 @@ async function copyCodexTranscript(
   return transcriptPath;
 }
 
+async function writeNativeCodexTranscript(
+  home: string,
+  cwd: string,
+  fileName: string,
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+  prefix = '',
+): Promise<string> {
+  const transcriptDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, fileName);
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'assistant', content: 'Done' },
+    },
+  ];
+  await writeFile(
+    transcriptPath,
+    prefix + records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
+  return transcriptPath;
+}
+
 // ---------------------------------------------------------------------------
 // Basic dispatch tests
 // ---------------------------------------------------------------------------
@@ -248,6 +284,63 @@ describe('CLI subcommand dispatch', () => {
           .map((candidate: any) => candidate.sessionId)
           .toSorted(),
       ).toEqual(['cursor-one', 'cursor-two']);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami exposes native Codex child lineage and rejects malformed first-header rollover', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-native-codex-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const childId = 'cccccccc-dddd-4ccc-8ccc-cccccccccccc';
+      const parentId = 'dddddddd-eeee-4ddd-8ddd-dddddddddddd';
+      const transcript = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'child.jsonl',
+        childId,
+        parentId,
+      );
+      const canonicalTranscript = await realpath(transcript);
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: childId,
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'codex',
+        session: childId,
+        nativeSessionId: childId,
+        rootSessionId: parentId,
+        parentSessionId: parentId,
+        transcript: canonicalTranscript,
+        source: 'harness-environment',
+      });
+
+      await rm(transcript);
+      const malformedChildId = 'eeeeeeee-ffff-4eee-8eee-eeeeeeeeeeee';
+      await writeNativeCodexTranscript(
+        home,
+        cwd,
+        `rollout-2026-09-18T10-00-00-${malformedChildId}.jsonl`,
+        parentId,
+        parentId,
+        '{malformed first line\n',
+      );
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: malformedChildId,
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
+        ambiguousIdentity: true,
+        code: 'SESSION_IDENTITY_INVALID',
+      });
+      expect(payload.candidates[0].sessionId).not.toBe(parentId);
     } finally {
       await rm(home, { recursive: true, force: true });
     }
@@ -1566,6 +1659,144 @@ describe('--runtime auto', () => {
 });
 
 describe('Cursor CLI state and delivery composition', () => {
+  test('stateless review ignores saved offsets while --mark-read rejects a mismatched binding', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-binding-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '14141414-aaaa-4141-8141-141414141414';
+      const selected = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'selected.jsonl',
+        sessionId,
+      );
+      const oldSource = join(home, 'old-source.jsonl');
+      await writeFile(oldSource, await readFile(selected, 'utf8'), 'utf8');
+      const stateDir = join(home, '.state');
+      await mkdir(stateDir, { recursive: true });
+      const statePath = join(stateDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              transcriptPath: oldSource,
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        }) + '\n',
+        'utf8',
+      );
+      const before = await readFile(statePath, 'utf8');
+      const baseArgs = [
+        'review',
+        '--runtime',
+        'codex',
+        '--session',
+        `codex:${sessionId}`,
+        '--cwd',
+        cwd,
+        '--json',
+      ];
+
+      const stateless = spawnCli(baseArgs, { HOME: home, STATE_DIR: stateDir });
+      expect(stateless.status, `${stateless.stderr}\n${stateless.stdout}`).toBe(
+        0,
+      );
+      expect(JSON.parse(stateless.stdout).sessionId).toBe(sessionId);
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+
+      const marked = spawnCli([...baseArgs, '--mark-read'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(marked.status, `${marked.stderr}\n${marked.stdout}`).toBe(1);
+      expect(JSON.parse(marked.stdout)).toMatchObject({
+        identityBlocked: true,
+        code: 'SAVED_POSITION_PATH_MISMATCH',
+      });
+      expect(await readFile(statePath, 'utf8')).toBe(before);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('review --mark-read fails before digest delivery when saved state cannot be read', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-state-read-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '15151515-aaaa-4151-8151-151515151515';
+      await writeNativeCodexTranscript(home, cwd, 'selected.jsonl', sessionId);
+      const stateDir = join(home, '.state');
+      await mkdir(join(stateDir, 'state.json'), { recursive: true });
+      const baseArgs = [
+        'review',
+        '--runtime',
+        'codex',
+        '--session',
+        `codex:${sessionId}`,
+        '--cwd',
+        cwd,
+        '--json',
+      ];
+
+      const stateless = spawnCli(baseArgs, { HOME: home, STATE_DIR: stateDir });
+      expect(stateless.status, `${stateless.stderr}\n${stateless.stdout}`).toBe(
+        0,
+      );
+      expect(JSON.parse(stateless.stdout).sessionId).toBe(sessionId);
+
+      const marked = spawnCli([...baseArgs, '--mark-read'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(marked.status).toBe(1);
+      expect(marked.stdout).toBe('');
+      expect(marked.stderr).toContain(
+        '[session-observer] Unexpected error: EISDIR:',
+      );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up fails before digest delivery when saved state cannot be read', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-catch-up-state-read-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sessionId = '16161616-aaaa-4161-8161-161616161616';
+      await writeNativeCodexTranscript(home, cwd, 'selected.jsonl', sessionId);
+      const stateDir = join(home, '.state');
+      await mkdir(join(stateDir, 'state.json'), { recursive: true });
+
+      const result = spawnCli(
+        [
+          'catch-up',
+          '--runtime',
+          'codex',
+          '--session',
+          `codex:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain('Failed to read session state: EISDIR:');
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('pinned review renders digest v2 and advances only through --mark-read delivery finalization', async () => {
     const home = await realpath(
       await mkdtemp(join(tmpdir(), 'cli-cursor-review-v2-')),

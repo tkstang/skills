@@ -1341,8 +1341,11 @@ async function pollTargets(
             },
           });
         }
+        continue;
       }
-      continue;
+      throw new Error(
+        `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`,
+      );
     }
 
     const deadlineReady =

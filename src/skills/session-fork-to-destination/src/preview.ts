@@ -109,7 +109,9 @@ export function sanitizePreviewConversationEntries(
       entry.kind === 'message' &&
       (entry.role === 'user' || entry.role === 'assistant') &&
       entry.origin !== 'automatic-control' &&
-      entry.displayRole !== 'automatic-control',
+      entry.displayRole !== 'automatic-control' &&
+      entry.origin !== 'runtime-notification' &&
+      entry.displayRole !== 'runtime-notification',
   );
   return sanitizeEntries(structurallySafe, { runtime })
     .map((entry) => ({ role: entry.role, text: entry.text.trim() }))

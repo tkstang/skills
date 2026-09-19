@@ -859,6 +859,56 @@ describe('Cursor digest v2 behavior', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildDigest', () => {
+  test('carries Codex child identity and warns about inherited parent context', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'codex-child-digest-'));
+    try {
+      const childId = '77777777-aaaa-4777-8777-777777777777';
+      const rootId = '88888888-aaaa-4888-8888-888888888888';
+      const transcriptPath = join(tmpDir, 'child.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: childId,
+              session_id: rootId,
+              parent_thread_id: rootId,
+              cwd: '/workspace/child',
+              subagent_history_start_ordinal: 9,
+            },
+          },
+          {
+            type: 'response_item',
+            ordinal: 9,
+            payload: {
+              type: 'message',
+              role: 'assistant',
+              content: 'Child reply',
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      const digest = await buildDigest('codex', transcriptPath);
+      expect(digest).toMatchObject({
+        sessionId: childId,
+        nativeSessionId: childId,
+        rootSessionId: rootId,
+        parentSessionId: rootId,
+        subagentHistoryStartOrdinal: 9,
+      });
+      expect(digest.warnings.join('\n')).toContain(
+        'inherited parent context before ordinal 9',
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test.each(automaticWakeFixtures)(
     'classifies %s wake envelopes as automatic control input',
     async (runtime, fixture) => {
@@ -936,6 +986,53 @@ describe('buildDigest', () => {
         }),
       );
       expect(digest.entries[0]).not.toHaveProperty('origin');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('labels native Claude task notifications without treating them as human input', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-claude-origin-'));
+    try {
+      const transcriptPath = join(tmpDir, 'notification.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'user',
+            sessionId: 'claude-notification',
+            origin: { kind: 'task-notification' },
+            message: {
+              role: 'user',
+              content: 'Background task completed with status success.',
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId: 'claude-notification',
+            message: { role: 'assistant', content: 'Result reviewed.' },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+
+      const digest = await buildDigest('claude-code', transcriptPath);
+      expect(digest.entries[0]).toMatchObject({
+        role: 'user',
+        kind: 'message',
+        origin: 'runtime-notification',
+        displayRole: 'runtime-notification',
+      });
+      expect(digest.engagement).toMatchObject({
+        status: 'unengaged',
+        genuineUserMessages: 0,
+        syntheticUserMessages: 1,
+      });
+      expect(renderMarkdown(digest)).toContain('### Runtime notification');
+      expect(JSON.parse(renderJson(digest)).entries[0]).toMatchObject({
+        origin: 'runtime-notification',
+      });
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1424,6 +1521,7 @@ describe('buildDigest', () => {
       for (let i = 0; i < 12; i++) {
         records.push({
           sessionId: 'sess-large-fallback',
+          ...(i === 0 ? { origin: { kind: 'task-notification' } } : {}),
           message: {
             role: i % 2 === 0 ? 'user' : 'assistant',
             content: `${i}:${longText}`,
@@ -1456,18 +1554,13 @@ describe('buildDigest', () => {
         {
           transcriptPath,
           indexBase: 'zero-based-jsonl-record-index',
-          recordIndex: 0,
-        },
-        {
-          transcriptPath,
-          indexBase: 'zero-based-jsonl-record-index',
           recordIndex: 2,
         },
       ]);
       expect(digest.entries[0].text).toBe(`4:${longText}`);
       expect(renderMarkdown(digest)).toContain('User-message recovery');
       expect(renderMarkdown(digest)).toContain(
-        `${transcriptPath} records 0, 2 (zero-based JSONL indices).`,
+        `${transcriptPath} records 2 (zero-based JSONL indices).`,
       );
       expect(JSON.parse(renderJson(digest)).accounting.recovery).toEqual(
         digest.accounting.recovery,

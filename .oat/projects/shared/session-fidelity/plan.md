@@ -6,7 +6,7 @@ oat_last_updated: 2026-09-19
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p06"]
+oat_plan_hill_phases: ['p06']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_generated: false
@@ -328,22 +328,25 @@ User selected managed **High** dispatch, **Disabled** additional phase gates, an
 
 Existing pending scaffold rows are preserved. Quick mode has no spec; that legacy placeholder does not imply a missing spec requirement. The design self-review and Fable collaboration are distinct from the formal plan artifact review below.
 
-| Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| p02    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| final  | code     | pending         | -          | -                                                           | -             | -          | -           |
-| spec   | artifact | pending         | -          | -                                                           | -             | -          | -           |
-| design | artifact | pending         | -          | -                                                           | -             | -          | -           |
-| p03    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| p04    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| p05    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| p06    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
-| p00    | code     | pending         | -          | -                                                           | -             | -          | -           |
-| plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T004303Z.md | -             | -          | -           |
-| plan   | artifact | passed          | 2026-09-19 | -                                                           | -             | -          | -           |
+| Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target |
+| ------ | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | ----------- |
+| p01    | code     | fixes_required  | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                   | 396307140acc10879e14a7df5307365a5dcb306c | auto       | codex-high  |
+| p01    | code     | fixes_completed | 2026-09-19 | reviews/p01-review-2026-09-19T120500Z.md                   | 8affc30a56e8f4c33c6bc50a6d632d93d37baa01 | auto       | codex-high  |
+| p01    | code     | passed          | 2026-09-19 | reviews/p01-review-2026-09-19T122907Z-round2.md            | d4069b773c3784b37da796ba40dbd5c3cbc6d228 | auto       | codex-high  |
+| p02    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| final  | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| spec   | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
+| design | artifact | pending         | -          | -                                                           | -                                        | -          | -           |
+| p03    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| p04    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| p05    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| p06    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| plan   | artifact | passed          | 2026-09-19 | -                                                           | -                                        | -          | -           |
+| p00    | code     | pending         | -          | -                                                           | -                                        | -          | -           |
+| plan   | artifact | passed          | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T003400Z.md | -                                        | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T004303Z.md | -                                        | -          | -           |
+| plan   | artifact | passed          | 2026-09-19 | -                                                           | -                                        | -          | -           |
+| p00    | code     | passed          | 2026-09-19 | reviews/p00-review-2026-09-19T014930Z.md                    | 1d650f130d7b56cb790fbed15733afd625990c20 | auto       | -           |
 
 Structured plan artifact review passed at `56e6b07f774ccba7d472cf4716460c6bf2b77dc5` (request `session-fidelity-plan-review-02`, inherited gpt-6-astra/high): no findings; both prior Medium findings resolved through already-authorized fixture simplification and removal of inventory promotion. The artifact row is the structured in-memory review disposition required by quick-start Step 3.6, which emits no review file; provenance is recorded here rather than in code-review-only columns. The first evaluated lifecycle gate passed its Important threshold, and its qualified handoff was received. Four Medium and three Minor findings were dispositioned in implementation.md and verified by the final gate. The final gate also passed (0 Critical/Important); its one Medium and three Minor precision corrections were applied and checked directly. The latest event remains `fixes_completed` rather than claiming a further independent re-review. No unresolved finding remains; detailed receipts and verification are in implementation.md. Gate scope provenance: legacy-plan-only; the reviewer also consulted discovery/design.
 
@@ -351,7 +354,7 @@ Focused amendment review: inherited gpt-6-astra/high reviewer, exact `7318b358..
 
 ## Implementation Complete
 
-**Planned total:** 7 phases, 19 tasks; 0 implemented.
+**Planned total:** 7 phases, 19 tasks; 3 implemented.
 
 - p00: 1 task — root-owned local stack arrangement.
 - p01: 5 tasks — native identity, provenance, documentation and validation.

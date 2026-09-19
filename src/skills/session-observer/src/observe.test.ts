@@ -17,11 +17,12 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { expect, describe, test } from 'vitest';
+import { expect, describe, test, vi } from 'vitest';
 
 import { getCursorSession, mutateCursorState } from './lib/cursor-state.js';
 import { renderMarkdown } from './lib/digest.js';
-import { observeCatchUp } from './lib/observe.js';
+import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
+import * as stateLib from './lib/state.js';
 
 const growInPlaceBeforeFixture = new URL(
   './fixtures/cursor/framed-grow-in-place-before.jsonl',
@@ -129,6 +130,45 @@ async function writeCodexTranscript(
   return transcriptPath;
 }
 
+async function writeNativeCodexTranscript(
+  home: string,
+  cwd: string,
+  fileName: string,
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+): Promise<string> {
+  const dir = join(home, '.codex', 'sessions', '2026', '09', '18');
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, fileName);
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'user', content: 'Question' },
+    },
+    {
+      type: 'response_item',
+      payload: { type: 'message', role: 'assistant', content: 'Answer' },
+    },
+  ];
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
+  return transcriptPath;
+}
+
 type CursorFixtureFrame = Record<string, unknown> | string;
 
 async function writeCursorTranscript(
@@ -159,15 +199,64 @@ async function writeCursorTranscript(
   return transcriptPath;
 }
 
-async function injectLegacyStateWriteFailure(
-  stateDir: string,
-): Promise<string> {
-  const statePath = join(stateDir, 'state.json');
-  await mkdir(statePath);
-  return statePath;
-}
-
 describe('observeCatchUp', () => {
+  test('exact Codex pins fail closed when duplicate canonical sources claim the native id', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-duplicate-native';
+      const nativeId = '99999999-aaaa-4999-8999-999999999999';
+      await writeNativeCodexTranscript(home, cwd, 'first.jsonl', nativeId);
+      await writeNativeCodexTranscript(home, cwd, 'second.jsonl', nativeId);
+
+      const outcome = await observeCatchUp({
+        runtime: 'codex',
+        cwd,
+        session: `codex:${nativeId}`,
+      } as any);
+
+      expect(outcome).toMatchObject({
+        ok: false,
+        kind: 'ambiguousIdentity',
+        exitCode: 3,
+        payload: {
+          code: 'SESSION_IDENTITY_AMBIGUOUS',
+          candidates: expect.arrayContaining([
+            expect.objectContaining({ sessionId: nativeId }),
+            expect.objectContaining({ sessionId: nativeId }),
+          ]),
+        },
+      });
+    });
+  });
+
+  test('whoami returns native Codex lineage instead of inherited root identity', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/whoami-native-child';
+      const childId = 'aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa';
+      const rootId = 'bbbbbbbb-cccc-4bbb-8bbb-bbbbbbbbbbbb';
+      const transcript = await writeNativeCodexTranscript(
+        home,
+        cwd,
+        'child.jsonl',
+        childId,
+        rootId,
+      );
+
+      await expect(
+        resolveSelfIdentity(cwd, { CODEX_THREAD_ID: childId }),
+      ).resolves.toEqual({
+        identity: expect.objectContaining({
+          runtime: 'codex',
+          session: childId,
+          nativeSessionId: childId,
+          rootSessionId: rootId,
+          parentSessionId: rootId,
+          transcript,
+          source: 'harness-environment',
+        }),
+      });
+    });
+  });
+
   test('builds a catch-up digest from the prior offset and only rewrites changed state', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/observe-prior-offset';
@@ -208,6 +297,114 @@ describe('observeCatchUp', () => {
       expect(second.digest.range.newRecords).toBe(0);
       expect(second.markedRead).toBe(false);
       expect(await readFile(statePath, 'utf8')).toBe(afterFirst);
+    });
+  });
+
+  test.each([
+    { label: 'missing', storedPath: null, code: 'SAVED_POSITION_PATH_MISSING' },
+    {
+      label: 'mismatched',
+      storedPath: 'old-source.jsonl',
+      code: 'SAVED_POSITION_PATH_MISMATCH',
+    },
+  ])(
+    'fails closed on a $label nonzero saved transcript binding without changing state',
+    async ({ storedPath, code }) => {
+      await withTempSessionHome(async (home, stateDir) => {
+        const cwd = '/test/observe-saved-binding';
+        const sessionId = '12121212-aaaa-4121-8121-121212121212';
+        const selected = await writeNativeCodexTranscript(
+          home,
+          cwd,
+          'selected.jsonl',
+          sessionId,
+        );
+        if (storedPath) {
+          await writeFile(
+            join(home, storedPath),
+            await readFile(selected, 'utf8'),
+            'utf8',
+          );
+        }
+        const statePath = join(stateDir, 'state.json');
+        const state = {
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 3,
+              ...(storedPath ? { transcriptPath: join(home, storedPath) } : {}),
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        };
+        await writeFile(statePath, JSON.stringify(state, null, 2) + '\n');
+        const before = await readFile(statePath, 'utf8');
+
+        const result = await observeCatchUp({
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+        } as any);
+
+        expect(result).toMatchObject({
+          ok: false,
+          kind: 'identityBlocked',
+          exitCode: 1,
+          payload: { code },
+        });
+        expect(await readFile(statePath, 'utf8')).toBe(before);
+      });
+    },
+  );
+
+  test('preserves a valid nonzero legacy Codex offset on its original source', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-valid-legacy-binding';
+      const sessionId = 'legacy-codex-binding';
+      const transcriptPath = await writeCodexTranscript(
+        home,
+        cwd,
+        'legacy.jsonl',
+        sessionId,
+        [
+          { role: 'user', content: 'already consumed' },
+          { role: 'assistant', content: 'new legacy message' },
+        ],
+      );
+      const statePath = join(stateDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              lastRecordIndex: 2,
+              lastTotalRecords: 2,
+              transcriptPath,
+              recordedCwd: cwd,
+              watchedByPid: null,
+            },
+          },
+        }) + '\n',
+      );
+
+      const result: any = await observeCatchUp({
+        runtime: 'codex',
+        cwd,
+        session: `codex:${sessionId}`,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.fromIndex).toBe(2);
+      expect(result.digest.entries).toEqual([
+        expect.objectContaining({ text: 'new legacy message' }),
+      ]);
     });
   });
 
@@ -289,36 +486,72 @@ describe('observeCatchUp', () => {
     });
   });
 
-  test('returns an output-ready legacy digest when state mutation fails', async () => {
+  test('fails before returning a legacy digest when persisted state cannot be read', async () => {
     await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/observe-state-failure';
+      const cwd = '/test/observe-state-read-failure';
       await writeClaudeTranscript(
         home,
         cwd,
-        'observe-state-failure.jsonl',
-        'observe-state-failure',
+        'observe-state-read-failure.jsonl',
+        'observe-state-read-failure',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Must not be delivered.' },
+        ],
+      );
+      await mkdir(join(stateDir, 'state.json'));
+
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-state-read-failure',
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        kind: 'error',
+        exitCode: 1,
+        message: expect.stringContaining('EISDIR'),
+      });
+      expect(result).not.toHaveProperty('digest');
+    });
+  });
+
+  test('returns an output-ready legacy digest when state finalization fails after a successful read', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-state-write-failure';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-state-write-failure.jsonl',
+        'observe-state-write-failure',
         [
           { role: 'user', content: 'Synthetic direction.' },
           { role: 'assistant', content: 'Synthetic response survives.' },
         ],
       );
-      const failedStatePath = await injectLegacyStateWriteFailure(stateDir);
+      const markRead = vi
+        .spyOn(stateLib, 'markRead')
+        .mockRejectedValueOnce(
+          new Error('injected state finalization failure'),
+        );
+      try {
+        const result = await observeCatchUp({
+          runtime: 'claude-code',
+          cwd,
+          session: 'claude-code:observe-state-write-failure',
+        });
 
-      const result = await observeCatchUp({
-        runtime: 'claude-code',
-        cwd,
-        session: 'claude-code:observe-state-failure',
-      });
-
-      expect(result.ok).toBe(true);
-      if (!result.ok) throw new Error(result.message);
-      expect(result.markedRead).toBe(false);
-      expect(renderMarkdown(result.digest)).toContain(
-        'Synthetic response survives.',
-      );
-      await expect(readFile(failedStatePath)).rejects.toMatchObject({
-        code: 'EISDIR',
-      });
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error(result.message);
+        expect(result.markedRead).toBe(false);
+        expect(markRead).toHaveBeenCalledOnce();
+        expect(renderMarkdown(result.digest)).toContain(
+          'Synthetic response survives.',
+        );
+      } finally {
+        markRead.mockRestore();
+      }
     });
   });
 

@@ -138,7 +138,9 @@ export function sanitizeEntries<T extends SanitizableEntry>(
     // runtime and turn status.
     if (
       entry?.origin === 'automatic-control' ||
-      entry?.displayRole === 'automatic-control'
+      entry?.displayRole === 'automatic-control' ||
+      entry?.origin === 'runtime-notification' ||
+      entry?.displayRole === 'runtime-notification'
     ) {
       return false;
     }

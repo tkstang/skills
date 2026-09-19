@@ -143,8 +143,8 @@ function isNoOpText(text) {
 function isAutomaticControlAcknowledgement(text) {
   return AUTOMATIC_ACKNOWLEDGMENT.test(text) || AUTOMATIC_STATUS_ECHO.test(text);
 }
-function messageEntry(role, text, recordIndex, displayRole) {
-  if (role === "user") {
+function messageEntry(role, text, recordIndex, displayRole, origin, allowAutomaticControl = true) {
+  if (role === "user" && allowAutomaticControl) {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -163,8 +163,32 @@ function messageEntry(role, text, recordIndex, displayRole) {
     text,
     recordIndex,
     kind: "message",
-    ...displayRole ? { displayRole } : {}
+    ...displayRole ? { displayRole } : {},
+    ...origin ? { origin } : {}
   };
+}
+function claudeUserRecordProvenance(record) {
+  const origin = isObject(record.origin) ? asString(record.origin.kind) : null;
+  if (origin === null || origin === void 0) return "legacy-absent";
+  if (origin === "human") return "human";
+  if (origin === "task-notification") return "runtime-notification";
+  return "unmarked";
+}
+function claudeEntryProvenance(provenance) {
+  if (provenance === "human") return { origin: "human" };
+  if (provenance === "runtime-notification") {
+    return {
+      displayRole: "runtime-notification",
+      origin: "runtime-notification"
+    };
+  }
+  return {};
+}
+function claudeAskUserAnswerProvenance(provenance) {
+  if (provenance === "legacy-absent" || provenance === "human") {
+    return { origin: "human" };
+  }
+  return claudeEntryProvenance(provenance);
 }
 function truncate(str, limit) {
   if (str.length <= limit) return str;
@@ -521,23 +545,54 @@ function consistentNonEmptyString(values) {
   }
   return observed;
 }
-function codexLineageMetadata(records) {
-  const sessionMetadata = records.filter(
-    (record) => record.type === "session_meta" && isObject(record.payload)
-  );
-  const payloads = sessionMetadata.map(
-    (record) => record.payload
-  );
-  const nativeValues = payloads.filter((payload) => Object.hasOwn(payload, "id")).map((payload) => payload.id);
-  const rootValues = payloads.filter((payload) => Object.hasOwn(payload, "session_id")).map((payload) => payload.session_id);
-  const forkValues = payloads.filter((payload) => Object.hasOwn(payload, "forked_from_id")).map((payload) => payload.forked_from_id);
-  const nativeSessionId = consistentNonEmptyString(nativeValues);
-  const rootSessionId = consistentNonEmptyString(rootValues);
-  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+var CODEX_ROLLOUT_FILENAME_PATTERN = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexRolloutFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
+}
+function firstCodexSessionHeader(records) {
+  return records.find((record) => record.type === "session_meta");
+}
+function codexDirectParentValues(payload) {
+  const values = [];
+  if (Object.hasOwn(payload, "parent_thread_id")) {
+    values.push(payload.parent_thread_id);
+  }
+  const source = isObject(payload.source) ? payload.source : void 0;
+  const subagent = source && isObject(source.subagent) ? source.subagent : void 0;
+  const threadSpawn = subagent && isObject(subagent.thread_spawn) ? subagent.thread_spawn : void 0;
+  if (threadSpawn && Object.hasOwn(threadSpawn, "parent_thread_id")) {
+    values.push(threadSpawn.parent_thread_id);
+  }
+  return values;
+}
+function codexLineageMetadata(firstHeader) {
+  if (!isObject(firstHeader.payload)) return null;
+  const payload = firstHeader.payload;
+  if (!Object.hasOwn(payload, "id")) return {};
+  const nativeSessionId = consistentNonEmptyString([payload.id]);
+  if (nativeSessionId === void 0) return null;
+  const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  if (Object.hasOwn(payload, "session_id") && rootSessionId === void 0) {
+    return null;
+  }
+  const parentValues = codexDirectParentValues(payload);
+  const parentSessionId = consistentNonEmptyString(parentValues);
+  if (parentValues.length > 0 && parentSessionId === void 0) return null;
+  const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  if (Object.hasOwn(payload, "forked_from_id") && forkedFromSessionId === void 0) {
+    return null;
+  }
+  const historyBoundary = payload.subagent_history_start_ordinal;
+  const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
+  if (Object.hasOwn(payload, "subagent_history_start_ordinal") && subagentHistoryStartOrdinal === void 0) {
+    return null;
+  }
   return {
-    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+    nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },
-    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId }
+    ...parentSessionId === void 0 ? {} : { parentSessionId },
+    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId },
+    ...subagentHistoryStartOrdinal === void 0 ? {} : { subagentHistoryStartOrdinal }
   };
 }
 function claudeRecordLineage(records) {
@@ -620,7 +675,23 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     };
   }
   if (runtime === "codex") {
-    let sessionId;
+    const firstHeader = firstCodexSessionHeader(records);
+    const lineage = firstHeader ? codexLineageMetadata(firstHeader) : {};
+    if (lineage === null) return null;
+    const nativeSessionId = lineage.nativeSessionId;
+    const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader ? codexSessionIdFromRecord(firstHeader) : void 0;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records.slice(firstHeaderIndex + 1).some(
+      (record) => record.type === "session_meta" && isObject(record.payload) && Object.hasOwn(record.payload, "id")
+    );
+    if (firstHeader && nativeSessionId === void 0 && firstLegacySessionId === void 0 && (filenameSessionId !== void 0 || laterNativeHeaderPresent)) {
+      return null;
+    }
+    if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
+      return null;
+    }
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {
@@ -638,7 +709,7 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
     }
-    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
+    return { sessionId, recordedCwd, ...lineage };
   }
   if (runtime === "cursor") {
     const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
@@ -694,8 +765,7 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
         recordIndex,
         kind: "ask_user",
         toolName,
-        // Claude has no auto-resolution: a recorded answer is the operator's.
-        origin: "human"
+        ...claudeAskUserAnswerProvenance(opts.userProvenance)
       };
     }
   }
@@ -707,17 +777,27 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
     recordIndex,
     kind: "ask_user",
     toolName,
-    origin: "human"
+    ...claudeAskUserAnswerProvenance(opts.userProvenance)
   };
 }
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
+  const provenance = claudeEntryProvenance(opts.userProvenance);
   if (typeof content === "string") {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: "command_message" }];
     }
-    return [messageEntry(role, content, recordIndex)];
+    return [
+      messageEntry(
+        role,
+        content,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
+      )
+    ];
   }
   if (!Array.isArray(content)) return [];
   return content.flatMap((block) => {
@@ -775,7 +855,16 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: "command_message" }];
     }
-    return text ? [messageEntry(role, text, recordIndex)] : [];
+    return text ? [
+      messageEntry(
+        role,
+        text,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
+      )
+    ] : [];
   });
 }
 function normalizeClaudeCode(records, opts) {
@@ -835,7 +924,8 @@ function normalizeClaudeCode(records, opts) {
       includeToolResults,
       includeCommandMessages,
       toolNameById,
-      toolUseResult: record.toolUseResult
+      toolUseResult: record.toolUseResult,
+      userProvenance: role === "user" ? claudeUserRecordProvenance(record) : "legacy-absent"
     });
   });
 }
@@ -2311,7 +2401,7 @@ function isHiddenBootstrapUserText(text) {
 }
 function isSyntheticForEngagement(entry) {
   if (entry.role !== "user") return false;
-  return entry.kind === "command_message" || entry.origin === "automatic-control" || isHiddenBootstrapUserText(entry.text);
+  return entry.kind === "command_message" || entry.origin === "automatic-control" || entry.origin === "runtime-notification" || isHiddenBootstrapUserText(entry.text);
 }
 function publicBootstrapIndexes(indexes) {
   return [...indexes].toSorted((a, b) => a - b);
@@ -2456,7 +2546,7 @@ function omittedUserMessageRecoveryPointers(entriesBeforeTailSlice, retainedEntr
   const pointers = [];
   for (const entry of entriesBeforeTailSlice) {
     const recoveryRecordIndex = entry.sourceRecordIndex ?? entry.recordIndex;
-    if (retained.has(entry) || entry.role !== "user" || entry.origin === "automatic-control" || seenRecordIndexes.has(recoveryRecordIndex)) {
+    if (retained.has(entry) || entry.role !== "user" || entry.origin === "automatic-control" || entry.origin === "runtime-notification" || seenRecordIndexes.has(recoveryRecordIndex)) {
       continue;
     }
     seenRecordIndexes.add(recoveryRecordIndex);
@@ -2971,19 +3061,15 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
   const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
-  let sessionId = opts.sessionId;
-  let recordedCwd = opts.recordedCwd ?? null;
-  if (!sessionId || recordedCwd === void 0) {
-    try {
-      const meta = await extractMeta(runtime, transcriptPath);
-      if (!sessionId) sessionId = meta?.sessionId ?? "unknown";
-      if (recordedCwd === null && meta?.recordedCwd)
-        recordedCwd = meta.recordedCwd;
-    } catch {
-      if (!sessionId) sessionId = "unknown";
-    }
-  }
+  const identity = opts.identity ?? extractMetaFromRecords(runtime, records, transcriptPath);
+  let sessionId = opts.sessionId ?? identity?.sessionId;
+  const recordedCwd = opts.recordedCwd ?? identity?.recordedCwd ?? null;
   sessionId ??= "unknown";
+  if (runtime === "codex" && identity?.nativeSessionId && (identity.parentSessionId || identity.rootSessionId && identity.nativeSessionId !== identity.rootSessionId)) {
+    const boundary = identity.subagentHistoryStartOrdinal;
+    const warning = boundary === void 0 ? `Codex child session ${identity.nativeSessionId} may include inherited parent context; ownership boundary is unknown.` : `Codex child session ${identity.nativeSessionId} includes inherited parent context before ordinal ${boundary}.`;
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
   const effectiveFromIndex = fromIndex > totalRecords ? 0 : fromIndex;
   if (fromIndex > totalRecords && totalRecords > 0) {
     warnings.push(
@@ -3115,6 +3201,13 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     schemaVersion: SCHEMA_VERSION2,
     runtime,
     sessionId,
+    ...identity?.nativeSessionId ? { nativeSessionId: identity.nativeSessionId } : {},
+    ...identity?.rootSessionId ? { rootSessionId: identity.rootSessionId } : {},
+    ...identity?.parentSessionId ? { parentSessionId: identity.parentSessionId } : {},
+    ...identity?.forkedFromSessionId ? { forkedFromSessionId: identity.forkedFromSessionId } : {},
+    ...identity?.subagentHistoryStartOrdinal === void 0 ? {} : {
+      subagentHistoryStartOrdinal: identity.subagentHistoryStartOrdinal
+    },
     transcriptPath,
     recordedCwd,
     matchedTier: opts.matchedTier ?? null,
@@ -3168,6 +3261,16 @@ var SessionDiscoveryError = class extends Error {
     super(code);
     this.name = "SessionDiscoveryError";
     this.code = code;
+  }
+};
+var ExactSessionIdentityError = class extends Error {
+  code;
+  candidates;
+  constructor(code, candidates) {
+    super(code);
+    this.name = "ExactSessionIdentityError";
+    this.code = code;
+    this.candidates = candidates;
   }
 };
 var ExactAllDiscoveryBudget = class {
@@ -3480,6 +3583,10 @@ async function saveCwdCache(cache) {
 function cwdCacheKey(transcriptPath, mtimeSec) {
   return `${transcriptPath}:${mtimeSec}`;
 }
+var CODEX_ROLLOUT_FILENAME_PATTERN2 = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN2.exec(basename2(transcriptPath))?.[1];
+}
 async function discoverClaudeCode(targetCwd, cache, options) {
   const [projectsRoot] = discoverPaths("claude-code");
   const budget = exactAllBudget("claude-code", options);
@@ -3688,6 +3795,9 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
     const key = cwdCacheKey(transcriptPath, mtime);
     let recordedCwd;
     let sessionId;
+    let meta;
+    let identityStatus;
+    const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived = null;
     if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
@@ -3702,11 +3812,14 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       );
       if (boundedDerived === null) continue;
     }
-    if (persistentCacheAllowed && cwdCache[key] && cwdCache[key].sessionId !== void 0) {
-      recordedCwd = cwdCache[key].recordedCwd;
-      sessionId = cwdCache[key].sessionId;
+    const cached = persistentCacheAllowed ? cwdCache[key] : void 0;
+    if (cached?.identityVersion === 2 && cached.fileSize === fileStat.size && cached.fileMtimeMs === fileStat.mtimeMs && cached.fileDev === fileStat.dev && cached.fileIno === fileStat.ino && cached.sessionId !== void 0 && cached.meta !== void 0 && cached.identityStatus !== void 0) {
+      recordedCwd = cached.recordedCwd;
+      sessionId = cached.sessionId;
+      meta = cached.meta;
+      identityStatus = cached.identityStatus;
     } else {
-      let meta = boundedDerived?.meta;
+      meta = boundedDerived?.meta ?? null;
       if (!budget) {
         try {
           meta = await extractMeta("codex", transcriptPath);
@@ -3715,9 +3828,21 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
         }
       }
       recordedCwd = meta?.recordedCwd ?? null;
-      sessionId = meta?.sessionId ?? basename2(transcriptPath).replace(/\.jsonl$/, "");
+      sessionId = meta?.sessionId ?? filenameSessionId ?? basename2(transcriptPath).replace(/\.jsonl$/, "");
+      identityStatus = meta ? meta.nativeSessionId ? "native" : "legacy" : "invalid";
       if (persistentCacheAllowed) {
-        cwdCache[key] = { recordedCwd, sessionId };
+        cwdCache[key] = {
+          recordedCwd,
+          sessionId,
+          identityVersion: 2,
+          fileSize: fileStat.size,
+          fileMtimeMs: fileStat.mtimeMs,
+          fileDev: fileStat.dev,
+          fileIno: fileStat.ino,
+          meta,
+          identityStatus,
+          ...filenameSessionId ? { filenameSessionId } : {}
+        };
         cacheModified = true;
       }
     }
@@ -3726,6 +3851,15 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
       transcriptPath,
       sessionId,
       recordedCwd,
+      identityStatus,
+      ...filenameSessionId ? { filenameSessionId } : {},
+      ...meta?.nativeSessionId ? { nativeSessionId: meta.nativeSessionId } : {},
+      ...meta?.rootSessionId ? { rootSessionId: meta.rootSessionId } : {},
+      ...meta?.parentSessionId ? { parentSessionId: meta.parentSessionId } : {},
+      ...meta?.forkedFromSessionId ? { forkedFromSessionId: meta.forkedFromSessionId } : {},
+      ...meta?.subagentHistoryStartOrdinal === void 0 ? {} : {
+        subagentHistoryStartOrdinal: meta.subagentHistoryStartOrdinal
+      },
       mtime,
       size: fileStat.size,
       ageSec,
@@ -4310,10 +4444,40 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
 async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   const cache = new ClassificationCache();
   const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
+  const invalidMatches = candidates.filter(
+    (candidate) => candidate.identityStatus === "invalid" && candidate.filenameSessionId === sessionId
+  );
+  if (invalidMatches.length > 0) {
+    throw new ExactSessionIdentityError(
+      "SESSION_IDENTITY_INVALID",
+      invalidMatches
+    );
+  }
   const matches = candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
   );
-  return matches.length === 1 ? matches[0] : null;
+  const canonicalMatches = /* @__PURE__ */ new Map();
+  for (const candidate of matches) {
+    let canonical = candidate.transcriptPath;
+    try {
+      canonical = await realpath(candidate.transcriptPath);
+    } catch {
+    }
+    if (!canonicalMatches.has(canonical)) {
+      canonicalMatches.set(
+        canonical,
+        runtime === "codex" ? { ...candidate, transcriptPath: canonical } : candidate
+      );
+    }
+  }
+  const distinctMatches = [...canonicalMatches.values()];
+  if (distinctMatches.length > 1) {
+    throw new ExactSessionIdentityError(
+      "SESSION_IDENTITY_AMBIGUOUS",
+      distinctMatches
+    );
+  }
+  return distinctMatches[0] ?? null;
 }
 async function gitWorktrees(cwd) {
   try {
@@ -4405,7 +4569,11 @@ function hasAssistantAndUser(candidate) {
     candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser
   );
 }
+function isCodexChild(candidate) {
+  return candidate.runtime === "codex" && typeof candidate.nativeSessionId === "string" && (typeof candidate.parentSessionId === "string" || typeof candidate.rootSessionId === "string" && candidate.nativeSessionId !== candidate.rootSessionId);
+}
 function compareCandidatePreference(a, b) {
+  if (isCodexChild(a) !== isCodexChild(b)) return isCodexChild(a) ? 1 : -1;
   if (isEngaged(a) !== isEngaged(b)) return isEngaged(a) ? -1 : 1;
   if (hasAssistantAndUser(a) !== hasAssistantAndUser(b)) {
     return hasAssistantAndUser(a) ? -1 : 1;
@@ -4431,6 +4599,7 @@ function sizesClose(a, b) {
   return smaller / larger >= CLOSE_SIZE_RATIO;
 }
 function closeEngagedTie(winner, candidate, tieWindowSec) {
+  if (isCodexChild(winner) !== isCodexChild(candidate)) return false;
   if (!isEngaged(winner) || !isEngaged(candidate)) return false;
   if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate))
     return false;
@@ -4521,6 +4690,7 @@ import {
   open as open5,
   readFile as readFile4,
   readdir as readdir2,
+  realpath as realpath2,
   rename as rename3,
   stat as stat3,
   unlink as unlink3
@@ -4858,6 +5028,134 @@ async function loadLegacyState() {
   } finally {
     await releaseLock2(lock, owner);
   }
+}
+function savedPositionResetMessage(code, runtime, sessionId, expectedPath, observedSessionId, observedPath) {
+  return `${code}: saved position expected identity ${runtime}:${sessionId} at ${expectedPath}; observed identity ${runtime}:${observedSessionId} at ${observedPath}. Run session-observer state reset --session ${runtime}:${sessionId} and retry.`;
+}
+async function validateSavedPosition(runtime, sessionId, selectedTranscriptPath, entry) {
+  let canonicalSelectedPath;
+  try {
+    canonicalSelectedPath = await realpath2(selectedTranscriptPath);
+  } catch {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry?.transcriptPath ?? "(missing)",
+        "(unavailable)",
+        selectedTranscriptPath
+      )
+    };
+  }
+  if (entry === null || entry.lastRecordIndex === 0) {
+    return { status: "new", canonicalTranscriptPath: canonicalSelectedPath };
+  }
+  let records;
+  try {
+    records = await readRecords(canonicalSelectedPath);
+  } catch {
+    records = null;
+  }
+  const meta = records ? extractMetaFromRecords(runtime, records, canonicalSelectedPath) : null;
+  const observedSessionId = meta?.sessionId ?? "(invalid)";
+  if (!Number.isSafeInteger(entry.lastRecordIndex) || entry.lastRecordIndex < 0 || typeof entry.transcriptPath !== "string" || entry.transcriptPath.length === 0) {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath ?? "(missing)",
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  let canonicalStoredPath;
+  try {
+    canonicalStoredPath = await realpath2(entry.transcriptPath);
+  } catch {
+    const code = "SAVED_POSITION_PATH_MISSING";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        entry.transcriptPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (canonicalStoredPath !== canonicalSelectedPath) {
+    const code = "SAVED_POSITION_PATH_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (!meta) {
+    const code = "SAVED_POSITION_IDENTITY_INVALID";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (meta.sessionId !== sessionId) {
+    const code = "SAVED_POSITION_IDENTITY_MISMATCH";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      )
+    };
+  }
+  if (entry.lastRecordIndex > records.length) {
+    const code = "SAVED_POSITION_TRANSCRIPT_SHRANK";
+    return {
+      status: "blocked",
+      code,
+      message: savedPositionResetMessage(
+        code,
+        runtime,
+        sessionId,
+        canonicalStoredPath,
+        observedSessionId,
+        canonicalSelectedPath
+      ) + ` Stored next index ${entry.lastRecordIndex} exceeds observed record count ${records.length}.`
+    };
+  }
+  return { status: "valid", canonicalTranscriptPath: canonicalSelectedPath };
 }
 async function notifyMigrationBoundary(options, boundary) {
   await options.onBoundary?.(boundary);
@@ -5230,12 +5528,19 @@ async function candidatesForIdentitySignals(signals, targetCwd) {
   const candidateGroups = await Promise.all(
     signals.map(async (signal) => {
       if (signal.sessionId) {
-        const candidate = await findSessionCandidate(
-          signal.runtime,
-          targetCwd,
-          signal.sessionId
-        );
-        return candidate ? [candidate] : [];
+        try {
+          const candidate = await findSessionCandidate(
+            signal.runtime,
+            targetCwd,
+            signal.sessionId
+          );
+          return candidate ? [candidate] : [];
+        } catch (error) {
+          if (error instanceof ExactSessionIdentityError) {
+            return error.candidates;
+          }
+          throw error;
+        }
       }
       return (await discover(signal.runtime, targetCwd)).filter(
         (candidate) => candidate.recordedCwd === targetCwd
@@ -5269,16 +5574,37 @@ async function resolveSelfIdentity(targetCwd, env = process.env) {
   const signal = explicit?.sessionId ? explicit : harnessSignal?.sessionId ? harnessSignal : explicit ?? harnessSignal;
   if (!signal) return { noMatch: true };
   if (signal.sessionId) {
-    const candidate = await findSessionCandidate(
-      signal.runtime,
-      targetCwd,
-      signal.sessionId
-    );
+    let candidate;
+    try {
+      candidate = await findSessionCandidate(
+        signal.runtime,
+        targetCwd,
+        signal.sessionId
+      );
+    } catch (error) {
+      if (error instanceof ExactSessionIdentityError) {
+        return {
+          ambiguous: true,
+          runtime: signal.runtime,
+          signals: [signal],
+          candidates: error.candidates,
+          code: error.code
+        };
+      }
+      throw error;
+    }
     if (!candidate) return { noMatch: true, runtime: signal.runtime };
     return {
       identity: {
         runtime: signal.runtime,
         session: candidate.sessionId,
+        ...candidate.nativeSessionId ? { nativeSessionId: candidate.nativeSessionId } : {},
+        ...candidate.rootSessionId ? { rootSessionId: candidate.rootSessionId } : {},
+        ...candidate.parentSessionId ? { parentSessionId: candidate.parentSessionId } : {},
+        ...candidate.forkedFromSessionId ? { forkedFromSessionId: candidate.forkedFromSessionId } : {},
+        ...candidate.subagentHistoryStartOrdinal === void 0 ? {} : {
+          subagentHistoryStartOrdinal: candidate.subagentHistoryStartOrdinal
+        },
         transcript: candidate.transcriptPath,
         source: explicit?.sessionId ? "explicit-self" : "harness-environment"
       }
@@ -5292,6 +5618,13 @@ async function resolveSelfIdentity(targetCwd, env = process.env) {
       identity: {
         runtime: signal.runtime,
         session: candidates[0].sessionId,
+        ...candidates[0].nativeSessionId ? { nativeSessionId: candidates[0].nativeSessionId } : {},
+        ...candidates[0].rootSessionId ? { rootSessionId: candidates[0].rootSessionId } : {},
+        ...candidates[0].parentSessionId ? { parentSessionId: candidates[0].parentSessionId } : {},
+        ...candidates[0].forkedFromSessionId ? { forkedFromSessionId: candidates[0].forkedFromSessionId } : {},
+        ...candidates[0].subagentHistoryStartOrdinal === void 0 ? {} : {
+          subagentHistoryStartOrdinal: candidates[0].subagentHistoryStartOrdinal
+        },
         transcript: candidates[0].transcriptPath,
         source: "same-cwd-transcript"
       }
@@ -5415,11 +5748,38 @@ function unengagedOnlyMessage(runtime, cwd) {
   return `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. It looks like a freshly spawned/bootstrap session you have not engaged with. Did you mean a different session (another runtime, a sister worktree, or a specific session id)?`;
 }
 async function sessionStateFor(runtime, sessionId) {
+  return getSession(runtime, sessionId);
+}
+async function validatedSessionStateFor(runtime, candidate) {
+  let state;
   try {
-    return await getSession(runtime, sessionId);
-  } catch {
-    return null;
+    state = await sessionStateFor(runtime, candidate.sessionId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`Failed to read session state: ${message}`);
   }
+  const validation = await validateSavedPosition(
+    runtime,
+    candidate.sessionId,
+    candidate.transcriptPath,
+    state
+  );
+  if (validation.status === "blocked") {
+    return {
+      ok: false,
+      kind: "identityBlocked",
+      exitCode: 1,
+      payload: {
+        identityBlocked: true,
+        runtime,
+        code: validation.code,
+        candidates: [candidate],
+        reasons: [validation.message]
+      },
+      message: validation.message
+    };
+  }
+  return { state };
 }
 async function markReadIfNeeded(runtime, candidate, sessionState, digest) {
   if (!shouldMarkCatchUpRead(sessionState, digest)) return false;
@@ -6175,22 +6535,29 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
   };
 }
 async function observePinnedSession(runtime, cwd, pinnedSession, args, deps) {
-  let candidates;
+  let pinned;
   try {
-    candidates = await discover(runtime, cwd);
+    pinned = await findSessionCandidate(runtime, cwd, pinnedSession.sessionId);
   } catch (err) {
+    if (err instanceof ExactSessionIdentityError) {
+      const ambiguous = err.code === "SESSION_IDENTITY_AMBIGUOUS";
+      return {
+        ok: false,
+        kind: ambiguous ? "ambiguousIdentity" : "identityBlocked",
+        exitCode: ambiguous ? 3 : 1,
+        payload: {
+          ...ambiguous ? { ambiguousIdentity: true } : { identityBlocked: true },
+          runtime,
+          cwd,
+          code: err.code,
+          candidates: err.candidates
+        },
+        message: ambiguous ? `Pinned session identity is ambiguous: ${pinnedSession.sessionId}. Multiple canonical transcripts claim it.` : `Pinned session identity is invalid: ${pinnedSession.sessionId}. The recognized rollout filename contradicts its native header.`
+      };
+    }
     const message = err instanceof Error ? err.message : String(err);
     return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
-  if (candidates.length === 0) {
-    return noMatchOutcome(
-      { noMatch: true, runtime, cwd },
-      `No ${runtime} transcripts found for cwd: ${cwd}`
-    );
-  }
-  const pinned = candidates.find(
-    (c) => c.runtime === pinnedSession.runtime && c.sessionId === pinnedSession.sessionId
-  );
   if (!pinned) {
     return errorOutcome(
       `Pinned session not found: ${args.session}. Run locate to see available sessions.`
@@ -6199,10 +6566,12 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args, deps) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, pinned, args, deps);
   }
-  const sessionState = await sessionStateFor(
+  const sessionStateResult = await validatedSessionStateFor(
     pinnedSession.runtime,
-    pinned.sessionId
+    pinned
   );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = watchedByPidWarnings(
     sessionState,
@@ -6346,7 +6715,12 @@ async function observeCatchUp(args, deps = {}) {
   if (runtime === "cursor") {
     return observeCursorSession(cwd, winner, args, deps, rankResult);
   }
-  const sessionState = await sessionStateFor(runtime, winner.sessionId);
+  const sessionStateResult = await validatedSessionStateFor(
+    runtime,
+    winner
+  );
+  if ("ok" in sessionStateResult) return sessionStateResult;
+  const sessionState = sessionStateResult.state;
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = [
     ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),

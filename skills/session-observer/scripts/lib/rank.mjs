@@ -69,7 +69,11 @@ function hasAssistantAndUser(candidate) {
     candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser
   );
 }
+function isCodexChild(candidate) {
+  return candidate.runtime === "codex" && typeof candidate.nativeSessionId === "string" && (typeof candidate.parentSessionId === "string" || typeof candidate.rootSessionId === "string" && candidate.nativeSessionId !== candidate.rootSessionId);
+}
 function compareCandidatePreference(a, b) {
+  if (isCodexChild(a) !== isCodexChild(b)) return isCodexChild(a) ? 1 : -1;
   if (isEngaged(a) !== isEngaged(b)) return isEngaged(a) ? -1 : 1;
   if (hasAssistantAndUser(a) !== hasAssistantAndUser(b)) {
     return hasAssistantAndUser(a) ? -1 : 1;
@@ -95,6 +99,7 @@ function sizesClose(a, b) {
   return smaller / larger >= CLOSE_SIZE_RATIO;
 }
 function closeEngagedTie(winner, candidate, tieWindowSec) {
+  if (isCodexChild(winner) !== isCodexChild(candidate)) return false;
   if (!isEngaged(winner) || !isEngaged(candidate)) return false;
   if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate))
     return false;

@@ -404,6 +404,147 @@ it('getSession returns stored entry when present', async () => {
   });
 });
 
+it('validates nonzero legacy offsets against canonical source and provider identity', async () => {
+  await withTmpStateDir(async (dir) => {
+    const claudePath = join(dir, 'claude.jsonl');
+    await writeFile(
+      claudePath,
+      `${JSON.stringify({ sessionId: 'claude-valid', message: { role: 'assistant', content: 'ok' } })}\n`,
+      'utf8',
+    );
+    const entry = {
+      runtime: 'claude-code' as const,
+      sessionId: 'claude-valid',
+      lastRecordIndex: 1,
+      lastTotalRecords: 1,
+      transcriptPath: claudePath,
+    };
+
+    await expect(
+      state.validateSavedPosition(
+        'claude-code',
+        'claude-valid',
+        claudePath,
+        entry,
+      ),
+    ).resolves.toMatchObject({ status: 'valid' });
+  });
+});
+
+it.each([
+  {
+    name: 'missing stored path',
+    transcriptPath: undefined,
+    expectedCode: 'SAVED_POSITION_PATH_MISSING',
+  },
+  {
+    name: 'different stored path',
+    transcriptPath: 'other.jsonl',
+    expectedCode: 'SAVED_POSITION_PATH_MISMATCH',
+  },
+])(
+  'blocks a nonzero offset with $name',
+  async ({ transcriptPath, expectedCode }) => {
+    await withTmpStateDir(async (dir) => {
+      const selected = join(dir, 'selected.jsonl');
+      const other = join(dir, 'other.jsonl');
+      const record = `${JSON.stringify({ sessionId: 'codex-valid', payload: { type: 'session_meta', cwd: '/tmp/project' } })}\n`;
+      await writeFile(selected, record, 'utf8');
+      await writeFile(other, record, 'utf8');
+      const entry = {
+        runtime: 'codex' as const,
+        sessionId: 'codex-valid',
+        lastRecordIndex: 1,
+        lastTotalRecords: 1,
+        ...(transcriptPath === undefined
+          ? {}
+          : { transcriptPath: join(dir, transcriptPath) }),
+      };
+
+      await expect(
+        state.validateSavedPosition('codex', 'codex-valid', selected, entry),
+      ).resolves.toMatchObject({
+        status: 'blocked',
+        code: expectedCode,
+      });
+    });
+  },
+);
+
+it('allows zero state to bind to the selected source', async () => {
+  await withTmpStateDir(async (dir) => {
+    const selected = join(dir, 'zero-bind.jsonl');
+    await writeFile(
+      selected,
+      `${JSON.stringify({ sessionId: 'zero-bind', payload: { type: 'session_meta', cwd: '/tmp/project' } })}\n`,
+      'utf8',
+    );
+
+    await expect(
+      state.validateSavedPosition('codex', 'zero-bind', selected, {
+        runtime: 'codex',
+        sessionId: 'zero-bind',
+        lastRecordIndex: 0,
+        lastTotalRecords: 0,
+      }),
+    ).resolves.toMatchObject({ status: 'new' });
+  });
+});
+
+it('blocks a nonzero offset beyond a shrunken transcript', async () => {
+  await withTmpStateDir(async (dir) => {
+    const selected = join(dir, 'shrunken.jsonl');
+    await writeFile(
+      selected,
+      `${JSON.stringify({ sessionId: 'shrunken', message: { role: 'assistant', content: 'one' } })}\n`,
+      'utf8',
+    );
+
+    await expect(
+      state.validateSavedPosition('claude-code', 'shrunken', selected, {
+        runtime: 'claude-code',
+        sessionId: 'shrunken',
+        lastRecordIndex: 2,
+        lastTotalRecords: 2,
+        transcriptPath: selected,
+      }),
+    ).resolves.toMatchObject({
+      status: 'blocked',
+      code: 'SAVED_POSITION_TRANSCRIPT_SHRANK',
+      message: expect.stringContaining(
+        'Stored next index 2 exceeds observed record count 1',
+      ),
+    });
+  });
+});
+
+it('blocks a nonzero offset when the selected source identifies another native session', async () => {
+  await withTmpStateDir(async (dir) => {
+    const selected = join(dir, 'native-mismatch.jsonl');
+    await writeFile(
+      selected,
+      `${JSON.stringify({ type: 'session_meta', payload: { id: 'observed-native', cwd: '/repo' } })}\n`,
+      'utf8',
+    );
+
+    await expect(
+      state.validateSavedPosition('codex', 'expected-native', selected, {
+        runtime: 'codex',
+        sessionId: 'expected-native',
+        lastRecordIndex: 1,
+        lastTotalRecords: 1,
+        transcriptPath: selected,
+      }),
+    ).resolves.toMatchObject({
+      status: 'blocked',
+      code: 'SAVED_POSITION_IDENTITY_MISMATCH',
+      message: expect.stringMatching(
+        /expected identity codex:expected-native.*observed identity codex:observed-native/u,
+      ),
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 5. markRead updates expected fields
 // ---------------------------------------------------------------------------
