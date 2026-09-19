@@ -1081,3 +1081,62 @@ Phase p03 passes. No optional external phase review gate is configured, and p03 
 - Review: artifact `reviews/p03-review-2026-09-19T155150Z.md`, exact target `oat-reviewer-gpt-5-6-sol-high`, zero findings across the complete p03 range.
 - Dispatch: managed High, exact implementer/reviewer materialized roles, no fallback, no optional nested dispatch and no separate worktree.
 - Outstanding p03 items: none. Next: p04-t01 Markdown exporter activity.
+
+#### Dispatch sf-p04-implement-01
+
+```json
+{
+  "request_id": "sf-p04-implement-01",
+  "caller": "oat-project-implement",
+  "scope": "p04",
+  "objective": "Add bounded source-attributed activity to Markdown export and prove default sanitization and content boundaries",
+  "action": "implementation",
+  "role_name": "oat-phase-implementer",
+  "role_class": "implementer",
+  "provider": "codex",
+  "dispatch_context": "root-native",
+  "dispatch_policy": "high",
+  "dispatch_ceiling": "high",
+  "catalog_snapshot": {
+    "id": "native-20260919",
+    "source": "tool-schema",
+    "observed_at": "2026-09-19"
+  },
+  "authority": "phase-source-and-tests",
+  "role_selector": "oat-phase-implementer-gpt-5-6-sol-high",
+  "model_selector": "gpt-5.6-sol",
+  "model_selector_granularity": "exact",
+  "effort_selector": "high",
+  "reasoning_mode_selector": null,
+  "service_tier_selector": null,
+  "selection_source": "native-default",
+  "candidates_considered": ["gpt-5.6-sol/high"],
+  "selection_reason": "native-catalog",
+  "selected_route": "native",
+  "deadline_seconds": 7200,
+  "retry_limit": 2,
+  "payload": {
+    "phase": "p04",
+    "taskIds": ["p04-t01", "p04-t02"],
+    "plan": ".oat/projects/shared/session-fidelity/plan.md",
+    "activityBase": "7ec1fba9aecc53d6e41ea091df0cfc4399057332",
+    "dispatchBase": "49825f7219fbe8383bda3b6fbc5e96302c90aed0",
+    "phaseBase": null,
+    "handle": "/root/p04_implement",
+    "finalHead": null
+  },
+  "launch_status": "intent-persisted",
+  "child_outcome": "pending-launch",
+  "configured_invocation_evidence": ["resolver:implementation-target", "native:materialized-role"],
+  "runtime_confirmation": "not-reported",
+  "diagnostics": [],
+  "continuation_events": [],
+  "task_class": "consequential",
+  "model_class_floor": "consequential",
+  "classification_source": "phase scope analysis",
+  "classification_reason": "Transcript export privacy, sanitizer boundaries and raw activity previews make subtle disclosure errors expensive.",
+  "floor_satisfaction": "satisfied"
+}
+```
+
+Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high

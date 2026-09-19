@@ -30,6 +30,9 @@ oat_phase_recovery_policy:
     p03:
       used_attempts: 2
       pending_attempt: null
+    p04:
+      used_attempts: 0
+      pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
 #   phase_attempt_limits: {} # optional pNN: 0-20 overrides; prior usage never resets
