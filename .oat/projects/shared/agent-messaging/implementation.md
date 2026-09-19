@@ -207,7 +207,32 @@ No deferrals or rejections. Frontier identity was corroborated from native Claud
 transcript f6953764-c455-4bce-aaaa-072771890652 (claude-fable-5-1, assistant
 lines 19 and 252, final end_turn). The blocked gate is not relabeled passed.
 
-**Next:** Re-review the approved artifact changes. No implementation is authorized here.
+**Subsequent verification:** Fourth gate reviewed c0a61d53 and verified these
+corrections. It returned a corroborated, receive-eligible blocked result with
+0 Critical, 1 Important, 1 Medium and 3 Minor findings. Artifact:
+reviews/artifact-plan-review-2026-09-19T125014Z.md (commit e0cd3890).
+Frontier identity is verified in native Claude transcript
+51f413a7-4496-47a2-82e0-7b76ae8f2fb7: claude-fable-5-1, assistant lines
+19 and 253, final end_turn, matching run ID c94b55d0-0138-409d-aca6-ed4703fa8c99.
+
+Fourth-round findings remain undispositioned pending user confirmation:
+
+- I1: Claude composed delivery lacks an owned implementation path. Root verified
+  the current Monitor uses base session-observer catch-up-then-watch, outside
+  the task's files. Recommend a dedicated composed-Monitor task because the
+  cross-runtime collaboration use case needs it; explicit deferral is smaller.
+- M1: Bound Claude settings/enabled-plugin inventory and disclose session-only
+  hooks as a visibility limit instead of implicitly making all Claude delivery
+  manual. Requires an explicit policy clarification, not silent waiver.
+- m1: effectiveLease does not expire triggered state. Recommend retaining the
+  conservative guard with explicit scoped disarm recovery, rather than blindly
+  releasing it on expiry: expiry alone does not prove a same-Stop continuation
+  was not already emitted. This is root analysis, not an applied disposition.
+- m2: Publish the full schema-v1 activation shape in p02-t01 before live probes.
+- m3: Point the approved-baseline header to the user-approved c0a61d53 amendment.
+
+**Next:** User direction on Claude composition and approval of proposed
+fourth-round dispositions. No implementation is authorized here.
 
 ## Deviations from Plan / Design
 

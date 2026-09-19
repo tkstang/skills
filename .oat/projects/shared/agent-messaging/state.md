@@ -26,13 +26,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: '2026-09-18T23:40:44.126Z'
 oat_project_completed: null
-oat_project_state_updated: '2026-09-19T12:42:17Z'
+oat_project_state_updated: '2026-09-19T12:53:12Z'
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** Third-gate policy and all four corrections approved and applied; independent re-review pending.
+**Status:** Approved corrections verified; fourth gate blocked on Claude composed delivery scope, awaiting user direction.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
@@ -49,7 +49,7 @@ Fable reviews. No implementation or live hook installation is authorized here.
 - **Discovery:** discovery.md — validated complete via complete-discovery.
 - **Spec:** N/A (quick mode).
 - **Design:** design.md — Fable passed e95a0d919237bca283d33b54322b096b3f832478 with no remaining findings; user approved.
-- **Plan:** plan.md — 3 sequential phases, 12 tasks; third review's 1 Important, 1 Medium and 2 Minor findings resolved in artifacts; not implementation-ready until re-review.
+- **Plan:** plan.md — 3 sequential phases, 12 tasks; fourth gate verified approved corrections but found 1 Important, 1 Medium and 3 Minor findings; not implementation-ready.
 - **Implementation:** implementation.md — initialized to 0/12 pending tasks; no implementation started.
 
 ## Progress
@@ -105,6 +105,20 @@ Fable reviews. No implementation or live hook installation is authorized here.
   triggered leases owner-present, Claude Monitor attestation explicit, and
   composition implemented in ordered tested stages. Discovery/design/plan agree.
   All are fixes_completed pending independent re-review; no product code changed.
+- Corrections committed at c0a61d539c95f90b613b97ed07d5701c118ea015.
+  Fourth gate c94b55d0-0138-409d-aca6-ed4703fa8c99 reviewed that exact commit
+  and verified the four corrections. It returned status=blocked,
+  receiveEligible=true and a matched handoff: 0 Critical, 1 Important, 1 Medium,
+  3 Minor. Review artifact reviews/artifact-plan-review-2026-09-19T125014Z.md
+  is committed at e0cd3890. Native Claude transcript
+  51f413a7-4496-47a2-82e0-7b76ae8f2fb7 confirms claude-fable-5-1 at
+  assistant lines 19 and 253, final end_turn, with the matching run ID.
+  Root verified the Claude observer Monitor uses the base skill's unbounded
+  watcher, outside the proposed composition task. Choosing a dedicated composed
+  Monitor implementation versus explicit deferral needs user direction.
+  Remaining findings concern Claude inventory limits, triggered-lease recovery,
+  full activation shape from first publication and the amended baseline pointer.
+  No fourth-round semantic corrections or new tasks have been applied.
 
 ## Dispatch and Gate Review Policy
 
@@ -139,13 +153,15 @@ No drafting blocker. The driver's whoami fails because exact session discovery
 has multiple matching transcript candidates; collaboration remains stateless
 buffered-manual on the driver side. Fable has its own finite Monitor. No driver
 watcher or automatic lease was armed. Peer design review and user approval are
-complete. Third-gate ownership policy is approved and its corrections applied.
-All three Frontier identities are corroborated; independent re-review is pending.
+complete. Third-gate policy corrections are independently verified. The fourth
+gate is blocked on Claude composed-delivery scope; user direction is required.
+All four Frontier identities are corroborated.
 No product implementation has started.
 
 ## Next Milestone
 
-Re-review the third gate's approved ownership policy and artifact corrections.
+Resolve fourth-gate Claude composition scope and remaining finding dispositions
+with the user before editing the artifacts again.
 Dispatch ladder is complete and the project ceiling is High; Frontier is required
 at independent gates. Preserve pending plan readiness until the required plan
 review and gate disposition are recorded.
