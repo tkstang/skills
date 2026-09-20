@@ -156,18 +156,18 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 
 | Scope  | Type     | Status          | Date       | Artifact                      | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------- | ------------- | ---------- | ----------- |
-| p01 | code | fixes_added | 2026-09-20 | reviews/p01-opus-review.md | - | manual | - |
+| p01 | code | fixes_completed | 2026-09-20 | reviews/archived/p01-opus-review.md | - | manual | - |
 | p02    | code     | pending         | -          | -                             | -             | -          | -           |
 | final  | code     | pending         | -          | -                             | -             | -          | -           |
 | spec   | artifact | pending         | -          | -                             | -             | -          | -           |
 | design | artifact | pending         | -          | -                             | -             | -          | -           |
-| plan   | artifact | fixes_completed | 2026-09-20 | reviews/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
+| plan   | artifact | fixes_completed | 2026-09-20 | reviews/archived/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
 | p03    | code     | pending         | -          | -                             | -             | -          | -           |
 | p04    | code     | pending         | -          | -                             | -             | -          | -           |
-| plan | artifact | passed | 2026-09-20 | reviews/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
-| p00 | code | passed | 2026-09-20 | reviews/p00-opus-review.md | - | manual | - |
+| plan | artifact | passed | 2026-09-20 | reviews/archived/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
+| p00 | code | passed | 2026-09-20 | reviews/archived/p00-opus-review.md | - | manual | - |
 
-Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
+Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
 ## Implementation Complete
 

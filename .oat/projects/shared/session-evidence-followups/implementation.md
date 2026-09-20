@@ -35,7 +35,7 @@ Request `evidence-p00-20260920`; native `/root/p00_timeout` accepted and complet
 
 Base `f7298f35195ff305ec2d223f3873845444dc2317`; task commit `852be12cf67f5231f481dd97ce741e057d841937`; self-review passed. Root verified bounded files and clean worktree. Recovery attempts 0. No nested workers.
 
-Independent Consensus Review requested `claude:opus --effort high`, run `8c84e955-3f2e-4817-afd8-a7d08531875b`, passed with 0 Critical/High, one Medium and one Low. [Canonical review](reviews/p00-opus-review.md) is preserved unchanged. Consensus replaces the OAT-native reviewer contract by user selection; its own validated structured envelope supplies provenance, and no OAT reconnaissance claim is fabricated. Requested model/effort are configured controls; wrapper reports actual model/effort unobserved.
+Independent Consensus Review requested `claude:opus --effort high`, run `8c84e955-3f2e-4817-afd8-a7d08531875b`, passed with 0 Critical/High, one Medium and one Low. [Canonical review](reviews/archived/p00-opus-review.md) is preserved unchanged. Consensus replaces the OAT-native reviewer contract by user selection; its own validated structured envelope supplies provenance, and no OAT reconnaissance claim is fabricated. Requested model/effort are configured controls; wrapper reports actual model/effort unobserved.
 
 Disposition: M1 accepted as host-budget documentation guidance; same native handle continued as `evidence-p00-fix1-20260920`, commit `37f2832f387c1b5559a32c40396b1d92013b0fa9`, root inspected the exact docs-only diff. L1 declined: default dispatch assertion already fails meaningfully and duplicating the test adds no coverage. Reviewer question about why 900 seconds: explicit user-selected budget after observed 600-second cutoff, not a claimed latency percentile. No further review needed for this bounded nonblocking documentation clarification; final integration review still covers it.
 
@@ -55,13 +55,15 @@ Final-tree stress: [log](evidence/p01-final-stress.log), [temporary harness reta
 
 Review routing: exact Opus reviewer under High policy, `--effort high` user-selected Consensus route. The base-branch selector's 2 MiB whole-file snapshot cap is exceeded by duplicated generated bundles. Preserve authored before/after diff including deletions, immutable base/head and hashes of every changed file in a bounded external review packet; verify generated units with build:check and version validation. Keep entire checkout stable. This changes review transport only, not review scope or acceptance requirements; final review uses the same method if needed.
 
-### p01 review disposition — bounded fixes in progress
+### p01 review disposition — fixes implemented, verification review pending
 
-Independent Opus review run `446cd7d0-bd2c-4b53-b1f4-6b62e1bdd9c4` passed with zero Critical/High, two Medium and one Low; [canonical result](reviews/p01-opus-review.md), [immutable reviewed packet](evidence/p01-review-packet.md), captured packet SHA256 `465a369170673c235b4f99923648479223b6db86c7600965bf96fa948d9ef8ec`. Requested `claude:opus --effort high`; actual model/effort unobserved by wrapper. No OAT-native reconnaissance claim is fabricated for this user-selected external review.
+Independent Opus review run `446cd7d0-bd2c-4b53-b1f4-6b62e1bdd9c4` passed with zero Critical/High, two Medium and one Low; [canonical result](reviews/archived/p01-opus-review.md), [immutable reviewed packet](evidence/p01-review-packet.md), captured packet SHA256 `465a369170673c235b4f99923648479223b6db86c7600965bf96fa948d9ef8ec`. Requested `claude:opus --effort high`; actual model/effort unobserved by wrapper. No OAT-native reconnaissance claim is fabricated for this user-selected external review.
 
 M1 accepted: preserve meaningful aborted/truncated assistant output; suppress provider API-error bodies only with explicit filtered accounting and documented behavior. M2 accepted: native Claude message IDs span records; fold explicit-abort evidence across prior same-session blocks, with tests for non-final abort flags and later-only/orphan references. Root additionally observed that the existing map could join a future assistant record, contrary to the plan's prior-record requirement; fix in the same join scope. L1 accepted: stop/heartbeat documentation and printed label must describe delivered delta plus terminal events. Retry suffix whitespace question declined: strict observed grammar is intentional; no unsupported locale/whitespace inference is required. Cursor metadata frames already lack narrative content, so preserving meaningful Claude partial output resolves the apparent asymmetry.
 
 Same Sol handle receives bounded continuation `evidence-p01-fix1-20260920`, linked to `evidence-p01-20260920`; no replacement or target change. Review passed does not waive these accepted fixes or their verification. A bounded independent follow-up will verify the changes.
+
+Fix continuation completed as `82ea5a103497aa8210035a889e256f07cb5cafa9`, exactly one append-only commit from `a3f782c4da52ab0a02cdd0869904e41e6f6e32ca`. Root inspected the native join and digest accounting diff; clean worktree verified. M1/M2/L1 implemented, including root's future-only pointer and double-accounting checks. Observer1.0.74, collab1.0.62, export2.0.25 and fork0.2.39. Watcher60/60, shared decoder/activity34/34, digest62/62, collab199/199; types, build/freshness, validate, version checks, scoped lint/format and docs build passed. Signal/rearm mechanics unchanged; retained 50-run stress proof remains applicable. One nonblocking fix round, no implementation recovery attempts. Focused independent verification review pending.
 
 ## Task Records
 
@@ -113,5 +115,5 @@ p00 completed: Consensus Review defaults to 900 seconds with explicit internal o
 
 - [Plan](plan.md)
 - [Discovery](discovery.md)
-- [Review dispositions](reviews/plan-review-disposition.md)
-- [Complexity review](reviews/complexity-review.md)
+- [Review dispositions](reviews/archived/plan-review-disposition.md)
+- [Complexity review](reviews/archived/complexity-review.md)
