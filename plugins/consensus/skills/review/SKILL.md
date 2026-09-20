@@ -63,7 +63,12 @@ pipe a menu answer to stdin. Exit 0 means a completed valid review (including
 findings) or an explicitly labeled empty-scope no-op. Exit 1 means incomplete,
 defective, or output failure. Parse the returned status, not only the exit code.
 Each provider invocation has a 15-minute wall-clock runtime by default. The CLI
-does not expose a timeout override.
+does not expose a timeout override. Set the host command's hard timeout above
+15 minutes, with additional margin for shutdown and artifact persistence. If
+the host supports background execution, start Review there and poll for
+completion instead. A polling or observation yield controls when the host
+checks again; a hard timeout terminates Review and can prevent artifact
+completion.
 
 ## Present the handoff
 

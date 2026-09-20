@@ -102,7 +102,8 @@
 ### Changed
 
 - `consensus-review` 0.1.14 gives each review provider invocation a 15-minute
-  wall-clock runtime by default while preserving internal caller overrides.
+  wall-clock runtime by default while preserving internal caller overrides and
+  documenting host execution budgets.
 
 - `agent-messaging` 1.0.15 and `session-observer-collab` 1.0.39 share Claude
   hook inventory and automatic-owner assessment from the canonical
