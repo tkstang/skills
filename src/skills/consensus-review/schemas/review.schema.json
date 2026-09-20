@@ -114,7 +114,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096,
-          "pattern": "^.+",
+          "pattern": "^[\\s\\S]+$",
           "not": {
             "anyOf": [{ "pattern": "^/" }, { "pattern": "(^|/)\\.\\.(/|$)" }]
           }

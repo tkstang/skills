@@ -7,6 +7,7 @@
 - `panel` 0.1.13 adds matching schema/local-validation response size limits and a stable schema identifier. `consensus-review` 0.1.15 documents exclusive finding locations and confidence semantics, and expresses the existing path restrictions without regex lookaround.
 - `consensus` 0.2.1 packages the Review timeout control and Review/Panel schema compatibility fixes.
 - `create` 0.1.16, `decide` 0.1.16, `evaluate` 0.1.20, `phone-a-friend` 0.1.12, `plan` 0.1.16, `refine` 0.1.19 receive the required version bumps for shared Claude provider schema regression coverage; their runtime behavior is unchanged.
+- `consensus-review` 0.1.16 accepts nonempty POSIX filenames beginning with line terminators while preserving absolute-path and parent-traversal restrictions.
 - `consensus-review` 0.1.15 and `panel` 0.1.13 ship Draft-07 response schemas accepted by Claude Code 2.1.278, preserving response constraints and provider validation. The strict Claude fixture now rejects unsupported schema dialects.
 - `consensus-review` 0.1.15 exposes `--timeout-sec` (1–3,600 seconds, default 900) so callers can budget longer reviews without changing the wall-clock timeout policy.
 
