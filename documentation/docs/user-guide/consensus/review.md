@@ -51,6 +51,13 @@ reviewer with `--reviewer provider[:model]`; `--model` and `--effort` require
 that explicit reviewer. Same-provider review also requires user consent and
 `--allow-same-provider`.
 
+Use `--timeout-sec 1800` for a review that needs up to 30 minutes. The option
+accepts whole seconds from 1 through 3,600 and defaults to 900 (15 minutes).
+This is the provider invocation’s total wall-clock limit; ongoing output does
+not reset it. A timeout produces an incomplete diagnostic, not a verdict.
+Give the host terminal or process tool at least this timeout plus shutdown
+and artifact-persistence margin.
+
 `--host` names the runtime executing Review. A known inherited
 `CONSENSUS_PARENT_HOST` is authoritative when it matches `--host`, even if the
 shell also carries unrelated ambient provider markers. A mismatched inherited

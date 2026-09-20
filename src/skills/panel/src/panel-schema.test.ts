@@ -13,6 +13,13 @@ import {
 
 const schemaPath = panelResponseSchemaPath();
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
+const stringLimits = {
+  understood_question: 4096,
+  response: 16384,
+} as const;
+const arrayFields = ['key_points', 'risks', 'assumptions'] as const;
+const arrayMaxItems = 50;
+const arrayItemMaxLength = 4096;
 
 const valid = {
   schema_version: 'v1',
@@ -76,7 +83,89 @@ describe('panel-response.schema.json', () => {
     );
   });
 
+  it('keeps schema and runtime response limits aligned at their boundaries', () => {
+    expect(schema.properties.understood_question).toMatchObject({
+      type: 'string',
+      minLength: 1,
+      maxLength: stringLimits.understood_question,
+    });
+    expect(schema.properties.response).toMatchObject({
+      type: 'string',
+      minLength: 1,
+      maxLength: stringLimits.response,
+    });
+    for (const field of arrayFields) {
+      expect(schema.properties[field]).toMatchObject({
+        type: 'array',
+        maxItems: arrayMaxItems,
+        items: {
+          type: 'string',
+          minLength: 1,
+          maxLength: arrayItemMaxLength,
+        },
+      });
+    }
+
+    const boundaryPayload = {
+      ...valid,
+      understood_question: '😀'.repeat(stringLimits.understood_question),
+      response: 'r'.repeat(stringLimits.response),
+      key_points: Array.from({ length: arrayMaxItems }, () =>
+        'k'.repeat(arrayItemMaxLength),
+      ),
+      risks: [],
+      assumptions: [],
+    };
+    expect(parsePanelResponsePayload(boundaryPayload)).toEqual(boundaryPayload);
+  });
+
+  it.each([
+    {
+      field: 'understood_question',
+      payload: {
+        ...valid,
+        understood_question: '😀'.repeat(stringLimits.understood_question + 1),
+      },
+      error: /understood_question must be at most 4096 characters/,
+    },
+    {
+      field: 'response',
+      payload: {
+        ...valid,
+        response: 'r'.repeat(stringLimits.response + 1),
+      },
+      error: /response must be at most 16384 characters/,
+    },
+    {
+      field: 'key_points',
+      payload: {
+        ...valid,
+        key_points: Array.from({ length: arrayMaxItems + 1 }, () => 'point'),
+      },
+      error: /key_points must contain at most 50 items/,
+    },
+    {
+      field: 'risks',
+      payload: { ...valid, risks: [''] },
+      error: /risks\[0\] must be a non-empty string/,
+    },
+    {
+      field: 'assumptions',
+      payload: {
+        ...valid,
+        assumptions: ['a'.repeat(arrayItemMaxLength + 1)],
+      },
+      error: /assumptions\[0\] must be at most 4096 characters/,
+    },
+  ])('rejects an out-of-bounds $field value', ({ payload, error }) => {
+    expect(() => parsePanelResponsePayload(payload)).toThrow(error);
+  });
+
   it('declares the provider-native schema contract', () => {
+    expect(schema.$schema).toBe('http://json-schema.org/draft-07/schema#');
+    expect(schema.$id).toBe(
+      'https://github.com/tkstang/skills/panel/panel-response.schema.json',
+    );
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toEqual([
       'schema_version',

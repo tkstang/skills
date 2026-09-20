@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "consensus",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.",
       "author": {
         "name": "Thomas Stang"

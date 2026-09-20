@@ -211,7 +211,7 @@ export async function runReview(
             approval_policy: 'never',
           },
     max_attempts: 1,
-    max_runtime_sec: input.maxRuntimeSec ?? 600,
+    max_runtime_sec: input.maxRuntimeSec ?? 900,
     max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
@@ -289,6 +289,7 @@ export interface ExecuteReviewInput {
   reviewer?: string;
   model?: string;
   effort?: string;
+  maxRuntimeSec?: number;
   allowSameProvider?: boolean;
   runId?: string;
   authoredBy?: AuthorEvidence[];
@@ -557,6 +558,9 @@ export async function executeBoundedReview(
       allowSameProvider: selected.allowSameProvider,
       ...(selected.reviewer.model ? { model: selected.reviewer.model } : {}),
       ...(selected.reviewer.effort ? { effort: selected.reviewer.effort } : {}),
+      ...(input.maxRuntimeSec !== undefined
+        ? { maxRuntimeSec: input.maxRuntimeSec }
+        : {}),
       ...(selected.reviewer.provider === 'codex'
         ? {
             codexCapturePath: path.join(

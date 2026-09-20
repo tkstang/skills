@@ -67,6 +67,7 @@ describe('review transport runner', () => {
             sandbox: 'read-only',
             approval_policy: 'never',
           });
+          expect(request.max_runtime_sec).toBe(900);
           expect(dependencies.transport).toEqual({
             submitCaptureEnabled: false,
             strategy: 'prompt_only',
@@ -430,10 +431,12 @@ describe('one bounded review transaction', () => {
         request: 'Review the selected file for correctness.',
         hostSummary: 'No author identity evidence is available.',
         schemaPath: fixture.schema,
+        maxRuntimeSec: 1200,
         runId: 'complete-run',
       },
       reviewExecutionDependencies(fixture, async (request) => {
         invocations += 1;
+        expect(request.max_runtime_sec).toBe(1200);
         return successEnvelope(validPassReply(scopeToken(request.prompt)));
       }),
     );
