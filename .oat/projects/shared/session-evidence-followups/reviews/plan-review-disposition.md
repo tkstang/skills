@@ -30,3 +30,9 @@ The second Opus inspection returned two Medium and four Low findings with valid 
 | Low: exact native identity fallback            | Accepted: corroborate identity in the snapshot, label native-record/native-source-path evidence, reject contradictions or arbitrary fallback; preserve Cursor's native path identity.                         |
 
 Questions resolved: Cursor uses its existing scan/accumulator snapshot, not JSONL detailed records. Claude bare error strings are not independently terminal evidence; explicit assistant failure flags and joined interruption pointers are the supported evidence, with negative fixtures and documented limitations. No inference from error prose.
+
+## First valid wrapper review — one High finding
+
+[Canonical exported review](plan-opus-review-1.md), run `2a5dae3d-94b7-4c26-9214-f1c9ac9db668`, stable reviewed HEAD `fd106e85`. One High finding, all other checks passed.
+
+H1 accepted: the native 0.155.1 retry date has an ordinal day (`19th`). The earlier recon summary removed that load-bearing detail. Root directly re-read only the gated error record and verified the ordinal shape. The plan now requires the observed ordinal fixture, allows an optional ordinal suffix, and anchors only the retry clause so unrelated prefix punctuation cannot break it. No other plan behavior changed. A bounded independent Opus verification follows; prior review evidence remains valid for unchanged sections.
