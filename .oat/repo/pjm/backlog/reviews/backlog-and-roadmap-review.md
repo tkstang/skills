@@ -1,399 +1,519 @@
 # Backlog & Roadmap Review
 
-**Date:** 2026-09-16
-**Scope:** All 19 active item files, completed history, retained research/plans, merged source, and the roadmap.
-**Baseline:** `origin/main` `49b4baf3` (PR #83), with the four preserved backlog design commits replayed first.
-**Roadmap:** [Now / Next / Later](../../roadmap.md)
-**Purpose:** Rate value/effort, separate real dependencies from useful sequencing, and refresh the operating picture.
-
-> **Closeout update (2026-09-16):** The observer re-arm lane subsequently completed in PR #85 and its item moved to `backlog/archived/`. Observer-open counts and execution language below preserve this review's pre-closeout snapshot; the current roadmap and backlog index are authoritative for active work.
-
-The refreshed [priority alignment](priority-alignment.md) confirms the three immediate lanes: observer investigation (Sol started, per user), Consensus Review, and the parallel installer. Later ordering remains a recommendation, not operator approval. Recommendations here do not launch projects, authorize paid calls, or establish release/install status.
+**Date:** 2026-09-20
+**Scope:** All 29 active item files under `.oat/repo/pjm/backlog/items/`; merged source at `be6cab1e859ae786b34fc2194249ed2d00493fd6`.
+**Roadmap:** `.oat/repo/pjm/roadmap.md`
+**Purpose:** Value/effort review, dependency mapping and proposed execution order after Session Fidelity and Agent Messaging.
+**Decision state:** Review recommendations only. Current cycle lane count, kickoff membership and order await the operator walkthrough. The September 16 [priority alignment](priority-alignment.md) is historical and contains completed kickoff work; do not execute it as the current queue.
 
 ## 1. Executive Summary
 
-All **19 item files are open and unassigned**, with no linked issues in their frontmatter. The user now reports Sol started the observer investigation; implementation status/closeout remains owned by that worktree. No whole item meets its acceptance criteria yet. The peer-model item's documentation portion and the multi-round panel item's product-distinction decision are complete, but their runtime/build criteria remain open.
-
-| Theme | Count | Finding |
-| --- | ---: | --- |
-| Immediate workflow and onboarding | 3 | Re-arm investigation, high-priority Review, and independent installer. |
-| Consensus correctness and hygiene | 4 | Settings propagation, atomic writes, helper split, and live-submit diagnosis remain real work. |
-| Collaboration and evidence | 5 | Inbox, fidelity, stateless merge, N>2 ownership, and idle integration are distinct projects. |
-| Deliberation extensions | 7 | Research/metrics/coherence and reserved features remain open but behind current workflow needs. |
+All **29 items remain active**. No acceptance-complete item was found that can honestly be closed merely because PRs #96 and #98 merged. The installer is implemented but deliberately open for live host acceptance. Both completed feature items are already archived.
 
 | Quadrant | Count |
 | --- | ---: |
-| Quick Win | 2 |
-| Strategic | 9 |
-| Fill-in | 3 |
-| Avoid / Defer | 5 |
+| Quick Win | 1 |
+| Strategic | 14 |
+| Fill-in | 4 |
+| Avoid / Defer | 10 |
 
-Top recommendations:
+**Top recommended next actions:**
 
-1. **BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps:** reproduce a lost renderable message before prescribing a checkpoint fix.
-2. **BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope:** next feature project, independent of the convergence model fix and helper extraction.
-3. **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills:** confirmed independent parallel lane, not a hidden prerequisite for Review.
+1. Deliver one useful, frozen, evidence-backed retro with [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) and prepare skill attribution through [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md). These can have separate owners; the retro can start with the current Markdown export.
+2. Start [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) once the attribution/report fields are agreed; follow with [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md). Keep the consumer useful throughout rather than waiting for a larger analysis platform.
+3. Reserve a bounded reliability/acceptance lane: first reproduce [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md), then choose identity/history/terminal-event work or [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](../items/BL-260919-verify-live-agent-messaging.md) according to current pain and operator availability.
 
-The small atomic-write fix remains worthwhile without displacing the user-selected feature priority. Quadrants describe investment, not an automatic execution order.
+**Fable context:** Stateless observer review of Claude session `5be26fca-ebaa-4cb4-9ada-6601c2f5971d`, in this worktree, captured through JSONL record 4410. The relevant final discussion covered thirteen evidence/retro/protocol items plus the watcher test; the operator approved filing and delegated sizing. That approval did not settle this cycle’s implementation order. PR #93, which filed them, is now merged.
+
+The primary application is evaluating whether skills work: activation, adherence, outcome and efficiency remain separate. Compact conversation remains the normal view; activity is pulled for behavioral evidence. A single session yields candidate improvements. Repeated findings can later justify changes. No automatic skill rewriting is implied.
+
+**Export boundary:** Existing Markdown activity export has no invocation-count cap but retains a 64 MiB rendering budget and 2 KiB per-preview bounds. A retro must inspect omission/coverage accounting before calling that capture complete. Structured export must meet its own complete-inventory contract, not silently inherit display truncation.
+
+**Refinements to the discussion:** A findings ledger stores conclusions, not raw activity, and does not inherently require a merged activity stream. The first retro can use complete Markdown now. Skill-version inference must remain unknown when historical installation evidence is missing; today’s file is not proof of the executed version. Token counts and elapsed time do not establish counterfactual savings from a different model.
 
 ## 2. Item Catalog
 
-Effort is an estimate, not a commitment: **Low** <1 focused day, **Medium** 1–3, **High** >3 or materially cross-cutting. Value: **High** protects correctness or addresses a current workflow priority; **Medium** improves quality or future capacity; **Low** is speculative/demand-gated.
+Value: **High** unlocks work or fixes a demonstrated workflow problem; **Medium** improves quality without blocking immediate use; **Low** is speculative or demand-gated. Effort is remaining implementation/verification work: **Low** under one day, **Medium** one to three days, **High** over three days or cross-cutting. Live scheduling and repeated CI can add elapsed time. These review estimates do not overwrite item frontmatter.
 
-Quadrants: High value + Low effort = Quick Win; High value + Medium/High effort, or Medium value + High effort = Strategic; Medium value + Low/Medium effort = Fill-in; Low value + Medium/High effort = Avoid / Defer. Stored priority/scope/estimate is retained unless separately agreed; reviewed effort may differ. Labels remain in each linked item.
+Quadrants: **Quick Win** = high value/low effort; **Strategic** = worthwhile investment requiring planning; **Fill-in** = useful independent work after the primary consumer; **Avoid / Defer** = insufficient demand or disproportionate cost this cycle. A medium-value/high-effort item can be Strategic but still queued behind demonstrated demand.
 
-### BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps
-
-[Canonical item](../archived/BL-260916-session-observer-re-armed.md) · Stored priority / scope / estimate: **Medium / task / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Low | Quick Win | Bounded reproduction protects collaboration correctness; S applies to diagnosis, not an assumed fix. |
-
-- **Dependencies / blocked by:** None; prove renderable loss first. Scheduling before Review is soft.
-- **Blocks:** None.
-
-### BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope
-
-[Canonical item](../items/BL-260916-add-consensus-review-cross.md) · Stored priority / scope / estimate: **High / feature / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | High | Strategic | User's highest-priority feature; scope snapshots, reviewer selection/policy, config, JSON schema and OAT adapter make full v1 more than a thin invocation. |
-
-- **Dependencies / blocked by:** Its own config/scope/read-only design; no backlog prerequisite. Models/helpers are adjacent.
-- **Blocks:** None.
-
-### BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills
-
-[Canonical item](../items/BL-260916-add-a-first-party-install.md) · Stored priority / scope / estimate: **Medium / feature / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Medium | Strategic | Independent onboarding gain; remote integrity, overwrite behavior and three host paths make full S optimistic. |
-
-- **Dependencies / blocked by:** Pinned payload and destination/overwrite contract; live acceptance separately authorized.
-- **Blocks:** None.
-
-### BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows
-
-[Canonical item](../items/BL-260916-honor-configured-peer-models.md) · Stored priority / scope / estimate: **Medium / task / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Medium | Strategic | Real settings-loss defect across five wrappers and resume; documentation portion already merged. |
-
-- **Dependencies / blocked by:** None; coordinate shared Consensus edits.
-- **Blocks:** None; does not block Review.
-
-### BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic
-
-[Canonical item](../items/BL-260723-make-remaining-consensus-loop.md) · Stored priority / scope / estimate: **Low / task / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Low | Quick Win | Two direct write sites can reuse atomic replacement and failure fixtures. |
-
-- **Dependencies / blocked by:** None; coordinate generated fan-out.
-- **Blocks:** None.
-
-### BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing
-
-[Canonical item](../items/BL-260723-split-loop-free-cli-helpers.md) · Stored priority / scope / estimate: **Low / task / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | Medium | Fill-in | Useful duplication removal with fan-out/decoupling guards; optional Review preparation, not mandatory cleanup. |
-
-- **Dependencies / blocked by:** None; shared Consensus serialization is soft.
-- **Blocks:** None.
-
-### BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch
-
-[Canonical item](../items/BL-260723-investigate-live-submit.md) · Stored priority / scope / estimate: **Medium / task / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Medium | Strategic | Historical live/stub mismatch remains unresolved; redacted diagnostics and a bounded live run needed. |
-
-- **Dependencies / blocked by:** Explicit paid/live policy authorization before decisive observation.
-- **Blocks:** Confidence in that live verification path, not Review implementation.
-
-### BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)
-
-[Canonical item](../items/BL-260619-inter-agent-direct-messaging.md) · Stored priority / scope / estimate: **Medium / feature / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | Medium | Strategic | Direct workflow demand; bounded inbox still needs safe concurrent publication, acknowledgments and replay handling. |
-
-- **Dependencies / blocked by:** Identity/state/alias design in this project; no merge/fidelity prerequisite.
-- **Blocks:** None; N>2 separate.
-
-### BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter
-
-[Canonical item](../items/BL-260916-session-fidelity-opt.md) · Stored priority / scope / estimate: **Medium / feature / L** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| High | High | Strategic | Shared read/normalize/projection contract, late-result correlation, Cursor evidence and exporter privacy cross several owners. |
-
-- **Dependencies / blocked by:** Its own activity/privacy design. Re-arm findings are soft input.
-- **Blocks:** BL-260619-shared-session-log-substrate — Stateless multi-session activity merge.
-
-### BL-260619-shared-session-log-substrate — Stateless multi-session activity merge
-
-[Canonical item](../items/BL-260619-shared-session-log-substrate.md) · Stored priority / scope / estimate: **Medium / initiative / L** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | Medium | Fill-in | Narrower than old daemon initiative; provenance/order/partial-source bounds remain substantive after fidelity. |
-
-- **Dependencies / blocked by:** BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter; hard contract dependency.
-- **Blocks:** None; not messaging or N>2.
-
-### BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
-
-[Canonical item](../items/BL-260612-add-deliberation-metrics.md) · Stored priority / scope / estimate: **Low / feature / S** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | Medium | Fill-in | Partial counts exist, but provider signal inventory and resume-safe aggregation exceed a single counter. |
-
-- **Dependencies / blocked by:** None; one shared-loop lane.
-- **Blocks:** BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states (soft measurement-first order only).
+| Item | Status | Filed priority | Scope / estimate | Review value / effort | Quadrant |
+| --- | --- | --- | --- | --- | --- |
+| [BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)](../items/BL-260612-add-consensus-research-skill.md) | open | low | feature / M | Low / High | Avoid / Defer |
+| [BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md) | open | low | feature / S | Medium / Medium | Fill-in |
+| [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) | open | low | feature / S | Low / Medium | Avoid / Defer |
+| [BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md) | open | low | feature / M | Medium / High | Avoid / Defer |
+| [BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)](../items/BL-260619-define-host-native-dispatch.md) | open | low | initiative / L | Low / High | Avoid / Defer |
+| [BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)](../items/BL-260619-multi-peer-3-deliberation.md) | open | low | idea / L | Low / High | Avoid / Defer |
+| [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) | open | medium | initiative / L | Medium / High | Strategic |
+| [BL-260701-add-multi-round-panel — Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) | open | low | idea / M | Low / High | Avoid / Defer |
+| [BL-260713-optional-idle-session — Optional idle-session application integrations](../items/BL-260713-optional-idle-session.md) | open | low | idea / M | Low / High | Avoid / Defer |
+| [BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh](../items/BL-260713-per-observer-offsets-and-safe.md) | open | low | initiative / L | Medium / High | Avoid / Defer |
+| [BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch](../items/BL-260723-investigate-live-submit.md) | open | medium | task / S | High / Medium | Strategic |
+| [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | open | medium | feature / S | High / Medium | Strategic |
+| [BL-260919-collaboration-protocol-peer — Collaboration protocol: peer-initiated headless resume and provenance](../items/BL-260919-collaboration-protocol-peer.md) | open | medium | task / S | High / Medium | Strategic |
+| [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md) | open | medium | feature / M | Medium / Medium | Fill-in |
+| [BL-260919-grouped-activity-summaries — Grouped activity summaries and derived enrichments adapted from cli-continues](../items/BL-260919-grouped-activity-summaries.md) | open | low | feature / M | Low / Medium | Avoid / Defer |
+| [BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery](../items/BL-260919-improve-default-observer.md) | open | medium | task / S | High / Medium | Strategic |
+| [BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts](../items/BL-260919-locate-and-pin-claude-code.md) | open | medium | feature / M | High / Medium | Strategic |
+| [BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view](../items/BL-260919-read-linked-session-sidecars.md) | open | medium | feature / L | Medium / High | Strategic |
+| [BL-260919-reintroduce-deferred-activity — Reintroduce deferred activity correlation and provenance](../items/BL-260919-reintroduce-deferred-activity.md) | open | low | feature / M | Low / Medium | Avoid / Defer |
+| [BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates](../items/BL-260919-resolve-codex-self-identity.md) | open | medium | task / S | High / Medium | Strategic |
+| [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md) | open | medium | feature / M | Medium / Medium | Fill-in |
+| [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) | open | high | feature / M | High / Medium | Strategic |
+| [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md) | open | high | feature / S | High / Medium | Strategic |
+| [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md) | open | high | feature / M | High / Medium | Strategic |
+| [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md) | open | medium | task / S | High / Low | Quick Win |
+| [BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events](../items/BL-260919-surface-terminally.md) | open | medium | feature / S | High / Medium | Strategic |
+| [BL-260919-token-and-usage-accounting — Token and usage accounting for session activity](../items/BL-260919-token-and-usage-accounting.md) | open | medium | feature / S | Medium / Medium | Fill-in |
+| [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) | open | high | feature / M | High / Medium | Strategic |
+| [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](../items/BL-260919-verify-live-agent-messaging.md) | open | medium | task / S | High / Medium | Strategic |
 
 ### BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)
 
-[Canonical item](../items/BL-260612-add-consensus-research-skill.md) · Stored priority / scope / estimate: **Low / feature / M** · Status: **open**
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | A new research product adds tool-access and evidence-provenance decisions; no current blocker requires it. Shipped parallel synthesis is reusable, but does not settle peer research permissions. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
 
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | High | Strategic | Potential research payoff, but permissions/provenance and evidence verification require a project rather than a thin wrapper. |
+- **Dependencies / blocked by:** No active item dependency; tool-access/provenance design and go/no-go first.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
-- **Dependencies / blocked by:** Tool-access/provenance go/no-go before build; no active item blocks it.
-- **Blocks:** None.
+### BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
 
-### BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Round counts and wall-clock already exist; remaining work is consistent provider usage, per-section aggregation and resume behavior. The S estimate understates cross-wrapper coverage. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Fill-in | Proposed wave: Later measurement. |
 
-[Canonical item](../items/BL-260612-add-whole-document.md) · Stored priority / scope / estimate: **Low / feature / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | High | Strategic | Cross-section quality gain with context, fan-in, impasse and resume design cost; no immediate demand over Review. |
-
-- **Dependencies / blocked by:** Context/default decision before build; serialize loop edits.
-- **Blocks:** None.
+- **Dependencies / blocked by:** No hard dependency. Useful before similarity experiments; separate from retrospective transcript usage.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
 ### BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states
 
-[Canonical item](../items/BL-260612-add-similarity-heuristic.md) · Stored priority / scope / estimate: **Low / feature / S** · Status: **open**
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | No measured demand yet; a new deterministic score affects convergence correctness. Existing maximum-agency double ACCEPT is not a similarity algorithm. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
 
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Low | Medium | Avoid / Defer | Numeric similarity changes convergence safety; no demonstrated need and all-mode auditing makes S optimistic. |
+- **Dependencies / blocked by:** Usage evidence and scoring design first; deliberation metrics are a soft prerequisite.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
-- **Dependencies / blocked by:** Usage evidence and deterministic/agency contract; metrics-first soft.
-- **Blocks:** None.
+### BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence
 
-### BL-260701-add-multi-round-panel — Add multi-round panel discussion
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Potential output quality gain, but sequential fan-in, bounded context and interrupted-resume handling span Refine execution. Build only when section inconsistency is observed. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
 
-[Canonical item](../items/BL-260701-add-multi-round-panel.md) · Stored priority / scope / estimate: **Low / idea / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Low | Medium | Avoid / Defer | Boundary decision already satisfied; build remains demand-gated and non-converging. |
-
-- **Dependencies / blocked by:** Usage evidence and bounded-round design.
-- **Blocks:** None.
-
-### BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh
-
-[Canonical item](../items/BL-260713-per-observer-offsets-and-safe.md) · Stored priority / scope / estimate: **Low / initiative / L** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Medium | High | Strategic | Real scale boundary, but consumer namespaces/CAS/migration are a separate project without an immediate kickoff. |
-
-- **Dependencies / blocked by:** Topology/ownership decision; merge and messaging are not hard prerequisites.
-- **Blocks:** Safe stateful N>2 consumers.
-
-### BL-260713-optional-idle-session — Optional idle-session application integrations
-
-[Canonical item](../items/BL-260713-optional-idle-session.md) · Stored priority / scope / estimate: **Low / idea / M** · Status: **open**
-
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Low | Medium | Avoid / Defer | No selected integration target; core bounded-continuation limits remain honest. |
-
-- **Dependencies / blocked by:** Opt-in integration go/no-go and capability evidence.
-- **Blocks:** None; does not block queued inboxes.
+- **Dependencies / blocked by:** All sections must finish before harmonization within a run; no active item prerequisite.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
 ### BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)
 
-[Canonical item](../items/BL-260619-define-host-native-dispatch.md) · Stored priority / scope / estimate: **Low / initiative / L** · Status: **open**
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Reserved capability needs a foundational history/authority contract and a concrete caller. The shipped adapters intentionally advertise false. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Parked. |
 
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Low | High | Avoid / Defer | Disabled reservation is already safe; no concrete need justifies new execution boundary. |
-
-- **Dependencies / blocked by:** Demand and reviewed safe-packet/execution contract.
-- **Blocks:** Enabling host-native dispatch, not CLI Review.
+- **Dependencies / blocked by:** Explicit design/go-no-go and capability proof; messaging does not enable this flag.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
 ### BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)
 
-[Canonical item](../items/BL-260619-multi-peer-3-deliberation.md) · Stored priority / scope / estimate: **Low / idea / L** · Status: **open**
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Three-way convergence introduces tie, oscillation and cost semantics without current demand. Three-session messaging is a different capability. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Parked. |
 
-| Value | Effort | Quadrant | Rationale |
-| --- | --- | --- | --- |
-| Low | High | Avoid / Defer | Group convergence/ties/cost remain speculative; Panel already offers independent breadth. |
+- **Dependencies / blocked by:** Concrete two-peer limitation, then design/go-no-go.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
-- **Dependencies / blocked by:** Demand and group-convergence go/no-go.
-- **Blocks:** None.
+### BL-260619-shared-session-log-substrate — Stateless multi-session activity merge
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Fidelity now supplies the activity contract, but multi-pin ordering, missing-source evidence and packaging need a separate design. It is not needed for a first retro or messaging. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: After consumer evidence. |
+
+- **Dependencies / blocked by:** Merged fidelity prerequisite satisfied. Structured export is useful reuse, not a required CLI/file hop. Keep recorded ordering distinct from causality.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260701-add-multi-round-panel — Add multi-round panel discussion
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Current product is independent single-round breadth. Additional rounds introduce orchestration, timeouts and artifact state; demand must justify the cost. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
+
+- **Dependencies / blocked by:** Usage evidence; preserve accepted neutral, attributed, non-converging panel decisions.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260713-optional-idle-session — Optional idle-session application integrations
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Host-specific background wake has substantial lifecycle/permission maintenance. Prove the finite active-session messaging tiers first. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Parked. |
+
+- **Dependencies / blocked by:** No hard item edge; live messaging results should inform any selected host integration.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Independent cursors and concurrent-consumer recovery are substantial state ownership work. Messaging for 3+ sessions does not establish demand for a full observation mesh. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Parked. |
+
+- **Dependencies / blocked by:** Concrete N>2 observation need and ownership design. No hard dependency on stateless merge.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | A known live/stub discrepancy limits trust in the release gate. Diagnosis is bounded, but reproduction, current policy and contract reconciliation make total effort uncertain. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Acceptance slot. |
+
+- **Dependencies / blocked by:** Approved bounded provider run; refresh the September 7 external plan against current paths and runtime policy.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Implementation shipped in PR #90. Remaining value is proving advertised discovery/invocation/permissions across six host/scope combinations, not building another installer. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Acceptance slot. |
+
+- **Dependencies / blocked by:** Suitable pinned release/tag and agreed live host/install scope; retain active status until all advertised acceptance passes.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-collaboration-protocol-peer — Collaboration protocol: peer-initiated headless resume and provenance
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Unagreed headless resumes create ambiguous authorship in the same transcript. Clarify allowed behavior and evidence limits; wording alone cannot manufacture recorded provenance. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Reliability and authority. |
+
+- **Dependencies / blocked by:** Operator policy decision plus evidence of distinguishable entrypoints. No dependency on new messaging transport.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Useful once basic retros exist; separate parent-visible delegation from child activity and distinguish necessary verification from repeated implementation work. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Fill-in | Proposed wave: Deeper retros. |
+
+- **Dependencies / blocked by:** Filed hard dependencies: activity-backed retro and Claude child pinning. Usage is conditional for cost claims.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-grouped-activity-summaries — Grouped activity summaries and derived enrichments adapted from cli-continues
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Presentation enrichments do not unlock initial findings. Copy donor code only after recurring need, with attribution and corrected truncation/statistics behavior. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
+
+- **Dependencies / blocked by:** Fidelity satisfied; recurring consumer need required.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Initial reads can hide earlier decisions behind a tail window. Pagination/full-history recovery and mark-read semantics make this more than a wording fix. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Reliability and authority. |
+
+- **Dependencies / blocked by:** No hard item dependency; keep independent from activity extraction. Coordinate observer digest/CLI ownership.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Unlocks separately reviewable child evidence without implementing recursive sidecar merge. Exact child identity and mixed linkage forms require deliberate tests. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Deeper retros. |
+
+- **Dependencies / blocked by:** Fidelity satisfied; explicit identity/linkage contract and fail-closed stateful support.
+- **Blocks:** [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md); [BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view](../items/BL-260919-read-linked-session-sidecars.md)
+
+### BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Closes child and oversized-output evidence gaps, but linked-path confinement, bounded recursion and inherited history make this expensive. Prioritize only after separate child exports prove insufficient. |
+| Effort | High | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: After consumer evidence. |
+
+- **Dependencies / blocked by:** Filed hard dependency: Claude child pinning; fidelity satisfied.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-reintroduce-deferred-activity — Reintroduce deferred activity correlation and provenance
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Low | Three optional mechanisms were deliberately cut. Implement only the specific native join, process handle or byte-range consumer that becomes necessary. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Avoid / Defer | Proposed wave: Demand-led. |
+
+- **Dependencies / blocked by:** Each subfeature needs its own recorded evidence/consumer; no blanket reintroduction.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Exact self identity can block safe collaboration. Fidelity changed native identity rules, so begin with the reported collision regression before proposing more identity machinery. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Reliability and authority. |
+
+- **Dependencies / blocked by:** No hard dependency; re-evaluate partial coverage on merged main. Distinguish invalid, absent and ambiguous candidates.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | A small file-based findings store supports recurrence after useful findings exist. Premature schema design risks storing weak conclusions more efficiently. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Fill-in | Proposed wave: After repeated retros. |
+
+- **Dependencies / blocked by:** Filed hard dependencies: activity-backed retro and skill evaluation. Structured activity export is optional for automation, not required to store findings.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Fastest user-visible payoff: freeze an exact activity export and analyze behavior, corrections and recovery. Existing canonical retro already separates interpretations and unknown versions. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: First consumer. |
+
+- **Dependencies / blocked by:** Fidelity satisfied. Full Markdown export is available now; neither structured export nor attribution is a hard prerequisite.
+- **Blocks:** [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md); [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md); [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md)
+
+### BL-260919-skill-attribution-in-session — Skill attribution in session activity events
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Supports the primary skill-evaluation use case. Native Claude fields are small; available-skill extraction, inferred file reads on other runtimes and honest version recovery make the complete item larger than its S label. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: First consumer. |
+
+- **Dependencies / blocked by:** Fidelity satisfied. Coordinate shared activity schema with structured export.
+- **Blocks:** [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md)
+
+### BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Turns the evidence into activation/adherence/outcome/efficiency findings. Build after the base retro contract and attribution settle; decide mode vs separate skill during discovery. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Skill evaluation. |
+
+- **Dependencies / blocked by:** Hard: activity-backed retro and skill attribution. Usage accounting only for token/cost-based findings.
+- **Blocks:** [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md)
+
+### BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | A bounded CI reliability improvement protects unrelated PRs. Reproduce on merged main first; the 50-run/load and three-CI-run acceptance adds elapsed time beyond edit effort. |
+| Effort | Low | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Quick Win | Proposed wave: Reliability first. |
+
+- **Dependencies / blocked by:** The former fidelity-stack sequencing constraint is satisfied. Product race vs fixture timing remains a hypothesis until reproduced.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Recorded failed turns should not look like silence. Deduplication, quiet-empty behavior and runtime-specific terminal shapes need a real event contract. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Reliability and authority. |
+
+- **Dependencies / blocked by:** No hard item dependency; coordinate watcher changes with SIGTERM stabilization. Never turn a terminal event into continuation authority.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-token-and-usage-accounting — Token and usage accounting for session activity
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | Medium | Needed for quantitative efficiency, not basic adherence. Native-message dedup, compaction resets and inconsistent model attribution make complete accounting larger than a simple counter. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Fill-in | Proposed wave: Later measurement. |
+
+- **Dependencies / blocked by:** Fidelity satisfied. Conditional input to skill/delegation cost findings; no monetary figures without configured prices.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | Enables deterministic analysis over complete invocation inventories while retaining bounded previews and coverage. Existing complete Markdown report construction should be reused. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Structured evidence. |
+
+- **Dependencies / blocked by:** Fidelity satisfied. Soft sequencing after attribution to avoid immediate schema churn; can begin in parallel with retro instruction work.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
+
+### BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| Value | High | PR #98 delivered deterministic implementation, not observed host delivery. Multiple Codex/Claude tiers and the finite Monitor need distinct receipts. |
+| Effort | Medium | Remaining scope, including its acceptance checks; see dependency boundary below. |
+| Quadrant | Strategic | Proposed wave: Acceptance slot. |
+
+- **Dependencies / blocked by:** Bounded authorization and exact enrolled identities per run; identity diagnosis is a conditional blocker only if reproduced on the target.
+- **Blocks:** No unconditional active-item completion edge; conditional and soft dependencies are described above.
 
 ## 3. Dependency Graph
 
-Only one active-item edge is a hard semantic prerequisite in the proposed delivery plan:
-
 ```text
-BL-260916-session-fidelity-opt
-    └── hard: activity contract ──> BL-260619-shared-session-log-substrate
+Merged fidelity contract [satisfied] -> attribution
+Merged fidelity contract [satisfied] -> activity-retro
+Merged fidelity contract [satisfied] -> structured-export
+Merged fidelity contract [satisfied] -> child-pinning
+Merged fidelity contract [satisfied] -> stateless-merge
 
-BL-260916-session-observer-re-armed
-    └── soft: bounded investigation first ──> BL-260916-add-consensus-review-cross
+attribution ------> skill-evaluation <------ activity-retro
+activity-retro ---> delegation <------------ child-pinning
+child-pinning ----> linked-sidecars
+activity-retro ---> findings-ledger <------- skill-evaluation
 
-BL-260916-honor-configured-peer-models
-    └── adjacent, NOT blocking ──> BL-260916-add-consensus-review-cross
-BL-260723-split-loop-free-cli-helpers
-    └── optional preparation ──> BL-260916-add-consensus-review-cross
-
-BL-260612-add-deliberation-metrics
-    └── soft: measurement first ──> BL-260612-add-similarity-heuristic
-
-BL-260619-inter-agent-direct-messaging  [independent of fidelity and merge]
-BL-260713-per-observer-offsets-and-safe [separate stateful consumer design]
+attribution - - -> structured-export - - -> stateless-merge
+structured-export - - -> findings-ledger automation
+usage - - -> quantitative skill/delegation findings
+loop-metrics - - -> similarity experiment
+identity diagnosis - - -> live-messaging [only if same ambiguity reproduces]
 ```
 
-| ID | Title |
-| --- | --- |
-| BL-260916-session-observer-re-armed | Investigate observer re-arm catch-up and suspected unread-record gaps |
-| BL-260916-add-consensus-review-cross | Add consensus-review: cross-model review of a bounded scope |
-| BL-260916-honor-configured-peer-models | Honor configured peer models and effort in convergence workflows |
-| BL-260723-split-loop-free-cli-helpers | Split loop-free cli-helpers core for panel sharing |
-| BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) |
-| BL-260916-session-fidelity-opt | Session fidelity: opt-in --include-activity for observer and exporter |
-| BL-260619-shared-session-log-substrate | Stateless multi-session activity merge |
-| BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts |
-| BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states |
-| BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N>2 collaboration mesh |
+Solid arrows are filed completion prerequisites; dashed arrows are soft or conditional. The merge and ledger can consume shared internal APIs or findings rather than requiring an exported JSON file. Independent work: watcher reliability, default history recovery, terminal events, resume policy, installer acceptance and live-submit diagnosis.
 
-Design gates in the catalog are internal prerequisites, not invented backlog edges. Shared files require coordinated ownership/rebasing even when two items are technically independent. No item is newly blocked by an unimplemented daemon.
+**Graph legend:**
+
+| Token | Item |
+| --- | --- |
+| attribution | [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md) |
+| activity-retro | [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) |
+| structured-export | [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) |
+| child-pinning | [BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts](../items/BL-260919-locate-and-pin-claude-code.md) |
+| stateless-merge | [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) |
+| skill-evaluation | [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md) |
+| delegation | [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md) |
+| linked-sidecars | [BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view](../items/BL-260919-read-linked-session-sidecars.md) |
+| findings-ledger | [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md) |
+| usage | [BL-260919-token-and-usage-accounting — Token and usage accounting for session activity](../items/BL-260919-token-and-usage-accounting.md) |
+| loop-metrics | [BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md) |
+| similarity experiment | [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) |
+| identity diagnosis | [BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates](../items/BL-260919-resolve-codex-self-identity.md) |
+| live-messaging | [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](../items/BL-260919-verify-live-agent-messaging.md) |
 
 ## 4. Parallel Lanes
 
-| Lane | Items | Effort / coordination |
+These are candidate ownership lanes, not an instruction to start all of them. The operator selects actual concurrency.
+
+| Lane | Sequence and scope | Effort / conflicts |
 | --- | --- | --- |
-| Primary workflow | **BL-260916-session-observer-re-armed — Observer re-arm investigation**, then **BL-260916-add-consensus-review-cross — Consensus Review** | Low investigation then High feature; Sol's investigation is started and Review is confirmed next; they may proceed concurrently. |
-| Parallel onboarding | **BL-260916-add-a-first-party-install — First-party standalone installer** | Medium; independent source ownership, coordinate installation/release docs and packaging tests. |
-| Consensus integrity | **BL-260916-honor-configured-peer-models — Peer model/effort forwarding**; **BL-260723-make-remaining-consensus-loop — Atomic loop writes**; **BL-260723-split-loop-free-cli-helpers — Loop-free helper core** | Medium / Low / Medium. Serialize overlapping shared runtime/generated output edits with Review. |
-| Live-provider evidence | **BL-260723-investigate-live-submit — Live submit verdict-source investigation** | Medium, explicitly authorization-gated. Deterministic tracing can precede a paid run. |
-| Collaboration | **BL-260619-inter-agent-direct-messaging — Provider-neutral direct messaging** | Medium design/build, independent of merge; coordinate observer/collab state and bounded continuation. |
-| Transcript evidence | **BL-260916-session-fidelity-opt — Session fidelity activity view**, then **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge** | High then Medium; same transcript/observer surfaces, sequential contract delivery. |
+| Evidence producer | [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md) → [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) → [BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts](../items/BL-260919-locate-and-pin-claude-code.md) | High total. Shared activity/identity modules and affected consumer versions; agree schema first. |
+| Retro consumer | [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) → [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md) → [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md) / [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md) | High total. Canonical `src/skills/session-retro/`; skill evaluation waits for attribution, delegation waits for child pinning. |
+| Reliability | [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md); [BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates](../items/BL-260919-resolve-codex-self-identity.md); [BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery](../items/BL-260919-improve-default-observer.md); [BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events](../items/BL-260919-surface-terminally.md); [BL-260919-collaboration-protocol-peer — Collaboration protocol: peer-initiated headless resume and provenance](../items/BL-260919-collaboration-protocol-peer.md) | High aggregate, individually bounded. Serialize watcher/identity changes with evidence producer edits to shared modules. |
+| Acceptance | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md); [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](../items/BL-260919-verify-live-agent-messaging.md); [BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch](../items/BL-260723-investigate-live-submit.md) | Medium per item, host-dependent elapsed time. Independent code lane but requires operator host availability and bounded execution authorization. |
 
-These are available technical lanes, not six approved simultaneous projects. Research and broader deliberation quality remain queued; N>2 and idle integration retain their own design gates.
-
-### Complete item-to-project grouping
-
-The prior review described lanes; this map makes the actual grouping explicit. **16 candidate projects cover all 19 items exactly once.** Two combinations are useful: three Consensus-maintenance tickets with separate acceptance/commits, and metrics plus an evidence-gated similarity phase. The other fourteen remain single-ticket projects. A thematic group is not permission to bundle unrelated scope into Review.
-
-| Priority / approval | Project candidate | Backlog membership | Grouping boundary |
-| --- | --- | --- | --- |
-| Now — started | Observer reliability | [BL-260916-session-observer-re-armed — Investigate observer re-arm catch-up and suspected unread-record gaps](../archived/BL-260916-session-observer-re-armed.md) | Solo lite investigation; user reports Sol started it. |
-| Now — approved | Consensus Review | [BL-260916-add-consensus-review-cross — Add consensus-review: cross-model review of a bounded scope](../items/BL-260916-add-consensus-review-cross.md) | Quick workflow + lightweight design; Astra leads, Fable reviews. No unrelated loop changes. |
-| Now — approved parallel | Standalone installer | [BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills](../items/BL-260916-add-a-first-party-install.md) | Independent quick project; integrity, overwrite/ref semantics and host-specific destinations remain explicit. |
-| Next — proposed 1 | Consensus runtime maintenance | [BL-260916-honor-configured-peer-models — Honor configured peer models and effort in convergence workflows](../items/BL-260916-honor-configured-peer-models.md); [BL-260723-make-remaining-consensus-loop — Make remaining consensus-loop write sites atomic](../items/BL-260723-make-remaining-consensus-loop.md); [BL-260723-split-loop-free-cli-helpers — Split loop-free cli-helpers core for panel sharing](../items/BL-260723-split-loop-free-cli-helpers.md) | One project, three independently verifiable phases/commits: model propagation, atomic writes, helper split. Shared runtime/output ownership justifies grouping, not a hard dependency; each can ship separately. Only helper extraction may move into Review if its design demonstrates direct need. |
-| Next — proposed 2 | Provider-neutral inbox | [BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)](../items/BL-260619-inter-agent-direct-messaging.md) | Own project. Shared identity/state contract, acknowledgments, concurrency and bounded delivery; independent of fidelity/merge. |
-| Next — proposed 3 | Session fidelity | [BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter](../items/BL-260916-session-fidelity-opt.md) | Own design/build project using the retained research packet; no daemon or warehouse. |
-| Next — authorization lane | Live-submit investigation | [BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch](../items/BL-260723-investigate-live-submit.md) | Separate bounded diagnosis; schedule when live-run authority is granted. Do not hide provider spend inside a maintenance batch. |
-| After fidelity — proposed | Stateless merged activity view | [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) | Separate project consuming the fidelity contract; not a prerequisite for inboxes. |
-| Later — proposed first | Loop measurement and convergence quality | [BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md); [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) | Potential two-phase project: ship metrics first; similarity proceeds only if evidence and a reviewed deterministic contract justify it. Grouping is not approval to implement the heuristic. |
-| Later — demand-gated | Whole-document harmonization | [BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md) | Separate context/fan-in/resume project; not an incidental Review enhancement. |
-| Later — demand-gated | Consensus Research | [BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)](../items/BL-260612-add-consensus-research-skill.md) | Separate tool-access/provenance decision, then implementation only on go. |
-| Later — demand-gated | Multi-round Panel | [BL-260701-add-multi-round-panel — Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) | Separate optional attributed discussion project; not convergence. |
-| Parked — unranked | Safe N>2 collaboration | [BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh](../items/BL-260713-per-observer-offsets-and-safe.md) | Separate stateful ownership/CAS/topology project. Inboxes and stateless merge may inform it but are not hard prerequisites. |
-| Parked — unranked | Idle-session integrations | [BL-260713-optional-idle-session — Optional idle-session application integrations](../items/BL-260713-optional-idle-session.md) | Separate opt-in host integration investigation; don't couple mesh delivery to a selected application. |
-| Parked — unranked | Host-native dispatch | [BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)](../items/BL-260619-define-host-native-dispatch.md) | Separate capability/security decision; no enabling reserved flags without reviewed contract. |
-| Parked — unranked | 3+ peer deliberation | [BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)](../items/BL-260619-multi-peer-3-deliberation.md) | Separate group-convergence decision, not the N>2 observer mesh. |
+Generated payloads, `src/distributions.ts`, skill versions and changelog are shared integration surfaces across lanes. Runtime dependency freedom remains intact. Keep independently reviewable commits and coordinate regeneration; parallel work is not conflict-free just because backlog files differ.
 
 ## 5. Recommended Execution Order
 
-### Wave 1 — Current workflow
+| Wave | Outcome | Items / condition |
+| --- | --- | --- |
+| 0 — Clear current friction | Trust initial collaboration reads and CI | Reproduce [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md) and [BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates](../items/BL-260919-resolve-codex-self-identity.md) on main. Select fixes based on evidence; do not let a speculative rewrite delay the consumer lane. |
+| 1 — First useful retro | Export one exact session, inspect behavior and corrections | [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) alongside [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md). Start with existing Markdown evidence. |
+| 2 — Skill evaluation and structured capture | Explain whether a skill helped | [BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency](../items/BL-260919-skill-evaluation-retro.md) after attribution/retro; [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) can overlap consumer work after schema agreement. |
+| 3 — Deeper evidence where needed | Inspect child work and quantitative efficiency | [BL-260919-locate-and-pin-claude-code — Locate and pin Claude Code subagent transcripts](../items/BL-260919-locate-and-pin-claude-code.md) → [BL-260919-delegation-and-subagent — Delegation and subagent evaluation in retros](../items/BL-260919-delegation-and-subagent.md); add [BL-260919-token-and-usage-accounting — Token and usage accounting for session activity](../items/BL-260919-token-and-usage-accounting.md) when token-based questions matter. |
+| 4 — Repeated findings | Query recurring supported conclusions | [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](../items/BL-260919-retro-findings-ledger.md) after several actual retro artifacts demonstrate the field/query needs. [BL-260619-shared-session-log-substrate — Stateless multi-session activity merge](../items/BL-260619-shared-session-log-substrate.md) and [BL-260919-read-linked-session-sidecars — Read linked session sidecars in the activity view](../items/BL-260919-read-linked-session-sidecars.md) remain separate demand-led projects. |
 
-1. **BL-260916-session-observer-re-armed — Observer re-arm investigation**: bounded reproduction; if only diagnostic ambiguity is found, document it rather than expanding into fidelity.
-2. **BL-260916-add-consensus-review-cross — Consensus Review**: design scope capture, supported read-only policy, reviewer preferences, and output contracts, then implement one dispatched invocation.
-3. Confirmed parallel lane: **BL-260916-add-a-first-party-install — First-party standalone installer**; the user selects its owner and kickoff.
+**Acceptance runs are schedulable alongside any wave**, not implicitly lowest priority: reserve a host session when ready and collect exact boundary receipts. Reliability fixes can replace a producer slot when blocking daily work; do not add unlimited parallel branches.
 
-### Wave 2 — Correctness and independent collaboration
+### Deferred
 
-- **BL-260916-honor-configured-peer-models — Peer model/effort forwarding** and **BL-260723-make-remaining-consensus-loop — Atomic loop writes**: independent correctness changes, serialize shared output ownership.
-- **BL-260723-split-loop-free-cli-helpers — Loop-free helper core**: pull forward only if Review implementation benefits; do not gate feature delivery on unrelated refactoring.
-- **BL-260723-investigate-live-submit — Live submit verdict-source investigation**: schedule a deliberately authorized live observation; this review is not that grant.
-- **BL-260619-inter-agent-direct-messaging — Provider-neutral direct messaging** and **BL-260916-session-fidelity-opt — Session fidelity activity view**: separate projects; either can start first after capacity review. Coordinate shared observer files.
-
-### Wave 3 — Evidence-driven expansion
-
-**BL-260619-shared-session-log-substrate — Stateless multi-session activity merge** follows the fidelity contract. Research, metrics, harmonization, similarity, multi-round panel, N>2, idle integration, and reserved dispatch/group-convergence work remain Later in the roadmap. They are not abandoned; each needs the stated demand/design gate before kickoff.
+- [BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)](../items/BL-260612-add-consensus-research-skill.md): A new research product adds tool-access and evidence-provenance decisions; no current blocker requires it. Shipped parallel synthesis is reusable, but does not settle peer research permissions.
+- [BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md): No measured demand yet; a new deterministic score affects convergence correctness. Existing maximum-agency double ACCEPT is not a similarity algorithm.
+- [BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md): Potential output quality gain, but sequential fan-in, bounded context and interrupted-resume handling span Refine execution. Build only when section inconsistency is observed.
+- [BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)](../items/BL-260619-define-host-native-dispatch.md): Reserved capability needs a foundational history/authority contract and a concrete caller. The shipped adapters intentionally advertise false.
+- [BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)](../items/BL-260619-multi-peer-3-deliberation.md): Three-way convergence introduces tie, oscillation and cost semantics without current demand. Three-session messaging is a different capability.
+- [BL-260701-add-multi-round-panel — Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md): Current product is independent single-round breadth. Additional rounds introduce orchestration, timeouts and artifact state; demand must justify the cost.
+- [BL-260713-optional-idle-session — Optional idle-session application integrations](../items/BL-260713-optional-idle-session.md): Host-specific background wake has substantial lifecycle/permission maintenance. Prove the finite active-session messaging tiers first.
+- [BL-260713-per-observer-offsets-and-safe — Per-observer offsets and safe N>2 collaboration mesh](../items/BL-260713-per-observer-offsets-and-safe.md): Independent cursors and concurrent-consumer recovery are substantial state ownership work. Messaging for 3+ sessions does not establish demand for a full observation mesh.
+- [BL-260919-grouped-activity-summaries — Grouped activity summaries and derived enrichments adapted from cli-continues](../items/BL-260919-grouped-activity-summaries.md): Presentation enrichments do not unlock initial findings. Copy donor code only after recurring need, with attribution and corrected truncation/statistics behavior.
+- [BL-260919-reintroduce-deferred-activity — Reintroduce deferred activity correlation and provenance](../items/BL-260919-reintroduce-deferred-activity.md): Three optional mechanisms were deliberately cut. Implement only the specific native join, process handle or byte-range consumer that becomes necessary.
 
 ## 6. Roadmap Alignment
 
-| Horizon | Covered items |
+The roadmap covers every active item. This pass corrected its pre-merge operating language and the current-state/index baseline; proposed priorities remain distinct from the historical approved kickoff.
+
+| Area | Alignment / correction |
 | --- | --- |
-| Now | **BL-260916-session-observer-re-armed — Observer re-arm investigation**; **BL-260916-add-consensus-review-cross — Consensus Review**; parallel **BL-260916-add-a-first-party-install — First-party standalone installer**. |
-| Next | **BL-260916-honor-configured-peer-models — Peer model/effort forwarding**; **BL-260723-make-remaining-consensus-loop — Atomic loop writes**; **BL-260723-split-loop-free-cli-helpers — Loop-free helper core**; **BL-260723-investigate-live-submit — Live submit investigation**; **BL-260619-inter-agent-direct-messaging — Direct messaging**; **BL-260916-session-fidelity-opt — Session fidelity activity view**. |
-| Later | **BL-260619-shared-session-log-substrate — Stateless multi-session activity merge**; **BL-260713-per-observer-offsets-and-safe — Safe N>2 mesh**; **BL-260713-optional-idle-session — Idle integrations**; **BL-260612-add-consensus-research-skill — Consensus Research**; **BL-260612-add-deliberation-metrics — Deliberation metrics**; **BL-260612-add-similarity-heuristic — Similarity heuristic**; **BL-260612-add-whole-document — Whole-document harmonization**; **BL-260701-add-multi-round-panel — Multi-round panel**; **BL-260619-define-host-native-dispatch — Host-native dispatch**; **BL-260619-multi-peer-3-deliberation — Multi-peer deliberation**. |
+| Completed foundations | PR #96 (Session Fidelity) and PR #98 (Agent Messaging) are merged. Remove fidelity from the future queue and messaging from branch-only descriptions. |
+| Onboarding | Installer source shipped in PR #90; the remaining item is live acceptance across advertised host/scope boundaries. Preserve its open status. |
+| Evidence / retro | Four filed high-priority items align with the operator’s stated skill-evaluation goal. Prioritize the usable consumer alongside attribution; structured export supports subsequent automation. |
+| Reliability / protocol | Present on roadmap but not ordered by live pain. Exact identity, recoverable history and terminal visibility can unblock collaboration; headless-resume policy is independent of transport. |
+| Later / reserved | Keep merge, sidecars, ledger, metrics, research, panel and N>2 observation separate. Three-session messaging does not close group convergence or consumer cursor ownership. |
 
-**Orphans:** none after this refresh; all 19 items are mapped.
+**Coverage gaps:** Release/discovery verification for already-shipped plugins and Consensus Review is represented by `RELEASING.md`, not a complete dedicated active backlog matrix. Installer and messaging cover their own acceptance only. If release readiness becomes the cycle objective, capture a bounded release-verification item rather than treating either existing ticket as all-product acceptance.
 
-**Coverage gaps:** per-workflow saved defaults and activating reserved roles remain known limitations without dedicated items. Keep them out of the peer-model fix unless separately scoped. Publication/provider discovery for current distributions remains an operator checklist, not implied completion or a dependency on new features. Historical extra-provider/typed-fixture/orchestration ideas are not active commitments.
+**Orphans:** None among the 29 active items. Held ideas (skill-version comparison, workflow telemetry, within-runtime model comparison, watch emission filtering) remain roadmap ideas, not hidden implementation commitments.
 
-**Drift corrected:** completed Session packaging and docs work removed from future lanes; current skill names and source ownership restored; daemon-first/messaging dependency removed; transitive version guard removed from active review; config-doc completion distinguished from runtime completion.
+**Stale artifacts:** September 16 priority alignment names completed projects and broken active-item links. Refresh it only after the operator agrees the new stack. The sole installer handoff must become an acceptance handoff if retained, or be removed if dropped from the agreed kickoff; no new handoffs are selected by this review alone.
 
 ## 7. Observations & Recommendations
 
-### Evidence anchors
+1. Ship the consumer early. A concrete retro can reveal whether richer activity data changes a finding; avoid adding capture features solely because the source contains fields.
+2. Preserve unknowns. Reading `SKILL.md` is evidence of a load, not proof of invocation/adherence; a current install cannot prove a historical version. Outcome corroboration outside the frozen transcript must carry its own capture and provenance.
+3. Separate call-level efficiency from cost and causal claims. Repeated reads may be redundant or necessary verification. Report the pattern and its limits before calling it waste.
+4. Match effort to full acceptance. Several S items include multi-runtime contracts, six live host/scope cells, or repeated CI. The catalog’s Medium estimates expose this without silently changing accepted item scope.
+5. Keep source ownership canonical. Changes go under `src/skills/`, shared runtime under `src/shared/`, followed by affected versions/changelog/build. User-level installs track merged main; the observer was refreshed to merged 1.0.71 during this review, which is not a provider acceptance receipt.
 
-Paths below are repository-relative and were checked against the review baseline; line numbers can move with later implementation.
-
-| Claim | Source |
+| Risk | Mitigation |
 | --- | --- |
-| Nine standalone payloads; nine Consensus members and four Session members | `src/distributions.ts`; plugin manifests. |
-| Catch-up happens before establishing next-index watch baseline; catchUpFirst emits observed delta | `src/skills/session-observer/src/lib/watch.ts:1152–1255`; existing `watch.test.ts:456` covers initial catch-up. |
-| Offset persistence is distinct from emitted/harness-delivered content | `src/skills/session-observer/src/lib/observe.ts:416`; restart-after-signal renderable-message proof remains to be added. |
-| Convergence settings are reduced to providers; Panel forwards them | `src/skills/refine/src/consensus-refine.ts:900`; `src/skills/panel/src/consensus-panel.ts:1336–1352`; other four convergence wrappers have the same mapping. |
-| Review needs its own new config key | `src/plugins/consensus/config/consensus-config.ts:91` allows peers, panelists, panel_size, roles, not reviewers. |
-| Cursor adapter lacks requested read-only policy | `src/plugins/consensus/provider-cli/adapters.ts:249–254`; do not silently weaken Review policy. |
-| Atomic sites still use direct writeFile | `src/plugins/consensus/core/consensus-loop.ts:196–202,246–265`. |
-| Live submit assertion and fallback are different contracts | `src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts:76–79`; `structured-output.ts:222–246` in the same provider-cli directory. |
-| No general Codex call-result activity projection | `src/shared/transcript/runtimes.ts:1741`; exporter normalizes/sanitizes at `src/skills/session-export-transcript/src/session-export-transcript.ts:579`. |
-| Existing near-match behavior is not numeric similarity | `src/plugins/consensus/core/loop-escalation.ts:44–52`: maximum agency can accept unequal hashes with double ACCEPT. |
+| Old roadmap is mistaken for the new approved stack | Label recommendations and wait for the collaborative alignment decision before writing kickoff handoffs. |
+| Building all fidelity follow-ups before using them | Start a single-session retro now; pull sidecars, correlation and richer summaries only when actual findings need them. |
+| False attribution or version certainty | Preserve native/inferred/unknown distinctions and original evidence locators. |
+| Same shared runtime edited in multiple lanes | Assign module ownership and sequence schema/identity changes; regenerate outputs at integration. |
+| Tests are mistaken for live acceptance | Keep exact host/install/delivery receipts separate from deterministic fixtures. |
+| Existing code changes are mistaken for complete backlog acceptance | Regression/acceptance audit first; archive only when all criteria are satisfied. |
 
-### Risks and controls
+**Quick win:** [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md) is the clearest high-value/low-edit-effort candidate, subject to reproduction on merged main and its full load/CI acceptance. Policy wording or installer reimplementation should not be mislabeled as easy completion.
 
-| Risk | Control |
-| --- | --- |
-| Diagnose message loss from filtered raw gaps | Reproduce with known renderable content; track persisted, emitted, and delivered states separately. |
-| Claim cross-model independence from provider name | Record actual model evidence or unknown; different provider is not proof of different family. |
-| Treat worktree access as edit permission or total isolation | Require supported read-only policy, bounded scope, mutation diagnostics, and explicit detection limits. |
-| Scope estimates hide design/verification work | Preserve stored estimates but use reviewed effort: Review High, installer Medium, metrics/similarity Medium, narrowed merge Medium. Re-estimate at project kickoff. |
-| Research packet or external plan copied against stale paths | Reconcile pinned research with current owners. September 7 live-submit plan's writable-default claim is stale; current Codex test defaults read-only but permits override. |
-| Inboxes create an accidental second wake mechanism | Reuse existing continuation/authority budget; queue availability is not wake capability or recipient acknowledgment. |
-| Concurrent shared-source changes cause version/output drift | Coordinate owners and regenerate from declarations; transitive version guard already exists. |
+### Evidence checked
 
-No product source, global install, provider configuration, or live runtime was changed by this review. No additional decision record was finalized; implementation design gates remain explicit. Keep the research packet and backlog lineage; the superseded July kickoff handoffs have been replaced for the confirmed three-lane stack.
+- GitHub: [PR #90](https://github.com/tkstang/skills/pull/90), [PR #93](https://github.com/tkstang/skills/pull/93), [PR #96](https://github.com/tkstang/skills/pull/96), [PR #98](https://github.com/tkstang/skills/pull/98) are merged as of 2026-09-20. `gh release list` still returns only the June Consensus `v0.1.0` release; merged manifests are not publication evidence.
+- All active item descriptions/criteria, completed index, roadmap/current-state and historical alignment were read. `oat pjm doctor --json` reports `adoption.state: declared`.
+- `src/skills/session-retro/SKILL.md:28` already provides bounded, read-only evidence and unknown executed-version handling; the new work should strengthen that existing skill rather than replace its safeguards.
+- `src/skills/create/src/consensus-create.ts:927` and `src/skills/refine/src/refine-render.ts:365` already render rounds/wall-clock; cost remains unavailable.
+- `src/plugins/consensus/core/loop-escalation.ts:20` confirms hash/verdict convergence and the maximum-agency double-ACCEPT behavior; no numerical similarity score.
+- `src/plugins/consensus/provider-cli/adapters.ts:158` and peer adapter declarations keep host-native dispatch false. Accepted panel breadth/moderator records remain authoritative.
 
-### Quick wins
+No product implementation, live provider run, hook activation, release or publication was performed in this planning pass. Product behavior was assessed from source and existing receipts; new behavioral acceptance is not claimed.
 
-- **BL-260916-session-observer-re-armed — Observer re-arm investigation:** small diagnostic scope with a clear escalation boundary if genuine loss is found.
-- **BL-260723-make-remaining-consensus-loop — Atomic loop writes:** two known replacement sites and existing failure-test patterns.
-
-External implementation plans are an optional next step through `oat-repo-improve`; this review does not generate or execute them.
+Additional checked source anchors: `src/shared/transcript/activity/project.ts:46` defines export budgets; `src/skills/session-export-transcript/src/session-export-transcript.ts:888` constructs full-range Markdown activity; `src/shared/transcript/activity/claude-code.ts:43` and `types.ts:91` lack attribution fields. `src/skills/session-observer/src/lib/locate.ts:1937` validates exact candidates and rejects ambiguity, but does not establish the outstanding duplicate-rollout reproduction. `src/skills/session-observer/src/watch.test.ts:889` owns the SIGTERM fixture. `src/plugins/consensus/provider-cli/structured-output.ts:255` accepts valid submit evidence then falls back to final-message extraction; the live test at `e2e/submit-live.e2e.test.ts:76` still requires submit provenance.
