@@ -155,9 +155,10 @@
   copy the plugin tree into a pinned per-provider cache, so a `git pull` alone
   does not refresh an install; `claude plugin update` is keyed on the plugin
   manifest version and reports `already at the latest version` when only skill
-  versions changed. Cursor's git-URL marketplace re-indexes its existing clone
-  instead of fetching, so it can silently under-report plugins until the
-  marketplace is removed and re-added. Adds a standalone-skill update procedure
+  versions changed. Records an observed cursor-agent 2026.09.18 case where
+  `plugin marketplace update` left a git-URL marketplace on a stale clone and
+  under-reported its plugins, with remove/re-add as the recovery step. Adds a
+  standalone-skill update procedure
   and an installed-version audit snippet, and points `AGENTS.md` and the README
   at the per-provider refresh commands.
 

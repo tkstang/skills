@@ -241,10 +241,18 @@ pull is the first step, but on its own it does not change what a provider loads:
 git -C /path/to/skills pull
 ```
 
-Every provider **copies** the plugin tree into its own cache and pins that copy.
-Each one therefore needs its own refresh after the pull, and each has a
-different failure mode. Restart the provider CLI afterwards so the refreshed
-copy is loaded.
+What the pull is enough for depends on how the plugin was installed:
+
+- **Marketplace installs** (Claude Code, Codex, and Cursor marketplace entries)
+  copy the plugin tree into a per-provider cache and pin that copy. These need
+  the explicit refresh commands below.
+- **Cursor `--plugin-dir`** loads from your checkout for that run only and
+  writes nothing under `~/.cursor/`, so the pull is the whole update — just
+  start a new run.
+- **Cursor picking up a Claude Code-enabled plugin** has no separate Cursor
+  install; refreshing it is the Claude Code procedure below.
+
+Restart the provider CLI after any refresh so the new copy is loaded.
 
 ### Claude Code
 
@@ -278,13 +286,23 @@ reports `already at the latest version` and keeps the stale copy. There is no
 `--force`; reinstall to re-copy at the current checkout:
 
 ```bash
-claude plugin uninstall consensus@skills
+claude plugin uninstall consensus@skills --keep-data
 claude plugin install consensus@skills
 ```
 
-Both commands require the qualified `consensus@skills` id — a bare `consensus`
-fails with `Plugin not found`. Superseded version directories are left behind
-under `~/.claude/plugins/cache/`; removing them is optional cleanup.
+`--keep-data` matters: without it, uninstalling the last installation of a
+plugin also deletes its persistent data directory at
+`~/.claude/plugins/data/{id}/`. Pass it whenever you are uninstalling only to
+force a content refresh. On a CLI old enough to lack the flag, back that
+directory up first.
+
+Qualified `consensus@skills` ids are used above so the selection is
+unambiguous. A bare `consensus` also resolves on Claude Code 2.1.278 when
+exactly one installed marketplace entry matches; it fails only when the name is
+ambiguous or absent.
+
+Superseded version directories are left behind under
+`~/.claude/plugins/cache/`; removing them is optional cleanup.
 
 `claude plugin marketplace update skills` re-validates the marketplace
 manifest. That matters for git-backed marketplaces; for a directory source it
@@ -306,12 +324,19 @@ the installed copy under `~/.codex/`.
 ### Cursor Agent
 
 Cursor marketplaces are **git URL** sources, so Cursor clones the repository to
-`~/.cursor/plugins/marketplaces/github.com/<owner>/<repo>/<sha>/`. That clone is
-pinned, and `plugin marketplace update` re-indexes the clone it already has
-rather than fetching new commits. A marketplace can therefore sit on a
-months-old commit and silently under-report the plugins it contains — reporting
-`1 plugin indexed` for a manifest that declares two. Remove and re-add it to
-force a fresh clone:
+`~/.cursor/plugins/marketplaces/github.com/<owner>/<repo>/<sha>/`, one directory
+per resolved commit.
+
+`plugin marketplace update` is intended to refresh that clone, and the CLI does
+contain a path that resolves the remote ref before cloning. It cannot be relied
+on blindly: on cursor-agent 2026.09.18-9a7762b a `skills` marketplace stayed
+pinned to a clone that was roughly two months old, and `update` reported
+`✓ Updated marketplace skills: 1 plugin indexed` for a manifest that declared
+two plugins, leaving the second undiscoverable.
+
+Check the reported count against the marketplace manifest after an update. When
+it disagrees, or the clone directory has not moved to the expected commit,
+remove and re-add the marketplace to force a fresh clone:
 
 ```bash
 cursor-agent plugin marketplace remove skills
@@ -321,7 +346,8 @@ cursor-agent plugin marketplace add https://github.com/tkstang/skills
 `add` reports how many plugins it indexed; confirm that count matches the
 marketplace manifest. Because the source is a git URL, Cursor reads the
 **pushed** repository rather than your local checkout — push first, then
-re-add.
+re-add. Re-adding drops any non-default ref the original entry pinned, so
+re-apply that if you relied on it.
 
 There is no `plugin install` verb on the Cursor CLI, so install or reinstall the
 refreshed plugins from the interactive picker with `/plugins`.
@@ -334,16 +360,32 @@ user-level install is the canonical copy under `~/.agents/skills/<name>/` with
 provider entries symlinked to it, replace that directory from the generated
 payload in an updated checkout:
 
+Stage the new payload and keep the old one until the swap succeeds, so an
+interrupted copy cannot leave every linked provider pointing at a missing
+directory:
+
 ```bash
 git -C /path/to/skills pull
-rm -rf ~/.agents/skills/<name>
-cp -R /path/to/skills/skills/<name> ~/.agents/skills/<name>
+test -f /path/to/skills/skills/<name>/SKILL.md || exit 1
+
+cp -R /path/to/skills/skills/<name> ~/.agents/skills/<name>.new
+mv ~/.agents/skills/<name> ~/.agents/skills/<name>.bak
+mv ~/.agents/skills/<name>.new ~/.agents/skills/<name>
+
 ln -sfn "../../.agents/skills/<name>" ~/.claude/skills/<name>
+rm -rf ~/.agents/skills/<name>.bak
 ```
 
-Copy from the generated `skills/<name>/` payload, never `src/skills/<name>/`.
-Repeat the symlink for each provider directory you mirror into, and re-run any
-provider view sync your setup uses.
+If the swap fails partway, restore with
+`mv ~/.agents/skills/<name>.bak ~/.agents/skills/<name>`. Remove the backup
+only once the new payload is in place and its `SKILL.md` reports the version you
+expect.
+
+This replaces the directory wholesale, so any local edits inside an installed
+payload are lost — copy them out first. Copy from the generated
+`skills/<name>/` payload, never `src/skills/<name>/`. Repeat the symlink for
+each provider directory you mirror into, and re-run any provider view sync your
+setup uses.
 
 A renamed skill is a new directory, not an in-place upgrade: install the new
 name and remove the old directory together with its provider symlinks, or the
