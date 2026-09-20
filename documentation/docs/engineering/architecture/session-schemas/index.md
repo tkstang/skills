@@ -75,11 +75,12 @@ zero or converts tokens to money.
 
 Source-level skill-name coverage uses `source-skill-names`, separate from
 per-event attribution, invocation, or inferred file-read evidence. Claude Code
-empty listings are available with zero captured names, absent carriers are
-`not-recorded`, available names retain the latest locator per name, and invoked
-names remain per occurrence. Optional captured-source skill and usage metadata
-is reduced before delivered event groups when a report reaches its byte budget;
-omission counts retain the complete captured-source totals.
+empty `skill_listing.names` and `invoked_skills.skills` arrays are available
+with zero captured names, absent carriers are `not-recorded`, available names
+retain the latest locator per name, and invoked names remain per occurrence.
+The captured count includes both sets. Optional captured-source skill and usage
+metadata is reduced before delivered event groups when a report reaches its
+byte budget; omission counts retain the complete captured-source totals.
 
 ## Repository parser support
 

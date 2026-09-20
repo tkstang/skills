@@ -78,10 +78,12 @@ instruction content in source attachments is not copied into the report.
 Captured-source attachments separately distinguish available skill names from
 recorded invoked names. Available names are deduplicated by name with the latest
 recorded locator retained, while invoked names remain per occurrence. Coverage
-uses the explicit `source-skill-names` class, so a valid empty native listing is
-`available` with zero names and an absent listing is `not-recorded`; event-level
-skill evidence remains independent. Cursor contributes inferred load evidence
-only when a recorded `Read` or
+uses the explicit `source-skill-names` class across both source carriers, so a
+valid empty `skill_listing.names` or `invoked_skills.skills` array is
+`available` with zero names and absent carriers are `not-recorded`. Its captured
+count includes deduplicated available names plus every invoked occurrence;
+event-level skill evidence remains independent. Cursor contributes inferred
+load evidence only when a recorded `Read` or
 `ReadFile` call has a structured `path` ending in `SKILL.md`. Historical Codex
 transcripts can contribute the same inference only through the exact
 experimental `read_file` function's structured `file_path`; upstream removed

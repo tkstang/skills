@@ -765,16 +765,12 @@ export function projectActivityWithLimits(
   if (best) return best;
 
   const metadataCount =
-    metadata.coverage.length +
-    metadata.diagnostics.length +
-    metadata.sourceSkills.length +
-    metadata.usage.samples.length +
-    metadata.usage.diagnostics.length;
+    boundedMetadata.coverage.length + boundedMetadata.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
     const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
-    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const retainedMetadata = retainMetadata(boundedMetadata, retainedCount);
     const candidate = buildReport(
       activity,
       options,
@@ -783,19 +779,13 @@ export function projectActivityWithLimits(
       new Set(),
       retainedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removable.length,
         coverageEntries:
-          metadata.coverage.length - retainedMetadata.coverage.length,
+          boundedMetadata.coverage.length - retainedMetadata.coverage.length,
         diagnostics:
-          metadata.diagnostics.length - retainedMetadata.diagnostics.length,
-        sourceSkills:
-          metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
-        usageSamples:
-          metadata.usage.samples.length - retainedMetadata.usage.samples.length,
-        usageDiagnostics:
-          metadata.usage.diagnostics.length -
-          retainedMetadata.usage.diagnostics.length,
+          boundedMetadata.diagnostics.length -
+          retainedMetadata.diagnostics.length,
       },
     );
     if (candidate.renderedBytes <= limits.maxBytes) {

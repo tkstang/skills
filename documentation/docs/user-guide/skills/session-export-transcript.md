@@ -86,8 +86,9 @@ invocations, and names-only skill attachments stay distinct. A native `Skill`
 call retains caller-supplied input under the normal preview cap; attachment
 instruction content is not copied. Available source names are deduplicated by
 name at their latest locator, invoked names remain per occurrence, and
-`source-skill-names` coverage distinguishes an empty native listing from an
-absent carrier. Cursor `Read` and
+`source-skill-names` coverage counts both carrier types and distinguishes valid
+empty `skill_listing.names` or `invoked_skills.skills` arrays from absent
+carriers. Cursor `Read` and
 `ReadFile` calls can supply inferred `SKILL.md` file-load evidence from their
 structured `path`. Historical Codex transcripts can supply the inference only
 from the exact experimental `read_file.file_path` carrier; upstream removed the

@@ -1482,7 +1482,7 @@ function extractClaudeRecord(source, detailed) {
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
   const sourceSkills = claudeSourceSkills(detailed);
-  const sourceSkillNamesRecorded = record.type === "attachment" && isJsonObject(record.attachment) && record.attachment.type === "skill_listing" && Array.isArray(record.attachment.names);
+  const sourceSkillNamesRecorded = record.type === "attachment" && isJsonObject(record.attachment) && (record.attachment.type === "skill_listing" && Array.isArray(record.attachment.names) || record.attachment.type === "invoked_skills" && Array.isArray(record.attachment.skills));
   if (systemActivity) events.push(systemActivity);
   if (record.type === "assistant") {
     const metadata = selectedClaudeMetadata(record);
@@ -2432,7 +2432,7 @@ function codexUsage(source, records, events) {
     diagnostics
   };
 }
-function extractUsageMetadata(source, records, events = []) {
+function extractUsageMetadata(source, records, events) {
   return source.runtime === "claude-code" ? claudeUsage(source, records) : codexUsage(source, records, events);
 }
 function notRecordedUsage() {
@@ -2579,9 +2579,7 @@ function extractActivity(input) {
       {
         dataClass: "source-skill-names",
         status: sourceSkillNamesRecorded ? "available" : "not-recorded",
-        captured: deduplicatedSourceSkills.filter(
-          (skill) => skill.evidence === "available"
-        ).length
+        captured: deduplicatedSourceSkills.length
       }
     ]
   };
@@ -3279,12 +3277,12 @@ function projectActivityWithLimits(activity, options, limits) {
     }
   }
   if (best) return best;
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length + metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
+  const metadataCount = boundedMetadata.coverage.length + boundedMetadata.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
     const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
-    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const retainedMetadata = retainMetadata(boundedMetadata, retainedCount);
     const candidate = buildReport(
       activity,
       options,
@@ -3293,13 +3291,10 @@ function projectActivityWithLimits(activity, options, limits) {
       /* @__PURE__ */ new Set(),
       retainedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removable.length,
-        coverageEntries: metadata.coverage.length - retainedMetadata.coverage.length,
-        diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length,
-        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
-        usageSamples: metadata.usage.samples.length - retainedMetadata.usage.samples.length,
-        usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
+        coverageEntries: boundedMetadata.coverage.length - retainedMetadata.coverage.length,
+        diagnostics: boundedMetadata.diagnostics.length - retainedMetadata.diagnostics.length
       }
     );
     if (candidate.renderedBytes <= limits.maxBytes) {

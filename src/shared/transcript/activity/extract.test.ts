@@ -168,11 +168,12 @@ describe('Claude Code activity extraction', () => {
     const serialized = JSON.stringify(extracted.sourceMetadata);
     expect(serialized).not.toContain('private');
     expect(serialized).not.toContain('/private/listing/path');
-    expect(JSON.stringify(extracted)).not.toContain('private sentinel');
+    expect(JSON.stringify(extracted)).not.toContain('private listing sentinel');
+    expect(JSON.stringify(extracted)).not.toContain('private invoked sentinel');
     expect(extracted.coverage).toContainEqual({
       dataClass: 'source-skill-names',
       status: 'available',
-      captured: 2,
+      captured: 4,
     });
   });
 
@@ -196,6 +197,62 @@ describe('Claude Code activity extraction', () => {
 
     expect(extracted.sourceMetadata?.skills).toEqual([]);
     expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 0,
+    });
+  });
+
+  it('counts invoked-only source names and recognizes an empty invoked carrier', () => {
+    const invoked = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: {
+                type: 'invoked_skills',
+                skills: [{ name: 'invoked-only' }],
+              },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+    const empty = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: { type: 'invoked_skills', skills: [] },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(invoked.sourceMetadata?.skills).toEqual([
+      expect.objectContaining({
+        evidence: 'invoked',
+        name: 'invoked-only',
+      }),
+    ]);
+    expect(invoked.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 1,
+    });
+    expect(empty.sourceMetadata?.skills).toEqual([]);
+    expect(empty.coverage).toContainEqual({
       dataClass: 'source-skill-names',
       status: 'available',
       captured: 0,

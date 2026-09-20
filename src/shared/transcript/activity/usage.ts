@@ -259,7 +259,7 @@ function codexUsage(
 export function extractUsageMetadata(
   source: ActivitySource,
   records: readonly DetailedTranscriptRecord[],
-  events: readonly ExtractedActivityEvent[] = [],
+  events: readonly ExtractedActivityEvent[],
 ): ActivityUsageMetadata {
   return source.runtime === 'claude-code'
     ? claudeUsage(source, records)

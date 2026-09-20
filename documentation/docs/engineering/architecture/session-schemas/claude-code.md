@@ -363,8 +363,10 @@ source metadata also appears in `attachment.type == "skill_listing"` at
 at `attachment.skills[].name` (recorded invocation). Attachment content and path
 bodies are not needed for these names. Available names are deduplicated within
 the captured source using the latest recorded locator; invoked names remain per
-occurrence. `source-skill-names` coverage distinguishes a valid empty listing
-from an absent carrier. None of these carriers records a skill version.
+occurrence. `source-skill-names` coverage counts both source carriers and
+distinguishes a valid empty `names` or `skills` array from absent carriers. Its
+captured count is the deduplicated available names plus every invoked
+occurrence. None of these carriers records a skill version.
 
 ## 9. Externally persisted output and sizes
 

@@ -577,6 +577,48 @@ describe('activity projection budgets', () => {
         source: { ...SOURCE, transcriptPath },
         read,
       });
+      extracted.sourceMetadata = {
+        scope: 'captured-source',
+        skills: [
+          {
+            scope: 'captured-source',
+            evidence: 'available',
+            name: 'optional-source-skill',
+            locator: {
+              recordIndex: 2_000,
+              physicalLine: 2_001,
+              jsonPointer: '/attachment/names/0',
+            },
+          },
+        ],
+        usage: {
+          scope: 'captured-source',
+          availability: 'recorded',
+          samples: [
+            {
+              semantics: 'claude-message',
+              ownership: 'owned',
+              messageId: 'optional-message',
+              tokens: { input_tokens: 1 },
+              locator: {
+                recordIndex: 2_001,
+                physicalLine: 2_002,
+                jsonPointer: '/message/usage',
+              },
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'USAGE_DEDUP_UNCERTAIN',
+              locator: {
+                recordIndex: 2_002,
+                physicalLine: 2_003,
+                jsonPointer: '/message/usage',
+              },
+            },
+          ],
+        },
+      };
       const correlated = correlateActivity(extracted);
       const options = {
         mode: 'watch' as const,
@@ -599,6 +641,12 @@ describe('activity projection budgets', () => {
       expect(first.omitted.coverageEntries).toBeGreaterThan(0);
       expect(first.diagnostics.length + first.omitted.diagnostics).toBe(1_000);
       expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_005);
+      expect(first.sourceMetadata.skills).toEqual([]);
+      expect(first.sourceMetadata.usage?.samples).toEqual([]);
+      expect(first.sourceMetadata.usage?.diagnostics).toEqual([]);
+      expect(first.omitted.sourceSkills).toBe(1);
+      expect(first.omitted.usageSamples).toBe(1);
+      expect(first.omitted.usageDiagnostics).toBe(1);
       expect(second.diagnostics).toEqual(first.diagnostics);
       expect(second.coverage).toEqual(first.coverage);
       expect(second.omitted).toEqual(first.omitted);
@@ -751,6 +799,97 @@ describe('activity projection budgets', () => {
         report.omitted.usageSamples,
     ).toBe(400);
     expect(report.renderedBytes).toBeLessThanOrEqual(32 * 1024);
+  });
+
+  it('reconciles optional metadata when the byte limit must evict event groups', () => {
+    const events = Array.from({ length: 6 }, (_, index) =>
+      event(`large-call-${index}`, 'call', index, {
+        nativeCallId: `native-large-call-${index}`,
+        arguments: { payload: `${index}-${'x'.repeat(1_200)}` },
+      }),
+    );
+    const extracted = activity(events);
+    extracted.coverage = [
+      { dataClass: 'calls', status: 'available', captured: events.length },
+    ];
+    extracted.diagnostics = [
+      {
+        code: 'POSSIBLE_SOURCE_TRUNCATION',
+        locator: {
+          recordIndex: 0,
+          physicalLine: 1,
+          jsonPointer: '/fixture',
+        },
+      },
+    ];
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 3 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence: 'available' as const,
+        name: `optional-skill-${index}`,
+        locator: {
+          recordIndex: index + 20,
+          physicalLine: index + 21,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 3 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
+          messageId: `optional-message-${index}`,
+          tokens: { input_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 30,
+            physicalLine: index + 31,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: Array.from({ length: 2 }, (_, index) => ({
+          code: 'USAGE_DEDUP_UNCERTAIN' as const,
+          locator: {
+            recordIndex: index + 40,
+            physicalLine: index + 41,
+            jsonPointer: '/message/usage',
+          },
+        })),
+      },
+    };
+
+    const report = projectActivityWithLimits(
+      extracted,
+      {
+        mode: 'watch',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
+      {
+        maxBytes: 4 * 1024,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
+    );
+
+    expect(report.omitted.byteLimitGroups).toBeGreaterThan(0);
+    expect(report.events.length).toBeGreaterThan(0);
+    expect(report.coverage).toEqual(extracted.coverage);
+    expect(report.diagnostics).toEqual(extracted.diagnostics);
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(3);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(3);
+    expect(
+      (report.sourceMetadata.usage?.diagnostics.length ?? 0) +
+        report.omitted.usageDiagnostics,
+    ).toBe(2);
+    expect(report.renderedBytes).toBeLessThanOrEqual(4 * 1024);
   });
 
   it('keeps the activity budget independent from conversation content', () => {

@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.77'
+  version: '1.0.78'
 ---
 
 # observer

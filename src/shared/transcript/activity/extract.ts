@@ -167,9 +167,7 @@ export function extractActivity(
       {
         dataClass: 'source-skill-names',
         status: sourceSkillNamesRecorded ? 'available' : 'not-recorded',
-        captured: deduplicatedSourceSkills.filter(
-          (skill) => skill.evidence === 'available',
-        ).length,
+        captured: deduplicatedSourceSkills.length,
       },
     ],
   };

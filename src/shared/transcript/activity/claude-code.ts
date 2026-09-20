@@ -282,8 +282,10 @@ export function extractClaudeRecord(
   const sourceSkillNamesRecorded =
     record.type === 'attachment' &&
     isJsonObject(record.attachment) &&
-    record.attachment.type === 'skill_listing' &&
-    Array.isArray(record.attachment.names);
+    ((record.attachment.type === 'skill_listing' &&
+      Array.isArray(record.attachment.names)) ||
+      (record.attachment.type === 'invoked_skills' &&
+        Array.isArray(record.attachment.skills)));
 
   if (systemActivity) events.push(systemActivity);
 
