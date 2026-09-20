@@ -21,6 +21,32 @@ Implemented behavior includes:
 
 Automatic agent responses only happen while the active invocation keeps the foreground watch process running and polls its output. Host/provider hooks that would wake a future invocation after the current one ends are deferred.
 
+## Persisted identity and path binding
+
+For Claude Code and Codex, a nonzero saved record position belongs to one
+provider session at one canonical transcript path. Before `catch-up`,
+`catch-up-then-watch`, watch polling, or `review --mark-read` can deliver or
+advance it, the observer verifies the stored path, selected real path, native
+session identity, and record count. Missing/mismatched paths, malformed or
+contradictory identity, and shrinkage fail closed with expected/observed
+details. A legacy entry at offset zero may bind to the exact selected source.
+
+Plain `review` without `--mark-read` is stateless and does not depend on a
+persisted position. A state read or lock failure still aborts a marked review
+before digest delivery.
+
+Recover one blocked pin explicitly:
+
+```sh
+session-observer state reset --session <runtime>:<session-id>
+session-observer catch-up-then-watch \
+  --session <runtime>:<session-id> --quiet-empty --until-stopped
+```
+
+Do not use a runtime-wide reset unless every tracked session for that runtime
+should replay. A watcher emits one stdout error event and exits nonzero on a
+binding failure; it leaves the saved state unchanged.
+
 ---
 
 ## CLI Shape

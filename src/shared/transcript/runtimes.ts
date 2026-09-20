@@ -30,8 +30,12 @@ export interface TranscriptMeta {
   nativeSessionId?: string;
   /** Optional provider root identity, distinct from the native child identity. */
   rootSessionId?: string;
+  /** Exact provider-native direct parent identity for a subagent session. */
+  parentSessionId?: string;
   /** Exact provider-native parent identity for a forked session. */
   forkedFromSessionId?: string;
+  /** First child-owned ordinal when Codex records an inherited-history boundary. */
+  subagentHistoryStartOrdinal?: number;
   /** Ordered Claude record lineage, retained only when every observed pair is valid. */
   recordLineage?: TranscriptRecordLineage[];
 }
@@ -82,11 +86,20 @@ export interface CursorIdentityEvidence {
 }
 
 export type DigestEntryRole = 'user' | 'assistant';
-export type DigestEntryDisplayRole = 'queued-user' | 'automatic-control';
+export type DigestEntryDisplayRole =
+  | 'queued-user'
+  | 'automatic-control'
+  | 'runtime-notification';
 export type DigestEntryOrigin =
   | 'human'
   | 'automatic-control'
+  | 'runtime-notification'
   | 'runtime-diagnostic';
+export type ClaudeUserRecordProvenance =
+  | 'legacy-absent'
+  | 'human'
+  | 'runtime-notification'
+  | 'unmarked';
 export type AutomaticControlIndexBase =
   | 'zero-based-jsonl-record-index'
   | 'zero-based-jsonl-frame-index';
@@ -142,6 +155,7 @@ interface ClaudeContentOptions {
   includeToolResults: boolean;
   includeCommandMessages: boolean;
   toolNameById: Map<string, string>;
+  userProvenance: ClaudeUserRecordProvenance;
   /**
    * Claude records the structured answer payload on the record, not on the
    * tool_result block. Threaded through so the ask-user branch can read it.
@@ -389,8 +403,10 @@ function messageEntry(
   text: string,
   recordIndex: number,
   displayRole?: DigestEntryDisplayRole,
+  origin?: DigestEntryOrigin,
+  allowAutomaticControl = true,
 ): DigestEntry {
-  if (role === 'user') {
+  if (role === 'user' && allowAutomaticControl) {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -410,7 +426,45 @@ function messageEntry(
     recordIndex,
     kind: 'message',
     ...(displayRole ? { displayRole } : {}),
+    ...(origin ? { origin } : {}),
   };
+}
+
+/**
+ * Classify native provenance on an ordinary Claude user record. Only the
+ * top-level `origin.kind` is authoritative: attachment provenance describes
+ * the attachment transport rather than the user record itself.
+ */
+export function claudeUserRecordProvenance(
+  record: JsonObject,
+): ClaudeUserRecordProvenance {
+  const origin = isObject(record.origin) ? asString(record.origin.kind) : null;
+  if (origin === null || origin === undefined) return 'legacy-absent';
+  if (origin === 'human') return 'human';
+  if (origin === 'task-notification') return 'runtime-notification';
+  return 'unmarked';
+}
+
+function claudeEntryProvenance(
+  provenance: ClaudeUserRecordProvenance,
+): Pick<DigestEntry, 'displayRole' | 'origin'> {
+  if (provenance === 'human') return { origin: 'human' };
+  if (provenance === 'runtime-notification') {
+    return {
+      displayRole: 'runtime-notification',
+      origin: 'runtime-notification',
+    };
+  }
+  return {};
+}
+
+function claudeAskUserAnswerProvenance(
+  provenance: ClaudeUserRecordProvenance,
+): Pick<DigestEntry, 'displayRole' | 'origin'> {
+  if (provenance === 'legacy-absent' || provenance === 'human') {
+    return { origin: 'human' };
+  }
+  return claudeEntryProvenance(provenance);
 }
 
 /**
@@ -1057,14 +1111,14 @@ function decodeCwdDirName(dirName: string): string | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Extract the session ID from a Codex record (payload or top-level).
+ * Extract a legacy session ID from a Codex record (payload or top-level).
  *
  * We check `record.sessionId` / `record.session_id` first (the top-level
- * session identifier present on every record in a session), then fall back
+ * session identifier present on older records), then fall back
  * to `payload.sessionId` / `payload.session_id` (present on session-meta
- * payload objects). We intentionally skip `payload.id` because in Codex
- * message records that field holds a per-message ID (e.g. "msg-001"), not
- * the session ID.
+ * payload objects). Native identity is handled separately from the first
+ * physical `session_meta` header. We intentionally skip `payload.id` here
+ * because it is a per-message or per-item ID on other record kinds.
  *
  * @param {object} record
  * @returns {string | undefined}
@@ -1091,34 +1145,88 @@ function consistentNonEmptyString(
   return observed;
 }
 
-function codexLineageMetadata(
+const CODEX_ROLLOUT_FILENAME_PATTERN =
+  /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+
+function codexRolloutFilenameSessionId(
+  transcriptPath: string,
+): string | undefined {
+  return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
+}
+
+function firstCodexSessionHeader(
   records: JsonObject[],
-): Pick<
-  TranscriptMeta,
-  'nativeSessionId' | 'rootSessionId' | 'forkedFromSessionId'
-> {
-  const sessionMetadata = records.filter(
-    (record) => record.type === 'session_meta' && isObject(record.payload),
-  );
-  const payloads = sessionMetadata.map(
-    (record) => record.payload as JsonObject,
-  );
-  const nativeValues = payloads
-    .filter((payload) => Object.hasOwn(payload, 'id'))
-    .map((payload) => payload.id);
-  const rootValues = payloads
-    .filter((payload) => Object.hasOwn(payload, 'session_id'))
-    .map((payload) => payload.session_id);
-  const forkValues = payloads
-    .filter((payload) => Object.hasOwn(payload, 'forked_from_id'))
-    .map((payload) => payload.forked_from_id);
-  const nativeSessionId = consistentNonEmptyString(nativeValues);
-  const rootSessionId = consistentNonEmptyString(rootValues);
-  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+): JsonObject | undefined {
+  return records.find((record) => record.type === 'session_meta');
+}
+
+function codexDirectParentValues(payload: JsonObject): unknown[] {
+  const values: unknown[] = [];
+  if (Object.hasOwn(payload, 'parent_thread_id')) {
+    values.push(payload.parent_thread_id);
+  }
+
+  const source = isObject(payload.source) ? payload.source : undefined;
+  const subagent =
+    source && isObject(source.subagent) ? source.subagent : undefined;
+  const threadSpawn =
+    subagent && isObject(subagent.thread_spawn)
+      ? subagent.thread_spawn
+      : undefined;
+  if (threadSpawn && Object.hasOwn(threadSpawn, 'parent_thread_id')) {
+    values.push(threadSpawn.parent_thread_id);
+  }
+  return values;
+}
+
+function codexLineageMetadata(
+  firstHeader: JsonObject,
+): Omit<TranscriptMeta, 'sessionId' | 'recordedCwd'> | null {
+  if (!isObject(firstHeader.payload)) return null;
+  const payload = firstHeader.payload;
+  if (!Object.hasOwn(payload, 'id')) return {};
+
+  const nativeSessionId = consistentNonEmptyString([payload.id]);
+  if (nativeSessionId === undefined) return null;
+
+  const rootSessionId = Object.hasOwn(payload, 'session_id')
+    ? consistentNonEmptyString([payload.session_id])
+    : undefined;
+  if (Object.hasOwn(payload, 'session_id') && rootSessionId === undefined) {
+    return null;
+  }
+  const parentValues = codexDirectParentValues(payload);
+  const parentSessionId = consistentNonEmptyString(parentValues);
+  if (parentValues.length > 0 && parentSessionId === undefined) return null;
+  const forkedFromSessionId = Object.hasOwn(payload, 'forked_from_id')
+    ? consistentNonEmptyString([payload.forked_from_id])
+    : undefined;
+  if (
+    Object.hasOwn(payload, 'forked_from_id') &&
+    forkedFromSessionId === undefined
+  ) {
+    return null;
+  }
+  const historyBoundary = payload.subagent_history_start_ordinal;
+  const subagentHistoryStartOrdinal =
+    Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0
+      ? Number(historyBoundary)
+      : undefined;
+  if (
+    Object.hasOwn(payload, 'subagent_history_start_ordinal') &&
+    subagentHistoryStartOrdinal === undefined
+  ) {
+    return null;
+  }
+
   return {
-    ...(nativeSessionId === undefined ? {} : { nativeSessionId }),
+    nativeSessionId,
     ...(rootSessionId === undefined ? {} : { rootSessionId }),
+    ...(parentSessionId === undefined ? {} : { parentSessionId }),
     ...(forkedFromSessionId === undefined ? {} : { forkedFromSessionId }),
+    ...(subagentHistoryStartOrdinal === undefined
+      ? {}
+      : { subagentHistoryStartOrdinal }),
   };
 }
 
@@ -1159,7 +1267,9 @@ function claudeRecordLineage(
  *   - recordedCwd: decoded from the parent directory name.
  *
  * Codex:
- *   - sessionId: from `payload.id` / `sessionId` on any record.
+ *   - sessionId: first physical session_meta payload.id, corroborated by a
+ *     recognized rollout filename UUID; legacy records retain their existing
+ *     sessionId fallback.
  *   - recordedCwd: from a session_started record's `cwd` field.
  *
  * Cursor:
@@ -1286,7 +1396,41 @@ export function extractMetaFromRecords(
   }
 
   if (runtime === 'codex') {
-    let sessionId: string | undefined;
+    const firstHeader = firstCodexSessionHeader(records);
+    const lineage = firstHeader ? codexLineageMetadata(firstHeader) : {};
+    if (lineage === null) return null;
+
+    const nativeSessionId = lineage.nativeSessionId;
+    const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader
+      ? codexSessionIdFromRecord(firstHeader)
+      : undefined;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records
+      .slice(firstHeaderIndex + 1)
+      .some(
+        (record) =>
+          record.type === 'session_meta' &&
+          isObject(record.payload) &&
+          Object.hasOwn(record.payload, 'id'),
+      );
+    if (
+      firstHeader &&
+      nativeSessionId === undefined &&
+      firstLegacySessionId === undefined &&
+      (filenameSessionId !== undefined || laterNativeHeaderPresent)
+    ) {
+      return null;
+    }
+    if (
+      nativeSessionId !== undefined &&
+      filenameSessionId !== undefined &&
+      nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()
+    ) {
+      return null;
+    }
+
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd: string | null = null;
 
     for (const record of records) {
@@ -1311,7 +1455,7 @@ export function extractMetaFromRecords(
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
     }
 
-    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
+    return { sessionId, recordedCwd, ...lineage };
   }
 
   if (runtime === 'cursor') {
@@ -1409,8 +1553,7 @@ function claudeAskUserAnswerEntry(
         recordIndex,
         kind: 'ask_user',
         toolName,
-        // Claude has no auto-resolution: a recorded answer is the operator's.
-        origin: 'human',
+        ...claudeAskUserAnswerProvenance(opts.userProvenance),
       };
     }
   }
@@ -1432,7 +1575,7 @@ function claudeAskUserAnswerEntry(
     recordIndex,
     kind: 'ask_user',
     toolName,
-    origin: 'human',
+    ...claudeAskUserAnswerProvenance(opts.userProvenance),
   };
 }
 
@@ -1451,13 +1594,23 @@ function claudeEntriesFromContent(
   recordIndex: number,
   opts: ClaudeContentOptions,
 ): DigestEntry[] {
+  const provenance = claudeEntryProvenance(opts.userProvenance);
   if (typeof content === 'string') {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: 'command_message' }];
     }
-    return [messageEntry(role, content, recordIndex)];
+    return [
+      messageEntry(
+        role,
+        content,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+        opts.userProvenance === 'legacy-absent',
+      ),
+    ];
   }
   if (!Array.isArray(content)) return [];
 
@@ -1526,7 +1679,18 @@ function claudeEntriesFromContent(
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: 'command_message' }];
     }
-    return text ? [messageEntry(role, text, recordIndex)] : [];
+    return text
+      ? [
+          messageEntry(
+            role,
+            text,
+            recordIndex,
+            provenance.displayRole,
+            provenance.origin,
+            opts.userProvenance === 'legacy-absent',
+          ),
+        ]
+      : [];
   });
 }
 
@@ -1625,6 +1789,8 @@ function normalizeClaudeCode(
       includeCommandMessages,
       toolNameById,
       toolUseResult: record.toolUseResult,
+      userProvenance:
+        role === 'user' ? claudeUserRecordProvenance(record) : 'legacy-absent',
     });
   });
 }

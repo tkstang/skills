@@ -275,6 +275,13 @@ function isAutomatic(entry) {
   );
 }
 
+function isRuntimeNotification(entry) {
+  return (
+    entry.origin === 'runtime-notification' ||
+    entry.displayRole === 'runtime-notification'
+  );
+}
+
 function completedTurns(entries, fromIndex) {
   const turns = [];
   let start = fromIndex;
@@ -326,7 +333,10 @@ function completedTurns(entries, fromIndex) {
     current = [];
   }
   const incompleteFrom = current.some(
-    (entry) => entry.role === 'user' && !isAutomatic(entry),
+    (entry) =>
+      entry.role === 'user' &&
+      !isAutomatic(entry) &&
+      !isRuntimeNotification(entry),
   )
     ? start
     : null;

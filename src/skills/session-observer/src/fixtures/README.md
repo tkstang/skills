@@ -22,6 +22,10 @@ Claude Code transcripts follow the record shape used in `~/.claude/projects/<enc
 
 9 records: two `AskUserQuestion` tool_use/tool_result pairs plus one ordinary `Read` call/result pair. The first pair carries a structured `record.toolUseResult` with `answers` (one selected label, one free-text answer) and an `annotations` note; the second omits `toolUseResult` so the prose `content` fallback is exercised. Used to verify that ask-user exchanges render with the default tool filters while ordinary tool traffic stays filtered.
 
+### native-provenance.jsonl
+
+6 records covering native top-level `origin.kind` values for human input, task notifications, legacy absent provenance, peer provenance, and an unknown future value.
+
 ### malformed.jsonl
 
 6 lines, one of which is not valid JSON (a plain-text line in the middle). Used to verify that `readRecords` emits a warning but does not throw, and returns all valid records before and after the bad line.

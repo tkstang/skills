@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: null
+oat_current_task: p02-t01-activity-base
+oat_last_commit: 8affc30a56e8f4c33c6bc50a6d632d93d37baa01
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -13,13 +13,16 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_phase_recovery_policy:
   phase_attempt_usage:
     p08:
       used_attempts: 1
+      pending_attempt: null
+    p01:
+      used_attempts: 4
       pending_attempt: null
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -88,21 +91,21 @@ oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
-oat_project_created: '2026-09-18T22:30:16.097Z' # ISO 8601 UTC timestamp — set once at project creation
+oat_project_created: "2026-09-18T22:30:16.097Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-19T01:39:17.103902+00:00'
+oat_project_state_updated: "2026-09-19T12:27:54+00:00"
 oat_generated: false
 ---
 
 # Project State: session-fidelity
 
-**Status:** Ready for implementation
+**Status:** Identity passed; activity base setup
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Design and 19-task plan amended; Fable read-back incorporated. High dispatch is selected; additional phase gates are disabled; both configured lifecycle gates remain enabled. Both evaluated planning gates passed their Important threshold; all findings are resolved or rejected with rationale. Final precision corrections were checked directly, with no further independent re-review claimed. Cursor gate targets are disabled in shared repo config. The approved task split and reader byte-range deferral passed focused review; its sole Minor formatting issue is fixed. Earlier gate results cover the prior scope. No design HiLL gate is configured; implementation has not started.
+All five p01 tasks and the accepted review fixes are implemented through `8affc30a`; recovery usage remains 4/10 with no pending attempt. Fresh review of `455daba2..d4069b77` passed with 0 Critical, 0 Important and one nonblocking Medium watcher-diagnostic follow-up. Activity remains unstarted until root records the reviewed identity tip as `ACTIVITY_BASE` and creates the next local stack branch.
 
 ## Artifacts
 
@@ -110,7 +113,7 @@ Design and 19-task plan amended; Fable read-back incorporated. High dispatch is 
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; peer read-back received)
 - **Plan:** `plan.md` (complete; ready for implementation)
-- **Implementation:** `implementation.md` (19 pending tasks; implementation not started)
+- **Implementation:** `implementation.md` (6/19 tasks completed; p01 passed)
 
 ## Progress
 
@@ -129,8 +132,8 @@ Design and 19-task plan amended; Fable read-back incorporated. High dispatch is 
 
 ## Blockers
 
-None
+None. Prior failed-attempt evidence and all four consumed recovery attempts remain preserved.
 
 ## Next Milestone
 
-Begin authorized implementation at p00-t01 using oat-project-implement.
+Record the reviewed identity tip as `ACTIVITY_BASE`, create/register the activity branch, and begin p02-t01.

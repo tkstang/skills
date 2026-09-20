@@ -3,7 +3,14 @@
 
 // src/skills/session-export-transcript/src/session-export-transcript.ts
 import { execFile } from "node:child_process";
-import { readdir, stat, mkdir, writeFile, readFile as readFile2 } from "node:fs/promises";
+import {
+  readdir,
+  stat,
+  mkdir,
+  writeFile,
+  readFile as readFile2,
+  realpath
+} from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname2, join as join2, basename as basename2 } from "node:path";
 import { parseArgs } from "node:util";
@@ -136,8 +143,8 @@ function parseAutomaticControlXmlEnvelope(text) {
 function parseAutomaticControlEnvelope(text) {
   return parseAutomaticControlXmlEnvelope(text) ?? parseAutomaticControlJsonEnvelope(text);
 }
-function messageEntry(role, text, recordIndex, displayRole) {
-  if (role === "user") {
+function messageEntry(role, text, recordIndex, displayRole, origin, allowAutomaticControl = true) {
+  if (role === "user" && allowAutomaticControl) {
     const automaticControl = parseAutomaticControlEnvelope(text);
     if (automaticControl) {
       return {
@@ -156,8 +163,32 @@ function messageEntry(role, text, recordIndex, displayRole) {
     text,
     recordIndex,
     kind: "message",
-    ...displayRole ? { displayRole } : {}
+    ...displayRole ? { displayRole } : {},
+    ...origin ? { origin } : {}
   };
+}
+function claudeUserRecordProvenance(record) {
+  const origin = isObject(record.origin) ? asString(record.origin.kind) : null;
+  if (origin === null || origin === void 0) return "legacy-absent";
+  if (origin === "human") return "human";
+  if (origin === "task-notification") return "runtime-notification";
+  return "unmarked";
+}
+function claudeEntryProvenance(provenance) {
+  if (provenance === "human") return { origin: "human" };
+  if (provenance === "runtime-notification") {
+    return {
+      displayRole: "runtime-notification",
+      origin: "runtime-notification"
+    };
+  }
+  return {};
+}
+function claudeAskUserAnswerProvenance(provenance) {
+  if (provenance === "legacy-absent" || provenance === "human") {
+    return { origin: "human" };
+  }
+  return claudeEntryProvenance(provenance);
 }
 function truncate(str, limit) {
   if (str.length <= limit) return str;
@@ -331,23 +362,54 @@ function consistentNonEmptyString(values) {
   }
   return observed;
 }
-function codexLineageMetadata(records) {
-  const sessionMetadata = records.filter(
-    (record) => record.type === "session_meta" && isObject(record.payload)
-  );
-  const payloads = sessionMetadata.map(
-    (record) => record.payload
-  );
-  const nativeValues = payloads.filter((payload) => Object.hasOwn(payload, "id")).map((payload) => payload.id);
-  const rootValues = payloads.filter((payload) => Object.hasOwn(payload, "session_id")).map((payload) => payload.session_id);
-  const forkValues = payloads.filter((payload) => Object.hasOwn(payload, "forked_from_id")).map((payload) => payload.forked_from_id);
-  const nativeSessionId = consistentNonEmptyString(nativeValues);
-  const rootSessionId = consistentNonEmptyString(rootValues);
-  const forkedFromSessionId = consistentNonEmptyString(forkValues);
+var CODEX_ROLLOUT_FILENAME_PATTERN = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexRolloutFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
+}
+function firstCodexSessionHeader(records) {
+  return records.find((record) => record.type === "session_meta");
+}
+function codexDirectParentValues(payload) {
+  const values = [];
+  if (Object.hasOwn(payload, "parent_thread_id")) {
+    values.push(payload.parent_thread_id);
+  }
+  const source = isObject(payload.source) ? payload.source : void 0;
+  const subagent = source && isObject(source.subagent) ? source.subagent : void 0;
+  const threadSpawn = subagent && isObject(subagent.thread_spawn) ? subagent.thread_spawn : void 0;
+  if (threadSpawn && Object.hasOwn(threadSpawn, "parent_thread_id")) {
+    values.push(threadSpawn.parent_thread_id);
+  }
+  return values;
+}
+function codexLineageMetadata(firstHeader) {
+  if (!isObject(firstHeader.payload)) return null;
+  const payload = firstHeader.payload;
+  if (!Object.hasOwn(payload, "id")) return {};
+  const nativeSessionId = consistentNonEmptyString([payload.id]);
+  if (nativeSessionId === void 0) return null;
+  const rootSessionId = Object.hasOwn(payload, "session_id") ? consistentNonEmptyString([payload.session_id]) : void 0;
+  if (Object.hasOwn(payload, "session_id") && rootSessionId === void 0) {
+    return null;
+  }
+  const parentValues = codexDirectParentValues(payload);
+  const parentSessionId = consistentNonEmptyString(parentValues);
+  if (parentValues.length > 0 && parentSessionId === void 0) return null;
+  const forkedFromSessionId = Object.hasOwn(payload, "forked_from_id") ? consistentNonEmptyString([payload.forked_from_id]) : void 0;
+  if (Object.hasOwn(payload, "forked_from_id") && forkedFromSessionId === void 0) {
+    return null;
+  }
+  const historyBoundary = payload.subagent_history_start_ordinal;
+  const subagentHistoryStartOrdinal = Number.isSafeInteger(historyBoundary) && Number(historyBoundary) >= 0 ? Number(historyBoundary) : void 0;
+  if (Object.hasOwn(payload, "subagent_history_start_ordinal") && subagentHistoryStartOrdinal === void 0) {
+    return null;
+  }
   return {
-    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+    nativeSessionId,
     ...rootSessionId === void 0 ? {} : { rootSessionId },
-    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId }
+    ...parentSessionId === void 0 ? {} : { parentSessionId },
+    ...forkedFromSessionId === void 0 ? {} : { forkedFromSessionId },
+    ...subagentHistoryStartOrdinal === void 0 ? {} : { subagentHistoryStartOrdinal }
   };
 }
 function claudeRecordLineage(records) {
@@ -412,7 +474,23 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     };
   }
   if (runtime === "codex") {
-    let sessionId;
+    const firstHeader = firstCodexSessionHeader(records);
+    const lineage = firstHeader ? codexLineageMetadata(firstHeader) : {};
+    if (lineage === null) return null;
+    const nativeSessionId = lineage.nativeSessionId;
+    const filenameSessionId = codexRolloutFilenameSessionId(transcriptPath);
+    const firstLegacySessionId = firstHeader ? codexSessionIdFromRecord(firstHeader) : void 0;
+    const firstHeaderIndex = firstHeader ? records.indexOf(firstHeader) : -1;
+    const laterNativeHeaderPresent = records.slice(firstHeaderIndex + 1).some(
+      (record) => record.type === "session_meta" && isObject(record.payload) && Object.hasOwn(record.payload, "id")
+    );
+    if (firstHeader && nativeSessionId === void 0 && firstLegacySessionId === void 0 && (filenameSessionId !== void 0 || laterNativeHeaderPresent)) {
+      return null;
+    }
+    if (nativeSessionId !== void 0 && filenameSessionId !== void 0 && nativeSessionId.toLowerCase() !== filenameSessionId.toLowerCase()) {
+      return null;
+    }
+    let sessionId = nativeSessionId ?? firstLegacySessionId;
     let recordedCwd = null;
     for (const record of records) {
       if (!sessionId) {
@@ -430,7 +508,7 @@ function extractMetaFromRecords(runtime, records, transcriptPath) {
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, "");
     }
-    return { sessionId, recordedCwd, ...codexLineageMetadata(records) };
+    return { sessionId, recordedCwd, ...lineage };
   }
   if (runtime === "cursor") {
     const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
@@ -486,8 +564,7 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
         recordIndex,
         kind: "ask_user",
         toolName,
-        // Claude has no auto-resolution: a recorded answer is the operator's.
-        origin: "human"
+        ...claudeAskUserAnswerProvenance(opts.userProvenance)
       };
     }
   }
@@ -499,17 +576,27 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
     recordIndex,
     kind: "ask_user",
     toolName,
-    origin: "human"
+    ...claudeAskUserAnswerProvenance(opts.userProvenance)
   };
 }
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
+  const provenance = claudeEntryProvenance(opts.userProvenance);
   if (typeof content === "string") {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: "command_message" }];
     }
-    return [messageEntry(role, content, recordIndex)];
+    return [
+      messageEntry(
+        role,
+        content,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
+      )
+    ];
   }
   if (!Array.isArray(content)) return [];
   return content.flatMap((block) => {
@@ -567,7 +654,16 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: "command_message" }];
     }
-    return text ? [messageEntry(role, text, recordIndex)] : [];
+    return text ? [
+      messageEntry(
+        role,
+        text,
+        recordIndex,
+        provenance.displayRole,
+        provenance.origin,
+        opts.userProvenance === "legacy-absent"
+      )
+    ] : [];
   });
 }
 function normalizeClaudeCode(records, opts) {
@@ -627,7 +723,8 @@ function normalizeClaudeCode(records, opts) {
       includeToolResults,
       includeCommandMessages,
       toolNameById,
-      toolUseResult: record.toolUseResult
+      toolUseResult: record.toolUseResult,
+      userProvenance: role === "user" ? claudeUserRecordProvenance(record) : "legacy-absent"
     });
   });
 }
@@ -958,7 +1055,7 @@ var HIDDEN_PAYLOAD_MATCHERS = [
 function sanitizeEntries(entries, { runtime } = {}) {
   if (!Array.isArray(entries)) return [];
   return entries.filter((entry) => {
-    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control") {
+    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control" || entry?.origin === "runtime-notification" || entry?.displayRole === "runtime-notification") {
       return false;
     }
     const text = entry?.text ?? "";
@@ -975,6 +1072,29 @@ var execFileAsync = promisify(execFile);
 var VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 var LOOKBACK_DAYS = 30;
 var MARKER_LINE_RE = /EXPORT_SESSION_MARKER\s*=\s*\S+/;
+var CODEX_ROLLOUT_FILENAME_PATTERN2 = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+function codexFilenameSessionId(transcriptPath) {
+  return CODEX_ROLLOUT_FILENAME_PATTERN2.exec(basename2(transcriptPath))?.[1];
+}
+function codexIdentityFields(meta) {
+  return {
+    ...meta?.nativeSessionId ? { nativeSessionId: meta.nativeSessionId } : {},
+    ...meta?.rootSessionId ? { rootSessionId: meta.rootSessionId } : {},
+    ...meta?.parentSessionId ? { parentSessionId: meta.parentSessionId } : {},
+    ...meta?.forkedFromSessionId ? { forkedFromSessionId: meta.forkedFromSessionId } : {},
+    ...meta?.subagentHistoryStartOrdinal === void 0 ? {} : {
+      subagentHistoryStartOrdinal: meta.subagentHistoryStartOrdinal
+    }
+  };
+}
+function isCodexChild(candidate) {
+  return candidate.runtime === "codex" && typeof candidate.nativeSessionId === "string" && (typeof candidate.parentSessionId === "string" || typeof candidate.rootSessionId === "string" && candidate.rootSessionId !== candidate.nativeSessionId);
+}
+function inheritedContextWarning(candidate) {
+  if (!isCodexChild(candidate)) return null;
+  const boundary = candidate.subagentHistoryStartOrdinal;
+  return boundary === void 0 ? `Codex child session ${candidate.nativeSessionId} may include inherited parent context; ownership boundary is unknown.` : `Codex child session ${candidate.nativeSessionId} includes inherited parent context before ordinal ${boundary}.`;
+}
 function isRuntime(value) {
   return typeof value === "string" && VALID_RUNTIMES.includes(value);
 }
@@ -1119,10 +1239,14 @@ async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
     }
     if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
     if (requireCwd && !meta?.recordedCwd) continue;
+    const filenameSessionId = codexFilenameSessionId(p);
     candidates.push({
       runtime: "codex",
       transcriptPath: p,
-      sessionId: meta?.sessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
+      sessionId: meta?.sessionId ?? filenameSessionId ?? basename2(p).replace(/\.jsonl$/u, ""),
+      identityStatus: meta ? meta.nativeSessionId ? "native" : "legacy" : "invalid",
+      ...filenameSessionId ? { filenameSessionId } : {},
+      ...codexIdentityFields(meta),
       ...st
     });
   }
@@ -1189,31 +1313,78 @@ async function candidateContainsMarker(transcriptPath, marker) {
     return false;
   }
 }
-function newest(candidates) {
-  return [...candidates].toSorted((a, b) => b.mtime - a.mtime)[0];
+function preferredNewest(candidates) {
+  return [...candidates].toSorted(
+    (a, b) => Number(isCodexChild(a)) - Number(isCodexChild(b)) || b.mtime - a.mtime
+  )[0];
 }
 async function selectSessions(opts, candidates) {
   const warnings = [];
   if (opts.all) {
+    for (const candidate of candidates) {
+      const warning = inheritedContextWarning(candidate);
+      if (warning) warnings.push(warning);
+    }
     return { selected: candidates, warnings };
   }
   if (opts.session) {
-    const hit = candidates.find((c) => c.sessionId === opts.session);
+    const invalid = candidates.filter(
+      (candidate) => candidate.identityStatus === "invalid" && candidate.filenameSessionId === opts.session
+    );
+    if (invalid.length > 0) {
+      return {
+        exit: 1,
+        message: `SESSION_IDENTITY_INVALID: recognized rollout source for "${opts.session}" contradicts or lacks a valid native header.`
+      };
+    }
+    const matches = candidates.filter((c) => c.sessionId === opts.session);
+    const canonical = /* @__PURE__ */ new Map();
+    for (const candidate of matches) {
+      let canonicalPath = candidate.transcriptPath;
+      try {
+        canonicalPath = await realpath(candidate.transcriptPath);
+      } catch {
+      }
+      if (!canonical.has(canonicalPath)) {
+        canonical.set(canonicalPath, {
+          ...candidate,
+          transcriptPath: canonicalPath
+        });
+      }
+    }
+    const distinct = [...canonical.values()];
+    if (distinct.length > 1) {
+      return {
+        exit: 3,
+        message: `SESSION_IDENTITY_AMBIGUOUS: multiple canonical transcripts claim "${opts.session}".
+` + distinct.map((c) => `  - ${c.transcriptPath}`).join("\n")
+      };
+    }
+    const hit = distinct[0];
     if (!hit) {
       return {
         exit: 2,
         message: `No transcript found for session id "${opts.session}" in this cwd.`
       };
     }
+    const warning = inheritedContextWarning(hit);
+    if (warning) warnings.push(warning);
     return { selected: [hit], warnings };
   }
   if (opts.match) {
-    for (const c of candidates) {
-      if (await candidateContainsMarker(c.transcriptPath, opts.match)) {
-        return { selected: [c], warnings };
+    const markerMatches = [];
+    for (const candidate of candidates) {
+      if (await candidateContainsMarker(candidate.transcriptPath, opts.match)) {
+        markerMatches.push(candidate);
       }
     }
-    const fallback = newest(candidates);
+    const markerMatch = preferredNewest(markerMatches);
+    if (markerMatch) {
+      const warning2 = inheritedContextWarning(markerMatch);
+      if (warning2) warnings.push(warning2);
+      return { selected: [markerMatch], warnings };
+    }
+    const fallback = preferredNewest(candidates);
     if (!fallback) {
       return {
         exit: 2,
@@ -1223,9 +1394,13 @@ async function selectSessions(opts, candidates) {
     warnings.push(
       `marker "${opts.match}" not found in any candidate; falling back to newest-for-cwd transcript (${fallback.sessionId}). Re-run with --session <id> if this is the wrong session.`
     );
+    const warning = inheritedContextWarning(fallback);
+    if (warning) warnings.push(warning);
     return { selected: [fallback], warnings };
   }
   if (candidates.length === 1) {
+    const warning = inheritedContextWarning(candidates[0]);
+    if (warning) warnings.push(warning);
     return { selected: [candidates[0]], warnings };
   }
   return {
@@ -1291,7 +1466,8 @@ function renderMarkdown({
   source,
   runtime,
   entries,
-  branchFromGit
+  branchFromGit,
+  session
 }) {
   const lines = [];
   const title = branchFromGit ? branch : `${branch} (no git branch)`;
@@ -1300,6 +1476,17 @@ function renderMarkdown({
   lines.push(`Exported: ${(/* @__PURE__ */ new Date()).toISOString()}`);
   lines.push(`Source: ${source}`);
   lines.push(`Runtime: ${runtime}`);
+  lines.push(`Session: ${session.sessionId}`);
+  if (session.nativeSessionId)
+    lines.push(`Native session: ${session.nativeSessionId}`);
+  if (session.rootSessionId)
+    lines.push(`Root session: ${session.rootSessionId}`);
+  if (session.parentSessionId)
+    lines.push(`Parent session: ${session.parentSessionId}`);
+  if (session.forkedFromSessionId)
+    lines.push(`Forked from: ${session.forkedFromSessionId}`);
+  const warning = inheritedContextWarning(session);
+  if (warning) lines.push(`Warning: ${warning}`);
   lines.push(SANITIZE_NOTE);
   lines.push("");
   if (entries.length === 0) {
@@ -1331,6 +1518,7 @@ async function exportSession(opts, runtime, branch, branchFromGit, session, mult
     branchFromGit,
     source: session.transcriptPath,
     runtime,
+    session,
     entries
   });
   const outPath = await resolveOutputPath(opts, branch, session, multi);
@@ -1378,6 +1566,15 @@ Try --cwd <path> or confirm ${runtime} has run in this project.`
   if ("exit" in selection) {
     console.error(`[session-export-transcript] ${selection.message}`);
     return selection.exit;
+  }
+  const invalidSelected = selection.selected.filter(
+    (candidate) => candidate.identityStatus === "invalid"
+  );
+  if (invalidSelected.length > 0) {
+    console.error(
+      "[session-export-transcript] SESSION_IDENTITY_INVALID: selected Codex transcript source contradicts or lacks a valid native header.\n" + invalidSelected.map((candidate) => `  - ${candidate.transcriptPath}`).join("\n")
+    );
+    return 1;
   }
   for (const warning of selection.warnings) {
     console.error(`[session-export-transcript] warning: ${warning}`);

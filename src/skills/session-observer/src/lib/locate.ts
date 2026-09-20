@@ -122,6 +122,25 @@ export class SessionDiscoveryError extends Error {
   }
 }
 
+export type ExactSessionIdentityFailure =
+  | 'SESSION_IDENTITY_AMBIGUOUS'
+  | 'SESSION_IDENTITY_INVALID';
+
+export class ExactSessionIdentityError extends Error {
+  readonly code: ExactSessionIdentityFailure;
+  readonly candidates: TranscriptCandidate[];
+
+  constructor(
+    code: ExactSessionIdentityFailure,
+    candidates: TranscriptCandidate[],
+  ) {
+    super(code);
+    this.name = 'ExactSessionIdentityError';
+    this.code = code;
+    this.candidates = candidates;
+  }
+}
+
 class ExactAllDiscoveryBudget {
   private readonly startedAt = Date.now();
   private entries = 0;
@@ -576,6 +595,14 @@ async function candidateEngagementFields(
 interface CwdCacheEntry {
   recordedCwd: string | null;
   sessionId?: string;
+  identityVersion?: 2;
+  fileSize?: number;
+  fileMtimeMs?: number;
+  fileDev?: number;
+  fileIno?: number;
+  meta?: TranscriptMeta | null;
+  identityStatus?: 'native' | 'legacy' | 'invalid';
+  filenameSessionId?: string;
 }
 
 type CwdCache = Record<string, CwdCacheEntry>;
@@ -676,6 +703,13 @@ async function saveCwdCache(cache: CwdCache): Promise<void> {
  */
 function cwdCacheKey(transcriptPath: string, mtimeSec: number): string {
   return `${transcriptPath}:${mtimeSec}`;
+}
+
+const CODEX_ROLLOUT_FILENAME_PATTERN =
+  /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
+
+function codexFilenameSessionId(transcriptPath: string): string | undefined {
+  return CODEX_ROLLOUT_FILENAME_PATTERN.exec(basename(transcriptPath))?.[1];
 }
 
 // ---------------------------------------------------------------------------
@@ -943,7 +977,9 @@ async function collectJsonlFiles(
 
 /**
  * Discover Codex transcript candidates for a target cwd.
- * Uses a cwd-cache keyed by (transcriptPath:mtime) to avoid re-parsing.
+ * Uses a cwd-cache keyed by (transcriptPath:coarse mtime) and validates each
+ * hit with the full file signature (subsecond mtime, size, device, inode) to
+ * avoid re-parsing without trusting a same-key rewrite.
  *
  * @param {string} targetCwd
  * @param {ClassificationCache} classificationCache
@@ -994,6 +1030,9 @@ async function discoverCodex(
 
     let recordedCwd: string | null;
     let sessionId: string;
+    let meta: TranscriptMeta | null;
+    let identityStatus: 'native' | 'legacy' | 'invalid';
+    const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived: TranscriptDerivedFields | null = null;
     if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
@@ -1008,17 +1047,27 @@ async function discoverCodex(
       );
       if (boundedDerived === null) continue;
     }
+    const cached = persistentCacheAllowed ? cwdCache[key] : undefined;
     if (
-      persistentCacheAllowed &&
-      cwdCache[key] &&
-      cwdCache[key].sessionId !== undefined
+      cached?.identityVersion === 2 &&
+      cached.fileSize === fileStat.size &&
+      cached.fileMtimeMs === fileStat.mtimeMs &&
+      cached.fileDev === fileStat.dev &&
+      cached.fileIno === fileStat.ino &&
+      cached.sessionId !== undefined &&
+      cached.meta !== undefined &&
+      cached.identityStatus !== undefined
     ) {
-      // Cache hit: use cached values for both recordedCwd and sessionId
-      recordedCwd = cwdCache[key].recordedCwd;
-      sessionId = cwdCache[key].sessionId;
+      // Only cache entries written after strong file-signature and native-
+      // identity validation are reusable. Older entries are deliberately
+      // reparsed.
+      recordedCwd = cached.recordedCwd;
+      sessionId = cached.sessionId;
+      meta = cached.meta;
+      identityStatus = cached.identityStatus;
     } else {
       // Cache miss: parse the transcript
-      let meta = boundedDerived?.meta;
+      meta = boundedDerived?.meta ?? null;
       if (!budget) {
         try {
           meta = await extractMeta('codex', transcriptPath);
@@ -1028,11 +1077,29 @@ async function discoverCodex(
       }
       recordedCwd = meta?.recordedCwd ?? null;
       sessionId =
-        meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+        meta?.sessionId ??
+        filenameSessionId ??
+        basename(transcriptPath).replace(/\.jsonl$/, '');
+      identityStatus = meta
+        ? meta.nativeSessionId
+          ? 'native'
+          : 'legacy'
+        : 'invalid';
 
       // Populate cache with both recordedCwd and sessionId
       if (persistentCacheAllowed) {
-        cwdCache[key] = { recordedCwd, sessionId };
+        cwdCache[key] = {
+          recordedCwd,
+          sessionId,
+          identityVersion: 2,
+          fileSize: fileStat.size,
+          fileMtimeMs: fileStat.mtimeMs,
+          fileDev: fileStat.dev,
+          fileIno: fileStat.ino,
+          meta,
+          identityStatus,
+          ...(filenameSessionId ? { filenameSessionId } : {}),
+        };
         cacheModified = true;
       }
     }
@@ -1042,6 +1109,23 @@ async function discoverCodex(
       transcriptPath,
       sessionId,
       recordedCwd,
+      identityStatus,
+      ...(filenameSessionId ? { filenameSessionId } : {}),
+      ...(meta?.nativeSessionId
+        ? { nativeSessionId: meta.nativeSessionId }
+        : {}),
+      ...(meta?.rootSessionId ? { rootSessionId: meta.rootSessionId } : {}),
+      ...(meta?.parentSessionId
+        ? { parentSessionId: meta.parentSessionId }
+        : {}),
+      ...(meta?.forkedFromSessionId
+        ? { forkedFromSessionId: meta.forkedFromSessionId }
+        : {}),
+      ...(meta?.subagentHistoryStartOrdinal === undefined
+        ? {}
+        : {
+            subagentHistoryStartOrdinal: meta.subagentHistoryStartOrdinal,
+          }),
       mtime,
       size: fileStat.size,
       ageSec,
@@ -1861,11 +1945,48 @@ export async function findSessionCandidate(
     runtime === 'cursor'
       ? await findCursorSessionCandidates(targetCwd, sessionId, cache)
       : await discover(runtime, targetCwd, cache, options);
+  const invalidMatches = candidates.filter(
+    (candidate) =>
+      candidate.identityStatus === 'invalid' &&
+      candidate.filenameSessionId === sessionId,
+  );
+  if (invalidMatches.length > 0) {
+    throw new ExactSessionIdentityError(
+      'SESSION_IDENTITY_INVALID',
+      invalidMatches,
+    );
+  }
+
   const matches = candidates.filter(
     (candidate) =>
       candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId,
   );
-  return matches.length === 1 ? matches[0] : null;
+  const canonicalMatches = new Map<string, TranscriptCandidate>();
+  for (const candidate of matches) {
+    let canonical = candidate.transcriptPath;
+    try {
+      canonical = await realpath(candidate.transcriptPath);
+    } catch {
+      // Discovery already established the source path. Preserve it when a
+      // concurrent deletion prevents canonicalization.
+    }
+    if (!canonicalMatches.has(canonical)) {
+      canonicalMatches.set(
+        canonical,
+        runtime === 'codex'
+          ? { ...candidate, transcriptPath: canonical }
+          : candidate,
+      );
+    }
+  }
+  const distinctMatches = [...canonicalMatches.values()];
+  if (distinctMatches.length > 1) {
+    throw new ExactSessionIdentityError(
+      'SESSION_IDENTITY_AMBIGUOUS',
+      distinctMatches,
+    );
+  }
+  return distinctMatches[0] ?? null;
 }
 
 /**

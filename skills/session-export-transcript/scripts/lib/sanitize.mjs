@@ -74,7 +74,7 @@ var HIDDEN_PAYLOAD_MATCHERS = [
 function sanitizeEntries(entries, { runtime } = {}) {
   if (!Array.isArray(entries)) return [];
   return entries.filter((entry) => {
-    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control") {
+    if (entry?.origin === "automatic-control" || entry?.displayRole === "automatic-control" || entry?.origin === "runtime-notification" || entry?.displayRole === "runtime-notification") {
       return false;
     }
     const text = entry?.text ?? "";

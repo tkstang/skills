@@ -18,6 +18,7 @@ import {
   writeFile,
   readFile,
   readdir,
+  utimes,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -193,6 +194,60 @@ function codexTranscript(
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+function nativeCodexTranscript(
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+  options: {
+    malformedPrefix?: boolean;
+    boundary?: number;
+    marker?: string;
+    message?: string;
+  } = {},
+): string {
+  const records = [
+    {
+      type: 'session_meta',
+      payload: {
+        id: nativeSessionId,
+        session_id: rootSessionId,
+        cwd: CWD,
+        ...(rootSessionId === nativeSessionId
+          ? {}
+          : { parent_thread_id: rootSessionId }),
+        ...(options.boundary === undefined
+          ? {}
+          : { subagent_history_start_ordinal: options.boundary }),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: [
+          ...(options.marker
+            ? [`EXPORT_SESSION_MARKER=${options.marker}`]
+            : []),
+          options.message ?? 'Native child question',
+        ].join('\n'),
+      },
+    },
+    {
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: 'Native child answer',
+      },
+    },
+  ];
+  return (
+    (options.malformedPrefix ? '{malformed first line\n' : '') +
+    records.map((record) => JSON.stringify(record)).join('\n') +
+    '\n'
+  );
+}
+
 // A Codex transcript whose session_started record omits cwd → recordedCwd null.
 function codexTranscriptNoCwd(
   marker: string,
@@ -360,6 +415,93 @@ describe('export CLI — session selection', () => {
     assert.match(r.stderr, /marker.*not found|fall(ing)? back|warning/i);
   });
 
+  test('--match prefers an older Codex root over a newer inherited child when both contain the marker', async () => {
+    const selectionHome = await setupHome();
+    const marker = 'root-first-marker';
+    const rootId = '66666666-bbbb-4666-8666-666666666666';
+    const childId = '77777777-bbbb-4777-8777-777777777777';
+    const rootPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(rootId, rootId, {
+        marker,
+        message: 'ROOT MARKER MATCH',
+      }),
+      'root-marker-match',
+    );
+    const childPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(childId, rootId, {
+        marker,
+        message: 'CHILD MARKER MATCH',
+      }),
+      'child-marker-match',
+    );
+    const now = new Date();
+    const older = new Date(now.getTime() - 10_000);
+    await utimes(rootPath, older, older);
+    await utimes(childPath, now, now);
+    const out = join(selectionHome, 'root-marker-match.md');
+
+    const result = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: selectionHome },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /ROOT MARKER MATCH/);
+    assert.ok(!/CHILD MARKER MATCH/.test(markdown));
+    assert.ok(!/inherited parent context/.test(result.stderr));
+    await rm(selectionHome, { recursive: true, force: true });
+  });
+
+  test('--match miss fallback prefers an older Codex root over a newer inherited child', async () => {
+    const selectionHome = await setupHome();
+    const rootId = '88888888-bbbb-4888-8888-888888888888';
+    const childId = '99999999-bbbb-4999-8999-999999999999';
+    const rootPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(rootId, rootId, {
+        message: 'ROOT MARKER MISS FALLBACK',
+      }),
+      'root-marker-miss',
+    );
+    const childPath = await writeCodex(
+      selectionHome,
+      nativeCodexTranscript(childId, rootId, {
+        message: 'CHILD MARKER MISS FALLBACK',
+      }),
+      'child-marker-miss',
+    );
+    const now = new Date();
+    const older = new Date(now.getTime() - 10_000);
+    await utimes(rootPath, older, older);
+    await utimes(childPath, now, now);
+    const out = join(selectionHome, 'root-marker-miss.md');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--match',
+        'no-such-marker',
+        '--out',
+        out,
+      ],
+      { HOME: selectionHome },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /falling back.*88888888-bbbb/);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /ROOT MARKER MISS FALLBACK/);
+    assert.ok(!/CHILD MARKER MISS FALLBACK/.test(markdown));
+    assert.ok(!/inherited parent context/.test(result.stderr));
+    await rm(selectionHome, { recursive: true, force: true });
+  });
+
   test('--session selects a specific session id, exit 0', async () => {
     await writeClaude(home, claudeTranscript('zzz', 'cc-pinned'), 'cc-pinned');
     const out = join(home, 'out-session.md');
@@ -380,6 +522,117 @@ describe('export CLI — session selection', () => {
     const md = await readFile(out, 'utf8');
     assert.ok(md.includes('Please refactor the auth module.'));
   });
+
+  test('--session rejects duplicate Codex native identity sources', async () => {
+    const duplicateHome = await setupHome();
+    const nativeId = '11111111-bbbb-4111-8111-111111111111';
+    await writeCodex(
+      duplicateHome,
+      nativeCodexTranscript(nativeId),
+      'duplicate-one',
+    );
+    await writeCodex(
+      duplicateHome,
+      nativeCodexTranscript(nativeId),
+      'duplicate-two',
+    );
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', nativeId],
+      { HOME: duplicateHome },
+    );
+
+    assert.equal(r.status, 3, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /SESSION_IDENTITY_AMBIGUOUS/);
+    await rm(duplicateHome, { recursive: true, force: true });
+  });
+
+  test('--session exports Codex child identity with inherited-context warning', async () => {
+    const childHome = await setupHome();
+    const childId = '22222222-bbbb-4222-8222-222222222222';
+    const rootId = '33333333-bbbb-4333-8333-333333333333';
+    await writeCodex(
+      childHome,
+      nativeCodexTranscript(childId, rootId, { boundary: 5 }),
+      'native-child',
+    );
+    const out = join(childHome, 'child.md');
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', childId, '--out', out],
+      { HOME: childHome },
+    );
+
+    assert.equal(r.status, 0, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /inherited parent context before ordinal 5/);
+    const md = await readFile(out, 'utf8');
+    assert.match(md, new RegExp(`Native session: ${childId}`));
+    assert.match(md, new RegExp(`Root session: ${rootId}`));
+    assert.match(md, /inherited parent context before ordinal 5/);
+    await rm(childHome, { recursive: true, force: true });
+  });
+
+  test('--session rejects malformed-first-line Codex rollout identity', async () => {
+    const malformedHome = await setupHome();
+    const childId = '44444444-bbbb-4444-8444-444444444444';
+    const parentId = '55555555-bbbb-4555-8555-555555555555';
+    const dir = join(malformedHome, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      join(dir, `rollout-2026-09-18T10-00-00-${childId}.jsonl`),
+      nativeCodexTranscript(parentId, parentId, { malformedPrefix: true }),
+      'utf8',
+    );
+
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--session', childId],
+      { HOME: malformedHome },
+    );
+
+    assert.equal(r.status, 1, `${r.stderr}\n${r.stdout}`);
+    assert.match(r.stderr, /SESSION_IDENTITY_INVALID/);
+    await rm(malformedHome, { recursive: true, force: true });
+  });
+
+  test.each([
+    { label: 'marker match', markerInTranscript: 'invalid-marker-match' },
+    { label: 'marker-miss fallback', markerInTranscript: undefined },
+  ])(
+    '--match rejects an invalid Codex identity selected by $label',
+    async ({ markerInTranscript }) => {
+      const invalidHome = await setupHome();
+      const filenameId = '66666666-bbbb-4666-8666-666666666666';
+      const contradictoryId = '77777777-bbbb-4777-8777-777777777777';
+      const requestedMarker = markerInTranscript ?? 'missing-marker';
+      const dir = join(invalidHome, '.codex', 'sessions', '2026', '09', '18');
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, `rollout-2026-09-18T10-00-00-${filenameId}.jsonl`),
+        nativeCodexTranscript(contradictoryId, contradictoryId, {
+          marker: markerInTranscript,
+        }),
+        'utf8',
+      );
+
+      const result = spawnCli(
+        [
+          '--runtime',
+          'codex',
+          '--cwd',
+          CWD,
+          '--match',
+          requestedMarker,
+          '--out',
+          join(invalidHome, 'invalid.md'),
+        ],
+        { HOME: invalidHome },
+      );
+
+      assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+      assert.match(result.stderr, /SESSION_IDENTITY_INVALID/);
+      await rm(invalidHome, { recursive: true, force: true });
+    },
+  );
 
   test('--all writes one output per cwd session, exit 0', async () => {
     const allHome = await setupHome();

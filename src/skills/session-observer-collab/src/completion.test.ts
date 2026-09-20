@@ -490,6 +490,53 @@ describe('normalized completed continuation selection', () => {
     ]);
   });
 
+  test('advances over a notification-only tail without creating an incomplete human turn', () => {
+    const result = selectCompletedContinuation(
+      digest(
+        [
+          message('user', 'Background task completed.', 3, {
+            displayRole: 'runtime-notification',
+            origin: 'runtime-notification',
+          }),
+        ],
+        3,
+        6,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: 'no-continuation',
+      continuation: false,
+      nextCursor: 6,
+      peerCursor: 6,
+      budgetCost: 0,
+    });
+  });
+
+  test('reviews substantive assistant output after a notification without classifying it as an automatic wake', () => {
+    const result = selectCompletedContinuation(
+      digest(
+        [
+          message('user', 'Background task completed.', 3, {
+            displayRole: 'runtime-notification',
+            origin: 'runtime-notification',
+          }),
+          message('assistant', 'Acknowledged.', 5),
+        ],
+        3,
+        6,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: 'continuation',
+      continuation: true,
+      completedRecord: 5,
+      nextCursor: 6,
+      budgetCost: 1,
+    });
+  });
+
   test.each([
     'Waiting is incorrect; re-arm with the corrected cursor.',
     'Holding would lose the result; continue with the corrected range.',

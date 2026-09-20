@@ -25,12 +25,13 @@ frame-indexed state and continuity contract.
   payloads), or `--debug` (adds tool markers and results).
 - Keeps **ask-user exchanges** in that default view. Every runtime asks the
   operator questions through a tool call (`AskUserQuestion`,
-  `request_user_input`, `AskQuestion`), and the answer is a human decision
-  rather than tool mechanics — so the question renders even with tools filtered.
+  `request_user_input`, `AskQuestion`), so the question renders even with tools
+  filtered.
   Claude Code and Codex also record the answer, which renders alongside it and
   is counted in `accounting.rendered.askUserEntries`. Cursor records no answer
   at all, and its digest says the selected option is unrecorded rather than
-  leaving a silent gap; that narrower behavior is documented in the skill.
+  leaving a silent gap. Claude answers count as human only with native human or
+  legacy-absent provenance. Codex auto-resolved answers remain unattributed.
 - Tracks **per-session read positions**, so `catch-up` shows only input that
   arrived since the last read. Claude Code and Codex count JSONL records;
   Cursor digest schema v2 counts physical JSONL frames.
@@ -48,6 +49,26 @@ watcher running and reads its output; backgrounded commands in yield-after-turn
 agent harnesses do not wake a future invocation.
 
 It is read-only: it does not write to peer transcripts.
+
+## Identity and provenance
+
+- **Codex identity:** the first physical `session_meta.payload.id` is the
+  native rollout identity. Recognized rollout filenames must corroborate it;
+  malformed or contradictory first-header evidence fails closed. Root,
+  direct-parent, fork, and inherited-history fields remain lineage rather than
+  substitutes for the native pin. Child digests warn when parent context may
+  precede the child's own work.
+- **Claude provenance:** top-level `origin.kind: "human"` is human input and
+  `task-notification` is visibly rendered as `runtime-notification`. Absent
+  provenance keeps legacy behavior; peer and unknown values remain unmarked.
+  Notification records do not count as human engagement, authorize work, or
+  enter collaboration/export/fork human previews. These shapes were observed
+  across Claude Code 2.1.220–2.1.276; parsing follows the schema without a
+  hard-coded version gate.
+- **Saved positions:** a nonzero Claude Code or Codex position is bound to one
+  provider session and canonical transcript path. Missing, mismatched,
+  malformed, or shrunken evidence fails closed before output or advancement.
+  Plain `review` stays stateless unless `--mark-read` is passed.
 
 ## Usage
 
@@ -128,6 +149,19 @@ node skills/session-observer/scripts/session-observer.mjs watch-ctl stop \
 node skills/session-observer/scripts/session-observer.mjs catch-up-then-watch \
   --session codex:<peer-session-id> --quiet-empty
 ```
+
+If re-arm instead reports a saved identity/path mismatch, confirm the expected
+and observed binding, then reset only that pin and replay it:
+
+```bash
+node skills/session-observer/scripts/session-observer.mjs state reset \
+  --session codex:<peer-session-id>
+node skills/session-observer/scripts/session-observer.mjs catch-up-then-watch \
+  --session codex:<peer-session-id> --quiet-empty --until-stopped
+```
+
+Use a runtime-wide reset only when every tracked session for that runtime should
+replay.
 
 Do not use plain `watch` for this recovery. A plain watch intentionally advances
 past an unread startup baseline and emits `baseline-gap`; it does not render that

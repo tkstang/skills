@@ -361,3 +361,26 @@ describe('sanitizeEntries — automatic-control envelopes', () => {
     expect(kept).toHaveLength(1);
   });
 });
+
+describe('sanitizeEntries — native runtime notifications', () => {
+  test.each(['origin', 'displayRole'] as const)(
+    'drops Claude notifications tagged by %s before export',
+    (field) => {
+      const kept = sanitizeEntries(
+        [
+          { role: 'user', text: 'Genuine human direction.', origin: 'human' },
+          {
+            role: 'user',
+            text: 'Background task completed.',
+            [field]: 'runtime-notification',
+          },
+        ] as SanitizableEntry[],
+        { runtime: 'claude-code' },
+      );
+
+      expect(kept).toEqual([
+        expect.objectContaining({ text: 'Genuine human direction.' }),
+      ]);
+    },
+  );
+});

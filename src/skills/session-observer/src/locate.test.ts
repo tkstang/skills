@@ -285,6 +285,45 @@ function makeCodexTypical(cwd: string): string {
 `;
 }
 
+function makeCodexNative(
+  cwd: string,
+  nativeSessionId: string,
+  rootSessionId = nativeSessionId,
+  options: {
+    parentSessionId?: string;
+    subagentHistoryStartOrdinal?: number;
+  } = {},
+): string {
+  const payload = {
+    id: nativeSessionId,
+    session_id: rootSessionId,
+    cwd,
+    ...(options.parentSessionId
+      ? { parent_thread_id: options.parentSessionId }
+      : {}),
+    ...(options.subagentHistoryStartOrdinal === undefined
+      ? {}
+      : {
+          subagent_history_start_ordinal: options.subagentHistoryStartOrdinal,
+        }),
+  };
+  return (
+    [
+      { type: 'session_meta', payload },
+      {
+        type: 'response_item',
+        payload: { type: 'message', role: 'user', content: 'Hello' },
+      },
+      {
+        type: 'response_item',
+        payload: { type: 'message', role: 'assistant', content: 'Hi!' },
+      },
+    ]
+      .map((record) => JSON.stringify(record))
+      .join('\n') + '\n'
+  );
+}
+
 const exactReadOnlyDiscovery: DiscoveryOptions = {
   persistence: 'forbid',
   recency: 'exact-all',
@@ -761,6 +800,215 @@ test('findSessionCandidate rejects a matching alias from another cwd', async () 
     expect(
       await findSessionCandidate('codex', targetCwd, 'codex-sess-001'),
     ).toBeNull();
+  });
+});
+
+test('codex exact pins reject duplicate canonical sources instead of choosing by recency', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'duplicate-native-id');
+    const nativeId = '11111111-aaaa-4111-8111-111111111111';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const older = join(sessionDir, 'older.jsonl');
+    const newer = join(sessionDir, 'newer.jsonl');
+    await writeFile(older, makeCodexNative(targetCwd, nativeId), 'utf8');
+    await writeFile(newer, makeCodexNative(targetCwd, nativeId), 'utf8');
+    const now = new Date();
+    await utimes(
+      older,
+      new Date(now.getTime() - 10_000),
+      new Date(now.getTime() - 10_000),
+    );
+    await utimes(newer, now, now);
+
+    await expect(
+      findSessionCandidate('codex', targetCwd, nativeId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_AMBIGUOUS',
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ transcriptPath: older }),
+        expect.objectContaining({ transcriptPath: newer }),
+      ]),
+    });
+  });
+});
+
+test('codex exact pins report a corrupt matching rollout instead of falling through', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'corrupt-native-id');
+    const requestedId = '22222222-aaaa-4222-8222-222222222222';
+    const contradictoryId = '33333333-aaaa-4333-8333-333333333333';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(
+      sessionDir,
+      `rollout-2026-09-18T10-00-00-${requestedId}.jsonl`,
+    );
+    await writeFile(
+      transcriptPath,
+      makeCodexNative(targetCwd, contradictoryId),
+      'utf8',
+    );
+
+    await expect(
+      findSessionCandidate('codex', targetCwd, requestedId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_INVALID',
+      candidates: [expect.objectContaining({ transcriptPath })],
+    });
+  });
+});
+
+test('codex exact pins reject an id-less first header before a later inherited native header', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'idless-first-header');
+    const requestedId = '77777777-aaaa-4777-8777-777777777777';
+    const parentId = '88888888-aaaa-4888-8888-888888888888';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(
+      sessionDir,
+      `rollout-2026-09-18T10-00-00-${requestedId}.jsonl`,
+    );
+    await writeFile(
+      transcriptPath,
+      [
+        { type: 'session_meta', payload: { cwd: targetCwd } },
+        {
+          type: 'session_meta',
+          payload: {
+            id: parentId,
+            session_id: parentId,
+            cwd: targetCwd,
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+      'utf8',
+    );
+
+    await expect(
+      findSessionCandidate('codex', targetCwd, requestedId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_INVALID',
+      candidates: [expect.objectContaining({ transcriptPath })],
+    });
+  });
+});
+
+test('codex exact pins canonicalize a symlink alias to one source', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'canonical-native-id');
+    const nativeId = '44444444-aaaa-4444-8444-444444444444';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'canonical.jsonl');
+    const aliasPath = join(sessionDir, 'canonical-alias.jsonl');
+    await writeFile(
+      transcriptPath,
+      makeCodexNative(targetCwd, nativeId),
+      'utf8',
+    );
+    await symlink(transcriptPath, aliasPath);
+
+    await expect(
+      findSessionCandidate('codex', targetCwd, nativeId),
+    ).resolves.toMatchObject({ transcriptPath });
+  });
+});
+
+test('claude exact pins reject distinct canonical sources and deduplicate symlink aliases', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'claude-duplicate-source');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const first = join(projectDir, 'first.jsonl');
+    const second = join(projectDir, 'second.jsonl');
+    const alias = join(projectDir, 'first-alias.jsonl');
+    await writeFile(
+      first,
+      makeClaudeTypical(targetCwd, 'claude-duplicate'),
+      'utf8',
+    );
+    await symlink(first, alias);
+
+    await expect(
+      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+    ).resolves.toMatchObject({ sessionId: 'claude-duplicate' });
+
+    await writeFile(
+      second,
+      makeClaudeTypical(targetCwd, 'claude-duplicate'),
+      'utf8',
+    );
+    await expect(
+      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_AMBIGUOUS',
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ transcriptPath: first }),
+        expect.objectContaining({ transcriptPath: second }),
+      ]),
+    });
+  });
+});
+
+test('codex cwd cache revalidates a stale root mapping against native child evidence', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'stale-native-cache');
+    const rootId = '55555555-aaaa-4555-8555-555555555555';
+    const childId = '66666666-aaaa-4666-8666-666666666666';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '18');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'child.jsonl');
+    const rootTranscriptPath = join(sessionDir, 'root.jsonl');
+    await writeFile(
+      transcriptPath,
+      makeCodexNative(targetCwd, childId, rootId, {
+        parentSessionId: rootId,
+        subagentHistoryStartOrdinal: 7,
+      }),
+      'utf8',
+    );
+    await writeFile(
+      rootTranscriptPath,
+      makeCodexNative(targetCwd, rootId),
+      'utf8',
+    );
+    const older = new Date(Date.now() - 60_000);
+    await utimes(rootTranscriptPath, older, older);
+    const transcriptStat = await stat(transcriptPath);
+    const cachePath = join(process.env.STATE_DIR!, 'codex-cwd-cache.json');
+    await mkdir(dirname(cachePath), { recursive: true });
+    await writeFile(
+      cachePath,
+      JSON.stringify({
+        [`${transcriptPath}:${Math.floor(transcriptStat.mtimeMs / 1000)}`]: {
+          recordedCwd: targetCwd,
+          sessionId: rootId,
+        },
+      }),
+      'utf8',
+    );
+
+    const candidates = await discover('codex', targetCwd);
+    expect(candidates).toContainEqual(
+      expect.objectContaining({
+        sessionId: childId,
+        nativeSessionId: childId,
+        rootSessionId: rootId,
+        parentSessionId: rootId,
+        subagentHistoryStartOrdinal: 7,
+      }),
+    );
+    await expect(
+      findSessionCandidate('codex', targetCwd, rootId),
+    ).resolves.toMatchObject({
+      sessionId: rootId,
+      nativeSessionId: rootId,
+      transcriptPath: rootTranscriptPath,
+    });
   });
 });
 
@@ -1387,7 +1635,7 @@ test('exact-all rejects an expired aggregate deadline without returning partial 
   });
 });
 
-test('codex cwd cache: cache hit proved by observable cache-file state', async () => {
+test('codex cwd cache: size changes invalidate cached transcript metadata', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/cached-project';
     const sessionDate = '2026/05/14';
@@ -1437,19 +1685,84 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     // Restore the original mtime so the cache key still matches
     await utimes(transcriptPath, origMtime, origMtime);
 
-    // Second discover: should use cache, NOT re-parse transcript
+    // Second discover: the changed size invalidates the identity-bearing cache
+    // entry even though the coarse mtime key was deliberately restored.
     const secondResult = await discover('codex', targetCwd);
 
-    // The candidate for our transcript should still report targetCwd (from cache),
-    // not differentCwd (from the rewritten content)
+    // The candidate must report the rewritten cwd, proving discovery reparsed
+    // rather than trusting stale identity evidence.
     const cachedCandidate: any = secondResult.find(
       (c: any) => c.transcriptPath === transcriptPath,
     );
     expect(cachedCandidate, 'transcript should still be found').toBeTruthy();
     expect(
       cachedCandidate.recordedCwd,
-      'recordedCwd should come from the cache, not the rewritten transcript',
-    ).toBe(targetCwd);
+      'recordedCwd should come from the rewritten transcript',
+    ).toBe(differentCwd);
+  });
+});
+
+test('codex cwd cache: subsecond rewrites invalidate same-path same-size identity metadata', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/subsecond-cache-project';
+    const firstId = '11111111-cccc-4111-8111-111111111111';
+    const secondId = '22222222-cccc-4222-8222-222222222222';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '09', '19');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'same-path.jsonl');
+    const firstContent = makeCodexNative(targetCwd, firstId);
+    const secondContent = makeCodexNative(targetCwd, secondId);
+    expect(Buffer.byteLength(firstContent)).toBe(
+      Buffer.byteLength(secondContent),
+    );
+
+    const coarseSecond = Math.floor(Date.now() / 1000) * 1000;
+    const firstMtime = new Date(coarseSecond + 100);
+    const secondMtime = new Date(coarseSecond + 700);
+    await writeFile(transcriptPath, firstContent, 'utf8');
+    await utimes(transcriptPath, firstMtime, firstMtime);
+    const firstStat = await stat(transcriptPath);
+
+    await expect(discover('codex', targetCwd)).resolves.toContainEqual(
+      expect.objectContaining({
+        transcriptPath,
+        sessionId: firstId,
+        nativeSessionId: firstId,
+      }),
+    );
+
+    await writeFile(transcriptPath, secondContent, 'utf8');
+    await utimes(transcriptPath, secondMtime, secondMtime);
+    const secondStat = await stat(transcriptPath);
+    expect(secondStat.size).toBe(firstStat.size);
+    expect(Math.floor(secondStat.mtimeMs / 1000)).toBe(
+      Math.floor(firstStat.mtimeMs / 1000),
+    );
+    expect(secondStat.mtimeMs).not.toBe(firstStat.mtimeMs);
+
+    await expect(discover('codex', targetCwd)).resolves.toContainEqual(
+      expect.objectContaining({
+        transcriptPath,
+        sessionId: secondId,
+        nativeSessionId: secondId,
+      }),
+    );
+
+    const cache = JSON.parse(
+      await readFile(
+        join(process.env.STATE_DIR!, 'codex-cwd-cache.json'),
+        'utf8',
+      ),
+    );
+    const cacheKey = `${transcriptPath}:${Math.floor(secondStat.mtimeMs / 1000)}`;
+    expect(cache[cacheKey]).toMatchObject({
+      identityVersion: 2,
+      fileSize: secondStat.size,
+      fileMtimeMs: secondStat.mtimeMs,
+      fileDev: secondStat.dev,
+      fileIno: secondStat.ino,
+      sessionId: secondId,
+    });
   });
 });
 
@@ -1674,6 +1987,32 @@ test('cursor: explicit session lookup does not read large sibling transcript bod
     });
     expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
     expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
+  });
+});
+
+test('cursor exact pins reject distinct canonical sources and deduplicate symlink aliases', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cursor-duplicate-source');
+    const sessionId = 'cursor-duplicate';
+    const first = await writeCursorTranscriptForCwd(home, targetCwd, sessionId);
+    const alias = join(dirname(first), 'alias.jsonl');
+    await symlink(first, alias);
+
+    await expect(
+      findSessionCandidate('cursor', targetCwd, sessionId),
+    ).resolves.toMatchObject({ sessionId });
+
+    const second = join(dirname(first), 'conversation.jsonl');
+    await writeFile(second, CURSOR_TYPICAL, 'utf8');
+    await expect(
+      findSessionCandidate('cursor', targetCwd, sessionId),
+    ).rejects.toMatchObject({
+      code: 'SESSION_IDENTITY_AMBIGUOUS',
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ transcriptPath: first }),
+        expect.objectContaining({ transcriptPath: second }),
+      ]),
+    });
   });
 });
 

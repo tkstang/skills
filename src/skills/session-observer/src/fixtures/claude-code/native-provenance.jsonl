@@ -1,0 +1,6 @@
+{"type":"user","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","origin":{"kind":"human"},"message":{"role":"user","content":"Human direction."}}
+{"type":"assistant","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","message":{"role":"assistant","content":"Substantive response."}}
+{"type":"user","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","origin":{"kind":"task-notification"},"message":{"role":"user","content":"Background task completed."}}
+{"type":"user","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","message":{"role":"user","content":"Legacy direction."}}
+{"type":"user","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","origin":{"kind":"peer"},"message":{"role":"user","content":"Peer transport."}}
+{"type":"user","sessionId":"cc-native-provenance","cwd":"/Users/test/project","version":"2.1.276","origin":{"kind":"future-kind"},"message":{"role":"user","content":"Unknown transport."}}

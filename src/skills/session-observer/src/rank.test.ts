@@ -95,6 +95,62 @@ test('Tier A exact cwd beats newer unrelated candidate', () => {
   expect(result.tier).toBe('A');
 });
 
+test('unpinned Codex ranking prefers a root while retaining newer children as fallbacks', () => {
+  const rootId = 'root-session';
+  const root = mkCandidate({
+    runtime: 'codex',
+    sessionId: rootId,
+    nativeSessionId: rootId,
+    rootSessionId: rootId,
+    mtime: NOW - 300,
+    ageSec: 300,
+  });
+  const child = mkCandidate({
+    runtime: 'codex',
+    sessionId: 'child-session',
+    nativeSessionId: 'child-session',
+    rootSessionId: rootId,
+    parentSessionId: rootId,
+    mtime: NOW - 1,
+    ageSec: 1,
+  });
+
+  const result: any = rank([child, root], TARGET_CWD);
+
+  expect(result.winner.sessionId).toBe(rootId);
+  expect(result.fallbacks).toContainEqual(
+    expect.objectContaining({
+      sessionId: 'child-session',
+      rootSessionId: rootId,
+    }),
+  );
+  expect(result.ties).toEqual([]);
+});
+
+test('Codex direct-parent evidence marks a child when root identity is absent', () => {
+  const root = mkCandidate({
+    runtime: 'codex',
+    sessionId: 'root-session',
+    nativeSessionId: 'root-session',
+    mtime: NOW - 300,
+    ageSec: 300,
+  });
+  const child = mkCandidate({
+    runtime: 'codex',
+    sessionId: 'child-session',
+    nativeSessionId: 'child-session',
+    parentSessionId: 'root-session',
+    rootSessionId: undefined,
+    mtime: NOW - 1,
+    ageSec: 1,
+  });
+
+  const result: any = rank([child, root], TARGET_CWD);
+
+  expect(result.winner.sessionId).toBe('root-session');
+  expect(result.fallbacks[0].sessionId).toBe('child-session');
+});
+
 test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', () => {
   const tierB = mkCandidate({
     recordedCwd: TARGET_CWD + '/sub',

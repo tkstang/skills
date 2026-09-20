@@ -6,6 +6,14 @@ not a promise that future peer output can wake a session.
 
 ## Capability facts
 
+Before installing or arming lifecycle support, establish self and peer identity
+with `whoami --json`. A Codex exact pin uses the first physical
+`session_meta.payload.id`; `session_id`, direct parent, fork source, and
+inherited-history boundary are lineage only. A child transcript can include
+parent context and must not be mistaken for the root merely because inherited
+headers or messages name it. Retain the native child pin and surface the
+observer's inherited-context warning.
+
 Keep these facts separate in setup, status, and handoff output:
 
 | Fact                | Meaning                                                                          | Evidence                                                                       |
@@ -200,6 +208,20 @@ lease does not resume automatic coverage merely because Codex restarted. The
 user must explicitly re-arm after confirming the same session/worktree/peer
 pin and fresh cursor. This prevents old peer output from waking a new client
 state.
+
+If the base observer reports a nonzero saved-position identity/path failure,
+freeze automatic continuation, compare the expected and observed binding, and
+reset only the affected peer session before re-arming:
+
+```sh
+node <session-observer-skill>/scripts/session-observer.mjs state reset \
+  --session <peer-runtime>:<peer-session-id>
+node <session-observer-skill>/scripts/session-observer.mjs catch-up-then-watch \
+  --session <peer-runtime>:<peer-session-id> --quiet-empty --until-stopped
+```
+
+Do not use a runtime-wide reset unless every tracked session for that runtime
+should replay. A newer-session warning is not a reset or pin-switch signal.
 
 Use `disarm` for normal collaboration closeout. It is deterministic and scoped
 to the named Codex session; repeating it is harmless. It leaves the static

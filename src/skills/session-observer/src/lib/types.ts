@@ -13,6 +13,7 @@ import type {
   DigestEntryOrigin,
   JsonObject,
   Runtime,
+  TranscriptMeta,
 } from '../../../../shared/transcript/runtimes.js';
 
 export type {
@@ -119,6 +120,13 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   runtime: Runtime;
   transcriptPath: string;
   sessionId: string;
+  nativeSessionId?: string;
+  rootSessionId?: string;
+  parentSessionId?: string;
+  forkedFromSessionId?: string;
+  subagentHistoryStartOrdinal?: number;
+  identityStatus?: 'native' | 'legacy' | 'invalid';
+  filenameSessionId?: string;
   recordedCwd: string | null;
   mtime: number;
   size: number;
@@ -447,6 +455,7 @@ export interface BuildDigestOptions {
   maxTurns?: number;
   maxBytes?: number;
   sessionId?: string;
+  identity?: TranscriptMeta | null;
   recordedCwd?: string | null;
   matchedTier?: RankTier | null;
   widenedFrom?: string | null;
@@ -459,6 +468,11 @@ export interface Digest {
   schemaVersion: 1;
   runtime: Runtime;
   sessionId: string;
+  nativeSessionId?: string;
+  rootSessionId?: string;
+  parentSessionId?: string;
+  forkedFromSessionId?: string;
+  subagentHistoryStartOrdinal?: number;
   transcriptPath: string;
   recordedCwd: string | null;
   matchedTier: RankTier | null;
@@ -778,6 +792,7 @@ export type ObserveFailureKind =
   | 'ambiguousRuntime'
   | 'unengagedOnly'
   | 'ties'
+  | 'ambiguousIdentity'
   | 'identityBlocked'
   | 'continuityBlocked'
   | 'ownerConflict'
@@ -796,6 +811,7 @@ export interface ObserveFailurePayload extends JsonObject {
   ambiguousRuntime?: true;
   unengagedOnly?: true;
   ties?: true;
+  ambiguousIdentity?: true;
   runtime?: Runtime | string;
   cwd?: string;
   snippet?: string;
@@ -890,6 +906,11 @@ export type SelfIdentitySource =
 export interface SelfIdentity {
   runtime: Runtime;
   session: string;
+  nativeSessionId?: string;
+  rootSessionId?: string;
+  parentSessionId?: string;
+  forkedFromSessionId?: string;
+  subagentHistoryStartOrdinal?: number;
   transcript: string;
   source: SelfIdentitySource;
 }
@@ -906,6 +927,7 @@ export type SelfIdentityResolution =
       runtime?: Runtime;
       candidates: TranscriptCandidate[];
       signals: SelfIdentitySignal[];
+      code?: string;
     }
   | { noMatch: true; runtime?: Runtime; candidates?: TranscriptCandidate[] };
 

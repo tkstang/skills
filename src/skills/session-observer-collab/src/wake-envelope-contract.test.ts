@@ -134,6 +134,53 @@ describe('production wake-envelope cross-contract', () => {
     },
   );
 
+  test('native Claude task-notification provenance cannot satisfy the wake-envelope contract', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'wake-notification-'));
+    try {
+      const transcriptPath = join(directory, 'claude-code.jsonl');
+      const envelope = wakeEnvelope(LEASE, RANGE);
+      const records = [
+        {
+          type: 'user',
+          origin: { kind: 'task-notification' },
+          message: { role: 'user', content: envelope },
+        },
+        {
+          type: 'assistant',
+          message: { role: 'assistant', content: 'Acknowledged.' },
+        },
+      ];
+      await writeFile(
+        transcriptPath,
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+      );
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        fromIndex: 0,
+        mode: 'review',
+        sessionId: 'claude-notification',
+      });
+
+      expect(digest.entries[0]).toMatchObject({
+        role: 'user',
+        displayRole: 'runtime-notification',
+        origin: 'runtime-notification',
+      });
+      expect(digest.entries[0]).not.toHaveProperty('automaticControl');
+      expect(
+        digest.entries.some((entry) => entry.origin === 'automatic-control'),
+      ).toBe(false);
+      expect(renderMarkdown(digest)).toContain('### Runtime notification');
+      expect(selectCompletedContinuation(digest)).toMatchObject({
+        status: 'continuation',
+        continuation: true,
+        completedRecord: 1,
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   test.each([
     ['codex', wakeEnvelope],
     ['cursor', cursorWakeEnvelope],
