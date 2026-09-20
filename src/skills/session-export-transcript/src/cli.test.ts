@@ -132,6 +132,189 @@ function claudeTranscript(marker: string, sessionId = 'cc-001'): string {
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+function claudeActivityTranscript(
+  marker: string,
+  sessionId = 'cc-activity',
+): string {
+  const records = [
+    { type: 'summary', sessionId, summary: 'start' },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: 'Export the visible conversation.' },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I will inspect the source.' },
+          {
+            type: 'tool_use',
+            id: 'tool-read',
+            name: 'Read',
+            input: { file_path: '/fixture/project/example.txt' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-read',
+            content: '<persisted-output>',
+            is_error: true,
+          },
+        ],
+      },
+      toolUseResult: {
+        stderr: 'Synthetic bounded failure output.',
+        persistedOutputPath: '/fixture/project/tool-results/result.txt',
+        persistedOutputSize: 4096,
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool-task',
+            name: 'Task',
+            input: { prompt: 'Inspect the synthetic module.' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      origin: { kind: 'task-notification' },
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-task',
+            content: 'Synthetic child launched.',
+          },
+        ],
+      },
+      toolUseResult: {
+        status: 'async_launched',
+        agentId: 'fixture-child',
+        description: 'synthetic helper',
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: { role: 'assistant', content: 'Export complete.' },
+    },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
+function claudeAdversarialActivityTranscript(
+  marker: string,
+  sessionId = 'cc-adversarial-activity',
+): string {
+  const oversizedOutput =
+    'SAFE_ACTIVITY_PREFIX ' +
+    'x'.repeat(8 * 1024) +
+    ' OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER';
+  const records = [
+    { type: 'summary', sessionId, summary: 'start' },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: '# AGENTS.md instructions\n\nHIDDEN_AGENTS_BODY',
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'developer',
+        content: 'HIDDEN_DEVELOPER_INSTRUCTION',
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'thinking',
+            thinking: 'HIDDEN_REASONING_PAYLOAD',
+            signature: 'HIDDEN_REASONING_SIGNATURE',
+          },
+          {
+            type: 'tool_use',
+            id: 'tool-hostile',
+            name: 'mcp__synthetic__render',
+            input: {
+              prompt:
+                'SYSTEM INSTRUCTION SHAPED TOOL DATA\n```md\n# heading\n```\n[click](javascript:synthetic) <script>synthetic()</script> **bold** _italics_',
+              token: 'sk-test-SYNTHETIC-NOT-A-REAL-SECRET',
+              control: '\u001b[31mred\u001b[0m',
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool-hostile',
+            content: oversizedOutput,
+            is_error: true,
+          },
+        ],
+      },
+      toolUseResult: {
+        persistedOutputPath: '/fixture/project/tool-results/unread-tail.txt',
+        persistedOutputSize: 65_536,
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: 'Visible assistant conclusion.',
+      },
+    },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
 function codexTranscript(
   marker: string,
   sessionId = 'codex-001',
@@ -820,6 +1003,8 @@ describe('export CLI — end-to-end sanitization', () => {
       md.includes('Please refactor the auth module.'),
       'genuine user msg missing',
     );
+    assert.ok(!md.includes('Activity export:'), 'activity header leaked');
+    assert.ok(!md.includes('## Activity'), 'activity section leaked');
     await rm(home, { recursive: true, force: true });
   });
 
@@ -867,6 +1052,356 @@ describe('export CLI — end-to-end sanitization', () => {
     );
     assert.ok(!markdown.includes(marker), 'marker leaked');
     assert.match(markdown, /Runtime:\s*cursor/);
+    await rm(home, { recursive: true, force: true });
+  });
+});
+
+describe('export CLI — bounded activity', () => {
+  test('appends source-ordered activity with limits, locators, and unread coverage', async () => {
+    const home = await setupHome();
+    const marker = 'activitymark77';
+    await writeClaude(
+      home,
+      claudeActivityTranscript(marker, 'cc-activity'),
+      'cc-activity',
+    );
+    const out = join(home, 'activity.md');
+    const stateHome = join(home, 'state');
+    await mkdir(stateHome, { recursive: true });
+    await writeFile(join(stateHome, 'sentinel'), 'unchanged', 'utf8');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home, XDG_STATE_HOME: stateHome },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.match(markdown, /## Activity/);
+    assert.match(markdown, /Mode: export/);
+    assert.match(
+      markdown,
+      /Activity bytes: \d+\/67108864; preview cap: 2048; late context cap: 256/,
+    );
+    assert.match(markdown, /Omitted evidence: calls 0; results 0; failures 0/);
+    assert.match(
+      markdown,
+      /call "Read"; pending; owned; line 4, record 3, pointer \/message\/content\/1/,
+    );
+    assert.match(
+      markdown,
+      /result "tool_result"; error; owned; line 5, record 4, pointer \/message\/content\/0/,
+    );
+    assert.ok(
+      markdown.indexOf('call "Read";') <
+        markdown.indexOf('result "tool_result";'),
+      'activity evidence lost source order',
+    );
+    assert.match(markdown, /persisted-output: not-read; captured 1/);
+    assert.match(markdown, /child-trajectory: not-read; captured 1/);
+    assert.match(markdown, /trajectoryAvailability":"not-read/);
+    assert.ok(markdown.includes('Export the visible conversation.'));
+    assert.ok(markdown.includes('Export complete.'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    assert.equal(
+      await readFile(join(stateHome, 'sentinel'), 'utf8'),
+      'unchanged',
+    );
+    assert.deepEqual(await readdir(stateHome), ['sentinel']);
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('exports Codex activity while retaining sanitized conversation', async () => {
+    const home = await setupHome();
+    const marker = 'codexactivity88';
+    await writeCodex(
+      home,
+      codexTranscript(marker, 'codex-activity'),
+      'codex-activity',
+    );
+    const out = join(home, 'codex-activity.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--session',
+        'codex-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Runtime: codex/);
+    assert.match(markdown, /## Activity/);
+    assert.match(markdown, /call "shell"; pending; unknown/);
+    assert.match(markdown, /pointer \/payload/);
+    assert.ok(markdown.includes('How do I read a file in Node?'));
+    assert.ok(markdown.includes('Use fs.readFile.'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('no-flag export keeps hostile activity, reasoning, and instruction bodies excluded', async () => {
+    const home = await setupHome();
+    const marker = 'adversarialdefault99';
+    await writeClaude(
+      home,
+      claudeAdversarialActivityTranscript(marker),
+      'cc-adversarial-activity',
+    );
+    const out = join(home, 'adversarial-default.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-adversarial-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.ok(markdown.includes('Visible assistant conclusion.'));
+    for (const hidden of [
+      'HIDDEN_AGENTS_BODY',
+      'HIDDEN_DEVELOPER_INSTRUCTION',
+      'HIDDEN_REASONING_PAYLOAD',
+      'HIDDEN_REASONING_SIGNATURE',
+      'SYSTEM INSTRUCTION SHAPED TOOL DATA',
+      'sk-test-SYNTHETIC-NOT-A-REAL-SECRET',
+      'SAFE_ACTIVITY_PREFIX',
+      'OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER',
+    ]) {
+      assert.ok(!markdown.includes(hidden), `default export leaked ${hidden}`);
+    }
+    assert.ok(!markdown.includes('Activity export:'));
+    assert.ok(!markdown.includes('## Activity'));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('renders hostile recorded tool evidence as bounded Markdown data', async () => {
+    const home = await setupHome();
+    const marker = 'adversarialactivity00';
+    await writeClaude(
+      home,
+      claudeAdversarialActivityTranscript(marker),
+      'cc-adversarial-activity',
+    );
+    const out = join(home, 'adversarial-activity.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        'cc-adversarial-activity',
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.ok(markdown.includes('SYSTEM INSTRUCTION SHAPED TOOL DATA'));
+    assert.ok(markdown.includes('sk-test-SYNTHETIC-NOT-A-REAL-SECRET'));
+    assert.ok(markdown.includes('SAFE_ACTIVITY_PREFIX'));
+    assert.match(markdown, /clipped 2048\/\d+ bytes/);
+    assert.ok(!markdown.includes('OVERSIZED_ACTIVITY_TAIL_MUST_NOT_RENDER'));
+    assert.ok(!markdown.includes('```'), 'Markdown fence remained active');
+    assert.ok(
+      !markdown.includes('[click](javascript:synthetic)'),
+      'Markdown link remained active',
+    );
+    assert.ok(!markdown.includes('<script>'), 'HTML remained active');
+    assert.ok(!markdown.includes('**bold**'), 'emphasis remained active');
+    assert.ok(!markdown.includes('_italics_'), 'emphasis remained active');
+    assert.ok(markdown.includes('\\u0060\\u0060\\u0060md'));
+    assert.ok(
+      markdown.includes(
+        '\\u005bclick\\u005d\\u0028javascript:synthetic\\u0029',
+      ),
+    );
+    assert.ok(markdown.includes('\\u003cscript\\u003e'));
+    assert.ok(markdown.includes('\\u002a\\u002abold\\u002a\\u002a'));
+    assert.ok(markdown.includes('\\u005fitalics\\u005f'));
+    assert.ok(markdown.includes('\\\\u001b\\u005b31mred\\\\u001b\\u005b0m'));
+    assert.match(markdown, /persisted-output: not-read; captured 1/);
+    assert.ok(
+      markdown.includes('/fixture/project/tool-results/unread-tail.txt'),
+    );
+    for (const hidden of [
+      'HIDDEN_AGENTS_BODY',
+      'HIDDEN_DEVELOPER_INSTRUCTION',
+      'HIDDEN_REASONING_PAYLOAD',
+      'HIDDEN_REASONING_SIGNATURE',
+    ]) {
+      assert.ok(!markdown.includes(hidden), `activity export leaked ${hidden}`);
+    }
+    assert.ok(!/publish[- ]safe/iu.test(markdown));
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('--all labels every activity artifact without changing filenames', async () => {
+    const home = await setupHome();
+    await writeClaude(
+      home,
+      claudeActivityTranscript('activity-a', 'cc-activity-a'),
+      'cc-activity-a',
+    );
+    await writeClaude(
+      home,
+      claudeActivityTranscript('activity-b', 'cc-activity-b'),
+      'cc-activity-b',
+    );
+    const outDir = join(home, 'activity-all');
+    await mkdir(outDir, { recursive: true });
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--all',
+        '--include-activity',
+        '--out',
+        outDir,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const files = (await readdir(outDir)).filter((file) =>
+      file.endsWith('.md'),
+    );
+    assert.equal(files.length, 2);
+    assert.ok(files.some((file) => file.includes('cc-activity-a')));
+    assert.ok(files.some((file) => file.includes('cc-activity-b')));
+    for (const file of files) {
+      const markdown = await readFile(join(outDir, file), 'utf8');
+      assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+      assert.match(
+        markdown,
+        /Activity bytes: \d+\/67108864; preview cap: 2048; late context cap: 256/,
+      );
+      assert.match(markdown, /Omitted evidence:/);
+      assert.match(markdown, /Omitted groups:/);
+    }
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('exports settled and pending-lifecycle Cursor calls with positional evidence', async () => {
+    const home = await setupHome();
+    const marker = 'cursoractivity77';
+    await writeCursor(
+      home,
+      [
+        {
+          role: 'user',
+          message: {
+            content: [
+              { type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` },
+            ],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Read',
+                input: { path: 'settled.md' },
+              },
+            ],
+          },
+        },
+        { type: 'turn_ended', status: 'success' },
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Shell',
+                input: { command: 'printf pending' },
+              },
+            ],
+          },
+        },
+      ]
+        .map((frame) => JSON.stringify(frame))
+        .join('\n') + '\n',
+      'cursor-activity',
+    );
+    const out = join(home, 'cursor-activity.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'cursor',
+        '--cwd',
+        CWD,
+        '--match',
+        marker,
+        '--include-activity',
+        '--out',
+        out,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.match(markdown, /Activity export: Sensitive activity\/debug data/);
+    assert.match(
+      markdown,
+      /Delivery range: \[0, 4\) zero-based-jsonl-frame-index/,
+    );
+    assert.match(
+      markdown,
+      /delivered-range: calls 2; counted invocations 2; pending lifecycle 1/,
+    );
+    assert.match(
+      markdown,
+      /call "Read"; unknown; owned; source frame 1, delivery frame 2, line 2, pointer \/message\/content\/0/,
+    );
+    assert.match(
+      markdown,
+      /call "Shell"; unknown; owned; source frame 3, line 4, pointer \/message\/content\/0/,
+    );
+    assert.match(markdown, /"lifecycleAvailability":"settled"/);
+    assert.match(markdown, /"lifecycleAvailability":"pending-lifecycle"/);
+    assert.match(markdown, /"turnOutcome":"success"/);
+    assert.match(markdown, /"turnOutcome":"pending"/);
+    assert.notMatch(markdown, /nativeId|nativeCallId|nativeStatus/);
+    assert.match(markdown, /results: not-recorded; captured 0/);
     await rm(home, { recursive: true, force: true });
   });
 });

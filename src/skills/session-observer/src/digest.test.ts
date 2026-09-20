@@ -33,6 +33,7 @@ const automaticWakeFixtures = [
 
 import { createCursorTurnAccumulator } from '../../../shared/transcript/cursor-analysis.js';
 import { scanCursorTranscript } from '../../../shared/transcript/cursor-frames.js';
+import { readRecordsDetailed } from '../../../shared/transcript/runtimes.js';
 import { buildDigest, renderJson, renderMarkdown } from './lib/digest.js';
 import type {
   CursorIdentityEvidence,
@@ -375,6 +376,111 @@ function cursorDigestOptions(
 // ---------------------------------------------------------------------------
 
 describe('Cursor digest v2 behavior', () => {
+  test('includes open-frame calls only in stateless review activity', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'unterminated.jsonl');
+    const context = await cursorDigestAnalysis(transcriptPath);
+    const digest = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation'),
+      mode: 'review',
+      includeActivity: true,
+      activityRenderFormat: 'markdown',
+      cursorCapturedAt: '2026-09-19T12:00:00.000Z',
+    });
+
+    expect(digest.activity).toMatchObject({
+      mode: 'review',
+      deliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 0,
+        end: 3,
+      },
+      counts: {
+        capturedSource: { calls: 1, pendingLifecycleCalls: 1 },
+        deliveredRange: { calls: 1, pendingLifecycleCalls: 1 },
+        displayed: { calls: 1, pendingLifecycleCalls: 1 },
+      },
+      events: [
+        {
+          nativeName: 'shell',
+          outcome: 'unknown',
+          lifecycleAvailability: 'pending-lifecycle',
+          turnOutcome: 'pending',
+          locator: {
+            sourceFrameIndex: 2,
+            recordIndex: 2,
+          },
+        },
+      ],
+    });
+    expect(renderMarkdown(digest)).toContain('pending lifecycle 1');
+  });
+
+  test('delivers settled calls at the terminal checkpoint without replay', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'terminal-success.jsonl');
+    const context = await cursorDigestAnalysis(transcriptPath);
+    const turn = context.analysis.turns[0]!;
+    const observedState = cursorDigestState(transcriptPath, context, {
+      lastRecordIndex: 5,
+      openTurn: {
+        turnId: turn.turnId,
+        fromFrameIndex: 0,
+        observedThroughFrame: 4,
+        deliveredEntryKeys: turn.assistantRecords.map(
+          (record) => record.entryKey,
+        ),
+        assistantEntryKeys: turn.assistantRecords.map(
+          (record) => record.entryKey,
+        ),
+        humanRecordIndexes: turn.humanRecordIndexes,
+        toolRecordIndexes: turn.toolRecordIndexes,
+        hasHumanInput: true,
+        hasAutomaticControlInput: false,
+        lifecycle: 'pending',
+      },
+    });
+    const first = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation', observedState),
+      fromIndex: 5,
+      includeActivity: true,
+      cursorActivityDeliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 0,
+        end: 6,
+      },
+    });
+    const repeat = await buildDigest('cursor', transcriptPath, {
+      ...cursorDigestOptions(context, 'observation', observedState),
+      fromIndex: 6,
+      includeActivity: true,
+      cursorActivityDeliveryRange: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: 6,
+        end: 6,
+      },
+    });
+
+    expect(first.entries).toEqual([]);
+    expect(first.activity).toMatchObject({
+      deliveryRange: { start: 0, end: 6 },
+      counts: { deliveredRange: { calls: 1, pendingLifecycleCalls: 0 } },
+      events: [
+        {
+          nativeName: 'read_file',
+          outcome: 'unknown',
+          lifecycleAvailability: 'settled',
+          turnOutcome: 'success',
+          locator: {
+            sourceFrameIndex: 2,
+            deliveryFrameIndex: 5,
+            recordIndex: 5,
+          },
+        },
+      ],
+    });
+    expect(repeat.activity?.events).toEqual([]);
+    expect(repeat.activity?.counts.deliveredRange.calls).toBe(0);
+  });
+
   test('bounds maxTurns by structural Cursor turn identity', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-max-turns-'));
     try {
@@ -2191,5 +2297,213 @@ describe('ask-user exchanges', () => {
     ).toBe(true);
     // The turn's other content is unaffected by the ask-user carve-out.
     expect(md).toContain('Discovery is complete and committed.');
+  });
+});
+
+describe('optional activity projection', () => {
+  test('keeps the default digest byte-compatible when activity is absent', async () => {
+    const baseline = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    const explicitOff = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+      includeActivity: false,
+    });
+
+    expect(explicitOff.filters).toMatchObject({
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    expect(explicitOff.accounting.filtered).toMatchObject({
+      toolCalls: 0,
+      toolResults: 0,
+    });
+    expect(renderJson(explicitOff)).toBe(renderJson(baseline));
+    expect(renderMarkdown(explicitOff)).toBe(renderMarkdown(baseline));
+  });
+
+  test('attaches independently budgeted activity and suppresses duplicate legacy markers', async () => {
+    const digest = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+      includeActivity: true,
+      activityRenderFormat: 'markdown',
+      maxTurns: 1,
+      maxBytes: 80,
+    });
+    const markdown = renderMarkdown(digest);
+
+    expect(digest.schemaVersion).toBe(1);
+    expect(digest.activity).toMatchObject({
+      activitySchemaVersion: 1,
+      mode: 'review',
+      renderedFormat: 'markdown',
+      deliveryRange: { start: 0, end: 11 },
+      counts: {
+        capturedSource: { countedInvocations: 3 },
+        deliveredRange: { countedInvocations: 3 },
+      },
+    });
+    expect(digest.entries).toHaveLength(2);
+    expect(digest.entries.at(-1)?.text).toContain("You're welcome");
+    expect(digest.filters).toMatchObject({
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    expect(digest.accounting.filtered).toMatchObject({
+      toolCalls: 3,
+      toolResults: 3,
+    });
+    expect(digest.activity!.events.length).toBeGreaterThan(0);
+    expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
+      digest.activity!.limits.maxBytes,
+    );
+    expect(markdown).toContain('## Activity');
+    expect(markdown).not.toContain('[Bash]');
+    expect(markdown).not.toContain('[Read → result]');
+  });
+
+  test('budgets final review activity Markdown after hostile punctuation is escaped', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'observer-review-activity-budget-'),
+    );
+    const transcriptPath = join(directory, 'hostile.jsonl');
+    try {
+      const sessionId = 'hostile-review-activity';
+      const hostilePayload =
+        '[link](javascript:synthetic) **bold** ~~strike~~ __underline__'.repeat(
+          36,
+        );
+      const records = [
+        {
+          sessionId,
+          message: { role: 'user', content: 'Review the recorded activity.' },
+        },
+        ...Array.from({ length: 60 }, (_, index) => ({
+          sessionId,
+          message: {
+            role: 'assistant',
+            content: [
+              {
+                type: 'tool_use',
+                id: `hostile-review-${index}`,
+                name: `hostile-review-${index}`,
+                input: { payload: hostilePayload },
+              },
+            ],
+          },
+        })),
+      ];
+      await writeFile(
+        transcriptPath,
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+      );
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        mode: 'review',
+        includeActivity: true,
+        activityRenderFormat: 'markdown',
+      });
+      const rendered = renderMarkdown(digest);
+      const activityStart = rendered.indexOf('## Activity');
+      const activityText = rendered.slice(activityStart);
+
+      expect(activityStart).toBeGreaterThanOrEqual(0);
+      expect(digest.activity?.renderedFormat).toBe('markdown');
+      expect(Buffer.byteLength(activityText, 'utf8')).toBe(
+        digest.activity?.renderedBytes,
+      );
+      expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
+        digest.activity!.limits.maxBytes,
+      );
+      expect(digest.activity!.omitted.byteLimitGroups).toBeGreaterThan(0);
+      expect(digest.activity!.omitted.calls).toBe(
+        digest.activity!.counts.deliveredRange.calls -
+          digest.activity!.counts.displayed.calls,
+      );
+      expect(activityText).not.toContain('[link](javascript:synthetic)');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('uses the raw delivered range for catch-up activity', async () => {
+    const digest = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 4,
+      mode: 'catch-up',
+      includeActivity: true,
+    });
+
+    expect(digest.activity).toMatchObject({
+      mode: 'catch-up',
+      deliveryRange: { start: 4, end: 11 },
+      counts: {
+        capturedSource: { countedInvocations: 3 },
+        deliveredRange: { countedInvocations: 2 },
+      },
+    });
+  });
+
+  test('preserves conversation with explicit unavailable coverage when the optional pass fails', async () => {
+    const capturedRead = await readRecordsDetailed(typicalClaude);
+    Object.defineProperty(capturedRead, 'diagnostics', {
+      get() {
+        throw new Error('injected optional extraction failure');
+      },
+    });
+
+    const digest = await buildDigest('claude-code', typicalClaude, {
+      includeActivity: true,
+      capturedRead,
+    });
+
+    expect(digest.entries.length).toBeGreaterThan(0);
+    expect(digest.activity).toMatchObject({
+      coverage: [
+        {
+          dataClass: 'record-activity',
+          status: 'not-read',
+          captured: 0,
+        },
+      ],
+      diagnostics: [{ code: 'ACTIVITY_EXTRACTION_ERROR' }],
+    });
+  });
+
+  test('retains ask-user human and automatic-resolution caveats in activity mode', async () => {
+    const claude = await buildDigest(
+      'claude-code',
+      join(FIXTURES, 'claude-code', 'ask-user-question.jsonl'),
+      {
+        includeActivity: true,
+        includeToolCalls: true,
+        includeToolResults: true,
+      },
+    );
+    const codex = await buildDigest(
+      'codex',
+      join(FIXTURES, 'codex', 'request-user-input.jsonl'),
+      {
+        includeActivity: true,
+        includeToolCalls: true,
+        includeToolResults: true,
+      },
+    );
+
+    expect(renderMarkdown(claude)).toContain(
+      'Design depth: "Actually, show me the tradeoffs first."',
+    );
+    expect(
+      claude.entries.filter((entry) => entry.kind === 'ask_user'),
+    ).toHaveLength(4);
+    expect(renderMarkdown(codex)).toContain('auto-resolves after 120s');
   });
 });

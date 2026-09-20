@@ -50,6 +50,50 @@ agent harnesses do not wake a future invocation.
 
 It is read-only: it does not write to peer transcripts.
 
+## Optional activity evidence
+
+Pass `--include-activity` to add source-attributed tool activity beside the
+conversation digest in `review`, `catch-up`, `watch`, or
+`catch-up-then-watch`. Activity is off by default. When it is on, ordinary tool
+markers are removed from the conversation section and ask-user exchanges remain
+visible there.
+
+Activity has a separate fixed budget from the conversation controls:
+
+| Mode                 | Activity bytes | Invocations | Each preview | Late-call context |
+| -------------------- | -------------- | ----------- | ------------ | ----------------- |
+| `review`             | 128 KiB        | 1,024       | 2 KiB        | 256 bytes         |
+| `catch-up` / `watch` | 32 KiB         | 80          | 2 KiB        | 256 bytes         |
+
+The report distinguishes captured-source, delivered-range, and displayed
+counts. Its omission counts, coverage, diagnostics, and source locators explain
+what was bounded or unavailable. A result whose call occurred before the
+delivered range can retain a small `outside-delivered-range` call context
+without replaying the call as new activity.
+
+Claude Code and Codex conversation and activity come from one detailed read.
+Cursor uses one physical-frame scan. `review` is a stateless full snapshot and
+does not move the high-water mark unless `--mark-read` is also present.
+Catch-up and watch share the ordinary delivery checkpoint; activity has no
+separate cursor.
+
+For Cursor, stateful activity waits for terminal settlement. A later
+`turn_ended` can emit an `activityOnly: true` delta when the call was previously
+observed but not yet safe to deliver. Stateless review is retrospective and can
+show both `settled` and `pending-lifecycle` calls. Cursor records no tool results
+or call IDs, so the report uses frame/block position, marks result coverage as
+not recorded, and leaves per-call outcome unknown.
+
+Activity is sensitive recorded data. Previews may contain commands, paths,
+identifiers, inputs, and outputs. Persisted-output files, Cursor
+`agent-tools/`, and child transcripts are not read. Schema v1 emits explicit
+`not-read` coverage for persisted-output references recorded by Claude and child
+IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
+failures likewise remain visible as `record-activity: not-read` plus
+`ACTIVITY_EXTRACTION_ERROR`. Empty or unread coverage is not proof that the
+session had no activity.
+
 ## Identity and provenance
 
 - **Codex identity:** the first physical `session_meta.payload.id` is the
@@ -75,6 +119,7 @@ It is read-only: it does not write to peer transcripts.
 ```bash
 node skills/session-observer/scripts/session-observer.mjs review --runtime codex --cwd "$PWD"
 node skills/session-observer/scripts/session-observer.mjs catch-up --runtime cursor --cwd "$PWD"
+node skills/session-observer/scripts/session-observer.mjs review --runtime codex --include-activity
 node skills/session-observer/scripts/session-observer.mjs watch --runtime codex --cwd "$PWD"
 node skills/session-observer/scripts/session-observer.mjs watch-ctl status --json
 ```
@@ -162,6 +207,14 @@ node skills/session-observer/scripts/session-observer.mjs catch-up-then-watch \
 
 Use a runtime-wide reset only when every tracked session for that runtime should
 replay.
+
+If a watcher can no longer stat its selected transcript because the path is
+missing (`ENOENT` or `ENOTDIR`), it emits
+`WATCH_TRANSCRIPT_PATH_UNAVAILABLE`, preserves state, and tells you to reset
+only that session before re-arming it. Other stat errors, such as `EACCES`, emit
+`WATCH_TRANSCRIPT_STAT_FAILED` with the original error details and also preserve
+state. Repair the filesystem condition and retry; do not reset observer state
+when the path still exists.
 
 Do not use plain `watch` for this recovery. A plain watch intentionally advances
 past an unread startup baseline and emits `baseline-gap`; it does not render that

@@ -300,6 +300,100 @@ describe('observeCatchUp', () => {
     });
   });
 
+  test('projects catch-up activity from the delivered range and retains existing state advancement', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-activity-range';
+      const sessionId = 'observe-activity-range';
+      const transcriptPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-activity.jsonl',
+        sessionId,
+        [
+          { role: 'user', content: 'first question' },
+          { role: 'assistant', content: 'first answer' },
+        ],
+      );
+      const first = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: `claude-code:${sessionId}`,
+      });
+      expect(first.ok).toBe(true);
+
+      await appendFile(
+        transcriptPath,
+        [
+          JSON.stringify({
+            sessionId,
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'Checking.' },
+                {
+                  type: 'tool_use',
+                  id: 'tool-range',
+                  name: 'Read',
+                  input: { file_path: 'README.md' },
+                },
+              ],
+            },
+          }),
+          JSON.stringify({
+            sessionId,
+            type: 'user',
+            message: {
+              role: 'user',
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: 'tool-range',
+                  content: 'fixture output',
+                },
+              ],
+            },
+          }),
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const second = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: `claude-code:${sessionId}`,
+        includeTools: true,
+        includeToolResults: true,
+        includeActivity: true,
+      });
+      expect(second.ok).toBe(true);
+      if (!second.ok) throw new Error(second.message);
+      expect(second.digest.activity).toMatchObject({
+        mode: 'catch-up',
+        deliveryRange: { start: 2, end: 4 },
+        counts: {
+          capturedSource: { countedInvocations: 1 },
+          deliveredRange: { countedInvocations: 1 },
+        },
+      });
+      expect(
+        second.digest.entries.some((entry) => entry.kind === 'tool_call'),
+      ).toBe(false);
+      expect(
+        second.digest.entries.some((entry) => entry.kind === 'tool_result'),
+      ).toBe(false);
+      expect(second.markedRead).toBe(true);
+
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        4,
+      );
+    });
+  });
+
   test.each([
     { label: 'missing', storedPath: null, code: 'SAVED_POSITION_PATH_MISSING' },
     {
@@ -689,6 +783,177 @@ describe('observeCatchUp', () => {
       }
       await retriedCompletion.delivery!.commit();
       expect((await getCursorSession(sessionId))?.openTurn).toBeNull();
+    });
+  });
+
+  test('delivers Cursor activity when an observed open turn settles without replaying it', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-activity-settle');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-activity-settle';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: { content: [{ type: 'text', text: 'Inspect it.' }] },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              { type: 'text', text: 'I will inspect it.' },
+              {
+                type: 'tool_use',
+                name: 'Read',
+                input: { path: 'settled-later.md' },
+              },
+            ],
+          },
+        },
+      ]);
+
+      const openResult = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          includeActivity: true,
+          debounceSec: 0,
+        },
+        { ownerPid: 7110, sleep: async () => undefined },
+      );
+      expect(openResult.ok).toBe(true);
+      if (
+        !openResult.ok ||
+        openResult.runtime !== 'cursor' ||
+        !openResult.delivery
+      ) {
+        throw new Error('expected open Cursor delivery');
+      }
+      expect(openResult.digest.activity).toMatchObject({
+        deliveryRange: { start: 0, end: 0 },
+        counts: {
+          deliveredRange: {
+            countedInvocations: 0,
+            pendingLifecycleCalls: 0,
+          },
+        },
+        events: [],
+      });
+      await openResult.delivery.commit();
+
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
+        'utf8',
+      );
+      const settled = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          includeActivity: true,
+        },
+        { ownerPid: 7110 },
+      );
+      expect(settled.ok).toBe(true);
+      if (!settled.ok || settled.runtime !== 'cursor' || !settled.delivery) {
+        throw new Error('expected settled Cursor delivery');
+      }
+      expect(settled.digest.entries).toEqual([]);
+      expect(settled.digest.activity).toMatchObject({
+        deliveryRange: { start: 0, end: 3 },
+        counts: {
+          deliveredRange: {
+            countedInvocations: 1,
+            pendingLifecycleCalls: 0,
+          },
+        },
+        events: [
+          expect.objectContaining({
+            nativeName: 'Read',
+            lifecycleAvailability: 'settled',
+            turnOutcome: 'success',
+            locator: expect.objectContaining({
+              sourceFrameIndex: 1,
+              deliveryFrameIndex: 2,
+              recordIndex: 2,
+            }),
+          }),
+        ],
+      });
+      await settled.delivery.commit();
+
+      const repeat = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          includeActivity: true,
+        },
+        { ownerPid: 7110 },
+      );
+      expect(repeat.ok).toBe(true);
+      if (!repeat.ok || repeat.runtime !== 'cursor') {
+        throw new Error('expected repeated Cursor observation');
+      }
+      expect(repeat.digest.activity).toMatchObject({
+        deliveryRange: { start: 3, end: 3 },
+        counts: { deliveredRange: { countedInvocations: 0 } },
+        events: [],
+      });
+    });
+  });
+
+  test('does not replay settled Cursor activity consumed while activity is disabled', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-activity-disabled');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-activity-disabled';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Shell',
+                input: { command: 'printf consumed' },
+              },
+            ],
+          },
+        },
+        { type: 'turn_ended', status: 'error' },
+      ]);
+
+      const disabled = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7111 },
+      );
+      expect(disabled.ok).toBe(true);
+      if (!disabled.ok || disabled.runtime !== 'cursor' || !disabled.delivery) {
+        throw new Error('expected Cursor delivery with activity disabled');
+      }
+      expect(disabled.digest.activity).toBeUndefined();
+      await disabled.delivery.commit();
+
+      const enabled = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          includeActivity: true,
+        },
+        { ownerPid: 7111 },
+      );
+      expect(enabled.ok).toBe(true);
+      if (!enabled.ok || enabled.runtime !== 'cursor') {
+        throw new Error('expected Cursor observation with activity enabled');
+      }
+      expect(enabled.digest.activity).toMatchObject({
+        deliveryRange: { start: 2, end: 2 },
+        counts: { deliveredRange: { countedInvocations: 0 } },
+        events: [],
+      });
     });
   });
 

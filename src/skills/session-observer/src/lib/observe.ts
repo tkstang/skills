@@ -541,6 +541,8 @@ async function buildCatchUpDigest(
     includeTools,
     includeToolResults,
     includeCommandMessages,
+    includeActivity,
+    activityRenderFormat,
     maxTurns,
     maxBytes,
     matchedTier = null,
@@ -558,6 +560,8 @@ async function buildCatchUpDigest(
     includeToolCalls: includeTools,
     includeToolResults,
     includeCommandMessages,
+    includeActivity,
+    activityRenderFormat,
     maxTurns,
     maxBytes,
     sessionId: candidate.sessionId,
@@ -1323,6 +1327,18 @@ async function observeCursorSession(
     }
   }
 
+  const activityStartFrame =
+    deliveryUncertain === null
+      ? state.continuity.nextFrameIndex
+      : state.pendingDelivery!.expectedCheckpoint.nextFrameIndex;
+  const activityEndFrame =
+    deliveryUncertain === null
+      ? settledNextFrameIndex(
+          selected,
+          (selected.scan.safeThroughFrame ?? -1) + 1,
+          activityStartFrame,
+        )
+      : state.pendingDelivery!.intendedCheckpoint.nextFrameIndex;
   const digest = (await buildDigest('cursor', candidate.transcriptPath, {
     ...args,
     fromIndex: continuity.fromFrameIndex,
@@ -1347,6 +1363,12 @@ async function observeCursorSession(
         ? { ...state, stabilityCandidate: null }
         : state,
     cursorContinuity: continuity.status,
+    cursorCapturedAt: selectedObservedAt,
+    cursorActivityDeliveryRange: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      start: activityStartFrame,
+      end: activityEndFrame,
+    },
   })) as CursorDigestV2;
 
   if (deliveryUncertain !== null) {

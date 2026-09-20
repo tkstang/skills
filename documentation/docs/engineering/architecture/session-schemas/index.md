@@ -57,6 +57,24 @@ these files, and they change between client releases.
 - Treat inherited parent history in Codex child files as context, not as the child's
   own activity.
 
+## Repository parser support
+
+The repository now has tested opt-in activity readers for the three documented
+transcript surfaces. This implementation status does not strengthen or extend
+the native-format observations on these pages.
+
+| Runtime     | Tested activity support                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code | Recorded calls/results and native IDs, persisted-output and child references as explicit `not-read`; referenced sidecars and child trajectories are not read. |
+| Codex       | Response/item carriers, exact recorded joins, ownership from native lineage and inherited-history boundaries; unknown ownership remains unknown.              |
+| Cursor      | Positional frame/block calls, settled stateful delivery, pending-lifecycle stateless review, results `not-recorded`, per-call outcome unknown.                |
+
+Session Observer and Session Export Transcript read each selected source once
+when activity is enabled. Their reports preserve source/delivery locators,
+bounded previews, omission counts, unread/unavailable coverage, and extraction
+diagnostics. See [Shared transcript-core](../transcript-core.md) for budgets and
+consumer semantics.
+
 ## Keeping these pages current
 
 The evidence behind these pages is a dated snapshot under

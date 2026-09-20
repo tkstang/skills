@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.49'
+  version: '1.0.70'
 ---
 
 # {{distribution.name}}
@@ -87,6 +87,7 @@ Use this skill when any of the following applies:
 | `--include-command-messages` | boolean                            | false           | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`.                                                                                                |
 | `--debug`                    | boolean                            | false           | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. For `locate --json`, includes lookup diagnostics such as Claude's expected project-dir slugs. |
 | `--include-tool-results`     | boolean                            | false           | Include tool-result markers without tool-call markers (unusual; emits a note suggesting `--debug`).                                                                                              |
+| `--include-activity`         | boolean                            | false           | Include a separately bounded, source-attributed activity report. Tool call/result markers are suppressed from the conversation section when this is enabled.                                     |
 | `--json`                     | boolean                            | false           | Machine-readable JSON output (default is markdown).                                                                                                                                              |
 | `--max-turns N`              | integer                            | —               | Tail-slice to last N turn groups.                                                                                                                                                                |
 | `--max-bytes N`              | integer                            | —               | Tail-slice to last N bytes of content.                                                                                                                                                           |
@@ -94,6 +95,54 @@ Use this skill when any of the following applies:
 | `--snippet <text>`           | string                             | —               | Prefer candidate transcripts containing this excerpt. Use when the user identifies a session by its last message or a memorable phrase.                                                          |
 | `--mark-read`                | boolean                            | false           | Advance the high-water mark after a `review` run.                                                                                                                                                |
 | `--watch`                    | boolean                            | false           | Top-level alias for the `watch` subcommand.                                                                                                                                                      |
+
+### Opt-in activity evidence
+
+`--include-activity` adds an `activitySchemaVersion: 1` report beside the
+conversation digest for `review`, `catch-up`, `watch`, and
+`catch-up-then-watch`. The default remains tool-free and does not expose this
+report. With activity enabled, ordinary tool-call and tool-result markers are
+suppressed from the conversation section so the source-attributed activity
+report is the only tool-evidence surface; ask-user exchanges remain visible
+conversation.
+
+The activity report has its own fixed budget, independent of `--max-turns` and
+`--max-bytes`:
+
+| Mode                 | Rendered activity limit | Displayed invocation limit | Per-preview limit | Late-call context |
+| -------------------- | ----------------------- | -------------------------- | ----------------- | ----------------- |
+| `review`             | 128 KiB                 | 1,024                      | 2 KiB             | 256 bytes         |
+| `catch-up` / `watch` | 32 KiB                  | 80                         | 2 KiB             | 256 bytes         |
+
+Counts distinguish the captured source, delivered range, and displayed
+evidence. `omitted`, `coverage`, and `diagnostics` remain in the report when
+limits or source gaps hide detail. A result delivered after its call can carry
+a bounded `callContexts` entry labelled `outside-delivered-range`; this supplies
+context without replaying the earlier call as newly delivered activity.
+
+For Claude Code and Codex, activity mode takes one detailed transcript snapshot
+and derives both conversation and activity from it. Cursor scans physical frames
+once. Plain `review` is a stateless full snapshot and still leaves read state
+unchanged unless `--mark-read` is passed. Stateful catch-up/watch uses the same
+conversation delivery checkpoint; there is no second activity cursor.
+
+Cursor stateful delivery holds calls from an open turn until its terminal frame
+settles. The later terminal checkpoint can therefore produce an
+`activityOnly: true` delta even when no new conversation entry renders. A
+stateless Cursor review is retrospective: it reports both settled calls and
+calls still marked `pending-lifecycle`, with positional frame/block identity and
+unknown per-call outcome because Cursor records no result carrier.
+
+Treat activity as sensitive recorded data. Bounded previews can contain tool
+inputs, outputs, commands, paths, and identifiers. The reader does not open
+Claude persisted-output sidecars or Claude, Codex, or Cursor child transcripts,
+and it does not open Cursor `agent-tools/` files. Schema v1 emits explicit
+`not-read` coverage only for persisted-output references recorded by Claude and
+child IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. An extraction
+failure also returns explicit `record-activity: not-read` coverage plus an
+`ACTIVITY_EXTRACTION_ERROR` diagnostic. Neither an empty report nor
+unavailable/unread coverage proves that no activity occurred.
 
 ### Watch-only flags
 

@@ -22,6 +22,19 @@
 
 import { createHash } from 'node:crypto';
 
+import {
+  correlateActivity,
+  extractActivity,
+  extractCursorActivity,
+  projectActivity,
+  renderActivityMarkdown,
+} from '../../../../shared/transcript/activity/index.js';
+import type {
+  ActivityProjectionMode,
+  ActivityReport,
+  ActivitySource,
+  ActivityDeliveryRange,
+} from '../../../../shared/transcript/activity/types.js';
 import type {
   CursorAssistantContentRecord,
   CursorTurnAnalysis,
@@ -31,6 +44,7 @@ import {
   type DigestEntry,
   type Runtime,
   readRecords,
+  readRecordsDetailed,
   normalizeEntries,
   extractMetaFromRecords,
 } from '../../../../shared/transcript/runtimes.js';
@@ -1013,6 +1027,99 @@ function buildCursorDigest(
     includeCommandMessages: opts.includeCommandMessages ?? false,
   };
 
+  let activity: ActivityReport | undefined;
+  if (opts.includeActivity) {
+    const stateless = (opts.mode ?? 'review') === 'review';
+    const activityMode: ActivityProjectionMode = stateless
+      ? 'review'
+      : 'catch-up';
+    const defaultStart = stateless
+      ? 0
+      : (opts.cursorState?.continuity.nextFrameIndex ?? fromIndex);
+    const defaultEnd = stateless
+      ? scan.totalFrames
+      : analysis.turns.reduce(
+          (end, turn) =>
+            turn.terminalFrameIndex !== null &&
+            turn.terminalFrameIndex < nextIndex
+              ? Math.max(end, turn.terminalFrameIndex + 1)
+              : end,
+          defaultStart,
+        );
+    const deliveryRange: ActivityDeliveryRange =
+      opts.cursorActivityDeliveryRange ?? {
+        indexBase: 'zero-based-jsonl-frame-index',
+        start: defaultStart,
+        end: defaultEnd,
+      };
+    const source: ActivitySource & { runtime: 'cursor' } = {
+      runtime: 'cursor',
+      sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+      nativeSessionId: opts.cursorIdentity.sessionId,
+      transcriptPath,
+    };
+    const capturedAt = opts.cursorCapturedAt ?? new Date().toISOString();
+    try {
+      activity = projectActivity(
+        correlateActivity(
+          extractCursorActivity({
+            source,
+            scan,
+            analysis,
+            capturedAt,
+            mode: stateless ? 'stateless-snapshot' : 'stateful-delivery',
+          }),
+        ),
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? 'compact-json',
+          deliveryRange,
+        },
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt,
+            sourceBytes: scan.file.size,
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: 'record-activity',
+              status: 'not-read',
+              captured: 0,
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'ACTIVITY_EXTRACTION_ERROR',
+              locator: { physicalLine: 1, jsonPointer: '' },
+            },
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0,
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 },
+          },
+        },
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? 'compact-json',
+          deliveryRange,
+        },
+      );
+    }
+  }
+
   return {
     schemaVersion: 2,
     runtime: 'cursor',
@@ -1036,6 +1143,7 @@ function buildCursorDigest(
     },
     accounting,
     entries,
+    ...(activity ? { activity } : {}),
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -1100,15 +1208,27 @@ export async function buildDigest(
     includeToolCalls = false,
     includeToolResults = false,
     includeCommandMessages = false,
+    includeActivity = false,
+    activityRenderFormat = 'compact-json',
     maxTurns,
     maxBytes,
     fallbacks = [],
   } = opts;
 
   const warnings: string[] = [...(opts.warnings ?? [])];
+  const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
+  const effectiveIncludeToolResults = includeActivity
+    ? false
+    : includeToolResults;
 
-  // Read records
-  const records = await readRecords(transcriptPath);
+  // Activity and conversation must describe one completed source read. The
+  // legacy path stays untouched when activity is off, including its warnings.
+  const capturedRead = includeActivity
+    ? (opts.capturedRead ?? (await readRecordsDetailed(transcriptPath)))
+    : undefined;
+  const records = capturedRead
+    ? capturedRead.records.map(({ record }) => record)
+    : await readRecords(transcriptPath);
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
   const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
@@ -1162,8 +1282,10 @@ export async function buildDigest(
     },
   );
   const allEntriesBeforeBootstrap = normalizeEntries(runtime, records, {
-    includeToolCalls,
-    includeToolResults,
+    // The activity projection owns tool calls/results in activity mode. Ask
+    // user exchanges survive these filters in the legacy normalizer.
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages,
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
@@ -1232,8 +1354,8 @@ export async function buildDigest(
   };
 
   const filters: DigestFilters = {
-    includeToolCalls,
-    includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages,
   };
   const fullEntriesInRawRange = allEntriesWithTools.filter(
@@ -1266,10 +1388,10 @@ export async function buildDigest(
         .length,
     },
     filtered: {
-      toolCalls: includeToolCalls
+      toolCalls: effectiveIncludeToolCalls
         ? 0
         : fullEntriesInRawRange.filter((e) => e.kind === 'tool_call').length,
-      toolResults: includeToolResults
+      toolResults: effectiveIncludeToolResults
         ? 0
         : fullEntriesInRawRange.filter((e) => e.kind === 'tool_result').length,
       commandMessages: includeCommandMessages
@@ -1299,6 +1421,77 @@ export async function buildDigest(
     },
     autoLargeDigest,
   };
+
+  let activity: ActivityReport | undefined;
+  if (includeActivity && capturedRead && runtime !== 'cursor') {
+    const activityMode: ActivityProjectionMode =
+      mode === 'catch-up' ? 'catch-up' : 'review';
+    const source: ActivitySource = {
+      runtime,
+      sessionId,
+      nativeSessionId: identity?.nativeSessionId ?? sessionId,
+      transcriptPath,
+    };
+    try {
+      activity = projectActivity(
+        correlateActivity(extractActivity({ source, read: capturedRead })),
+        {
+          mode: activityMode,
+          renderFormat: activityRenderFormat,
+          deliveryRange: {
+            indexBase: 'zero-based-decoded-record-index',
+            start: rawFromIndex,
+            end: totalRecords,
+          },
+        },
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt: capturedRead.capturedAt,
+            sourceBytes: capturedRead.sourceBytes,
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: 'record-activity',
+              status: 'not-read',
+              captured: 0,
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'ACTIVITY_EXTRACTION_ERROR',
+              locator: { physicalLine: 1, jsonPointer: '' },
+            },
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0,
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 },
+          },
+        },
+        {
+          mode: activityMode,
+          renderFormat: activityRenderFormat,
+          deliveryRange: {
+            indexBase: 'zero-based-decoded-record-index',
+            start: rawFromIndex,
+            end: totalRecords,
+          },
+        },
+      );
+    }
+  }
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -1331,6 +1524,7 @@ export async function buildDigest(
     range,
     accounting,
     entries: filteredEntries,
+    ...(activity ? { activity } : {}),
     filters,
     warnings,
     fallbacks,
@@ -1391,6 +1585,10 @@ export function renderMarkdown(digest: SessionDigest): string {
         parts.push('');
       }
     }
+  }
+
+  if (digest.activity) {
+    parts.push(renderActivityMarkdown(digest.activity));
   }
 
   const output = parts.join('\n');

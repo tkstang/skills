@@ -3,13 +3,13 @@ name: export-transcript
 description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized branch-named Markdown file (default ~/Downloads).
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--out <path>]'
+argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--out <path>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.6'
+  version: '2.0.22'
 ---
 
 # export-transcript
@@ -99,15 +99,16 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 
 ## Modes and flags
 
-| Flag               | Default         | Description                                                                                                               |
-| ------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `--runtime <r>`    | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
-| `--match <marker>` | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
-| `--session <id>`   | —               | Export a specific session id (bypasses `--match`).                                                                        |
-| `--all`            | false           | Export every session for the cwd — one file each.                                                                         |
-| `--cwd <path>`     | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
-| `--out <path>`     | —               | Output file or directory (also accepted positionally).                                                                    |
-| `--help`           | —               | Usage.                                                                                                                    |
+| Flag                 | Default         | Description                                                                                                               |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>`      | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
+| `--match <marker>`   | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
+| `--session <id>`     | —               | Export a specific session id (bypasses `--match`).                                                                        |
+| `--all`              | false           | Export every session for the cwd — one file each.                                                                         |
+| `--include-activity` | false           | Append a bounded, source-attributed activity report after the sanitized conversation.                                     |
+| `--cwd <path>`       | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
+| `--out <path>`       | —               | Output file or directory (also accepted positionally).                                                                    |
+| `--help`             | —               | Usage.                                                                                                                    |
 
 **Selection-mode precedence:** the selection modes are mutually exclusive, with
 precedence `--all` > `--session` > `--match` > default (current session). The
@@ -115,6 +116,38 @@ highest-precedence flag present wins and the lower ones are ignored — e.g.
 `--match` is ignored when `--all` is set, and `--session` is ignored when `--all`
 is set. With no selection flag, the CLI exports the current session (single
 candidate auto-selected; multiple candidates exit `3` as ambiguous).
+
+### Optional activity appendix
+
+`--include-activity` preserves the normal sanitized conversation and appends a
+separately labelled activity report. The exporter takes one transcript snapshot
+per selected session and derives both sections from it; it does not read or
+advance Session Observer state. `--all` applies the opt-in independently to each
+output file without changing filenames.
+
+Export activity is a full stateless snapshot with a 64 MiB rendered-report
+limit, no invocation-count cap, and 2 KiB per preview. The shared projection
+also reserves 256 bytes for late-call context, although a normal full-session
+export starts at zero and includes the call itself. The report includes source
+and delivery ranges, captured/delivered/displayed counts, omissions, locators,
+coverage, and diagnostics.
+
+The appendix is explicitly labelled **Sensitive activity/debug data**. Tool
+inputs, outputs, commands, paths, and identifiers may appear in its bounded
+previews even though the conversation section remains sanitized. Claude
+persisted-output sidecars and Claude, Codex, or Cursor child transcripts are not
+opened, and neither are Cursor `agent-tools/` files. Schema v1 emits explicit
+`not-read` coverage only for persisted-output references recorded by Claude and
+child IDs recorded by Claude or Codex. Cursor `agent-tools/` and child-transcript
+surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
+failure likewise produces `record-activity: not-read` plus an
+`ACTIVITY_EXTRACTION_ERROR` diagnostic rather than silently implying that no
+activity exists.
+
+Cursor exports include settled calls and snapshot-visible
+`pending-lifecycle` calls for retrospective review. They use positional
+frame/block identity, report tool results as not recorded, and never infer a
+per-call outcome from the turn-level terminal status.
 
 ### Output path resolution
 
@@ -153,11 +186,14 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Success Criteria
 
-- [ ] `SKILL.md` exists, frontmatter valid, version 1.0.0.
+- [ ] `SKILL.md` exists with valid frontmatter and a quoted stable SemVer at
+      `metadata.version`.
 - [ ] The agent announces a random-hex marker before invoking the CLI.
-- [ ] Output contains only visible user/assistant messages — no tool calls/results,
-      system/developer text, environment/AGENTS.md/skill payloads, subagent
-      notifications, or the marker line.
+- [ ] Default output and the conversation section contain only visible
+      user/assistant messages — no tool calls/results, system/developer text,
+      environment/AGENTS.md/skill payloads, subagent notifications, or the
+      marker line. With `--include-activity`, the separate sanitized, bounded
+      activity appendix may intentionally include tool evidence.
 - [ ] Default output is `~/Downloads/<branch>.md`; `--out` and `--all` honored.
 - [ ] Exit codes 0 / 1 / 2 / 3 produced as documented.
 - [ ] No third-party dependencies; no network calls; no writes to transcripts.

@@ -16,7 +16,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as shippedCursorAnalysis from '../../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import * as shippedCursorFrames from '../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
-import type { JsonObject, Runtime } from './runtimes.js';
+import type {
+  DetailedTranscriptRead,
+  JsonObject,
+  Runtime,
+} from './runtimes.js';
 import {
   claudeUserRecordProvenance,
   discoverPaths,
@@ -32,6 +36,7 @@ import {
   parseAutomaticControlEnvelope,
   readMetadataRecordsBounded,
   readRecords,
+  readRecordsDetailed,
   readTailRecordsBounded,
 } from './runtimes.js';
 
@@ -48,9 +53,10 @@ const FIXTURES_CURSOR = join(
   __dirname,
   '../../skills/session-observer/src/fixtures/cursor',
 );
+const SESSION_FIDELITY_FIXTURES = join(__dirname, 'fixtures/session-fidelity');
 const SESSION_FIDELITY_CODEX_FIXTURES = join(
-  __dirname,
-  'fixtures/session-fidelity/codex',
+  SESSION_FIDELITY_FIXTURES,
+  'codex',
 );
 
 function expectEqual<T>(actual: T, expected: T, message?: string) {
@@ -63,6 +69,14 @@ function expectDeepEqual(actual: unknown, expected: unknown, message?: string) {
 
 function expectOk(actual: unknown, message?: string): asserts actual {
   expect(actual, message).toBeTruthy();
+}
+
+function expectSourceSnapshot(
+  detailed: DetailedTranscriptRead,
+  source: string,
+): void {
+  expect(detailed.sourceBytes).toBe(Buffer.byteLength(source, 'utf8'));
+  expect(Number.isNaN(Date.parse(detailed.capturedAt))).toBe(false);
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +225,221 @@ describe('readRecords', () => {
       fixturePath('claude-code', 'empty.jsonl'),
     );
     expectDeepEqual(records, []);
+  });
+});
+
+describe('readRecordsDetailed', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'detailed-runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('uses LF-only framing and keeps physical lines separate from logical indices', async () => {
+    const transcriptPath = join(tmpDir, 'mixed-framing.jsonl');
+    const unicodeText = 'alpha\u2028beta\u2029gamma';
+    const escapedCarriage = 'escaped\rvalue';
+    const firstCarrier = `\uFEFF${JSON.stringify({ type: 'first', text: unicodeText })}\r`;
+    const secondCarrier = `${JSON.stringify({ type: 'second', text: escapedCarriage })}\r`;
+    const finalCarrier = JSON.stringify({ type: 'final' });
+    const source = [
+      firstCarrier,
+      ' \t\r',
+      '{"broken":',
+      '42',
+      secondCarrier,
+      finalCarrier,
+    ].join('\n');
+    await writeFile(transcriptPath, source);
+
+    const detailed = await readRecordsDetailed(transcriptPath);
+
+    expect(detailed.records).toEqual([
+      {
+        record: { type: 'first', text: unicodeText },
+        sourceCarrier: firstCarrier,
+        recordIndex: 0,
+        physicalLine: 1,
+      },
+      {
+        record: { type: 'second', text: escapedCarriage },
+        sourceCarrier: secondCarrier,
+        recordIndex: 1,
+        physicalLine: 5,
+      },
+      {
+        record: { type: 'final' },
+        sourceCarrier: finalCarrier,
+        recordIndex: 2,
+        physicalLine: 6,
+      },
+    ]);
+    expect(detailed.diagnostics).toEqual([
+      { kind: 'malformed', physicalLine: 3 },
+      { kind: 'not-object', physicalLine: 4 },
+    ]);
+    expectSourceSnapshot(detailed, source);
+    expect(JSON.stringify(detailed.diagnostics)).not.toContain('{"broken":');
+    expect(Object.keys(detailed.records[0]).toSorted()).toEqual([
+      'physicalLine',
+      'record',
+      'recordIndex',
+      'sourceCarrier',
+    ]);
+  });
+
+  it('reports a timestamped zero-byte snapshot for an empty source', async () => {
+    const transcriptPath = join(tmpDir, 'empty-snapshot.jsonl');
+    await writeFile(transcriptPath, '');
+
+    const detailed = await readRecordsDetailed(transcriptPath);
+
+    expect(detailed.records).toEqual([]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, '');
+  });
+
+  it('distinguishes a malformed terminated line from a partial tail', async () => {
+    const terminatedPath = join(tmpDir, 'malformed-terminated.jsonl');
+    const partialPath = join(tmpDir, 'partial-tail.jsonl');
+    await writeFile(terminatedPath, '{"broken":\n');
+    await writeFile(partialPath, '{"broken":');
+
+    const terminated = await readRecordsDetailed(terminatedPath);
+    const partial = await readRecordsDetailed(partialPath);
+    expect(terminated.records).toEqual([]);
+    expect(terminated.diagnostics).toEqual([
+      { kind: 'malformed', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(terminated, '{"broken":\n');
+    expect(partial.records).toEqual([]);
+    expect(partial.diagnostics).toEqual([
+      { kind: 'partial-tail', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(partial, '{"broken":');
+    expect(Object.keys(terminated.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
+    expect(Object.keys(partial.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
+  });
+
+  it('treats a whitespace-only no-newline tail, including a lone CR, as blank', async () => {
+    const transcriptPath = join(tmpDir, 'whitespace-tail.jsonl');
+    await writeFile(transcriptPath, `${JSON.stringify({ ok: true })}\n\r`);
+
+    const source = `${JSON.stringify({ ok: true })}\n\r`;
+    const detailed = await readRecordsDetailed(transcriptPath);
+    expect(detailed.records).toEqual([
+      {
+        record: { ok: true },
+        sourceCarrier: JSON.stringify({ ok: true }),
+        recordIndex: 0,
+        physicalLine: 1,
+      },
+    ]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, source);
+  });
+
+  it('keeps detailed reads silent and emits each legacy warning exactly once', async () => {
+    const transcriptPath = join(tmpDir, 'compatibility.jsonl');
+    const malformed = '{"broken":';
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ index: 1 })}\n${malformed}\n${JSON.stringify({ index: 2 })}\n`,
+    );
+    let parseReason = '';
+    try {
+      JSON.parse(malformed);
+    } catch (error) {
+      parseReason = error instanceof Error ? error.message : String(error);
+    }
+    const expectedWarning = `[runtimes] Malformed JSONL line 2 in ${transcriptPath} skipped: ${parseReason}`;
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
+    try {
+      const detailed = await readRecordsDetailed(transcriptPath);
+      expect(detailed.records.map(({ record }) => record)).toEqual([
+        { index: 1 },
+        { index: 2 },
+      ]);
+      expect(detailed.diagnostics).toEqual([
+        { kind: 'malformed', physicalLine: 2 },
+      ]);
+      expect(warnings).toEqual([]);
+
+      await expect(readRecords(transcriptPath)).resolves.toEqual([
+        { index: 1 },
+        { index: 2 },
+      ]);
+      expect(warnings).toEqual([expectedWarning]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('reads every obscured capture with stable physical provenance', async () => {
+    const captures = [
+      {
+        runtime: 'claude-code',
+        path: join(
+          SESSION_FIDELITY_FIXTURES,
+          'claude-code/captured-activity.jsonl',
+        ),
+        count: 5,
+      },
+      {
+        runtime: 'codex',
+        path: join(SESSION_FIDELITY_FIXTURES, 'codex/captured-activity.jsonl'),
+        count: 14,
+      },
+      {
+        runtime: 'cursor',
+        path: join(SESSION_FIDELITY_FIXTURES, 'cursor/captured-activity.jsonl'),
+        count: 3,
+      },
+    ];
+
+    for (const capture of captures) {
+      const detailed = await readRecordsDetailed(capture.path);
+      expect(detailed.diagnostics, capture.runtime).toEqual([]);
+      expect(detailed.records, capture.runtime).toHaveLength(capture.count);
+      expect(
+        detailed.records.map(({ recordIndex, physicalLine }) => ({
+          recordIndex,
+          physicalLine,
+        })),
+        capture.runtime,
+      ).toEqual(
+        Array.from({ length: capture.count }, (_, recordIndex) => ({
+          recordIndex,
+          physicalLine: recordIndex + 1,
+        })),
+      );
+    }
+
+    const codex = await readRecordsDetailed(captures[1].path);
+    expect(codex.records[0].record.payload).toMatchObject({
+      id: '88888888-8888-4888-8888-888888888888',
+      session_id: '77777777-7777-4777-8777-777777777777',
+      subagent_history_start_ordinal: 5,
+      cli_version: '0.154.0',
+    });
+    expect(
+      codex.records.slice(1, 4).map(({ record }) => record.ordinal),
+    ).toEqual([1, 2, 3]);
+    expect(codex.records.slice(4).map(({ record }) => record.ordinal)).toEqual([
+      5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    ]);
   });
 });
 
