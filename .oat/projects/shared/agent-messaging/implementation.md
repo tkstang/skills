@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-19
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -21,7 +21,8 @@ review with no findings. The first final Frontier review found 3 Important,
 5 Medium, and 4 Minor issues. All 12 Phase 5 repair tasks are complete and
 root-verified. The second and final configured Frontier gate passed; its
 non-blocking judgment sweep is dispositioned. All original 25 tasks are complete.
-Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
+Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks. All nine
+tasks are complete and the independent Phase 6 review passed with no findings.
 
 ## Progress Overview
 
@@ -32,9 +33,9 @@ Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
 | Phase 3 | completed | 3     | 3/3       |
 | Phase 4 | completed | 1     | 1/1       |
 | Phase 5 | completed | 12    | 12/12     |
-| Phase 6 | in_progress | 9   | 0/9       |
+| Phase 6 | completed | 9     | 9/9       |
 
-**Total:** 25/34 tasks completed
+**Total:** 34/34 tasks completed
 
 ## Phase 1: Independent mailbox and shared log (5 tasks)
 
@@ -147,20 +148,20 @@ Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
 
 ## Phase 6: Remote review and CI fixes (9 tasks)
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-09-19
 
 | Task    | Finding                                 | Status  | Commit |
 | ------- | --------------------------------------- | ------- | ------ |
-| p06-t01 | lifecycle phase metadata                | pending | -      |
-| p06-t02 | completed-plan status prose             | pending | -      |
-| p06-t03 | current backlog count                   | pending | -      |
-| p06-t04 | malformed JSON CLI classification      | pending | -      |
-| p06-t05 | activation cold/warm timing             | pending | -      |
-| p06-t06 | uninstall hook shape guards            | pending | -      |
-| p06-t07 | agent-messaging packaging URL decoding | pending | -      |
-| p06-t08 | observer shared-log URL decoding       | pending | -      |
-| p06-t09 | Linux socket-backed stdin              | pending | -      |
+| p06-t01 | lifecycle phase metadata                | completed | aaf2a9cd |
+| p06-t02 | completed-plan status prose             | completed | 450c023b |
+| p06-t03 | current backlog count                   | completed | b57b962a |
+| p06-t04 | malformed JSON CLI classification      | completed | 1de8331b |
+| p06-t05 | activation cold/warm timing             | completed | 66e2192f |
+| p06-t06 | uninstall hook shape guards            | completed | f7f51d93 |
+| p06-t07 | agent-messaging packaging URL decoding | completed | 205e688f |
+| p06-t08 | observer shared-log URL decoding       | completed | 32cb901d |
+| p06-t09 | Linux socket-backed stdin              | completed | a4e40504 |
 
 ## Remote Review Received — PR #98, cycle 1/3
 
@@ -176,6 +177,11 @@ Remote PR review cycle 1 added nine Phase 6 review and CI fix tasks.
   socket-backed child stdin; p06-t09 owns the portable stream fix.
 - Replies are authorized and will be posted with dispositions and fix commit
   hashes after implementation, followed by re-fetching unresolved feedback.
+
+**Implementation result:** all nine tasks completed in their planned atomic
+commits. The independent Phase 6 review at `a4e40504` passed with 0 Critical,
+0 High, 0 Medium, and 0 Low findings after reproducing 120 focused tests and a
+clean full validation with 2,269 passing tests and 1 skipped.
 
 ## Orchestration Runs
 
@@ -1086,6 +1092,28 @@ diagnostics:
   source contract. Recovery uses a real resolved Claude settings source, updates
   the coupled version assertion, bumps agent-messaging to 1.0.18, and refreshes
   only its owned generated outputs.
+
+#### Phase 6 remote-review repair
+
+- Request: `impl-agent-messaging-p06-20260919T2350Z`.
+- Base/head: `b191e3a1d2028ae2b0092c3369ccecc46a4a365b` →
+  `a4e40504b7160e5de9a2a5da47fffab7fc986c4a`.
+- Dispatch: scope=p06 action=implementation role=implementer producer=unknown
+  provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high dispatch_ceiling=high
+  target=oat-phase-implementer-gpt-5-6-sol-high.
+- Outcome: DONE, 9/9 tasks, no recovery attempts, clean worktree.
+- Verification: 118 focused tests and full `worktree:validate` passed with
+  2,269 tests and 1 skipped; build, generated freshness, validation, type,
+  skill-version, internal-flag, smoke, format, and lint gates passed.
+- Independent review request: `review-agent-messaging-p06-20260920T0000Z`.
+- Review dispatch: scope=p06 action=review role=reviewer producer=unknown
+  provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high dispatch_ceiling=high
+  target=oat-reviewer-gpt-5-6-sol-high.
+- Review outcome: PASS, 0 Critical, 0 High, 0 Medium, 0 Low; reconnaissance
+  not attempted. The reviewer reproduced 120 focused tests and the clean full
+  validation. Artifact: `reviews/archived/p06-review-2026-09-20T001506Z.md`.
 
 <!-- orchestration-runs-end -->
 

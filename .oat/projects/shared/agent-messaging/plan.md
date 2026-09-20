@@ -1113,7 +1113,8 @@ version checks, and clean-worktree validation before pushing.
 | p04    | code     | pending         | -          | -                                                                 | -                                        | -          | -                             |
 | plan   | artifact | fixes_completed | 2026-09-19 | reviews/archived/artifact-plan-review-2026-09-19T131345Z.md       | -                                        | -          | -                             |
 | final  | code     | passed          | 2026-09-19 | reviews/archived/final-review-2026-09-19T214803Z.md               | c6d3424378ae33d0bcdee90dc9e1e3651a44d430 | gate       | claude-fable-skip-permissions |
-| remote-pr-98 | code | fixes_added     | 2026-09-19 | reviews/archived/remote-pr-98-review-2026-09-19T234311Z.md         | 4dc50a6e533e138bb535930d13121579ed5ab776 | -          | -                             |
+| remote-pr-98 | code | fixes_completed | 2026-09-19 | reviews/archived/remote-pr-98-review-2026-09-19T234311Z.md         | 4dc50a6e533e138bb535930d13121579ed5ab776 | -          | -                             |
+| p06          | code | passed          | 2026-09-20 | reviews/archived/p06-review-2026-09-20T001506Z.md                  | a4e40504b7160e5de9a2a5da47fffab7fc986c4a | subagent   | -                             |
 
 The original scaffold rows are preserved. Spec is not applicable in quick
 mode. Fable's design collaboration review passed e95a0d91, followed by explicit
@@ -1236,9 +1237,9 @@ relabel it passed. Final implementation Frontier review remains required.
 - Phase 3: 3 tasks implemented — shared observer logs, Stop composition and distribution docs.
 - Phase 4: 1 task implemented — dedicated Claude composed Monitor and final acceptance.
 - Phase 5: 12 tasks implemented — all first final-review findings and complete proof.
-- Phase 6: 9 tasks — remote review and Linux CI fixes, now in progress.
+- Phase 6: 9 tasks — remote review and Linux CI fixes, completed.
 
-**Total: 34 tasks. Completed: 25/34. Final Frontier review: passed; remote fixes in progress.**
+**Total: 34 tasks. Completed: 34/34. Final Frontier and Phase 6 reviews: passed.**
 Final lifecycle approval remains pending. Completed implementation and review do
 not imply live acceptance, release or merge.
 
