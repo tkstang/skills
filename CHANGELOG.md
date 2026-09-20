@@ -101,6 +101,12 @@
 
 ### Changed
 
+- `session-observer` 1.0.72 makes the SIGTERM re-arm regression wait for the
+  exact delivered delta and durable checkpoint before a clean second shutdown,
+  removing its fixed 120 ms subprocess lifetime assumption;
+  `session-observer-collab` 1.0.60 and `session-fork-to-destination` 0.2.37
+  receive the required observer-owner version closure without behavior changes.
+
 - `consensus-review` 0.1.14 gives each review provider invocation a 15-minute
   wall-clock runtime by default while preserving internal caller overrides and
   documenting host execution budgets.

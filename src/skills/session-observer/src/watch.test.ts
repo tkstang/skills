@@ -958,8 +958,10 @@ describe('runWatchLoop', () => {
 
       const rearmMessage = 'renderable message after SIGTERM';
       await appendCodexMessage(transcriptPath, sessionId, rearmMessage);
-      const second = await runCli(
+      const secondChild = spawn(
+        'node',
         [
+          CLI_PATH,
           'catch-up-then-watch',
           '--runtime',
           'codex',
@@ -972,18 +974,43 @@ describe('runWatchLoop', () => {
           '--debounce-sec',
           '0.02',
           '--max-runtime-min',
-          '0.002',
+          '0',
           '--json',
         ],
-        env,
+        { env, stdio: ['ignore', 'pipe', 'pipe'] },
       );
-      expect(
-        second.status,
-        `re-arm failed\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
-      ).toBe(0);
-      const deltas = parseJsonLines(second.stdout).filter(
-        (event) => event.type === 'delta',
-      );
+      let secondStdout = '';
+      let secondStderr = '';
+      secondChild.stdout.setEncoding('utf8');
+      secondChild.stderr.setEncoding('utf8');
+      secondChild.stdout.on('data', (chunk) => {
+        secondStdout += chunk;
+      });
+      secondChild.stderr.on('data', (chunk) => {
+        secondStderr += chunk;
+      });
+
+      try {
+        await waitFor(async () => {
+          if (!secondStdout.endsWith('\n')) return false;
+          const deltas = parseJsonLines(secondStdout).filter(
+            (event) => event.type === 'delta',
+          );
+          const checkpoint = await legacySessionState(stateDir, sessionId);
+          return deltas.length === 1 && checkpoint?.lastRecordIndex === 3;
+        });
+        secondChild.kill('SIGTERM');
+        const [code, signal] = await once(secondChild, 'exit');
+        expect(signal, secondStderr).toBe(null);
+        expect(code, secondStderr).toBe(0);
+      } finally {
+        if (secondChild.exitCode === null && secondChild.signalCode === null) {
+          secondChild.kill('SIGKILL');
+        }
+      }
+
+      const secondEvents = parseJsonLines(secondStdout);
+      const deltas = secondEvents.filter((event) => event.type === 'delta');
       expect(deltas).toHaveLength(1);
       expect(deltas[0]).toMatchObject({
         ranges: {
@@ -998,7 +1025,11 @@ describe('runWatchLoop', () => {
       });
       expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
         lastRecordIndex: 3,
+        lastTotalRecords: 3,
       });
+      expect(secondEvents.filter((event) => event.type === 'stopped')).toEqual([
+        expect.objectContaining({ reason: 'signal' }),
+      ]);
     });
   });
 
