@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: a4e40504b7160e5de9a2a5da47fffab7fc986c4a
+oat_last_commit: 655ada874409ec7b77b53e9c563d074321051886
 oat_blockers: []
 associated_issues:
   - type: backlog
@@ -72,19 +72,19 @@ oat_post_implement_sequence:
   failure: null
 oat_project_created: "2026-09-18T23:40:44.126Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-09-20T00:20:00Z"
+oat_project_state_updated: "2026-09-20T00:30:00Z"
 oat_generated: false
 ---
 
 # Project State: agent-messaging
 
-**Status:** PR fixes implemented; remote re-review, CI, and final lifecycle approval remain pending.
+**Status:** PR green and mergeable; final lifecycle approval remains pending.
 **Started:** 2026-09-18
 **Last Updated:** 2026-09-19
 
 ## Current Phase
 
-Implementation — Phase 6 complete; PR validation pending.
+Implementation — Phase 6 complete; PR green and mergeable.
 
 ## Artifacts
 
@@ -98,7 +98,9 @@ Implementation — Phase 6 complete; PR validation pending.
 
 - ✓ PR created
 - ✓ Remote review and CI fixes implemented
-- ⧗ Awaiting remote re-review and CI
+- ✓ CodeRabbit feedback dispositioned with no unresolved bot threads
+- ✓ Docs CI and all Validate jobs green on the mergeable head
+- ⧗ Awaiting final lifecycle approval
 - Scope committed as 5f0fce74; generated sync committed as 6ef6b5f7.
 - Shared project scaffold and active-project pointer created.
 - Discovery backfilled from the conversation, canonical contracts, vault note,
