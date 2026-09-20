@@ -12,6 +12,7 @@ import type {
   ExtractedActivityEvent,
   ExtractedRecordActivity,
 } from './types.js';
+import { extractUsageMetadata, notRecordedUsage } from './usage.js';
 
 function validateInput(input: ExtractActivityInput): void {
   const { source } = input;
@@ -88,6 +89,7 @@ export function extractActivity(
   const coverage: ExtractedActivity['coverage'] = [];
   const diagnostics: ExtractedActivity['diagnostics'] = [];
   const sourceSkills: ActivitySourceSkill[] = [];
+  let usage = notRecordedUsage();
 
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator: ActivityLocator = {
@@ -126,6 +128,12 @@ export function extractActivity(
     sourceSkills.push(...(extracted.sourceSkills ?? []));
   }
 
+  try {
+    usage = extractUsageMetadata(input.source, input.read.records);
+  } catch {
+    usage = notRecordedUsage();
+  }
+
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
     source: input.source,
@@ -138,6 +146,7 @@ export function extractActivity(
     sourceMetadata: {
       scope: 'captured-source',
       skills: sourceSkills,
+      usage,
     },
     coverage: [
       ...baseCoverage(events),

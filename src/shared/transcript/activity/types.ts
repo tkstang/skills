@@ -108,9 +108,47 @@ export interface ActivitySourceSkill {
   locator: ActivityEventLocator;
 }
 
+export type ActivityUsageSemantics =
+  | 'claude-message'
+  | 'codex-cumulative'
+  | 'codex-last-turn'
+  | 'codex-response';
+
+export interface ActivityTokenUsageSample {
+  semantics: ActivityUsageSemantics;
+  locator: ActivityEventLocator;
+  tokens: JsonObject;
+  model?: string;
+  messageId?: string;
+  turnId?: string;
+  responseId?: string;
+  segment?: number;
+  uncertainty?: 'missing-message-id';
+}
+
+export type ActivityUsageDiagnosticCode =
+  | 'USAGE_CONFLICT'
+  | 'USAGE_COUNTER_RESET'
+  | 'USAGE_DEDUP_UNCERTAIN'
+  | 'USAGE_SESSION_MISMATCH';
+
+export interface ActivityUsageDiagnostic {
+  code: ActivityUsageDiagnosticCode;
+  locator: ActivityEventLocator;
+  messageId?: string;
+}
+
+export interface ActivityUsageMetadata {
+  scope: 'captured-source';
+  availability: 'recorded' | 'not-recorded';
+  samples: ActivityTokenUsageSample[];
+  diagnostics: ActivityUsageDiagnostic[];
+}
+
 export interface ActivitySourceMetadata {
   scope: 'captured-source';
   skills: ActivitySourceSkill[];
+  usage?: ActivityUsageMetadata;
 }
 
 export interface ExtractedActivityEvent {
@@ -320,6 +358,8 @@ export interface ActivityOmissionCounts {
   coverageEntries: number;
   diagnostics: number;
   sourceSkills: number;
+  usageSamples: number;
+  usageDiagnostics: number;
 }
 
 export interface ActivityReport {

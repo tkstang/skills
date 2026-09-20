@@ -87,6 +87,16 @@ None of these runtimes records the executed skill version. Looking up an
 installed file or Git revision relevant to the transcript timestamp is an
 inference, may be unavailable, and does not prove which revision executed.
 
+Token usage is also captured-source metadata. Claude Code usage is deduplicated
+by exact native session and `message.id`; conflicting repeats are diagnosed and
+missing IDs remain explicitly uncertain. Codex cumulative totals, last-turn
+usage, and response-joinable usage remain separate samples. Repeated snapshots
+collapse, decreases start a new segment instead of producing negative usage,
+and a model appears only when a native turn join supports it. Cursor reports
+usage as `not-recorded`, never zero. Reports contain token fields only and do
+not estimate price or cost. Usage samples and diagnostics participate in the
+activity byte budget with explicit omission counts.
+
 Claude Code and Codex conversation and activity come from one detailed read.
 Cursor uses one physical-frame scan. `review` is a stateless full snapshot and
 does not move the high-water mark unless `--mark-read` is also present.

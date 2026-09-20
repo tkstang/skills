@@ -305,6 +305,8 @@ Cursor claims in `10-schema-guide-and-coverage.md` are supported.
 - `status: "cancelled"` — not observed in 350 files.
 - Any tool result, call id, or per-call outcome — not present corpus-wide.
 - Any timestamp, usage, model, or version metadata — not present.
+- The activity reader therefore reports token usage as `not-recorded`, never as
+  a numeric zero.
 - Streaming, partial, or superseded-revision markers — not present in settled files.
 - Attribution of an `agent-tools/` file to the call that produced it — not recoverable.
 - Whether a file is one conversation or one turn — undetermined.

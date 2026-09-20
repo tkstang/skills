@@ -4,6 +4,14 @@
 
 ### Added
 
+- `session-observer` 1.0.76 and `session-export-transcript` 2.0.27 add
+  captured-source token metadata with exact Claude Code message deduplication,
+  separate Codex cumulative, last-turn, and response semantics, explicit reset
+  and uncertainty diagnostics, model attribution only from native joins, and
+  Cursor `not-recorded` status. `session-observer-collab` 1.0.64 and
+  `session-fork-to-destination` 0.2.41 receive the shared runtime closure while
+  their default behavior remains unchanged.
+
 - `session-observer` 1.0.75 and `session-export-transcript` 2.0.26 add
   captured-source skill metadata, native Claude Code attribution and structured
   Skill invocation evidence, inferred Cursor `Read`/`ReadFile` skill-file

@@ -95,6 +95,15 @@ The supported runtimes do not record a skill version. A timestamp-relevant
 installed-file or Git lookup is inferred context, can remain unknown, and is
 not proof of the revision that executed.
 
+Captured-source token metadata preserves the runtime's semantics rather than
+combining unlike counters. Claude Code repeats of one `message.id` are
+deduplicated within the exact native session, conflicts are diagnosed, and
+missing IDs remain uncertain. Codex cumulative, last-turn, and
+response-joinable records stay separate; counter decreases mark reset segments,
+and models are attached only through recorded turn evidence. Cursor usage is
+`not-recorded`, not zero. The report emits token fields without pricing or cost
+estimates and explicitly counts usage metadata omitted by its byte budget.
+
 Activity previews can contain commands, paths, identifiers, tool inputs, and
 tool outputs even though the conversation section remains sanitized. The
 exporter does not open Claude persisted-output sidecars, Cursor `agent-tools/`

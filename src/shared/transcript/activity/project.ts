@@ -14,6 +14,7 @@ import type {
   ActivityReport,
   ActivityScopedCounts,
   ActivitySourceSkill,
+  ActivityUsageMetadata,
   CorrelatedActivity,
   CorrelatedActivityEvent,
   ProjectActivityOptions,
@@ -67,16 +68,24 @@ interface OmissionReasons {
   coverageEntries: number;
   diagnostics: number;
   sourceSkills: number;
+  usageSamples: number;
+  usageDiagnostics: number;
 }
 
 interface ReportMetadata {
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
   sourceSkills: ActivitySourceSkill[];
+  usage: ActivityUsageMetadata;
 }
 
 interface MetadataCandidate {
-  kind: keyof ReportMetadata;
+  kind:
+    | 'coverage'
+    | 'diagnostics'
+    | 'sourceSkills'
+    | 'usageSamples'
+    | 'usageDiagnostics';
   index: number;
   locator: ActivityCoverageEntry['locator'];
 }
@@ -249,6 +258,12 @@ function deliveredMetadata(
       locatorInRange(entry.locator),
     ),
     sourceSkills: activity.sourceMetadata?.skills ?? [],
+    usage: activity.sourceMetadata?.usage ?? {
+      scope: 'captured-source',
+      availability: 'not-recorded',
+      samples: [],
+      diagnostics: [],
+    },
   };
 }
 
@@ -291,17 +306,45 @@ function retainMetadata(
         locator: entry.locator,
       }),
     ),
+    ...metadata.usage.samples.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageSamples',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageDiagnostics',
+        index,
+        locator: entry.locator,
+      }),
+    ),
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = new Set<number>();
   const retainedDiagnostics = new Set<number>();
   const retainedSourceSkills = new Set<number>();
+  const retainedUsageSamples = new Set<number>();
+  const retainedUsageDiagnostics = new Set<number>();
   for (const candidate of priority.slice(0, retainedCount)) {
-    const target =
-      candidate.kind === 'coverage'
-        ? retainedCoverage
-        : candidate.kind === 'diagnostics'
-          ? retainedDiagnostics
-          : retainedSourceSkills;
+    let target = retainedUsageDiagnostics;
+    switch (candidate.kind) {
+      case 'coverage':
+        target = retainedCoverage;
+        break;
+      case 'diagnostics':
+        target = retainedDiagnostics;
+        break;
+      case 'sourceSkills':
+        target = retainedSourceSkills;
+        break;
+      case 'usageSamples':
+        target = retainedUsageSamples;
+        break;
+      case 'usageDiagnostics':
+        target = retainedUsageDiagnostics;
+        break;
+    }
     target.add(candidate.index);
   }
   return {
@@ -314,6 +357,15 @@ function retainMetadata(
     sourceSkills: metadata.sourceSkills.filter((_, index) =>
       retainedSourceSkills.has(index),
     ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter((_, index) =>
+        retainedUsageSamples.has(index),
+      ),
+      diagnostics: metadata.usage.diagnostics.filter((_, index) =>
+        retainedUsageDiagnostics.has(index),
+      ),
+    },
   };
 }
 
@@ -530,6 +582,7 @@ function buildReport(
     sourceMetadata: {
       scope: 'captured-source',
       skills: metadata.sourceSkills,
+      usage: metadata.usage,
     },
   };
   return finalizeRenderedBytes(report);
@@ -559,6 +612,8 @@ export function projectActivityWithLimits(
     coverageEntries: 0,
     diagnostics: 0,
     sourceSkills: 0,
+    usageSamples: 0,
+    usageDiagnostics: 0,
   };
   const initial = buildReport(
     activity,
@@ -607,7 +662,9 @@ export function projectActivityWithLimits(
   const metadataCount =
     metadata.coverage.length +
     metadata.diagnostics.length +
-    metadata.sourceSkills.length;
+    metadata.sourceSkills.length +
+    metadata.usage.samples.length +
+    metadata.usage.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
@@ -629,6 +686,11 @@ export function projectActivityWithLimits(
           metadata.diagnostics.length - retainedMetadata.diagnostics.length,
         sourceSkills:
           metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples:
+          metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics:
+          metadata.usage.diagnostics.length -
+          retainedMetadata.usage.diagnostics.length,
       },
     );
     if (candidate.renderedBytes <= limits.maxBytes) {

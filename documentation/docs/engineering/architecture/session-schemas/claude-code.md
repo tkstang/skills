@@ -305,6 +305,13 @@ than one record and only 6,688 are singletons, while `message.usage` is present 
 50,261 assistant records, so summing usage naively over-counts by roughly 2×.
 **Deduplicate on `(sessionId, message.id)` before aggregating usage.**
 
+The activity reader follows that boundary across content-block records. Equal
+copies collapse; conflicting copies produce a diagnostic and only one copy is
+retained. A usage carrier without `message.id` remains explicitly uncertain and
+is not deduplicated. `message.model` is the only model attached to that sample.
+Only token-valued fields are reported; service tier, geography, speed, and
+server-tool request counts are excluded.
+
 **`message.usage` fields** (n = 50,261): `input_tokens`, `output_tokens`,
 `cache_creation_input_tokens`, `cache_read_input_tokens` and `cache_creation` are present
 on 100%; `service_tier` (50,223 / null 38), `inference_geo` (same split),

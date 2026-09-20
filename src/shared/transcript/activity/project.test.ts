@@ -624,6 +624,28 @@ describe('activity projection budgets', () => {
           jsonPointer: `/attachment/names/${index}`,
         },
       })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 1_000 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          messageId: `message-${index}`,
+          tokens: { input_tokens: index, output_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 1_000,
+            physicalLine: index + 1_001,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: Array.from({ length: 40 }, (_, index) => ({
+          code: 'USAGE_DEDUP_UNCERTAIN' as const,
+          locator: {
+            recordIndex: index + 2_000,
+            physicalLine: index + 2_001,
+            jsonPointer: '/message/usage',
+          },
+        })),
+      },
     };
     const report = projectActivity(extracted, {
       mode: 'watch',
@@ -639,8 +661,16 @@ describe('activity projection budgets', () => {
     expect(
       report.sourceMetadata.skills.length + report.omitted.sourceSkills,
     ).toBe(1_000);
-    expect(report.sourceMetadata.skills.length).toBeGreaterThan(0);
     expect(report.omitted.sourceSkills).toBeGreaterThan(0);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(1_000);
+    expect(
+      (report.sourceMetadata.usage?.diagnostics.length ?? 0) +
+        report.omitted.usageDiagnostics,
+    ).toBe(40);
+    expect(report.omitted.usageSamples).toBeGreaterThan(0);
     expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
   });
 

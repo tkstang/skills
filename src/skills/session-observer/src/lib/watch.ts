@@ -293,6 +293,18 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
       skill.locator.recordIndex >= activity.deliveryRange.start &&
       skill.locator.recordIndex < activity.deliveryRange.end,
   );
+  const deliveredUsage = (activity.sourceMetadata.usage?.samples ?? []).some(
+    (sample) =>
+      sample.locator.recordIndex >= activity.deliveryRange.start &&
+      sample.locator.recordIndex < activity.deliveryRange.end,
+  );
+  const deliveredUsageDiagnostic = (
+    activity.sourceMetadata.usage?.diagnostics ?? []
+  ).some(
+    (diagnostic) =>
+      diagnostic.locator.recordIndex >= activity.deliveryRange.start &&
+      diagnostic.locator.recordIndex < activity.deliveryRange.end,
+  );
   return (
     delivered.calls > 0 ||
     delivered.countedInvocations > 0 ||
@@ -300,8 +312,14 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
     delivered.items > 0 ||
     delivered.failures > 0 ||
     deliveredSourceSkill ||
+    deliveredUsage ||
+    deliveredUsageDiagnostic ||
     Object.entries(activity.omitted).some(
-      ([kind, count]) => kind !== 'sourceSkills' && count > 0,
+      ([kind, count]) =>
+        kind !== 'sourceSkills' &&
+        kind !== 'usageSamples' &&
+        kind !== 'usageDiagnostics' &&
+        count > 0,
     )
   );
 }

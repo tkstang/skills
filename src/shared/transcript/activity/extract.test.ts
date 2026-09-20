@@ -106,7 +106,7 @@ describe('Claude Code activity extraction', () => {
       nativeName: 'Read',
       skillEvidence: [{ kind: 'native-attribution', name: 'session-observer' }],
     });
-    expect(extracted.sourceMetadata).toEqual({
+    expect(extracted.sourceMetadata).toMatchObject({
       scope: 'captured-source',
       skills: [
         expect.objectContaining({

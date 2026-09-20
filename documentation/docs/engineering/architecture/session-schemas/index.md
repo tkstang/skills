@@ -65,6 +65,12 @@ None of the three native transcript formats records a skill version. An
 installed-file or Git revision selected for the transcript timestamp is inferred
 context, may be unknown, and cannot prove the revision that executed.
 
+The activity reader keeps usage as captured-source metadata. It deduplicates
+Claude Code by exact session and `message.id`, keeps Codex cumulative,
+last-turn, and response-joinable records separate, and reports Cursor usage as
+`not-recorded`. It never treats a missing counter as zero or converts tokens to
+money.
+
 ## Repository parser support
 
 The repository now has tested opt-in activity readers for the three documented

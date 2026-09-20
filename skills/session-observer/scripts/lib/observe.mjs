@@ -3705,6 +3705,194 @@ function extractCodexRecord(source, detailed) {
   return { events: [], coverage: [], diagnostics: [] };
 }
 
+// src/shared/transcript/activity/usage.ts
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!isJsonObject3(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)).map(([key, item]) => [key, stableValue(item)])
+  );
+}
+function signature(value) {
+  return JSON.stringify(stableValue(value));
+}
+function tokenFields(value) {
+  if (!isJsonObject3(value)) return void 0;
+  const entries = [];
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === "number" && Number.isFinite(item) && /token/iu.test(key)) {
+      entries.push([key, item]);
+      continue;
+    }
+    const nested = tokenFields(item);
+    if (nested && Object.keys(nested).length > 0) entries.push([key, nested]);
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : void 0;
+}
+function claudeRecordSessionId(record) {
+  const message = isJsonObject3(record.message) ? record.message : void 0;
+  return stringValue2(record.sessionId) ?? stringValue2(record.session_id) ?? stringValue2(record.sessionID) ?? (message ? stringValue2(message.sessionId) : void 0) ?? (message ? stringValue2(message.session_id) : void 0);
+}
+function claudeUsage(source, records) {
+  const samples = [];
+  const diagnostics = [];
+  const byMessage = /* @__PURE__ */ new Map();
+  for (const detailed of records) {
+    const { record } = detailed;
+    if (record.type !== "assistant" || !isJsonObject3(record.message)) continue;
+    const message = record.message;
+    const tokens = tokenFields(message.usage);
+    if (!tokens) continue;
+    const locator = recordLocator(detailed, "/message/usage");
+    const recordedSessionId = claudeRecordSessionId(record);
+    if (recordedSessionId !== void 0 && recordedSessionId !== source.nativeSessionId) {
+      diagnostics.push({ code: "USAGE_SESSION_MISMATCH", locator });
+      continue;
+    }
+    const messageId = stringValue2(message.id)?.trim() || void 0;
+    const model = stringValue2(message.model)?.trim() || void 0;
+    const sample = {
+      semantics: "claude-message",
+      locator,
+      tokens,
+      ...model === void 0 ? {} : { model },
+      ...messageId === void 0 ? { uncertainty: "missing-message-id" } : { messageId }
+    };
+    if (messageId === void 0) {
+      samples.push(sample);
+      diagnostics.push({ code: "USAGE_DEDUP_UNCERTAIN", locator });
+      continue;
+    }
+    const key = `${source.nativeSessionId}:${messageId}`;
+    const sampleSignature = signature({ tokens, model });
+    const prior = byMessage.get(key);
+    if (!prior) {
+      byMessage.set(key, { signature: sampleSignature, sample });
+      samples.push(sample);
+      continue;
+    }
+    if (prior.signature !== sampleSignature) {
+      diagnostics.push({ code: "USAGE_CONFLICT", locator, messageId });
+    }
+  }
+  return {
+    scope: "captured-source",
+    availability: samples.length > 0 ? "recorded" : "not-recorded",
+    samples,
+    diagnostics
+  };
+}
+function codexUsage(source, records) {
+  const samples = [];
+  const diagnostics = [];
+  const turnModels = /* @__PURE__ */ new Map();
+  for (const { record } of records) {
+    if (record.type !== "turn_context" || !isJsonObject3(record.payload))
+      continue;
+    const turnId = stringValue2(record.payload.turn_id);
+    const model = stringValue2(record.payload.model);
+    if (turnId && model) turnModels.set(turnId, model);
+  }
+  let previousSnapshot;
+  let previousTotal;
+  let segment = 0;
+  const responses = /* @__PURE__ */ new Map();
+  for (const detailed of records) {
+    const { record } = detailed;
+    const payload = isJsonObject3(record.payload) ? record.payload : void 0;
+    if (record.type === "event_msg" && payload?.type === "token_count") {
+      const info = isJsonObject3(payload.info) ? payload.info : void 0;
+      if (!info) continue;
+      const total = tokenFields(info.total_token_usage);
+      const last = tokenFields(info.last_token_usage);
+      if (!total && !last) continue;
+      const snapshot = signature({ total, last });
+      if (snapshot === previousSnapshot) continue;
+      previousSnapshot = snapshot;
+      const totalTokens = total ? numberValue(total.total_tokens) : void 0;
+      if (totalTokens !== void 0 && previousTotal !== void 0 && totalTokens < previousTotal) {
+        segment += 1;
+        diagnostics.push({
+          code: "USAGE_COUNTER_RESET",
+          locator: recordLocator(detailed, "/payload/info/total_token_usage")
+        });
+      }
+      if (totalTokens !== void 0) previousTotal = totalTokens;
+      if (total) {
+        samples.push({
+          semantics: "codex-cumulative",
+          locator: recordLocator(detailed, "/payload/info/total_token_usage"),
+          tokens: total,
+          segment
+        });
+      }
+      if (last) {
+        samples.push({
+          semantics: "codex-last-turn",
+          locator: recordLocator(detailed, "/payload/info/last_token_usage"),
+          tokens: last,
+          segment
+        });
+      }
+      continue;
+    }
+    if (record.type !== "token_usage_record" || !payload) continue;
+    const recordedSessionId = stringValue2(payload.session_id);
+    const locator = recordLocator(detailed, "/payload");
+    if (recordedSessionId !== void 0 && recordedSessionId !== source.nativeSessionId) {
+      diagnostics.push({ code: "USAGE_SESSION_MISMATCH", locator });
+      continue;
+    }
+    const usage = tokenFields(payload.usage);
+    const turnUsage = tokenFields(payload.turn_token_usage);
+    const threadUsage = tokenFields(payload.thread_token_usage);
+    if (!usage && !turnUsage && !threadUsage) continue;
+    const tokens = {
+      ...usage === void 0 ? {} : { usage },
+      ...turnUsage === void 0 ? {} : { turn_token_usage: turnUsage },
+      ...threadUsage === void 0 ? {} : { thread_token_usage: threadUsage }
+    };
+    const responseId = stringValue2(payload.response_id)?.trim() || void 0;
+    const turnId = stringValue2(payload.turn_id)?.trim() || void 0;
+    const sampleSignature = signature(tokens);
+    if (responseId !== void 0) {
+      const prior = responses.get(responseId);
+      if (prior === sampleSignature) continue;
+      if (prior !== void 0) {
+        diagnostics.push({ code: "USAGE_CONFLICT", locator });
+        continue;
+      }
+      responses.set(responseId, sampleSignature);
+    }
+    const model = turnId ? turnModels.get(turnId) : void 0;
+    samples.push({
+      semantics: "codex-response",
+      locator,
+      tokens,
+      ...model === void 0 ? {} : { model },
+      ...turnId === void 0 ? {} : { turnId },
+      ...responseId === void 0 ? {} : { responseId }
+    });
+  }
+  return {
+    scope: "captured-source",
+    availability: samples.length > 0 ? "recorded" : "not-recorded",
+    samples,
+    diagnostics
+  };
+}
+function extractUsageMetadata(source, records) {
+  return source.runtime === "claude-code" ? claudeUsage(source, records) : codexUsage(source, records);
+}
+function notRecordedUsage() {
+  return {
+    scope: "captured-source",
+    availability: "not-recorded",
+    samples: [],
+    diagnostics: []
+  };
+}
+
 // src/shared/transcript/activity/extract.ts
 function validateInput(input) {
   const { source } = input;
@@ -3772,6 +3960,7 @@ function extractActivity(input) {
   const coverage2 = [];
   const diagnostics = [];
   const sourceSkills = [];
+  let usage = notRecordedUsage();
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator = {
       physicalLine: sourceDiagnostic.physicalLine,
@@ -3804,6 +3993,11 @@ function extractActivity(input) {
     diagnostics.push(...extracted.diagnostics);
     sourceSkills.push(...extracted.sourceSkills ?? []);
   }
+  try {
+    usage = extractUsageMetadata(input.source, input.read.records);
+  } catch {
+    usage = notRecordedUsage();
+  }
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
     source: input.source,
@@ -3815,7 +4009,8 @@ function extractActivity(input) {
     diagnostics,
     sourceMetadata: {
       scope: "captured-source",
-      skills: sourceSkills
+      skills: sourceSkills,
+      usage
     },
     coverage: [
       ...baseCoverage(events),
@@ -3920,6 +4115,7 @@ function renderActivityMarkdown(report) {
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
     `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
     `- Source metadata: ${report.sourceMetadata.scope}; skills ${report.sourceMetadata.skills.length}; omitted skills ${report.omitted.sourceSkills}`,
+    `- Token usage: ${report.sourceMetadata.usage?.availability ?? "not-recorded"}; samples ${report.sourceMetadata.usage?.samples.length ?? 0}; diagnostics ${report.sourceMetadata.usage?.diagnostics.length ?? 0}; omitted samples ${report.omitted.usageSamples}; omitted diagnostics ${report.omitted.usageDiagnostics}`,
     "",
     "### Events",
     "",
@@ -3963,6 +4159,34 @@ function renderActivityMarkdown(report) {
     for (const skill of report.sourceMetadata.skills) {
       lines.push(
         `- ${skill.evidence}: ${markdownData(skill.name)}; ${locatorText(skill.locator)}`
+      );
+    }
+  }
+  const usage = report.sourceMetadata.usage;
+  if (usage && usage.samples.length > 0) {
+    lines.push("", "### Captured-source token usage", "");
+    for (const sample of usage.samples) {
+      const identity = Object.fromEntries(
+        Object.entries({
+          model: sample.model,
+          messageId: sample.messageId,
+          turnId: sample.turnId,
+          responseId: sample.responseId,
+          segment: sample.segment,
+          uncertainty: sample.uncertainty
+        }).filter(([, value]) => value !== void 0)
+      );
+      lines.push(
+        `- ${sample.semantics}; ${locatorText(sample.locator)}${Object.keys(identity).length === 0 ? "" : `; ${markdownData(identity)}`}`,
+        `  - tokens: ${markdownData(sample.tokens)}`
+      );
+    }
+  }
+  if (usage && usage.diagnostics.length > 0) {
+    lines.push("", "### Token usage diagnostics", "");
+    for (const diagnostic of usage.diagnostics) {
+      lines.push(
+        `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${diagnostic.messageId === void 0 ? "" : `; message ${markdownData(diagnostic.messageId)}`}`
       );
     }
   }
@@ -4104,7 +4328,13 @@ function deliveredMetadata(activity, range) {
     diagnostics: activity.diagnostics.filter(
       (entry) => locatorInRange(entry.locator)
     ),
-    sourceSkills: activity.sourceMetadata?.skills ?? []
+    sourceSkills: activity.sourceMetadata?.skills ?? [],
+    usage: activity.sourceMetadata?.usage ?? {
+      scope: "captured-source",
+      availability: "not-recorded",
+      samples: [],
+      diagnostics: []
+    }
   };
 }
 function compareMetadataPriority(left, right) {
@@ -4132,13 +4362,46 @@ function retainMetadata(metadata, retainedCount) {
         index,
         locator: entry.locator
       })
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index) => ({
+        kind: "usageSamples",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index) => ({
+        kind: "usageDiagnostics",
+        index,
+        locator: entry.locator
+      })
     )
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = /* @__PURE__ */ new Set();
   const retainedDiagnostics = /* @__PURE__ */ new Set();
   const retainedSourceSkills = /* @__PURE__ */ new Set();
+  const retainedUsageSamples = /* @__PURE__ */ new Set();
+  const retainedUsageDiagnostics = /* @__PURE__ */ new Set();
   for (const candidate of priority.slice(0, retainedCount)) {
-    const target = candidate.kind === "coverage" ? retainedCoverage : candidate.kind === "diagnostics" ? retainedDiagnostics : retainedSourceSkills;
+    let target = retainedUsageDiagnostics;
+    switch (candidate.kind) {
+      case "coverage":
+        target = retainedCoverage;
+        break;
+      case "diagnostics":
+        target = retainedDiagnostics;
+        break;
+      case "sourceSkills":
+        target = retainedSourceSkills;
+        break;
+      case "usageSamples":
+        target = retainedUsageSamples;
+        break;
+      case "usageDiagnostics":
+        target = retainedUsageDiagnostics;
+        break;
+    }
     target.add(candidate.index);
   }
   return {
@@ -4150,7 +4413,16 @@ function retainMetadata(metadata, retainedCount) {
     ),
     sourceSkills: metadata.sourceSkills.filter(
       (_, index) => retainedSourceSkills.has(index)
-    )
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter(
+        (_, index) => retainedUsageSamples.has(index)
+      ),
+      diagnostics: metadata.usage.diagnostics.filter(
+        (_, index) => retainedUsageDiagnostics.has(index)
+      )
+    }
   };
 }
 function projectEvent(event, limits, suppressLinkedItemOutput) {
@@ -4292,7 +4564,8 @@ function buildReport(activity, options, limits, groups, retainedKeys, metadata, 
     diagnostics: metadata.diagnostics,
     sourceMetadata: {
       scope: "captured-source",
-      skills: metadata.sourceSkills
+      skills: metadata.sourceSkills,
+      usage: metadata.usage
     }
   };
   return finalizeRenderedBytes(report);
@@ -4311,7 +4584,9 @@ function projectActivityWithLimits(activity, options, limits) {
     byteLimitGroups: 0,
     coverageEntries: 0,
     diagnostics: 0,
-    sourceSkills: 0
+    sourceSkills: 0,
+    usageSamples: 0,
+    usageDiagnostics: 0
   };
   const initial = buildReport(
     activity,
@@ -4353,7 +4628,7 @@ function projectActivityWithLimits(activity, options, limits) {
     }
   }
   if (best) return best;
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length + metadata.sourceSkills.length;
+  const metadataCount = metadata.coverage.length + metadata.diagnostics.length + metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
@@ -4371,7 +4646,9 @@ function projectActivityWithLimits(activity, options, limits) {
         byteLimitGroups: removable.length,
         coverageEntries: metadata.coverage.length - retainedMetadata.coverage.length,
         diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length,
-        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length
+        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples: metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
       }
     );
     if (candidate.renderedBytes <= limits.maxBytes) {
@@ -4537,7 +4814,8 @@ function extractCursorActivity(input) {
     ] : [],
     sourceMetadata: {
       scope: "captured-source",
-      skills: []
+      skills: [],
+      usage: notRecordedUsage()
     },
     cursor: {
       indexBase: input.scan.indexBase,
@@ -5777,8 +6055,8 @@ function compactClassificationForCache(classification) {
   if (classification.bootstrapRecordIndexes.length === 0) return classification;
   return { ...classification, bootstrapRecordIndexes: [] };
 }
-async function candidateDerivedFields(runtime, transcriptPath, signature, cache) {
-  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+async function candidateDerivedFields(runtime, transcriptPath, signature2, cache) {
+  const cached = cache.get(transcriptPath, signature2.mtimeMs, signature2.size);
   if (cached) return cached;
   try {
     const records = await readRecords(transcriptPath);
@@ -5787,18 +6065,18 @@ async function candidateDerivedFields(runtime, transcriptPath, signature, cache)
     );
     const meta = extractMetaFromRecords(runtime, records, transcriptPath);
     const result = { meta, classification };
-    cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+    cache.set(transcriptPath, signature2.mtimeMs, signature2.size, result);
     return result;
   } catch {
     return { meta: null, classification: UNKNOWN_CLASSIFICATION };
   }
 }
-async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
+async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature2, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
   const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}:${unattributablePolicy}`;
   const cached = cache.get(
     transcriptPath,
-    signature.mtimeMs,
-    signature.size,
+    signature2.mtimeMs,
+    signature2.size,
     derivation
   );
   if (cached) return cached;
@@ -5869,18 +6147,18 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   const result = { meta, classification };
   cache.set(
     transcriptPath,
-    signature.mtimeMs,
-    signature.size,
+    signature2.mtimeMs,
+    signature2.size,
     result,
     derivation
   );
   return result;
 }
-async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
+async function candidateEngagementFields(runtime, transcriptPath, signature2, cache) {
   const { classification } = await candidateDerivedFields(
     runtime,
     transcriptPath,
-    signature,
+    signature2,
     cache
   );
   return engagementCandidateFields(classification);

@@ -137,6 +137,12 @@ describe('extractCursorActivity', () => {
       status: 'not-recorded',
       captured: 0,
     });
+    expect(activity.sourceMetadata?.usage).toEqual({
+      scope: 'captured-source',
+      availability: 'not-recorded',
+      samples: [],
+      diagnostics: [],
+    });
   });
 
   it('extracts recorded calls with settled positional identity and no invented evidence', async () => {

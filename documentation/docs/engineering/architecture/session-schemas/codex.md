@@ -331,6 +331,14 @@ comparisons, and all 73 decreases sit at compaction boundaries. A reader that as
 monotonicity will compute negative deltas at exactly those points; treat a decrease as a
 compaction signal, not as corrupt data.
 
+The activity reader preserves `total_token_usage`, `last_token_usage`, and
+`token_usage_record` as separate semantics. Identical token-count snapshots are
+collapsed; a cumulative decrease starts a numbered segment and emits a reset
+diagnostic rather than a negative delta. Response usage can inherit a model only
+when its recorded `turn_id` joins a `turn_context`; totals and last-turn records
+remain model-unknown when no native join exists. No counter is converted to
+price or cost.
+
 ## Output size limits
 
 | Measurement                         | Value                                                         |

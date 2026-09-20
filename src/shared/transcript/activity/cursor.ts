@@ -12,6 +12,7 @@ import type {
   ExtractedActivity,
   ExtractedActivityEvent,
 } from './types.js';
+import { notRecordedUsage } from './usage.js';
 
 export type CursorActivityExtractionMode =
   | 'stateful-delivery'
@@ -238,6 +239,7 @@ export function extractCursorActivity(
     sourceMetadata: {
       scope: 'captured-source',
       skills: [],
+      usage: notRecordedUsage(),
     },
     cursor: {
       indexBase: input.scan.indexBase,

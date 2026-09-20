@@ -132,6 +132,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
     `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
     `- Source metadata: ${report.sourceMetadata.scope}; skills ${report.sourceMetadata.skills.length}; omitted skills ${report.omitted.sourceSkills}`,
+    `- Token usage: ${report.sourceMetadata.usage?.availability ?? 'not-recorded'}; samples ${report.sourceMetadata.usage?.samples.length ?? 0}; diagnostics ${report.sourceMetadata.usage?.diagnostics.length ?? 0}; omitted samples ${report.omitted.usageSamples}; omitted diagnostics ${report.omitted.usageDiagnostics}`,
     '',
     '### Events',
     '',
@@ -180,6 +181,34 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     for (const skill of report.sourceMetadata.skills) {
       lines.push(
         `- ${skill.evidence}: ${markdownData(skill.name)}; ${locatorText(skill.locator)}`,
+      );
+    }
+  }
+  const usage = report.sourceMetadata.usage;
+  if (usage && usage.samples.length > 0) {
+    lines.push('', '### Captured-source token usage', '');
+    for (const sample of usage.samples) {
+      const identity = Object.fromEntries(
+        Object.entries({
+          model: sample.model,
+          messageId: sample.messageId,
+          turnId: sample.turnId,
+          responseId: sample.responseId,
+          segment: sample.segment,
+          uncertainty: sample.uncertainty,
+        }).filter(([, value]) => value !== undefined),
+      );
+      lines.push(
+        `- ${sample.semantics}; ${locatorText(sample.locator)}${Object.keys(identity).length === 0 ? '' : `; ${markdownData(identity)}`}`,
+        `  - tokens: ${markdownData(sample.tokens)}`,
+      );
+    }
+  }
+  if (usage && usage.diagnostics.length > 0) {
+    lines.push('', '### Token usage diagnostics', '');
+    for (const diagnostic of usage.diagnostics) {
+      lines.push(
+        `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${diagnostic.messageId === undefined ? '' : `; message ${markdownData(diagnostic.messageId)}`}`,
       );
     }
   }
