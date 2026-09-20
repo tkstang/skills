@@ -18,7 +18,12 @@ external_plans: []
 
 ## Description
 
-The Install matrix section of documentation/docs/user-guide/installation.md carries two Cursor claims that are version-stamped 'Observed against Cursor Agent 2026.07.23' while the installed CLI is 2026.09.18: that --plugin-dir is session-scoped and writes nothing under ~/.cursor/, and that Cursor Agent surfaces plugins Claude Code has enabled via ~/.claude/settings.json enabledPlugins. PR #100 corrected the 'Updating an install' section and deliberately scoped its new text to be consistent with these claims rather than rewriting untested assertions. Re-verify both against a live cursor-agent run and update or re-stamp them.
+The Install matrix section of documentation/docs/user-guide/installation.md carries two Cursor claims that neither PR #100 nor its two reviewers tested against a running Cursor:
+
+1. `--plugin-dir` is session-scoped: the plugin loads for that run only and nothing is written under `~/.cursor/`. This claim carries NO version stamp and no observation note - it is asserted flatly.
+2. Cursor Agent lists plugins Claude Code has enabled, matching `enabledPlugins` in `~/.claude/settings.json`, so consensus is picked up with no separate Cursor install. This one is stamped 'Observed against Cursor Agent 2026.07.23'; the installed CLI is 2026.09.18.
+
+These are not merely old: PR #100's new 'Updating an install' section routes refresh guidance by install mode, and two of its three modes rest on exactly these claims ('the pull is the whole update - just start a new run' for --plugin-dir, and 'refreshing it is the Claude Code procedure' for Claude-discovered plugins). If either claim is stale, the new guidance is wrong in the same way the old guidance was. The PR scoped its text to be consistent with them rather than retiring them, so it inherited their risk.
 
 ## Acceptance Criteria
 
