@@ -139,6 +139,9 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.47 decodes URL-derived repository paths in its
+  generated shared-log integration test before filesystem access.
+
 - `agent-messaging` 1.0.22 decodes URL-derived repository paths in its
   standalone and Session payload packaging test before filesystem access.
 

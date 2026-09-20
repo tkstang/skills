@@ -3,10 +3,13 @@ import crypto from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
-const repoRoot = path.resolve(new URL('../../../..', import.meta.url).pathname);
+const repoRoot = path.resolve(
+  fileURLToPath(new URL('../../../..', import.meta.url)),
+);
 const roots: string[] = [];
 
 function invoke(
