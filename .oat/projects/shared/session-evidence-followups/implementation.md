@@ -109,7 +109,7 @@ Fix continuation completed as `82ea5a103497aa8210035a889e256f07cb5cafa9`, exactl
 
 ## Final Summary (for PR/docs)
 
-p00 completed: Consensus Review defaults to 900 seconds with explicit internal overrides preserved. p01 implements reliable rearm testing and metadata-only unsuccessful terminal signals across Claude, Codex and Cursor. Four backlog tasks remain; no tickets closed and no PR exists yet.
+p00 completed: Consensus Review defaults to 900 seconds with explicit internal overrides preserved. p01 implements reliable rearm testing and metadata-only unsuccessful terminal signals across Claude, Codex and Cursor. Four backlog tasks remain; no tickets closed. Draft PR [#99](https://github.com/tkstang/skills/pull/99) is open; implementation and acceptance continue.
 
 ## References
 
@@ -117,3 +117,7 @@ p00 completed: Consensus Review defaults to 900 seconds with explicit internal o
 - [Discovery](discovery.md)
 - [Review dispositions](reviews/archived/plan-review-disposition.md)
 - [Complexity review](reviews/archived/complexity-review.md)
+
+## Progress PR
+
+Draft PR #99 opened on branch backlog-review-2026-09-20 against main at remote head90086e6e. Pre-push validate/buildfreshness/types/version/internalflags passed. Conventional Commit title: `feat(session): add reliable activity evidence for retros`. Progress artifact is local `pr/progress-p01-2026-09-20.md`. Implementation remains in progress. CI at this fixing-PR head can qualify for watcher acceptance; no CI pass is yet claimed.
