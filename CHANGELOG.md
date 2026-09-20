@@ -4,6 +4,14 @@
 
 ### Added
 
+- `session-observer` 1.0.73 reports metadata-only unsuccessful terminal turns
+  from native Claude Code, Codex, and Cursor lifecycle evidence while preserving
+  exact-range checkpoint deduplication and keeping terminal events visible under
+  `--quiet-empty`. `session-observer-collab` 1.0.61 proves those events do not
+  create peer-message authority; `session-export-transcript` 2.0.24 and
+  `session-fork-to-destination` 0.2.38 receive the shared transcript decoder
+  closure without changing their user-facing behavior.
+
 - `session-observer-collab` 1.0.45 completes the finite Claude Monitor's
   critical-path fixture proof across shared-cap exhaustion, lifecycle changes,
   identity and continuity failures, private no-op progress, concurrent runners,

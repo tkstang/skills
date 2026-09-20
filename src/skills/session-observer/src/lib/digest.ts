@@ -48,6 +48,10 @@ import {
   normalizeEntries,
   extractMetaFromRecords,
 } from '../../../../shared/transcript/runtimes.js';
+import {
+  extractCursorTerminalEvents,
+  extractRecordedTerminalEvents,
+} from '../../../../shared/transcript/terminal-events.js';
 import { classifyTranscriptRecords } from './session-classifier.js';
 import type {
   BuildDigestOptions,
@@ -1120,6 +1124,17 @@ function buildCursorDigest(
     }
   }
 
+  const terminalEvents = opts.includeTerminalEvents
+    ? extractCursorTerminalEvents({
+        runtime: 'cursor',
+        sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+        nativeSessionId: opts.cursorIdentity.sessionId,
+        analysis,
+        fromIndex,
+        nextIndex,
+      })
+    : undefined;
+
   return {
     schemaVersion: 2,
     runtime: 'cursor',
@@ -1144,6 +1159,7 @@ function buildCursorDigest(
     accounting,
     entries,
     ...(activity ? { activity } : {}),
+    ...(terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {}),
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -1209,6 +1225,7 @@ export async function buildDigest(
     includeToolResults = false,
     includeCommandMessages = false,
     includeActivity = false,
+    includeTerminalEvents = false,
     activityRenderFormat = 'compact-json',
     maxTurns,
     maxBytes,
@@ -1223,9 +1240,10 @@ export async function buildDigest(
 
   // Activity and conversation must describe one completed source read. The
   // legacy path stays untouched when activity is off, including its warnings.
-  const capturedRead = includeActivity
-    ? (opts.capturedRead ?? (await readRecordsDetailed(transcriptPath)))
-    : undefined;
+  const capturedRead =
+    includeActivity || includeTerminalEvents
+      ? (opts.capturedRead ?? (await readRecordsDetailed(transcriptPath)))
+      : undefined;
   const records = capturedRead
     ? capturedRead.records.map(({ record }) => record)
     : await readRecords(transcriptPath);
@@ -1269,6 +1287,22 @@ export async function buildDigest(
   const rawToIndex =
     totalRecords > rawFromIndex ? totalRecords - 1 : rawFromIndex;
   const rawCount = Math.max(0, totalRecords - rawFromIndex);
+  const terminalEvents =
+    includeTerminalEvents && capturedRead && runtime !== 'cursor'
+      ? extractRecordedTerminalEvents({
+          runtime,
+          sessionId,
+          nativeSessionId: identity?.nativeSessionId ?? sessionId,
+          read: capturedRead,
+          fromIndex: rawFromIndex,
+          nextIndex: totalRecords,
+        })
+      : undefined;
+  const terminalRecordIndexes = new Set(
+    terminalEvents?.flatMap((event) =>
+      event.source.recordIndex === undefined ? [] : [event.source.recordIndex],
+    ) ?? [],
+  );
 
   // Normalize all records to entries. Keep an unfiltered view for accounting so
   // the digest can explain records consumed but omitted by default filters.
@@ -1289,10 +1323,14 @@ export async function buildDigest(
     includeCommandMessages,
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex),
+    (e) =>
+      !bootstrapRecordIndexes.has(e.recordIndex) &&
+      !terminalRecordIndexes.has(e.recordIndex),
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex),
+    (e) =>
+      !bootstrapRecordIndexes.has(e.recordIndex) &&
+      !terminalRecordIndexes.has(e.recordIndex),
   );
 
   // Filter to only entries with recordIndex >= effectiveFromIndex
@@ -1525,6 +1563,7 @@ export async function buildDigest(
     accounting,
     entries: filteredEntries,
     ...(activity ? { activity } : {}),
+    ...(terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {}),
     filters,
     warnings,
     fallbacks,

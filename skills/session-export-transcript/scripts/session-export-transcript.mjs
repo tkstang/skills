@@ -1551,6 +1551,49 @@ function extractClaudeRecord(source, detailed) {
   return { events, coverage: coverage2, diagnostics: [] };
 }
 
+// src/shared/transcript/terminal-events.ts
+var MONTH_INDEX = new Map(
+  [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ].map((month, index) => [month.toLowerCase(), index])
+);
+function isJsonObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function stringValue2(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function decodeCodexLifecycleRecord(detailed) {
+  const { record } = detailed;
+  if (record.type !== "event_msg" || !isJsonObject2(record.payload)) return null;
+  const payload = record.payload;
+  const nativeType = stringValue2(payload.type);
+  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
+    return null;
+  }
+  const error = isJsonObject2(payload.error) ? payload.error : void 0;
+  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
+  return {
+    nativeType,
+    outcome,
+    ...stringValue2(payload.turn_id) === void 0 ? {} : { turnId: stringValue2(payload.turn_id) },
+    ...stringValue2(payload.status) === void 0 ? {} : { nativeStatus: stringValue2(payload.status) },
+    ...error && stringValue2(error.codex_error_info) !== void 0 ? { errorInfo: stringValue2(error.codex_error_info) } : {},
+    ...error && stringValue2(error.message) !== void 0 ? { errorMessage: stringValue2(error.message) } : {}
+  };
+}
+
 // src/shared/transcript/activity/codex.ts
 var ITEM_ACTIVITY_TYPES = /* @__PURE__ */ new Set([
   "CollabAgentToolCall",
@@ -1679,16 +1722,10 @@ function selectedLifecycleMetadata(payload) {
   );
 }
 function codexLifecycleActivity(source, detailed, payload) {
-  const nativeType = stringValue(payload.type);
-  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
-    return void 0;
-  }
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (!lifecycle) return void 0;
+  const { nativeType, outcome, turnId, nativeStatus, errorInfo } = lifecycle;
   const locator = recordLocator(detailed, "/payload");
-  const turnId = stringValue(payload.turn_id);
-  const nativeStatus = stringValue(payload.status);
-  const error = isJsonObject(payload.error) ? payload.error : void 0;
-  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
-  const errorInfo = error ? stringValue(error.codex_error_info) : void 0;
   const metadata = selectedLifecycleMetadata(payload);
   if (errorInfo !== void 0) metadata.errorInfo = errorInfo;
   return {
@@ -2767,10 +2804,10 @@ function extractCursorActivity(input) {
 
 // src/shared/transcript/cursor-analysis.ts
 import { createHash } from "node:crypto";
-function isJsonObject2(value) {
+function isJsonObject3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function stringValue2(value) {
+function stringValue3(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
@@ -2798,7 +2835,7 @@ function validateIdentity(identity) {
   }
 }
 function contentBlocks(record) {
-  if (!isJsonObject2(record.message)) {
+  if (!isJsonObject3(record.message)) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   const message = record.message;
@@ -2810,12 +2847,12 @@ function contentBlocks(record) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   return content.map((block, blockIndex) => {
-    if (!isJsonObject2(block)) {
+    if (!isJsonObject3(block)) {
       return { blockIndex, kind: "unsupported", text: "" };
     }
-    const type = stringValue2(block.type);
+    const type = stringValue3(block.type);
     if (type === "tool_use") {
-      const nativeName = stringValue2(block.name);
+      const nativeName = stringValue3(block.name);
       const toolRecord = {
         nativeType: "tool_use",
         ...nativeName === null ? {} : { nativeName },
@@ -2832,7 +2869,7 @@ function contentBlocks(record) {
       }
       return { blockIndex, kind: "tool", text: "", toolRecord };
     }
-    const text = stringValue2(block.text) ?? stringValue2(block.content) ?? "";
+    const text = stringValue3(block.text) ?? stringValue3(block.content) ?? "";
     if (type === "runtime_diagnostic" || type === "diagnostic") {
       return { blockIndex, kind: "runtime-diagnostic", text };
     }
@@ -2934,7 +2971,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
         nextTurnStart = frame.frameIndex + 1;
         return;
       }
-      const role = stringValue2(record.role);
+      const role = stringValue3(record.role);
       if (role !== "user" && role !== "assistant") {
         metadataFrameIndexes.push(frame.frameIndex);
         if (current !== null) {
@@ -3021,7 +3058,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
 // src/shared/transcript/cursor-frames.ts
 import { createHash as createHash2 } from "node:crypto";
 import { open as open2 } from "node:fs/promises";
-function isJsonObject3(value) {
+function isJsonObject4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseClosedFrame(frameBytes) {
@@ -3030,7 +3067,7 @@ function parseClosedFrame(frameBytes) {
   }
   try {
     const value = JSON.parse(frameBytes.toString("utf8"));
-    if (!isJsonObject3(value)) {
+    if (!isJsonObject4(value)) {
       return { parseState: "malformed", record: null };
     }
     return { parseState: "parsed", record: value };

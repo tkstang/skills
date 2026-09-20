@@ -2916,6 +2916,220 @@ function extractClaudeRecord(source, detailed) {
   return { events, coverage: coverage2, diagnostics: [] };
 }
 
+// src/shared/transcript/terminal-events.ts
+var MONTH_INDEX = new Map(
+  [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ].map((month, index) => [month.toLowerCase(), index])
+);
+var RETRY_SUFFIX = /try again at ((?:([A-Z][a-z]{2}) (\d{1,2})(st|nd|rd|th)?, (\d{4}) )?(\d{1,2}):(\d{2}) (AM|PM))\.$/iu;
+function isJsonObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function stringValue2(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function expectedOrdinal(day) {
+  if (day % 100 >= 11 && day % 100 <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+function validCalendarDate(month, dayText, ordinal, yearText) {
+  const monthIndex = MONTH_INDEX.get(month.toLowerCase());
+  const day = Number(dayText);
+  const year = Number(yearText);
+  if (monthIndex === void 0 || !Number.isInteger(day) || day < 1) {
+    return false;
+  }
+  if (ordinal && ordinal.toLowerCase() !== expectedOrdinal(day)) return false;
+  const date = new Date(Date.UTC(year, monthIndex, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === monthIndex && date.getUTCDate() === day;
+}
+function codexRetryEvidenceFragment(message) {
+  const match = RETRY_SUFFIX.exec(message);
+  if (!match) return;
+  const hour = Number(match[6]);
+  const minute = Number(match[7]);
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return;
+  if (match[2] !== void 0 && !validCalendarDate(match[2], match[3], match[4], match[5])) {
+    return;
+  }
+  return match[1];
+}
+function decodeCodexLifecycleRecord(detailed) {
+  const { record } = detailed;
+  if (record.type !== "event_msg" || !isJsonObject2(record.payload)) return null;
+  const payload = record.payload;
+  const nativeType = stringValue2(payload.type);
+  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
+    return null;
+  }
+  const error = isJsonObject2(payload.error) ? payload.error : void 0;
+  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
+  return {
+    nativeType,
+    outcome,
+    ...stringValue2(payload.turn_id) === void 0 ? {} : { turnId: stringValue2(payload.turn_id) },
+    ...stringValue2(payload.status) === void 0 ? {} : { nativeStatus: stringValue2(payload.status) },
+    ...error && stringValue2(error.codex_error_info) !== void 0 ? { errorInfo: stringValue2(error.codex_error_info) } : {},
+    ...error && stringValue2(error.message) !== void 0 ? { errorMessage: stringValue2(error.message) } : {}
+  };
+}
+function recordLocator2(detailed, jsonPointer) {
+  return {
+    indexBase: "zero-based-jsonl-record-index",
+    recordIndex: detailed.recordIndex,
+    physicalLine: detailed.physicalLine,
+    jsonPointer
+  };
+}
+function codexTerminalEvent(source, detailed) {
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (lifecycle === null || lifecycle.nativeType === "task_complete" && lifecycle.outcome !== "error" || lifecycle.nativeType === "task_started") {
+    return null;
+  }
+  const event = {
+    type: "terminal",
+    runtime: "codex",
+    sessionId: source.sessionId,
+    nativeSessionId: source.nativeSessionId,
+    nativeType: lifecycle.nativeType,
+    status: lifecycle.nativeType === "turn_aborted" ? "aborted" : "error",
+    source: recordLocator2(detailed, "/payload"),
+    ...lifecycle.errorInfo === void 0 ? {} : { nativeErrorCode: lifecycle.errorInfo }
+  };
+  if (lifecycle.nativeType === "task_complete" && lifecycle.errorInfo === "usage_limit_exceeded" && lifecycle.errorMessage !== void 0) {
+    const fragment = codexRetryEvidenceFragment(lifecycle.errorMessage);
+    if (fragment !== void 0) {
+      event.retryEvidence = {
+        fragment,
+        provenance: "inferred-from-error-message",
+        source: recordLocator2(detailed, "/payload/error/message")
+      };
+    }
+  }
+  return event;
+}
+function claudeAssistantStatus(record) {
+  if (record.isApiErrorMessage === true) return "api-error";
+  if (record.isAbortedMidStream === true) return "aborted-mid-stream";
+  if (record.truncatedAfterOutput === true) return "truncated-after-output";
+  return null;
+}
+function claudeSessionId(record) {
+  return stringValue2(record.sessionId);
+}
+function claudeTerminalEvents(source) {
+  const assistants = /* @__PURE__ */ new Map();
+  for (const detailed of source.read.records) {
+    const { record } = detailed;
+    if (claudeSessionId(record) !== source.sessionId) continue;
+    const message = isJsonObject2(record.message) ? record.message : void 0;
+    if (message?.role !== "assistant") continue;
+    const messageId = stringValue2(message.id);
+    if (!messageId) continue;
+    assistants.set(messageId, {
+      detailed,
+      status: claudeAssistantStatus(record)
+    });
+  }
+  return source.read.records.flatMap(
+    (detailed) => {
+      if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
+        return [];
+      }
+      const { record } = detailed;
+      if (claudeSessionId(record) !== source.sessionId) return [];
+      const message = isJsonObject2(record.message) ? record.message : void 0;
+      const status = claudeAssistantStatus(record);
+      if (message?.role === "assistant" && status !== null) {
+        const apiErrorStatus = record.apiErrorStatus;
+        return [
+          {
+            type: "terminal",
+            runtime: "claude-code",
+            sessionId: source.sessionId,
+            nativeSessionId: source.nativeSessionId,
+            nativeType: "assistant",
+            status,
+            source: recordLocator2(detailed, ""),
+            ...status === "api-error" && typeof apiErrorStatus === "number" && Number.isFinite(apiErrorStatus) ? { nativeErrorCode: apiErrorStatus } : {}
+          }
+        ];
+      }
+      if (message?.role !== "user") return [];
+      const interruptedMessageId = stringValue2(record.interruptedMessageId);
+      if (!interruptedMessageId) return [];
+      const target = assistants.get(interruptedMessageId);
+      if (!target || target.status === "aborted-mid-stream") return [];
+      return [
+        {
+          type: "terminal",
+          runtime: "claude-code",
+          sessionId: source.sessionId,
+          nativeSessionId: source.nativeSessionId,
+          nativeType: "user-interruption",
+          status: "interrupted",
+          source: recordLocator2(detailed, "/interruptedMessageId")
+        }
+      ];
+    }
+  );
+}
+function extractRecordedTerminalEvents(source) {
+  if (source.runtime === "claude-code") return claudeTerminalEvents(source);
+  return source.read.records.flatMap((detailed) => {
+    if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
+      return [];
+    }
+    const event = codexTerminalEvent(source, detailed);
+    return event ? [event] : [];
+  });
+}
+function extractCursorTerminalEvents(source) {
+  return source.analysis.turns.flatMap((turn) => {
+    const frameIndex = turn.terminalFrameIndex;
+    if (frameIndex === null || frameIndex < source.fromIndex || frameIndex >= source.nextIndex || !["error", "aborted", "cancelled"].includes(turn.lifecycle)) {
+      return [];
+    }
+    return [
+      {
+        type: "terminal",
+        runtime: "cursor",
+        sessionId: source.sessionId,
+        nativeSessionId: source.nativeSessionId,
+        nativeType: "turn_ended",
+        status: turn.lifecycle,
+        source: {
+          indexBase: "zero-based-jsonl-frame-index",
+          frameIndex,
+          physicalLine: frameIndex + 1,
+          jsonPointer: "/status"
+        }
+      }
+    ];
+  });
+}
+
 // src/shared/transcript/activity/codex.ts
 var ITEM_ACTIVITY_TYPES = /* @__PURE__ */ new Set([
   "CollabAgentToolCall",
@@ -3044,16 +3258,10 @@ function selectedLifecycleMetadata(payload) {
   );
 }
 function codexLifecycleActivity(source, detailed, payload) {
-  const nativeType = stringValue(payload.type);
-  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
-    return void 0;
-  }
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (!lifecycle) return void 0;
+  const { nativeType, outcome, turnId, nativeStatus, errorInfo } = lifecycle;
   const locator = recordLocator(detailed, "/payload");
-  const turnId = stringValue(payload.turn_id);
-  const nativeStatus = stringValue(payload.status);
-  const error = isJsonObject(payload.error) ? payload.error : void 0;
-  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
-  const errorInfo = error ? stringValue(error.codex_error_info) : void 0;
   const metadata = selectedLifecycleMetadata(payload);
   if (errorInfo !== void 0) metadata.errorInfo = errorInfo;
   return {
@@ -4138,10 +4346,10 @@ function cursorRenderTurnId(turn, sourceFrameIndex) {
   );
   return `${turn.turnId}:render:${humanFrameIndex ?? turn.fromFrameIndex}`;
 }
-function isJsonObject2(value) {
+function isJsonObject3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function stringValue2(value) {
+function stringValue3(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
@@ -4169,7 +4377,7 @@ function validateIdentity(identity) {
   }
 }
 function contentBlocks(record) {
-  if (!isJsonObject2(record.message)) {
+  if (!isJsonObject3(record.message)) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   const message = record.message;
@@ -4181,12 +4389,12 @@ function contentBlocks(record) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   return content.map((block, blockIndex) => {
-    if (!isJsonObject2(block)) {
+    if (!isJsonObject3(block)) {
       return { blockIndex, kind: "unsupported", text: "" };
     }
-    const type = stringValue2(block.type);
+    const type = stringValue3(block.type);
     if (type === "tool_use") {
-      const nativeName = stringValue2(block.name);
+      const nativeName = stringValue3(block.name);
       const toolRecord = {
         nativeType: "tool_use",
         ...nativeName === null ? {} : { nativeName },
@@ -4203,7 +4411,7 @@ function contentBlocks(record) {
       }
       return { blockIndex, kind: "tool", text: "", toolRecord };
     }
-    const text = stringValue2(block.text) ?? stringValue2(block.content) ?? "";
+    const text = stringValue3(block.text) ?? stringValue3(block.content) ?? "";
     if (type === "runtime_diagnostic" || type === "diagnostic") {
       return { blockIndex, kind: "runtime-diagnostic", text };
     }
@@ -4305,7 +4513,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
         nextTurnStart = frame.frameIndex + 1;
         return;
       }
-      const role = stringValue2(record.role);
+      const role = stringValue3(record.role);
       if (role !== "user" && role !== "assistant") {
         metadataFrameIndexes.push(frame.frameIndex);
         if (current !== null) {
@@ -5077,6 +5285,14 @@ function buildCursorDigest(transcriptPath, opts) {
       );
     }
   }
+  const terminalEvents = opts.includeTerminalEvents ? extractCursorTerminalEvents({
+    runtime: "cursor",
+    sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+    nativeSessionId: opts.cursorIdentity.sessionId,
+    analysis,
+    fromIndex,
+    nextIndex
+  }) : void 0;
   return {
     schemaVersion: 2,
     runtime: "cursor",
@@ -5101,6 +5317,7 @@ function buildCursorDigest(transcriptPath, opts) {
     accounting,
     entries,
     ...activity ? { activity } : {},
+    ...terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {},
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -5125,6 +5342,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeToolResults = false,
     includeCommandMessages = false,
     includeActivity = false,
+    includeTerminalEvents = false,
     activityRenderFormat = "compact-json",
     maxTurns,
     maxBytes,
@@ -5133,7 +5351,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const warnings = [...opts.warnings ?? []];
   const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
   const effectiveIncludeToolResults = includeActivity ? false : includeToolResults;
-  const capturedRead = includeActivity ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
+  const capturedRead = includeActivity || includeTerminalEvents ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
   const records = capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(transcriptPath);
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
@@ -5156,6 +5374,19 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const rawFromIndex = effectiveFromIndex;
   const rawToIndex = totalRecords > rawFromIndex ? totalRecords - 1 : rawFromIndex;
   const rawCount = Math.max(0, totalRecords - rawFromIndex);
+  const terminalEvents = includeTerminalEvents && capturedRead && runtime !== "cursor" ? extractRecordedTerminalEvents({
+    runtime,
+    sessionId,
+    nativeSessionId: identity?.nativeSessionId ?? sessionId,
+    read: capturedRead,
+    fromIndex: rawFromIndex,
+    nextIndex: totalRecords
+  }) : void 0;
+  const terminalRecordIndexes = new Set(
+    terminalEvents?.flatMap(
+      (event) => event.source.recordIndex === void 0 ? [] : [event.source.recordIndex]
+    ) ?? []
+  );
   const allEntriesWithToolsBeforeBootstrap = normalizeEntries(
     runtime,
     records,
@@ -5173,10 +5404,10 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeCommandMessages
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !terminalRecordIndexes.has(e.recordIndex)
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !terminalRecordIndexes.has(e.recordIndex)
   );
   const entriesBeforeTailSlice = allEntries.filter(
     (e) => e.recordIndex >= effectiveFromIndex
@@ -5367,6 +5598,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     accounting,
     entries: filteredEntries,
     ...activity ? { activity } : {},
+    ...terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {},
     filters,
     warnings,
     fallbacks
@@ -6703,7 +6935,7 @@ import { open as open6 } from "node:fs/promises";
 // src/shared/transcript/cursor-frames.ts
 import { createHash as createHash7 } from "node:crypto";
 import { open as open5 } from "node:fs/promises";
-function isJsonObject3(value) {
+function isJsonObject4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseClosedFrame(frameBytes) {
@@ -6712,7 +6944,7 @@ function parseClosedFrame(frameBytes) {
   }
   try {
     const value = JSON.parse(frameBytes.toString("utf8"));
-    if (!isJsonObject3(value)) {
+    if (!isJsonObject4(value)) {
       return { parseState: "malformed", record: null };
     }
     return { parseState: "parsed", record: value };

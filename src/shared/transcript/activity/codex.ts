@@ -1,4 +1,5 @@
 import type { DetailedTranscriptRecord, JsonObject } from '../runtimes.js';
+import { decodeCodexLifecycleRecord } from '../terminal-events.js';
 import {
   eventKey,
   isJsonObject,
@@ -179,27 +180,10 @@ function codexLifecycleActivity(
   detailed: DetailedTranscriptRecord,
   payload: JsonObject,
 ): ExtractedRecordActivity | undefined {
-  const nativeType = stringValue(payload.type);
-  if (
-    nativeType !== 'task_started' &&
-    nativeType !== 'task_complete' &&
-    nativeType !== 'turn_aborted'
-  ) {
-    return undefined;
-  }
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (!lifecycle) return undefined;
+  const { nativeType, outcome, turnId, nativeStatus, errorInfo } = lifecycle;
   const locator = recordLocator(detailed, '/payload');
-  const turnId = stringValue(payload.turn_id);
-  const nativeStatus = stringValue(payload.status);
-  const error = isJsonObject(payload.error) ? payload.error : undefined;
-  const outcome: ActivityOutcome =
-    nativeType === 'task_started'
-      ? 'pending'
-      : nativeType === 'turn_aborted'
-        ? 'cancelled'
-        : error
-          ? 'error'
-          : 'success';
-  const errorInfo = error ? stringValue(error.codex_error_info) : undefined;
   const metadata = selectedLifecycleMetadata(payload);
   if (errorInfo !== undefined) metadata.errorInfo = errorInfo;
   return {

@@ -170,16 +170,45 @@ flags are the base observer's collaboration-facing contract:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                                                                                                             |
 | `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                                                                                                    |
-| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                                                                                                            |
+| `--quiet-empty`                                  | Consume filtered growth and advance the offset without printing an empty delta; terminal lifecycle events remain visible.                                                                                                       |
 | `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first.                                                                                     |
 | `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                                                                                                         |
 | `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view. On Claude Code and Codex, `--include-tools` also adds option descriptions to ask-user questions, which render either way. |
 
-Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
-diagnostics, or automatic control input. A newer-session candidate is a warning,
-not permission to switch pins. A filtered or empty digest is not evidence that
-the peer was idle; inspect the digest's declared schema, index base, and
-accounting or run a pinned review.
+Watch output can report `baseline-gap`, `newer-session-candidate`, `terminal`,
+or automatic control input. A newer-session candidate is a warning, not
+permission to switch pins. A filtered or empty digest is not evidence that the
+peer was idle; inspect the digest's declared schema, index base, and accounting
+or run a pinned review.
+
+## Unsuccessful terminal events
+
+A `terminal` watch event reports a natively recorded unsuccessful turn without
+copying the transcript body or provider error message. Its source locator
+belongs to the exact consumed record or frame range. Terminal-only growth still
+advances the checkpoint and is delivered at most once; `--quiet-empty`
+suppresses only an empty `delta`, never the terminal event. A later successful
+record does not erase an earlier terminal event. Terminal metadata is evidence
+about peer lifecycle, not a peer-authored message or authority to send or
+continue collaboration work.
+
+Runtime evidence is intentionally narrow:
+
+- Claude Code accepts explicit assistant API-error, aborted-mid-stream, and
+  truncated flags in that precedence order. A newly consumed user interruption
+  pointer may join an earlier same-session assistant from the captured
+  transcript, including before the checkpoint; it is suppressed when that
+  assistant already has an explicit abort. Tool failures, denial fields, stop
+  reasons, arbitrary error prose, orphan pointers, and cross-session pointers
+  do not qualify.
+- Codex accepts native `task_complete` records with an error object and
+  `turn_aborted` records. A `usage_limit_exceeded` message may contribute only a
+  validated trailing English `try again at ...` clock or calendar fragment
+  with `inferred-from-error-message` provenance. The fragment is not normalized
+  into an absolute instant, and other error text is omitted.
+- Cursor accepts native error, aborted, and cancelled `turn_ended` frames.
+  Cursor does not expose per-call terminal results here, and terminal error
+  bodies are omitted.
 
 ## Re-arm an exact pinned watcher
 
