@@ -21,7 +21,7 @@ oat_retro_evidence_sources:
   - source: github-pr-state
     status: used
 oat_retro_promotions: none
-oat_retro_filing: proposed
+oat_retro_filing: complete
 oat_generated: true
 oat_template: false
 ---
@@ -70,8 +70,8 @@ hypothesis.
 ## Current State
 
 - **Promotions:** None; no RP apply-items exist.
-- **Filing:** Proposed; UP-01 and UP-02 are eligible for the configured OAT upstream issue destination.
-- **Unsettled items:** UP-01 and UP-02 require an `oat-project-retro-file` decision.
+- **Filing:** Complete; UP-01 is linked to OAT issue #310 and UP-02 is rejected as misclassified.
+- **Unsettled items:** None.
 
 ## What Went Well
 
@@ -255,12 +255,12 @@ owned by `BL-260919-verify-live-agent-messaging` and accepted decision records.
 
 ### UP-01: Invalidate derived project artifacts after later repair phases
 
-- **Status:** proposed
-- **Destination:** —
+- **Status:** filed
+- **Destination:** https://github.com/voxmedia/open-agent-toolkit/issues/310
 - **Destination-receipt:** —
 - **Remote-visibility:** —
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Linked existing exact duplicate; issue #310 already covers repair-phase invalidation of stale project summaries.
 
 When review, CI, or remote feedback adds tasks after summary/document/PR
 closeout, OAT should mark the affected derived artifacts stale or record the
@@ -272,12 +272,12 @@ while the summary still reported the original 25-task and test boundary.
 
 ### UP-02: Keep conditional worktree visibility separate from worktree selection
 
-- **Status:** proposed
+- **Status:** rejected
 - **Destination:** —
 - **Destination-receipt:** —
 - **Remote-visibility:** —
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Rejected as misclassified; the visibility rule came from operator-level agent instructions, while OAT already limits worktrees to plan-declared parallel groups.
 
 OAT implementation guidance should not infer that a separate worktree is
 mandatory from a rule that only governs visibility when a separate worktree is
