@@ -1,6 +1,6 @@
 ---
 oat_current_task: p03-t01
-oat_last_commit: 92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa
+oat_last_commit: b58fd28ff6172ffdead3317c8b3ed5530a72f3c1
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00 and p01 complete and independently reviewed. p02 skill/usage implementation complete; independent Opus review requested fixes; bounded Sol correction is next before p03. User authorized continuation through one mergeable PR.
+p00 and p01 complete and independently reviewed. p02 skill/usage implementation complete; accepted Opus findings are fixed; independent bounded verification is next before p03. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 

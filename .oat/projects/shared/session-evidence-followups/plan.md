@@ -171,7 +171,7 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 
 Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
-| p02 | code | changes_requested | 2026-09-20 | reviews/p02-opus-review.md | 8094b2df | consensus | claude:opus |
+| p02 | code | fixes_completed | 2026-09-20 | reviews/p02-opus-review.md | 8094b2df | consensus | claude:opus |
 
 ## Implementation Complete
 
