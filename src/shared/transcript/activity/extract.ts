@@ -89,6 +89,7 @@ export function extractActivity(
   const coverage: ExtractedActivity['coverage'] = [];
   const diagnostics: ExtractedActivity['diagnostics'] = [];
   const sourceSkills: ActivitySourceSkill[] = [];
+  let sourceSkillNamesRecorded = false;
   let usage = notRecordedUsage();
 
   for (const sourceDiagnostic of input.read.diagnostics) {
@@ -126,10 +127,22 @@ export function extractActivity(
     coverage.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
     sourceSkills.push(...(extracted.sourceSkills ?? []));
+    sourceSkillNamesRecorded ||= extracted.sourceSkillNamesRecorded === true;
   }
 
+  const latestAvailableSkill = new Map<string, ActivitySourceSkill>();
+  for (const skill of sourceSkills) {
+    if (skill.evidence === 'available')
+      latestAvailableSkill.set(skill.name, skill);
+  }
+  const deduplicatedSourceSkills = sourceSkills.filter(
+    (skill) =>
+      skill.evidence === 'invoked' ||
+      latestAvailableSkill.get(skill.name) === skill,
+  );
+
   try {
-    usage = extractUsageMetadata(input.source, input.read.records);
+    usage = extractUsageMetadata(input.source, input.read.records, events);
   } catch {
     usage = notRecordedUsage();
   }
@@ -145,19 +158,18 @@ export function extractActivity(
     diagnostics,
     sourceMetadata: {
       scope: 'captured-source',
-      skills: sourceSkills,
+      skills: deduplicatedSourceSkills,
       usage,
     },
     coverage: [
       ...baseCoverage(events),
       ...coverage,
       {
-        dataClass: 'skills',
-        status:
-          input.source.runtime === 'claude-code' && sourceSkills.length > 0
-            ? 'available'
-            : 'not-recorded',
-        captured: sourceSkills.length,
+        dataClass: 'source-skill-names',
+        status: sourceSkillNamesRecorded ? 'available' : 'not-recorded',
+        captured: deduplicatedSourceSkills.filter(
+          (skill) => skill.evidence === 'available',
+        ).length,
       },
     ],
   };

@@ -55,7 +55,10 @@ describe('Claude Code activity extraction', () => {
                 type: 'tool_use',
                 id: 'skill-call',
                 name: 'Skill',
-                input: { skill: 'session-observer', body: 'private sentinel' },
+                input: {
+                  skill: 'session-observer',
+                  args: 'caller invocation input',
+                },
               },
               { type: 'tool_use', id: 'read-call', name: 'Read', input: {} },
             ],
@@ -88,6 +91,26 @@ describe('Claude Code activity extraction', () => {
         },
         2,
       ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'skill_listing',
+            names: ['available-one'],
+          },
+        },
+        3,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'invoked_skills',
+            skills: [{ name: 'invoked-one' }],
+          },
+        },
+        4,
+      ),
     ];
 
     const extracted = extractActivity({
@@ -97,6 +120,10 @@ describe('Claude Code activity extraction', () => {
 
     expect(extracted.events[0]).toMatchObject({
       nativeName: 'Skill',
+      arguments: {
+        skill: 'session-observer',
+        args: 'caller invocation input',
+      },
       skillEvidence: [
         { kind: 'native-attribution', name: 'session-observer' },
         { kind: 'native-invocation', name: 'session-observer' },
@@ -111,13 +138,6 @@ describe('Claude Code activity extraction', () => {
       skills: [
         expect.objectContaining({
           evidence: 'available',
-          name: 'available-one',
-          locator: expect.objectContaining({
-            jsonPointer: '/attachment/names/0',
-          }),
-        }),
-        expect.objectContaining({
-          evidence: 'available',
           name: 'available-two',
           locator: expect.objectContaining({
             jsonPointer: '/attachment/names/3',
@@ -130,6 +150,19 @@ describe('Claude Code activity extraction', () => {
             jsonPointer: '/attachment/skills/0/name',
           }),
         }),
+        expect.objectContaining({
+          evidence: 'available',
+          name: 'available-one',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/names/0',
+            recordIndex: 3,
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'invoked',
+          name: 'invoked-one',
+          locator: expect.objectContaining({ recordIndex: 4 }),
+        }),
       ],
     });
     const serialized = JSON.stringify(extracted.sourceMetadata);
@@ -137,9 +170,35 @@ describe('Claude Code activity extraction', () => {
     expect(serialized).not.toContain('/private/listing/path');
     expect(JSON.stringify(extracted)).not.toContain('private sentinel');
     expect(extracted.coverage).toContainEqual({
-      dataClass: 'skills',
+      dataClass: 'source-skill-names',
       status: 'available',
-      captured: 3,
+      captured: 2,
+    });
+  });
+
+  it('distinguishes an empty native skill listing from no source listing', () => {
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: { type: 'skill_listing', names: [] },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(extracted.sourceMetadata?.skills).toEqual([]);
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 0,
     });
   });
 
@@ -158,7 +217,7 @@ describe('Claude Code activity extraction', () => {
     });
     expect(extracted.diagnostics).toEqual([]);
     expect(extracted.coverage).toContainEqual({
-      dataClass: 'skills',
+      dataClass: 'source-skill-names',
       status: 'not-recorded',
       captured: 0,
     });
@@ -535,7 +594,7 @@ describe('Codex activity extraction', () => {
     expect(extracted.events[3]).not.toHaveProperty('skillEvidence');
     expect(JSON.stringify(extracted)).not.toContain('private-prose');
     expect(extracted.coverage).toContainEqual({
-      dataClass: 'skills',
+      dataClass: 'source-skill-names',
       status: 'not-recorded',
       captured: 0,
     });

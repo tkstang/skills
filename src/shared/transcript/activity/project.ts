@@ -369,6 +369,63 @@ function retainMetadata(
   };
 }
 
+function retainOptionalSourceMetadata(
+  metadata: ReportMetadata,
+  retainedCount: number,
+): ReportMetadata {
+  const priority = [
+    ...metadata.sourceSkills.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'sourceSkills',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageSamples',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageDiagnostics',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+  ].toSorted(compareMetadataPriority);
+  const retainedSourceSkills = new Set<number>();
+  const retainedUsageSamples = new Set<number>();
+  const retainedUsageDiagnostics = new Set<number>();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    const target =
+      candidate.kind === 'sourceSkills'
+        ? retainedSourceSkills
+        : candidate.kind === 'usageSamples'
+          ? retainedUsageSamples
+          : retainedUsageDiagnostics;
+    target.add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics,
+    sourceSkills: metadata.sourceSkills.filter((_, index) =>
+      retainedSourceSkills.has(index),
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter((_, index) =>
+        retainedUsageSamples.has(index),
+      ),
+      diagnostics: metadata.usage.diagnostics.filter((_, index) =>
+        retainedUsageDiagnostics.has(index),
+      ),
+    },
+  };
+}
+
 function projectEvent(
   event: CorrelatedActivityEvent,
   limits: ActivityProjectionLimits,
@@ -626,12 +683,60 @@ export function projectActivityWithLimits(
   );
   if (initial.renderedBytes <= limits.maxBytes) return initial;
 
+  const optionalMetadataCount =
+    metadata.sourceSkills.length +
+    metadata.usage.samples.length +
+    metadata.usage.diagnostics.length;
+  let optionalLow = 0;
+  let optionalHigh = optionalMetadataCount;
+  let best: ActivityReport | undefined;
+  while (optionalLow <= optionalHigh) {
+    const retainedCount = Math.floor((optionalLow + optionalHigh) / 2);
+    const retainedMetadata = retainOptionalSourceMetadata(
+      metadata,
+      retainedCount,
+    );
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      retained,
+      retainedMetadata,
+      {
+        ...initialReasons,
+        sourceSkills:
+          metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples:
+          metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics:
+          metadata.usage.diagnostics.length -
+          retainedMetadata.usage.diagnostics.length,
+      },
+    );
+    if (candidate.renderedBytes <= limits.maxBytes) {
+      best = candidate;
+      optionalLow = retainedCount + 1;
+    } else {
+      optionalHigh = retainedCount - 1;
+    }
+  }
+  if (best) return best;
+
+  const boundedMetadata = retainOptionalSourceMetadata(metadata, 0);
+  const boundedReasons: OmissionReasons = {
+    ...initialReasons,
+    sourceSkills: metadata.sourceSkills.length,
+    usageSamples: metadata.usage.samples.length,
+    usageDiagnostics: metadata.usage.diagnostics.length,
+  };
+
   const removable = groups
     .filter((group) => retained.has(group.key))
     .toSorted(compareLowPriority);
   let low = 1;
   let high = removable.length;
-  let best: ActivityReport | undefined;
+  best = undefined;
   while (low <= high) {
     const removedCount = Math.floor((low + high) / 2);
     const candidateKeys = new Set(retained);
@@ -644,9 +749,9 @@ export function projectActivityWithLimits(
       limits,
       groups,
       candidateKeys,
-      metadata,
+      boundedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removedCount,
       },
     );

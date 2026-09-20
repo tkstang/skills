@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `session-observer` 1.0.77 and `session-export-transcript` 2.0.28 preserve
+  delivered activity before optional source metadata under byte pressure,
+  identify Codex response usage by native thread, keep usage ownership and
+  model/reset boundaries honest, retain bounded Claude `Skill` caller input,
+  and make source-name coverage and deduplication explicit.
+  `session-observer-collab` 1.0.65 and `session-fork-to-destination` 0.2.42
+  receive validation-only shared-runtime version closure.
+
 ### Added
 
 - `session-observer` 1.0.76 and `session-export-transcript` 2.0.27 add

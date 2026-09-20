@@ -629,6 +629,7 @@ describe('activity projection budgets', () => {
         availability: 'recorded',
         samples: Array.from({ length: 1_000 }, (_, index) => ({
           semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
           messageId: `message-${index}`,
           tokens: { input_tokens: index, output_tokens: index + 1 },
           locator: {
@@ -672,6 +673,84 @@ describe('activity projection budgets', () => {
     ).toBe(40);
     expect(report.omitted.usageSamples).toBeGreaterThan(0);
     expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
+  });
+
+  it('trims oversized optional source metadata before delivered event evidence', () => {
+    const events = [
+      event('call-one', 'call', 0, {
+        nativeCallId: 'native-call-one',
+        arguments: { task: 'delivered call one' },
+      }),
+      event('result-one', 'result', 1, {
+        nativeCallId: 'native-call-one',
+        relatedCallKey: 'call-one',
+        result: { value: 'delivered result one' },
+      }),
+      event('call-two', 'call', 2, {
+        nativeCallId: 'native-call-two',
+        arguments: { task: 'delivered call two' },
+      }),
+      event('result-two', 'result', 3, {
+        nativeCallId: 'native-call-two',
+        relatedCallKey: 'call-two',
+        result: { value: 'delivered result two' },
+      }),
+    ];
+    const extracted = activity(events);
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 400 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence: 'available' as const,
+        name: `source-skill-${index}-${'x'.repeat(32)}`,
+        locator: {
+          recordIndex: index + 100,
+          physicalLine: index + 101,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 400 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
+          messageId: `message-${index}`,
+          tokens: { input_tokens: index, output_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 500,
+            physicalLine: index + 501,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: [],
+      },
+    };
+
+    const report = projectActivity(extracted, {
+      mode: 'watch',
+      renderFormat: 'compact-json',
+      deliveryRange: wholeRange(events),
+    });
+
+    expect(report.limits.maxBytes).toBe(32 * 1024);
+    expect(report.events.map(({ eventKey }) => eventKey)).toEqual([
+      'call-one',
+      'result-one',
+      'call-two',
+      'result-two',
+    ]);
+    expect(report.omitted.byteLimitGroups).toBe(0);
+    expect(report.omitted.sourceSkills).toBeGreaterThan(0);
+    expect(report.omitted.usageSamples).toBeGreaterThan(0);
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(400);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(400);
+    expect(report.renderedBytes).toBeLessThanOrEqual(32 * 1024);
   });
 
   it('keeps the activity budget independent from conversation content', () => {

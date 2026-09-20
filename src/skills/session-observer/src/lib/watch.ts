@@ -278,7 +278,7 @@ function activityCoverageSignal(digest: SessionDigest): boolean {
     digest.activity?.diagnostics.length ||
     digest.activity?.coverage.some(
       (entry) =>
-        entry.dataClass !== 'skills' &&
+        entry.dataClass !== 'source-skill-names' &&
         (entry.locator !== undefined || entry.status !== 'available'),
     ),
   );

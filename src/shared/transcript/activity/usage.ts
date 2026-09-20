@@ -1,9 +1,11 @@
 import type { DetailedTranscriptRecord, JsonObject } from '../runtimes.js';
+import { activityOwnershipContext, ownershipForLocator } from './correlate.js';
 import type {
   ActivitySource,
   ActivityTokenUsageSample,
   ActivityUsageDiagnostic,
   ActivityUsageMetadata,
+  ExtractedActivityEvent,
 } from './types.js';
 import {
   isJsonObject,
@@ -85,6 +87,7 @@ function claudeUsage(
     const model = stringValue(message.model)?.trim() || undefined;
     const sample: ActivityTokenUsageSample = {
       semantics: 'claude-message',
+      ownership: 'owned',
       locator,
       tokens,
       ...(model === undefined ? {} : { model }),
@@ -121,21 +124,31 @@ function claudeUsage(
 function codexUsage(
   source: ActivitySource,
   records: readonly DetailedTranscriptRecord[],
+  events: readonly ExtractedActivityEvent[],
 ): ActivityUsageMetadata {
   const samples: ActivityTokenUsageSample[] = [];
   const diagnostics: ActivityUsageDiagnostic[] = [];
+  const ownershipContext = activityOwnershipContext(source, events);
   const turnModels = new Map<string, string>();
-  for (const { record } of records) {
+  for (const detailed of records) {
+    const { record } = detailed;
     if (record.type !== 'turn_context' || !isJsonObject(record.payload))
       continue;
     const turnId = stringValue(record.payload.turn_id);
     const model = stringValue(record.payload.model);
-    if (turnId && model) turnModels.set(turnId, model);
+    if (turnId && model) {
+      const ownership = ownershipForLocator(
+        recordLocator(detailed, '/payload'),
+        ownershipContext,
+      );
+      turnModels.set(`${ownership}:${turnId}`, model);
+    }
   }
 
-  let previousSnapshot: string | undefined;
-  let previousTotal: number | undefined;
-  let segment = 0;
+  const counterStates = new Map<
+    ActivityTokenUsageSample['ownership'],
+    { previousSnapshot?: string; previousTotal?: number; segment: number }
+  >();
   const responses = new Map<string, string>();
 
   for (const detailed of records) {
@@ -147,47 +160,56 @@ function codexUsage(
       const total = tokenFields(info.total_token_usage);
       const last = tokenFields(info.last_token_usage);
       if (!total && !last) continue;
+      const totalLocator = recordLocator(
+        detailed,
+        '/payload/info/total_token_usage',
+      );
+      const ownership = ownershipForLocator(totalLocator, ownershipContext);
+      const state = counterStates.get(ownership) ?? { segment: 0 };
       const snapshot = signature({ total, last });
-      if (snapshot === previousSnapshot) continue;
-      previousSnapshot = snapshot;
+      if (snapshot === state.previousSnapshot) continue;
+      state.previousSnapshot = snapshot;
       const totalTokens = total ? numberValue(total.total_tokens) : undefined;
       if (
         totalTokens !== undefined &&
-        previousTotal !== undefined &&
-        totalTokens < previousTotal
+        state.previousTotal !== undefined &&
+        totalTokens < state.previousTotal
       ) {
-        segment += 1;
+        state.segment += 1;
         diagnostics.push({
           code: 'USAGE_COUNTER_RESET',
-          locator: recordLocator(detailed, '/payload/info/total_token_usage'),
+          locator: totalLocator,
         });
       }
-      if (totalTokens !== undefined) previousTotal = totalTokens;
+      if (totalTokens !== undefined) state.previousTotal = totalTokens;
+      counterStates.set(ownership, state);
       if (total) {
         samples.push({
           semantics: 'codex-cumulative',
-          locator: recordLocator(detailed, '/payload/info/total_token_usage'),
+          ownership,
+          locator: totalLocator,
           tokens: total,
-          segment,
+          segment: state.segment,
         });
       }
       if (last) {
         samples.push({
           semantics: 'codex-last-turn',
+          ownership,
           locator: recordLocator(detailed, '/payload/info/last_token_usage'),
           tokens: last,
-          segment,
+          segment: state.segment,
         });
       }
       continue;
     }
 
     if (record.type !== 'token_usage_record' || !payload) continue;
-    const recordedSessionId = stringValue(payload.session_id);
+    const recordedThreadId = stringValue(payload.thread_id);
     const locator = recordLocator(detailed, '/payload');
     if (
-      recordedSessionId !== undefined &&
-      recordedSessionId !== source.nativeSessionId
+      recordedThreadId !== undefined &&
+      recordedThreadId !== source.nativeSessionId
     ) {
       diagnostics.push({ code: 'USAGE_SESSION_MISMATCH', locator });
       continue;
@@ -213,9 +235,11 @@ function codexUsage(
       }
       responses.set(responseId, sampleSignature);
     }
-    const model = turnId ? turnModels.get(turnId) : undefined;
+    const ownership = ownershipForLocator(locator, ownershipContext);
+    const model = turnId ? turnModels.get(`${ownership}:${turnId}`) : undefined;
     samples.push({
       semantics: 'codex-response',
+      ownership,
       locator,
       tokens,
       ...(model === undefined ? {} : { model }),
@@ -235,10 +259,11 @@ function codexUsage(
 export function extractUsageMetadata(
   source: ActivitySource,
   records: readonly DetailedTranscriptRecord[],
+  events: readonly ExtractedActivityEvent[] = [],
 ): ActivityUsageMetadata {
   return source.runtime === 'claude-code'
     ? claudeUsage(source, records)
-    : codexUsage(source, records);
+    : codexUsage(source, records, events);
 }
 
 export function notRecordedUsage(): ActivityUsageMetadata {

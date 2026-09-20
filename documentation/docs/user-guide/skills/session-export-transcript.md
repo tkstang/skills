@@ -82,14 +82,20 @@ diagnostics remain explicit.
 
 The report keeps native tool names and adds typed skill evidence when the
 transcript supplies it. Claude Code attribution, structured `Skill`
-invocations, and names-only skill attachments stay distinct. Cursor `Read` and
+invocations, and names-only skill attachments stay distinct. A native `Skill`
+call retains caller-supplied input under the normal preview cap; attachment
+instruction content is not copied. Available source names are deduplicated by
+name at their latest locator, invoked names remain per occurrence, and
+`source-skill-names` coverage distinguishes an empty native listing from an
+absent carrier. Cursor `Read` and
 `ReadFile` calls can supply inferred `SKILL.md` file-load evidence from their
 structured `path`. Historical Codex transcripts can supply the inference only
 from the exact experimental `read_file.file_path` carrier; upstream removed the
 tool in March 2026, and it is absent from the recent local sample. Shell
 commands, aliases, and prose are never treated as skill loads. Source-wide skill
 names are labelled `captured-source` and participate in the report byte budget
-with explicit omission counts.
+with explicit omission counts. Optional source metadata is trimmed before
+delivered calls and results are removed.
 
 The supported runtimes do not record a skill version. A timestamp-relevant
 installed-file or Git lookup is inferred context, can remain unknown, and is
@@ -100,9 +106,13 @@ combining unlike counters. Claude Code repeats of one `message.id` are
 deduplicated within the exact native session, conflicts are diagnosed, and
 missing IDs remain uncertain. Codex cumulative, last-turn, and
 response-joinable records stay separate; counter decreases mark reset segments,
-and models are attached only through recorded turn evidence. Cursor usage is
-`not-recorded`, not zero. The report emits token fields without pricing or cost
-estimates and explicitly counts usage metadata omitted by its byte budget.
+and samples retain `owned`, `inherited`, or `unknown` lineage. Reset state and
+model joins cannot cross an ownership boundary. Response records match the
+native thread through `thread_id`, while their separate `session_id` remains
+root-session context. Models are attached only through recorded turn evidence
+with matching ownership. Cursor usage is `not-recorded`, not zero. The report
+emits token fields without pricing or cost estimates and explicitly counts
+usage metadata omitted by its byte budget.
 
 Activity previews can contain commands, paths, identifiers, tool inputs, and
 tool outputs even though the conversation section remains sanitized. The

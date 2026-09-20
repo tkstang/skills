@@ -355,12 +355,16 @@ files) and `<local-command-stdout>` (70), and as `system` records with
 
 `attributionSkill` is a top-level assistant-record field, not a member of
 `message`. A `tool_use` whose native name is `Skill` is separate structural
-invocation evidence, and its structured input may name the skill. Names-only
+invocation evidence, and its full caller-supplied structured input remains
+ordinary bounded call input. It is distinct from attachment instruction
+content, which is not copied into skill metadata. Names-only
 source metadata also appears in `attachment.type == "skill_listing"` at
 `attachment.names[]` (availability) and `attachment.type == "invoked_skills"`
 at `attachment.skills[].name` (recorded invocation). Attachment content and path
-bodies are not needed for these names. None of these carriers records a skill
-version.
+bodies are not needed for these names. Available names are deduplicated within
+the captured source using the latest recorded locator; invoked names remain per
+occurrence. `source-skill-names` coverage distinguishes a valid empty listing
+from an absent carrier. None of these carriers records a skill version.
 
 ## 9. Externally persisted output and sizes
 

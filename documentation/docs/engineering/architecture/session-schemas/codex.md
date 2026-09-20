@@ -334,10 +334,14 @@ compaction signal, not as corrupt data.
 The activity reader preserves `total_token_usage`, `last_token_usage`, and
 `token_usage_record` as separate semantics. Identical token-count snapshots are
 collapsed; a cumulative decrease starts a numbered segment and emits a reset
-diagnostic rather than a negative delta. Response usage can inherit a model only
-when its recorded `turn_id` joins a `turn_context`; totals and last-turn records
-remain model-unknown when no native join exists. No counter is converted to
-price or cost.
+diagnostic rather than a negative delta. Cumulative and last-turn samples use
+the native subagent history boundary to remain `owned`, `inherited`, or
+`unknown`; reset state never crosses between those ownership classes. Response
+usage matches `thread_id` to the selected native transcript identity, while its
+distinct `session_id` is root-session context. A response can inherit a model
+only when its recorded `turn_id` joins a `turn_context` with the same ownership;
+totals and last-turn records remain model-unknown when no native join exists. No
+counter is converted to price or cost.
 
 ## Output size limits
 

@@ -175,7 +175,7 @@ function coverage(
       captured: events.length,
     },
     {
-      dataClass: 'skills',
+      dataClass: 'source-skill-names',
       status: 'not-recorded',
       captured: 0,
     },

@@ -116,6 +116,7 @@ export type ActivityUsageSemantics =
 
 export interface ActivityTokenUsageSample {
   semantics: ActivityUsageSemantics;
+  ownership: ActivityOwnership;
   locator: ActivityEventLocator;
   tokens: JsonObject;
   model?: string;
@@ -212,7 +213,7 @@ export type ActivityDataClass =
   | 'metadata'
   | 'persisted-output'
   | 'child-trajectory'
-  | 'skills'
+  | 'source-skill-names'
   | 'record-activity';
 
 export interface ActivityCoverageEntry {
@@ -389,6 +390,7 @@ export interface ExtractedRecordActivity {
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
   sourceSkills?: ActivitySourceSkill[];
+  sourceSkillNamesRecorded?: boolean;
 }
 
 export function isJsonObject(value: unknown): value is JsonObject {

@@ -67,9 +67,19 @@ context, may be unknown, and cannot prove the revision that executed.
 
 The activity reader keeps usage as captured-source metadata. It deduplicates
 Claude Code by exact session and `message.id`, keeps Codex cumulative,
-last-turn, and response-joinable records separate, and reports Cursor usage as
-`not-recorded`. It never treats a missing counter as zero or converts tokens to
-money.
+last-turn, and response-joinable records separate, and labels Codex samples by
+native ownership without carrying reset state or model joins across ownership
+boundaries. Response identity uses native `thread_id`; `session_id` remains root
+context. Cursor usage is `not-recorded`. It never treats a missing counter as
+zero or converts tokens to money.
+
+Source-level skill-name coverage uses `source-skill-names`, separate from
+per-event attribution, invocation, or inferred file-read evidence. Claude Code
+empty listings are available with zero captured names, absent carriers are
+`not-recorded`, available names retain the latest locator per name, and invoked
+names remain per occurrence. Optional captured-source skill and usage metadata
+is reduced before delivered event groups when a report reaches its byte budget;
+omission counts retain the complete captured-source totals.
 
 ## Repository parser support
 

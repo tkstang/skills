@@ -72,16 +72,25 @@ delivered range can retain a small `outside-delivered-range` call context
 without replaying the call as new activity.
 
 Skill evidence is additive to the native tool name. Claude Code can record a
-top-level skill attribution or a structured `Skill` invocation; captured-source
-attachments separately distinguish available skill names from recorded invoked
-names. Cursor contributes inferred load evidence only when a recorded `Read` or
+top-level skill attribution or a structured `Skill` invocation. The native
+`Skill` call retains its caller-supplied input under the ordinary preview cap;
+instruction content in source attachments is not copied into the report.
+Captured-source attachments separately distinguish available skill names from
+recorded invoked names. Available names are deduplicated by name with the latest
+recorded locator retained, while invoked names remain per occurrence. Coverage
+uses the explicit `source-skill-names` class, so a valid empty native listing is
+`available` with zero names and an absent listing is `not-recorded`; event-level
+skill evidence remains independent. Cursor contributes inferred load evidence
+only when a recorded `Read` or
 `ReadFile` call has a structured `path` ending in `SKILL.md`. Historical Codex
 transcripts can contribute the same inference only through the exact
 experimental `read_file` function's structured `file_path`; upstream removed
 that native tool in March 2026, and it was absent from the recent local sample.
 Current shell reads, aliases, and prose mentions are not parsed. Captured-source
 skill metadata can describe records outside the delivered range and is labelled
-accordingly; the report counts any entries removed by its byte budget.
+accordingly. Optional source metadata is trimmed before delivered calls and
+results compete for the report byte budget, and exact omission counts preserve
+the captured-source totals.
 
 None of these runtimes records the executed skill version. Looking up an
 installed file or Git revision relevant to the transcript timestamp is an
@@ -92,10 +101,14 @@ by exact native session and `message.id`; conflicting repeats are diagnosed and
 missing IDs remain explicitly uncertain. Codex cumulative totals, last-turn
 usage, and response-joinable usage remain separate samples. Repeated snapshots
 collapse, decreases start a new segment instead of producing negative usage,
-and a model appears only when a native turn join supports it. Cursor reports
-usage as `not-recorded`, never zero. Reports contain token fields only and do
-not estimate price or cost. Usage samples and diagnostics participate in the
-activity byte budget with explicit omission counts.
+and each sample is labelled `owned`, `inherited`, or `unknown` from the same
+native lineage boundary used for activity. Reset state and model joins do not
+cross that boundary. Response usage is matched to the transcript's native
+`thread_id`; its distinct `session_id` remains root-session context. A model
+appears only when a native turn join with matching ownership supports it.
+Cursor reports usage as `not-recorded`, never zero. Reports contain token fields
+only and do not estimate price or cost. Usage samples and diagnostics
+participate in the activity byte budget with explicit omission counts.
 
 Claude Code and Codex conversation and activity come from one detailed read.
 Cursor uses one physical-frame scan. `review` is a stateless full snapshot and

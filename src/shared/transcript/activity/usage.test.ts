@@ -156,7 +156,8 @@ describe('captured-source token usage', () => {
     ): JsonObject => ({
       type: 'token_usage_record',
       payload: {
-        session_id: 'native-session',
+        thread_id: 'native-session',
+        session_id: 'root-session',
         response_id: responseId,
         turn_id: turnId,
         usage: { input_tokens: total - 1, total_tokens: total },
@@ -167,28 +168,36 @@ describe('captured-source token usage', () => {
     const records = [
       detailed(
         {
-          type: 'turn_context',
-          payload: { turn_id: 'turn-1', model: 'gpt-fixture' },
+          type: 'session_meta',
+          payload: { id: 'native-session', session_id: 'root-session' },
         },
         0,
       ),
-      detailed(tokenCount(100, 20), 1),
+      detailed(
+        {
+          type: 'turn_context',
+          payload: { turn_id: 'turn-1', model: 'gpt-fixture' },
+        },
+        1,
+      ),
       detailed(tokenCount(100, 20), 2),
-      detailed(tokenCount(80, 10), 3),
-      detailed(response('response-1', 'turn-1', 12), 4),
+      detailed(tokenCount(100, 20), 3),
+      detailed(tokenCount(80, 10), 4),
       detailed(response('response-1', 'turn-1', 12), 5),
-      detailed(response('response-1', 'turn-1', 15), 6),
-      detailed(response('response-2', 'turn-unknown', 7), 7),
+      detailed(response('response-1', 'turn-1', 12), 6),
+      detailed(response('response-1', 'turn-1', 15), 7),
+      detailed(response('response-2', 'turn-unknown', 7), 8),
       detailed(
         {
           type: 'token_usage_record',
           payload: {
-            session_id: 'other-session',
+            thread_id: 'other-thread',
+            session_id: 'root-session',
             response_id: 'wrong-session',
             usage: { total_tokens: 999 },
           },
         },
-        8,
+        9,
       ),
     ];
 
@@ -209,6 +218,14 @@ describe('captured-source token usage', () => {
     expect(metadata?.samples.slice(0, 4).map(({ segment }) => segment)).toEqual(
       [0, 0, 1, 1],
     );
+    expect(metadata?.samples.map(({ ownership }) => ownership)).toEqual([
+      'owned',
+      'owned',
+      'owned',
+      'owned',
+      'owned',
+      'owned',
+    ]);
     expect(metadata?.samples[4]).toMatchObject({
       responseId: 'response-1',
       turnId: 'turn-1',
@@ -226,6 +243,92 @@ describe('captured-source token usage', () => {
       'USAGE_SESSION_MISMATCH',
     ]);
     expect(JSON.stringify(metadata)).not.toMatch(/price|cost|currency/iu);
+  });
+
+  it('labels inherited, owned, and unknown Codex counters without crossing ownership boundaries', () => {
+    const tokenCount = (
+      total: number,
+      ordinal?: number,
+    ): DetailedTranscriptRecord =>
+      detailed(
+        {
+          ...(ordinal === undefined ? {} : { ordinal }),
+          type: 'event_msg',
+          payload: {
+            type: 'token_count',
+            info: {
+              total_token_usage: { total_tokens: total },
+              last_token_usage: { total_tokens: total / 10 },
+            },
+          },
+        },
+        total,
+      );
+    const records = [
+      detailed(
+        {
+          ordinal: 0,
+          type: 'session_meta',
+          payload: {
+            id: 'native-session',
+            session_id: 'root-session',
+            parent_thread_id: 'parent-thread',
+            subagent_history_start_ordinal: 5,
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          ordinal: 4,
+          type: 'turn_context',
+          payload: { turn_id: 'cross-boundary-turn', model: 'parent-model' },
+        },
+        1,
+      ),
+      tokenCount(100, 2),
+      tokenCount(120, 3),
+      tokenCount(20, 6),
+      tokenCount(10, 7),
+      tokenCount(8),
+      detailed(
+        {
+          ordinal: 8,
+          type: 'token_usage_record',
+          payload: {
+            thread_id: 'native-session',
+            session_id: 'root-session',
+            response_id: 'owned-response',
+            turn_id: 'cross-boundary-turn',
+            usage: { total_tokens: 4 },
+          },
+        },
+        8,
+      ),
+    ];
+
+    const metadata = extractActivity({
+      source: source('codex'),
+      read: { ...SNAPSHOT, records, diagnostics: [] },
+    }).sourceMetadata?.usage;
+
+    expect(metadata?.samples.map(({ ownership }) => ownership)).toEqual([
+      'inherited',
+      'inherited',
+      'inherited',
+      'inherited',
+      'owned',
+      'owned',
+      'owned',
+      'owned',
+      'unknown',
+      'unknown',
+      'owned',
+    ]);
+    expect(metadata?.diagnostics.map(({ code }) => code)).toEqual([
+      'USAGE_COUNTER_RESET',
+    ]);
+    expect(metadata?.samples.at(-1)).not.toHaveProperty('model');
   });
 
   it('reports absence as not-recorded instead of zero', () => {

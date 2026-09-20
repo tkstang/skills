@@ -190,6 +190,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     for (const sample of usage.samples) {
       const identity = Object.fromEntries(
         Object.entries({
+          ownership: sample.ownership,
           model: sample.model,
           messageId: sample.messageId,
           turnId: sample.turnId,

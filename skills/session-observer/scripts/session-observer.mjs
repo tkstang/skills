@@ -1739,13 +1739,13 @@ function headerOwnershipEvidence(event) {
   }
   return { kind: "bounded-child", boundary, parentThreadId };
 }
-function ownershipContext(activity) {
-  if (activity.source.runtime !== "codex") return { kind: "root" };
-  const headers = activity.events.filter((event) => {
+function activityOwnershipContext(source, events) {
+  if (source.runtime !== "codex") return { kind: "root" };
+  const headers = events.filter((event) => {
     if (event.kind !== "metadata" || event.nativeType !== "session_meta") {
       return false;
     }
-    return metadataObject(event)?.nativeSessionId === activity.source.nativeSessionId;
+    return metadataObject(event)?.nativeSessionId === source.nativeSessionId;
   });
   if (headers.length === 0) return { kind: "unknown" };
   const evidence = headers.map(headerOwnershipEvidence);
@@ -1765,12 +1765,12 @@ function ownershipContext(activity) {
     boundary: evidence[0].boundary
   };
 }
-function ownershipFor(event, context) {
+function ownershipForLocator(locator, context) {
   if (context.kind === "root") return "owned";
-  if (context.kind === "unknown" || typeof event.locator.ordinal !== "number" || !Number.isSafeInteger(event.locator.ordinal)) {
+  if (context.kind === "unknown" || typeof locator.ordinal !== "number" || !Number.isSafeInteger(locator.ordinal)) {
     return "unknown";
   }
-  return event.locator.ordinal < context.boundary ? "inherited" : "owned";
+  return locator.ordinal < context.boundary ? "inherited" : "owned";
 }
 function callsBy(calls, field) {
   const lookup = /* @__PURE__ */ new Map();
@@ -1859,7 +1859,7 @@ function correlationCounts(events) {
   };
 }
 function correlateActivity(activity) {
-  const context = ownershipContext(activity);
+  const context = activityOwnershipContext(activity.source, activity.events);
   const calls = activity.events.filter((event) => event.kind === "call");
   const byCallId = callsBy(calls, "nativeCallId");
   const byNativeId = callsBy(calls, "nativeId");
@@ -1868,7 +1868,7 @@ function correlateActivity(activity) {
     const category = categoryFor(event, related);
     return {
       ...event,
-      ownership: ownershipFor(event, context),
+      ownership: ownershipForLocator(event.locator, context),
       ...category === void 0 ? {} : { category },
       ...related === void 0 ? {} : { relatedCallKey: related.eventKey }
     };
@@ -1955,15 +1955,6 @@ function claudeSkillEvidence(record, nativeName, input) {
     });
   }
   return evidence.length === 0 ? void 0 : evidence;
-}
-function claudeToolArguments(nativeName, input) {
-  if (nativeName !== "Skill") return input;
-  if (!isJsonObject3(input)) return void 0;
-  const skill = nonEmptyString(input.skill);
-  const name = nonEmptyString(input.name);
-  if (skill !== void 0) return { skill };
-  if (name !== void 0) return { name };
-  return void 0;
 }
 function claudeSourceSkills(detailed) {
   const { record } = detailed;
@@ -2152,6 +2143,7 @@ function extractClaudeRecord(source, detailed) {
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
   const sourceSkills = claudeSourceSkills(detailed);
+  const sourceSkillNamesRecorded = record.type === "attachment" && isJsonObject3(record.attachment) && record.attachment.type === "skill_listing" && Array.isArray(record.attachment.names);
   if (systemActivity) events.push(systemActivity);
   if (record.type === "assistant") {
     const metadata = selectedClaudeMetadata(record);
@@ -2177,7 +2169,6 @@ function extractClaudeRecord(source, detailed) {
         const nativeCallId = stringValue2(candidate.id);
         const nativeName = stringValue2(candidate.name);
         const input = Object.hasOwn(candidate, "input") ? candidate.input : void 0;
-        const argumentsValue = claudeToolArguments(nativeName, input);
         const skillEvidence = claudeSkillEvidence(record, nativeName, input);
         events.push({
           eventKey: eventKey(source, locator),
@@ -2187,7 +2178,7 @@ function extractClaudeRecord(source, detailed) {
           outcome: "pending",
           ...nativeCallId === void 0 ? {} : { nativeCallId },
           ...nativeName === void 0 ? {} : { nativeName },
-          ...argumentsValue === void 0 ? {} : { arguments: argumentsValue },
+          ...input === void 0 ? {} : { arguments: input },
           ...skillEvidence === void 0 ? {} : { skillEvidence }
         });
         return;
@@ -2235,7 +2226,13 @@ function extractClaudeRecord(source, detailed) {
       origin: provenance
     });
   }
-  return { events, coverage: coverage2, diagnostics: [], sourceSkills };
+  return {
+    events,
+    coverage: coverage2,
+    diagnostics: [],
+    sourceSkills,
+    ...sourceSkillNamesRecorded ? { sourceSkillNamesRecorded: true } : {}
+  };
 }
 
 // src/shared/transcript/terminal-events.ts
@@ -2950,6 +2947,7 @@ function claudeUsage(source, records) {
     const model = stringValue2(message.model)?.trim() || void 0;
     const sample = {
       semantics: "claude-message",
+      ownership: "owned",
       locator,
       tokens,
       ...model === void 0 ? {} : { model },
@@ -2979,20 +2977,26 @@ function claudeUsage(source, records) {
     diagnostics
   };
 }
-function codexUsage(source, records) {
+function codexUsage(source, records, events) {
   const samples = [];
   const diagnostics = [];
+  const ownershipContext = activityOwnershipContext(source, events);
   const turnModels = /* @__PURE__ */ new Map();
-  for (const { record } of records) {
+  for (const detailed of records) {
+    const { record } = detailed;
     if (record.type !== "turn_context" || !isJsonObject3(record.payload))
       continue;
     const turnId = stringValue2(record.payload.turn_id);
     const model = stringValue2(record.payload.model);
-    if (turnId && model) turnModels.set(turnId, model);
+    if (turnId && model) {
+      const ownership = ownershipForLocator(
+        recordLocator(detailed, "/payload"),
+        ownershipContext
+      );
+      turnModels.set(`${ownership}:${turnId}`, model);
+    }
   }
-  let previousSnapshot;
-  let previousTotal;
-  let segment = 0;
+  const counterStates = /* @__PURE__ */ new Map();
   const responses = /* @__PURE__ */ new Map();
   for (const detailed of records) {
     const { record } = detailed;
@@ -3003,40 +3007,49 @@ function codexUsage(source, records) {
       const total = tokenFields(info.total_token_usage);
       const last = tokenFields(info.last_token_usage);
       if (!total && !last) continue;
+      const totalLocator = recordLocator(
+        detailed,
+        "/payload/info/total_token_usage"
+      );
+      const ownership2 = ownershipForLocator(totalLocator, ownershipContext);
+      const state = counterStates.get(ownership2) ?? { segment: 0 };
       const snapshot = signature({ total, last });
-      if (snapshot === previousSnapshot) continue;
-      previousSnapshot = snapshot;
+      if (snapshot === state.previousSnapshot) continue;
+      state.previousSnapshot = snapshot;
       const totalTokens = total ? numberValue(total.total_tokens) : void 0;
-      if (totalTokens !== void 0 && previousTotal !== void 0 && totalTokens < previousTotal) {
-        segment += 1;
+      if (totalTokens !== void 0 && state.previousTotal !== void 0 && totalTokens < state.previousTotal) {
+        state.segment += 1;
         diagnostics.push({
           code: "USAGE_COUNTER_RESET",
-          locator: recordLocator(detailed, "/payload/info/total_token_usage")
+          locator: totalLocator
         });
       }
-      if (totalTokens !== void 0) previousTotal = totalTokens;
+      if (totalTokens !== void 0) state.previousTotal = totalTokens;
+      counterStates.set(ownership2, state);
       if (total) {
         samples.push({
           semantics: "codex-cumulative",
-          locator: recordLocator(detailed, "/payload/info/total_token_usage"),
+          ownership: ownership2,
+          locator: totalLocator,
           tokens: total,
-          segment
+          segment: state.segment
         });
       }
       if (last) {
         samples.push({
           semantics: "codex-last-turn",
+          ownership: ownership2,
           locator: recordLocator(detailed, "/payload/info/last_token_usage"),
           tokens: last,
-          segment
+          segment: state.segment
         });
       }
       continue;
     }
     if (record.type !== "token_usage_record" || !payload) continue;
-    const recordedSessionId = stringValue2(payload.session_id);
+    const recordedThreadId = stringValue2(payload.thread_id);
     const locator = recordLocator(detailed, "/payload");
-    if (recordedSessionId !== void 0 && recordedSessionId !== source.nativeSessionId) {
+    if (recordedThreadId !== void 0 && recordedThreadId !== source.nativeSessionId) {
       diagnostics.push({ code: "USAGE_SESSION_MISMATCH", locator });
       continue;
     }
@@ -3061,9 +3074,11 @@ function codexUsage(source, records) {
       }
       responses.set(responseId, sampleSignature);
     }
-    const model = turnId ? turnModels.get(turnId) : void 0;
+    const ownership = ownershipForLocator(locator, ownershipContext);
+    const model = turnId ? turnModels.get(`${ownership}:${turnId}`) : void 0;
     samples.push({
       semantics: "codex-response",
+      ownership,
       locator,
       tokens,
       ...model === void 0 ? {} : { model },
@@ -3078,8 +3093,8 @@ function codexUsage(source, records) {
     diagnostics
   };
 }
-function extractUsageMetadata(source, records) {
-  return source.runtime === "claude-code" ? claudeUsage(source, records) : codexUsage(source, records);
+function extractUsageMetadata(source, records, events = []) {
+  return source.runtime === "claude-code" ? claudeUsage(source, records) : codexUsage(source, records, events);
 }
 function notRecordedUsage() {
   return {
@@ -3157,6 +3172,7 @@ function extractActivity(input) {
   const coverage2 = [];
   const diagnostics = [];
   const sourceSkills = [];
+  let sourceSkillNamesRecorded = false;
   let usage = notRecordedUsage();
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator = {
@@ -3189,9 +3205,18 @@ function extractActivity(input) {
     coverage2.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
     sourceSkills.push(...extracted.sourceSkills ?? []);
+    sourceSkillNamesRecorded ||= extracted.sourceSkillNamesRecorded === true;
   }
+  const latestAvailableSkill = /* @__PURE__ */ new Map();
+  for (const skill of sourceSkills) {
+    if (skill.evidence === "available")
+      latestAvailableSkill.set(skill.name, skill);
+  }
+  const deduplicatedSourceSkills = sourceSkills.filter(
+    (skill) => skill.evidence === "invoked" || latestAvailableSkill.get(skill.name) === skill
+  );
   try {
-    usage = extractUsageMetadata(input.source, input.read.records);
+    usage = extractUsageMetadata(input.source, input.read.records, events);
   } catch {
     usage = notRecordedUsage();
   }
@@ -3206,16 +3231,18 @@ function extractActivity(input) {
     diagnostics,
     sourceMetadata: {
       scope: "captured-source",
-      skills: sourceSkills,
+      skills: deduplicatedSourceSkills,
       usage
     },
     coverage: [
       ...baseCoverage(events),
       ...coverage2,
       {
-        dataClass: "skills",
-        status: input.source.runtime === "claude-code" && sourceSkills.length > 0 ? "available" : "not-recorded",
-        captured: sourceSkills.length
+        dataClass: "source-skill-names",
+        status: sourceSkillNamesRecorded ? "available" : "not-recorded",
+        captured: deduplicatedSourceSkills.filter(
+          (skill) => skill.evidence === "available"
+        ).length
       }
     ]
   };
@@ -3365,6 +3392,7 @@ function renderActivityMarkdown(report) {
     for (const sample of usage.samples) {
       const identity = Object.fromEntries(
         Object.entries({
+          ownership: sample.ownership,
           model: sample.model,
           messageId: sample.messageId,
           turnId: sample.turnId,
@@ -3622,6 +3650,54 @@ function retainMetadata(metadata, retainedCount) {
     }
   };
 }
+function retainOptionalSourceMetadata(metadata, retainedCount) {
+  const priority = [
+    ...metadata.sourceSkills.map(
+      (entry, index) => ({
+        kind: "sourceSkills",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index) => ({
+        kind: "usageSamples",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index) => ({
+        kind: "usageDiagnostics",
+        index,
+        locator: entry.locator
+      })
+    )
+  ].toSorted(compareMetadataPriority);
+  const retainedSourceSkills = /* @__PURE__ */ new Set();
+  const retainedUsageSamples = /* @__PURE__ */ new Set();
+  const retainedUsageDiagnostics = /* @__PURE__ */ new Set();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    const target = candidate.kind === "sourceSkills" ? retainedSourceSkills : candidate.kind === "usageSamples" ? retainedUsageSamples : retainedUsageDiagnostics;
+    target.add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics,
+    sourceSkills: metadata.sourceSkills.filter(
+      (_, index) => retainedSourceSkills.has(index)
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter(
+        (_, index) => retainedUsageSamples.has(index)
+      ),
+      diagnostics: metadata.usage.diagnostics.filter(
+        (_, index) => retainedUsageDiagnostics.has(index)
+      )
+    }
+  };
+}
 function projectEvent(event, limits, suppressLinkedItemOutput) {
   return {
     eventKey: event.eventKey,
@@ -3795,10 +3871,49 @@ function projectActivityWithLimits(activity, options, limits) {
     initialReasons
   );
   if (initial.renderedBytes <= limits.maxBytes) return initial;
+  const optionalMetadataCount = metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
+  let optionalLow = 0;
+  let optionalHigh = optionalMetadataCount;
+  let best;
+  while (optionalLow <= optionalHigh) {
+    const retainedCount = Math.floor((optionalLow + optionalHigh) / 2);
+    const retainedMetadata = retainOptionalSourceMetadata(
+      metadata,
+      retainedCount
+    );
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      retained,
+      retainedMetadata,
+      {
+        ...initialReasons,
+        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples: metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
+      }
+    );
+    if (candidate.renderedBytes <= limits.maxBytes) {
+      best = candidate;
+      optionalLow = retainedCount + 1;
+    } else {
+      optionalHigh = retainedCount - 1;
+    }
+  }
+  if (best) return best;
+  const boundedMetadata = retainOptionalSourceMetadata(metadata, 0);
+  const boundedReasons = {
+    ...initialReasons,
+    sourceSkills: metadata.sourceSkills.length,
+    usageSamples: metadata.usage.samples.length,
+    usageDiagnostics: metadata.usage.diagnostics.length
+  };
   const removable = groups.filter((group) => retained.has(group.key)).toSorted(compareLowPriority);
   let low = 1;
   let high = removable.length;
-  let best;
+  best = void 0;
   while (low <= high) {
     const removedCount = Math.floor((low + high) / 2);
     const candidateKeys = new Set(retained);
@@ -3811,9 +3926,9 @@ function projectActivityWithLimits(activity, options, limits) {
       limits,
       groups,
       candidateKeys,
-      metadata,
+      boundedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removedCount
       }
     );
@@ -3958,7 +4073,7 @@ function coverage(events, scan, mode) {
       captured: events.length
     },
     {
-      dataClass: "skills",
+      dataClass: "source-skill-names",
       status: "not-recorded",
       captured: 0
     },
@@ -10581,7 +10696,7 @@ function activitySourceSignature(target) {
 function activityCoverageSignal(digest) {
   return Boolean(
     digest.activity?.diagnostics.length || digest.activity?.coverage.some(
-      (entry) => entry.dataClass !== "skills" && (entry.locator !== void 0 || entry.status !== "available")
+      (entry) => entry.dataClass !== "source-skill-names" && (entry.locator !== void 0 || entry.status !== "available")
     )
   );
 }

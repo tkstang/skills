@@ -45,19 +45,6 @@ function claudeSkillEvidence(
   return evidence.length === 0 ? undefined : evidence;
 }
 
-function claudeToolArguments(
-  nativeName: string | undefined,
-  input: unknown,
-): unknown {
-  if (nativeName !== 'Skill') return input;
-  if (!isJsonObject(input)) return undefined;
-  const skill = nonEmptyString(input.skill);
-  const name = nonEmptyString(input.name);
-  if (skill !== undefined) return { skill };
-  if (name !== undefined) return { name };
-  return undefined;
-}
-
 function claudeSourceSkills(
   detailed: DetailedTranscriptRecord,
 ): ActivitySourceSkill[] {
@@ -292,6 +279,11 @@ export function extractClaudeRecord(
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
   const sourceSkills = claudeSourceSkills(detailed);
+  const sourceSkillNamesRecorded =
+    record.type === 'attachment' &&
+    isJsonObject(record.attachment) &&
+    record.attachment.type === 'skill_listing' &&
+    Array.isArray(record.attachment.names);
 
   if (systemActivity) events.push(systemActivity);
 
@@ -325,7 +317,6 @@ export function extractClaudeRecord(
         const input = Object.hasOwn(candidate, 'input')
           ? candidate.input
           : undefined;
-        const argumentsValue = claudeToolArguments(nativeName, input);
         const skillEvidence = claudeSkillEvidence(record, nativeName, input);
         events.push({
           eventKey: eventKey(source, locator),
@@ -335,9 +326,7 @@ export function extractClaudeRecord(
           outcome: 'pending',
           ...(nativeCallId === undefined ? {} : { nativeCallId }),
           ...(nativeName === undefined ? {} : { nativeName }),
-          ...(argumentsValue === undefined
-            ? {}
-            : { arguments: argumentsValue }),
+          ...(input === undefined ? {} : { arguments: input }),
           ...(skillEvidence === undefined ? {} : { skillEvidence }),
         });
         return;
@@ -392,5 +381,11 @@ export function extractClaudeRecord(
     });
   }
 
-  return { events, coverage, diagnostics: [], sourceSkills };
+  return {
+    events,
+    coverage,
+    diagnostics: [],
+    sourceSkills,
+    ...(sourceSkillNamesRecorded ? { sourceSkillNamesRecorded: true } : {}),
+  };
 }

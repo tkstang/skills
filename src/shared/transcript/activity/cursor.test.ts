@@ -133,7 +133,7 @@ describe('extractCursorActivity', () => {
     });
     expect(activity.events[1]).not.toHaveProperty('skillEvidence');
     expect(activity.coverage).toContainEqual({
-      dataClass: 'skills',
+      dataClass: 'source-skill-names',
       status: 'not-recorded',
       captured: 0,
     });
