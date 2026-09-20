@@ -15,6 +15,7 @@ job you want help with:
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Create, improve, or assess an artifact with independent peers       | [Consensus](user-guide/consensus/index.md)                                                         |
 | Hear another perspective without running a convergence loop         | [Phone-a-Friend](user-guide/consensus/phone-a-friend.md) or [Panel](user-guide/consensus/panel.md) |
+| Exchange addressed work across local coding-agent sessions          | [Agent Messaging](user-guide/skills/agent-messaging.md)                                            |
 | Hand work to another session, keep an archive, or review an episode | [Session](user-guide/plugins/session/index.md)                                                     |
 | Decide what comes next or whether a proposed step is necessary      | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Check whether a plan or implementation is needlessly complex        | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
@@ -23,7 +24,7 @@ job you want help with:
 ## Plugins or standalone skills?
 
 **Plugins** bundle related capabilities: Consensus for peer workflows and
-session observation, Session for continuity and retrospective review.
+session observation, Session for messaging, continuity, and retrospective review.
 **Standalone skills** let you install individual declared capabilities. Some
 skills are available both ways; both navigation paths lead to one guide.
 

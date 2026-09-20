@@ -1,3 +1,4 @@
+import type { ClaimHooks } from '../../../../shared/collaboration/claims.js';
 import type { Lease } from '../lib/lease-state.mjs';
 import type { RuntimeAdapter } from '../lib/runtime-adapter.mjs';
 
@@ -14,6 +15,9 @@ export interface CodexStopHookOptions {
   now?: () => number;
   signal?: AbortSignal;
   beforeCursorUpdate?: () => unknown | Promise<unknown>;
+  messageClaimHooks?: ClaimHooks;
+  observationClaimHooks?: ClaimHooks;
+  afterSharedSlot?: () => unknown | Promise<unknown>;
 }
 
 export interface CodexStopHookResult {

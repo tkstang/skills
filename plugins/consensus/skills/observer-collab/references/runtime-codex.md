@@ -138,6 +138,21 @@ credentials, trust records, transcript data, or live leases.
 
 ## Bounded lease lifecycle
 
+When agent messaging is enabled for the same exact session, the verified
+observer adapter may own one composed `observer-collab` activation. The
+messaging enable command selects that controller only while the matching lease
+is active and this installed bundle is recognized; it refuses competing
+standalone messaging Stop registrations. The composed adapter checks addressed
+requests first, otherwise reserves the activation's shared continuation slot
+before observer cursor compare-and-swap. Request acknowledgment never advances
+observer cursors. Disable and re-enable explicitly to change controllers.
+
+The installed hook or lease alone is not composition proof. Confirm the
+activation reports `controller: "observer-collab"`, `mechanism: "stop"`, the
+same session/worktree identity, and a finite remaining shared budget. If any
+fact is missing or mismatched, keep the inbox and observer manual rather than
+installing a second Stop route.
+
 The lease contains the exact Codex session ID, resolved worktree path, peer
 runtime/session, peer transcript, cursor, finite continuation and loop caps,
 and expiry. The global hook checks all of those facts on every Stop event. A

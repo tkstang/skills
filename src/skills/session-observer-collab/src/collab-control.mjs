@@ -5,6 +5,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  appendLogEntry,
+  getLogView,
+  renderLog,
+} from '../../../shared/collaboration/log.js';
+import {
+  joinCollaboration,
+  openCollaboration,
+} from '../../../shared/collaboration/membership.js';
+import { collaborationPaths } from '../../../shared/collaboration/paths.js';
+import { assertPin } from '../../../shared/collaboration/types.js';
+import {
   assessCodexHookReadiness,
   inspectCodexStopHook,
   installCodexStopHook,
@@ -38,6 +49,88 @@ import { captureCursorArmContinuity } from './lib/selected-prefix.mjs';
 
 export const CONTROL_SCHEMA_VERSION = 1;
 
+const COMMON_OPTIONS = ['root', 'json'];
+const COMMAND_OPTIONS = Object.freeze({
+  'collaboration-open': [
+    ...COMMON_OPTIONS,
+    'collab',
+    'self',
+    'alias',
+    'label',
+    'task',
+    'cwd',
+  ],
+  'collaboration-join': [...COMMON_OPTIONS, 'collab', 'self', 'alias', 'cwd'],
+  'log-append': [
+    ...COMMON_OPTIONS,
+    'collab',
+    'self',
+    'id',
+    'category',
+    'title',
+    'what',
+    'what-stdin',
+    'assessment',
+    'implication',
+  ],
+  'log-show': [...COMMON_OPTIONS, 'collab'],
+  'log-render': [...COMMON_OPTIONS, 'collab'],
+  install: [...COMMON_OPTIONS, 'runtime', 'command', 'session'],
+  arm: [
+    ...COMMON_OPTIONS,
+    'runtime',
+    'peer-runtime',
+    'session',
+    'peer-session',
+    'cwd',
+    'peer-transcript',
+    'peer-index-base',
+    'wait-ms',
+    'lease-ms',
+    'continuation-cap',
+    'loop-cap',
+    'cursor',
+    'collaboration-id',
+    'activation-id',
+    'confirm-old-monitor-stopped',
+    'confirm-standalone-watcher-stopped',
+  ],
+  disarm: [...COMMON_OPTIONS, 'session'],
+  status: [...COMMON_OPTIONS, 'session'],
+  prune: [...COMMON_OPTIONS, 'session'],
+  'codex-install': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'source-script-path',
+    'session',
+  ],
+  'codex-status': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'session',
+    'trust-records-path',
+    'hook-statuses-path',
+  ],
+  'codex-uninstall': [
+    ...COMMON_OPTIONS,
+    'hooks-path',
+    'script-path',
+    'session',
+    'confirmed',
+    'remove-script',
+  ],
+});
+const BOOLEAN_OPTIONS = new Set([
+  'json',
+  'confirmed',
+  'remove-script',
+  'what-stdin',
+  'confirm-old-monitor-stopped',
+  'confirm-standalone-watcher-stopped',
+]);
+
 function numberOption(value, name, min, max) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max)
@@ -48,19 +141,20 @@ function numberOption(value, name, min, max) {
 export function parseArgs(argv) {
   const [command, ...rest] = argv;
   const options = {};
+  const allowed = new Set(COMMAND_OPTIONS[command] ?? []);
   for (let i = 0; i < rest.length; i += 1) {
     const token = rest[i];
     if (!token.startsWith('--'))
       throw new Error(`unexpected argument: ${token}`);
     const [rawKey, inline] = token.slice(2).split('=', 2);
+    if (!allowed.has(rawKey))
+      throw new Error(
+        `unknown option for ${command ?? 'command'}: --${rawKey}`,
+      );
     const key = rawKey.replace(/-([a-z])/g, (_, letter) =>
       letter.toUpperCase(),
     );
-    if (
-      rawKey === 'json' ||
-      rawKey === 'confirmed' ||
-      rawKey === 'remove-script'
-    ) {
+    if (BOOLEAN_OPTIONS.has(rawKey)) {
       options[key] = true;
       continue;
     }
@@ -70,6 +164,47 @@ export function parseArgs(argv) {
     options[key] = value;
   }
   return { command, options };
+}
+
+function requiredOption(options, key, flag = key) {
+  const value = options[key];
+  if (typeof value !== 'string' || value.length === 0)
+    throw new Error(`--${flag} is required`);
+  return value;
+}
+
+function parsePin(value) {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1)
+    throw new Error('--self must use <runtime>:<session-id>');
+  const pin = {
+    runtime: value.slice(0, separator),
+    sessionId: value.slice(separator + 1),
+  };
+  assertPin(pin);
+  return pin;
+}
+
+function sharedResult(root, collaborationId, data) {
+  return {
+    collaborationId,
+    root,
+    paths: collaborationPaths(root, collaborationId),
+    delivery: 'disabled',
+    data,
+  };
+}
+
+async function readStdinBounded() {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of process.stdin) {
+    bytes += chunk.length;
+    if (bytes > 16 * 1024)
+      throw new Error('standard input exceeds 16384 bytes');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 async function readInstallation(root) {
@@ -175,12 +310,42 @@ export async function arm(root, options, now = Date.now()) {
     1,
     MAX_LOOPS,
   );
-  const cursor = numberOption(
-    options.cursor ?? 0,
-    'cursor',
-    0,
-    Number.MAX_SAFE_INTEGER,
-  );
+  const composedActivation =
+    runtime === 'claude-code'
+      ? (() => {
+          const collaborationId = String(options.collaborationId ?? '');
+          const activationId = String(options.activationId ?? '');
+          const uuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+          if (!uuid.test(collaborationId) || !uuid.test(activationId))
+            throw new Error(
+              'Claude Monitor arm requires --collaboration-id and --activation-id UUIDs',
+            );
+          if (
+            options.confirmOldMonitorStopped !== true ||
+            options.confirmStandaloneWatcherStopped !== true
+          ) {
+            throw new Error(
+              'Claude Monitor arm requires exact acting-session confirmation that the old Monitor and standalone watcher are stopped',
+            );
+          }
+          return {
+            collaborationId,
+            activationId,
+            controller: 'observer-collab',
+            mechanism: 'monitor',
+            ownerRuntime: runtime,
+            ownerSession,
+            peerRuntime,
+            peerSession,
+            ownerCwd,
+            peerTranscript: peerPath.peerTranscript,
+            confirmedAt: new Date(now).toISOString(),
+            oldMonitorStopped: true,
+            standaloneWatcherStopped: true,
+          };
+        })()
+      : null;
   const identity = {
     runtime,
     peerRuntime,
@@ -201,6 +366,53 @@ export async function arm(root, options, now = Date.now()) {
         if (error?.code !== 'cursor-lease-rearm-required') throw error;
         existing = null;
       }
+      const isClaudeRearm = runtime === 'claude-code' && existing !== null;
+      if (isClaudeRearm) {
+        if (
+          existing.runtime !== runtime ||
+          existing.peerRuntime !== peerRuntime ||
+          existing.ownerSession !== ownerSession ||
+          existing.ownerCwd !== ownerCwd ||
+          existing.peerSession !== peerSession ||
+          existing.peerTranscript !== peerPath.peerTranscript ||
+          existing.composedActivation?.collaborationId !==
+            composedActivation.collaborationId ||
+          existing.composedActivation?.activationId !==
+            composedActivation.activationId
+        ) {
+          throw new Error(
+            'Claude Monitor re-arm must preserve the exact owner, peer, transcript, cwd, collaboration, and activation',
+          );
+        }
+        if (
+          now >= Date.parse(existing.expiresAt) ||
+          existing.continuationCount >= existing.continuationCap ||
+          existing.loopCount >= existing.loopCap
+        ) {
+          throw new Error(
+            'Claude Monitor re-arm cannot revive an expired or exhausted observer lease',
+          );
+        }
+      }
+      if (
+        runtime === 'claude-code' &&
+        !isClaudeRearm &&
+        options.cursor === undefined
+      ) {
+        throw new Error(
+          'Claude Monitor initial arm requires an explicit private --cursor',
+        );
+      }
+      const cursor = numberOption(
+        options.cursor ?? existing?.peerCursor ?? 0,
+        'cursor',
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+      if (isClaudeRearm && cursor !== existing.peerCursor)
+        throw new Error(
+          'Claude Monitor re-arm cannot reset the private cursor',
+        );
       const peerContinuity =
         peerRuntime === 'cursor'
           ? await captureCursorArmContinuity(
@@ -216,6 +428,7 @@ export async function arm(root, options, now = Date.now()) {
         loopCap,
         waitMs,
         leaseMs,
+        ...(runtime === 'claude-code' ? { composedActivation } : {}),
       };
       if (
         existing &&
@@ -236,18 +449,23 @@ export async function arm(root, options, now = Date.now()) {
         state: 'armed',
         peerCursor: cursor,
         peerContinuity,
-        continuationCount: 0,
-        continuationCap,
-        loopCount: 0,
-        loopCap,
+        ...(runtime === 'claude-code' ? { composedActivation } : {}),
+        continuationCount: isClaudeRearm ? existing.continuationCount : 0,
+        continuationCap: isClaudeRearm
+          ? existing.continuationCap
+          : continuationCap,
+        loopCount: isClaudeRearm ? existing.loopCount : 0,
+        loopCap: isClaudeRearm ? existing.loopCap : loopCap,
         waitMs,
         leaseMs,
         waitStartedAt: null,
         waitDeadlineAt: null,
         waitToken: null,
         waitPid: null,
-        armedAt: stamp,
-        expiresAt: new Date(now + leaseMs).toISOString(),
+        armedAt: isClaudeRearm ? existing.armedAt : stamp,
+        expiresAt: isClaudeRearm
+          ? existing.expiresAt
+          : new Date(now + leaseMs).toISOString(),
         updatedAt: stamp,
         diagnostic: null,
       };
@@ -385,11 +603,90 @@ export async function status(
   return { installation, lease: lease ? effectiveLease(lease, now) : null };
 }
 
-export async function run(argv, env = process.env, now = Date.now()) {
+export async function run(
+  argv,
+  env = process.env,
+  now = Date.now(),
+  readStdin = readStdinBounded,
+) {
   const { command, options } = parseArgs(argv);
-  const root = stateRoot(env);
+  const root =
+    typeof options.root === 'string'
+      ? validateAbsolutePath(options.root, 'root')
+      : stateRoot(env);
   await mkdir(root, { recursive: true, mode: 0o700 });
   await chmod(root, 0o700);
+  if (command === 'collaboration-open') {
+    const collaborationId =
+      typeof options.collab === 'string' ? options.collab : randomUUID();
+    const data = await openCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      alias: requiredOption(options, 'alias'),
+      label: requiredOption(options, 'label'),
+      task: requiredOption(options, 'task'),
+      worktree: typeof options.cwd === 'string' ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'collaboration-join') {
+    const collaborationId = requiredOption(options, 'collab');
+    const data = await joinCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      alias: requiredOption(options, 'alias'),
+      worktree: typeof options.cwd === 'string' ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'log-append') {
+    const collaborationId = requiredOption(options, 'collab');
+    const whatHappened =
+      options.whatStdin === true
+        ? await readStdin()
+        : requiredOption(options, 'what');
+    const data = await appendLogEntry({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, 'self')),
+      id: requiredOption(options, 'id'),
+      category: requiredOption(options, 'category'),
+      title: requiredOption(options, 'title'),
+      whatHappened,
+      assessment: requiredOption(options, 'assessment'),
+      skillImplication: requiredOption(options, 'implication'),
+      now: new Date(now).toISOString(),
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
+  if (command === 'log-show' || command === 'log-render') {
+    const collaborationId = requiredOption(options, 'collab');
+    const data =
+      command === 'log-render'
+        ? await renderLog({ root, collaborationId })
+        : await getLogView({ root, collaborationId });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data),
+    };
+  }
   if (command === 'install') {
     const result = await install(root, options);
     if (options.session)
@@ -415,7 +712,7 @@ export async function run(argv, env = process.env, now = Date.now()) {
   if (command === 'codex-uninstall')
     return { ok: true, command, ...(await codexUninstall(root, options, now)) };
   throw new Error(
-    'usage: collab-control install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]',
+    'usage: collab-control collaboration-open|collaboration-join|log-append|log-show|log-render|install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]',
   );
 }
 

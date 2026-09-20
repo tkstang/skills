@@ -5,6 +5,7 @@
     "../repository-layout",
     "generated-runtime",
     "consensus-runtime",
+    "agent-messaging",
     "transcript-core",
     "session-schemas",
     "cursor-collaboration-reliability"

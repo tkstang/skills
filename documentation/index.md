@@ -10,6 +10,7 @@
       - [Claude Code session schema](engineering/architecture/session-schemas/claude-code.md) — The on-disk shape of Claude Code JSONL session transcripts as observed in a 2026-09-18 evidence snapshot, for engineers writing parsers against them.
       - [Codex session schema](engineering/architecture/session-schemas/codex.md) — The Codex rollout transcript format as observed on 2026-09-18 — record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of each join.
       - [Cursor session schema](engineering/architecture/session-schemas/cursor.md) — The Cursor agent-transcript JSONL format as observed, for engineers building parsers on these files.
+    - [Agent Messaging](engineering/architecture/agent-messaging.md) — How durable mail, finite delivery, observer composition, and external state fit together.
     - [Consensus Runtime](engineering/architecture/consensus-runtime.md) — How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.
     - [Cursor Collaboration Reliability](engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.
     - [Build & Distribution](engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
@@ -51,11 +52,12 @@
   - Getting Started
     - [Getting Started](user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
   - Plugins
-    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for continuity and retrospective review.
+    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, and retrospective review.
     - Session
-      - [Session](user-guide/plugins/session/index.md) — Choose a portable handoff, sanitized transcript, alpha native fork, or retrospective review.
+      - [Session](user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, prepare an alpha native fork, or review a session.
   - Skills
     - [Standalone Skills](user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
+    - [Agent Messaging](user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.

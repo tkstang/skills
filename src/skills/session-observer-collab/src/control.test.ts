@@ -1535,18 +1535,40 @@ describe('collaboration lease controls', () => {
     },
   );
 
-  test('rejects claude-code as an owner adapter runtime', async () => {
+  test('accepts claude-code only for an exact attested composed Monitor activation', async () => {
     const { root, cwd, transcript } = await fixture();
     await expect(
       arm(root, { ...options(cwd, transcript), runtime: 'claude-code' }, 1_000),
-    ).rejects.toMatchObject({ code: 'invalid-owner-runtime' });
+    ).rejects.toThrow(/activation|confirmation|cursor/iu);
+    const result = await arm(
+      root,
+      {
+        ...options(cwd, transcript),
+        runtime: 'claude-code',
+        cursor: 0,
+        collaborationId: '11111111-1111-4111-8111-111111111111',
+        activationId: '22222222-2222-4222-8222-222222222222',
+        confirmOldMonitorStopped: true,
+        confirmStandaloneWatcherStopped: true,
+      },
+      1_000,
+    );
+    expect(result.lease).toMatchObject({
+      runtime: 'claude-code',
+      peerCursor: 0,
+      composedActivation: {
+        activationId: '22222222-2222-4222-8222-222222222222',
+        oldMonitorStopped: true,
+        standaloneWatcherStopped: true,
+      },
+    });
     expect(() =>
       defineRuntimeAdapter({
         runtime: 'claude-code',
         identify() {},
         emit() {},
       }),
-    ).toThrow(expect.objectContaining({ code: 'invalid-owner-runtime' }));
+    ).not.toThrow();
   });
 
   test('uses the exact collaboration state override ahead of XDG and HOME', async () => {
@@ -1565,5 +1587,42 @@ describe('collaboration lease controls', () => {
         HOME: home,
       } as NodeJS.ProcessEnv),
     ).toBe(join(home, 'xdg', 'session-observer', 'collab'));
+  });
+
+  test('honors an explicit absolute root and rejects unknown or relative root options', async () => {
+    const { home, root, cwd, transcript } = await fixture();
+    const explicitRoot = join(home, 'explicit-root');
+    const args = [
+      'arm',
+      '--root',
+      explicitRoot,
+      '--runtime',
+      'codex',
+      '--peer-runtime',
+      'cursor',
+      '--session',
+      'explicit-owner',
+      '--peer-session',
+      'peer-1',
+      '--cwd',
+      cwd,
+      '--peer-transcript',
+      transcript,
+      '--lease-ms',
+      '60000',
+    ];
+
+    await expect(run(args, { HOME: home }, 1_000)).resolves.toMatchObject({
+      ok: true,
+      command: 'arm',
+    });
+    expect(await readLease(explicitRoot, 'explicit-owner')).not.toBeNull();
+    expect(await readLease(root, 'explicit-owner')).toBeNull();
+    await expect(
+      run([...args, '--unknown-option', 'value'], { HOME: home }, 1_000),
+    ).rejects.toThrow(/unknown option.*--unknown-option/iu);
+    await expect(
+      run(['status', '--root', 'relative'], { HOME: home }, 1_000),
+    ).rejects.toThrow(/root must be an absolute path/iu);
   });
 });

@@ -125,12 +125,16 @@ and alternatives behind the architecture.
 - **Cursor collaboration reliability** — exact identity, physical-frame
   observation, isolated continuity state, and lease-scoped completion keep
   availability separate from automatic continuation.
+- **Agent Messaging** — durable external mail and immutable logs stay separate
+  from finite host attention, while one activation/controller owns any composed
+  continuation route.
 
 ## Contents
 
 - [Repository Layout](../repository-layout.md) — Find authored source, generated installation units, manifests, and developer tooling.
 - [Build & Distribution](generated-runtime.md) — The canonical-owner → complete standalone/plugin payload build contract and the never-hand-edit rule.
 - [Consensus Runtime](consensus-runtime.md) — Execution boundaries, structured verdicts, durable state, and mode-dependent outcomes.
+- [Agent Messaging](agent-messaging.md) — Durable mailbox state, finite delivery activation, observer composition, and evidence boundaries.
 - [Shared transcript-core](transcript-core.md) — One source of truth for per-provider transcript knowledge, with a committed generated copy per consuming skill.
 - [Native session schemas](session-schemas/index.md) — What Codex, Claude Code, and Cursor actually write to their transcripts, observed from recorded sessions.
 - [Cursor collaboration reliability](cursor-collaboration-reliability.md) — Exact identity, content-first observation, state continuity, and lease-scoped completion for Cursor collaboration.

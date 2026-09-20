@@ -1,3 +1,32 @@
+declare module '*skills/session-observer-collab/scripts/claude-monitor.mjs' {
+  export interface Pin {
+    runtime: 'claude-code' | 'codex' | 'cursor';
+    sessionId: string;
+  }
+  export interface ClaudeMonitorInput {
+    root: string;
+    collaborationId: string;
+    activationId: string;
+    self: Pin;
+    peer: Pin;
+    cwd: string;
+    peerTranscript: string;
+    maxRuntimeMs: number;
+    pollMs?: number;
+    confirmOldMonitorStopped: boolean;
+    confirmStandaloneWatcherStopped: boolean;
+  }
+  export const MAX_MONITOR_RUNTIME_MS: number;
+  export function runClaudeMonitor(
+    input: ClaudeMonitorInput,
+    dependencies?: Record<string, unknown>,
+  ): Promise<{
+    reason: string;
+    notification: Record<string, unknown> | null;
+    iterations: number;
+  }>;
+}
+
 declare module '*skills/session-observer-collab/scripts/codex-lifecycle.mjs' {
   export interface CodexHookEntry {
     type: string;
@@ -115,7 +144,7 @@ declare module '*skills/session-observer-collab/scripts/lib/completion-selection
 }
 
 declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
-  export type OwnerRuntime = 'codex' | 'cursor';
+  export type OwnerRuntime = 'claude-code' | 'codex' | 'cursor';
   export type PeerRuntime = 'claude-code' | 'codex' | 'cursor';
 
   export interface Installation {
@@ -134,6 +163,10 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
     continuationCap?: string | number;
     loopCap?: string | number;
     cursor?: string | number;
+    collaborationId?: string;
+    activationId?: string;
+    confirmOldMonitorStopped?: boolean;
+    confirmStandaloneWatcherStopped?: boolean;
   }
   export interface Lease {
     state: string;

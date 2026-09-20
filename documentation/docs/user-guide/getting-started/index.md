@@ -15,6 +15,9 @@ need both plugins or every standalone skill.
 - **Continuing work in another session?** Start with
   [Session Handoff](../skills/session-handoff.md), available in the
   [Session plugin](../plugins/session/index.md) or on its own.
+- **Coordinating work across local sessions?** Use
+  [Agent Messaging](../skills/agent-messaging.md) for durable addressed inboxes
+  with explicit acknowledgments and manual fallback.
 - **Need independent perspectives on a draft or decision?** Explore the
   [Consensus plugin](../consensus/index.md). Its peer workflows invoke provider
   CLIs and have additional prerequisites.

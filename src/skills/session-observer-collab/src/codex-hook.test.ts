@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFile,
+  cp,
   mkdtemp,
   mkdir,
   readFile,
@@ -12,7 +14,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -68,6 +70,7 @@ async function armLease(
   cwd: string,
   transcript: string,
   overrides: Record<string, string | number> = {},
+  now = START,
 ) {
   return arm(
     root,
@@ -84,7 +87,7 @@ async function armLease(
       loopCap: 2,
       ...overrides,
     },
-    START,
+    now,
   );
 }
 
@@ -155,12 +158,19 @@ async function armCursorFrameLease(
   transcript: string,
   frames: Array<Record<string, unknown>>,
   overrides: Record<string, string | number> = {},
+  now = START,
 ): Promise<any> {
   await writeCursorFrames(transcript, frames);
-  const armed = await armLease(root, cwd, transcript, {
-    peerRuntime: 'cursor',
-    ...overrides,
-  });
+  const armed = await armLease(
+    root,
+    cwd,
+    transcript,
+    {
+      peerRuntime: 'cursor',
+      ...overrides,
+    },
+    now,
+  );
   return writeLease(root, {
     ...armed.lease,
     peerContinuity: await frameContinuity(transcript, 0),
@@ -220,6 +230,57 @@ function digest(fromIndex = 0) {
 }
 
 describe('Codex Stop continuation hook', () => {
+  test.each([
+    'skills/session-observer-collab',
+    'plugins/consensus/skills/observer-collab',
+  ])(
+    'executes the generated %s Codex Stop hook through a symlinked bundle with an eligible lease',
+    async (relative) => {
+      const { home, root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Review the generated Codex hook.'),
+          assistantFrame('The generated Codex hook is ready.'),
+          terminalFrame('success'),
+        ],
+        { waitMs: 100 },
+        Date.now(),
+      );
+      const installed = join(home, 'installed-observer');
+      const linked = join(home, 'linked-observer');
+      await cp(resolvePath(relative), installed, { recursive: true });
+      await symlink(installed, linked, 'dir');
+
+      const result = spawnSync(
+        process.execPath,
+        [join(linked, 'scripts', 'hooks', 'codex-stop.mjs')],
+        {
+          cwd,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            HOME: home,
+            SESSION_OBSERVER_STATE_DIR: root,
+          },
+          input: JSON.stringify({
+            hook_event_name: 'Stop',
+            session_id: 'codex-1',
+            cwd,
+          }),
+        },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        decision: 'block',
+        reason: expect.stringContaining('records="0-2"'),
+      });
+    },
+  );
+
   test('claims a Cursor peer completion by physical frame and persists its private checkpoint', async () => {
     const { root, cwd, transcript } = await fixture();
     const lease = await armCursorFrameLease(root, cwd, transcript, [

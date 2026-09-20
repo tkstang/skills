@@ -13,6 +13,7 @@ installation and available capabilities vary by host.
 | I want to…                                                                 | Start with                                                                                                                                                                                |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create, refine, evaluate, review, or decide with independent AI peers      | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
+| Exchange addressed work across local coding-agent sessions                 | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
 | Hand off work, export a transcript, or review a session                    | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Get a justified next step, question unnecessary work, or review complexity | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
 | Observe another session or collaborate across two sessions                 | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
@@ -52,11 +53,11 @@ planning, decisions, refinement, evaluation, one bounded independent review,
 panels without synthesis, and one-shot advice. Disagreement is preserved, and an impasse is a valid outcome.
 It also includes Observer and Collaborative Observer.
 
-**Session** offers portable handoffs, sanitized transcript exports, and
-evidence-backed retrospectives. Its **alpha** Fork to Destination skill discovers
-and previews sessions and prepares same-provider fork instructions; it does not
-run the provider or create the fork. Provider coverage and end-to-end
-verification are incomplete.
+**Session** offers addressed messaging, portable handoffs, sanitized transcript
+exports, and evidence-backed retrospectives. Its **alpha** Fork to Destination
+skill discovers and previews sessions and prepares same-provider fork
+instructions; it does not run the provider or create the fork. Provider coverage
+and end-to-end verification are incomplete.
 
 Provider-backed workflows need the local provider CLIs they invoke. Executable
 skills require Node.js 22+ but no runtime dependency installation. See each

@@ -16,6 +16,12 @@ polling may replace it only after an already-existing effective scheduler is
 separately proven. A configured hook, a unit test, CLI presence, or provider
 contract documentation does not promote the tier.
 
+Agent messaging composition does not change this boundary. No Cursor messaging
+Stop adapter is verified, so an observer lease or configured hook cannot select
+`observer-collab` automatic delivery. Check addressed inbox requests manually
+before the pinned peer range, deduplicate only exact message IDs, and never
+advance observer cursors because a message was presented or acknowledged.
+
 ## Identity and completed-turn boundary
 
 Pin the observed peer as an exact `<runtime>:<session-id>` identity and retain

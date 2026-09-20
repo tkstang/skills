@@ -313,6 +313,7 @@ describe('release-versioning', () => {
 
   it('SKILL_FILES pins the current shipped skill set (update deliberately on change)', () => {
     expect([...SKILL_FILES].toSorted()).toEqual([
+      'src/skills/agent-messaging/SKILL.md',
       'src/skills/complexity-review/SKILL.md',
       'src/skills/consensus-review/SKILL.md',
       'src/skills/create/SKILL.md',

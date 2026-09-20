@@ -13,6 +13,11 @@ required [`session-observer`](session-observer.md) workflow for transcript
 discovery, normalization, digest rendering, and offsets; it does not implement
 a second transcript reader.
 
+The N=2 limit applies to stateful transcript observation, not to the shared
+mailbox. The same collaboration UUID may include three or more messaging-only
+participants. They can exchange addressed mail and append to the shared log
+without becoming a third observer or gaining access to transcript offsets.
+
 The prerequisite may be present as standalone `session-observer` or consensus
 plugin-local `observer`. The collaboration skill checks the effective local
 skill inventory before transcript access. If neither identity is present, it
@@ -177,6 +182,45 @@ authorizes arming. Normal closeout disarms the named lease and preserves the
 static hook. Uninstall is a separate explicit user choice that must preserve
 unrelated hook registrations.
 
+## Compose messaging without a second continuation owner
+
+Collaborative Observer and [Agent Messaging](agent-messaging.md) resolve the
+same external state root and collaboration UUID. Both use the immutable shared
+log entries as authority and regenerate the same `collaboration.md` view;
+observer offsets and private continuity remain separate stores.
+
+For an exact active Codex observer lease, the verified `observer-collab`
+adapter may own the activation's single Stop route. At each boundary it checks
+addressed inbox requests before transcript ranges. If messaging wins,
+observation is deferred. Otherwise the adapter reserves one shared finite slot
+before updating the observer cursor. A lost observer compare-and-swap emits
+nothing and spends at most that reserved slot. Presenting or acknowledging a
+message never advances either observer cursor.
+
+The composed path deduplicates only an exact message ID already present in
+working context. A transcript quote of that ID is context, not a second request;
+similar prose is never treated as a duplicate. Standalone messaging Stop and
+watch entrypoints remain inert for the composed activation epoch. Controller
+changes require explicit disable and re-enable, and close, disable, expiry, or
+takeover terminates the affected delivery route without deleting observation
+history.
+
+Composition is capability-checked, not inferred from an installed hook. A
+recognized observer hook without an active lease permits standalone messaging.
+Mismatched, legacy, uncomposed, competing, or uncertain ownership fails closed.
+Claude composed Monitor is fixture-tested through the finite
+`scripts/claude-monitor.mjs` entrypoint. It requires one exact immutable
+observer-collab/monitor activation and fresh acting-session confirmation that
+the legacy Monitor and standalone watcher are stopped. It checks requests first,
+shares one slot cap with observation, claims the slot before private-cursor CAS,
+emits at most one bounded ID/range notification and never self-rearms. Re-arm
+preserves the cursor, expiry and spent slots. Live Monitor-to-agent receipt is
+still unverified and separately authorized; manual/start inbox checks remain the
+fallback.
+Unknown Cursor delivery also remains manual. No current fixture result proves a
+live provider installed, trusted, invoked, delivered context, continued, or
+cleaned up the route.
+
 ### Lease lifecycle
 
 Expiry, cap exhaustion, and wait timeout all silently demote to `idle`; a non-terminal wake returns to `armed`; and `disarmed` is not terminal, because `arm` writes a fresh lease from any state other than `armed` or `waiting`.
@@ -300,8 +344,9 @@ flowchart TD
    range and any diagnostics or disagreement, and compares current worktree
    and log state.
 3. Confirm both pins, selected tier, caps/expiry, verification result, and the
-   append-only collaboration log agree. If they do not, correct the record or
-   pause for the user; do not call the work complete.
+   append-only shared collaboration log agree. If they do not, append a
+   correction or pause for the user; never hand-edit the rendered Markdown view
+   or call the work complete.
 4. Stop watchers, Monitor tasks, scheduled polls, and active waits. Disarm
    leases, then ownership-safely prune expired or terminal state.
 5. Keep static harness hooks installed unless the user explicitly requests

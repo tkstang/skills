@@ -1,13 +1,13 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-09-17
-**Status:** Consensus Review is complete on its delivery branch; the first-party installer remains the confirmed immediate lane. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
+**Last updated:** 2026-09-19
+**Status:** Agent messaging is complete on its delivery branch; the first-party installer remains the confirmed immediate lane. Exact live-host messaging acceptance is separate active work. Next/Later ordering remains a recommendation. See the [priority alignment](backlog/reviews/priority-alignment.md) and complete project map in the [full review](backlog/reviews/backlog-and-roadmap-review.md#complete-item-to-project-grouping).
 
 ## Planning model
 
 The [current-state snapshot](current-state.md) records merged capability and explicitly labeled branch delivery; this page records direction, not delivery claims. Each active item appears below. The [full review](backlog/reviews/backlog-and-roadmap-review.md) explains value, effort, dependencies, and implementation evidence.
 
-Completed source colocation, Session packaging, skill promotion, docs IA/visuals, typed configuration documentation, observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, and Consensus Review are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
+Completed source colocation, Session packaging, skill promotion, docs IA/visuals, typed configuration documentation, observer re-arm investigation, convergence model/effort propagation, remaining atomic writes, loop-free helper extraction, Consensus Review, and agent messaging are not future roadmap items. Keep historical release and completion evidence in [completed history](backlog/completed.md) and [RELEASING.md](../../../RELEASING.md).
 
 ## Now
 
@@ -19,7 +19,7 @@ Release/discovery verification for already-merged distributions can proceed inde
 
 ## Next
 
-The following order is proposed, not yet operator-confirmed: inbox messaging, then session fidelity. Live-submit diagnosis is an independent authorization-gated slot.
+The following order is proposed, not yet operator-confirmed. Session fidelity remains the next product lane after the completed inbox implementation. Live-submit diagnosis and live messaging acceptance are independent authorization-gated slots.
 
 ### Consensus correctness
 
@@ -27,10 +27,13 @@ The following order is proposed, not yet operator-confirmed: inbox messaging, th
 
 ### Provider-neutral collaboration and evidence
 
-- **BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized).** Project/worktree recipient inboxes, exact runtime/session identity and aliases, IDs/acknowledgments/deduplication, and bounded continuation. Define concurrency and acknowledgment semantics; no daemon, harness-specific transport requirement, or second wake path.
+- **BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance.** Separately authorize and preserve evidence for Codex prompt/Stop delivery, Claude prompt/Stop/watch delivery, and the finite Claude composed Monitor tier. Deterministic fixtures, generated payload parity, or one provider boundary do not prove another.
+- **BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates.** Diagnose the exact-pin ambiguity found during collaboration without guessing from cwd or recency.
+- **BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery.** Make initial-catch-up omissions explicit and provide a bounded route to complete relevant history without folding this into messaging or opt-in activity fidelity.
 - **BL-260916-session-fidelity-opt — Session fidelity: opt-in --include-activity for observer and exporter.** Separate design/build project using the retained research packet: detailed record locations, native call/result correlation, coverage states, privacy, and unchanged conversation defaults. It is not bundled into Review or messaging.
+- **BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test.** Reproduce and isolate the timing-dependent shutdown case after the session-fidelity stack, which edits the same test surface; fix the product path or the fixture according to the evidence.
 
-Messaging may precede fidelity. Coordinate shared observer/collaboration files and identity/state conventions, not an invented merged-log dependency.
+Coordinate the active observer/fidelity work with the shipped messaging identity and shared-state conventions, not an invented merged-log dependency. Exact live messaging acceptance does not authorize release or installation.
 
 ### Session evidence and retrospectives
 

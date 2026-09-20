@@ -15,6 +15,8 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 const BUNDLE_OWNER = 'session-observer-collab-codex-stop';
 const MANIFEST = '.session-observer-collab-bundle.json';
 const FILES = ['session-observer-collab/scripts/hooks/codex-stop.mjs'];
+const COMPOSITION_CAPABILITY = 'agent-messaging-stop-composition';
+const COMPOSITION_CAPABILITY_VERSION = 1;
 
 function bundlePaths(scriptPath) {
   const parent = dirname(scriptPath);
@@ -29,6 +31,10 @@ async function sourceFiles(sourceScriptPath) {
   const skillsRoot = dirname(dirname(collabScripts));
   const files = [];
   const hash = createHash('sha256');
+  hash.update(COMPOSITION_CAPABILITY);
+  hash.update('\0');
+  hash.update(String(COMPOSITION_CAPABILITY_VERSION));
+  hash.update('\0');
   for (const relativePath of FILES) {
     const source = join(skillsRoot, relativePath);
     const content = await readFile(source);
@@ -38,7 +44,8 @@ async function sourceFiles(sourceScriptPath) {
     hash.update('\0');
     files.push({ relativePath, source });
   }
-  return { files, version: hash.digest('hex').slice(0, 24) };
+  const contentDigest = hash.digest('hex');
+  return { files, contentDigest, version: contentDigest.slice(0, 24) };
 }
 
 async function ownerOnlyDirectory(path) {
@@ -46,7 +53,7 @@ async function ownerOnlyDirectory(path) {
   await chmod(path, 0o700);
 }
 
-async function copyBundle(stage, files, version) {
+async function copyBundle(stage, files, version, contentDigest) {
   await ownerOnlyDirectory(stage);
   for (const file of files) {
     const destination = join(stage, file.relativePath);
@@ -57,7 +64,19 @@ async function copyBundle(stage, files, version) {
   const manifest = join(stage, MANIFEST);
   await writeFile(
     manifest,
-    `${JSON.stringify({ owner: BUNDLE_OWNER, version, files: FILES }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        owner: BUNDLE_OWNER,
+        version,
+        files: FILES,
+        capabilities: {
+          [COMPOSITION_CAPABILITY]: COMPOSITION_CAPABILITY_VERSION,
+        },
+        contentDigest,
+      },
+      null,
+      2,
+    )}\n`,
     { mode: 0o600 },
   );
   await chmod(manifest, 0o600);
@@ -178,7 +197,7 @@ export async function installCodexStopBundle({
 }) {
   const scriptPath = resolve(rawScriptPath);
   const sourceScriptPath = resolve(rawSourceScriptPath);
-  const { files, version } = await sourceFiles(sourceScriptPath);
+  const { files, contentDigest, version } = await sourceFiles(sourceScriptPath);
   const { parent, supportRoot } = bundlePaths(scriptPath);
   const final = join(supportRoot, version);
   const stage = join(supportRoot, `.stage-${process.pid}-${version}`);
@@ -190,7 +209,7 @@ export async function installCodexStopBundle({
   try {
     if (!(await ownedVersion(final, version))) {
       await rm(stage, { recursive: true, force: true });
-      await copyBundle(stage, files, version);
+      await copyBundle(stage, files, version, contentDigest);
       await rename(stage, final);
       createdVersion = true;
     }

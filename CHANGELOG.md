@@ -4,6 +4,57 @@
 
 ### Added
 
+- `session-observer-collab` 1.0.45 completes the finite Claude Monitor's
+  critical-path fixture proof across shared-cap exhaustion, lifecycle changes,
+  identity and continuity failures, private no-op progress, concurrent runners,
+  interrupted event/slot/output stages, real Claude transcript digestion, and
+  Codex, Claude Code, and Cursor peers without public-offset mutation.
+
+- `agent-messaging` 1.0.13 and `session-observer-collab` 1.0.37 add the
+  fixture-tested finite Claude composed Monitor: exact activation and peer pins,
+  inbox-first selection, shared message/observation slots, slot-before-private-
+  cursor-CAS ordering, bounded range-only notifications, explicit re-arm without
+  budget reset, and truthful non-retryable observation-attempt status. Live
+  Claude receipt remains separately authorized and unverified.
+
+- `agent-messaging` 1.0.9 and `session-observer-collab` 1.0.35 compose one
+  fixture-tested, composition-capable Codex Stop owner with inbox-first
+  selection, a shared finite continuation budget, observer-CAS loss containment,
+  exact-ID dedup guidance, and fail-closed Claude/Cursor fallbacks. Exact expiry
+  equality is now inactive, and output-attempt diagnostics are recorded only
+  after the final veto check.
+
+- `session-observer-collab` 1.0.34 opens and joins the shared collaboration
+  container without enabling messaging delivery, bundles the immutable shared
+  log runtime in both distributions, and replaces hand-edited Markdown logs
+  with append/show/render commands while preserving separate observer offsets.
+
+- `agent-messaging` 1.0.7 adds explicit bounded host-probe plans, sanitized
+  receipt and owned-cleanup contracts, a fixture-tested 4,096-receipt validation
+  benchmark, and an honest host acceptance matrix; live Codex, Claude Code, and
+  Cursor rows remain unverified/manual, and no Cursor adapter is fabricated.
+
+- `agent-messaging` 1.0.6 adds a finite foreground request-only watch with
+  deterministic batch claims, shared continuation slots, ownership rechecks,
+  a 30-minute/activation-expiry cap, explicit Claude Monitor reconfirmation,
+  and no daemon, self-rearm, or automatic provider claim.
+
+- `agent-messaging` 1.0.5 adds fail-closed Codex and Claude Code prompt/Stop
+  adapters, exact-session observer ownership detection, scoped third-party hook
+  fingerprints, Claude Monitor attestation, explicit registration generation,
+  bounded untrusted envelopes, and separate fixture-versus-live capability
+  labels; no live hook, trust, provider, or global configuration is changed.
+
+- `agent-messaging` 1.0.4 adds immutable activation epochs, fixed or
+  provenance-bound human-idle expiry, finite non-reusable continuation slots,
+  retryable event/message claims, redacted bounded diagnostics, and honest
+  attempt-versus-delivery status without enabling any live host integration.
+
+- `agent-messaging` 1.0.0 adds a dependency-free manual mailbox and immutable
+  collaboration log for three or more local coding-agent sessions, shipped as
+  a standalone skill and Session plugin-local `messaging` with exact identity,
+  explicit takeover, addressed messages, recipient acknowledgments, and
+  retained closeout history.
 - `session-observer` 1.0.66 delivers opt-in Cursor activity through the existing terminal checkpoint and atomic delivery state, including activity-only settlement deltas without replay; `session-export-transcript` 2.0.20 exports settled and pending-lifecycle Cursor calls with separate source and delivery coordinates, while `session-observer-collab` 1.0.55 and `session-fork-to-destination` 0.2.32 receive the required shared runtime closure update without changing their activity defaults.
 - `session-observer` 1.0.65 and `session-export-transcript` 2.0.19 add the shared internal Cursor activity extractor with terminal-settled frame/block identity, snapshot-scoped pending calls, separate pending counts, explicit not-recorded result coverage, and distinct source/delivery frame coordinates; `session-observer-collab` 1.0.54 and `session-fork-to-destination` 0.2.31 receive the required shared runtime closure update without enabling Cursor activity delivery.
 - `session-export-transcript` 2.0.16 adds opt-in bounded source-attributed Claude Code and Codex activity to sanitized Markdown exports, including explicit sensitive-data labels, preview and size limits, source locators, omission counts, and unread external-output and child-trajectory coverage while preserving default exports and filenames; `session-fork-to-destination` 0.2.28 receives the required exporter runtime closure update without enabling activity in fork previews.
@@ -50,6 +101,17 @@
 
 ### Changed
 
+- `agent-messaging` 1.0.15 and `session-observer-collab` 1.0.39 share Claude
+  hook inventory and automatic-owner assessment from the canonical
+  collaboration runtime instead of bundling those read-only primitives from a
+  sibling skill.
+
+- `agent-messaging` 1.0.10 documents the shipped bounded delivery
+  and Codex observer-composition contract across the standalone and Session
+  forms; Collaborative Observer documentation records its 1.0.35 shared-log and
+  single-owner behavior. All live delivery rows remain unverified/manual, Cursor
+  remains manual-only, and Claude composed Monitor remains pending.
+
 - `session-observer` 1.0.69 and `session-export-transcript` 2.0.22 correct the documented activity-coverage boundary: schema v1 reports recorded Claude persisted-output references and recorded Claude/Codex child IDs, while Cursor `agent-tools/` and child-transcript surfaces remain unopened without dedicated per-reference coverage. The exporter checklist now describes its stable metadata version and separates default conversation sanitization from the opt-in bounded activity appendix.
 - `session-observer` 1.0.67 and `session-export-transcript` 2.0.21 document and package the opt-in activity contract across canonical skill guidance, transcript references, and the documentation site: mode-specific budgets, one-read/stateless behavior, late-call context, explicit unread/unavailable evidence, Cursor settlement and retrospective pending-lifecycle review, and sensitive-data boundaries; `session-observer-collab` 1.0.56 and `session-fork-to-destination` 0.2.33 receive the required dependent-owner version closure without enabling activity in their flows.
 - `consensus-review` 0.1.13 emits OAT's `Critical` / `High` / `Medium` / `Low` review tiers and matching `C` / `H` / `M` / `L` finding IDs; retired `important` and `minor` severities are rejected instead of producing artifacts that current OAT review receivers fail closed on.
@@ -89,6 +151,102 @@
 
 ### Fixed
 
+- `session-observer` 1.0.71, `session-observer-collab` 1.0.59, `session-export-transcript` 2.0.23, and `session-fork-to-destination` 0.2.36 reconcile the merged Session Fidelity runtime closure with Agent Messaging's portable Codex and Cursor Stop-hook stdin handling, preserving activity-aware observer/export behavior and Linux socket-backed hook execution.
+- `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads
+  directly from the stdin stream so socket-backed Linux hook invocations no
+  longer fail while reopening `/dev/stdin`.
+
+- `session-observer-collab` 1.0.47 decodes URL-derived repository paths in its
+  generated shared-log integration test before filesystem access.
+
+- `agent-messaging` 1.0.22 decodes URL-derived repository paths in its
+  standalone and Session payload packaging test before filesystem access.
+
+- `agent-messaging` 1.0.21 removes only owned entries from valid Codex hook
+  arrays during uninstall, preserving primitive, array, absent-event, malformed,
+  and unrelated configuration shapes.
+
+- `agent-messaging` 1.0.20 times the first activity-receipt activation read as
+  cold and the second as warm, tests their true invocation order, and honestly
+  relabels the earlier primed-call measurements as historical warm evidence.
+
+- `agent-messaging` 1.0.19 classifies malformed JSON in `--command` and
+  `--installed-plugins` as invalid CLI input while retaining strict array and
+  string-map shape validation.
+
+- `session-observer-collab` 1.0.46 makes every lifecycle command honor a
+  validated absolute `--root`, rejects command-specific unknown options, proves
+  generated Codex/Cursor Stop hooks through symlinked bundles, and cleans
+  Monitor packaging fixtures after execution.
+
+- `session-observer-collab` 1.0.45 lets private no-op cursor progress advance
+  from an armed lease; previously the composed Monitor stopped with `armed`
+  instead of continuing its finite poll.
+
+- `agent-messaging` 1.0.18 makes the Claude composed-ownership fixture use a
+  real resolved settings source instead of relabeling an empty Codex inventory,
+  preserving the fail-closed production inventory contract in the full suite.
+
+- `session-observer-collab` 1.0.44 aligns composed Claude Monitor polling at
+  1000 ms, rejects relative state roots, and documents that selected requests
+  must be acknowledged before re-arm can yield to observation.
+
+- `session-observer-collab` 1.0.43 gives the finite Claude Monitor an explicit
+  redacted terminal status, nonzero refusal exits, detailed input diagnostics,
+  message-attempt diagnostics, and complete consistent
+  arm/enable/launch/re-arm invocation guidance.
+
+- `session-observer-collab` 1.0.42 requires an armed or waiting lease when a
+  composed Claude Monitor starts or iterates, and accepts the triggered state
+  after cursor CAS only when no identity or continuity refusal is present.
+
+- `agent-messaging` 1.0.17 and `session-observer-collab` 1.0.41 keep
+  interrupted and outcome-unknown observation attempts out of message retry
+  status, leaving pinned-range recovery as their only advertised path.
+
+- `agent-messaging` 1.0.16 and `session-observer-collab` 1.0.40 resolve the
+  standard bounded Claude settings inventory by default, persist its exact
+  sources in each activation, and re-inspect the same sources at every delivery
+  boundary; absent, unreadable, unresolved, or changed inventories stay manual.
+
+- `agent-messaging` 1.0.14 and `session-observer-collab` 1.0.38 make shipped
+  hook and Monitor entrypoints execute correctly through real or symlinked
+  installation paths, including URL-escaped paths.
+
+- `agent-messaging` 1.0.12 binds every standalone Stop and foreground-watch
+  ownership recheck to the active epoch's immutable controller, so a newly
+  composed observer owner makes an in-flight standalone boundary emit nothing
+  while preserving its finite claims and activation state.
+
+- `agent-messaging` 1.0.11 and `session-observer-collab` 1.0.36 require the
+  versioned, content-bound Phase 3 observer composition capability, keep
+  registration bound to the active activation's immutable controller across
+  lease changes, and verify that inbox presentation and acknowledgment preserve
+  both the real public observer offset and the private collaboration cursor.
+
+- `agent-messaging` 1.0.8 closes Phase 2 fail-closed gaps: host output now
+  revalidates activation and ownership after claims, Stop retries consume the
+  newest explicit generation, human-idle renewal requires exact host evidence,
+  observer leases and hook fingerprints validate their complete effective
+  configuration, diagnostics remain confined to allowlisted records, live
+  probes require quiescent abort and verified cleanup, and activation timestamps
+  enforce the 24-hour cap on every read.
+
+- `agent-messaging` 1.0.3 and `session` plugin 0.3.2 reject ancestor-symlink
+  storage paths before reads or mutation, classify records relative to the
+  configured root, and recover idempotently from interrupted collaboration
+  creation while reporting generated recovery paths.
+- `agent-messaging` 1.0.2 and `session` plugin 0.3.1 keep binding-cap winners
+  readable, reject stale initial joins, replay takeover mail as actionable,
+  contain rendered-log writes across ancestor symlinks, hash every
+  authoritative record, and exercise real process-isolated publication and
+  sender contention.
+- `agent-messaging` 1.0.1 and `session` plugin 0.3.0 complete the maintained
+  product inventories, validate every authoritative schema-v1 record, recover
+  interrupted initial joins, enforce bounded writers and history output, add
+  durable CLI reply references, report closure/takeover races and inactive exit
+  states, harden rendered-log inspection, and expand adversarial/copied-runtime
+  coverage.
 - `session-observer` 1.0.70 reports the effective legacy tool-call and tool-result filters when opt-in activity suppresses duplicate conversation markers, and accounts for those suppressed entries; `session-observer-collab` 1.0.58 and `session-fork-to-destination` 0.2.35 receive the required observer-runtime closure update.
 - `session-observer` 1.0.69 documents the watcher stat-failure split: missing paths (`ENOENT`/`ENOTDIR`) emit `WATCH_TRANSCRIPT_PATH_UNAVAILABLE` with scoped reset and re-arm guidance, while other failures such as `EACCES` emit `WATCH_TRANSCRIPT_STAT_FAILED`, preserve state, and require filesystem repair without reset. Cursor schema guidance now distinguishes terminal-settled stateful delivery from snapshot-scoped `pending-lifecycle` evidence in stateless review and export.
 - `session-observer` 1.0.68 preserves the original error code and message when a live Claude Code or Codex watcher cannot stat its transcript for a reason other than `ENOENT` or `ENOTDIR`, and reserves path-reset guidance for actual missing-path failures; `session-observer-collab` 1.0.57 and `session-fork-to-destination` 0.2.34 receive the required observer-runtime closure update without changing their workflows.

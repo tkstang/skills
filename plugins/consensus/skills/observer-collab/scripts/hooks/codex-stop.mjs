@@ -2,14 +2,1413 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/hooks/codex-stop.mjs
-import { readFile as readFile3 } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+// src/shared/collaboration/activation.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import path4 from "node:path";
+
+// src/shared/collaboration/membership.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+import { lstat as lstat2, realpath as realpath2 } from "node:fs/promises";
+import path3 from "node:path";
+
+// src/shared/collaboration/paths.ts
+import { homedir } from "node:os";
+import path2 from "node:path";
+
+// src/shared/collaboration/records.ts
+import { createHash as createHash2, randomUUID } from "node:crypto";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  readdir,
+  readFile,
+  realpath,
+  unlink
+} from "node:fs/promises";
+import path from "node:path";
+
+// src/shared/collaboration/types.ts
+import { createHash } from "node:crypto";
+var SCHEMA_VERSION = 1;
+var MAX_IDENTIFIER_BYTES = 128;
+var MAX_BODY_BYTES = 32 * 1024;
+var MAX_SUBJECT_BYTES = 256;
+function assertUuid(value, label = "UUID") {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+    value
+  )) {
+    throw new TypeError(`${label} must be a UUID`);
+  }
+}
+function assertAlias(value) {
+  if (!/^[a-z][a-z0-9-]{0,31}$/u.test(value)) {
+    throw new TypeError("alias must match [a-z][a-z0-9-]{0,31}");
+  }
+}
+function assertBoundedString(value, label, maxBytes = MAX_IDENTIFIER_BYTES, allowEmpty = false) {
+  if (typeof value !== "string" || !allowEmpty && value.length === 0 || Buffer.byteLength(value, "utf8") > maxBytes) {
+    throw new TypeError(`${label} must be a bounded UTF-8 string`);
+  }
+}
+function assertPin(value) {
+  if (!value || typeof value !== "object")
+    throw new TypeError("pin must be an object");
+  const pin = value;
+  if (!["codex", "claude-code", "cursor"].includes(pin.runtime ?? "")) {
+    throw new TypeError("pin runtime is unsupported");
+  }
+  assertBoundedString(pin.sessionId, "pin sessionId");
+}
+function pinKey(pin) {
+  assertPin(pin);
+  return createHash("sha256").update(`${pin.runtime}\0${pin.sessionId}`, "utf8").digest("hex");
+}
+function pinsEqual(left, right) {
+  return left.runtime === right.runtime && left.sessionId === right.sessionId;
+}
+
+// src/shared/collaboration/records.ts
+var CollaborationError = class extends Error {
+  code;
+  retryable;
+  constructor(code, message, retryable = false) {
+    super(message);
+    this.name = "CollaborationError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+};
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)).map(([key, child]) => [key, stable(child)])
+    );
+  }
+  return value;
+}
+function canonicalJson(value) {
+  return `${JSON.stringify(stable(value))}
+`;
+}
+function canonicalHash(value) {
+  return createHash2("sha256").update(canonicalJson(value), "utf8").digest("hex");
+}
+function isMissing(error) {
+  return error.code === "ENOENT";
+}
+function assertSchema(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "record must be a JSON object"
+    );
+  }
+  const version = record.schemaVersion;
+  if (version !== SCHEMA_VERSION) {
+    throw new CollaborationError(
+      "UNKNOWN_SCHEMA",
+      `unsupported schema version: ${String(version)}`
+    );
+  }
+}
+function malformed(message) {
+  throw new CollaborationError("MALFORMED_RECORD", message);
+}
+function assertTimestamp(value, label) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+    malformed(`${label} must be an ISO-8601 timestamp`);
+  }
+}
+function assertGeneration(value, label) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    malformed(`${label} must be a non-negative safe integer`);
+  }
+}
+function assertHash(value, label) {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) {
+    malformed(`${label} must be a SHA-256 hex digest`);
+  }
+}
+function canonicalRecordHash(record) {
+  const { contentHash: _contentHash, ...content } = record;
+  return canonicalHash(content);
+}
+function assertRecordHash(record, label) {
+  assertHash(record.contentHash, `${label} contentHash`);
+  if (record.contentHash !== canonicalRecordHash(record)) {
+    malformed(`${label} contentHash does not match content`);
+  }
+}
+function assertUuidValue(value, label) {
+  if (typeof value !== "string") malformed(`${label} must be a UUID`);
+  assertUuid(value, label);
+}
+function validateBinding(record) {
+  assertUuidValue(record.participantId, "binding participantId");
+  assertGeneration(record.generation, "binding generation");
+  assertPin(record.pin);
+  if (!path.isAbsolute(record.worktree))
+    malformed("binding worktree must be absolute");
+  if (record.previousPin !== null) assertPin(record.previousPin);
+  assertBoundedString(record.reason, "binding reason", 512);
+  assertTimestamp(record.createdAt, "binding createdAt");
+  if (!Array.isArray(record.inheritedAckRefs))
+    malformed("binding inheritedAckRefs must be an array");
+  for (const ack of record.inheritedAckRefs) {
+    if (!ack || typeof ack !== "object")
+      malformed("binding inherited ack must be an object");
+    assertUuidValue(ack.messageId, "inherited messageId");
+    assertHash(ack.messageHash, "inherited messageHash");
+  }
+  assertRecordHash(
+    record,
+    "binding"
+  );
+}
+function messageHash(record) {
+  return canonicalHash({
+    schemaVersion: 1,
+    id: record.id,
+    collaborationId: record.collaborationId,
+    from: record.from,
+    to: record.to,
+    kind: record.kind,
+    priority: record.priority,
+    subject: record.subject,
+    body: record.body,
+    replyTo: record.replyTo
+  });
+}
+function logHash(record) {
+  return canonicalHash({
+    collaborationId: record.collaborationId,
+    id: record.id,
+    category: record.category,
+    title: record.title,
+    author: record.author,
+    whatHappened: record.whatHappened,
+    assessment: record.assessment,
+    skillImplication: record.skillImplication
+  });
+}
+function validateAuthoritativeRecord(file, value, root) {
+  const relativeSegments = root ? path.relative(path.resolve(root), path.resolve(file)).split(path.sep) : [];
+  const authoritative = relativeSegments[0] === "collaborations";
+  if (authoritative && relativeSegments.length < 3)
+    malformed("authoritative record path is incomplete");
+  const collaborationPathId = authoritative ? relativeSegments[1] : void 0;
+  if (collaborationPathId)
+    assertUuidValue(collaborationPathId, "path collaboration id");
+  const recordSegments = authoritative ? relativeSegments.slice(2) : [];
+  const basename3 = path.basename(file, ".json");
+  const parent = path.basename(path.dirname(file));
+  const grandparent = path.basename(path.dirname(path.dirname(file)));
+  try {
+    if (recordSegments.length === 1 && recordSegments[0] === "collaboration.json") {
+      const candidate = value;
+      assertUuidValue(candidate.id, "collaboration id");
+      if (candidate.id !== parent)
+        malformed("collaboration path identity does not match id");
+      assertBoundedString(candidate.label, "collaboration label", 128);
+      assertBoundedString(candidate.task, "collaboration task", 2048);
+      assertTimestamp(candidate.createdAt, "collaboration createdAt");
+      assertRecordHash(
+        candidate,
+        "collaboration"
+      );
+    } else if (recordSegments.length === 2 && recordSegments[0] === "members" && recordSegments[1]?.endsWith(".json")) {
+      const candidate = value;
+      assertAlias(candidate.alias);
+      if (candidate.alias !== basename3)
+        malformed("member path identity does not match alias");
+      assertUuidValue(candidate.participantId, "member participantId");
+      assertUuidValue(candidate.collaborationId, "member collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("member collaboration path identity does not match record");
+      assertTimestamp(candidate.createdAt, "member createdAt");
+      if (!candidate.initialBinding || typeof candidate.initialBinding !== "object")
+        malformed("member initialBinding is required");
+      validateBinding(candidate.initialBinding);
+      if (candidate.initialBinding.participantId !== candidate.participantId || candidate.initialBinding.generation !== 0)
+        malformed("member initial binding identity is invalid");
+      assertRecordHash(
+        candidate,
+        "member"
+      );
+    } else if (recordSegments.length === 3 && recordSegments[0] === "bindings" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      validateBinding(candidate);
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename3)
+        malformed("binding path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "departures" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.participantId, "departure participantId");
+      assertGeneration(candidate.generation, "departure generation");
+      assertPin(candidate.pin);
+      assertTimestamp(candidate.departedAt, "departure departedAt");
+      assertRecordHash(
+        candidate,
+        "departure"
+      );
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename3)
+        malformed("departure path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "inbox" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "message id");
+      assertUuidValue(candidate.collaborationId, "message collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("message collaboration path identity does not match record");
+      if (!candidate.from || typeof candidate.from !== "object" || !candidate.to || typeof candidate.to !== "object")
+        malformed("message endpoints are required");
+      assertUuidValue(
+        candidate.from.participantId,
+        "message sender participantId"
+      );
+      assertGeneration(candidate.from.generation, "message sender generation");
+      assertPin(candidate.from.pin);
+      assertUuidValue(
+        candidate.to.participantId,
+        "message recipient participantId"
+      );
+      assertGeneration(candidate.to.generation, "message recipient generation");
+      if (!["request", "update"].includes(candidate.kind))
+        malformed("message kind is unsupported");
+      if (!["normal", "high"].includes(candidate.priority))
+        malformed("message priority is unsupported");
+      assertBoundedString(
+        candidate.subject,
+        "message subject",
+        MAX_SUBJECT_BYTES
+      );
+      assertBoundedString(candidate.body, "message body", MAX_BODY_BYTES, true);
+      if (candidate.replyTo !== null) {
+        if (!candidate.replyTo || typeof candidate.replyTo !== "object")
+          malformed("message replyTo is invalid");
+        assertUuidValue(candidate.replyTo.participantId, "reply participantId");
+        assertUuidValue(candidate.replyTo.messageId, "reply messageId");
+      }
+      assertTimestamp(candidate.createdAt, "message createdAt");
+      assertHash(candidate.contentHash, "message contentHash");
+      if (candidate.contentHash !== messageHash(candidate))
+        malformed("message contentHash does not match content");
+      if (candidate.to.participantId !== parent || candidate.id !== basename3)
+        malformed("message path identity does not match record");
+    } else if (recordSegments.length === 4 && recordSegments[0] === "acks" && recordSegments[3]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.messageId, "ack messageId");
+      assertHash(candidate.messageHash, "ack messageHash");
+      assertPin(candidate.recipient);
+      assertGeneration(candidate.bindingGeneration, "ack bindingGeneration");
+      assertTimestamp(candidate.receivedAt, "ack receivedAt");
+      assertRecordHash(
+        candidate,
+        "acknowledgment"
+      );
+      assertUuidValue(grandparent, "ack participant path");
+      if (candidate.messageId !== basename3 || String(candidate.bindingGeneration) !== parent)
+        malformed("ack path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "retries" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.activationId, "retry activationId");
+      assertBoundedString(
+        candidate.priorAttemptId,
+        "retry priorAttemptId",
+        128
+      );
+      assertUuidValue(candidate.participantId, "retry participantId");
+      assertUuidValue(candidate.messageId, "retry messageId");
+      assertGeneration(candidate.retryGeneration, "retry generation");
+      if (candidate.retryGeneration < 1)
+        malformed("retry generation must be positive");
+      assertTimestamp(candidate.createdAt, "retry createdAt");
+      assertRecordHash(
+        candidate,
+        "retry"
+      );
+      if (candidate.participantId !== parent)
+        malformed("retry participant path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "log" && recordSegments[1] === "entries" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "log entry id");
+      assertUuidValue(candidate.collaborationId, "log collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("log collaboration path identity does not match record");
+      assertBoundedString(candidate.category, "log category", 64);
+      assertBoundedString(candidate.title, "log title", 256);
+      assertPin(candidate.author);
+      assertTimestamp(candidate.authoredAt, "log authoredAt");
+      assertBoundedString(
+        candidate.whatHappened,
+        "log whatHappened",
+        16 * 1024
+      );
+      assertBoundedString(candidate.assessment, "log assessment", 2048);
+      assertBoundedString(
+        candidate.skillImplication,
+        "log skillImplication",
+        4096
+      );
+      assertHash(candidate.contentHash, "log contentHash");
+      if (candidate.contentHash !== logHash(candidate))
+        malformed("log contentHash does not match content");
+      if (candidate.id !== basename3)
+        malformed("log path identity does not match id");
+    } else if (recordSegments.length === 1 && recordSegments[0] === "closed.json") {
+      const candidate = value;
+      assertUuidValue(candidate.collaborationId, "closed collaborationId");
+      assertPin(candidate.closedBy);
+      assertTimestamp(candidate.closedAt, "closed closedAt");
+      assertRecordHash(
+        candidate,
+        "closed marker"
+      );
+      if (candidate.collaborationId !== parent)
+        malformed("closed path identity does not match collaboration");
+    } else if (authoritative) {
+      malformed("authoritative record path layout is invalid");
+    }
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError("MALFORMED_RECORD", error.message);
+  }
+}
+async function validateRootScopedPath(root, target, options) {
+  if (!path.isAbsolute(root) || !path.isAbsolute(target)) {
+    throw new CollaborationError(
+      "INVALID_ROOT",
+      "storage paths must be absolute"
+    );
+  }
+  const absoluteRoot = path.resolve(root);
+  const absoluteTarget = path.resolve(target);
+  const relative = path.relative(absoluteRoot, absoluteTarget);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "storage path escapes the collaboration root"
+    );
+  }
+  const expectedUid = process.getuid?.();
+  const rootInfo = await lstat(absoluteRoot).catch((error) => {
+    if (isMissing(error) && options.allowMissingTail) return null;
+    throw error;
+  });
+  if (!rootInfo) return;
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink() || expectedUid !== void 0 && rootInfo.uid !== expectedUid) {
+    throw new CollaborationError("UNSAFE_PATH", "storage root is unsafe");
+  }
+  const canonicalRoot = await realpath(absoluteRoot);
+  const segments = relative.split(path.sep).filter(Boolean);
+  let current = absoluteRoot;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    const info = await lstat(current).catch((error) => {
+      if (isMissing(error) && options.allowMissingTail) return null;
+      throw error;
+    });
+    if (!info) return;
+    const leaf = index === segments.length - 1;
+    const expectedType = leaf ? options.leaf : "directory";
+    if (info.isSymbolicLink() || (expectedType === "directory" ? !info.isDirectory() : !info.isFile()) || expectedUid !== void 0 && info.uid !== expectedUid) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        `storage path component ${segment} is unsafe`
+      );
+    }
+    const canonicalCurrent = await realpath(current);
+    const canonicalRelative = path.relative(canonicalRoot, canonicalCurrent);
+    if (canonicalRelative.startsWith("..") || path.isAbsolute(canonicalRelative)) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        "storage path escapes the canonical collaboration root"
+      );
+    }
+  }
+}
+async function readJsonRecord(file, options = {}) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, file, { leaf: "file" });
+  }
+  const info = await lstat(file).catch((error) => {
+    if (isMissing(error)) throw error;
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      `cannot inspect record: ${error.message}`
+    );
+  });
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "record must be a regular file"
+    );
+  }
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== void 0 && info.uid !== expectedUid) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "record owner does not match the current user"
+    );
+  }
+  const maxBytes = options.maxBytes ?? 128 * 1024;
+  if (info.size > maxBytes) {
+    throw new CollaborationError(
+      "RECORD_TOO_LARGE",
+      `record exceeds ${maxBytes} bytes`
+    );
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      `invalid JSON record: ${error.message}`
+    );
+  }
+  assertSchema(parsed);
+  validateAuthoritativeRecord(file, parsed, options.root);
+  return parsed;
+}
+async function ensurePrivateDirectory(directory, root) {
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
+  await mkdir(root, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, root, { leaf: "directory" });
+  await chmod(root, 448);
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
+  await mkdir(directory, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
+  await chmod(directory, 448);
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
+}
+async function publishImmutableRecord(target, record, options) {
+  assertSchema(record);
+  const directory = path.dirname(target);
+  await ensurePrivateDirectory(directory, options.root);
+  const bytes = canonicalJson(record);
+  const hash = canonicalHash(record);
+  const temporary = path.join(
+    directory,
+    `.${path.basename(target)}.tmp-${process.pid}-${randomUUID()}`
+  );
+  let handle;
+  let published = false;
+  try {
+    handle = await open(temporary, "wx", 384);
+    await handle.writeFile(bytes, "utf8");
+    await handle.sync();
+    await options.hooks?.afterFileSync?.();
+    await handle.close();
+    handle = void 0;
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory"
+    });
+    await import("node:fs/promises").then(
+      ({ link }) => link(temporary, target)
+    );
+    published = true;
+    await options.hooks?.afterLink?.();
+    await options.hooks?.beforeDirectorySync?.();
+    const directoryHandle = await open(directory, "r");
+    try {
+      await directoryHandle.sync();
+    } catch (error) {
+      throw new CollaborationError(
+        "COMMIT_UNCERTAIN",
+        `record was published but directory sync failed: ${error.message}`,
+        true
+      );
+    } finally {
+      await directoryHandle.close();
+    }
+    return { created: true, path: target, hash, record };
+  } catch (error) {
+    const code = error.code;
+    if (code === "EEXIST") {
+      const existing = await readJsonRecord(target, { root: options.root });
+      if (canonicalHash(existing) !== hash) {
+        throw new CollaborationError(
+          "RECORD_CONFLICT",
+          "record ID already has different content"
+        );
+      }
+      return { created: false, path: target, hash, record: existing };
+    }
+    if (error instanceof CollaborationError) throw error;
+    if (code === "EXDEV" || code === "EPERM" || code === "EOPNOTSUPP" || code === "ENOTSUP") {
+      throw new CollaborationError(
+        "STORAGE_UNSUPPORTED",
+        `hard-link publication is unsupported: ${code}`
+      );
+    }
+    if (published) {
+      throw new CollaborationError(
+        "COMMIT_UNCERTAIN",
+        `record publication outcome is uncertain: ${error.message}`,
+        true
+      );
+    }
+    throw error;
+  } finally {
+    await handle?.close().catch(() => void 0);
+    await unlink(temporary).catch((error) => {
+      if (!isMissing(error)) throw error;
+    });
+  }
+}
+async function enumerateJsonRecords(directory, options) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory",
+      allowMissingTail: true
+    });
+  }
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    (error) => {
+      if (isMissing(error)) return [];
+      throw error;
+    }
+  );
+  const records = entries.filter(
+    (entry) => !entry.name.startsWith(".") && entry.name.endsWith(".json")
+  ).map((entry) => {
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        `record entry ${entry.name} is not a regular file`
+      );
+    }
+    return path.join(directory, entry.name);
+  }).toSorted();
+  if (records.length > options.maxEntries) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      `record directory exceeds ${options.maxEntries} entries`
+    );
+  }
+  return records;
+}
+
+// src/shared/collaboration/paths.ts
+function collaborationPaths(root, collaborationId) {
+  if (!path2.isAbsolute(root))
+    throw new CollaborationError("INVALID_ROOT", "root must be absolute");
+  try {
+    assertUuid(collaborationId, "collaboration ID");
+  } catch (error) {
+    throw new CollaborationError("INVALID_ID", error.message);
+  }
+  const directory = path2.join(root, "collaborations", collaborationId);
+  return {
+    root,
+    directory,
+    collaboration: path2.join(directory, "collaboration.json"),
+    members: path2.join(directory, "members"),
+    bindings: path2.join(directory, "bindings"),
+    departures: path2.join(directory, "departures"),
+    inbox: path2.join(directory, "inbox"),
+    acknowledgments: path2.join(directory, "acks"),
+    logEntries: path2.join(directory, "log", "entries"),
+    renderedLog: path2.join(directory, "collaboration.md"),
+    closed: path2.join(directory, "closed.json")
+  };
+}
+function activationDirectory(root, pin) {
+  return path2.join(root, "activations", pinKey(pin));
+}
+function memberBindingDirectory(paths, participantId) {
+  assertUuid(participantId, "participant ID");
+  return path2.join(paths.bindings, participantId);
+}
+
+// src/shared/collaboration/membership.ts
+var MembershipError = class extends Error {
+  code;
+  constructor(code, message) {
+    super(message);
+    this.name = "MembershipError";
+    this.code = code;
+  }
+};
+async function isCollaborationClosed(root, collaborationId) {
+  const file = collaborationPaths(root, collaborationId).closed;
+  return readJsonRecord(file, { root }).then(
+    () => true,
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+}
+async function resolveMember(root, collaborationId, alias) {
+  assertAlias(alias);
+  const paths = collaborationPaths(root, collaborationId);
+  let member;
+  try {
+    member = await readJsonRecord(
+      path3.join(paths.members, `${alias}.json`),
+      { root }
+    );
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new MembershipError(
+        "MEMBER_NOT_FOUND",
+        `member ${alias} does not exist`
+      );
+    }
+    throw error;
+  }
+  const bindingFiles = await enumerateJsonRecords(
+    memberBindingDirectory(paths, member.participantId),
+    { root, maxEntries: 64 }
+  );
+  if (bindingFiles.length === 0) {
+    await publishImmutableRecord(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json"),
+      member.initialBinding,
+      { root }
+    );
+    bindingFiles.push(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json")
+    );
+  }
+  const bindings = await Promise.all(
+    bindingFiles.map((file) => readJsonRecord(file, { root }))
+  );
+  const binding = bindings.toSorted(
+    (left, right) => right.generation - left.generation
+  )[0];
+  if (!binding)
+    throw new MembershipError("MEMBER_NOT_FOUND", "member has no binding");
+  const departureFile = path3.join(
+    paths.departures,
+    member.participantId,
+    `${binding.generation}.json`
+  );
+  const departed = await readJsonRecord(departureFile, {
+    root
+  }).then(
+    (departure) => {
+      if (!pinsEqual(departure.pin, binding.pin)) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "departure pin does not match its binding"
+        );
+      }
+      return true;
+    },
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+  return { member, binding, departed };
+}
+async function resolveMemberByPin(root, collaborationId, pin) {
+  assertPin(pin);
+  const paths = collaborationPaths(root, collaborationId);
+  const files = await enumerateJsonRecords(paths.members, {
+    root,
+    maxEntries: 128
+  });
+  for (const file of files) {
+    const member = await readJsonRecord(file, { root });
+    const resolved = await resolveMember(root, collaborationId, member.alias);
+    if (pinsEqual(resolved.binding.pin, pin)) return resolved;
+  }
+  throw new MembershipError(
+    "NOT_CURRENT_MEMBER",
+    "pin is not a current collaboration member"
+  );
+}
+
+// src/shared/collaboration/activation.ts
+var DEFAULT_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1e3;
+var MAX_ACTIVATION_DURATION_MS = 24 * 60 * 60 * 1e3;
+var MAX_CONTINUATIONS = 100;
+var MAX_WAIT_MS = 6e4;
+var MAX_ACTIVITY_RECEIPTS = 4096;
+var MAX_ACTIVATION_EPOCHS = 64;
+var DeliveryError = class extends Error {
+  code;
+  constructor(code, message) {
+    super(message);
+    this.name = "DeliveryError";
+    this.code = code;
+  }
+};
+function timestamp(value, label) {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      `${label} must be an ISO-8601 timestamp`
+    );
+  }
+  return parsed;
+}
+function assertIntegerRange(value, label, minimum, maximum) {
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new TypeError(
+      `${label} must be an integer from ${minimum} to ${maximum}`
+    );
+  }
+}
+function validateActivation(record) {
+  try {
+    if (record.schemaVersion !== SCHEMA_VERSION)
+      throw new TypeError("activation schema version is unsupported");
+    assertUuid(record.id, "activation ID");
+    assertUuid(record.collaborationId, "activation collaboration ID");
+    assertUuid(record.participantId, "activation participant ID");
+    assertPin(record.pin);
+    if (!path4.isAbsolute(record.worktree))
+      throw new TypeError("activation worktree must be absolute");
+    assertIntegerRange(
+      record.epoch,
+      "activation epoch",
+      0,
+      MAX_ACTIVATION_EPOCHS - 1
+    );
+    if (record.previousEpoch !== null && record.previousEpoch !== record.epoch - 1) {
+      throw new TypeError(
+        "activation previousEpoch must identify the contiguous predecessor"
+      );
+    }
+    assertIntegerRange(
+      record.bindingGeneration,
+      "binding generation",
+      0,
+      Number.MAX_SAFE_INTEGER
+    );
+    if (!["stop", "monitor"].includes(record.mechanism))
+      throw new TypeError("activation mechanism is unsupported");
+    if (!["standalone-messaging", "observer-collab"].includes(record.controller)) {
+      throw new TypeError("activation controller is unsupported");
+    }
+    if (!["human-idle", "fixed"].includes(record.expiryMode))
+      throw new TypeError("activation expiry mode is unsupported");
+    const startedAt = timestamp(record.startedAt, "activation startedAt");
+    const hardExpiresAt = timestamp(
+      record.hardExpiresAt,
+      "activation hardExpiresAt"
+    );
+    if (hardExpiresAt <= startedAt || hardExpiresAt - startedAt > MAX_ACTIVATION_DURATION_MS)
+      throw new TypeError("activation hard expiry must be within 24 hours");
+    if (record.expiryMode === "human-idle") {
+      assertIntegerRange(
+        record.idleTimeoutMs ?? 0,
+        "idle timeout",
+        1,
+        MAX_ACTIVATION_DURATION_MS
+      );
+      if (record.fixedExpiresAt !== null)
+        throw new TypeError("human-idle activation cannot have fixedExpiresAt");
+    } else {
+      if (record.idleTimeoutMs !== null)
+        throw new TypeError("fixed activation cannot have idleTimeoutMs");
+      if (record.fixedExpiresAt === null)
+        throw new TypeError("fixed activation requires fixedExpiresAt");
+      const fixedExpiresAt = timestamp(
+        record.fixedExpiresAt,
+        "activation fixedExpiresAt"
+      );
+      if (fixedExpiresAt <= startedAt || fixedExpiresAt > hardExpiresAt)
+        throw new TypeError(
+          "fixed activation expiry must follow start and not exceed hard expiry"
+        );
+    }
+    if (record.thirdPartyHookAcknowledgment) {
+      if (!/^[a-f0-9]{64}$/u.test(
+        record.thirdPartyHookAcknowledgment.configurationFingerprint
+      ))
+        throw new TypeError("hook acknowledgment fingerprint is invalid");
+      const acknowledgedAt = timestamp(
+        record.thirdPartyHookAcknowledgment.acknowledgedAt,
+        "hook acknowledgment time"
+      );
+      if (acknowledgedAt < startedAt || acknowledgedAt > hardExpiresAt)
+        throw new TypeError("hook acknowledgment time is outside activation");
+    }
+    if (record.noObserverMonitorAttestation) {
+      assertPin(record.noObserverMonitorAttestation.pin);
+      if (!pinsEqual(record.noObserverMonitorAttestation.pin, record.pin) || record.noObserverMonitorAttestation.epoch !== record.epoch)
+        throw new TypeError("Monitor attestation identity is invalid");
+      const confirmedAt = timestamp(
+        record.noObserverMonitorAttestation.confirmedAt,
+        "Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError("Monitor attestation time is outside activation");
+    }
+    if (record.composedMonitorAttestation) {
+      const attestation = record.composedMonitorAttestation;
+      assertPin(attestation.owner);
+      assertPin(attestation.peer);
+      assertUuid(attestation.activationId, "Monitor activation ID");
+      assertUuid(attestation.collaborationId, "Monitor collaboration ID");
+      assertBoundedString(
+        attestation.observerLeaseId,
+        "Monitor observer lease ID",
+        128
+      );
+      if (!pinsEqual(attestation.owner, record.pin) || attestation.activationId !== record.id || attestation.collaborationId !== record.collaborationId || attestation.epoch !== record.epoch || attestation.oldMonitorStopped !== true || attestation.standaloneWatcherStopped !== true)
+        throw new TypeError("composed Monitor attestation identity is invalid");
+      const confirmedAt = timestamp(
+        attestation.confirmedAt,
+        "composed Monitor attestation time"
+      );
+      if (confirmedAt < startedAt || confirmedAt > hardExpiresAt)
+        throw new TypeError(
+          "composed Monitor attestation time is outside activation"
+        );
+    }
+    if (record.claudeInventorySources) {
+      if (record.pin.runtime !== "claude-code")
+        throw new TypeError(
+          "Claude inventory sources require a Claude activation"
+        );
+      if (!Array.isArray(record.claudeInventorySources.settingsPaths) || record.claudeInventorySources.settingsPaths.length === 0 || !record.claudeInventorySources.settingsPaths.every(path4.isAbsolute) || !record.claudeInventorySources.installedPlugins || typeof record.claudeInventorySources.installedPlugins !== "object" || Array.isArray(record.claudeInventorySources.installedPlugins) || !Object.values(record.claudeInventorySources.installedPlugins).every(
+        path4.isAbsolute
+      ))
+        throw new TypeError("Claude inventory sources are invalid");
+    }
+    assertIntegerRange(
+      record.maxContinuations,
+      "max continuations",
+      1,
+      MAX_CONTINUATIONS
+    );
+    assertIntegerRange(record.waitMs, "wait milliseconds", 0, MAX_WAIT_MS);
+    if (record.contentHash !== canonicalRecordHash(
+      record
+    ))
+      throw new TypeError("activation contentHash does not match content");
+    return record;
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError("MALFORMED_RECORD", error.message);
+  }
+}
+async function activationRecords(root, pin) {
+  const directory = path4.join(activationDirectory(root, pin), "epochs");
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: MAX_ACTIVATION_EPOCHS
+  });
+  for (const file of files) {
+    if (!/^(0|[1-9][0-9]*)\.json$/u.test(path4.basename(file))) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation epoch filename is invalid"
+      );
+    }
+  }
+  const records = await Promise.all(
+    files.map(
+      async (file) => validateActivation(
+        await readJsonRecord(file, { root })
+      )
+    )
+  );
+  records.sort((left, right) => left.epoch - right.epoch);
+  for (const [index, record] of records.entries()) {
+    if (record.epoch !== index || record.previousEpoch !== (index === 0 ? null : index - 1)) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation epochs are not contiguous"
+      );
+    }
+    if (!pinsEqual(record.pin, pin))
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activation pin does not match its namespace"
+      );
+  }
+  return records;
+}
+async function isRevoked(root, pin, activationId) {
+  return readJsonRecord(
+    path4.join(
+      activationDirectory(root, pin),
+      "revoked",
+      `${activationId}.json`
+    ),
+    { root }
+  ).then(
+    (record) => {
+      if (record.activationId !== activationId || record.contentHash !== canonicalRecordHash(
+        record
+      )) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "activation revocation is invalid"
+        );
+      }
+      return true;
+    },
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+}
+async function activityReceipts(root, activation) {
+  const directory = path4.join(
+    activationDirectory(root, activation.pin),
+    "activity",
+    activation.id
+  );
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: MAX_ACTIVITY_RECEIPTS
+  });
+  const receipts = await Promise.all(
+    files.map(async (file) => {
+      const record = await readJsonRecord(file, {
+        root,
+        maxBytes: 8192
+      });
+      if (record.activationId !== activation.id || record.contentHash !== canonicalRecordHash(
+        record
+      )) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "activity receipt is invalid"
+        );
+      }
+      assertBoundedString(record.eventKey, "activity event key", 256);
+      timestamp(record.observedAt, "activity observedAt");
+      return record;
+    })
+  );
+  return receipts.toSorted(
+    (left, right) => left.observedAt.localeCompare(right.observedAt) || left.eventKey.localeCompare(right.eventKey)
+  );
+}
+async function effectiveActivationExpiry(root, activation) {
+  validateActivation(activation);
+  const started = timestamp(activation.startedAt, "activation startedAt");
+  const hard = timestamp(activation.hardExpiresAt, "activation hardExpiresAt");
+  if (activation.expiryMode === "fixed") {
+    return new Date(
+      Math.min(
+        hard,
+        timestamp(activation.fixedExpiresAt, "activation fixedExpiresAt")
+      )
+    ).toISOString();
+  }
+  let liveThrough = Math.min(hard, started + activation.idleTimeoutMs);
+  for (const receipt of await activityReceipts(root, activation)) {
+    const observed = timestamp(receipt.observedAt, "activity observedAt");
+    if (observed < started || observed > liveThrough) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "activity receipt crosses an expired activation gap"
+      );
+    }
+    liveThrough = Math.min(hard, observed + activation.idleTimeoutMs);
+  }
+  return new Date(liveThrough).toISOString();
+}
+async function activationStatus(root, pin, now = /* @__PURE__ */ new Date()) {
+  assertPin(pin);
+  const records = await activationRecords(root, pin);
+  const activation = records.at(-1) ?? null;
+  if (!activation)
+    return {
+      activation: null,
+      active: false,
+      terminationReason: null,
+      effectiveExpiresAt: null,
+      notice: null
+    };
+  if (await isRevoked(root, pin, activation.id))
+    return {
+      activation,
+      active: false,
+      terminationReason: "revoked",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "Delivery is disabled. Re-enable explicitly to resume automatic checks."
+    };
+  if (await isCollaborationClosed(root, activation.collaborationId))
+    return {
+      activation,
+      active: false,
+      terminationReason: "closed",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "The collaboration is closed; delivery remains manual/history-only."
+    };
+  const member = await resolveMemberByPin(
+    root,
+    activation.collaborationId,
+    pin
+  ).catch((error) => {
+    if (error.code === "NOT_CURRENT_MEMBER") return null;
+    throw error;
+  });
+  if (!member || member.binding.generation !== activation.bindingGeneration || member.member.participantId !== activation.participantId) {
+    return {
+      activation,
+      active: false,
+      terminationReason: "superseded",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "Delivery ownership was superseded; the current session must enable a new epoch."
+    };
+  }
+  if (member.departed)
+    return {
+      activation,
+      active: false,
+      terminationReason: "departed",
+      effectiveExpiresAt: await effectiveActivationExpiry(root, activation),
+      notice: "The participant departed; automatic delivery is inactive."
+    };
+  const effectiveExpiresAt = await effectiveActivationExpiry(root, activation);
+  if (now.getTime() >= Date.parse(effectiveExpiresAt))
+    return {
+      activation,
+      active: false,
+      terminationReason: "expired",
+      effectiveExpiresAt,
+      notice: "Delivery expired with mail still queued. Re-enable explicitly after inspecting the inbox."
+    };
+  return {
+    activation,
+    active: true,
+    terminationReason: null,
+    effectiveExpiresAt,
+    notice: null
+  };
+}
+
+// src/shared/collaboration/claims.ts
+import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+import path5 from "node:path";
+async function resolveDeliveryKeys(input) {
+  const files = await enumerateJsonRecords(
+    path5.join(
+      collaborationPaths(input.root, input.activation.collaborationId).directory,
+      "retries",
+      input.activation.participantId
+    ),
+    { root: input.root, maxEntries: 4096 }
+  );
+  const generations = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const retry = await readJsonRecord(file, { root: input.root });
+    if (retry.activationId !== input.activation.id || retry.participantId !== input.activation.participantId || !Number.isSafeInteger(retry.retryGeneration) || retry.retryGeneration < 1)
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "retry record identity or generation is invalid"
+      );
+    generations.set(
+      retry.messageId,
+      Math.max(generations.get(retry.messageId) ?? 0, retry.retryGeneration)
+    );
+  }
+  return input.messages.map((message) => ({
+    messageId: message.id,
+    retryGeneration: generations.get(message.id) ?? 0
+  }));
+}
+function safeKey(domain, value) {
+  return createHash3("sha256").update(`${domain}\0${value}`, "utf8").digest("hex");
+}
+function deliveryKey(input) {
+  assertUuid(input.messageId, "delivery message ID");
+  if (!Number.isSafeInteger(input.retryGeneration) || input.retryGeneration < 0)
+    throw new TypeError("retry generation must be a non-negative integer");
+  return `${input.messageId}:${input.retryGeneration}`;
+}
+function baseClaim(input, activationId, token, attemptedAt) {
+  assertBoundedString(input.eventKey, "event key", 256);
+  const proposedDeliveryKeys = input.deliveryKeys.map(deliveryKey).toSorted();
+  if (new Set(proposedDeliveryKeys).size !== proposedDeliveryKeys.length)
+    throw new TypeError("delivery keys must be unique");
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activationId,
+    token,
+    eventKey: input.eventKey,
+    proposedDeliveryKeys,
+    attemptedAt
+  };
+}
+async function publish(target, base, root, hooks) {
+  const record = {
+    ...base,
+    contentHash: canonicalRecordHash(
+      base
+    )
+  };
+  return publishImmutableRecord(target, record, { root, hooks });
+}
+async function claimDelivery(input) {
+  const before = await activationStatus(
+    input.root,
+    input.pin,
+    input.now ?? /* @__PURE__ */ new Date()
+  );
+  if (!before.activation || !before.active)
+    throw new DeliveryError(
+      "DELIVERY_INACTIVE",
+      before.notice ?? "delivery activation is inactive"
+    );
+  const activation = before.activation;
+  const token = input.token ?? randomUUID4();
+  const attemptedAt = (input.now ?? /* @__PURE__ */ new Date()).toISOString();
+  const base = baseClaim(input, activation.id, token, attemptedAt);
+  const claimRoot = path5.join(
+    activationDirectory(input.root, input.pin),
+    "claims",
+    activation.id
+  );
+  const eventPath = path5.join(
+    claimRoot,
+    "events",
+    `${safeKey("event", input.eventKey)}.json`
+  );
+  const existingEvent = await readJsonRecord(eventPath, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (existingEvent)
+    return {
+      event: existingEvent,
+      slot: null,
+      owned: [],
+      duplicateEvent: true,
+      activeAfterClaim: false
+    };
+  const eventResult = await publish(
+    eventPath,
+    base,
+    input.root
+  ).catch(async (error) => {
+    if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
+      const winner = await readJsonRecord(eventPath, {
+        root: input.root
+      });
+      return {
+        created: false,
+        path: eventPath,
+        hash: winner.contentHash,
+        record: winner
+      };
+    }
+    throw error;
+  });
+  if (!eventResult.created)
+    return {
+      event: eventResult.record,
+      slot: null,
+      owned: [],
+      duplicateEvent: true,
+      activeAfterClaim: false
+    };
+  await input.hooks?.afterEventClaim?.();
+  let slot = null;
+  for (let number = 1; number <= activation.maxContinuations; number += 1) {
+    const slotBase = { ...base, slot: number };
+    const result = await publish(
+      path5.join(claimRoot, "slots", `${number}.json`),
+      slotBase,
+      input.root
+    ).catch((error) => {
+      if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT")
+        return null;
+      throw error;
+    });
+    if (result?.created) {
+      slot = result.record;
+      break;
+    }
+  }
+  if (!slot)
+    return {
+      event: eventResult.record,
+      slot: null,
+      owned: [],
+      duplicateEvent: false,
+      activeAfterClaim: false
+    };
+  await input.hooks?.afterSlotClaim?.();
+  const owned = [];
+  for (const item of input.deliveryKeys) {
+    const key = deliveryKey(item);
+    const messageBase = {
+      ...base,
+      deliveryKey: key,
+      messageId: item.messageId,
+      retryGeneration: item.retryGeneration
+    };
+    const result = await publish(
+      path5.join(claimRoot, "messages", `${safeKey("message", key)}.json`),
+      messageBase,
+      input.root
+    ).catch((error) => {
+      if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT")
+        return null;
+      throw error;
+    });
+    if (result?.created) owned.push(result.record);
+    await input.hooks?.afterMessageClaim?.();
+  }
+  await input.hooks?.beforeFinalValidation?.();
+  const after = await activationStatus(
+    input.root,
+    input.pin,
+    input.clock?.() ?? /* @__PURE__ */ new Date()
+  );
+  return {
+    event: eventResult.record,
+    slot,
+    owned,
+    duplicateEvent: false,
+    activeAfterClaim: after.active && after.activation?.id === activation.id
+  };
+}
+
+// src/shared/collaboration/messages.ts
+import path6 from "node:path";
+async function currentRecipient(input) {
+  const recipient = await resolveMemberByPin(
+    input.root,
+    input.collaborationId,
+    input.pin
+  );
+  if (recipient.departed)
+    throw new MembershipError(
+      "MEMBER_DEPARTED",
+      "departed member inbox is inert"
+    );
+  return recipient;
+}
+async function acknowledged(input, recipient, message) {
+  const inherited = recipient.binding.inheritedAckRefs.find(
+    (ack2) => ack2.messageId === message.id
+  );
+  if (inherited) {
+    if (inherited.messageHash !== message.contentHash) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        "inherited acknowledgment hash does not match its message"
+      );
+    }
+    return true;
+  }
+  const ackPath = path6.join(
+    collaborationPaths(input.root, input.collaborationId).acknowledgments,
+    recipient.member.participantId,
+    String(recipient.binding.generation),
+    `${message.id}.json`
+  );
+  const ack = await readJsonRecord(ackPath, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!ack) return false;
+  if (!pinsEqual(ack.recipient, recipient.binding.pin)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "acknowledgment recipient does not match the current binding"
+    );
+  }
+  if (ack.messageHash !== message.contentHash) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "acknowledgment hash does not match its message"
+    );
+  }
+  return true;
+}
+async function presentMessage(input, recipient, message) {
+  const closed = await isCollaborationClosed(input.root, input.collaborationId);
+  const raceStatus = closed ? "closed" : message.to.generation === recipient.binding.generation ? "current" : "recipient-reassigned";
+  return {
+    ...message,
+    raceStatus,
+    inert: raceStatus === "closed"
+  };
+}
+async function listInbox(input) {
+  const recipient = await currentRecipient(input);
+  const directory = path6.join(
+    collaborationPaths(input.root, input.collaborationId).inbox,
+    recipient.member.participantId
+  );
+  const files = await enumerateJsonRecords(directory, {
+    root: input.root,
+    maxEntries: 4096
+  });
+  const records = await Promise.all(
+    files.map(
+      (file) => readJsonRecord(file, {
+        root: input.root,
+        maxBytes: MAX_BODY_BYTES + 4096
+      })
+    )
+  );
+  const sorted = records.toSorted((left, right) => {
+    const priority = Number(right.priority === "high") - Number(left.priority === "high");
+    return priority || left.createdAt.localeCompare(right.createdAt) || left.from.pin.runtime.localeCompare(right.from.pin.runtime) || left.from.pin.sessionId.localeCompare(right.from.pin.sessionId) || left.id.localeCompare(right.id);
+  });
+  const pending = [];
+  const acked = [];
+  for (const message of sorted) {
+    const presented = await presentMessage(input, recipient, message);
+    if (await acknowledged(input, recipient, message)) acked.push(presented);
+    else pending.push(presented);
+  }
+  const maxMessages = input.maxMessages ?? 8;
+  const maxBytes = input.maxBytes ?? 48 * 1024;
+  const selectedPending = [];
+  const selectedAcknowledged = [];
+  let bytes = 0;
+  const candidates = [
+    ...pending.map((message) => ({ message, acknowledged: false })),
+    ...input.includeAcknowledged ? acked.map((message) => ({ message, acknowledged: true })) : []
+  ];
+  for (const candidate of candidates) {
+    const message = candidate.message;
+    const size = Buffer.byteLength(message.body, "utf8");
+    if (selectedPending.length + selectedAcknowledged.length >= maxMessages || bytes + size > maxBytes)
+      break;
+    if (candidate.acknowledged) selectedAcknowledged.push(message);
+    else selectedPending.push(message);
+    bytes += size;
+  }
+  return {
+    messages: selectedPending,
+    acknowledged: selectedAcknowledged,
+    truncated: selectedPending.length !== pending.length || input.includeAcknowledged === true && selectedAcknowledged.length !== acked.length,
+    pendingTotal: pending.length,
+    acknowledgedTotal: acked.length
+  };
+}
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
-import { open, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { open as open2, readFile as readFile2 } from "node:fs/promises";
+import { homedir as homedir2 } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
 var TOOL_INPUT_LIMIT = 200;
 var TOOL_RESULT_LIMIT = 500;
@@ -300,7 +1699,7 @@ function safeParseLine(line) {
   }
 }
 async function readRecordsDetailedInternal(transcriptPath) {
-  const rawBytes = await readFile(transcriptPath);
+  const rawBytes = await readFile2(transcriptPath);
   const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const sourceBytes = rawBytes.byteLength;
   const raw = rawBytes.toString("utf8");
@@ -1300,13 +2699,13 @@ function topLevelResultOutcome(toolUseResult) {
 }
 function externalReference(toolUseResult) {
   if (!isJsonObject(toolUseResult)) return void 0;
-  const path = stringValue(toolUseResult.persistedOutputPath);
+  const path7 = stringValue(toolUseResult.persistedOutputPath);
   const size = numberValue(toolUseResult.persistedOutputSize);
-  if (path === void 0 && size === void 0) return void 0;
+  if (path7 === void 0 && size === void 0) return void 0;
   return {
     kind: "persisted-output",
     availability: "not-read",
-    ...path === void 0 ? {} : { path },
+    ...path7 === void 0 ? {} : { path: path7 },
     ...size === void 0 ? {} : { size }
   };
 }
@@ -1374,15 +2773,15 @@ function selectedClaudeMetadata(record) {
   const model = message ? stringValue(message.model) : void 0;
   const effort = stringValue(record.effort);
   const perTurnEffort = stringValue(record.perTurnEffort);
-  const timestamp2 = stringValue(record.timestamp);
-  if (model === void 0 && effort === void 0 && perTurnEffort === void 0 && timestamp2 === void 0) {
+  const timestamp3 = stringValue(record.timestamp);
+  if (model === void 0 && effort === void 0 && perTurnEffort === void 0 && timestamp3 === void 0) {
     return void 0;
   }
   return {
     ...model === void 0 ? {} : { model },
     ...effort === void 0 ? {} : { effort },
     ...perTurnEffort === void 0 ? {} : { perTurnEffort },
-    ...timestamp2 === void 0 ? {} : { timestamp: timestamp2 }
+    ...timestamp3 === void 0 ? {} : { timestamp: timestamp3 }
   };
 }
 function claudeSystemActivity(source, detailed) {
@@ -2732,7 +4131,7 @@ function extractCursorActivity(input) {
 }
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 function cursorRenderTurnId(turn, sourceFrameIndex) {
   const humanFrameIndex = turn.humanRecordIndexes.findLast(
     (frameIndex) => frameIndex <= sourceFrameIndex
@@ -2746,7 +4145,7 @@ function stringValue2(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
-  return createHash("sha256").update(
+  return createHash4("sha256").update(
     JSON.stringify([
       identity.runtime,
       identity.projectCwd,
@@ -3101,7 +4500,7 @@ function classifyTranscriptRecords(runtime, records) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-var SCHEMA_VERSION = 1;
+var SCHEMA_VERSION2 = 1;
 var LARGE_OUTPUT_THRESHOLD = 2e4;
 var AUTO_LARGE_DIGEST_TURNS = 8;
 function applyTailSlice(entries, opts) {
@@ -3214,7 +4613,7 @@ function cursorEntry(record, renderTurnId, deliveryFrameIndex, availability) {
   };
 }
 function cursorEntryHash(text) {
-  return createHash2("sha256").update(text).digest("hex");
+  return createHash5("sha256").update(text).digest("hex");
 }
 function cursorRecordWasDelivered(record, stateTurn) {
   if (!stateTurn) return false;
@@ -3947,7 +5346,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     }
   }
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: SCHEMA_VERSION2,
     runtime,
     sessionId,
     ...identity?.nativeSessionId ? { nativeSessionId: identity.nativeSessionId } : {},
@@ -4286,21 +5685,21 @@ function selectCompletedContinuation(observerResult) {
 }
 
 // src/skills/session-observer-collab/src/lib/lease-state.mjs
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 import { constants } from "node:fs";
 import {
   access,
-  chmod,
-  lstat,
-  mkdir,
-  open as open2,
-  readFile as readFile2,
-  readdir,
-  realpath,
+  chmod as chmod2,
+  lstat as lstat3,
+  mkdir as mkdir2,
+  open as open3,
+  readFile as readFile3,
+  readdir as readdir2,
+  realpath as realpath3,
   rename,
   rm
 } from "node:fs/promises";
-import { homedir as homedir2 } from "node:os";
+import { homedir as homedir3 } from "node:os";
 import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, join as join2, resolve, sep } from "node:path";
 var LEASE_SCHEMA_VERSION = 6;
 var LEASE_STATES = Object.freeze([
@@ -4310,12 +5709,12 @@ var LEASE_STATES = Object.freeze([
   "triggered",
   "disarmed"
 ]);
-var MAX_WAIT_MS = 6e4;
+var MAX_WAIT_MS2 = 6e4;
 var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
-var MAX_CONTINUATIONS = 100;
+var MAX_CONTINUATIONS2 = 100;
 var MAX_LOOPS = 1e3;
 var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var RECORD_INDEX_BASE2 = "zero-based-jsonl-record-index";
 var FRAME_INDEX_BASE2 = "zero-based-jsonl-frame-index";
@@ -4336,7 +5735,7 @@ function stateRoot(env = process.env) {
       );
     return resolve(env.SESSION_OBSERVER_STATE_DIR);
   }
-  const base = env.XDG_STATE_HOME || join2(env.HOME || homedir2(), ".local", "state");
+  const base = env.XDG_STATE_HOME || join2(env.HOME || homedir3(), ".local", "state");
   if (!isAbsolute2(base))
     throw new LeaseError(
       "invalid-state-root",
@@ -4357,7 +5756,7 @@ function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
       "invalid-owner-runtime",
-      "owner runtime must be codex or cursor"
+      "owner runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
@@ -4418,7 +5817,7 @@ async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
   const requested = validateAbsolutePath(peerTranscript, "peer-transcript");
   let canonicalTranscript;
   try {
-    canonicalTranscript = await realpath(requested);
+    canonicalTranscript = await realpath3(requested);
   } catch (error) {
     throw new LeaseError(
       "peer-transcript-unavailable",
@@ -4429,7 +5828,7 @@ async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
     const requestedStore = cursorTranscriptStore(requested);
     let canonicalStore;
     try {
-      canonicalStore = await realpath(requestedStore);
+      canonicalStore = await realpath3(requestedStore);
     } catch (error) {
       throw new LeaseError(
         "unsupported-peer-transcript-store",
@@ -4466,7 +5865,7 @@ function integer2(value, name, min, max) {
   }
   return value;
 }
-function timestamp(value, name) {
+function timestamp2(value, name) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
     throw new LeaseError("malformed-lease", `${name} must be an ISO timestamp`);
   }
@@ -4558,6 +5957,24 @@ function validateLease(raw) {
   validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
+  if (value.runtime === "claude-code") {
+    const composition = value.composedActivation;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.collaborationId
+    ) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.activationId
+    ) || composition.controller !== "observer-collab" || composition.mechanism !== "monitor" || composition.ownerRuntime !== value.runtime || composition.ownerSession !== value.ownerSession || composition.peerRuntime !== value.peerRuntime || composition.peerSession !== value.peerSession || composition.ownerCwd !== value.ownerCwd || composition.peerTranscript !== value.peerTranscript || typeof composition.confirmedAt !== "string" || !Number.isFinite(Date.parse(composition.confirmedAt)) || composition.oldMonitorStopped !== true || composition.standaloneWatcherStopped !== true) {
+      throw new LeaseError(
+        "invalid-composed-activation",
+        "Claude owner lease requires an exact composed Monitor activation and stop attestations"
+      );
+    }
+  } else if (value.composedActivation !== void 0 && value.composedActivation !== null) {
+    throw new LeaseError(
+      "invalid-composed-activation",
+      "only a Claude owner lease may bind a composed Monitor activation"
+    );
+  }
   validateId(value.ownerSession, "owner-session");
   validateId(value.peerSession, "peer-session");
   value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");
@@ -4578,9 +5995,9 @@ function validateLease(raw) {
   validatePeerIndexBase(value.peerIndexBase, value.peerRuntime);
   if (!LEASE_STATES.includes(value.state))
     throw new LeaseError("malformed-lease", "invalid lease state");
-  value.armedAt = timestamp(value.armedAt, "armedAt");
-  value.expiresAt = timestamp(value.expiresAt, "expiresAt");
-  value.updatedAt = timestamp(value.updatedAt, "updatedAt");
+  value.armedAt = timestamp2(value.armedAt, "armedAt");
+  value.expiresAt = timestamp2(value.expiresAt, "expiresAt");
+  value.updatedAt = timestamp2(value.updatedAt, "updatedAt");
   if (value.waitStartedAt === null !== (value.waitDeadlineAt === null)) {
     throw new LeaseError(
       "malformed-lease",
@@ -4588,8 +6005,8 @@ function validateLease(raw) {
     );
   }
   if (value.waitStartedAt !== null) {
-    value.waitStartedAt = timestamp(value.waitStartedAt, "waitStartedAt");
-    value.waitDeadlineAt = timestamp(value.waitDeadlineAt, "waitDeadlineAt");
+    value.waitStartedAt = timestamp2(value.waitStartedAt, "waitStartedAt");
+    value.waitDeadlineAt = timestamp2(value.waitDeadlineAt, "waitDeadlineAt");
   }
   const waiterFields = [value.waitToken, value.waitPid];
   const nullWaiterFields = waiterFields.filter(
@@ -4605,7 +6022,7 @@ function validateLease(raw) {
     validateId(value.waitToken, "wait-token");
     integer2(value.waitPid, "waitPid", 1, Number.MAX_SAFE_INTEGER);
   }
-  integer2(value.waitMs, "waitMs", 0, MAX_WAIT_MS);
+  integer2(value.waitMs, "waitMs", 0, MAX_WAIT_MS2);
   integer2(value.leaseMs, "leaseMs", 1, MAX_LEASE_MS);
   integer2(value.peerCursor, "peerCursor", 0, Number.MAX_SAFE_INTEGER);
   if (value.peerRuntime === "cursor" && value.peerContinuity === null) {
@@ -4669,8 +6086,8 @@ function validateLease(raw) {
       }
     }
   }
-  integer2(value.continuationCount, "continuationCount", 0, MAX_CONTINUATIONS);
-  integer2(value.continuationCap, "continuationCap", 1, MAX_CONTINUATIONS);
+  integer2(value.continuationCount, "continuationCount", 0, MAX_CONTINUATIONS2);
+  integer2(value.continuationCap, "continuationCap", 1, MAX_CONTINUATIONS2);
   integer2(value.loopCount, "loopCount", 0, MAX_LOOPS);
   integer2(value.loopCap, "loopCap", 1, MAX_LOOPS);
   if (value.continuationCount > value.continuationCap || value.loopCount > value.loopCap) {
@@ -4742,15 +6159,15 @@ function effectiveLease(lease, now = Date.now()) {
 async function createWaiterIdentity(pid = process.pid) {
   integer2(pid, "waitPid", 1, Number.MAX_SAFE_INTEGER);
   return Object.freeze({
-    token: randomUUID(),
+    token: randomUUID5(),
     pid
   });
 }
 async function atomicWriteJson(file, value) {
-  await mkdir(dirname2(file), { recursive: true, mode: 448 });
-  await chmod(dirname2(file), 448);
-  const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  const handle = await open2(temp, "wx", 384);
+  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
+  await chmod2(dirname2(file), 448);
+  const temp = `${file}.${process.pid}.${randomUUID5()}.tmp`;
+  const handle = await open3(temp, "wx", 384);
   try {
     await handle.writeFile(`${JSON.stringify(value, null, 2)}
 `, "utf8");
@@ -4759,13 +6176,13 @@ async function atomicWriteJson(file, value) {
     await handle.close();
   }
   await rename(temp, file);
-  await chmod(file, 384);
+  await chmod2(file, 384);
 }
 async function readLease(root, ownerSession, { persistMigration = true } = {}) {
   const file = leasePath(root, ownerSession);
   let raw;
   try {
-    const metadata = await lstat(file);
+    const metadata = await lstat3(file);
     const wrongOwner = typeof process.getuid === "function" && metadata.uid !== process.getuid();
     if (!metadata.isFile() || metadata.isSymbolicLink() || wrongOwner || (metadata.mode & 63) !== 0) {
       throw new LeaseError(
@@ -4773,7 +6190,7 @@ async function readLease(root, ownerSession, { persistMigration = true } = {}) {
         "lease must be a regular owner-only file owned by this user"
       );
     }
-    raw = JSON.parse(await readFile2(file, "utf8"));
+    raw = JSON.parse(await readFile3(file, "utf8"));
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     if (error instanceof LeaseError) throw error;
@@ -4797,11 +6214,11 @@ async function readLease(root, ownerSession, { persistMigration = true } = {}) {
 async function withLeaseLock(file, fn) {
   const lock = `${file}.lock`;
   let handle;
-  await mkdir(dirname2(file), { recursive: true, mode: 448 });
-  await chmod(dirname2(file), 448);
+  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
+  await chmod2(dirname2(file), 448);
   for (let attempt = 0; ; attempt += 1) {
     try {
-      handle = await open2(lock, "wx", 384);
+      handle = await open3(lock, "wx", 384);
       break;
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
@@ -4879,7 +6296,7 @@ async function compareAndSwapCursor(root, ownerSession, expected, cursorUpdate2,
       return { ok: false, reason: "stale", lease: current };
     }
     const effective = effectiveLease(current, now);
-    if (effective.state !== "waiting") {
+    if (!["armed", "waiting"].includes(effective.state)) {
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,
@@ -4973,9 +6390,9 @@ async function finishLeaseWait(root, ownerSession, expected, diagnostic = "wait-
     return { ok: true, lease: idle };
   });
 }
-async function resourceExists(path) {
+async function resourceExists(path7) {
   try {
-    await access(path, constants.F_OK);
+    await access(path7, constants.F_OK);
     return true;
   } catch {
     return false;
@@ -4983,14 +6400,14 @@ async function resourceExists(path) {
 }
 
 // src/skills/session-observer-collab/src/lib/runtime-adapter.mjs
-import { createHash as createHash3 } from "node:crypto";
-import { open as open3 } from "node:fs/promises";
+import { createHash as createHash6 } from "node:crypto";
+import { open as open4 } from "node:fs/promises";
 var RUNTIME_ADAPTER_VERSION = 2;
 function fileIdentity(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 async function hashPrefix(handle, prefixBytes) {
-  const hash = createHash3("sha256");
+  const hash = createHash6("sha256");
   if (prefixBytes === 0) return hash.digest("hex");
   let bytesRead = 0;
   const stream = handle.createReadStream({
@@ -5046,7 +6463,7 @@ async function verifyAdapterPeerContinuity(lease, transcript) {
   }
   let handle;
   try {
-    handle = await open3(lease.peerCanonicalTranscriptPath, "r");
+    handle = await open4(lease.peerCanonicalTranscriptPath, "r");
     const metadata = await handle.stat();
     if (metadata.size < checkpoint.observedSize || metadata.size < checkpoint.prefixBytes) {
       return Object.freeze({
@@ -5280,12 +6697,12 @@ async function claimAdapterTrigger(root, invocation, expected, completion, clock
 }
 
 // src/skills/session-observer-collab/src/lib/selected-prefix.mjs
-import { createHash as createHash5 } from "node:crypto";
-import { open as open5 } from "node:fs/promises";
+import { createHash as createHash8 } from "node:crypto";
+import { open as open6 } from "node:fs/promises";
 
 // src/shared/transcript/cursor-frames.ts
-import { createHash as createHash4 } from "node:crypto";
-import { open as open4 } from "node:fs/promises";
+import { createHash as createHash7 } from "node:crypto";
+import { open as open5 } from "node:fs/promises";
 function isJsonObject3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -5313,13 +6730,13 @@ function validateVerifyPrefixBytes(value) {
 }
 async function scanCursorTranscript(transcriptPath, options) {
   validateVerifyPrefixBytes(options.verifyPrefixBytes);
-  const handle = await open4(transcriptPath, "r");
+  const handle = await open5(transcriptPath, "r");
   try {
     const file = await handle.stat();
-    const safePrefixHash = createHash4("sha256");
-    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash4("sha256");
+    const safePrefixHash = createHash7("sha256");
+    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash7("sha256");
     let verifiedBytes = 0;
-    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash4("sha256").digest("hex") : null;
+    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash7("sha256").digest("hex") : null;
     let carrySegments = [];
     let carryLength = 0;
     let carryByteStart = 0;
@@ -5459,9 +6876,9 @@ async function readBoundedHashes(transcript, selectedPrefixBytes, verificationPr
   if (!nonNegativeInteger(selectedPrefixBytes) || !nonNegativeInteger(verificationPrefixBytes) || selectedPrefixBytes > verificationPrefixBytes) {
     throw selectedPrefixError();
   }
-  const selectedHash = createHash5("sha256");
-  const verificationHash = createHash5("sha256");
-  const handle = await open5(transcript, "r");
+  const selectedHash = createHash8("sha256");
+  const verificationHash = createHash8("sha256");
+  const handle = await open6(transcript, "r");
   try {
     const before = await handle.stat();
     if (!nonNegativeInteger(before.dev) || !nonNegativeInteger(before.ino) || before.size < verificationPrefixBytes) {
@@ -5619,6 +7036,92 @@ function refreshWakeAuthorization(now, lease, deadline) {
 function allow(diagnostic) {
   return Object.freeze({ decision: "allow", diagnostic });
 }
+function messageEnvelope(messages, collaborationId, pin) {
+  const wrap = (payload) => `<agent_messaging_context automatic="true" untrusted="true">
+${JSON.stringify(payload).replaceAll("<", "\\u003c")}
+</agent_messaging_context>`;
+  const complete = wrap({
+    collaborationId,
+    messages: messages.map((message) => ({
+      id: message.id,
+      from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
+      kind: message.kind,
+      priority: message.priority,
+      subject: message.subject,
+      body: message.body,
+      untrusted: true
+    }))
+  });
+  if (complete.length <= 6e3) return complete;
+  return wrap({
+    collaborationId,
+    messages: messages.map((message) => ({
+      id: message.id,
+      from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
+      kind: message.kind,
+      priority: message.priority,
+      subject: message.subject,
+      readCommand: `node <agent-messaging-skill>/scripts/agent-messaging.mjs inbox --collab ${collaborationId} --self ${pin.runtime}:${pin.sessionId} --message ${message.id}`
+    })),
+    notice: "Bodies exceeded the bounded host envelope; read each exact message before acknowledging it."
+  });
+}
+async function composedState(root, identity, now) {
+  const pin = { runtime: "codex", sessionId: identity.ownerSession };
+  const status = await activationStatus(root, pin, new Date(now));
+  const activation = status.activation;
+  if (!activation) return { mode: "observation", activation: null, pin };
+  if (activation.controller === "standalone-messaging") {
+    return status.active ? { mode: "standalone-owner", activation, pin } : { mode: "observation", activation: null, pin };
+  }
+  if (!status.active) return { mode: "composed-inactive", activation, pin };
+  if (activation.mechanism !== "stop" || activation.worktree !== identity.cwd) {
+    return { mode: "composed-mismatch", activation, pin };
+  }
+  return { mode: "composed", activation, pin };
+}
+async function composedStillActive(root, identity, activation, now) {
+  const state = await composedState(root, identity, now);
+  return state.mode === "composed" && state.activation?.id === activation.id;
+}
+async function claimComposedRequests(root, identity, composition, now, options) {
+  const inbox = await listInbox({
+    root,
+    collaborationId: composition.activation.collaborationId,
+    pin: composition.pin
+  }).catch(() => null);
+  if (!inbox) return allow("messaging-inbox-invalid");
+  const requests = inbox.messages.filter(
+    (message) => message.kind === "request" && !message.inert
+  );
+  if (requests.length === 0) return null;
+  const deliveryKeys = await resolveDeliveryKeys({
+    root,
+    activation: composition.activation,
+    messages: requests
+  });
+  const claim = await claimDelivery({
+    root,
+    pin: composition.pin,
+    eventKey: `codex:composed-message:${identity.eventId}`,
+    deliveryKeys,
+    now: new Date(now()),
+    clock: () => new Date(now()),
+    hooks: options.messageClaimHooks
+  }).catch(() => null);
+  if (!claim?.slot || claim.owned.length === 0 || !claim.activeAfterClaim || !await composedStillActive(root, identity, composition.activation, now())) {
+    return allow("messaging-claim-refused");
+  }
+  const owned = new Set(claim.owned.map((item) => item.messageId));
+  return Object.freeze({
+    decision: "block",
+    reason: messageEnvelope(
+      requests.filter((message) => owned.has(message.id)),
+      composition.activation.collaborationId,
+      composition.pin
+    )
+  });
+}
 function escapeAttribute(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
@@ -5646,9 +7149,18 @@ var CODEX_STOP_ADAPTER = defineRuntimeAdapter({
     if (!event || typeof event !== "object") return null;
     if (event.hook_event_name !== "Stop") return null;
     try {
+      let eventId = null;
+      if (typeof event.event_id === "string" && event.event_id.length > 0) {
+        try {
+          eventId = validateId(event.event_id, "event-id");
+        } catch {
+          eventId = null;
+        }
+      }
       return Object.freeze({
         ownerSession: validateId(event.session_id, "owner-session"),
-        cwd: validateAbsolutePath(event.cwd, "cwd")
+        cwd: validateAbsolutePath(event.cwd, "cwd"),
+        eventId
       });
     } catch {
       return null;
@@ -5731,6 +7243,23 @@ async function runCodexStopHook(event, options = {}) {
   if (!await resourceExists(inspected.lease.ownerCwd) || !await resourceExists(inspected.lease.peerTranscript)) {
     return allow("missing-resource");
   }
+  const composition = await composedState(root, identity, currentNow).catch(
+    () => ({ mode: "composed-invalid", activation: null, pin: null })
+  );
+  if (composition.mode === "standalone-owner")
+    return allow("standalone-messaging-owner");
+  if (composition.mode.startsWith("composed-")) return allow(composition.mode);
+  if (composition.mode === "composed") {
+    if (!identity.eventId) return allow("missing-event-id");
+    const messaging = await claimComposedRequests(
+      root,
+      identity,
+      composition,
+      now,
+      options
+    );
+    if (messaging) return messaging;
+  }
   const waiting = await beginAdapterWait(root, invocation).catch((error) => ({
     waiting: false,
     reason: error?.code ?? "malformed-lease",
@@ -5783,6 +7312,48 @@ async function runCodexStopHook(event, options = {}) {
           diagnostic = authorization.diagnostic;
           return allow(diagnostic);
         }
+        if (composition.mode === "composed") {
+          const messaging = await claimComposedRequests(
+            root,
+            identity,
+            composition,
+            now,
+            options
+          );
+          if (messaging) return messaging;
+          const eventKey3 = [
+            "codex:composed-observation",
+            identity.eventId,
+            activeLease.leaseId,
+            selection.range.fromIndex,
+            selection.range.toIndex
+          ].join(":");
+          let compositionValid = true;
+          const sharedClaim = await claimDelivery({
+            root,
+            pin: composition.pin,
+            eventKey: eventKey3,
+            deliveryKeys: [],
+            now: new Date(currentNow),
+            clock: () => new Date(now()),
+            hooks: {
+              ...options.observationClaimHooks,
+              beforeFinalValidation: async () => {
+                compositionValid = await composedStillActive(
+                  root,
+                  identity,
+                  composition.activation,
+                  now()
+                );
+              }
+            }
+          }).catch(() => null);
+          if (!compositionValid || !sharedClaim?.slot || !sharedClaim.activeAfterClaim) {
+            diagnostic = "shared-budget-refused";
+            return allow(diagnostic);
+          }
+          await options.afterSharedSlot?.();
+        }
         const claimed = await claimAdapterTrigger(
           root,
           { ...invocation, now: currentNow },
@@ -5802,6 +7373,15 @@ async function runCodexStopHook(event, options = {}) {
         if (!claimed.triggered) {
           diagnostic = claimed.reason;
           return allow(claimed.reason);
+        }
+        if (composition.mode === "composed" && !await composedStillActive(
+          root,
+          identity,
+          composition.activation,
+          now()
+        )) {
+          diagnostic = "composed-activation-ended";
+          return allow(diagnostic);
         }
         return CODEX_STOP_ADAPTER.emit(activeLease, selection.range);
       }
@@ -5861,7 +7441,9 @@ async function runCodexStopHook(event, options = {}) {
   }
 }
 async function readStdin() {
-  const input = await readFile3("/dev/stdin", "utf8");
+  process.stdin.setEncoding("utf8");
+  let input = "";
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || "{}");
 }
 async function runCodexStopMain() {
@@ -5885,7 +7467,7 @@ async function runCodexStopMain() {
     process.removeListener("SIGTERM", terminate);
   }
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   runCodexStopMain().catch(() => {
   });
 }

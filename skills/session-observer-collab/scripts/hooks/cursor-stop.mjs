@@ -2,7 +2,8 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/hooks/cursor-stop.mjs
-import { readFile as readFile3 } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // src/skills/session-observer/src/lib/digest.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -4315,7 +4316,7 @@ var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
 var MAX_CONTINUATIONS = 100;
 var MAX_LOOPS = 1e3;
 var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var RECORD_INDEX_BASE2 = "zero-based-jsonl-record-index";
 var FRAME_INDEX_BASE2 = "zero-based-jsonl-frame-index";
@@ -4357,7 +4358,7 @@ function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
       "invalid-owner-runtime",
-      "owner runtime must be codex or cursor"
+      "owner runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
@@ -4558,6 +4559,24 @@ function validateLease(raw) {
   validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
+  if (value.runtime === "claude-code") {
+    const composition = value.composedActivation;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.collaborationId
+    ) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.activationId
+    ) || composition.controller !== "observer-collab" || composition.mechanism !== "monitor" || composition.ownerRuntime !== value.runtime || composition.ownerSession !== value.ownerSession || composition.peerRuntime !== value.peerRuntime || composition.peerSession !== value.peerSession || composition.ownerCwd !== value.ownerCwd || composition.peerTranscript !== value.peerTranscript || typeof composition.confirmedAt !== "string" || !Number.isFinite(Date.parse(composition.confirmedAt)) || composition.oldMonitorStopped !== true || composition.standaloneWatcherStopped !== true) {
+      throw new LeaseError(
+        "invalid-composed-activation",
+        "Claude owner lease requires an exact composed Monitor activation and stop attestations"
+      );
+    }
+  } else if (value.composedActivation !== void 0 && value.composedActivation !== null) {
+    throw new LeaseError(
+      "invalid-composed-activation",
+      "only a Claude owner lease may bind a composed Monitor activation"
+    );
+  }
   validateId(value.ownerSession, "owner-session");
   validateId(value.peerSession, "peer-session");
   value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");
@@ -4879,7 +4898,7 @@ async function compareAndSwapCursor(root, ownerSession, expected, cursorUpdate2,
       return { ok: false, reason: "stale", lease: current };
     }
     const effective = effectiveLease(current, now);
-    if (effective.state !== "waiting") {
+    if (!["armed", "waiting"].includes(effective.state)) {
       return {
         ok: false,
         reason: effective.diagnostic || effective.state,
@@ -5832,7 +5851,9 @@ async function runCursorStopHook(event, options = {}) {
   }
 }
 async function readStdin() {
-  const input = await readFile3("/dev/stdin", "utf8");
+  process.stdin.setEncoding("utf8");
+  let input = "";
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || "{}");
 }
 async function runCursorStopMain() {
@@ -5847,7 +5868,7 @@ async function runCursorStopMain() {
     process.stdout.write(`${JSON.stringify(result)}
 `);
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   runCursorStopMain().catch(() => {
   });
 }

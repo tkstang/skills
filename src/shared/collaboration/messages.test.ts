@@ -1,0 +1,485 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { describe, expect, test } from 'vitest';
+
+import {
+  joinCollaboration,
+  closeCollaboration,
+  resolveMember,
+  openCollaboration,
+  takeOverMembership,
+} from './membership.js';
+import {
+  acknowledgeMessage,
+  listInbox,
+  readMessage,
+  sendMessage,
+} from './messages.js';
+
+async function fixture() {
+  const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-mail-'));
+  const collaborationId = crypto.randomUUID();
+  const driver = { runtime: 'codex' as const, sessionId: 'driver' };
+  const reviewer = { runtime: 'claude-code' as const, sessionId: 'reviewer' };
+  await openCollaboration({
+    root,
+    collaborationId,
+    alias: 'driver',
+    pin: driver,
+    worktree: '/tmp/a',
+    label: 'mail',
+    task: 'test',
+  });
+  await joinCollaboration({
+    root,
+    collaborationId,
+    alias: 'reviewer',
+    pin: reviewer,
+    worktree: '/tmp/b',
+  });
+  return { root, collaborationId, driver, reviewer };
+}
+
+async function within<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+  label: string,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${milliseconds}ms`)),
+      milliseconds,
+    );
+    timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+describe('addressed messages and acknowledgments', () => {
+  test('concurrent senders preserve every immutable recipient message', async () => {
+    const f = await fixture();
+    const implementer = { runtime: 'cursor' as const, sessionId: 'impl' };
+    await joinCollaboration({
+      ...f,
+      alias: 'implementer',
+      pin: implementer,
+      worktree: '/tmp/c',
+    });
+    await Promise.all([
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        kind: 'request',
+        priority: 'normal',
+        subject: 'one',
+        body: 'first',
+      }),
+      sendMessage({
+        ...f,
+        senderPin: implementer,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        kind: 'update',
+        priority: 'high',
+        subject: 'two',
+        body: 'second',
+      }),
+    ]);
+    const inbox = await listInbox({ ...f, pin: f.reviewer });
+    expect(inbox.messages.map((message) => message.subject)).toEqual([
+      'two',
+      'one',
+    ]);
+    expect(inbox.acknowledged).toEqual([]);
+  });
+
+  test('same-ID retry is idempotent and conflicting payload is rejected', async () => {
+    const f = await fixture();
+    const id = crypto.randomUUID();
+    const first = await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      kind: 'update',
+      priority: 'normal',
+      subject: 'same',
+      body: 'body',
+    });
+    const retry = await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      kind: 'update',
+      priority: 'normal',
+      subject: 'same',
+      body: 'body',
+    });
+    expect(first.duplicate).toBe(false);
+    expect(retry.duplicate).toBe(true);
+    await expect(
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id,
+        kind: 'update',
+        priority: 'normal',
+        subject: 'changed',
+        body: 'body',
+      }),
+    ).rejects.toMatchObject({ code: 'RECORD_CONFLICT' });
+  });
+
+  test('printing does not ack; explicit recipient ack persists across restart', async () => {
+    const f = await fixture();
+    const id = crypto.randomUUID();
+    await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      kind: 'request',
+      priority: 'normal',
+      subject: 'review',
+      body: 'full body',
+    });
+    expect(
+      (await readMessage({ ...f, pin: f.reviewer, messageId: id })).body,
+    ).toBe('full body');
+    expect((await listInbox({ ...f, pin: f.reviewer })).messages).toHaveLength(
+      1,
+    );
+    await acknowledgeMessage({ ...f, pin: f.reviewer, messageId: id });
+    expect((await listInbox({ ...f, pin: f.reviewer })).messages).toHaveLength(
+      0,
+    );
+    expect(
+      (await listInbox({ ...f, pin: f.reviewer, includeAcknowledged: true }))
+        .acknowledged,
+    ).toHaveLength(1);
+  });
+
+  test('takeover conservatively replays unacknowledged mail and rejects stale ack', async () => {
+    const f = await fixture();
+    const id = crypto.randomUUID();
+    await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      kind: 'request',
+      priority: 'normal',
+      subject: 'pending',
+      body: 'work',
+    });
+    const successor = {
+      runtime: 'claude-code' as const,
+      sessionId: 'successor',
+    };
+    await takeOverMembership({
+      ...f,
+      alias: 'reviewer',
+      pin: successor,
+      expectedPreviousPin: f.reviewer,
+      reason: 'human directed',
+      worktree: '/tmp/new',
+    });
+    await expect(
+      acknowledgeMessage({ ...f, pin: f.reviewer, messageId: id }),
+    ).rejects.toMatchObject({ code: 'NOT_CURRENT_MEMBER' });
+    expect(
+      (await listInbox({ ...f, pin: successor })).messages.map(
+        (message) => message.id,
+      ),
+    ).toEqual([id]);
+  });
+
+  test('enforces body limits and recipient identity', async () => {
+    const f = await fixture();
+    await expect(
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        kind: 'update',
+        priority: 'normal',
+        subject: 'large',
+        body: 'x'.repeat(32 * 1024 + 1),
+      }),
+    ).rejects.toThrow('bounded UTF-8');
+    await expect(
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'missing',
+        id: crypto.randomUUID(),
+        kind: 'update',
+        priority: 'normal',
+        subject: 'none',
+        body: 'body',
+      }),
+    ).rejects.toMatchObject({ code: 'MEMBER_NOT_FOUND' });
+  });
+
+  test('reports deterministic close and takeover races after publication', async () => {
+    const closed = await fixture();
+    const closedResult = await sendMessage({
+      ...closed,
+      senderPin: closed.driver,
+      recipientAlias: 'reviewer',
+      id: crypto.randomUUID(),
+      subject: 'close race',
+      body: 'published first',
+      hooks: {
+        afterPublish: async () => {
+          await closeCollaboration({ ...closed, pin: closed.driver });
+        },
+      },
+    });
+    expect(closedResult).toMatchObject({
+      staleAfterPublish: true,
+      raceStatus: 'closed',
+    });
+    expect(
+      (await listInbox({ ...closed, pin: closed.reviewer })).messages[0],
+    ).toMatchObject({ inert: true, raceStatus: 'closed' });
+
+    const takeover = await fixture();
+    const successor = { runtime: 'cursor' as const, sessionId: 'successor' };
+    const takeoverResult = await sendMessage({
+      ...takeover,
+      senderPin: takeover.driver,
+      recipientAlias: 'reviewer',
+      id: crypto.randomUUID(),
+      subject: 'takeover race',
+      body: 'published first',
+      hooks: {
+        afterPublish: async () => {
+          await takeOverMembership({
+            ...takeover,
+            alias: 'reviewer',
+            pin: successor,
+            expectedPreviousPin: takeover.reviewer,
+            reason: 'race',
+            worktree: '/tmp/successor',
+          });
+        },
+      },
+    });
+    expect(takeoverResult.raceStatus).toBe('recipient-superseded');
+    expect(
+      (await listInbox({ ...takeover, pin: successor })).messages[0],
+    ).toMatchObject({ inert: false, raceStatus: 'recipient-reassigned' });
+  });
+
+  test('replays pre-takeover pending mail consistently through read and ack', async () => {
+    const f = await fixture();
+    const id = crypto.randomUUID();
+    await sendMessage({
+      ...f,
+      senderPin: f.driver,
+      recipientAlias: 'reviewer',
+      id,
+      subject: 'pending before takeover',
+      body: 'must remain actionable',
+    });
+    const successor = { runtime: 'cursor' as const, sessionId: 'replay' };
+    await takeOverMembership({
+      ...f,
+      alias: 'reviewer',
+      pin: successor,
+      expectedPreviousPin: f.reviewer,
+      reason: 'resume pending work',
+      worktree: '/tmp/replay',
+    });
+    expect(
+      (await listInbox({ ...f, pin: successor })).messages[0],
+    ).toMatchObject({
+      id,
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+    expect(
+      await readMessage({ ...f, pin: successor, messageId: id }),
+    ).toMatchObject({
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+    await acknowledgeMessage({ ...f, pin: successor, messageId: id });
+    const after = await listInbox({
+      ...f,
+      pin: successor,
+      includeAcknowledged: true,
+    });
+    expect(after.messages).toHaveLength(0);
+    expect(after.acknowledged[0]).toMatchObject({
+      id,
+      raceStatus: 'recipient-reassigned',
+      inert: false,
+    });
+  });
+
+  test('preserves concurrent sends from isolated source-runtime processes', async () => {
+    const f = await fixture();
+    const implementer = {
+      runtime: 'cursor' as const,
+      sessionId: 'process-impl',
+    };
+    await joinCollaboration({
+      ...f,
+      alias: 'implementer',
+      pin: implementer,
+      worktree: '/tmp/process-impl',
+    });
+    const helper = fileURLToPath(
+      new URL('./process-fixture.ts', import.meta.url),
+    );
+    const inputs = [
+      {
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'from driver process',
+        body: 'driver body',
+      },
+      {
+        ...f,
+        senderPin: implementer,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'from implementer process',
+        body: 'implementer body',
+      },
+    ];
+    const children = inputs.map((input) => {
+      const child = spawn(
+        process.execPath,
+        ['--import', 'tsx', helper, 'send', JSON.stringify(input)],
+        { stdio: ['pipe', 'pipe', 'pipe'] },
+      );
+      let stdout = '';
+      let stderr = '';
+      child.stdout!.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
+      child.stderr!.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
+      const exited = once(child, 'exit') as Promise<
+        [number | null, NodeJS.Signals | null]
+      >;
+      const ready = Promise.race([
+        once(child.stdout!, 'data').then((values) => {
+          const chunk = values[0] as Buffer;
+          if (!chunk.toString().includes('ready')) {
+            throw new Error(
+              `child emitted an invalid barrier: ${chunk.toString()}`,
+            );
+          }
+        }),
+        exited.then(([code, signal]) => {
+          throw new Error(
+            `child exited before barrier: code=${String(code)} signal=${String(signal)}`,
+          );
+        }),
+      ]);
+      return { child, exited, ready, output: () => ({ stdout, stderr }) };
+    });
+    try {
+      await within(
+        Promise.all(children.map(({ ready }) => ready)),
+        20_000,
+        'sender process barriers',
+      );
+      for (const { child } of children) child.stdin!.end('go\n');
+      const exits = await within(
+        Promise.all(children.map(({ exited }) => exited)),
+        20_000,
+        'sender process completion',
+      );
+      for (const [index, [code]] of exits.entries()) {
+        const output = children[index]!.output();
+        expect(code, output.stderr).toBe(0);
+        expect(output.stdout).toContain('"duplicate":false');
+      }
+    } finally {
+      for (const { child } of children) {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL');
+        }
+      }
+      await Promise.allSettled(children.map(({ exited }) => exited));
+    }
+    const inbox = await listInbox({ ...f, pin: f.reviewer });
+    expect(inbox.messages.map((message) => message.subject).toSorted()).toEqual(
+      ['from driver process', 'from implementer process'],
+    );
+  }, 45_000);
+
+  test('bounds combined pending and acknowledged output and accepts reordered acks', async () => {
+    const f = await fixture();
+    const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
+    for (const [index, id] of ids.entries()) {
+      await sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id,
+        subject: `message ${index}`,
+        body: 'body',
+      });
+    }
+    await acknowledgeMessage({ ...f, pin: f.reviewer, messageId: ids[1]! });
+    await acknowledgeMessage({ ...f, pin: f.reviewer, messageId: ids[0]! });
+    const inbox = await listInbox({
+      ...f,
+      pin: f.reviewer,
+      includeAcknowledged: true,
+      maxMessages: 8,
+    });
+    expect(inbox.messages.length + inbox.acknowledged.length).toBe(8);
+    expect(inbox).toMatchObject({
+      pendingTotal: 8,
+      acknowledgedTotal: 2,
+      truncated: true,
+    });
+  });
+
+  test('allows the inbox cap boundary and rejects one over', async () => {
+    const f = await fixture();
+    const reviewer = await resolveMember(f.root, f.collaborationId, 'reviewer');
+    const directory = path.join(
+      f.root,
+      'collaborations',
+      f.collaborationId,
+      'inbox',
+      reviewer.member.participantId,
+    );
+    await mkdir(directory, { recursive: true });
+    await Promise.all(
+      Array.from({ length: 4096 }, (_, index) =>
+        writeFile(path.join(directory, `${index}.json`), '{}'),
+      ),
+    );
+    await expect(
+      sendMessage({
+        ...f,
+        senderPin: f.driver,
+        recipientAlias: 'reviewer',
+        id: crypto.randomUUID(),
+        subject: 'overflow',
+        body: 'body',
+      }),
+    ).rejects.toMatchObject({ code: 'CAPACITY_EXCEEDED' });
+  }, 20_000);
+});

@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
+import { activationStatus } from '../../../../shared/collaboration/activation.js';
+import {
+  claimDelivery,
+  resolveDeliveryKeys,
+} from '../../../../shared/collaboration/claims.js';
+import { listInbox } from '../../../../shared/collaboration/messages.js';
 import { buildDigest } from '../../../session-observer/src/lib/digest.js';
 import { selectCompletedContinuation } from '../lib/completion-selection.mjs';
 import {
@@ -70,6 +77,109 @@ function allow(diagnostic) {
   return Object.freeze({ decision: 'allow', diagnostic });
 }
 
+function messageEnvelope(messages, collaborationId, pin) {
+  const wrap = (payload) =>
+    `<agent_messaging_context automatic="true" untrusted="true">\n${JSON.stringify(payload).replaceAll('<', '\\u003c')}\n</agent_messaging_context>`;
+  const complete = wrap({
+    collaborationId,
+    messages: messages.map((message) => ({
+      id: message.id,
+      from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
+      kind: message.kind,
+      priority: message.priority,
+      subject: message.subject,
+      body: message.body,
+      untrusted: true,
+    })),
+  });
+  if (complete.length <= 6000) return complete;
+  return wrap({
+    collaborationId,
+    messages: messages.map((message) => ({
+      id: message.id,
+      from: `${message.from.pin.runtime}:${message.from.pin.sessionId}`,
+      kind: message.kind,
+      priority: message.priority,
+      subject: message.subject,
+      readCommand: `node <agent-messaging-skill>/scripts/agent-messaging.mjs inbox --collab ${collaborationId} --self ${pin.runtime}:${pin.sessionId} --message ${message.id}`,
+    })),
+    notice:
+      'Bodies exceeded the bounded host envelope; read each exact message before acknowledging it.',
+  });
+}
+
+async function composedState(root, identity, now) {
+  const pin = { runtime: 'codex', sessionId: identity.ownerSession };
+  const status = await activationStatus(root, pin, new Date(now));
+  const activation = status.activation;
+  if (!activation) return { mode: 'observation', activation: null, pin };
+  if (activation.controller === 'standalone-messaging') {
+    return status.active
+      ? { mode: 'standalone-owner', activation, pin }
+      : { mode: 'observation', activation: null, pin };
+  }
+  if (!status.active) return { mode: 'composed-inactive', activation, pin };
+  if (activation.mechanism !== 'stop' || activation.worktree !== identity.cwd) {
+    return { mode: 'composed-mismatch', activation, pin };
+  }
+  return { mode: 'composed', activation, pin };
+}
+
+async function composedStillActive(root, identity, activation, now) {
+  const state = await composedState(root, identity, now);
+  return state.mode === 'composed' && state.activation?.id === activation.id;
+}
+
+async function claimComposedRequests(
+  root,
+  identity,
+  composition,
+  now,
+  options,
+) {
+  const inbox = await listInbox({
+    root,
+    collaborationId: composition.activation.collaborationId,
+    pin: composition.pin,
+  }).catch(() => null);
+  if (!inbox) return allow('messaging-inbox-invalid');
+  const requests = inbox.messages.filter(
+    (message) => message.kind === 'request' && !message.inert,
+  );
+  if (requests.length === 0) return null;
+  const deliveryKeys = await resolveDeliveryKeys({
+    root,
+    activation: composition.activation,
+    messages: requests,
+  });
+  const claim = await claimDelivery({
+    root,
+    pin: composition.pin,
+    eventKey: `codex:composed-message:${identity.eventId}`,
+    deliveryKeys,
+    now: new Date(now()),
+    clock: () => new Date(now()),
+    hooks: options.messageClaimHooks,
+  }).catch(() => null);
+  if (
+    !claim?.slot ||
+    claim.owned.length === 0 ||
+    !claim.activeAfterClaim ||
+    !(await composedStillActive(root, identity, composition.activation, now()))
+  ) {
+    return allow('messaging-claim-refused');
+  }
+  const owned = new Set(claim.owned.map((item) => item.messageId));
+  return Object.freeze({
+    decision: 'block',
+    reason: messageEnvelope(
+      requests.filter((message) => owned.has(message.id)),
+      composition.activation.collaborationId,
+      composition.pin,
+    ),
+  });
+}
+
 function escapeAttribute(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -107,9 +217,18 @@ export const CODEX_STOP_ADAPTER = defineRuntimeAdapter({
     if (!event || typeof event !== 'object') return null;
     if (event.hook_event_name !== 'Stop') return null;
     try {
+      let eventId = null;
+      if (typeof event.event_id === 'string' && event.event_id.length > 0) {
+        try {
+          eventId = validateId(event.event_id, 'event-id');
+        } catch {
+          eventId = null;
+        }
+      }
       return Object.freeze({
         ownerSession: validateId(event.session_id, 'owner-session'),
         cwd: validateAbsolutePath(event.cwd, 'cwd'),
+        eventId,
       });
     } catch {
       return null;
@@ -236,6 +355,24 @@ export async function runCodexStopHook(event, options = {}) {
     return allow('missing-resource');
   }
 
+  const composition = await composedState(root, identity, currentNow).catch(
+    () => ({ mode: 'composed-invalid', activation: null, pin: null }),
+  );
+  if (composition.mode === 'standalone-owner')
+    return allow('standalone-messaging-owner');
+  if (composition.mode.startsWith('composed-')) return allow(composition.mode);
+  if (composition.mode === 'composed') {
+    if (!identity.eventId) return allow('missing-event-id');
+    const messaging = await claimComposedRequests(
+      root,
+      identity,
+      composition,
+      now,
+      options,
+    );
+    if (messaging) return messaging;
+  }
+
   const waiting = await beginAdapterWait(root, invocation).catch((error) => ({
     waiting: false,
     reason: error?.code ?? 'malformed-lease',
@@ -297,6 +434,52 @@ export async function runCodexStopHook(event, options = {}) {
           diagnostic = authorization.diagnostic;
           return allow(diagnostic);
         }
+        if (composition.mode === 'composed') {
+          const messaging = await claimComposedRequests(
+            root,
+            identity,
+            composition,
+            now,
+            options,
+          );
+          if (messaging) return messaging;
+          const eventKey = [
+            'codex:composed-observation',
+            identity.eventId,
+            activeLease.leaseId,
+            selection.range.fromIndex,
+            selection.range.toIndex,
+          ].join(':');
+          let compositionValid = true;
+          const sharedClaim = await claimDelivery({
+            root,
+            pin: composition.pin,
+            eventKey,
+            deliveryKeys: [],
+            now: new Date(currentNow),
+            clock: () => new Date(now()),
+            hooks: {
+              ...options.observationClaimHooks,
+              beforeFinalValidation: async () => {
+                compositionValid = await composedStillActive(
+                  root,
+                  identity,
+                  composition.activation,
+                  now(),
+                );
+              },
+            },
+          }).catch(() => null);
+          if (
+            !compositionValid ||
+            !sharedClaim?.slot ||
+            !sharedClaim.activeAfterClaim
+          ) {
+            diagnostic = 'shared-budget-refused';
+            return allow(diagnostic);
+          }
+          await options.afterSharedSlot?.();
+        }
         const claimed = await claimAdapterTrigger(
           root,
           { ...invocation, now: currentNow },
@@ -316,6 +499,18 @@ export async function runCodexStopHook(event, options = {}) {
         if (!claimed.triggered) {
           diagnostic = claimed.reason;
           return allow(claimed.reason);
+        }
+        if (
+          composition.mode === 'composed' &&
+          !(await composedStillActive(
+            root,
+            identity,
+            composition.activation,
+            now(),
+          ))
+        ) {
+          diagnostic = 'composed-activation-ended';
+          return allow(diagnostic);
         }
         return CODEX_STOP_ADAPTER.emit(activeLease, selection.range);
       }
@@ -386,7 +581,9 @@ export async function runCodexStopHook(event, options = {}) {
 }
 
 async function readStdin() {
-  const input = await readFile('/dev/stdin', 'utf8');
+  process.stdin.setEncoding('utf8');
+  let input = '';
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || '{}');
 }
 
@@ -411,6 +608,9 @@ export async function runCodexStopMain() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   runCodexStopMain().catch(() => {});
 }

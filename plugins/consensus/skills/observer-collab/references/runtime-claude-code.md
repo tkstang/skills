@@ -1,5 +1,13 @@
 # Claude Code runtime reference
 
+## Messaging composition status
+
+The legacy base-observer Monitor below remains observation-only: it is not an
+agent-messaging continuation controller and does not spend messaging activation
+slots. Composed messaging instead uses the shipped finite
+`scripts/claude-monitor.mjs` entrypoint. Do not wrap the legacy recipe or run it
+beside the composed Monitor.
+
 Use this reference only after resolving the acting runtime as Claude Code. It is the
 runtime-specific companion to `session-observer-collab/SKILL.md`; the base
 observer remains responsible for transcript reads, exact pins, and offsets.
@@ -34,7 +42,87 @@ the observer does not hard-code a client-version gate. Explicit `human`
 provenance remains human, absent provenance keeps the legacy compatibility
 path, and peer or unknown native origins remain unmarked.
 
-## Pinned Monitor recipe
+## Finite composed Monitor
+
+Create one proposed activation UUID. Arm the observer-collab lease with that
+UUID, the collaboration UUID, explicit private cursor, exact self/peer,
+transcript and cwd, plus acting-session confirmation that the legacy Monitor and
+standalone messaging watcher are stopped. Then enable the same UUID with
+controller `observer-collab` and mechanism `monitor`.
+
+Use the same IDs and exact pins throughout the complete sequence:
+
+```sh
+node <observer-collab-skill>/scripts/collab-control.mjs arm \
+  --root <absolute-state-root> --runtime claude-code \
+  --peer-runtime <claude-code|codex|cursor> \
+  --session <self-session> --peer-session <peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --cursor 0 --lease-ms 1800000 --continuation-cap 20 --loop-cap 100 \
+  --collaboration-id <uuid> --activation-id <uuid> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+node <messaging-skill>/scripts/agent-messaging.mjs delivery enable \
+  --root <absolute-state-root> --collab <collaboration-uuid> \
+  --self claude-code:<self-session> --cwd <absolute-worktree> \
+  --activation-id <activation-uuid> --controller observer-collab \
+  --mechanism monitor --expires-in 30m --max-duration 30m \
+  --max-continuations 20 --settings-paths <absolute-settings-path-list> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+node <observer-collab-skill>/scripts/claude-monitor.mjs \
+  --root <absolute-state-root> --collaboration-id <collaboration-uuid> \
+  --activation-id <activation-uuid> \
+  --self claude-code:<self-session> --peer <runtime>:<peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --max-runtime-ms 1800000 --poll-ms 1000 \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+
+# Re-arm after acknowledging the selected request or reading the pinned range.
+node <observer-collab-skill>/scripts/collab-control.mjs arm \
+  --root <absolute-state-root> --runtime claude-code \
+  --peer-runtime <claude-code|codex|cursor> \
+  --session <self-session> --peer-session <peer-session> \
+  --cwd <absolute-worktree> --peer-transcript <absolute-transcript> \
+  --collaboration-id <collaboration-uuid> --activation-id <activation-uuid> \
+  --confirm-old-monitor-stopped --confirm-standalone-watcher-stopped
+```
+
+The command writes its one bounded notification to stdout. It writes one
+redacted terminal reason to stderr and exits nonzero for refusal; a normal quiet
+duration cap exits zero with `duration-complete` on stderr.
+
+Launch `node <observer-collab-skill>/scripts/claude-monitor.mjs` in a proven
+harness Monitor with the same IDs and pins, a finite `--max-runtime-ms` no
+greater than 1800000, and both fresh stop confirmations. The command polls
+addressed requests first. A request uses the existing message event, shared slot
+and per-message claims without reading the transcript. Otherwise it reads the
+exact peer candidate in-process without the base watcher or public observer
+offset, claims a range-derived event and shared slot, and only then applies the
+private-cursor CAS. A CAS loser and every identity, inventory, expiry or
+continuity mismatch emit nothing.
+
+One run emits at most one bounded notification containing exact message IDs or
+the peer/index-base/range. It exits on notification, interruption, runtime cap,
+activation expiry, or lease expiry and never self-rearms. Explicit re-arm must
+name the same activation and peer; it preserves the private cursor, original
+lease expiry and spent shared slots. An observation claim has no delivery retry
+generation. Status calls a pre-slot attempt interrupted only from recorded
+evidence; later outcomes remain unknown. Recovery is a normal explicit pinned
+observer read, which advances public state under its existing contract but does
+not mutate private Monitor state, claims, or slots.
+
+The default poll interval is 1000 ms; `--poll-ms` may select another bounded
+positive interval. `--root` must be absolute. A selected request remains first
+in inbox priority while it is unacknowledged, so acknowledge it before re-arm
+or the deterministic duplicate request event will remain a quiet no-op and
+observation will not run.
+
+Synthetic fixture proof does not establish installed or live Monitor delivery.
+Keep the live tier unverified until an independently authorized exact-host
+receipt completes the sequence below.
+
+## Legacy observation-only Monitor recipe
 
 Resolve and announce both identities with the base `whoami` command, then use
 the exact confirmed peer pin. Start exactly one persistent Monitor task around

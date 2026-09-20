@@ -17,6 +17,10 @@ export interface ArmOptions {
   continuationCap?: string | number;
   loopCap?: string | number;
   cursor?: string | number;
+  collaborationId?: string;
+  activationId?: string;
+  confirmOldMonitorStopped?: boolean;
+  confirmStandaloneWatcherStopped?: boolean;
 }
 
 export interface RunResult {
@@ -26,6 +30,11 @@ export interface RunResult {
   installation?: Installation;
   lease?: Lease | null;
   removed?: string[];
+  collaborationId?: string;
+  root?: string;
+  paths?: Record<string, string>;
+  delivery?: 'disabled';
+  data?: unknown;
 }
 
 export interface CodexControlOptions {
@@ -88,4 +97,5 @@ export function run(
   argv: string[],
   env?: NodeJS.ProcessEnv,
   now?: number,
+  readStdin?: () => Promise<string>,
 ): Promise<RunResult>;

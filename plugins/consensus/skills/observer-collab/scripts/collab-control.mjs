@@ -2,34 +2,1258 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/collab-control.mjs
-import { randomUUID as randomUUID3 } from "node:crypto";
-import { chmod as chmod4, mkdir as mkdir4, open as open6, readFile as readFile5, rm as rm4 } from "node:fs/promises";
+import { randomUUID as randomUUID6 } from "node:crypto";
+import { chmod as chmod5, mkdir as mkdir5, open as open8, readFile as readFile7, rm as rm4 } from "node:fs/promises";
 import { join as join5 } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/skills/session-observer-collab/src/codex-lifecycle.mjs
-import { randomUUID as randomUUID2 } from "node:crypto";
+// src/shared/collaboration/log.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
 import {
-  chmod as chmod3,
-  mkdir as mkdir3,
+  lstat as lstat3,
   open as open2,
-  readdir as readdir3,
-  readFile as readFile3,
-  rename as rename3,
+  readFile as readFile2,
+  realpath as realpath3,
+  rename,
+  unlink as unlink2
+} from "node:fs/promises";
+import path4 from "node:path";
+
+// src/shared/collaboration/membership.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+import { lstat as lstat2, realpath as realpath2 } from "node:fs/promises";
+import path3 from "node:path";
+
+// src/shared/collaboration/paths.ts
+import { homedir } from "node:os";
+import path2 from "node:path";
+
+// src/shared/collaboration/records.ts
+import { createHash as createHash2, randomUUID } from "node:crypto";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  readdir,
+  readFile,
+  realpath,
+  unlink
+} from "node:fs/promises";
+import path from "node:path";
+
+// src/shared/collaboration/types.ts
+import { createHash } from "node:crypto";
+var SCHEMA_VERSION = 1;
+var MAX_IDENTIFIER_BYTES = 128;
+var MAX_BODY_BYTES = 32 * 1024;
+var MAX_SUBJECT_BYTES = 256;
+function assertUuid(value, label = "UUID") {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+    value
+  )) {
+    throw new TypeError(`${label} must be a UUID`);
+  }
+}
+function assertAlias(value) {
+  if (!/^[a-z][a-z0-9-]{0,31}$/u.test(value)) {
+    throw new TypeError("alias must match [a-z][a-z0-9-]{0,31}");
+  }
+}
+function assertBoundedString(value, label, maxBytes = MAX_IDENTIFIER_BYTES, allowEmpty = false) {
+  if (typeof value !== "string" || !allowEmpty && value.length === 0 || Buffer.byteLength(value, "utf8") > maxBytes) {
+    throw new TypeError(`${label} must be a bounded UTF-8 string`);
+  }
+}
+function assertPin(value) {
+  if (!value || typeof value !== "object")
+    throw new TypeError("pin must be an object");
+  const pin = value;
+  if (!["codex", "claude-code", "cursor"].includes(pin.runtime ?? "")) {
+    throw new TypeError("pin runtime is unsupported");
+  }
+  assertBoundedString(pin.sessionId, "pin sessionId");
+}
+function pinsEqual(left, right) {
+  return left.runtime === right.runtime && left.sessionId === right.sessionId;
+}
+
+// src/shared/collaboration/records.ts
+var CollaborationError = class extends Error {
+  code;
+  retryable;
+  constructor(code, message, retryable = false) {
+    super(message);
+    this.name = "CollaborationError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+};
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)).map(([key, child]) => [key, stable(child)])
+    );
+  }
+  return value;
+}
+function canonicalJson(value) {
+  return `${JSON.stringify(stable(value))}
+`;
+}
+function canonicalHash(value) {
+  return createHash2("sha256").update(canonicalJson(value), "utf8").digest("hex");
+}
+function isMissing(error) {
+  return error.code === "ENOENT";
+}
+function assertSchema(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      "record must be a JSON object"
+    );
+  }
+  const version = record.schemaVersion;
+  if (version !== SCHEMA_VERSION) {
+    throw new CollaborationError(
+      "UNKNOWN_SCHEMA",
+      `unsupported schema version: ${String(version)}`
+    );
+  }
+}
+function malformed(message) {
+  throw new CollaborationError("MALFORMED_RECORD", message);
+}
+function assertTimestamp(value, label) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+    malformed(`${label} must be an ISO-8601 timestamp`);
+  }
+}
+function assertGeneration(value, label) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    malformed(`${label} must be a non-negative safe integer`);
+  }
+}
+function assertHash(value, label) {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) {
+    malformed(`${label} must be a SHA-256 hex digest`);
+  }
+}
+function canonicalRecordHash(record) {
+  const { contentHash: _contentHash, ...content } = record;
+  return canonicalHash(content);
+}
+function assertRecordHash(record, label) {
+  assertHash(record.contentHash, `${label} contentHash`);
+  if (record.contentHash !== canonicalRecordHash(record)) {
+    malformed(`${label} contentHash does not match content`);
+  }
+}
+function assertUuidValue(value, label) {
+  if (typeof value !== "string") malformed(`${label} must be a UUID`);
+  assertUuid(value, label);
+}
+function validateBinding(record) {
+  assertUuidValue(record.participantId, "binding participantId");
+  assertGeneration(record.generation, "binding generation");
+  assertPin(record.pin);
+  if (!path.isAbsolute(record.worktree))
+    malformed("binding worktree must be absolute");
+  if (record.previousPin !== null) assertPin(record.previousPin);
+  assertBoundedString(record.reason, "binding reason", 512);
+  assertTimestamp(record.createdAt, "binding createdAt");
+  if (!Array.isArray(record.inheritedAckRefs))
+    malformed("binding inheritedAckRefs must be an array");
+  for (const ack of record.inheritedAckRefs) {
+    if (!ack || typeof ack !== "object")
+      malformed("binding inherited ack must be an object");
+    assertUuidValue(ack.messageId, "inherited messageId");
+    assertHash(ack.messageHash, "inherited messageHash");
+  }
+  assertRecordHash(
+    record,
+    "binding"
+  );
+}
+function messageHash(record) {
+  return canonicalHash({
+    schemaVersion: 1,
+    id: record.id,
+    collaborationId: record.collaborationId,
+    from: record.from,
+    to: record.to,
+    kind: record.kind,
+    priority: record.priority,
+    subject: record.subject,
+    body: record.body,
+    replyTo: record.replyTo
+  });
+}
+function logHash(record) {
+  return canonicalHash({
+    collaborationId: record.collaborationId,
+    id: record.id,
+    category: record.category,
+    title: record.title,
+    author: record.author,
+    whatHappened: record.whatHappened,
+    assessment: record.assessment,
+    skillImplication: record.skillImplication
+  });
+}
+function validateAuthoritativeRecord(file, value, root) {
+  const relativeSegments = root ? path.relative(path.resolve(root), path.resolve(file)).split(path.sep) : [];
+  const authoritative = relativeSegments[0] === "collaborations";
+  if (authoritative && relativeSegments.length < 3)
+    malformed("authoritative record path is incomplete");
+  const collaborationPathId = authoritative ? relativeSegments[1] : void 0;
+  if (collaborationPathId)
+    assertUuidValue(collaborationPathId, "path collaboration id");
+  const recordSegments = authoritative ? relativeSegments.slice(2) : [];
+  const basename4 = path.basename(file, ".json");
+  const parent = path.basename(path.dirname(file));
+  const grandparent = path.basename(path.dirname(path.dirname(file)));
+  try {
+    if (recordSegments.length === 1 && recordSegments[0] === "collaboration.json") {
+      const candidate = value;
+      assertUuidValue(candidate.id, "collaboration id");
+      if (candidate.id !== parent)
+        malformed("collaboration path identity does not match id");
+      assertBoundedString(candidate.label, "collaboration label", 128);
+      assertBoundedString(candidate.task, "collaboration task", 2048);
+      assertTimestamp(candidate.createdAt, "collaboration createdAt");
+      assertRecordHash(
+        candidate,
+        "collaboration"
+      );
+    } else if (recordSegments.length === 2 && recordSegments[0] === "members" && recordSegments[1]?.endsWith(".json")) {
+      const candidate = value;
+      assertAlias(candidate.alias);
+      if (candidate.alias !== basename4)
+        malformed("member path identity does not match alias");
+      assertUuidValue(candidate.participantId, "member participantId");
+      assertUuidValue(candidate.collaborationId, "member collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("member collaboration path identity does not match record");
+      assertTimestamp(candidate.createdAt, "member createdAt");
+      if (!candidate.initialBinding || typeof candidate.initialBinding !== "object")
+        malformed("member initialBinding is required");
+      validateBinding(candidate.initialBinding);
+      if (candidate.initialBinding.participantId !== candidate.participantId || candidate.initialBinding.generation !== 0)
+        malformed("member initial binding identity is invalid");
+      assertRecordHash(
+        candidate,
+        "member"
+      );
+    } else if (recordSegments.length === 3 && recordSegments[0] === "bindings" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      validateBinding(candidate);
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename4)
+        malformed("binding path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "departures" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.participantId, "departure participantId");
+      assertGeneration(candidate.generation, "departure generation");
+      assertPin(candidate.pin);
+      assertTimestamp(candidate.departedAt, "departure departedAt");
+      assertRecordHash(
+        candidate,
+        "departure"
+      );
+      if (candidate.participantId !== parent || String(candidate.generation) !== basename4)
+        malformed("departure path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "inbox" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "message id");
+      assertUuidValue(candidate.collaborationId, "message collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("message collaboration path identity does not match record");
+      if (!candidate.from || typeof candidate.from !== "object" || !candidate.to || typeof candidate.to !== "object")
+        malformed("message endpoints are required");
+      assertUuidValue(
+        candidate.from.participantId,
+        "message sender participantId"
+      );
+      assertGeneration(candidate.from.generation, "message sender generation");
+      assertPin(candidate.from.pin);
+      assertUuidValue(
+        candidate.to.participantId,
+        "message recipient participantId"
+      );
+      assertGeneration(candidate.to.generation, "message recipient generation");
+      if (!["request", "update"].includes(candidate.kind))
+        malformed("message kind is unsupported");
+      if (!["normal", "high"].includes(candidate.priority))
+        malformed("message priority is unsupported");
+      assertBoundedString(
+        candidate.subject,
+        "message subject",
+        MAX_SUBJECT_BYTES
+      );
+      assertBoundedString(candidate.body, "message body", MAX_BODY_BYTES, true);
+      if (candidate.replyTo !== null) {
+        if (!candidate.replyTo || typeof candidate.replyTo !== "object")
+          malformed("message replyTo is invalid");
+        assertUuidValue(candidate.replyTo.participantId, "reply participantId");
+        assertUuidValue(candidate.replyTo.messageId, "reply messageId");
+      }
+      assertTimestamp(candidate.createdAt, "message createdAt");
+      assertHash(candidate.contentHash, "message contentHash");
+      if (candidate.contentHash !== messageHash(candidate))
+        malformed("message contentHash does not match content");
+      if (candidate.to.participantId !== parent || candidate.id !== basename4)
+        malformed("message path identity does not match record");
+    } else if (recordSegments.length === 4 && recordSegments[0] === "acks" && recordSegments[3]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.messageId, "ack messageId");
+      assertHash(candidate.messageHash, "ack messageHash");
+      assertPin(candidate.recipient);
+      assertGeneration(candidate.bindingGeneration, "ack bindingGeneration");
+      assertTimestamp(candidate.receivedAt, "ack receivedAt");
+      assertRecordHash(
+        candidate,
+        "acknowledgment"
+      );
+      assertUuidValue(grandparent, "ack participant path");
+      if (candidate.messageId !== basename4 || String(candidate.bindingGeneration) !== parent)
+        malformed("ack path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "retries" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.activationId, "retry activationId");
+      assertBoundedString(
+        candidate.priorAttemptId,
+        "retry priorAttemptId",
+        128
+      );
+      assertUuidValue(candidate.participantId, "retry participantId");
+      assertUuidValue(candidate.messageId, "retry messageId");
+      assertGeneration(candidate.retryGeneration, "retry generation");
+      if (candidate.retryGeneration < 1)
+        malformed("retry generation must be positive");
+      assertTimestamp(candidate.createdAt, "retry createdAt");
+      assertRecordHash(
+        candidate,
+        "retry"
+      );
+      if (candidate.participantId !== parent)
+        malformed("retry participant path identity does not match record");
+    } else if (recordSegments.length === 3 && recordSegments[0] === "log" && recordSegments[1] === "entries" && recordSegments[2]?.endsWith(".json")) {
+      const candidate = value;
+      assertUuidValue(candidate.id, "log entry id");
+      assertUuidValue(candidate.collaborationId, "log collaborationId");
+      if (candidate.collaborationId !== collaborationPathId)
+        malformed("log collaboration path identity does not match record");
+      assertBoundedString(candidate.category, "log category", 64);
+      assertBoundedString(candidate.title, "log title", 256);
+      assertPin(candidate.author);
+      assertTimestamp(candidate.authoredAt, "log authoredAt");
+      assertBoundedString(
+        candidate.whatHappened,
+        "log whatHappened",
+        16 * 1024
+      );
+      assertBoundedString(candidate.assessment, "log assessment", 2048);
+      assertBoundedString(
+        candidate.skillImplication,
+        "log skillImplication",
+        4096
+      );
+      assertHash(candidate.contentHash, "log contentHash");
+      if (candidate.contentHash !== logHash(candidate))
+        malformed("log contentHash does not match content");
+      if (candidate.id !== basename4)
+        malformed("log path identity does not match id");
+    } else if (recordSegments.length === 1 && recordSegments[0] === "closed.json") {
+      const candidate = value;
+      assertUuidValue(candidate.collaborationId, "closed collaborationId");
+      assertPin(candidate.closedBy);
+      assertTimestamp(candidate.closedAt, "closed closedAt");
+      assertRecordHash(
+        candidate,
+        "closed marker"
+      );
+      if (candidate.collaborationId !== parent)
+        malformed("closed path identity does not match collaboration");
+    } else if (authoritative) {
+      malformed("authoritative record path layout is invalid");
+    }
+  } catch (error) {
+    if (error instanceof CollaborationError) throw error;
+    throw new CollaborationError("MALFORMED_RECORD", error.message);
+  }
+}
+async function validateRootScopedPath(root, target, options) {
+  if (!path.isAbsolute(root) || !path.isAbsolute(target)) {
+    throw new CollaborationError(
+      "INVALID_ROOT",
+      "storage paths must be absolute"
+    );
+  }
+  const absoluteRoot = path.resolve(root);
+  const absoluteTarget = path.resolve(target);
+  const relative2 = path.relative(absoluteRoot, absoluteTarget);
+  if (relative2.startsWith("..") || path.isAbsolute(relative2)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "storage path escapes the collaboration root"
+    );
+  }
+  const expectedUid = process.getuid?.();
+  const rootInfo = await lstat(absoluteRoot).catch((error) => {
+    if (isMissing(error) && options.allowMissingTail) return null;
+    throw error;
+  });
+  if (!rootInfo) return;
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink() || expectedUid !== void 0 && rootInfo.uid !== expectedUid) {
+    throw new CollaborationError("UNSAFE_PATH", "storage root is unsafe");
+  }
+  const canonicalRoot = await realpath(absoluteRoot);
+  const segments = relative2.split(path.sep).filter(Boolean);
+  let current = absoluteRoot;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    const info = await lstat(current).catch((error) => {
+      if (isMissing(error) && options.allowMissingTail) return null;
+      throw error;
+    });
+    if (!info) return;
+    const leaf = index === segments.length - 1;
+    const expectedType = leaf ? options.leaf : "directory";
+    if (info.isSymbolicLink() || (expectedType === "directory" ? !info.isDirectory() : !info.isFile()) || expectedUid !== void 0 && info.uid !== expectedUid) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        `storage path component ${segment} is unsafe`
+      );
+    }
+    const canonicalCurrent = await realpath(current);
+    const canonicalRelative = path.relative(canonicalRoot, canonicalCurrent);
+    if (canonicalRelative.startsWith("..") || path.isAbsolute(canonicalRelative)) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        "storage path escapes the canonical collaboration root"
+      );
+    }
+  }
+}
+async function readJsonRecord(file, options = {}) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, file, { leaf: "file" });
+  }
+  const info = await lstat(file).catch((error) => {
+    if (isMissing(error)) throw error;
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      `cannot inspect record: ${error.message}`
+    );
+  });
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "record must be a regular file"
+    );
+  }
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== void 0 && info.uid !== expectedUid) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "record owner does not match the current user"
+    );
+  }
+  const maxBytes = options.maxBytes ?? 128 * 1024;
+  if (info.size > maxBytes) {
+    throw new CollaborationError(
+      "RECORD_TOO_LARGE",
+      `record exceeds ${maxBytes} bytes`
+    );
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    throw new CollaborationError(
+      "MALFORMED_RECORD",
+      `invalid JSON record: ${error.message}`
+    );
+  }
+  assertSchema(parsed);
+  validateAuthoritativeRecord(file, parsed, options.root);
+  return parsed;
+}
+async function ensurePrivateDirectory(directory, root) {
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
+  await mkdir(root, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, root, { leaf: "directory" });
+  await chmod(root, 448);
+  await validateRootScopedPath(root, directory, {
+    leaf: "directory",
+    allowMissingTail: true
+  });
+  await mkdir(directory, { recursive: true, mode: 448 });
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
+  await chmod(directory, 448);
+  await validateRootScopedPath(root, directory, { leaf: "directory" });
+}
+async function publishImmutableRecord(target, record, options) {
+  assertSchema(record);
+  const directory = path.dirname(target);
+  await ensurePrivateDirectory(directory, options.root);
+  const bytes = canonicalJson(record);
+  const hash = canonicalHash(record);
+  const temporary = path.join(
+    directory,
+    `.${path.basename(target)}.tmp-${process.pid}-${randomUUID()}`
+  );
+  let handle;
+  let published = false;
+  try {
+    handle = await open(temporary, "wx", 384);
+    await handle.writeFile(bytes, "utf8");
+    await handle.sync();
+    await options.hooks?.afterFileSync?.();
+    await handle.close();
+    handle = void 0;
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory"
+    });
+    await import("node:fs/promises").then(
+      ({ link }) => link(temporary, target)
+    );
+    published = true;
+    await options.hooks?.afterLink?.();
+    await options.hooks?.beforeDirectorySync?.();
+    const directoryHandle = await open(directory, "r");
+    try {
+      await directoryHandle.sync();
+    } catch (error) {
+      throw new CollaborationError(
+        "COMMIT_UNCERTAIN",
+        `record was published but directory sync failed: ${error.message}`,
+        true
+      );
+    } finally {
+      await directoryHandle.close();
+    }
+    return { created: true, path: target, hash, record };
+  } catch (error) {
+    const code = error.code;
+    if (code === "EEXIST") {
+      const existing = await readJsonRecord(target, { root: options.root });
+      if (canonicalHash(existing) !== hash) {
+        throw new CollaborationError(
+          "RECORD_CONFLICT",
+          "record ID already has different content"
+        );
+      }
+      return { created: false, path: target, hash, record: existing };
+    }
+    if (error instanceof CollaborationError) throw error;
+    if (code === "EXDEV" || code === "EPERM" || code === "EOPNOTSUPP" || code === "ENOTSUP") {
+      throw new CollaborationError(
+        "STORAGE_UNSUPPORTED",
+        `hard-link publication is unsupported: ${code}`
+      );
+    }
+    if (published) {
+      throw new CollaborationError(
+        "COMMIT_UNCERTAIN",
+        `record publication outcome is uncertain: ${error.message}`,
+        true
+      );
+    }
+    throw error;
+  } finally {
+    await handle?.close().catch(() => void 0);
+    await unlink(temporary).catch((error) => {
+      if (!isMissing(error)) throw error;
+    });
+  }
+}
+async function enumerateJsonRecords(directory, options) {
+  if (options.root) {
+    await validateRootScopedPath(options.root, directory, {
+      leaf: "directory",
+      allowMissingTail: true
+    });
+  }
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    (error) => {
+      if (isMissing(error)) return [];
+      throw error;
+    }
+  );
+  const records2 = entries.filter(
+    (entry) => !entry.name.startsWith(".") && entry.name.endsWith(".json")
+  ).map((entry) => {
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        `record entry ${entry.name} is not a regular file`
+      );
+    }
+    return path.join(directory, entry.name);
+  }).toSorted();
+  if (records2.length > options.maxEntries) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      `record directory exceeds ${options.maxEntries} entries`
+    );
+  }
+  return records2;
+}
+
+// src/shared/collaboration/paths.ts
+function collaborationPaths(root, collaborationId) {
+  if (!path2.isAbsolute(root))
+    throw new CollaborationError("INVALID_ROOT", "root must be absolute");
+  try {
+    assertUuid(collaborationId, "collaboration ID");
+  } catch (error) {
+    throw new CollaborationError("INVALID_ID", error.message);
+  }
+  const directory = path2.join(root, "collaborations", collaborationId);
+  return {
+    root,
+    directory,
+    collaboration: path2.join(directory, "collaboration.json"),
+    members: path2.join(directory, "members"),
+    bindings: path2.join(directory, "bindings"),
+    departures: path2.join(directory, "departures"),
+    inbox: path2.join(directory, "inbox"),
+    acknowledgments: path2.join(directory, "acks"),
+    logEntries: path2.join(directory, "log", "entries"),
+    renderedLog: path2.join(directory, "collaboration.md"),
+    closed: path2.join(directory, "closed.json")
+  };
+}
+function memberBindingDirectory(paths, participantId) {
+  assertUuid(participantId, "participant ID");
+  return path2.join(paths.bindings, participantId);
+}
+
+// src/shared/collaboration/membership.ts
+var MembershipError = class extends Error {
+  code;
+  constructor(code, message) {
+    super(message);
+    this.name = "MembershipError";
+    this.code = code;
+  }
+};
+function timestamp(value) {
+  const result = value ?? (/* @__PURE__ */ new Date()).toISOString();
+  if (Number.isNaN(Date.parse(result)))
+    throw new TypeError("timestamp must be ISO-8601");
+  return result;
+}
+function withContentHash(record) {
+  return { ...record, contentHash: canonicalRecordHash(record) };
+}
+async function canonicalWorktree(value) {
+  if (!path3.isAbsolute(value)) throw new TypeError("worktree must be absolute");
+  const info = await lstat2(value).catch(() => null);
+  if (!info) return path3.resolve(value);
+  if (!info.isDirectory() || info.isSymbolicLink())
+    throw new TypeError("worktree must be a directory");
+  return realpath2(value);
+}
+async function isCollaborationClosed(root, collaborationId) {
+  const file = collaborationPaths(root, collaborationId).closed;
+  return readJsonRecord(file, { root }).then(
+    () => true,
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+}
+async function assertOpen(root, collaborationId) {
+  if (await isCollaborationClosed(root, collaborationId)) {
+    throw new MembershipError(
+      "COLLABORATION_CLOSED",
+      "collaboration is closed"
+    );
+  }
+}
+async function openCollaboration(input) {
+  assertUuid(input.collaborationId, "collaboration ID");
+  assertBoundedString(input.label, "label", 128);
+  assertBoundedString(input.task, "task", 2048);
+  const createdAt = timestamp(input.now);
+  const paths = collaborationPaths(input.root, input.collaborationId);
+  const proposed = withContentHash({
+    schemaVersion: 1,
+    id: input.collaborationId,
+    label: input.label,
+    task: input.task,
+    createdAt
+  });
+  let collaboration = await readJsonRecord(
+    paths.collaboration,
+    { root: input.root }
+  ).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!collaboration) {
+    try {
+      await publishImmutableRecord(paths.collaboration, proposed, {
+        root: input.root
+      });
+      collaboration = proposed;
+      await input.hooks?.afterCollaborationPublish?.();
+    } catch (error) {
+      if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
+        throw error;
+      collaboration = await readJsonRecord(
+        paths.collaboration,
+        { root: input.root }
+      );
+    }
+  }
+  if (collaboration.id !== input.collaborationId || collaboration.label !== input.label || collaboration.task !== input.task) {
+    throw new CollaborationError(
+      "RECORD_CONFLICT",
+      "collaboration ID already has different stable fields"
+    );
+  }
+  const joined = await joinCollaboration({
+    ...input,
+    now: collaboration.createdAt
+  });
+  return { collaboration, member: joined.member };
+}
+async function joinCollaboration(input) {
+  assertAlias(input.alias);
+  assertPin(input.pin);
+  await assertOpen(input.root, input.collaborationId);
+  const paths = collaborationPaths(input.root, input.collaborationId);
+  await readJsonRecord(paths.collaboration, {
+    root: input.root
+  });
+  const createdAt = timestamp(input.now);
+  const participantId = randomUUID2();
+  const worktree = await canonicalWorktree(input.worktree);
+  const binding = withContentHash({
+    schemaVersion: 1,
+    participantId,
+    generation: 0,
+    pin: input.pin,
+    worktree,
+    previousPin: null,
+    reason: "initial join",
+    createdAt,
+    inheritedAckRefs: []
+  });
+  const member = withContentHash({
+    schemaVersion: 1,
+    alias: input.alias,
+    participantId,
+    collaborationId: input.collaborationId,
+    createdAt,
+    initialBinding: binding
+  });
+  const memberTarget = path3.join(paths.members, `${input.alias}.json`);
+  const existingMember = await readJsonRecord(memberTarget, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!existingMember) {
+    const members = await enumerateJsonRecords(paths.members, {
+      root: input.root,
+      maxEntries: 128
+    });
+    if (members.length >= 128) {
+      throw new CollaborationError(
+        "CAPACITY_EXCEEDED",
+        "collaboration already has 128 members"
+      );
+    }
+  }
+  try {
+    await publishImmutableRecord(memberTarget, member, { root: input.root });
+    await input.hooks?.afterAliasPublish?.();
+  } catch (error) {
+    if (!(error instanceof CollaborationError) || error.code !== "RECORD_CONFLICT")
+      throw error;
+    const existing = await readJsonRecord(memberTarget, {
+      root: input.root
+    });
+    if (pinsEqual(existing.initialBinding.pin, input.pin)) {
+      const recovered = await resolveMember(
+        input.root,
+        input.collaborationId,
+        input.alias
+      );
+      const closedRace2 = await isCollaborationClosed(
+        input.root,
+        input.collaborationId
+      );
+      if (closedRace2)
+        throw new MembershipError(
+          "COLLABORATION_CLOSED",
+          "join recovered during closure and is inert"
+        );
+      if (recovered.departed || recovered.binding.generation !== 0 || !pinsEqual(recovered.binding.pin, input.pin)) {
+        throw new MembershipError(
+          "STALE_BINDING",
+          `alias ${input.alias} initial binding is no longer current`
+        );
+      }
+      return { member: recovered, closedRace: closedRace2 };
+    }
+    throw new MembershipError(
+      "STALE_BINDING",
+      `alias ${input.alias} already belongs to another participant`
+    );
+  }
+  await publishImmutableRecord(
+    path3.join(memberBindingDirectory(paths, participantId), "0.json"),
+    binding,
+    { root: input.root }
+  );
+  await input.hooks?.afterBindingPublish?.();
+  const closedRace = await isCollaborationClosed(
+    input.root,
+    input.collaborationId
+  );
+  if (closedRace) {
+    throw new MembershipError(
+      "COLLABORATION_CLOSED",
+      "join published during closure and is inert"
+    );
+  }
+  return { member: { member, binding, departed: false }, closedRace };
+}
+async function resolveMember(root, collaborationId, alias) {
+  assertAlias(alias);
+  const paths = collaborationPaths(root, collaborationId);
+  let member;
+  try {
+    member = await readJsonRecord(
+      path3.join(paths.members, `${alias}.json`),
+      { root }
+    );
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new MembershipError(
+        "MEMBER_NOT_FOUND",
+        `member ${alias} does not exist`
+      );
+    }
+    throw error;
+  }
+  const bindingFiles = await enumerateJsonRecords(
+    memberBindingDirectory(paths, member.participantId),
+    { root, maxEntries: 64 }
+  );
+  if (bindingFiles.length === 0) {
+    await publishImmutableRecord(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json"),
+      member.initialBinding,
+      { root }
+    );
+    bindingFiles.push(
+      path3.join(memberBindingDirectory(paths, member.participantId), "0.json")
+    );
+  }
+  const bindings = await Promise.all(
+    bindingFiles.map((file) => readJsonRecord(file, { root }))
+  );
+  const binding = bindings.toSorted(
+    (left, right) => right.generation - left.generation
+  )[0];
+  if (!binding)
+    throw new MembershipError("MEMBER_NOT_FOUND", "member has no binding");
+  const departureFile = path3.join(
+    paths.departures,
+    member.participantId,
+    `${binding.generation}.json`
+  );
+  const departed = await readJsonRecord(departureFile, {
+    root
+  }).then(
+    (departure) => {
+      if (!pinsEqual(departure.pin, binding.pin)) {
+        throw new CollaborationError(
+          "MALFORMED_RECORD",
+          "departure pin does not match its binding"
+        );
+      }
+      return true;
+    },
+    (error) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  );
+  return { member, binding, departed };
+}
+async function resolveMemberByPin(root, collaborationId, pin) {
+  assertPin(pin);
+  const paths = collaborationPaths(root, collaborationId);
+  const files = await enumerateJsonRecords(paths.members, {
+    root,
+    maxEntries: 128
+  });
+  for (const file of files) {
+    const member = await readJsonRecord(file, { root });
+    const resolved = await resolveMember(root, collaborationId, member.alias);
+    if (pinsEqual(resolved.binding.pin, pin)) return resolved;
+  }
+  throw new MembershipError(
+    "NOT_CURRENT_MEMBER",
+    "pin is not a current collaboration member"
+  );
+}
+
+// src/shared/collaboration/log.ts
+function timestamp2(value) {
+  const result = value ?? (/* @__PURE__ */ new Date()).toISOString();
+  if (Number.isNaN(Date.parse(result)))
+    throw new TypeError("timestamp must be ISO-8601");
+  return result;
+}
+function entryContent(input) {
+  return {
+    collaborationId: input.collaborationId,
+    id: input.id,
+    category: input.category,
+    title: input.title,
+    author: input.pin,
+    whatHappened: input.whatHappened,
+    assessment: input.assessment,
+    skillImplication: input.skillImplication
+  };
+}
+async function appendLogEntry(input) {
+  assertUuid(input.collaborationId, "collaboration ID");
+  assertUuid(input.id, "entry ID");
+  assertPin(input.pin);
+  assertBoundedString(input.category, "category", 64);
+  assertBoundedString(input.title, "title", 256);
+  assertBoundedString(input.whatHappened, "what happened", 16 * 1024);
+  assertBoundedString(input.assessment, "assessment", 2048);
+  assertBoundedString(input.skillImplication, "skill implication", 4096);
+  if (await isCollaborationClosed(input.root, input.collaborationId)) {
+    throw new MembershipError(
+      "COLLABORATION_CLOSED",
+      "collaboration log is closed"
+    );
+  }
+  const author = await resolveMemberByPin(
+    input.root,
+    input.collaborationId,
+    input.pin
+  );
+  if (author.departed) {
+    throw new MembershipError(
+      "MEMBER_DEPARTED",
+      "departed member cannot append to the log"
+    );
+  }
+  const contentHash = canonicalHash(entryContent(input));
+  const target = path4.join(
+    collaborationPaths(input.root, input.collaborationId).logEntries,
+    `${input.id}.json`
+  );
+  const existing = await readJsonRecord(target, {
+    root: input.root
+  }).catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (existing) {
+    if (existing.contentHash !== contentHash) {
+      throw new CollaborationError(
+        "RECORD_CONFLICT",
+        "log entry ID already has different content"
+      );
+    }
+    return { entry: existing, duplicate: true };
+  }
+  const entries = await enumerateJsonRecords(path4.dirname(target), {
+    root: input.root,
+    maxEntries: 4096
+  });
+  if (entries.length >= 4096) {
+    throw new CollaborationError(
+      "CAPACITY_EXCEEDED",
+      "collaboration log already has 4096 entries"
+    );
+  }
+  const entry = {
+    schemaVersion: 1,
+    id: input.id,
+    collaborationId: input.collaborationId,
+    category: input.category,
+    title: input.title,
+    author: input.pin,
+    authoredAt: timestamp2(input.now),
+    whatHappened: input.whatHappened,
+    assessment: input.assessment,
+    skillImplication: input.skillImplication,
+    contentHash
+  };
+  try {
+    await publishImmutableRecord(target, entry, { root: input.root });
+  } catch (error) {
+    if (error instanceof CollaborationError && error.code === "RECORD_CONFLICT") {
+      const winner = await readJsonRecord(target, {
+        root: input.root
+      });
+      if (winner.contentHash === contentHash)
+        return { entry: winner, duplicate: true };
+    }
+    throw error;
+  }
+  return { entry, duplicate: false };
+}
+async function authoritativeEntries(root, collaborationId) {
+  const directory = collaborationPaths(root, collaborationId).logEntries;
+  const files = await enumerateJsonRecords(directory, {
+    root,
+    maxEntries: 4096
+  });
+  const entries = await Promise.all(
+    files.map((file) => readJsonRecord(file, { root }))
+  );
+  for (const entry of entries) {
+    const actual = canonicalHash({
+      collaborationId: entry.collaborationId,
+      id: entry.id,
+      category: entry.category,
+      title: entry.title,
+      author: entry.author,
+      whatHappened: entry.whatHappened,
+      assessment: entry.assessment,
+      skillImplication: entry.skillImplication
+    });
+    if (actual !== entry.contentHash) {
+      throw new CollaborationError(
+        "MALFORMED_RECORD",
+        `log entry ${entry.id} has an invalid content hash`
+      );
+    }
+  }
+  return entries.toSorted(
+    (left, right) => left.authoredAt.localeCompare(right.authoredAt) || left.author.runtime.localeCompare(right.author.runtime) || left.author.sessionId.localeCompare(right.author.sessionId) || left.id.localeCompare(right.id)
+  );
+}
+function sourceDigest(entries) {
+  return canonicalHash(
+    entries.map((entry) => ({
+      id: entry.id,
+      hash: entry.contentHash,
+      authoredAt: entry.authoredAt
+    }))
+  );
+}
+function renderMarkdown(collaboration, entries, digest) {
+  const sections = entries.map(
+    (entry) => [
+      `## ${entry.title}`,
+      "",
+      `- Entry: \`${entry.id}\``,
+      `- Category: ${entry.category}`,
+      `- Author: \`${entry.author.runtime}:${entry.author.sessionId}\``,
+      `- Time: ${entry.authoredAt}`,
+      `- Assessment: ${entry.assessment}`,
+      "",
+      entry.whatHappened,
+      "",
+      `**Skill implication:** ${entry.skillImplication}`
+    ].join("\n")
+  );
+  return [
+    `# ${collaboration.label}`,
+    "",
+    `- Collaboration: \`${collaboration.id}\``,
+    `- Created: ${collaboration.createdAt}`,
+    `- Task: ${collaboration.task}`,
+    "",
+    `<!-- source-set-digest: ${digest} -->`,
+    "",
+    ...sections.flatMap((section) => [section, ""])
+  ].join("\n");
+}
+async function inspectPrivateDirectoryChain(root, directory) {
+  const absoluteRoot = path4.resolve(root);
+  const absoluteDirectory = path4.resolve(directory);
+  const relative2 = path4.relative(absoluteRoot, absoluteDirectory);
+  if (relative2.startsWith("..") || path4.isAbsolute(relative2)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log directory escapes the collaboration root"
+    );
+  }
+  const expectedUid = process.getuid?.();
+  const paths = [
+    absoluteRoot,
+    ...relative2.split(path4.sep).filter(Boolean).reduce((entries, segment) => {
+      entries.push(path4.join(entries.at(-1) ?? absoluteRoot, segment));
+      return entries;
+    }, [])
+  ];
+  for (const candidate of paths) {
+    const info = await lstat3(candidate);
+    if (!info.isDirectory() || info.isSymbolicLink() || expectedUid !== void 0 && info.uid !== expectedUid) {
+      throw new CollaborationError(
+        "UNSAFE_PATH",
+        "rendered log directory chain is unsafe"
+      );
+    }
+  }
+  const canonicalRoot = await realpath3(absoluteRoot);
+  const canonicalDirectory = await realpath3(absoluteDirectory);
+  const canonicalRelative = path4.relative(canonicalRoot, canonicalDirectory);
+  if (canonicalRelative.startsWith("..") || path4.isAbsolute(canonicalRelative)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log directory escapes the canonical root"
+    );
+  }
+}
+async function writeView(file, markdown, root) {
+  const directory = path4.dirname(file);
+  await inspectPrivateDirectoryChain(root, directory);
+  await inspectRenderedView(file, root).catch(
+    (error) => {
+      if (error.code !== "ENOENT") throw error;
+    }
+  );
+  const temporary = path4.join(
+    directory,
+    `.collaboration.md.tmp-${process.pid}-${randomUUID3()}`
+  );
+  const handle = await open2(temporary, "wx", 384);
+  try {
+    await handle.writeFile(markdown, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    await inspectPrivateDirectoryChain(root, directory);
+    await inspectRenderedView(file, root).catch(
+      (error) => {
+        if (error.code !== "ENOENT") throw error;
+      }
+    );
+    await rename(temporary, file);
+    const directoryHandle = await open2(directory, "r");
+    try {
+      await directoryHandle.sync();
+    } finally {
+      await directoryHandle.close();
+    }
+  } finally {
+    await unlink2(temporary).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+  }
+}
+async function renderLog(input) {
+  const entries = await authoritativeEntries(input.root, input.collaborationId);
+  const collaboration = await readJsonRecord(
+    collaborationPaths(input.root, input.collaborationId).collaboration,
+    { root: input.root }
+  );
+  const digest = sourceDigest(entries);
+  const markdown = renderMarkdown(collaboration, entries, digest);
+  await input.hooks?.afterSnapshot?.();
+  const file = collaborationPaths(
+    input.root,
+    input.collaborationId
+  ).renderedLog;
+  await writeView(file, markdown, input.root);
+  const after = sourceDigest(
+    await authoritativeEntries(input.root, input.collaborationId)
+  );
+  return { path: file, markdown, digest, staleAfterRender: after !== digest };
+}
+async function getLogView(input) {
+  const entries = await authoritativeEntries(input.root, input.collaborationId);
+  const digest = sourceDigest(entries);
+  const file = collaborationPaths(
+    input.root,
+    input.collaborationId
+  ).renderedLog;
+  const markdown = await inspectRenderedView(file, input.root).catch(
+    (error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  );
+  const renderedDigest = markdown?.match(
+    /<!-- source-set-digest: ([a-f0-9]{64}) -->/u
+  )?.[1];
+  return { path: file, markdown, digest, stale: renderedDigest !== digest };
+}
+async function inspectRenderedView(file, root, options = {}) {
+  await inspectPrivateDirectoryChain(root, path4.dirname(file));
+  const info = await lstat3(file);
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log must be a regular file"
+    );
+  }
+  const expectedUid = options.expectedUid ?? process.getuid?.();
+  if (expectedUid !== void 0 && info.uid !== expectedUid) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log owner does not match the current user"
+    );
+  }
+  const maxBytes = options.maxBytes ?? 512 * 1024;
+  if (info.size > maxBytes) {
+    throw new CollaborationError(
+      "RECORD_TOO_LARGE",
+      `rendered log exceeds ${maxBytes} bytes`
+    );
+  }
+  const canonicalRoot = await realpath3(root);
+  const canonicalFile = await realpath3(file);
+  const relative2 = path4.relative(canonicalRoot, canonicalFile);
+  if (relative2.startsWith("..") || path4.isAbsolute(relative2)) {
+    throw new CollaborationError(
+      "UNSAFE_PATH",
+      "rendered log escapes the collaboration root"
+    );
+  }
+  return readFile2(file, "utf8");
+}
+
+// src/skills/session-observer-collab/src/codex-lifecycle.mjs
+import { randomUUID as randomUUID5 } from "node:crypto";
+import {
+  chmod as chmod4,
+  mkdir as mkdir4,
+  open as open4,
+  readdir as readdir4,
+  readFile as readFile5,
+  rename as rename4,
   rm as rm3,
   writeFile as writeFile2
 } from "node:fs/promises";
 import { dirname as dirname3, join as join3 } from "node:path";
 
 // src/skills/session-observer-collab/src/lib/codex-install.mjs
-import { createHash } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import {
-  chmod,
+  chmod as chmod2,
   copyFile,
-  mkdir,
-  readFile,
-  readdir,
-  rename,
+  mkdir as mkdir2,
+  readFile as readFile3,
+  readdir as readdir2,
+  rename as rename2,
   rm,
   stat,
   writeFile
@@ -38,6 +1262,8 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 var BUNDLE_OWNER = "session-observer-collab-codex-stop";
 var MANIFEST = ".session-observer-collab-bundle.json";
 var FILES = ["session-observer-collab/scripts/hooks/codex-stop.mjs"];
+var COMPOSITION_CAPABILITY = "agent-messaging-stop-composition";
+var COMPOSITION_CAPABILITY_VERSION = 1;
 function bundlePaths(scriptPath) {
   const parent = dirname(scriptPath);
   return {
@@ -49,67 +1275,84 @@ async function sourceFiles(sourceScriptPath) {
   const collabScripts = dirname(dirname(sourceScriptPath));
   const skillsRoot = dirname(dirname(collabScripts));
   const files = [];
-  const hash = createHash("sha256");
+  const hash = createHash3("sha256");
+  hash.update(COMPOSITION_CAPABILITY);
+  hash.update("\0");
+  hash.update(String(COMPOSITION_CAPABILITY_VERSION));
+  hash.update("\0");
   for (const relativePath of FILES) {
     const source = join(skillsRoot, relativePath);
-    const content = await readFile(source);
+    const content = await readFile3(source);
     hash.update(relativePath);
     hash.update("\0");
     hash.update(content);
     hash.update("\0");
     files.push({ relativePath, source });
   }
-  return { files, version: hash.digest("hex").slice(0, 24) };
+  const contentDigest = hash.digest("hex");
+  return { files, contentDigest, version: contentDigest.slice(0, 24) };
 }
-async function ownerOnlyDirectory(path) {
-  await mkdir(path, { recursive: true, mode: 448 });
-  await chmod(path, 448);
+async function ownerOnlyDirectory(path5) {
+  await mkdir2(path5, { recursive: true, mode: 448 });
+  await chmod2(path5, 448);
 }
-async function copyBundle(stage, files, version) {
+async function copyBundle(stage, files, version, contentDigest) {
   await ownerOnlyDirectory(stage);
   for (const file of files) {
     const destination = join(stage, file.relativePath);
     await ownerOnlyDirectory(dirname(destination));
     await copyFile(file.source, destination);
-    await chmod(destination, 384);
+    await chmod2(destination, 384);
   }
   const manifest = join(stage, MANIFEST);
   await writeFile(
     manifest,
-    `${JSON.stringify({ owner: BUNDLE_OWNER, version, files: FILES }, null, 2)}
+    `${JSON.stringify(
+      {
+        owner: BUNDLE_OWNER,
+        version,
+        files: FILES,
+        capabilities: {
+          [COMPOSITION_CAPABILITY]: COMPOSITION_CAPABILITY_VERSION
+        },
+        contentDigest
+      },
+      null,
+      2
+    )}
 `,
     { mode: 384 }
   );
-  await chmod(manifest, 384);
+  await chmod2(manifest, 384);
 }
-async function ownedVersion(path, version) {
+async function ownedVersion(path5, version) {
   try {
-    const value = JSON.parse(await readFile(join(path, MANIFEST), "utf8"));
+    const value = JSON.parse(await readFile3(join(path5, MANIFEST), "utf8"));
     return value.owner === BUNDLE_OWNER && value.version === version;
   } catch {
     return false;
   }
 }
-async function ownedArtifact(path) {
+async function ownedArtifact(path5) {
   try {
-    const value = JSON.parse(await readFile(join(path, MANIFEST), "utf8"));
+    const value = JSON.parse(await readFile3(join(path5, MANIFEST), "utf8"));
     return value.owner === BUNDLE_OWNER;
   } catch {
     return false;
   }
 }
-async function secureBundle(path) {
-  await chmod(path, 448);
+async function secureBundle(path5) {
+  await chmod2(path5, 448);
   for (const relativePath of FILES) {
-    const file = join(path, relativePath);
-    await chmod(file, 384);
+    const file = join(path5, relativePath);
+    await chmod2(file, 384);
     let parent = dirname(file);
-    while (parent !== path) {
-      await chmod(parent, 448);
+    while (parent !== path5) {
+      await chmod2(parent, 448);
       parent = dirname(parent);
     }
   }
-  await chmod(join(path, MANIFEST), 384);
+  await chmod2(join(path5, MANIFEST), 384);
 }
 function launcherContent(scriptPath, supportRoot, version) {
   const entry = join(
@@ -126,10 +1369,10 @@ function launcherContent(scriptPath, supportRoot, version) {
     ""
   ].join("\n");
 }
-async function readIfFile(path) {
+async function readIfFile(path5) {
   try {
-    if (!(await stat(path)).isFile()) return null;
-    return await readFile(path, "utf8");
+    if (!(await stat(path5)).isFile()) return null;
+    return await readFile3(path5, "utf8");
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     throw error;
@@ -138,23 +1381,23 @@ async function readIfFile(path) {
 async function cleanOwnedVersions(supportRoot, keep) {
   let names;
   try {
-    names = await readdir(supportRoot);
+    names = await readdir2(supportRoot);
   } catch (error) {
     if (error?.code === "ENOENT") return;
     throw error;
   }
   for (const name of names) {
-    const path = join(supportRoot, name);
+    const path5 = join(supportRoot, name);
     if (name === keep) continue;
-    if (name.startsWith(".stage-") && await ownedArtifact(path) || await ownedVersion(path, name))
-      await rm(path, { recursive: true, force: true });
+    if (name.startsWith(".stage-") && await ownedArtifact(path5) || await ownedVersion(path5, name))
+      await rm(path5, { recursive: true, force: true });
   }
-  if ((await readdir(supportRoot)).length === 0)
+  if ((await readdir2(supportRoot)).length === 0)
     await rm(supportRoot, { recursive: true, force: true });
 }
 async function removeEmptySupportRoot(supportRoot) {
   try {
-    if ((await readdir(supportRoot)).length === 0)
+    if ((await readdir2(supportRoot)).length === 0)
       await rm(supportRoot, { recursive: true, force: true });
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
@@ -162,7 +1405,7 @@ async function removeEmptySupportRoot(supportRoot) {
 }
 async function prepareSupportRoot(supportRoot) {
   try {
-    const names = await readdir(supportRoot);
+    const names = await readdir2(supportRoot);
     let owned = false;
     for (const name of names) {
       if (await ownedArtifact(join(supportRoot, name))) {
@@ -174,7 +1417,7 @@ async function prepareSupportRoot(supportRoot) {
       throw new Error(
         `refusing unowned Codex hook support directory: ${supportRoot}`
       );
-    await chmod(supportRoot, 448);
+    await chmod2(supportRoot, 448);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
     await ownerOnlyDirectory(supportRoot);
@@ -186,30 +1429,30 @@ async function installCodexStopBundle({
 }) {
   const scriptPath = resolve(rawScriptPath);
   const sourceScriptPath = resolve(rawSourceScriptPath);
-  const { files, version } = await sourceFiles(sourceScriptPath);
+  const { files, contentDigest, version } = await sourceFiles(sourceScriptPath);
   const { parent, supportRoot } = bundlePaths(scriptPath);
   const final = join(supportRoot, version);
   const stage = join(supportRoot, `.stage-${process.pid}-${version}`);
   const launcher = launcherContent(scriptPath, supportRoot, version);
   const temporary = `${scriptPath}.${process.pid}.${version}.tmp`;
   let createdVersion = false;
-  await mkdir(parent, { recursive: true, mode: 448 });
+  await mkdir2(parent, { recursive: true, mode: 448 });
   await prepareSupportRoot(supportRoot);
   try {
     if (!await ownedVersion(final, version)) {
       await rm(stage, { recursive: true, force: true });
-      await copyBundle(stage, files, version);
-      await rename(stage, final);
+      await copyBundle(stage, files, version, contentDigest);
+      await rename2(stage, final);
       createdVersion = true;
     }
     await secureBundle(final);
     const current = await readIfFile(scriptPath);
     if (current !== launcher) {
       await writeFile(temporary, launcher, { mode: 448 });
-      await chmod(temporary, 448);
-      await rename(temporary, scriptPath);
+      await chmod2(temporary, 448);
+      await rename2(temporary, scriptPath);
     }
-    await chmod(scriptPath, 448);
+    await chmod2(scriptPath, 448);
     await cleanOwnedVersions(supportRoot, version);
     return {
       changed: current !== launcher,
@@ -247,21 +1490,21 @@ async function removeCodexStopBundle(scriptPath) {
 }
 
 // src/skills/session-observer-collab/src/lib/lease-state.mjs
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID4 } from "node:crypto";
 import { constants } from "node:fs";
 import {
   access,
-  chmod as chmod2,
-  lstat,
-  mkdir as mkdir2,
-  open,
-  readFile as readFile2,
-  readdir as readdir2,
-  realpath,
-  rename as rename2,
+  chmod as chmod3,
+  lstat as lstat4,
+  mkdir as mkdir3,
+  open as open3,
+  readFile as readFile4,
+  readdir as readdir3,
+  realpath as realpath4,
+  rename as rename3,
   rm as rm2
 } from "node:fs/promises";
-import { homedir } from "node:os";
+import { homedir as homedir2 } from "node:os";
 import { basename as basename2, dirname as dirname2, isAbsolute, join as join2, resolve as resolve2, sep } from "node:path";
 var LEASE_SCHEMA_VERSION = 6;
 var LEASE_STATES = Object.freeze([
@@ -277,7 +1520,7 @@ var MAX_LEASE_MS = 24 * 60 * 60 * 1e3;
 var MAX_CONTINUATIONS = 100;
 var MAX_LOOPS = 1e3;
 var ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["codex", "cursor"]);
+var OWNER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var PEER_RUNTIMES = /* @__PURE__ */ new Set(["claude-code", "codex", "cursor"]);
 var RECORD_INDEX_BASE = "zero-based-jsonl-record-index";
 var FRAME_INDEX_BASE = "zero-based-jsonl-frame-index";
@@ -298,7 +1541,7 @@ function stateRoot(env = process.env) {
       );
     return resolve2(env.SESSION_OBSERVER_STATE_DIR);
   }
-  const base = env.XDG_STATE_HOME || join2(env.HOME || homedir(), ".local", "state");
+  const base = env.XDG_STATE_HOME || join2(env.HOME || homedir2(), ".local", "state");
   if (!isAbsolute(base))
     throw new LeaseError(
       "invalid-state-root",
@@ -319,7 +1562,7 @@ function validateOwnerRuntime(value) {
   if (!OWNER_RUNTIMES.has(value))
     throw new LeaseError(
       "invalid-owner-runtime",
-      "owner runtime must be codex or cursor"
+      "owner runtime must be claude-code, codex, or cursor"
     );
   return value;
 }
@@ -380,7 +1623,7 @@ async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
   const requested = validateAbsolutePath(peerTranscript, "peer-transcript");
   let canonicalTranscript;
   try {
-    canonicalTranscript = await realpath(requested);
+    canonicalTranscript = await realpath4(requested);
   } catch (error) {
     throw new LeaseError(
       "peer-transcript-unavailable",
@@ -391,7 +1634,7 @@ async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
     const requestedStore = cursorTranscriptStore(requested);
     let canonicalStore;
     try {
-      canonicalStore = await realpath(requestedStore);
+      canonicalStore = await realpath4(requestedStore);
     } catch (error) {
       throw new LeaseError(
         "unsupported-peer-transcript-store",
@@ -440,7 +1683,7 @@ function integer(value, name, min, max) {
   }
   return value;
 }
-function timestamp(value, name) {
+function timestamp3(value, name) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
     throw new LeaseError("malformed-lease", `${name} must be an ISO timestamp`);
   }
@@ -532,6 +1775,24 @@ function validateLease(raw) {
   validateId(value.leaseId, "lease-id");
   validateOwnerRuntime(value.runtime);
   validatePeerRuntime(value.peerRuntime);
+  if (value.runtime === "claude-code") {
+    const composition = value.composedActivation;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.collaborationId
+    ) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      composition.activationId
+    ) || composition.controller !== "observer-collab" || composition.mechanism !== "monitor" || composition.ownerRuntime !== value.runtime || composition.ownerSession !== value.ownerSession || composition.peerRuntime !== value.peerRuntime || composition.peerSession !== value.peerSession || composition.ownerCwd !== value.ownerCwd || composition.peerTranscript !== value.peerTranscript || typeof composition.confirmedAt !== "string" || !Number.isFinite(Date.parse(composition.confirmedAt)) || composition.oldMonitorStopped !== true || composition.standaloneWatcherStopped !== true) {
+      throw new LeaseError(
+        "invalid-composed-activation",
+        "Claude owner lease requires an exact composed Monitor activation and stop attestations"
+      );
+    }
+  } else if (value.composedActivation !== void 0 && value.composedActivation !== null) {
+    throw new LeaseError(
+      "invalid-composed-activation",
+      "only a Claude owner lease may bind a composed Monitor activation"
+    );
+  }
   validateId(value.ownerSession, "owner-session");
   validateId(value.peerSession, "peer-session");
   value.ownerCwd = validateAbsolutePath(value.ownerCwd, "owner-cwd");
@@ -552,9 +1813,9 @@ function validateLease(raw) {
   validatePeerIndexBase(value.peerIndexBase, value.peerRuntime);
   if (!LEASE_STATES.includes(value.state))
     throw new LeaseError("malformed-lease", "invalid lease state");
-  value.armedAt = timestamp(value.armedAt, "armedAt");
-  value.expiresAt = timestamp(value.expiresAt, "expiresAt");
-  value.updatedAt = timestamp(value.updatedAt, "updatedAt");
+  value.armedAt = timestamp3(value.armedAt, "armedAt");
+  value.expiresAt = timestamp3(value.expiresAt, "expiresAt");
+  value.updatedAt = timestamp3(value.updatedAt, "updatedAt");
   if (value.waitStartedAt === null !== (value.waitDeadlineAt === null)) {
     throw new LeaseError(
       "malformed-lease",
@@ -562,8 +1823,8 @@ function validateLease(raw) {
     );
   }
   if (value.waitStartedAt !== null) {
-    value.waitStartedAt = timestamp(value.waitStartedAt, "waitStartedAt");
-    value.waitDeadlineAt = timestamp(value.waitDeadlineAt, "waitDeadlineAt");
+    value.waitStartedAt = timestamp3(value.waitStartedAt, "waitStartedAt");
+    value.waitDeadlineAt = timestamp3(value.waitDeadlineAt, "waitDeadlineAt");
   }
   const waiterFields = [value.waitToken, value.waitPid];
   const nullWaiterFields = waiterFields.filter(
@@ -724,10 +1985,10 @@ async function isWaiterLive(waiter) {
   return true;
 }
 async function atomicWriteJson(file, value) {
-  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
-  await chmod2(dirname2(file), 448);
-  const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  const handle = await open(temp, "wx", 384);
+  await mkdir3(dirname2(file), { recursive: true, mode: 448 });
+  await chmod3(dirname2(file), 448);
+  const temp = `${file}.${process.pid}.${randomUUID4()}.tmp`;
+  const handle = await open3(temp, "wx", 384);
   try {
     await handle.writeFile(`${JSON.stringify(value, null, 2)}
 `, "utf8");
@@ -735,14 +1996,14 @@ async function atomicWriteJson(file, value) {
   } finally {
     await handle.close();
   }
-  await rename2(temp, file);
-  await chmod2(file, 384);
+  await rename3(temp, file);
+  await chmod3(file, 384);
 }
 async function readLease(root, ownerSession, { persistMigration = true } = {}) {
   const file = leasePath(root, ownerSession);
   let raw;
   try {
-    const metadata = await lstat(file);
+    const metadata = await lstat4(file);
     const wrongOwner = typeof process.getuid === "function" && metadata.uid !== process.getuid();
     if (!metadata.isFile() || metadata.isSymbolicLink() || wrongOwner || (metadata.mode & 63) !== 0) {
       throw new LeaseError(
@@ -750,7 +2011,7 @@ async function readLease(root, ownerSession, { persistMigration = true } = {}) {
         "lease must be a regular owner-only file owned by this user"
       );
     }
-    raw = JSON.parse(await readFile2(file, "utf8"));
+    raw = JSON.parse(await readFile4(file, "utf8"));
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     if (error instanceof LeaseError) throw error;
@@ -774,11 +2035,11 @@ async function readLease(root, ownerSession, { persistMigration = true } = {}) {
 async function withLeaseLock(file, fn) {
   const lock = `${file}.lock`;
   let handle;
-  await mkdir2(dirname2(file), { recursive: true, mode: 448 });
-  await chmod2(dirname2(file), 448);
+  await mkdir3(dirname2(file), { recursive: true, mode: 448 });
+  await chmod3(dirname2(file), 448);
   for (let attempt = 0; ; attempt += 1) {
     try {
-      handle = await open(lock, "wx", 384);
+      handle = await open3(lock, "wx", 384);
       break;
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
@@ -834,9 +2095,9 @@ async function recoverOrphanedWait(root, ownerSession, now = Date.now(), { expec
     return { recovered: true, reason: "waiter-terminated", lease: idle };
   });
 }
-async function resourceExists(path) {
+async function resourceExists(path5) {
   try {
-    await access(path, constants.F_OK);
+    await access(path5, constants.F_OK);
     return true;
   } catch {
     return false;
@@ -847,7 +2108,7 @@ async function pruneLeases(root, { now = Date.now(), ownerSession } = {}) {
   const leasesDir = join2(resolve2(root), "leases");
   let names;
   try {
-    names = await readdir2(leasesDir);
+    names = await readdir3(leasesDir);
   } catch (error) {
     if (error?.code === "ENOENT") return [];
     throw error;
@@ -918,7 +2179,7 @@ function validateHookConfig(value) {
 }
 async function readHookConfig(hooksPath) {
   try {
-    return validateHookConfig(JSON.parse(await readFile3(hooksPath, "utf8")));
+    return validateHookConfig(JSON.parse(await readFile5(hooksPath, "utf8")));
   } catch (error) {
     if (error?.code === "ENOENT") return { hooks: {} };
     if (error instanceof CodexLifecycleError) throw error;
@@ -929,16 +2190,16 @@ async function readHookConfig(hooksPath) {
   }
 }
 async function writeHookConfig(hooksPath, config) {
-  await mkdir3(dirname3(hooksPath), { recursive: true, mode: 448 });
-  const temporary = `${hooksPath}.${randomUUID2()}.tmp`;
+  await mkdir4(dirname3(hooksPath), { recursive: true, mode: 448 });
+  const temporary = `${hooksPath}.${randomUUID5()}.tmp`;
   try {
     await writeFile2(temporary, `${JSON.stringify(config, null, 2)}
 `, {
       mode: 384
     });
-    await chmod3(temporary, 384);
-    await rename3(temporary, hooksPath);
-    await chmod3(hooksPath, 384);
+    await chmod4(temporary, 384);
+    await rename4(temporary, hooksPath);
+    await chmod4(hooksPath, 384);
   } finally {
     await rm3(temporary, { force: true });
   }
@@ -953,11 +2214,11 @@ async function withCodexLifecycleLock(root, fn) {
   const stateRoot2 = validateAbsolutePath(root, "state-root");
   const lock = join3(stateRoot2, "codex-lifecycle.lock");
   let handle;
-  await mkdir3(stateRoot2, { recursive: true, mode: 448 });
-  await chmod3(stateRoot2, 448);
+  await mkdir4(stateRoot2, { recursive: true, mode: 448 });
+  await chmod4(stateRoot2, 448);
   for (let attempt = 0; ; attempt += 1) {
     try {
-      handle = await open2(lock, "wx", 384);
+      handle = await open4(lock, "wx", 384);
       break;
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
@@ -980,7 +2241,7 @@ async function activeCodexLeaseCount(root, now) {
   const leasesDir = join3(root, "leases");
   let names;
   try {
-    names = await readdir3(leasesDir);
+    names = await readdir4(leasesDir);
   } catch (error) {
     if (error?.code === "ENOENT") return 0;
     throw error;
@@ -1172,20 +2433,20 @@ async function uninstallCodexStopHook({
 }
 
 // src/skills/session-observer-collab/src/lib/selected-prefix.mjs
-import { createHash as createHash5 } from "node:crypto";
-import { open as open5 } from "node:fs/promises";
+import { createHash as createHash7 } from "node:crypto";
+import { open as open7 } from "node:fs/promises";
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
-import { open as open3, readFile as readFile4 } from "node:fs/promises";
-import { homedir as homedir2 } from "node:os";
+import { open as open5, readFile as readFile6 } from "node:fs/promises";
+import { homedir as homedir3 } from "node:os";
 import { basename as basename3, dirname as dirname4, isAbsolute as isAbsolute2, join as join4 } from "node:path";
 
 // src/shared/transcript/cursor-frames.ts
-import { createHash as createHash3 } from "node:crypto";
-import { open as open4 } from "node:fs/promises";
+import { createHash as createHash5 } from "node:crypto";
+import { open as open6 } from "node:fs/promises";
 function isJsonObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1213,13 +2474,13 @@ function validateVerifyPrefixBytes(value) {
 }
 async function scanCursorTranscript(transcriptPath, options) {
   validateVerifyPrefixBytes(options.verifyPrefixBytes);
-  const handle = await open4(transcriptPath, "r");
+  const handle = await open6(transcriptPath, "r");
   try {
     const file = await handle.stat();
-    const safePrefixHash = createHash3("sha256");
-    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash3("sha256");
+    const safePrefixHash = createHash5("sha256");
+    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash5("sha256");
     let verifiedBytes = 0;
-    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash3("sha256").digest("hex") : null;
+    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash5("sha256").digest("hex") : null;
     let carrySegments = [];
     let carryLength = 0;
     let carryByteStart = 0;
@@ -1343,7 +2604,7 @@ async function scanCursorTranscript(transcriptPath, options) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 
 // src/shared/transcript/activity/project.ts
 var KIB = 1024;
@@ -1389,9 +2650,9 @@ async function readBoundedHashes(transcript, selectedPrefixBytes, verificationPr
   if (!nonNegativeInteger(selectedPrefixBytes) || !nonNegativeInteger(verificationPrefixBytes) || selectedPrefixBytes > verificationPrefixBytes) {
     throw selectedPrefixError();
   }
-  const selectedHash = createHash5("sha256");
-  const verificationHash = createHash5("sha256");
-  const handle = await open5(transcript, "r");
+  const selectedHash = createHash7("sha256");
+  const verificationHash = createHash7("sha256");
+  const handle = await open7(transcript, "r");
   try {
     const before = await handle.stat();
     if (!nonNegativeInteger(before.dev) || !nonNegativeInteger(before.ino) || before.size < verificationPrefixBytes) {
@@ -1464,6 +2725,87 @@ async function captureCursorArmContinuity(transcript, nextFrameIndex) {
 
 // src/skills/session-observer-collab/src/collab-control.mjs
 var CONTROL_SCHEMA_VERSION = 1;
+var COMMON_OPTIONS = ["root", "json"];
+var COMMAND_OPTIONS = Object.freeze({
+  "collaboration-open": [
+    ...COMMON_OPTIONS,
+    "collab",
+    "self",
+    "alias",
+    "label",
+    "task",
+    "cwd"
+  ],
+  "collaboration-join": [...COMMON_OPTIONS, "collab", "self", "alias", "cwd"],
+  "log-append": [
+    ...COMMON_OPTIONS,
+    "collab",
+    "self",
+    "id",
+    "category",
+    "title",
+    "what",
+    "what-stdin",
+    "assessment",
+    "implication"
+  ],
+  "log-show": [...COMMON_OPTIONS, "collab"],
+  "log-render": [...COMMON_OPTIONS, "collab"],
+  install: [...COMMON_OPTIONS, "runtime", "command", "session"],
+  arm: [
+    ...COMMON_OPTIONS,
+    "runtime",
+    "peer-runtime",
+    "session",
+    "peer-session",
+    "cwd",
+    "peer-transcript",
+    "peer-index-base",
+    "wait-ms",
+    "lease-ms",
+    "continuation-cap",
+    "loop-cap",
+    "cursor",
+    "collaboration-id",
+    "activation-id",
+    "confirm-old-monitor-stopped",
+    "confirm-standalone-watcher-stopped"
+  ],
+  disarm: [...COMMON_OPTIONS, "session"],
+  status: [...COMMON_OPTIONS, "session"],
+  prune: [...COMMON_OPTIONS, "session"],
+  "codex-install": [
+    ...COMMON_OPTIONS,
+    "hooks-path",
+    "script-path",
+    "source-script-path",
+    "session"
+  ],
+  "codex-status": [
+    ...COMMON_OPTIONS,
+    "hooks-path",
+    "script-path",
+    "session",
+    "trust-records-path",
+    "hook-statuses-path"
+  ],
+  "codex-uninstall": [
+    ...COMMON_OPTIONS,
+    "hooks-path",
+    "script-path",
+    "session",
+    "confirmed",
+    "remove-script"
+  ]
+});
+var BOOLEAN_OPTIONS = /* @__PURE__ */ new Set([
+  "json",
+  "confirmed",
+  "remove-script",
+  "what-stdin",
+  "confirm-old-monitor-stopped",
+  "confirm-standalone-watcher-stopped"
+]);
 function numberOption(value, name, min, max) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max)
@@ -1473,16 +2815,21 @@ function numberOption(value, name, min, max) {
 function parseArgs(argv) {
   const [command, ...rest] = argv;
   const options = {};
+  const allowed = new Set(COMMAND_OPTIONS[command] ?? []);
   for (let i = 0; i < rest.length; i += 1) {
     const token = rest[i];
     if (!token.startsWith("--"))
       throw new Error(`unexpected argument: ${token}`);
     const [rawKey, inline] = token.slice(2).split("=", 2);
+    if (!allowed.has(rawKey))
+      throw new Error(
+        `unknown option for ${command ?? "command"}: --${rawKey}`
+      );
     const key = rawKey.replace(
       /-([a-z])/g,
       (_, letter) => letter.toUpperCase()
     );
-    if (rawKey === "json" || rawKey === "confirmed" || rawKey === "remove-script") {
+    if (BOOLEAN_OPTIONS.has(rawKey)) {
       options[key] = true;
       continue;
     }
@@ -1493,10 +2840,47 @@ function parseArgs(argv) {
   }
   return { command, options };
 }
+function requiredOption(options, key, flag = key) {
+  const value = options[key];
+  if (typeof value !== "string" || value.length === 0)
+    throw new Error(`--${flag} is required`);
+  return value;
+}
+function parsePin(value) {
+  const separator = value.indexOf(":");
+  if (separator <= 0 || separator === value.length - 1)
+    throw new Error("--self must use <runtime>:<session-id>");
+  const pin = {
+    runtime: value.slice(0, separator),
+    sessionId: value.slice(separator + 1)
+  };
+  assertPin(pin);
+  return pin;
+}
+function sharedResult(root, collaborationId, data) {
+  return {
+    collaborationId,
+    root,
+    paths: collaborationPaths(root, collaborationId),
+    delivery: "disabled",
+    data
+  };
+}
+async function readStdinBounded() {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of process.stdin) {
+    bytes += chunk.length;
+    if (bytes > 16 * 1024)
+      throw new Error("standard input exceeds 16384 bytes");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
 async function readInstallation(root) {
   try {
     const value = JSON.parse(
-      await readFile5(join5(root, "installation.json"), "utf8")
+      await readFile7(join5(root, "installation.json"), "utf8")
     );
     if (value.schemaVersion !== CONTROL_SCHEMA_VERSION || !value.runtimes || typeof value.runtimes !== "object")
       throw new Error("unsupported installation schema");
@@ -1512,11 +2896,11 @@ async function readInstallation(root) {
 async function withInstallationLock(root, fn) {
   const lock = join5(root, "installation.json.lock");
   let handle;
-  await mkdir4(root, { recursive: true, mode: 448 });
-  await chmod4(root, 448);
+  await mkdir5(root, { recursive: true, mode: 448 });
+  await chmod5(root, 448);
   for (let attempt = 0; ; attempt += 1) {
     try {
-      handle = await open6(lock, "wx", 384);
+      handle = await open8(lock, "wx", 384);
       break;
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
@@ -1589,12 +2973,35 @@ async function arm(root, options, now = Date.now()) {
     1,
     MAX_LOOPS
   );
-  const cursor = numberOption(
-    options.cursor ?? 0,
-    "cursor",
-    0,
-    Number.MAX_SAFE_INTEGER
-  );
+  const composedActivation = runtime === "claude-code" ? (() => {
+    const collaborationId = String(options.collaborationId ?? "");
+    const activationId = String(options.activationId ?? "");
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+    if (!uuid.test(collaborationId) || !uuid.test(activationId))
+      throw new Error(
+        "Claude Monitor arm requires --collaboration-id and --activation-id UUIDs"
+      );
+    if (options.confirmOldMonitorStopped !== true || options.confirmStandaloneWatcherStopped !== true) {
+      throw new Error(
+        "Claude Monitor arm requires exact acting-session confirmation that the old Monitor and standalone watcher are stopped"
+      );
+    }
+    return {
+      collaborationId,
+      activationId,
+      controller: "observer-collab",
+      mechanism: "monitor",
+      ownerRuntime: runtime,
+      ownerSession,
+      peerRuntime,
+      peerSession,
+      ownerCwd,
+      peerTranscript: peerPath.peerTranscript,
+      confirmedAt: new Date(now).toISOString(),
+      oldMonitorStopped: true,
+      standaloneWatcherStopped: true
+    };
+  })() : null;
   const identity = {
     runtime,
     peerRuntime,
@@ -1616,6 +3023,34 @@ async function arm(root, options, now = Date.now()) {
         if (error?.code !== "cursor-lease-rearm-required") throw error;
         existing = null;
       }
+      const isClaudeRearm = runtime === "claude-code" && existing !== null;
+      if (isClaudeRearm) {
+        if (existing.runtime !== runtime || existing.peerRuntime !== peerRuntime || existing.ownerSession !== ownerSession || existing.ownerCwd !== ownerCwd || existing.peerSession !== peerSession || existing.peerTranscript !== peerPath.peerTranscript || existing.composedActivation?.collaborationId !== composedActivation.collaborationId || existing.composedActivation?.activationId !== composedActivation.activationId) {
+          throw new Error(
+            "Claude Monitor re-arm must preserve the exact owner, peer, transcript, cwd, collaboration, and activation"
+          );
+        }
+        if (now >= Date.parse(existing.expiresAt) || existing.continuationCount >= existing.continuationCap || existing.loopCount >= existing.loopCap) {
+          throw new Error(
+            "Claude Monitor re-arm cannot revive an expired or exhausted observer lease"
+          );
+        }
+      }
+      if (runtime === "claude-code" && !isClaudeRearm && options.cursor === void 0) {
+        throw new Error(
+          "Claude Monitor initial arm requires an explicit private --cursor"
+        );
+      }
+      const cursor = numberOption(
+        options.cursor ?? existing?.peerCursor ?? 0,
+        "cursor",
+        0,
+        Number.MAX_SAFE_INTEGER
+      );
+      if (isClaudeRearm && cursor !== existing.peerCursor)
+        throw new Error(
+          "Claude Monitor re-arm cannot reset the private cursor"
+        );
       const peerContinuity = peerRuntime === "cursor" ? await captureCursorArmContinuity(
         peerPath.peerCanonicalTranscriptPath,
         cursor
@@ -1627,7 +3062,8 @@ async function arm(root, options, now = Date.now()) {
         continuationCap,
         loopCap,
         waitMs,
-        leaseMs
+        leaseMs,
+        ...runtime === "claude-code" ? { composedActivation } : {}
       };
       if (existing && ["armed", "waiting"].includes(effectiveLease(existing, now).state) && Object.entries(request).every(
         ([key, value]) => value !== null && typeof value === "object" ? JSON.stringify(existing[key]) === JSON.stringify(value) : existing[key] === value
@@ -1637,23 +3073,24 @@ async function arm(root, options, now = Date.now()) {
       const stamp = new Date(now).toISOString();
       const lease = {
         schemaVersion: LEASE_SCHEMA_VERSION,
-        leaseId: randomUUID3(),
+        leaseId: randomUUID6(),
         ...identity,
         state: "armed",
         peerCursor: cursor,
         peerContinuity,
-        continuationCount: 0,
-        continuationCap,
-        loopCount: 0,
-        loopCap,
+        ...runtime === "claude-code" ? { composedActivation } : {},
+        continuationCount: isClaudeRearm ? existing.continuationCount : 0,
+        continuationCap: isClaudeRearm ? existing.continuationCap : continuationCap,
+        loopCount: isClaudeRearm ? existing.loopCount : 0,
+        loopCap: isClaudeRearm ? existing.loopCap : loopCap,
         waitMs,
         leaseMs,
         waitStartedAt: null,
         waitDeadlineAt: null,
         waitToken: null,
         waitPid: null,
-        armedAt: stamp,
-        expiresAt: new Date(now + leaseMs).toISOString(),
+        armedAt: isClaudeRearm ? existing.armedAt : stamp,
+        expiresAt: isClaudeRearm ? existing.expiresAt : new Date(now + leaseMs).toISOString(),
         updatedAt: stamp,
         diagnostic: null
       };
@@ -1668,11 +3105,11 @@ function records(value, name) {
     throw new Error(`${name} must contain a JSON array`);
   return value;
 }
-async function readRecords2(path, name) {
-  if (path === void 0) return [];
-  const absolute = validateAbsolutePath(path, name);
+async function readRecords2(path5, name) {
+  if (path5 === void 0) return [];
+  const absolute = validateAbsolutePath(path5, name);
   try {
-    return records(JSON.parse(await readFile5(absolute, "utf8")), name);
+    return records(JSON.parse(await readFile7(absolute, "utf8")), name);
   } catch (error) {
     if (error.message?.includes("must contain a JSON array")) throw error;
     throw new Error(`${name} is unreadable: ${error.message}`, {
@@ -1772,11 +3209,75 @@ async function status(root, ownerSession, now = Date.now(), recoveryOptions) {
   const lease = ownerSession ? await readLease(root, validateId(ownerSession, "owner-session")) : null;
   return { installation, lease: lease ? effectiveLease(lease, now) : null };
 }
-async function run(argv, env = process.env, now = Date.now()) {
+async function run(argv, env = process.env, now = Date.now(), readStdin = readStdinBounded) {
   const { command, options } = parseArgs(argv);
-  const root = stateRoot(env);
-  await mkdir4(root, { recursive: true, mode: 448 });
-  await chmod4(root, 448);
+  const root = typeof options.root === "string" ? validateAbsolutePath(options.root, "root") : stateRoot(env);
+  await mkdir5(root, { recursive: true, mode: 448 });
+  await chmod5(root, 448);
+  if (command === "collaboration-open") {
+    const collaborationId = typeof options.collab === "string" ? options.collab : randomUUID6();
+    const data = await openCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, "self")),
+      alias: requiredOption(options, "alias"),
+      label: requiredOption(options, "label"),
+      task: requiredOption(options, "task"),
+      worktree: typeof options.cwd === "string" ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString()
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data)
+    };
+  }
+  if (command === "collaboration-join") {
+    const collaborationId = requiredOption(options, "collab");
+    const data = await joinCollaboration({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, "self")),
+      alias: requiredOption(options, "alias"),
+      worktree: typeof options.cwd === "string" ? options.cwd : process.cwd(),
+      now: new Date(now).toISOString()
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data)
+    };
+  }
+  if (command === "log-append") {
+    const collaborationId = requiredOption(options, "collab");
+    const whatHappened = options.whatStdin === true ? await readStdin() : requiredOption(options, "what");
+    const data = await appendLogEntry({
+      root,
+      collaborationId,
+      pin: parsePin(requiredOption(options, "self")),
+      id: requiredOption(options, "id"),
+      category: requiredOption(options, "category"),
+      title: requiredOption(options, "title"),
+      whatHappened,
+      assessment: requiredOption(options, "assessment"),
+      skillImplication: requiredOption(options, "implication"),
+      now: new Date(now).toISOString()
+    });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data)
+    };
+  }
+  if (command === "log-show" || command === "log-render") {
+    const collaborationId = requiredOption(options, "collab");
+    const data = command === "log-render" ? await renderLog({ root, collaborationId }) : await getLogView({ root, collaborationId });
+    return {
+      ok: true,
+      command,
+      ...sharedResult(root, collaborationId, data)
+    };
+  }
   if (command === "install") {
     const result = await install(root, options);
     if (options.session)
@@ -1802,7 +3303,7 @@ async function run(argv, env = process.env, now = Date.now()) {
   if (command === "codex-uninstall")
     return { ok: true, command, ...await codexUninstall(root, options, now) };
   throw new Error(
-    "usage: collab-control install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]"
+    "usage: collab-control collaboration-open|collaboration-join|log-append|log-show|log-render|install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]"
   );
 }
 async function main() {
