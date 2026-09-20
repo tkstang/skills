@@ -45,6 +45,11 @@ In a new Codex session, invoke `$next-steps` with a bounded request:
 Prefer a plugin? The [plugin installation guide](https://tkstang.github.io/skills/user-guide/installation/#install-matrix)
 covers Claude Code, Codex, and Cursor without requiring every skill in this repo.
 
+Already installed? Updating is not just a `git pull`. Each provider copies the
+plugin into its own pinned cache, so a refresh is a per-provider command — and
+Claude Code can report `already at the latest version` while serving stale
+skills. See [Updating an install](https://tkstang.github.io/skills/user-guide/installation/#updating-an-install).
+
 ## What the plugins do
 
 **Consensus** asks provider-backed peers for independent work, rather than

@@ -151,6 +151,16 @@
 
 ### Fixed
 
+- Installation docs correct the plugin update model. Claude Code and Codex do
+  copy the plugin tree into a pinned per-provider cache, so a `git pull` alone
+  does not refresh an install; `claude plugin update` is keyed on the plugin
+  manifest version and reports `already at the latest version` when only skill
+  versions changed. Cursor's git-URL marketplace re-indexes its existing clone
+  instead of fetching, so it can silently under-report plugins until the
+  marketplace is removed and re-added. Adds a standalone-skill update procedure
+  and an installed-version audit snippet, and points `AGENTS.md` and the README
+  at the per-provider refresh commands.
+
 - `session-observer` 1.0.71, `session-observer-collab` 1.0.59, `session-export-transcript` 2.0.23, and `session-fork-to-destination` 0.2.36 reconcile the merged Session Fidelity runtime closure with Agent Messaging's portable Codex and Cursor Stop-hook stdin handling, preserving activity-aware observer/export behavior and Linux socket-backed hook execution.
 - `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads
   directly from the stdin stream so socket-backed Linux hook invocations no

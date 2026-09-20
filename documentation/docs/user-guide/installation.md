@@ -234,30 +234,133 @@ without a universal namespace promise.
 ## Updating an install
 
 Claude Code and Codex install this repo as a **local directory marketplace**, so
-each installed plugin tracks your checkout rather than a published release.
-Updating is a pull, followed by restarting the provider CLI to reload:
+each installed plugin tracks your checkout rather than a published release. A
+pull is the first step, but on its own it does not change what a provider loads:
 
 ```bash
 git -C /path/to/skills pull
 ```
 
-For Claude Code, `~/.claude/settings.json` records only the enabled plugin and a
-`{"source": "directory", "path": ...}` marketplace pointer. There is no copied
-plugin tree under `~/.claude/`, so the pull _is_ the update.
+Every provider **copies** the plugin tree into its own cache and pins that copy.
+Each one therefore needs its own refresh after the pull, and each has a
+different failure mode. Restart the provider CLI afterwards so the refreshed
+copy is loaded.
 
-Two commands look like they should do this job and do not:
+### Claude Code
 
-- `claude plugin update consensus@skills` compares the plugin manifest version
-  in `plugins/consensus/.claude-plugin/plugin.json`. That version tracks
-  releases, not individual skill `SKILL.md` version bumps, so the command can
-  report `already at the latest version (0.1.0)` while the checkout genuinely
-  contains newer skill content. It also requires the qualified
-  `consensus@skills` id — a bare `consensus` fails with `Plugin not found`.
-- `claude plugin marketplace update skills` re-validates the marketplace
-  manifest. That matters for git-backed marketplaces; for a directory source it
-  fetches nothing.
+Claude Code copies the plugin to
+`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and records the
+resolved commit in `~/.claude/plugins/installed_plugins.json`:
 
-Neither is harmful, but neither is the signal. Use the pull.
+```json
+"consensus@skills": [
+  {
+    "scope": "user",
+    "installPath": "~/.claude/plugins/cache/skills/consensus/0.2.0",
+    "version": "0.2.0",
+    "gitCommitSha": "be6cab1e85..."
+  }
+]
+```
+
+Because that copy is pinned to a commit, the pull alone leaves the running
+plugin untouched. Refresh each plugin explicitly:
+
+```bash
+claude plugin update consensus@skills
+claude plugin update session@skills
+```
+
+`claude plugin update` compares the **plugin manifest version** in
+`plugins/<plugin>/.claude-plugin/plugin.json`, not individual skill `SKILL.md`
+versions. When skills changed but the plugin release version did not, it
+reports `already at the latest version` and keeps the stale copy. There is no
+`--force`; reinstall to re-copy at the current checkout:
+
+```bash
+claude plugin uninstall consensus@skills
+claude plugin install consensus@skills
+```
+
+Both commands require the qualified `consensus@skills` id — a bare `consensus`
+fails with `Plugin not found`. Superseded version directories are left behind
+under `~/.claude/plugins/cache/`; removing them is optional cleanup.
+
+`claude plugin marketplace update skills` re-validates the marketplace
+manifest. That matters for git-backed marketplaces; for a directory source it
+fetches nothing.
+
+### Codex
+
+```bash
+codex plugin add consensus@skills
+codex plugin add session@skills
+```
+
+Codex copies to `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/` and
+prints the installed plugin root on success. A bare plugin name is rejected:
+pass `<plugin>@<marketplace>`, or `--marketplace <name>`. Note that the path
+column in `codex plugin list` shows the marketplace **source** directory, not
+the installed copy under `~/.codex/`.
+
+### Cursor Agent
+
+Cursor marketplaces are **git URL** sources, so Cursor clones the repository to
+`~/.cursor/plugins/marketplaces/github.com/<owner>/<repo>/<sha>/`. That clone is
+pinned, and `plugin marketplace update` re-indexes the clone it already has
+rather than fetching new commits. A marketplace can therefore sit on a
+months-old commit and silently under-report the plugins it contains — reporting
+`1 plugin indexed` for a manifest that declares two. Remove and re-add it to
+force a fresh clone:
+
+```bash
+cursor-agent plugin marketplace remove skills
+cursor-agent plugin marketplace add https://github.com/tkstang/skills
+```
+
+`add` reports how many plugins it indexed; confirm that count matches the
+marketplace manifest. Because the source is a git URL, Cursor reads the
+**pushed** repository rather than your local checkout — push first, then
+re-add.
+
+There is no `plugin install` verb on the Cursor CLI, so install or reinstall the
+refreshed plugins from the interactive picker with `/plugins`.
+
+## Update a standalone skill
+
+The first-party installer refuses an existing destination and has no update
+mode, so refreshing a standalone skill means replacing its payload. Where a
+user-level install is the canonical copy under `~/.agents/skills/<name>/` with
+provider entries symlinked to it, replace that directory from the generated
+payload in an updated checkout:
+
+```bash
+git -C /path/to/skills pull
+rm -rf ~/.agents/skills/<name>
+cp -R /path/to/skills/skills/<name> ~/.agents/skills/<name>
+ln -sfn "../../.agents/skills/<name>" ~/.claude/skills/<name>
+```
+
+Copy from the generated `skills/<name>/` payload, never `src/skills/<name>/`.
+Repeat the symlink for each provider directory you mirror into, and re-run any
+provider view sync your setup uses.
+
+A renamed skill is a new directory, not an in-place upgrade: install the new
+name and remove the old directory together with its provider symlinks, or the
+retired name keeps resolving.
+
+To confirm what a machine actually has, read the version out of each installed
+payload:
+
+```bash
+for d in ~/.agents/skills/*/; do
+  printf '%s\t' "$(basename "$d")"
+  sed -n 's/^  version: *.\(.*\).$/\1/p' "$d/SKILL.md" | head -1
+done
+```
+
+Compare that against the `metadata.version` values in `src/skills/*/SKILL.md`
+on the branch you expect to be installed.
 
 ## Standalone consensus recovery
 
