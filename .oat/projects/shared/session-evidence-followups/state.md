@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t02
-oat_last_commit: 47534bf965b04a15774ac2c993ca32d00b6a656f
+oat_current_task: p03-t01
+oat_last_commit: 92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-20T22:10:34.302234+00:00'
+oat_project_state_updated: '2026-09-20T22:45:45.782940+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00 complete and independently reviewed. p01 implementation and independent reviews complete; p02 skill/usage metadata is next. User authorized continuation through one mergeable PR.
+p00 and p01 complete and independently reviewed. p02 skill/usage implementation complete; independent Opus review is next before p03. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -112,7 +112,7 @@ p00 complete and independently reviewed. p01 implementation and independent revi
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (4/7 tasks complete)
+- **Implementation:** `implementation.md` (5/7 tasks complete)
 
 ## Progress
 
@@ -121,7 +121,8 @@ p00 complete and independently reviewed. p01 implementation and independent revi
 - ✓ Plan Opus review and complexity pass complete
 - ✓ p00 timeout implemented and independently reviewed
 - ✓ p01 watcher implemented and independently reviewed
-- ⧗ p02 skill and usage metadata next
+- ✓ p02 skill and usage implementation complete
+- ⧗ p02 independent review pending
 
 ## Blockers
 
@@ -129,7 +130,7 @@ None
 
 ## Next Milestone
 
-Implement p02 native skill attribution and honest usage accounting
+Review p02, then implement p03 complete structured capture
 
 ## Review routing for this authorized run
 

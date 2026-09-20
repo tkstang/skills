@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: p02-t02
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -15,11 +15,11 @@ oat_generated: false
 | ----- | ------- | ----- | --------- |
 | p00   | complete | 1     | 1/1       |
 | p01   | complete | 2     | 2/2       |
-| p02   | in_progress | 2     | 1/2       |
+| p02   | review_pending | 2     | 2/2       |
 | p03   | pending | 1     | 0/1       |
 | p04   | pending | 1     | 0/1       |
 
-**Total:** 4/7 tasks completed.
+**Total:** 5/7 tasks completed.
 
 ## Orchestration Runs
 
@@ -79,6 +79,8 @@ Native evidence: [Cursor aggregate receipt](evidence/p02-cursor-carrier-scan.txt
 
 Optional parallel preparation: same Sol/medium handle `/root/p00_timeout` produced read-only p04 draft `/tmp/evidence-p04-retro-draft.md` (SHA256 b872aabb96b383adde61bcc92048d23930f6861e81e990bdf63159767bf5fb77) under request `evidence-p04-draft-20260920`, then p03 preflight `/tmp/evidence-p03-preflight.md` (SHA25640e3fba73549a2d131ad4ee76271aa454abd871d258999cb7005ddfe0c6efc9d) under `evidence-p03-preflight-20260920`. A prior fresh optional draft worker launch was rejected before start for host thread limit; no child started, and existing exact Sol/medium handle performed the bounded preparation. These preparations made no repo mutations and are not phase implementation. Root rejected preflight suggestions to substitute filename identity for Claude/Codex native-record evidence and to fail every partial capture; corrected artifact requires native-record identity and honest partial coverage. Product phases stay sequential.
 
+Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/message dedup with conflict/uncertainty diagnostics; Codex separate cumulative, last-turn and response samples, reset segmentation and evidenced model joins; Cursor not-recorded, no prices or computed totals. Full phase verification: activity80/80; relevant activity/observer/export/collaboration866/866; types, build/freshness, repository validate, baseline version closure, scoped lint/format, diff check and docs production58 pages passed. No uncommitted changes or concerns reported. Independent Opus phase review pending.
+
 ## Task Records
 
 ### Task p00-t01: Give Consensus Review fifteen minutes by default
@@ -109,6 +111,13 @@ Optional parallel preparation: same Sol/medium handle `/root/p00_timeout` produc
 **Outcome:** Native and inferred skill evidence, names-only source metadata, budgeted projection and watch delivery integration.
 **Verification:** Focused and consumer suites, native carrier evidence, generated/version/docs gates and self-review passed; independent phase review pending.
 
+### Task p02-t02: Preserve honest token accounting
+
+**Status:** completed
+**Commit:** 92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa
+**Outcome:** Captured-source native usage samples retain separate semantics, model evidence and diagnostics without invented totals or pricing.
+**Verification:** Activity80/80, relevant consumers866/866 and generated/version/docs gates; self-review passed, independent phase review pending.
+
 ## Implementation Log
 
 - Plan committed and reviewed; initial response-format failures preserved as diagnostics, not passes. Valid review found one High native retry-grammar issue; bounded fix verification passed with zero findings.
@@ -130,7 +139,7 @@ Optional parallel preparation: same Sol/medium handle `/root/p00_timeout` produc
 
 ## Final Summary (for PR/docs)
 
-p00 completed: Consensus Review defaults to 900 seconds with explicit internal overrides preserved. p01 implements reliable rearm testing and metadata-only unsuccessful terminal signals across Claude, Codex and Cursor. Four backlog tasks remain; no tickets closed. Draft PR [#99](https://github.com/tkstang/skills/pull/99) is open; implementation and acceptance continue.
+p00 completed: Consensus Review defaults to 900 seconds with explicit internal overrides preserved. p01 implements reliable rearm testing and metadata-only unsuccessful terminal signals across Claude, Codex and Cursor. Two backlog tasks remain; p02 skill and usage implementation is complete pending independent review. No tickets closed. Draft PR [#99](https://github.com/tkstang/skills/pull/99) is open; implementation and acceptance continue.
 
 ## References
 
