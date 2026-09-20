@@ -360,26 +360,55 @@ user-level install is the canonical copy under `~/.agents/skills/<name>/` with
 provider entries symlinked to it, replace that directory from the generated
 payload in an updated checkout:
 
-Stage the new payload and keep the old one until the swap succeeds, so an
-interrupted copy cannot leave every linked provider pointing at a missing
-directory:
+Stage the new payload, keep the old one as a backup, and delete that backup
+only after the replacement is verified. Run it with `set -euo pipefail` so a
+failed step stops the sequence instead of continuing toward the cleanup:
 
 ```bash
-git -C /path/to/skills pull
-test -f /path/to/skills/skills/<name>/SKILL.md || exit 1
+set -euo pipefail
+name=<name>
+repo=/path/to/skills
 
-cp -R /path/to/skills/skills/<name> ~/.agents/skills/<name>.new
-mv ~/.agents/skills/<name> ~/.agents/skills/<name>.bak
-mv ~/.agents/skills/<name>.new ~/.agents/skills/<name>
+git -C "$repo" pull
+test -f "$repo/skills/$name/SKILL.md"
 
-ln -sfn "../../.agents/skills/<name>" ~/.claude/skills/<name>
-rm -rf ~/.agents/skills/<name>.bak
+cp -R "$repo/skills/$name" ~/.agents/skills/"$name".new
+test -f ~/.agents/skills/"$name".new/SKILL.md
+
+mv ~/.agents/skills/"$name" ~/.agents/skills/"$name".bak
+mv ~/.agents/skills/"$name".new ~/.agents/skills/"$name"
+test -f ~/.agents/skills/"$name"/SKILL.md
+
+ln -sfn "../../.agents/skills/$name" ~/.claude/skills/"$name"
 ```
 
-If the swap fails partway, restore with
-`mv ~/.agents/skills/<name>.bak ~/.agents/skills/<name>`. Remove the backup
-only once the new payload is in place and its `SKILL.md` reports the version you
-expect.
+Now confirm the installed version is the one you expect:
+
+```bash
+sed -n 's/^  version: *.\(.*\).$/\1/p' ~/.agents/skills/"$name"/SKILL.md | head -1
+```
+
+Only then remove the backup:
+
+```bash
+rm -rf ~/.agents/skills/"$name".bak
+```
+
+To roll back, clear the destination before restoring — a bare
+`mv <name>.bak <name>` would move the backup _inside_ the new directory rather
+than replace it:
+
+```bash
+rm -rf ~/.agents/skills/"$name"
+mv ~/.agents/skills/"$name".bak ~/.agents/skills/"$name"
+```
+
+The two `mv` calls leave a brief window in which `~/.agents/skills/<name>` does
+not exist and provider symlinks pointing at it dangle. Run the swap when no
+provider session is loading skills, and re-check the symlink afterwards. If you
+need to eliminate that window entirely, keep payloads in versioned directories
+and make `~/.agents/skills/<name>` a symlink you repoint atomically — that is a
+different install layout than the one described here.
 
 This replaces the directory wholesale, so any local edits inside an installed
 payload are lost — copy them out first. Copy from the generated
