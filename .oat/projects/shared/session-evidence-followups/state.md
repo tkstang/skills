@@ -1,14 +1,14 @@
 ---
-oat_current_task: null
+oat_current_task: p00-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues:
-  - {type: backlog, ref: "BL-260919-stabilize-the-watcher-sigterm"}
-  - {type: backlog, ref: "BL-260919-surface-terminally"}
-  - {type: backlog, ref: "BL-260919-skill-attribution-in-session"}
-  - {type: backlog, ref: "BL-260919-token-and-usage-accounting"}
-  - {type: backlog, ref: "BL-260919-uncapped-structured-activity"}
-  - {type: backlog, ref: "BL-260919-session-retro-consume-activity"}
+  - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
+  - { type: backlog, ref: 'BL-260919-surface-terminally' }
+  - { type: backlog, ref: 'BL-260919-skill-attribution-in-session' }
+  - { type: backlog, ref: 'BL-260919-token-and-usage-accounting' }
+  - { type: backlog, ref: 'BL-260919-uncapped-structured-activity' }
+  - { type: backlog, ref: 'BL-260919-session-retro-consume-activity' }
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
@@ -17,7 +17,7 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan
+oat_phase: implement
 oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
@@ -83,25 +83,28 @@ oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
-oat_project_created: "2026-09-20T19:09:21.094Z" # ISO 8601 UTC timestamp — set once at project creation
+oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-09-20T19:09:21.094Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_dispatch_policy:
   mode: managed
   policy: high
   source: project-state
+oat_skill_gate_overrides:
+  oat-project-quick-start: disabled
+  oat-project-implement: disabled
 oat_generated: false
 ---
 
 # Project State: session-evidence-followups
 
-**Status:** Planning
+**Status:** Implementation
 **Started:** 2026-09-20
 **Last Updated:** 2026-09-20
 
 ## Current Phase
 
-Plan authoring, followed by user-selected Opus and complexity reviews.
+Plan and complexity reviews complete. Starting p00-t01, then p01 through p04; user authorized continuation to one mergeable PR.
 
 ## Artifacts
 
@@ -115,7 +118,8 @@ Plan authoring, followed by user-selected Opus and complexity reviews.
 
 - ✓ Discovery started
 - ✓ Execution artifacts scaffolded
-- ⧗ Plan review pending; autonomous execution authorized
+- ✓ Plan Opus review and complexity pass complete
+- ⧗ Sol implementation starting
 
 ## Blockers
 
@@ -124,3 +128,7 @@ None
 ## Next Milestone
 
 Complete discovery and generate a quick implementation plan
+
+## Review routing for this authorized run
+
+User selected Opus via Consensus Review for plan, phase and final reviews. Project-local lifecycle gate overrides prevent duplicate configured reviews; they do not claim a disabled gate passed. This run still requires the user-selected independent reviews. Shared/user gate configuration is unchanged. IMPLEMENT-03 resolves the final phase checkpoint to p04; user authorized continuing through delivery without intermediate pauses. Post-implementation sequence resolved from shared config: summary, document, PR; postApproval empty. No merge authorization.

@@ -1,16 +1,20 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-09-20
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
+oat_plan_hill_phases: ['p04']
+oat_auto_review_at_hill_checkpoints: true
+oat_phase_review_gate:
+  enabled: false
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
-oat_template: true
+oat_template: false
 oat_generated: false
 ---
 
@@ -24,7 +28,7 @@ oat_generated: false
 
 ## Execution and Review Contract
 
-One canonical plan owns the entire wave. Root owns judgment, planning, integration and review disposition. User-selected Sol owns implementation through native OAT phase implementers. User-selected `consensus:review` invokes `claude:opus` for the plan, each of p01–p04 and final integration; retain actual invocation and result artifacts. No extra duplicate Fable or native reviewer gates. Root conducts complexity review after Opus plan findings are resolved and obtains another Opus review for material plan changes. Hold the worktree stable during each Consensus invocation. Escalate real scope conflicts or unavailable required reviews; do not silently substitute a model or loosen acceptance.
+One canonical plan owns the entire wave. Root owns judgment, planning, integration and review disposition. User-selected Sol owns implementation through native OAT phase implementers. User-selected `consensus:review` invokes `claude:opus` for the plan, each of p00–p04 and final integration; retain actual invocation and result artifacts. No extra duplicate Fable or native reviewer gates. Root conducts complexity review after Opus plan findings are resolved and obtains another Opus review for material plan changes. Hold the worktree stable during each Consensus invocation. Escalate real scope conflicts or unavailable required reviews; do not silently substitute a model or loosen acceptance.
 
 Run to a mergeable PR without stopping at phase boundaries. No merge/release. Record evidence and remaining acceptance honestly. Installation/live-provider acceptance beyond the explicitly requested reviews is out of scope.
 
@@ -38,6 +42,18 @@ Every task reads applicable AGENTS files, updates canonical owners only, uses fo
 
 **Format for every task:** `pnpm exec oxfmt <explicit changed authored file paths>`; exclude AGENTS/CLAUDE instructions, generated payloads and OAT mirrors. For project Markdown ignored by default, use `pnpm exec oxfmt --stdin-filepath <file> < <file> > <temporary-file>` then replace only that owned file. No repository-wide formatting.
 **Task checks:** listed scoped Vitest command, `pnpm run type-check` when TypeScript changes, `pnpm run build:check`, and `pnpm run validate:skill-versions -- --base-ref be6cab1e859ae786b34fc2194249ed2d00493fd6` after the build. Inspect no-change defaults and public docs where relevant. Final full checks are below.
+
+## Phase 0: Requested review timeout adjustment
+
+### Task p00-t01: Give Consensus Review fifteen minutes by default
+
+**User-approved addition:** increase the review runner's default wall-clock timeout from 600 to 900 seconds. The user requested this explicitly during the plan review; it is a bounded constant/default change, not a new architecture or ticket wave.
+**Files:** `src/skills/consensus-review/src/run.ts`, its existing `run.test.ts`, the canonical skill version and user-facing timeout documentation as appropriate, CHANGELOG and owned generated distributions.
+
+Change only the review operation's default `max_runtime_sec` to 900. Preserve an explicit internal `maxRuntimeSec` override and existing termination semantics. Do not change unrelated Consensus operations, add a CLI flag, or ship the temporary schema-dialect adjustment used during this project's reviews. Bump the skill version, document the 15-minute wall-clock default, and regenerate declared outputs.
+
+**Verify:** assert at the provider dispatch boundary that omitted maxRuntimeSec produces 900 and an explicit override is retained, using the existing mocked transport suite (no 15-minute sleeping test). Run `pnpm run test:vitest src/skills/consensus-review/src/run.test.ts`, type-check, build, build:check and skill-version validation. Self-review and one bounded independent Opus review before proceeding. The shared task formatting/commit requirements apply.
+**Commit:** `fix(consensus-review): allow fifteen minutes for reviews`.
 
 ## Phase 1: Reliable and informative watch events
 
@@ -138,22 +154,25 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 
 ## Reviews
 
-| Scope  | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ------ | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending | -    | -        | -             | -          | -           |
-| p02    | code     | pending | -    | -        | -             | -          | -           |
-| final  | code     | pending | -    | -        | -             | -          | -           |
-| spec   | artifact | pending | -    | -        | -             | -          | -           |
-| design | artifact | pending | -    | -        | -             | -          | -           |
-| plan   | artifact | pending | -    | -        | -             | -          | -           |
-| p03    | code     | pending | -    | -        | -             | -          | -           |
-| p04    | code     | pending | -    | -        | -             | -          | -           |
+| Scope  | Type     | Status          | Date       | Artifact                      | Reviewed Head | Invocation | Gate Target |
+| ------ | -------- | --------------- | ---------- | ----------------------------- | ------------- | ---------- | ----------- |
+| p01    | code     | pending         | -          | -                             | -             | -          | -           |
+| p02    | code     | pending         | -          | -                             | -             | -          | -           |
+| final  | code     | pending         | -          | -                             | -             | -          | -           |
+| spec   | artifact | pending         | -          | -                             | -             | -          | -           |
+| design | artifact | pending         | -          | -                             | -             | -          | -           |
+| plan   | artifact | fixes_completed | 2026-09-20 | reviews/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
+| p03    | code     | pending         | -          | -                             | -             | -          | -           |
+| p04    | code     | pending         | -          | -                             | -             | -          | -           |
 
-Spec/design rows are retained template history; quick mode uses discovery and this plan only.
+| plan | artifact | passed | 2026-09-20 | reviews/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
+| p00 | code | pending | - | - | - | - | - |
+
+Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
 ## Implementation Complete
 
-Not started. Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 6 tasks, 0 complete.** Final acceptance/delivery remains mandatory after product phases.
+Not started. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 0 complete.** Final acceptance/delivery remains mandatory after product phases.
 
 ## References
 
