@@ -62,6 +62,10 @@ describe('review response schema', () => {
       ['src/example.ts', true],
       ['src/a..b.ts', true],
       ['src/.hidden', true],
+      // Newlines are literal POSIX filename characters, not path separators.
+      ['docs/a.md\n../secret', true],
+      ['docs/a.md\n/etc/passwd', true],
+      ['docs/a.md\n/../secret', false],
       ['/etc/passwd', false],
       ['..', false],
       ['../outside.ts', false],
