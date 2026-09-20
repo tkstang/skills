@@ -174,8 +174,11 @@
   explicitly accounting only provider API-error records. Claude interruption
   joins now require a prior assistant and fold abort evidence across repeated
   message blocks, and watch totals are labeled as all emitted events.
-  `session-observer-collab` 1.0.62, `session-export-transcript` 2.0.25, and
-  `session-fork-to-destination` 0.2.39 receive the shared runtime closure.
+  `session-observer-collab` 1.0.62 receives the corrected observer runtime.
+  `session-export-transcript` 2.0.25 and `session-fork-to-destination` 0.2.39
+  carry validation-required version bumps because their distributions
+  transitively declare the changed shared transcript source; their generated
+  runtime content is unchanged by this fix.
 
 - `session-observer` 1.0.71, `session-observer-collab` 1.0.59, `session-export-transcript` 2.0.23, and `session-fork-to-destination` 0.2.36 reconcile the merged Session Fidelity runtime closure with Agent Messaging's portable Codex and Cursor Stop-hook stdin handling, preserving activity-aware observer/export behavior and Linux socket-backed hook execution.
 - `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads
