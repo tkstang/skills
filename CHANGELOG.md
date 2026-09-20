@@ -160,7 +160,11 @@
   under-reported its plugins, with remove/re-add as the recovery step. Adds a
   standalone-skill update procedure
   and an installed-version audit snippet, and points `AGENTS.md` and the README
-  at the per-provider refresh commands.
+  at the per-provider refresh commands. Also re-verifies the Install matrix
+  Cursor claims on cursor-agent 2026.09.18: Claude Code plugin discovery is
+  confirmed and re-stamped, and `--plugin-dir` "nothing is written under
+  `~/.cursor/`" is corrected to `~/.cursor/plugins/`, since the run still writes
+  ordinary session state.
 
 - `session-observer` 1.0.71, `session-observer-collab` 1.0.59, `session-export-transcript` 2.0.23, and `session-fork-to-destination` 0.2.36 reconcile the merged Session Fidelity runtime closure with Agent Messaging's portable Codex and Cursor Stop-hook stdin handling, preserving activity-aware observer/export behavior and Linux socket-backed hook execution.
 - `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads

@@ -56,9 +56,14 @@ cursor agent --plugin-dir "$PWD/plugins/consensus"
 cursor agent --plugin-dir "$PWD/plugins/session"
 ```
 
-`--plugin-dir` is session-scoped: the plugin loads for that run only, and
-nothing is written under `~/.cursor/`. (`cursor agent`, `cursor-agent`, and
-`agent` are interchangeable entry points.)
+`--plugin-dir` is session-scoped: the plugin loads for that run only and
+**installs nothing** — no plugin state is written under `~/.cursor/plugins/`.
+The run still writes ordinary session state elsewhere under `~/.cursor/`
+(chat transcript, `projects/`, `cli-config.json`, telemetry cache), as any
+cursor-agent run does, so do not treat the directory as untouched. Verified on
+cursor-agent 2026.09.18-9a7762b: a `--plugin-dir` run modified six files under
+`~/.cursor/` and none under `~/.cursor/plugins/`. (`cursor agent`,
+`cursor-agent`, and `agent` are interchangeable entry points.)
 
 Cursor Agent does expose `cursor agent plugin marketplace add|list|remove|update`,
 but `add` indexes a **git repository URL**, not a local path — so the `"$PWD"`
@@ -71,9 +76,11 @@ Cursor Agent also lists plugins that **Claude Code** has enabled, tagged
 `(Claude Code)` and matching the `enabledPlugins` entries in
 `~/.claude/settings.json`. On a machine where consensus is installed for Claude
 Code, Cursor Agent picks it up with no separate Cursor install and no
-`--plugin-dir` flag. Observed against Cursor Agent 2026.07.23; treat it as
-current behavior rather than a guaranteed contract, and prefer `--plugin-dir`
-on machines without a Claude Code install.
+`--plugin-dir` flag. Re-confirmed on cursor-agent 2026.09.18-9a7762b: with
+`consensus@skills` and `session@skills` enabled in `~/.claude/settings.json`,
+the Cursor plugin picker lists both tagged `(Claude Code)`. Treat it as current
+behavior rather than a guaranteed contract, and prefer `--plugin-dir` on
+machines without a Claude Code install.
 
 The session plugin has passed static packaging and isolated export execution.
 Its live provider discovery and permission behavior remain unverified, so these
@@ -247,8 +254,8 @@ What the pull is enough for depends on how the plugin was installed:
   copy the plugin tree into a per-provider cache and pin that copy. These need
   the explicit refresh commands below.
 - **Cursor `--plugin-dir`** loads from your checkout for that run only and
-  writes nothing under `~/.cursor/`, so the pull is the whole update — just
-  start a new run.
+  installs nothing under `~/.cursor/plugins/`, so the pull is the whole update
+  — just start a new run.
 - **Cursor picking up a Claude Code-enabled plugin** has no separate Cursor
   install; refreshing it is the Claude Code procedure below.
 

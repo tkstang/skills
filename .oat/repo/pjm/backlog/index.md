@@ -4,7 +4,7 @@
 
 ## Curated Overview
 
-- **Docs verification debt (September 20):** [BL-260920-re-verify-install-matrix — Re-verify Install matrix Cursor claims against current cursor-agent](items/BL-260920-re-verify-install-matrix.md) was filed from PR #100, which corrected the installation guide's plugin update model. That PR deliberately left the older Install matrix Cursor claims alone because they are version-stamped against cursor-agent 2026.07.23 and were never re-tested; the new "Updating an install" section was scoped to stay consistent with them instead. Independent review of that PR found the same class of defect twice — provider behavior documented from prose rather than observation — so this item requires a live Cursor run, not a re-read.
+- **Docs verification debt (September 20) — resolved:** [BL-260920-re-verify-install-matrix](archived/BL-260920-re-verify-install-matrix.md) was filed and closed within PR #100. Both Install matrix Cursor claims were settled on cursor-agent 2026.09.18-9a7762b: Claude Code plugin discovery confirmed in the picker and re-stamped, and the `--plugin-dir` claim corrected from "nothing is written under `~/.cursor/`" to "nothing under `~/.cursor/plugins/`" after a snapshot showed six session-state writes. The broader lesson stands for future docs work: provider behavior stated from prose rather than observation was this PR's repeated defect class.
 - **September 20 state:** 29 active items remain after Session Fidelity and Agent Messaging were closed and archived. See the historical [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The September 16 alignment mapped 19 items in 16 candidate projects; later ordering remains proposed.
 - **September 18 collaboration follow-ups:** [Codex self identity with duplicate rollouts](items/BL-260919-resolve-codex-self-identity.md) and [default digest coverage/full-history recovery](items/BL-260919-improve-default-observer.md) remain independent of completed Agent Messaging and Session Fidelity work; no kickoff order changed.
 - **Merged baseline:** PR #83 completed the documentation IA/visuals and typed config reference; canonical source colocation, Session packaging, Must We?, Next Steps, and Session Retro are already on main. Transitive skill-version validation is implemented and archived, not a future prerequisite.
@@ -31,7 +31,6 @@
 | BL-260919-improve-default-observer | Improve default observer digest coverage and full-history recovery | open | medium | task | S |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260919-locate-and-pin-claude-code | Locate and pin Claude Code subagent transcripts | open | medium | feature | M |
-| BL-260920-re-verify-install-matrix | Re-verify Install matrix Cursor claims against current cursor-agent | open | medium | task | S |
 | BL-260919-read-linked-session-sidecars | Read linked session sidecars in the activity view | open | medium | feature | L |
 | BL-260919-resolve-codex-self-identity | Resolve Codex self identity with duplicate rollout candidates | open | medium | task | S |
 | BL-260919-retro-findings-ledger | Retro findings ledger with recurrence detection | open | medium | feature | M |
