@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t01
-oat_last_commit: a9f409b28d916beef6105e2dc0fd369be349580a
+oat_current_task: p02-t02
+oat_last_commit: 47534bf965b04a15774ac2c993ca32d00b6a656f
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -112,7 +112,7 @@ p00 complete and independently reviewed. p01 implementation and independent revi
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (3/7 tasks complete)
+- **Implementation:** `implementation.md` (4/7 tasks complete)
 
 ## Progress
 

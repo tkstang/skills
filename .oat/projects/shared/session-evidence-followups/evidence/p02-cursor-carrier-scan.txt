@@ -1,0 +1,16 @@
+Cursor structured read carrier scan receipt
+Date: 2026-09-20
+Source scope: ~/.cursor/projects/**/*.jsonl
+Files surveyed: 1297
+Method: parsed JSONL; counted assistant message.content[] blocks with type=tool_use and exact name Read or ReadFile; recorded only sorted input key names and aggregate counts; no argument values or message bodies emitted.
+Total Read/ReadFile carriers: 45481
+Exact path values whose basename is SKILL.md: 3091
+
+ReadFile {path}: 21576
+ReadFile {limit,offset,path}: 16885
+Read {limit,offset,path}: 2680
+Read {path}: 2354
+ReadFile {limit,path}: 859
+Read {limit,path}: 747
+ReadFile {offset,path}: 265
+Read {offset,path}: 115

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: p02-t01
+oat_current_task_id: p02-t02
 oat_generated: false
 ---
 
@@ -15,11 +15,11 @@ oat_generated: false
 | ----- | ------- | ----- | --------- |
 | p00   | complete | 1     | 1/1       |
 | p01   | complete | 2     | 2/2       |
-| p02   | pending | 2     | 0/2       |
+| p02   | in_progress | 2     | 1/2       |
 | p03   | pending | 1     | 0/1       |
 | p04   | pending | 1     | 0/1       |
 
-**Total:** 3/7 tasks completed.
+**Total:** 4/7 tasks completed.
 
 ## Orchestration Runs
 
@@ -67,6 +67,18 @@ Fix continuation completed as `82ea5a103497aa8210035a889e256f07cb5cafa9`, exactl
 
 Bounded independent verification run `c47f8d9e-a43b-48e3-b790-fdf445abf041` passed: zero Critical/High/Medium, all original M1/M2/L1 fixes verified. [Canonical review](reviews/p01-opus-fix-verification.md), [packet](evidence/p01-fix-review-packet.md), packet SHA256 `e62eeba813f08ef151da7ec6b7ea819e4d704db2867fdcc2bd21a9ae2dd9b359`; reviewed HEAD `c7b17f4455e20d2231c92caf210c252faefce822`. Requested Opus/high, actual model/effort unobserved by wrapper. One new Low changelog wording issue accepted and fixed by same Sol handle in `a9f409b28d916beef6105e2dc0fd369be349580a`; root inspected exact one-file diff, scoped formatting/self-review passed. It accurately distinguishes runtime changes from conservative transitive source version-validation bumps. No runtime change followed the passing review. Independent final integration review still covers the complete delta.
 
+### p02 — implementation completed; independent review pending
+
+Request `evidence-p02-20260920`, native `/root/p02_activity_metadata`, exact role `oat-phase-implementer-gpt-5-6-sol-high`; High policy, hard-reasoning class for native identity, source metadata budgets and usage semantics. Base `6d863965848d699afa09cd075d2295e57772be34`. User-selected Sol/high remains available in the live native catalog; dated guidance is review-required, incumbent retained with current user authorization and passing prior-phase evidence. Configured invocation evidence does not prove observed runtime identity. No nested workers, no recovery attempts. Root verified exactly two task commits and clean tree, and inspected skill projection/watch seams and usage extraction.
+
+`Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+
+Task1 `47534bf965b04a15774ac2c993ca32d00b6a656f`: native Claude attribution/invocation and names-only available/invoked attachments; exact Cursor Read/ReadFile.path and historical Codex read_file.file_path inference. Shell/prose, aliases and wrong keys stay unclassified. Source metadata is captured-source, budgeted with omissions; watcher avoids replaying source-wide metadata. Focused activity77/77, relevant consumers863/863, final focused372/372; types, build/freshness, validate, version closure, scoped lint/format, docs production58 pages and self-review passed.
+
+Native evidence: [Cursor aggregate receipt](evidence/p02-cursor-carrier-scan.txt), SHA256 `d15ca623c59aa0c525aaedb7a3f4669a787b67ae9936f71313afca1114b07b87`, surveys1297 JSONL files,45481 structured Read/ReadFile carriers,3091 SKILL.md paths. Root verified official Codex [removal commit](https://github.com/openai/codex/commit/14c35a16a8a41cc16c5e36c2c4287b7b2db6e975), parent `c6ffe9abab04bd3349ecc49fffc0fbf9551826e6`: exact experimental read_file function schema required file_path. [Retained upstream schema receipt](evidence/p02-codex-read-schema.json). Carrier was removed2026-03-25 and absent from recent local samples. Historical native decoding satisfies the direct-read criterion without claiming current shell reads are classified; no speculative tool aliases or command parsing were added.
+
+Optional parallel preparation: same Sol/medium handle `/root/p00_timeout` produced read-only p04 draft `/tmp/evidence-p04-retro-draft.md` (SHA256 b872aabb96b383adde61bcc92048d23930f6861e81e990bdf63159767bf5fb77) under request `evidence-p04-draft-20260920`, then p03 preflight `/tmp/evidence-p03-preflight.md` (SHA25640e3fba73549a2d131ad4ee76271aa454abd871d258999cb7005ddfe0c6efc9d) under `evidence-p03-preflight-20260920`. A prior fresh optional draft worker launch was rejected before start for host thread limit; no child started, and existing exact Sol/medium handle performed the bounded preparation. These preparations made no repo mutations and are not phase implementation. Root rejected preflight suggestions to substitute filename identity for Claude/Codex native-record evidence and to fail every partial capture; corrected artifact requires native-record identity and honest partial coverage. Product phases stay sequential.
+
 ## Task Records
 
 ### Task p00-t01: Give Consensus Review fifteen minutes by default
@@ -89,6 +101,13 @@ Bounded independent verification run `c47f8d9e-a43b-48e3-b790-fdf445abf041` pass
 **Commit:** 83b36bf602c26a7309ed1e2b6e173ccf83a0798a
 **Outcome:** Claude/Codex/Cursor metadata-only terminal watch events, existing checkpoint dedup and bounded inferred retry fragments. Accepted review fixes are implemented and independently verified above.
 **Verification:** Watcher60, decoder/activity32, collaboration199 tests and phase gates passed; independent review pass with accepted follow-up findings.
+
+### Task p02-t01: Attribute skill activity without instruction bodies
+
+**Status:** completed
+**Commit:** 47534bf965b04a15774ac2c993ca32d00b6a656f
+**Outcome:** Native and inferred skill evidence, names-only source metadata, budgeted projection and watch delivery integration.
+**Verification:** Focused and consumer suites, native carrier evidence, generated/version/docs gates and self-review passed; independent phase review pending.
 
 ## Implementation Log
 
