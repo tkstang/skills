@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-19
+oat_last_updated: 2026-09-20
 oat_generated: true
 oat_summary_last_task: p12-t01
 oat_summary_revision_count: 0
@@ -20,10 +20,10 @@ saved-position binding, and Claude provenance so stateful operations refuse
 ambiguous or changed sources instead of silently reusing unsafe state.
 
 The work fulfilled and archived `BL-260916-session-fidelity-opt`. Local
-acceptance and thirteen independent phase reviews through p12 passed. PR #94
-merged; PRs #95 and #96 remain open and ready. The reviewed p12 identity fix and
-rebased activity head await publication. No release, installation, global sync,
-or live-provider acceptance has occurred.
+acceptance and thirteen independent phase reviews through p12 passed. PRs #94
+and #95 merged. PR #96 is published on its rebased head and, at the latest
+observed GitHub state, remains open, non-draft, mergeable, clean, and green. No
+release, installation, global sync, or live-provider acceptance has occurred.
 
 ## What Was Implemented
 
@@ -153,9 +153,10 @@ or live-provider acceptance has occurred.
 - Physical lines and decoded record indices are provenance coordinates, not
   observer checkpoints. Cursor frame and terminal delivery positions remain a
   separate coordinate system.
-- PR #94 is merged. PRs #95 and #96 remain open, non-draft, and ready on their
-  prior remote heads. The reviewed p12 identity fix and rebased activity head
-  await publication before remote review or merge can cover them.
+- PRs #94 and #95 are merged. The reviewed p12 identity fix is therefore on
+  `main`. PR #96 has been rebased onto the squash-merged identity layer and
+  published; at the latest observed GitHub state it is open, non-draft,
+  mergeable, clean, and green, awaiting merge.
 - Release, installation, global sync, and live-provider acceptance remain
   separate lifecycle steps and have not occurred.
 
