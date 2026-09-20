@@ -56,9 +56,14 @@ cursor agent --plugin-dir "$PWD/plugins/consensus"
 cursor agent --plugin-dir "$PWD/plugins/session"
 ```
 
-`--plugin-dir` is session-scoped: the plugin loads for that run only, and
-nothing is written under `~/.cursor/`. (`cursor agent`, `cursor-agent`, and
-`agent` are interchangeable entry points.)
+`--plugin-dir` is session-scoped: the plugin loads for that run only and
+**installs nothing** — no plugin state is written under `~/.cursor/plugins/`.
+The run still writes ordinary session state elsewhere under `~/.cursor/`
+(chat transcript, `projects/`, `cli-config.json`, telemetry cache), as any
+cursor-agent run does, so do not treat the directory as untouched. Verified on
+cursor-agent 2026.09.18-9a7762b: a `--plugin-dir` run modified six files under
+`~/.cursor/` and none under `~/.cursor/plugins/`. (`cursor agent`,
+`cursor-agent`, and `agent` are interchangeable entry points.)
 
 Cursor Agent does expose `cursor agent plugin marketplace add|list|remove|update`,
 but `add` indexes a **git repository URL**, not a local path — so the `"$PWD"`
@@ -71,9 +76,11 @@ Cursor Agent also lists plugins that **Claude Code** has enabled, tagged
 `(Claude Code)` and matching the `enabledPlugins` entries in
 `~/.claude/settings.json`. On a machine where consensus is installed for Claude
 Code, Cursor Agent picks it up with no separate Cursor install and no
-`--plugin-dir` flag. Observed against Cursor Agent 2026.07.23; treat it as
-current behavior rather than a guaranteed contract, and prefer `--plugin-dir`
-on machines without a Claude Code install.
+`--plugin-dir` flag. Re-confirmed on cursor-agent 2026.09.18-9a7762b: with
+`consensus@skills` and `session@skills` enabled in `~/.claude/settings.json`,
+the Cursor plugin picker lists both tagged `(Claude Code)`. Treat it as current
+behavior rather than a guaranteed contract, and prefer `--plugin-dir` on
+machines without a Claude Code install.
 
 The session plugin has passed static packaging and isolated export execution.
 Its live provider discovery and permission behavior remain unverified, so these
@@ -234,30 +241,219 @@ without a universal namespace promise.
 ## Updating an install
 
 Claude Code and Codex install this repo as a **local directory marketplace**, so
-each installed plugin tracks your checkout rather than a published release.
-Updating is a pull, followed by restarting the provider CLI to reload:
+each installed plugin tracks your checkout rather than a published release. A
+pull is the first step, but on its own it does not change what a provider loads:
 
 ```bash
 git -C /path/to/skills pull
 ```
 
-For Claude Code, `~/.claude/settings.json` records only the enabled plugin and a
-`{"source": "directory", "path": ...}` marketplace pointer. There is no copied
-plugin tree under `~/.claude/`, so the pull _is_ the update.
+What the pull is enough for depends on how the plugin was installed:
 
-Two commands look like they should do this job and do not:
+- **Marketplace installs** (Claude Code, Codex, and Cursor marketplace entries)
+  copy the plugin tree into a per-provider cache and pin that copy. These need
+  the explicit refresh commands below.
+- **Cursor `--plugin-dir`** loads from your checkout for that run only and
+  installs nothing under `~/.cursor/plugins/`, so the pull is the whole update
+  — just start a new run.
+- **Cursor picking up a Claude Code-enabled plugin** has no separate Cursor
+  install; refreshing it is the Claude Code procedure below.
 
-- `claude plugin update consensus@skills` compares the plugin manifest version
-  in `plugins/consensus/.claude-plugin/plugin.json`. That version tracks
-  releases, not individual skill `SKILL.md` version bumps, so the command can
-  report `already at the latest version (0.1.0)` while the checkout genuinely
-  contains newer skill content. It also requires the qualified
-  `consensus@skills` id — a bare `consensus` fails with `Plugin not found`.
-- `claude plugin marketplace update skills` re-validates the marketplace
-  manifest. That matters for git-backed marketplaces; for a directory source it
-  fetches nothing.
+Restart the provider CLI after any refresh so the new copy is loaded.
 
-Neither is harmful, but neither is the signal. Use the pull.
+### Claude Code
+
+Claude Code copies the plugin to
+`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and records the
+resolved commit in `~/.claude/plugins/installed_plugins.json`:
+
+```json
+"consensus@skills": [
+  {
+    "scope": "user",
+    "installPath": "~/.claude/plugins/cache/skills/consensus/0.2.0",
+    "version": "0.2.0",
+    "gitCommitSha": "be6cab1e85..."
+  }
+]
+```
+
+Because that copy is pinned to a commit, the pull alone leaves the running
+plugin untouched. Refresh each plugin explicitly:
+
+```bash
+claude plugin update consensus@skills
+claude plugin update session@skills
+```
+
+`claude plugin update` compares the **plugin manifest version** in
+`plugins/<plugin>/.claude-plugin/plugin.json`, not individual skill `SKILL.md`
+versions. When skills changed but the plugin release version did not, it
+reports `already at the latest version` and keeps the stale copy. There is no
+`--force`; reinstall to re-copy at the current checkout:
+
+```bash
+claude plugin uninstall consensus@skills --keep-data
+claude plugin install consensus@skills
+```
+
+`--keep-data` matters: without it, uninstalling the last installation of a
+plugin also deletes its persistent data directory at
+`~/.claude/plugins/data/{id}/`. Pass it whenever you are uninstalling only to
+force a content refresh. On a CLI old enough to lack the flag, back that
+directory up first.
+
+Qualified `consensus@skills` ids are used above so the selection is
+unambiguous. A bare `consensus` also resolves on Claude Code 2.1.278 when
+exactly one installed marketplace entry matches; it fails only when the name is
+ambiguous or absent.
+
+Superseded version directories are left behind under
+`~/.claude/plugins/cache/`; removing them is optional cleanup.
+
+`claude plugin marketplace update skills` re-validates the marketplace
+manifest. That matters for git-backed marketplaces; for a directory source it
+fetches nothing.
+
+### Codex
+
+```bash
+codex plugin add consensus@skills
+codex plugin add session@skills
+```
+
+Codex copies to `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/` and
+prints the installed plugin root on success. A bare plugin name is rejected:
+pass `<plugin>@<marketplace>`, or `--marketplace <name>`. Note that the path
+column in `codex plugin list` shows the marketplace **source** directory, not
+the installed copy under `~/.codex/`.
+
+### Cursor Agent
+
+Cursor marketplaces are **git URL** sources, so Cursor clones the repository to
+`~/.cursor/plugins/marketplaces/github.com/<owner>/<repo>/<sha>/`, one directory
+per resolved commit.
+
+`plugin marketplace update` is intended to refresh that clone, and the CLI does
+contain a path that resolves the remote ref before cloning. It cannot be relied
+on blindly: on cursor-agent 2026.09.18-9a7762b a `skills` marketplace stayed
+pinned to a clone that was roughly two months old, and `update` reported
+`✓ Updated marketplace skills: 1 plugin indexed` for a manifest that declared
+two plugins, leaving the second undiscoverable.
+
+Check the reported count against the marketplace manifest after an update. When
+it disagrees, or the clone directory has not moved to the expected commit,
+remove and re-add the marketplace to force a fresh clone:
+
+```bash
+cursor-agent plugin marketplace remove skills
+cursor-agent plugin marketplace add https://github.com/tkstang/skills
+```
+
+`add` reports how many plugins it indexed; confirm that count matches the
+marketplace manifest. Because the source is a git URL, Cursor reads the
+**pushed** repository rather than your local checkout — push first, then
+re-add. Re-adding drops any non-default ref the original entry pinned, so
+re-apply that if you relied on it.
+
+There is no `plugin install` verb on the Cursor CLI, so install or reinstall the
+refreshed plugins from the interactive picker with `/plugins`.
+
+## Update a standalone skill
+
+The first-party installer refuses an existing destination and has no update
+mode, so refreshing a standalone skill means replacing its payload. Where a
+user-level install is the canonical copy under `~/.agents/skills/<name>/` with
+provider entries symlinked to it, replace that directory from the generated
+payload in an updated checkout:
+
+Stage the new payload, keep the old one as a backup, and delete that backup
+only after the replacement is verified. Run it with `set -euo pipefail` so a
+failed step stops the sequence instead of continuing toward the cleanup:
+
+```bash
+set -euo pipefail
+name=<name>
+repo=/path/to/skills
+staged=~/.agents/skills/"$name".new
+backup=~/.agents/skills/"$name".bak
+
+# Refuse leftovers from an interrupted run: cp and mv would nest inside them
+# rather than replace them, which silently produces an invalid payload.
+for leftover in "$staged" "$backup"; do
+  if [ -e "$leftover" ] || [ -L "$leftover" ]; then
+    printf 'Leftover from a previous run: %s\n' "$leftover" >&2
+    exit 1
+  fi
+done
+
+git -C "$repo" pull
+test -f "$repo/skills/$name/SKILL.md"
+
+cp -R "$repo/skills/$name" "$staged"
+test -f "$staged/SKILL.md"
+
+mv ~/.agents/skills/"$name" "$backup"
+mv "$staged" ~/.agents/skills/"$name"
+test -f ~/.agents/skills/"$name"/SKILL.md
+
+ln -sfn "../../.agents/skills/$name" ~/.claude/skills/"$name"
+```
+
+If the guard fires, reconcile by hand before retrying: `<name>.bak` is the
+previous payload and `<name>.new` is an unfinished copy. Decide which one is
+authoritative, restore it, and remove the other.
+
+Now confirm the installed version is the one you expect:
+
+```bash
+sed -n 's/^  version: *.\(.*\).$/\1/p' ~/.agents/skills/"$name"/SKILL.md | head -1
+```
+
+Only then remove the backup:
+
+```bash
+rm -rf ~/.agents/skills/"$name".bak
+```
+
+To roll back, clear the destination before restoring — a bare
+`mv <name>.bak <name>` would move the backup _inside_ the new directory rather
+than replace it:
+
+```bash
+rm -rf ~/.agents/skills/"$name"
+mv ~/.agents/skills/"$name".bak ~/.agents/skills/"$name"
+```
+
+The two `mv` calls leave a brief window in which `~/.agents/skills/<name>` does
+not exist and provider symlinks pointing at it dangle. Run the swap when no
+provider session is loading skills, and re-check the symlink afterwards. If you
+need to eliminate that window entirely, keep payloads in versioned directories
+and make `~/.agents/skills/<name>` a symlink you repoint atomically — that is a
+different install layout than the one described here.
+
+This replaces the directory wholesale, so any local edits inside an installed
+payload are lost — copy them out first. Copy from the generated
+`skills/<name>/` payload, never `src/skills/<name>/`. Repeat the symlink for
+each provider directory you mirror into, and re-run any provider view sync your
+setup uses.
+
+A renamed skill is a new directory, not an in-place upgrade: install the new
+name and remove the old directory together with its provider symlinks, or the
+retired name keeps resolving.
+
+To confirm what a machine actually has, read the version out of each installed
+payload:
+
+```bash
+for d in ~/.agents/skills/*/; do
+  printf '%s\t' "$(basename "$d")"
+  sed -n 's/^  version: *.\(.*\).$/\1/p' "$d/SKILL.md" | head -1
+done
+```
+
+Compare that against the `metadata.version` values in `src/skills/*/SKILL.md`
+on the branch you expect to be installed.
 
 ## Standalone consensus recovery
 
