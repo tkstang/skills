@@ -74,6 +74,10 @@ oat_project_created: "2026-09-18T23:40:44.126Z"
 oat_project_completed: null
 oat_project_state_updated: "2026-09-20T13:25:57Z"
 oat_generated: false
+oat_project_recap:
+  decision: skip
+  source: interactive
+  decided_at: '2026-09-20T13:58:49.768Z'
 ---
 
 # Project State: agent-messaging
