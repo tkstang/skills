@@ -2,9 +2,9 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-19
+oat_last_updated: 2026-09-20
 oat_generated: true
-oat_summary_last_task: p05-t12
+oat_summary_last_task: p06-t09
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -36,10 +36,8 @@ explicit authority, and durable in inspectable state.
   Shared ownership and inventory primitives live under `src/shared/collaboration/`.
 - Canonical skills, generated standalone and plugin payloads, documentation,
   release guidance, changelog entries, and packaging proofs were aligned.
-- Final verification through `dd22025c` passed 120 focused tests, the full suite
-  with 2,256 passing and 1 skipped, build/check, validation, type-check, smoke,
-  skill-version checks, formatting, lint, documentation build, and clean-worktree
-  validation. The second configured Frontier gate passed at its High threshold.
+- Phase 6 repaired lifecycle, input, packaging, and Linux stdin issues. Final
+  validation passed 2,341 tests (1 skipped); PR CI passed with a clean merge state.
 
 ## Key Decisions
 
@@ -74,9 +72,8 @@ explicit authority, and durable in inspectable state.
 
 ## Design Deltas
 
-- Planning originally required a separate visible Codex worktree; the user
-  explicitly directed implementation to remain in the existing `backlog-triage`
-  worktree, and the run record was amended accordingly.
+- A session visibility rule was misread as requiring another worktree. The user
+  corrected it; implementation and the amended run record stayed in `backlog-triage`.
 - Ownership policy was narrowed during review: recognized but dormant observer
   hooks can coexist, scoped third-party hook inventory requires explicit
   acknowledgment, and Claude standalone delivery requires an acting-session
@@ -89,9 +86,8 @@ explicit authority, and durable in inspectable state.
 - Reviews exposed ownership ambiguity, symlinked-entrypoint failures, incomplete
   Claude inventory, lease-boundary drift, and missing critical-path proofs. Twelve
   Phase 5 tasks repaired every blocking finding before the final gate passed.
-- Full validation then found a stale owner-contract fixture. A bounded append-only
-  recovery corrected the fixture and regenerated only owned outputs; the final
-  judgment sweep tightened explicit-root handling and generated-bundle execution.
+- After a stale fixture repair, Linux CI exposed non-portable `/dev/stdin`
+  reopening. Hooks now consume inherited stdin and generated bundles reran.
 - Concurrency and crash recovery required deliberately distinguishing publication,
   notification attempt, acknowledgment, reply, and completed action rather than
   presenting a false exactly-once delivery guarantee.
@@ -125,11 +121,12 @@ explicit authority, and durable in inspectable state.
 
 - `BL-260619-inter-agent-direct-messaging` is closed and archived after the
   deterministic implementation and final review passed.
-- `BL-260919-verify-live-agent-messaging` tracks separately authorized live
-  acceptance for Codex prompt/Stop, Claude prompt/Stop/watch, and the finite Claude
-  composed Monitor. The implementation project did not perform provider calls,
-  hook installation, credential use, publication, push, PR, merge, or live-host
-  acceptance.
+- `BL-260919-verify-live-agent-messaging` owns live acceptance; repository and PR
+  verification did not authorize provider calls, hooks, release, merge, or live hosts.
+
+## Explainer Outcome
+
+- **project-recap:** skipped — interactive completion choice.
 
 ## Workflow Observations
 
@@ -196,3 +193,7 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 ### 2026-09-19 · structural · oat gate review · final
 
 target=claude-fable-skip-permissions threshold=high findings=critical:0,high:0,medium:1,low:4 exit=0 status=ok artifact=.oat/projects/shared/agent-messaging/reviews/final-review-2026-09-19T214803Z.md run=a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944
+
+### 2026-09-20 · structural · oat-project-retro · project-retro
+
+retro artifact=.oat/projects/shared/agent-messaging/references/project-retro.md evidence_used=archived-review-markdown,code-and-commit-history,gate-receipts,github-pr-state,implementation-session-transcript,lifecycle-artifacts,planning-session-transcript,project-log evidence_unavailable=oat-execution-learnings promotions=0 upstream=2 apply=skipped filing=deferred
