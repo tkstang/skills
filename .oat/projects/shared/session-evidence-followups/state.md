@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: 37f2832f387c1b5559a32c40396b1d92013b0fa9
+oat_current_task: p02-t01
+oat_last_commit: 83b36bf602c26a7309ed1e2b6e173ccf83a0798a
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-20T21:00:50.915632+00:00'
+oat_project_state_updated: '2026-09-20T21:35:02.144308+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00 complete and independently reviewed. Next p01-t01, then p01-t02 through p04; user authorized continuation to one mergeable PR.
+p00 complete and independently reviewed. p01 implementation complete, independent review pending before p02 dispatch. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -112,7 +112,7 @@ p00 complete and independently reviewed. Next p01-t01, then p01-t02 through p04;
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (1/7 tasks complete)
+- **Implementation:** `implementation.md` (3/7 tasks complete)
 
 ## Progress
 
@@ -120,7 +120,7 @@ p00 complete and independently reviewed. Next p01-t01, then p01-t02 through p04;
 - ✓ Execution artifacts scaffolded
 - ✓ Plan Opus review and complexity pass complete
 - ✓ p00 timeout implemented and independently reviewed
-- ⧗ p01 watcher implementation next
+- ⧗ p01 watcher independent review
 
 ## Blockers
 
@@ -128,7 +128,7 @@ None
 
 ## Next Milestone
 
-Complete p01 watcher reliability and terminal events
+Review p01, open progress PR for CI proof, then implement p02
 
 ## Review routing for this authorized run
 
