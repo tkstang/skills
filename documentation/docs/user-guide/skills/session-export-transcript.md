@@ -80,6 +80,21 @@ starts at zero and includes the call itself. Source and delivery ranges,
 locators, captured/delivered/displayed counts, omissions, coverage, and
 diagnostics remain explicit.
 
+The report keeps native tool names and adds typed skill evidence when the
+transcript supplies it. Claude Code attribution, structured `Skill`
+invocations, and names-only skill attachments stay distinct. Cursor `Read` and
+`ReadFile` calls can supply inferred `SKILL.md` file-load evidence from their
+structured `path`. Historical Codex transcripts can supply the inference only
+from the exact experimental `read_file.file_path` carrier; upstream removed the
+tool in March 2026, and it is absent from the recent local sample. Shell
+commands, aliases, and prose are never treated as skill loads. Source-wide skill
+names are labelled `captured-source` and participate in the report byte budget
+with explicit omission counts.
+
+The supported runtimes do not record a skill version. A timestamp-relevant
+installed-file or Git lookup is inferred context, can remain unknown, and is
+not proof of the revision that executed.
+
 Activity previews can contain commands, paths, identifiers, tool inputs, and
 tool outputs even though the conversation section remains sanitized. The
 exporter does not open Claude persisted-output sidecars, Cursor `agent-tools/`

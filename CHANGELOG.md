@@ -4,6 +4,15 @@
 
 ### Added
 
+- `session-observer` 1.0.75 and `session-export-transcript` 2.0.26 add
+  captured-source skill metadata, native Claude Code attribution and structured
+  Skill invocation evidence, inferred Cursor `Read`/`ReadFile` skill-file
+  loads, and the historical experimental Codex `read_file.file_path` carrier
+  without parsing shell commands or instruction bodies.
+  `session-observer-collab` 1.0.63 and `session-fork-to-destination` 0.2.40
+  receive the shared activity runtime closure while their default behavior
+  remains unchanged.
+
 - `session-observer` 1.0.73 reports metadata-only unsuccessful terminal turns
   from native Claude Code, Codex, and Cursor lifecycle evidence while preserving
   exact-range checkpoint deduplication and keeping terminal events visible under

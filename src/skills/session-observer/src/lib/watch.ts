@@ -277,7 +277,9 @@ function activityCoverageSignal(digest: SessionDigest): boolean {
   return Boolean(
     digest.activity?.diagnostics.length ||
     digest.activity?.coverage.some(
-      (entry) => entry.locator !== undefined || entry.status !== 'available',
+      (entry) =>
+        entry.dataClass !== 'skills' &&
+        (entry.locator !== undefined || entry.status !== 'available'),
     ),
   );
 }
@@ -286,13 +288,21 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
   const activity = digest.activity;
   if (!activity) return false;
   const delivered = activity.counts.deliveredRange;
+  const deliveredSourceSkill = activity.sourceMetadata.skills.some(
+    (skill) =>
+      skill.locator.recordIndex >= activity.deliveryRange.start &&
+      skill.locator.recordIndex < activity.deliveryRange.end,
+  );
   return (
     delivered.calls > 0 ||
     delivered.countedInvocations > 0 ||
     delivered.results > 0 ||
     delivered.items > 0 ||
     delivered.failures > 0 ||
-    Object.values(activity.omitted).some((count) => count > 0)
+    deliveredSourceSkill ||
+    Object.entries(activity.omitted).some(
+      ([kind, count]) => kind !== 'sourceSkills' && count > 0,
+    )
   );
 }
 

@@ -6,6 +6,7 @@ import type {
   ActivityDataClass,
   ActivityDiagnosticCode,
   ActivityLocator,
+  ActivitySourceSkill,
   ExtractActivityInput,
   ExtractedActivity,
   ExtractedActivityEvent,
@@ -86,6 +87,7 @@ export function extractActivity(
   const events: ExtractedActivity['events'] = [];
   const coverage: ExtractedActivity['coverage'] = [];
   const diagnostics: ExtractedActivity['diagnostics'] = [];
+  const sourceSkills: ActivitySourceSkill[] = [];
 
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator: ActivityLocator = {
@@ -121,6 +123,7 @@ export function extractActivity(
     events.push(...extracted.events);
     coverage.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
+    sourceSkills.push(...(extracted.sourceSkills ?? []));
   }
 
   return {
@@ -131,7 +134,22 @@ export function extractActivity(
       sourceBytes: input.read.sourceBytes,
     },
     events,
-    coverage: [...baseCoverage(events), ...coverage],
     diagnostics,
+    sourceMetadata: {
+      scope: 'captured-source',
+      skills: sourceSkills,
+    },
+    coverage: [
+      ...baseCoverage(events),
+      ...coverage,
+      {
+        dataClass: 'skills',
+        status:
+          input.source.runtime === 'claude-code' && sourceSkills.length > 0
+            ? 'available'
+            : 'not-recorded',
+        captured: sourceSkills.length,
+      },
+    ],
   };
 }

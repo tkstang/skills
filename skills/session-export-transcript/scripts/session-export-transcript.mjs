@@ -1322,6 +1322,73 @@ function outcomeFromStatus(status) {
 }
 
 // src/shared/transcript/activity/claude-code.ts
+function nonEmptyString(value) {
+  const text = stringValue(value)?.trim();
+  return text ? text : void 0;
+}
+function claudeSkillEvidence(record, nativeName, input) {
+  const evidence = [];
+  const attributed = nonEmptyString(record.attributionSkill);
+  if (attributed) {
+    evidence.push({ kind: "native-attribution", name: attributed });
+  }
+  if (nativeName === "Skill") {
+    const structured = isJsonObject(input) ? input : void 0;
+    const name = structured ? nonEmptyString(structured.skill) ?? nonEmptyString(structured.name) : void 0;
+    evidence.push({
+      kind: "native-invocation",
+      ...name === void 0 ? {} : { name }
+    });
+  }
+  return evidence.length === 0 ? void 0 : evidence;
+}
+function claudeToolArguments(nativeName, input) {
+  if (nativeName !== "Skill") return input;
+  if (!isJsonObject(input)) return void 0;
+  const skill = nonEmptyString(input.skill);
+  const name = nonEmptyString(input.name);
+  if (skill !== void 0) return { skill };
+  if (name !== void 0) return { name };
+  return void 0;
+}
+function claudeSourceSkills(detailed) {
+  const { record } = detailed;
+  if (record.type !== "attachment" || !isJsonObject(record.attachment)) {
+    return [];
+  }
+  const attachment = record.attachment;
+  const type = stringValue(attachment.type);
+  if (type === "skill_listing" && Array.isArray(attachment.names)) {
+    return attachment.names.flatMap((candidate, index) => {
+      const name = nonEmptyString(candidate);
+      return name ? [
+        {
+          scope: "captured-source",
+          evidence: "available",
+          name,
+          locator: recordLocator(detailed, `/attachment/names/${index}`)
+        }
+      ] : [];
+    });
+  }
+  if (type === "invoked_skills" && Array.isArray(attachment.skills)) {
+    return attachment.skills.flatMap((candidate, index) => {
+      const name = isJsonObject(candidate) ? nonEmptyString(candidate.name) : void 0;
+      return name ? [
+        {
+          scope: "captured-source",
+          evidence: "invoked",
+          name,
+          locator: recordLocator(
+            detailed,
+            `/attachment/skills/${index}/name`
+          )
+        }
+      ] : [];
+    });
+  }
+  return [];
+}
 function claudeResultOutcome(block) {
   if (block.is_error === true) return "error";
   if (block.is_error === false) return "success";
@@ -1470,6 +1537,7 @@ function extractClaudeRecord(source, detailed) {
   const content = message?.content;
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
+  const sourceSkills = claudeSourceSkills(detailed);
   if (systemActivity) events.push(systemActivity);
   if (record.type === "assistant") {
     const metadata = selectedClaudeMetadata(record);
@@ -1481,7 +1549,8 @@ function extractClaudeRecord(source, detailed) {
         nativeType: "assistant-metadata",
         locator,
         outcome: "unknown",
-        metadata
+        metadata,
+        ...claudeSkillEvidence(record) === void 0 ? {} : { skillEvidence: claudeSkillEvidence(record) }
       });
     }
   }
@@ -1493,6 +1562,9 @@ function extractClaudeRecord(source, detailed) {
       if (blockType === "tool_use") {
         const nativeCallId = stringValue(candidate.id);
         const nativeName = stringValue(candidate.name);
+        const input = Object.hasOwn(candidate, "input") ? candidate.input : void 0;
+        const argumentsValue = claudeToolArguments(nativeName, input);
+        const skillEvidence = claudeSkillEvidence(record, nativeName, input);
         events.push({
           eventKey: eventKey(source, locator),
           kind: "call",
@@ -1501,7 +1573,8 @@ function extractClaudeRecord(source, detailed) {
           outcome: "pending",
           ...nativeCallId === void 0 ? {} : { nativeCallId },
           ...nativeName === void 0 ? {} : { nativeName },
-          ...Object.hasOwn(candidate, "input") ? { arguments: candidate.input } : {}
+          ...argumentsValue === void 0 ? {} : { arguments: argumentsValue },
+          ...skillEvidence === void 0 ? {} : { skillEvidence }
         });
         return;
       }
@@ -1548,7 +1621,7 @@ function extractClaudeRecord(source, detailed) {
       origin: provenance
     });
   }
-  return { events, coverage: coverage2, diagnostics: [] };
+  return { events, coverage: coverage2, diagnostics: [], sourceSkills };
 }
 
 // src/shared/transcript/terminal-events.ts
@@ -1591,6 +1664,31 @@ function decodeCodexLifecycleRecord(detailed) {
     ...stringValue2(payload.status) === void 0 ? {} : { nativeStatus: stringValue2(payload.status) },
     ...error && stringValue2(error.codex_error_info) !== void 0 ? { errorInfo: stringValue2(error.codex_error_info) } : {},
     ...error && stringValue2(error.message) !== void 0 ? { errorMessage: stringValue2(error.message) } : {}
+  };
+}
+
+// src/shared/transcript/activity/skill-evidence.ts
+var CURSOR_DIRECT_READ_NAMES = /* @__PURE__ */ new Set(["Read", "ReadFile"]);
+function skillNameFromPath(path) {
+  const segments = path.split(/[\\/]/u);
+  if (segments.at(-1) !== "SKILL.md") return void 0;
+  const parent = segments.at(-2)?.trim();
+  return parent ? parent : void 0;
+}
+function structuredSkillFileReadEvidence(runtime, nativeName, input) {
+  const eligible = runtime === "codex" ? nativeName === "read_file" : nativeName !== void 0 && CURSOR_DIRECT_READ_NAMES.has(nativeName);
+  if (!eligible) {
+    return void 0;
+  }
+  if (!isJsonObject(input)) return void 0;
+  const path = stringValue(
+    runtime === "codex" ? input.file_path : input.path
+  )?.trim();
+  if (!path || !skillNameFromPath(path)) return void 0;
+  return {
+    kind: "inferred-file-read",
+    name: skillNameFromPath(path),
+    path
   };
 }
 
@@ -1770,6 +1868,11 @@ function responseItemActivity(source, detailed, payload) {
     const nativeName = stringValue(payload.name);
     const nativeStatus = stringValue(payload.status);
     const argumentEvidence = codexCallArguments(nativeType, payload, locator);
+    const skillEvidence = structuredSkillFileReadEvidence(
+      "codex",
+      nativeName,
+      argumentEvidence.fields.arguments
+    );
     return {
       events: [
         {
@@ -1784,7 +1887,8 @@ function responseItemActivity(source, detailed, payload) {
           ...nativeName === void 0 ? {} : { nativeName },
           ...nativeStatus === void 0 ? {} : { nativeStatus },
           ...Object.hasOwn(payload, "namespace") ? { metadata: { namespace: payload.namespace } } : {},
-          ...argumentEvidence.fields
+          ...argumentEvidence.fields,
+          ...skillEvidence === void 0 ? {} : { skillEvidence: [skillEvidence] }
         }
       ],
       coverage: [],
@@ -2085,6 +2189,7 @@ function extractActivity(input) {
   const events = [];
   const coverage2 = [];
   const diagnostics = [];
+  const sourceSkills = [];
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator = {
       physicalLine: sourceDiagnostic.physicalLine,
@@ -2115,6 +2220,7 @@ function extractActivity(input) {
     events.push(...extracted.events);
     coverage2.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
+    sourceSkills.push(...extracted.sourceSkills ?? []);
   }
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
@@ -2124,8 +2230,20 @@ function extractActivity(input) {
       sourceBytes: input.read.sourceBytes
     },
     events,
-    coverage: [...baseCoverage(events), ...coverage2],
-    diagnostics
+    diagnostics,
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: sourceSkills
+    },
+    coverage: [
+      ...baseCoverage(events),
+      ...coverage2,
+      {
+        dataClass: "skills",
+        status: input.source.runtime === "claude-code" && sourceSkills.length > 0 ? "available" : "not-recorded",
+        captured: sourceSkills.length
+      }
+    ]
   };
 }
 
@@ -2183,7 +2301,8 @@ function eventLines(event) {
       lifecycleAvailability: event.lifecycleAvailability,
       turnOutcome: event.turnOutcome,
       externalReference: event.externalReference,
-      childReference: event.childReference
+      childReference: event.childReference,
+      skillEvidence: event.skillEvidence
     }).filter(([, value]) => value !== void 0)
   );
   return [
@@ -2218,6 +2337,7 @@ function renderActivityMarkdown(report) {
     `- Omitted evidence: calls ${report.omitted.calls}; results ${report.omitted.results}; failures ${report.omitted.failures}`,
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
     `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
+    `- Source metadata: ${report.sourceMetadata.scope}; skills ${report.sourceMetadata.skills.length}; omitted skills ${report.omitted.sourceSkills}`,
     "",
     "### Events",
     "",
@@ -2253,6 +2373,14 @@ function renderActivityMarkdown(report) {
       );
       lines.push(
         `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${Object.keys(details).length === 0 ? "" : `; ${markdownData(details)}`}`
+      );
+    }
+  }
+  if (report.sourceMetadata.skills.length > 0) {
+    lines.push("", "### Captured-source skills", "");
+    for (const skill of report.sourceMetadata.skills) {
+      lines.push(
+        `- ${skill.evidence}: ${markdownData(skill.name)}; ${locatorText(skill.locator)}`
       );
     }
   }
@@ -2393,7 +2521,8 @@ function deliveredMetadata(activity, range) {
     ),
     diagnostics: activity.diagnostics.filter(
       (entry) => locatorInRange(entry.locator)
-    )
+    ),
+    sourceSkills: activity.sourceMetadata?.skills ?? []
   };
 }
 function compareMetadataPriority(left, right) {
@@ -2414,12 +2543,21 @@ function retainMetadata(metadata, retainedCount) {
         index,
         locator: entry.locator
       })
+    ),
+    ...metadata.sourceSkills.map(
+      (entry, index) => ({
+        kind: "sourceSkills",
+        index,
+        locator: entry.locator
+      })
     )
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = /* @__PURE__ */ new Set();
   const retainedDiagnostics = /* @__PURE__ */ new Set();
+  const retainedSourceSkills = /* @__PURE__ */ new Set();
   for (const candidate of priority.slice(0, retainedCount)) {
-    (candidate.kind === "coverage" ? retainedCoverage : retainedDiagnostics).add(candidate.index);
+    const target = candidate.kind === "coverage" ? retainedCoverage : candidate.kind === "diagnostics" ? retainedDiagnostics : retainedSourceSkills;
+    target.add(candidate.index);
   }
   return {
     coverage: metadata.coverage.filter(
@@ -2427,6 +2565,9 @@ function retainMetadata(metadata, retainedCount) {
     ),
     diagnostics: metadata.diagnostics.filter(
       (_, index) => retainedDiagnostics.has(index)
+    ),
+    sourceSkills: metadata.sourceSkills.filter(
+      (_, index) => retainedSourceSkills.has(index)
     )
   };
 }
@@ -2459,7 +2600,8 @@ function projectEvent(event, limits, suppressLinkedItemOutput) {
     ...event.kind === "item" && suppressLinkedItemOutput ? { outputPreviewOmitted: "exact-linked-duplicate-carrier" } : event.kind === "item" && Object.hasOwn(event, "nativeValue") ? { outputPreview: preview(event.nativeValue, limits.previewBytes) } : event.kind === "item" && Object.hasOwn(event, "result") ? { outputPreview: preview(event.result, limits.previewBytes) } : {},
     ...event.metadata === void 0 ? {} : { metadataPreview: preview(event.metadata, limits.previewBytes) },
     ...event.externalReference === void 0 ? {} : { externalReference: event.externalReference },
-    ...event.childReference === void 0 ? {} : { childReference: event.childReference }
+    ...event.childReference === void 0 ? {} : { childReference: event.childReference },
+    ...event.skillEvidence === void 0 ? {} : { skillEvidence: event.skillEvidence }
   };
 }
 function countEvents(scope, events) {
@@ -2565,7 +2707,11 @@ function buildReport(activity, options, limits, groups, retainedKeys, metadata, 
     events,
     callContexts,
     coverage: metadata.coverage,
-    diagnostics: metadata.diagnostics
+    diagnostics: metadata.diagnostics,
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: metadata.sourceSkills
+    }
   };
   return finalizeRenderedBytes(report);
 }
@@ -2582,7 +2728,8 @@ function projectActivityWithLimits(activity, options, limits) {
     invocationLimitGroups: invocationOmitted.length,
     byteLimitGroups: 0,
     coverageEntries: 0,
-    diagnostics: 0
+    diagnostics: 0,
+    sourceSkills: 0
   };
   const initial = buildReport(
     activity,
@@ -2624,7 +2771,7 @@ function projectActivityWithLimits(activity, options, limits) {
     }
   }
   if (best) return best;
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  const metadataCount = metadata.coverage.length + metadata.diagnostics.length + metadata.sourceSkills.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
@@ -2641,7 +2788,8 @@ function projectActivityWithLimits(activity, options, limits) {
         ...initialReasons,
         byteLimitGroups: removable.length,
         coverageEntries: metadata.coverage.length - retainedMetadata.coverage.length,
-        diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length
+        diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length,
+        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length
       }
     );
     if (candidate.renderedBytes <= limits.maxBytes) {
@@ -2697,8 +2845,13 @@ function callEvents(input) {
   return input.analysis.turns.flatMap((turn) => {
     const settled = isSettled(turn);
     if (input.mode === "stateful-delivery" && !settled) return [];
-    return (turn.toolRecords ?? []).map(
-      (tool) => ({
+    return (turn.toolRecords ?? []).map((tool) => {
+      const skillEvidence = structuredSkillFileReadEvidence(
+        "cursor",
+        tool.nativeName,
+        tool.arguments
+      );
+      return {
         eventKey: eventKey2(
           turn,
           tool.sourceFrameIndex,
@@ -2719,9 +2872,10 @@ function callEvents(input) {
         lifecycleAvailability: settled ? "settled" : "pending-lifecycle",
         turnOutcome: turn.lifecycle,
         ...tool.nativeName === void 0 ? {} : { nativeName: tool.nativeName },
-        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {}
-      })
-    );
+        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {},
+        ...skillEvidence === void 0 ? {} : { skillEvidence: [skillEvidence] }
+      };
+    });
   });
 }
 function lifecycleCounts(analysis, emittedCalls, mode) {
@@ -2746,6 +2900,11 @@ function coverage(events, scan, mode) {
       dataClass: "calls",
       status: "available",
       captured: events.length
+    },
+    {
+      dataClass: "skills",
+      status: "not-recorded",
+      captured: 0
     },
     ...events.length > 0 || mode === "stateless-snapshot" ? [
       {
@@ -2794,6 +2953,10 @@ function extractCursorActivity(input) {
         }
       }
     ] : [],
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: []
+    },
     cursor: {
       indexBase: input.scan.indexBase,
       mode: input.mode,

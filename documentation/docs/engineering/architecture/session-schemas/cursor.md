@@ -137,6 +137,10 @@ different sample from the findings report, which observed 25 names in 350 files)
 The two samples do not list the same names. Tool names are an open set — a parser must
 not reject an unknown name.
 
+Cursor records no native skill-invocation or skill-version field. `ReadFile`
+and `Read` calls can support inferred file-load evidence when their structured
+input path ends in `SKILL.md`; a `Shell` command or prose mention does not.
+
 ## Tool results: not recorded
 
 **Zero tool results exist in the corpus.** 0 of 1,295 files contain `tool_result`,

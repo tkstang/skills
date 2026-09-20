@@ -1,5 +1,6 @@
 import type { DetailedTranscriptRecord, JsonObject } from '../runtimes.js';
 import { decodeCodexLifecycleRecord } from '../terminal-events.js';
+import { structuredSkillFileReadEvidence } from './skill-evidence.js';
 import {
   eventKey,
   isJsonObject,
@@ -238,6 +239,11 @@ function responseItemActivity(
     const nativeName = stringValue(payload.name);
     const nativeStatus = stringValue(payload.status);
     const argumentEvidence = codexCallArguments(nativeType, payload, locator);
+    const skillEvidence = structuredSkillFileReadEvidence(
+      'codex',
+      nativeName,
+      argumentEvidence.fields.arguments,
+    );
     return {
       events: [
         {
@@ -255,6 +261,9 @@ function responseItemActivity(
             ? { metadata: { namespace: payload.namespace } }
             : {}),
           ...argumentEvidence.fields,
+          ...(skillEvidence === undefined
+            ? {}
+            : { skillEvidence: [skillEvidence] }),
         },
       ],
       coverage: [],

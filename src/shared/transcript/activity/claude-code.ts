@@ -10,10 +10,100 @@ import {
 } from './types.js';
 import type {
   ActivityOutcome,
+  ActivitySkillEvidence,
   ActivitySource,
+  ActivitySourceSkill,
   ExtractedActivityEvent,
   ExtractedRecordActivity,
 } from './types.js';
+
+function nonEmptyString(value: unknown): string | undefined {
+  const text = stringValue(value)?.trim();
+  return text ? text : undefined;
+}
+
+function claudeSkillEvidence(
+  record: Record<string, unknown>,
+  nativeName?: string,
+  input?: unknown,
+): ActivitySkillEvidence[] | undefined {
+  const evidence: ActivitySkillEvidence[] = [];
+  const attributed = nonEmptyString(record.attributionSkill);
+  if (attributed) {
+    evidence.push({ kind: 'native-attribution', name: attributed });
+  }
+  if (nativeName === 'Skill') {
+    const structured = isJsonObject(input) ? input : undefined;
+    const name = structured
+      ? (nonEmptyString(structured.skill) ?? nonEmptyString(structured.name))
+      : undefined;
+    evidence.push({
+      kind: 'native-invocation',
+      ...(name === undefined ? {} : { name }),
+    });
+  }
+  return evidence.length === 0 ? undefined : evidence;
+}
+
+function claudeToolArguments(
+  nativeName: string | undefined,
+  input: unknown,
+): unknown {
+  if (nativeName !== 'Skill') return input;
+  if (!isJsonObject(input)) return undefined;
+  const skill = nonEmptyString(input.skill);
+  const name = nonEmptyString(input.name);
+  if (skill !== undefined) return { skill };
+  if (name !== undefined) return { name };
+  return undefined;
+}
+
+function claudeSourceSkills(
+  detailed: DetailedTranscriptRecord,
+): ActivitySourceSkill[] {
+  const { record } = detailed;
+  if (record.type !== 'attachment' || !isJsonObject(record.attachment)) {
+    return [];
+  }
+  const attachment = record.attachment;
+  const type = stringValue(attachment.type);
+  if (type === 'skill_listing' && Array.isArray(attachment.names)) {
+    return attachment.names.flatMap((candidate, index) => {
+      const name = nonEmptyString(candidate);
+      return name
+        ? [
+            {
+              scope: 'captured-source' as const,
+              evidence: 'available' as const,
+              name,
+              locator: recordLocator(detailed, `/attachment/names/${index}`),
+            },
+          ]
+        : [];
+    });
+  }
+  if (type === 'invoked_skills' && Array.isArray(attachment.skills)) {
+    return attachment.skills.flatMap((candidate, index) => {
+      const name = isJsonObject(candidate)
+        ? nonEmptyString(candidate.name)
+        : undefined;
+      return name
+        ? [
+            {
+              scope: 'captured-source' as const,
+              evidence: 'invoked' as const,
+              name,
+              locator: recordLocator(
+                detailed,
+                `/attachment/skills/${index}/name`,
+              ),
+            },
+          ]
+        : [];
+    });
+  }
+  return [];
+}
 
 function claudeResultOutcome(block: Record<string, unknown>): ActivityOutcome {
   if (block.is_error === true) return 'error';
@@ -201,6 +291,7 @@ export function extractClaudeRecord(
   const content = message?.content;
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
+  const sourceSkills = claudeSourceSkills(detailed);
 
   if (systemActivity) events.push(systemActivity);
 
@@ -215,6 +306,9 @@ export function extractClaudeRecord(
         locator,
         outcome: 'unknown',
         metadata,
+        ...(claudeSkillEvidence(record) === undefined
+          ? {}
+          : { skillEvidence: claudeSkillEvidence(record) }),
       });
     }
   }
@@ -228,6 +322,11 @@ export function extractClaudeRecord(
       if (blockType === 'tool_use') {
         const nativeCallId = stringValue(candidate.id);
         const nativeName = stringValue(candidate.name);
+        const input = Object.hasOwn(candidate, 'input')
+          ? candidate.input
+          : undefined;
+        const argumentsValue = claudeToolArguments(nativeName, input);
+        const skillEvidence = claudeSkillEvidence(record, nativeName, input);
         events.push({
           eventKey: eventKey(source, locator),
           kind: 'call',
@@ -236,9 +335,10 @@ export function extractClaudeRecord(
           outcome: 'pending',
           ...(nativeCallId === undefined ? {} : { nativeCallId }),
           ...(nativeName === undefined ? {} : { nativeName }),
-          ...(Object.hasOwn(candidate, 'input')
-            ? { arguments: candidate.input }
-            : {}),
+          ...(argumentsValue === undefined
+            ? {}
+            : { arguments: argumentsValue }),
+          ...(skillEvidence === undefined ? {} : { skillEvidence }),
         });
         return;
       }
@@ -292,5 +392,5 @@ export function extractClaudeRecord(
     });
   }
 
-  return { events, coverage, diagnostics: [] };
+  return { events, coverage, diagnostics: [], sourceSkills };
 }

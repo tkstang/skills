@@ -43,6 +43,106 @@ function detailed(
 }
 
 describe('Claude Code activity extraction', () => {
+  it('keeps native skill attribution and names-only source attachments without bodies', () => {
+    const records = [
+      detailed(
+        {
+          type: 'assistant',
+          attributionSkill: 'session-observer',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                id: 'skill-call',
+                name: 'Skill',
+                input: { skill: 'session-observer', body: 'private sentinel' },
+              },
+              { type: 'tool_use', id: 'read-call', name: 'Read', input: {} },
+            ],
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'skill_listing',
+            names: ['available-one', '', 42, 'available-two'],
+            content: 'private listing sentinel',
+            path: '/private/listing/path',
+          },
+        },
+        1,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'invoked_skills',
+            skills: [
+              { name: 'invoked-one', content: 'private invoked sentinel' },
+              { name: 42 },
+            ],
+          },
+        },
+        2,
+      ),
+    ];
+
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
+    });
+
+    expect(extracted.events[0]).toMatchObject({
+      nativeName: 'Skill',
+      skillEvidence: [
+        { kind: 'native-attribution', name: 'session-observer' },
+        { kind: 'native-invocation', name: 'session-observer' },
+      ],
+    });
+    expect(extracted.events[1]).toMatchObject({
+      nativeName: 'Read',
+      skillEvidence: [{ kind: 'native-attribution', name: 'session-observer' }],
+    });
+    expect(extracted.sourceMetadata).toEqual({
+      scope: 'captured-source',
+      skills: [
+        expect.objectContaining({
+          evidence: 'available',
+          name: 'available-one',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/names/0',
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'available',
+          name: 'available-two',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/names/3',
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'invoked',
+          name: 'invoked-one',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/skills/0/name',
+          }),
+        }),
+      ],
+    });
+    const serialized = JSON.stringify(extracted.sourceMetadata);
+    expect(serialized).not.toContain('private');
+    expect(serialized).not.toContain('/private/listing/path');
+    expect(JSON.stringify(extracted)).not.toContain('private sentinel');
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'skills',
+      status: 'available',
+      captured: 3,
+    });
+  });
+
   it('extracts multiblock calls, result carriers, persisted output, and notifications', async () => {
     const read = await readRecordsDetailed(CLAUDE_SOURCE.transcriptPath);
     const extracted = extractActivity({
@@ -57,6 +157,11 @@ describe('Claude Code activity extraction', () => {
       sourceBytes: read.sourceBytes,
     });
     expect(extracted.diagnostics).toEqual([]);
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'skills',
+      status: 'not-recorded',
+      captured: 0,
+    });
 
     const calls = extracted.events.filter((event) => event.kind === 'call');
     expect(calls.map((event) => event.nativeName)).toEqual([
@@ -340,6 +445,102 @@ describe('Claude Code activity extraction', () => {
 });
 
 describe('Codex activity extraction', () => {
+  it('recognizes only the historical structured read_file carrier for Codex skill loads', () => {
+    const records = [
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'direct-read',
+            name: 'read_file',
+            arguments: JSON.stringify({
+              file_path: '/fixture/skills/session-observer/SKILL.md',
+            }),
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'shell-read',
+            name: 'exec_command',
+            arguments: JSON.stringify({
+              cmd: 'cat /fixture/skills/private-shell/SKILL.md',
+            }),
+          },
+        },
+        1,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'wrong-key',
+            name: 'read_file',
+            arguments: JSON.stringify({
+              path: '/fixture/skills/private-wrong-key/SKILL.md',
+            }),
+          },
+        },
+        2,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'unknown-name',
+            name: 'functions.read_file',
+            arguments: JSON.stringify({
+              file_path: '/fixture/skills/private-unknown/SKILL.md',
+            }),
+          },
+        },
+        3,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'assistant',
+            content: 'Mention /fixture/skills/private-prose/SKILL.md',
+          },
+        },
+        4,
+      ),
+    ];
+    const extracted = extractActivity({
+      source: CODEX_SOURCE,
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
+    });
+
+    expect(extracted.events[0]).toMatchObject({
+      nativeName: 'read_file',
+      skillEvidence: [
+        {
+          kind: 'inferred-file-read',
+          name: 'session-observer',
+          path: '/fixture/skills/session-observer/SKILL.md',
+        },
+      ],
+    });
+    expect(extracted.events[1]).not.toHaveProperty('skillEvidence');
+    expect(extracted.events[2]).not.toHaveProperty('skillEvidence');
+    expect(extracted.events[3]).not.toHaveProperty('skillEvidence');
+    expect(JSON.stringify(extracted)).not.toContain('private-prose');
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'skills',
+      status: 'not-recorded',
+      captured: 0,
+    });
+  });
+
   it('extracts native response carriers, standalone items, child ids, and metadata', async () => {
     const read = await readRecordsDetailed(CODEX_SOURCE.transcriptPath);
     const extracted = extractActivity({

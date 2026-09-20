@@ -598,7 +598,7 @@ describe('activity projection budgets', () => {
       expect(first.omitted.diagnostics).toBeGreaterThan(0);
       expect(first.omitted.coverageEntries).toBeGreaterThan(0);
       expect(first.diagnostics.length + first.omitted.diagnostics).toBe(1_000);
-      expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_004);
+      expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_005);
       expect(second.diagnostics).toEqual(first.diagnostics);
       expect(second.coverage).toEqual(first.coverage);
       expect(second.omitted).toEqual(first.omitted);
@@ -607,6 +607,41 @@ describe('activity projection budgets', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it('labels captured-source skill metadata and budgets it independently of delivery range', () => {
+    const extracted = activity([]);
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 1_000 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence:
+          index % 2 === 0 ? ('available' as const) : ('invoked' as const),
+        name: `fixture-skill-${index}-${'x'.repeat(32)}`,
+        locator: {
+          recordIndex: index,
+          physicalLine: index + 1,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+    };
+    const report = projectActivity(extracted, {
+      mode: 'watch',
+      renderFormat: 'compact-json',
+      deliveryRange: {
+        indexBase: 'zero-based-decoded-record-index',
+        start: 0,
+        end: 0,
+      },
+    });
+
+    expect(report.sourceMetadata.scope).toBe('captured-source');
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(1_000);
+    expect(report.sourceMetadata.skills.length).toBeGreaterThan(0);
+    expect(report.omitted.sourceSkills).toBeGreaterThan(0);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
   });
 
   it('keeps the activity budget independent from conversation content', () => {

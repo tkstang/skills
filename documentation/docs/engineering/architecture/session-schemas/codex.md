@@ -316,6 +316,16 @@ rather than merging them, or the same bytes will appear twice.
 | Compaction                 | `compacted`, carrying a window chain: `first_window_id` → `previous_window_id` → `window_id`, plus `window_number`, `retained_context`, `guardian_history`.                     |
 | Reasoning                  | `encrypted_content` on 99.4% of reasoning records. A plaintext `summary` is non-empty on 45%.                                                                                   |
 
+Codex has no native skill-invocation or skill-version field in the observed
+transcripts. Historical Codex builds did expose an experimental native
+`read_file` function with JSON arguments containing required `file_path` and
+optional `offset`, `limit`, `mode`, and `indentation`; upstream removed it on
+2026-03-25 in commit
+[`14c35a16`](https://github.com/openai/codex/commit/14c35a16a8a41cc16c5e36c2c4287b7b2db6e975).
+The reader recognizes only that exact native name and path key. The carrier is
+absent from the recent local sample. Current shell reads, aliases, and prose
+mentions are not equivalent evidence.
+
 The cumulative counter is not strictly monotonic: it rose in 46,450 of 46,523
 comparisons, and all 73 decreases sit at compaction boundaries. A reader that assumes
 monotonicity will compute negative deltas at exactly those points; treat a decrease as a

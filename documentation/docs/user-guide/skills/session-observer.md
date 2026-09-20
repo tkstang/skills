@@ -71,6 +71,22 @@ what was bounded or unavailable. A result whose call occurred before the
 delivered range can retain a small `outside-delivered-range` call context
 without replaying the call as new activity.
 
+Skill evidence is additive to the native tool name. Claude Code can record a
+top-level skill attribution or a structured `Skill` invocation; captured-source
+attachments separately distinguish available skill names from recorded invoked
+names. Cursor contributes inferred load evidence only when a recorded `Read` or
+`ReadFile` call has a structured `path` ending in `SKILL.md`. Historical Codex
+transcripts can contribute the same inference only through the exact
+experimental `read_file` function's structured `file_path`; upstream removed
+that native tool in March 2026, and it was absent from the recent local sample.
+Current shell reads, aliases, and prose mentions are not parsed. Captured-source
+skill metadata can describe records outside the delivered range and is labelled
+accordingly; the report counts any entries removed by its byte budget.
+
+None of these runtimes records the executed skill version. Looking up an
+installed file or Git revision relevant to the transcript timestamp is an
+inference, may be unavailable, and does not prove which revision executed.
+
 Claude Code and Codex conversation and activity come from one detailed read.
 Cursor uses one physical-frame scan. `review` is a stateless full snapshot and
 does not move the high-water mark unless `--mark-read` is also present.

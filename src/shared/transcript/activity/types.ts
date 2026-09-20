@@ -88,6 +88,31 @@ export interface ActivityChildReference {
   trajectoryAvailability: 'not-read';
 }
 
+export type ActivitySkillEvidenceKind =
+  | 'native-attribution'
+  | 'native-invocation'
+  | 'inferred-file-read';
+
+export interface ActivitySkillEvidence {
+  kind: ActivitySkillEvidenceKind;
+  /** Recorded native skill name when the carrier provides one. */
+  name?: string;
+  /** Structured read-tool path. Never populated from shell commands or prose. */
+  path?: string;
+}
+
+export interface ActivitySourceSkill {
+  scope: 'captured-source';
+  evidence: 'available' | 'invoked';
+  name: string;
+  locator: ActivityEventLocator;
+}
+
+export interface ActivitySourceMetadata {
+  scope: 'captured-source';
+  skills: ActivitySourceSkill[];
+}
+
 export interface ExtractedActivityEvent {
   eventKey: string;
   kind: ActivityEventKind;
@@ -122,6 +147,7 @@ export interface ExtractedActivityEvent {
   metadata?: JsonObject;
   externalReference?: ActivityExternalReference;
   childReference?: ActivityChildReference;
+  skillEvidence?: ActivitySkillEvidence[];
 }
 
 export type ActivityDiagnosticCode =
@@ -148,6 +174,7 @@ export type ActivityDataClass =
   | 'metadata'
   | 'persisted-output'
   | 'child-trajectory'
+  | 'skills'
   | 'record-activity';
 
 export interface ActivityCoverageEntry {
@@ -169,6 +196,7 @@ export interface ExtractedActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceMetadata?: ActivitySourceMetadata;
 }
 
 export interface CorrelatedActivityEvent extends ExtractedActivityEvent {
@@ -259,6 +287,7 @@ export interface ProjectedActivityEvent {
   outputPreviewOmitted?: 'exact-linked-duplicate-carrier';
   externalReference?: ActivityExternalReference;
   childReference?: ActivityChildReference;
+  skillEvidence?: ActivitySkillEvidence[];
 }
 
 export interface ActivityCallContext {
@@ -290,6 +319,7 @@ export interface ActivityOmissionCounts {
   byteLimitGroups: number;
   coverageEntries: number;
   diagnostics: number;
+  sourceSkills: number;
 }
 
 export interface ActivityReport {
@@ -311,12 +341,14 @@ export interface ActivityReport {
   callContexts: ActivityCallContext[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceMetadata: ActivitySourceMetadata;
 }
 
 export interface ExtractedRecordActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceSkills?: ActivitySourceSkill[];
 }
 
 export function isJsonObject(value: unknown): value is JsonObject {

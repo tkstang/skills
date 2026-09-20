@@ -13,6 +13,7 @@ import type {
   ActivityProjectionMode,
   ActivityReport,
   ActivityScopedCounts,
+  ActivitySourceSkill,
   CorrelatedActivity,
   CorrelatedActivityEvent,
   ProjectActivityOptions,
@@ -65,11 +66,13 @@ interface OmissionReasons {
   byteLimitGroups: number;
   coverageEntries: number;
   diagnostics: number;
+  sourceSkills: number;
 }
 
 interface ReportMetadata {
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceSkills: ActivitySourceSkill[];
 }
 
 interface MetadataCandidate {
@@ -245,6 +248,7 @@ function deliveredMetadata(
     diagnostics: activity.diagnostics.filter((entry) =>
       locatorInRange(entry.locator),
     ),
+    sourceSkills: activity.sourceMetadata?.skills ?? [],
   };
 }
 
@@ -280,14 +284,25 @@ function retainMetadata(
         locator: entry.locator,
       }),
     ),
+    ...metadata.sourceSkills.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'sourceSkills',
+        index,
+        locator: entry.locator,
+      }),
+    ),
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = new Set<number>();
   const retainedDiagnostics = new Set<number>();
+  const retainedSourceSkills = new Set<number>();
   for (const candidate of priority.slice(0, retainedCount)) {
-    (candidate.kind === 'coverage'
-      ? retainedCoverage
-      : retainedDiagnostics
-    ).add(candidate.index);
+    const target =
+      candidate.kind === 'coverage'
+        ? retainedCoverage
+        : candidate.kind === 'diagnostics'
+          ? retainedDiagnostics
+          : retainedSourceSkills;
+    target.add(candidate.index);
   }
   return {
     coverage: metadata.coverage.filter((_, index) =>
@@ -295,6 +310,9 @@ function retainMetadata(
     ),
     diagnostics: metadata.diagnostics.filter((_, index) =>
       retainedDiagnostics.has(index),
+    ),
+    sourceSkills: metadata.sourceSkills.filter((_, index) =>
+      retainedSourceSkills.has(index),
     ),
   };
 }
@@ -361,6 +379,9 @@ function projectEvent(
     ...(event.childReference === undefined
       ? {}
       : { childReference: event.childReference }),
+    ...(event.skillEvidence === undefined
+      ? {}
+      : { skillEvidence: event.skillEvidence }),
   };
 }
 
@@ -506,6 +527,10 @@ function buildReport(
     callContexts,
     coverage: metadata.coverage,
     diagnostics: metadata.diagnostics,
+    sourceMetadata: {
+      scope: 'captured-source',
+      skills: metadata.sourceSkills,
+    },
   };
   return finalizeRenderedBytes(report);
 }
@@ -533,6 +558,7 @@ export function projectActivityWithLimits(
     byteLimitGroups: 0,
     coverageEntries: 0,
     diagnostics: 0,
+    sourceSkills: 0,
   };
   const initial = buildReport(
     activity,
@@ -578,7 +604,10 @@ export function projectActivityWithLimits(
   }
   if (best) return best;
 
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  const metadataCount =
+    metadata.coverage.length +
+    metadata.diagnostics.length +
+    metadata.sourceSkills.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
@@ -598,6 +627,8 @@ export function projectActivityWithLimits(
           metadata.coverage.length - retainedMetadata.coverage.length,
         diagnostics:
           metadata.diagnostics.length - retainedMetadata.diagnostics.length,
+        sourceSkills:
+          metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
       },
     );
     if (candidate.renderedBytes <= limits.maxBytes) {

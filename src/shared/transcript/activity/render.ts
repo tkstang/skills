@@ -90,6 +90,7 @@ function eventLines(event: ProjectedActivityEvent): string[] {
       turnOutcome: event.turnOutcome,
       externalReference: event.externalReference,
       childReference: event.childReference,
+      skillEvidence: event.skillEvidence,
     }).filter(([, value]) => value !== undefined),
   );
   return [
@@ -130,6 +131,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     `- Omitted evidence: calls ${report.omitted.calls}; results ${report.omitted.results}; failures ${report.omitted.failures}`,
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
     `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
+    `- Source metadata: ${report.sourceMetadata.scope}; skills ${report.sourceMetadata.skills.length}; omitted skills ${report.omitted.sourceSkills}`,
     '',
     '### Events',
     '',
@@ -170,6 +172,14 @@ export function renderActivityMarkdown(report: ActivityReport): string {
       );
       lines.push(
         `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${Object.keys(details).length === 0 ? '' : `; ${markdownData(details)}`}`,
+      );
+    }
+  }
+  if (report.sourceMetadata.skills.length > 0) {
+    lines.push('', '### Captured-source skills', '');
+    for (const skill of report.sourceMetadata.skills) {
+      lines.push(
+        `- ${skill.evidence}: ${markdownData(skill.name)}; ${locatorText(skill.locator)}`,
       );
     }
   }
