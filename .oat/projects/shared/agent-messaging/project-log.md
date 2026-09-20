@@ -104,6 +104,10 @@ target=claude-fable-skip-permissions threshold=important findings=critical:0,imp
 
 target=claude-fable-skip-permissions threshold=high findings=critical:0,high:0,medium:1,low:4 exit=0 status=ok artifact=.oat/projects/shared/agent-messaging/reviews/final-review-2026-09-19T214803Z.md run=a8fe7ad5-7fb7-4c42-b245-dc67d1ef7944
 
+### 2026-09-20 · structural · oat-project-retro · project-retro
+
+retro artifact=.oat/projects/shared/agent-messaging/references/project-retro.md evidence_used=archived-review-markdown,code-and-commit-history,gate-receipts,github-pr-state,implementation-session-transcript,lifecycle-artifacts,planning-session-transcript,project-log evidence_unavailable=oat-execution-learnings promotions=0 upstream=2 apply=skipped filing=deferred
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
