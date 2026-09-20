@@ -375,19 +375,34 @@ failed step stops the sequence instead of continuing toward the cleanup:
 set -euo pipefail
 name=<name>
 repo=/path/to/skills
+staged=~/.agents/skills/"$name".new
+backup=~/.agents/skills/"$name".bak
+
+# Refuse leftovers from an interrupted run: cp and mv would nest inside them
+# rather than replace them, which silently produces an invalid payload.
+for leftover in "$staged" "$backup"; do
+  if [ -e "$leftover" ] || [ -L "$leftover" ]; then
+    printf 'Leftover from a previous run: %s\n' "$leftover" >&2
+    exit 1
+  fi
+done
 
 git -C "$repo" pull
 test -f "$repo/skills/$name/SKILL.md"
 
-cp -R "$repo/skills/$name" ~/.agents/skills/"$name".new
-test -f ~/.agents/skills/"$name".new/SKILL.md
+cp -R "$repo/skills/$name" "$staged"
+test -f "$staged/SKILL.md"
 
-mv ~/.agents/skills/"$name" ~/.agents/skills/"$name".bak
-mv ~/.agents/skills/"$name".new ~/.agents/skills/"$name"
+mv ~/.agents/skills/"$name" "$backup"
+mv "$staged" ~/.agents/skills/"$name"
 test -f ~/.agents/skills/"$name"/SKILL.md
 
 ln -sfn "../../.agents/skills/$name" ~/.claude/skills/"$name"
 ```
+
+If the guard fires, reconcile by hand before retrying: `<name>.bak` is the
+previous payload and `<name>.new` is an unfinished copy. Decide which one is
+authoritative, restore it, and remove the other.
 
 Now confirm the installed version is the one you expect:
 
